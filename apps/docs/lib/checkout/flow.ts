@@ -1,5 +1,6 @@
 "use client";
 
+import { analytics, type CartCheckoutLocation } from "@/lib/analytics";
 import {
   clearCart,
   getCart,
@@ -19,22 +20,36 @@ import {
 } from "@/lib/checkout/session-store";
 
 /** Moves the cart into a new checkout; the cart is empty afterwards. */
-export const checkoutCart = () => {
+export const checkoutCart = (location: CartCheckoutLocation) => {
   const running = getCheckoutSession();
   if (running !== null) return running;
   const entries = getCartEntries();
   if (entries.includes("agent-tools")) return null;
   const draft = getCartInstructions();
   const tools = configuredToolInstructions(entries);
+  const cart = getCart();
   const session = startCheckout(
-    getCart(),
+    cart,
     [draft.trim(), tools].filter(Boolean).join("\n\n"),
     {
       fromCart: true,
       ...(tools && { cartEntries: entries, cartInstructions: draft }),
     },
   );
-  if (session !== null) clearCart();
+  if (session === null) return session;
+  clearCart();
+  const products = session.products.join(",");
+  analytics.shop.checkoutStarted({
+    cart_size: cart.length,
+    products,
+    location,
+  });
+  analytics.setup.sessionStarted({
+    source: "cart",
+    location,
+    products,
+    product_count: session.products.length,
+  });
   return session;
 };
 

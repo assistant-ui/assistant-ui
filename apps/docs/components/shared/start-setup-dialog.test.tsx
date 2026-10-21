@@ -51,7 +51,10 @@ describe("start setup dialog", () => {
     const confirm = open();
     fireEvent.click(screen.getByRole("radio", { name: /Coding agent/ }));
     fireEvent.click(confirm);
-    expect(mocks.beginSetup).toHaveBeenCalledWith(["assistant-ui"]);
+    expect(mocks.beginSetup).toHaveBeenCalledWith(["assistant-ui"], "", {
+      source: "start_dialog",
+      location: "hero",
+    });
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
@@ -85,6 +88,7 @@ describe("start setup dialog", () => {
     expect(mocks.beginSetup).toHaveBeenCalledWith(
       ["assistant-ui", "generative-frame"],
       "Use the assistant-ui toolkit.",
+      { source: "start_dialog", location: "footer" },
     );
   });
 

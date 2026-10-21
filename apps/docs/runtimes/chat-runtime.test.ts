@@ -63,7 +63,12 @@ let visitor = 0;
 const signedInSession = (cloudHistory = true): SessionState => ({
   status: "signed-in",
   cloudHistory,
-  user: { name: "Ada", email: `ada${visitor}@test`, image: null },
+  user: {
+    analyticsId: `user_${visitor}`,
+    name: "Ada",
+    email: `ada${visitor}@test`,
+    image: null,
+  },
 });
 
 const cloudStrategy = (cloud: ReturnType<typeof useDocsCloud>["cloud"]) =>
@@ -110,7 +115,12 @@ it("switches cloud ownership when account history or identity changes", async ()
   mocks.session = {
     status: "signed-in",
     cloudHistory: false,
-    user: { name: "Ada", email: "ada@test", image: null },
+    user: {
+      analyticsId: "user_ada",
+      name: "Ada",
+      email: "ada@test",
+      image: null,
+    },
   };
   rerender();
   expect(result.current.cloud).toBe(anonymousCloud);
@@ -118,7 +128,12 @@ it("switches cloud ownership when account history or identity changes", async ()
   mocks.session = {
     status: "signed-in",
     cloudHistory: true,
-    user: { name: "Ada", email: "ada@test", image: null },
+    user: {
+      analyticsId: "user_ada",
+      name: "Ada",
+      email: "ada@test",
+      image: null,
+    },
   };
   rerender();
 
@@ -153,7 +168,12 @@ it("switches cloud ownership when account history or identity changes", async ()
   mocks.session = {
     status: "signed-in",
     cloudHistory: true,
-    user: { name: "Grace", email: "grace@test", image: null },
+    user: {
+      analyticsId: "user_grace",
+      name: "Grace",
+      email: "grace@test",
+      image: null,
+    },
   };
   rerender();
   expect(result.current.cloud).not.toBe(accountCloud);

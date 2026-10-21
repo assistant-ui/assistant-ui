@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { SearchDialog } from "@/components/shared/search-dialog";
+import { analytics } from "@/lib/analytics";
 
 const subscribeToNothing = () => () => {};
 
@@ -59,12 +60,13 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         typeof item.key === "string" ? event.key === item.key : item.key(event),
       );
       if (!matches) return;
-      setOpen((prev) => !prev);
+      if (!open) analytics.search.opened("keyboard");
+      setOpen(!open);
       event.preventDefault();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [open]);
 
   const value = useMemo(
     () => ({ hotKey: HOT_KEYS, setOpenSearch: setOpen }),

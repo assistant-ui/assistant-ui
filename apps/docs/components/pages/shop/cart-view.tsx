@@ -275,7 +275,7 @@ export function CartView() {
           <Button
             nativeButton={false}
             className="mt-4 w-full"
-            render={<SetupLink onClick={() => checkoutCart()} />}
+            render={<SetupLink onClick={() => checkoutCart("cart_page")} />}
           >
             Start setup
           </Button>

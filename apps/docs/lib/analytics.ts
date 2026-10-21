@@ -9,6 +9,10 @@ declare global {
         event: string,
         properties?: Record<string, string | number | boolean>,
       ) => void;
+      identify?: (distinctId: string) => void;
+      reset?: () => void;
+      group?: (type: string, key: string) => void;
+      capturing?: () => boolean;
     };
   }
 }
@@ -32,6 +36,21 @@ const getVercelTrack = () => {
 };
 
 export type AnalyticsProperties = Record<string, string | number | boolean>;
+
+/** Where a visitor opened a setup session: the Quick Start dialog, an AgentSetup banner on a docs page, the cart, or an example bundle page. */
+export type SetupSource = "start_dialog" | "agent_setup" | "cart" | "bundle";
+
+/** The cart surface whose Start setup button moved the cart into a session. */
+export type CartCheckoutLocation =
+  | "cart_page"
+  | "cart_popover"
+  | "checkout_page";
+
+export type SetupErrorReason =
+  | "connection_lost"
+  | "agent_disconnected"
+  | "session_unreadable"
+  | "answer_failed";
 
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
@@ -64,14 +83,74 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
+  demo: {
+    budgetExhausted: (signedIn: boolean, limit: number) =>
+      trackEvent("demo_budget_exhausted", { signed_in: signedIn, limit }),
+
+    signInClicked: (location: string) =>
+      trackEvent("demo_sign_in_clicked", { location }),
+
+    signedIn: (location: string) => trackEvent("demo_signed_in", { location }),
+  },
+
   shop: {
     cartToggled: (product: string, added: boolean) =>
       trackEvent("shop_cart_toggled", { product, added }),
+
+    checkoutStarted: (props: {
+      cart_size: number;
+      products: string;
+      location: CartCheckoutLocation;
+    }) => trackEvent("shop_checkout_started", props),
   },
 
   setup: {
-    stepViewed: (step: WizardPageId) =>
-      trackEvent("setup_step_viewed", { step }),
+    sessionStarted: (props: {
+      source: SetupSource;
+      location?: string;
+      products: string;
+      product_count: number;
+    }) => trackEvent("setup_session_started", props),
+
+    stepViewed: (props: {
+      step: WizardPageId;
+      step_index: number;
+      ms_on_previous_step?: number;
+    }) => trackEvent("setup_step_viewed", props),
+
+    inputAnswered: (props: {
+      kind: string;
+      skipped: boolean;
+      model_provider?: string;
+    }) => trackEvent("setup_input_answered", props),
+
+    cloudProjectPicked: (props: {
+      choice: "existing" | "another" | "sign_in_clicked";
+      project_count: number;
+      org_count?: number;
+    }) => trackEvent("setup_cloud_project_picked", props),
+
+    /** Associates the visitor's later events with an Assistant Cloud project through PostHog group analytics; a no-op while PostHog is not running. */
+    projectGroup: (projectId: string) => {
+      if (typeof window === "undefined") return;
+      window.posthog?.group?.("project", projectId);
+    },
+
+    productProposed: (product: string) =>
+      trackEvent("setup_product_proposed", { product, by: "agent" }),
+
+    productAccepted: (product: string) =>
+      trackEvent("setup_product_accepted", { product, by: "agent" }),
+
+    productDeclined: (product: string) =>
+      trackEvent("setup_product_declined", {
+        product,
+        by: "agent",
+        reason: "unknown_product",
+      }),
+
+    error: (props: { reason: SetupErrorReason; step?: WizardPageId }) =>
+      trackEvent("setup_error", props),
 
     agentConnected: () => trackEvent("setup_agent_connected"),
 

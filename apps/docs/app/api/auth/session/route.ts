@@ -1,11 +1,13 @@
 import { connection, NextResponse, type NextRequest } from "next/server";
 import { accounts } from "@/lib/accounts-auth";
+import { analyticsIdFor } from "@/lib/analytics-id";
 
 export type SessionPayload = {
   /** False until the deployment carries its accounts configuration. */
   enabled: boolean;
   cloudHistory: boolean;
   user: {
+    analyticsId: string | null;
     name: string;
     email: string;
     image: string | null;
@@ -30,6 +32,7 @@ export async function GET(request: NextRequest) {
     cloudHistory: accounts !== null && Boolean(process.env.ASSISTANT_API_KEY),
     user: session
       ? {
+          analyticsId: analyticsIdFor(session.user.id),
           name: session.user.name,
           email: session.user.email,
           image: session.user.image,

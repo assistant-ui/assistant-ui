@@ -69,7 +69,7 @@ function StartState({
           Configure tools
         </Button>
       ) : (
-        <Button className="mt-8" onClick={() => checkoutCart()}>
+        <Button className="mt-8" onClick={() => checkoutCart("checkout_page")}>
           Start setup
         </Button>
       )}

@@ -699,9 +699,18 @@ export function SetupWizard({
   const index = viewingIndex === -1 ? liveIndex : viewingIndex;
   const page: WizardPage = trail[index]!;
   const step = page.id;
+  const lastView = useRef<{ key: string; at: number } | undefined>(undefined);
   useEffect(() => {
-    analytics.setup.stepViewed(step);
-  }, [shownKey, step]);
+    const previous = lastView.current;
+    if (previous?.key === shownKey) return;
+    const at = Date.now();
+    lastView.current = { key: shownKey, at };
+    analytics.setup.stepViewed({
+      step,
+      step_index: index,
+      ...(previous !== undefined && { ms_on_previous_step: at - previous.at }),
+    });
+  }, [shownKey, step, index]);
   const previousPhase = useRef(phase);
   useEffect(() => {
     const previous = previousPhase.current;
@@ -712,6 +721,22 @@ export function SetupWizard({
     )
       analytics.setup.agentConnected();
   }, [phase]);
+  const disconnected =
+    phase === "quiet" && page.id !== "connect" && !checkout.degraded;
+  const wasDegraded = useRef(false);
+  useEffect(() => {
+    const was = wasDegraded.current;
+    wasDegraded.current = checkout.degraded;
+    if (checkout.degraded && !was)
+      analytics.setup.error({ reason: "connection_lost", step });
+  }, [checkout.degraded, step]);
+  const wasDisconnected = useRef(false);
+  useEffect(() => {
+    const was = wasDisconnected.current;
+    wasDisconnected.current = disconnected;
+    if (disconnected && !was)
+      analytics.setup.error({ reason: "agent_disconnected", step });
+  }, [disconnected, step]);
   const reviewing = index !== liveIndex;
   const fromCart = checkout.session.fromCart === true;
   const products = state?.products.length
@@ -947,9 +972,7 @@ export function SetupWizard({
           <DisconnectedDialog
             checkout={checkout}
             name={name}
-            open={
-              phase === "quiet" && page.id !== "connect" && !checkout.degraded
-            }
+            open={disconnected}
             onLeave={leaveSetup}
             onEnd={() => exit(false)}
           />

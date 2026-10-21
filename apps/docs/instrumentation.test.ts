@@ -1,10 +1,24 @@
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assistantCloudExporterConfig,
   axiomExporterConfig,
   isAiSpan,
+  onRequestError,
 } from "./instrumentation";
+
+const posthogServer = vi.hoisted(() => ({
+  captureRequestError: vi.fn(async () => {}),
+}));
+
+vi.mock("./lib/posthog-server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./lib/posthog-server")>()),
+  captureRequestError: posthogServer.captureRequestError,
+}));
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function span(name: string, attributes: Record<string, unknown> = {}) {
   return { name, attributes } as unknown as ReadableSpan;
@@ -107,5 +121,36 @@ describe("assistantCloudExporterConfig", () => {
       apiKey: "aask-test",
       baseUrl: undefined,
     });
+  });
+});
+
+describe("onRequestError", () => {
+  const args = [
+    new Error("boom"),
+    { path: "/api/chat", method: "POST", headers: {} },
+    {
+      routerKind: "App Router",
+      routePath: "/api/chat",
+      routeType: "route",
+      revalidateReason: undefined,
+    },
+  ] as const;
+
+  it("reports server errors from the Node.js runtime", async () => {
+    vi.stubEnv("NEXT_RUNTIME", "nodejs");
+
+    await onRequestError(...args);
+
+    expect(posthogServer.captureRequestError).toHaveBeenCalledExactlyOnceWith(
+      ...args,
+    );
+  });
+
+  it("skips the edge runtime, where posthog-node cannot run", async () => {
+    vi.stubEnv("NEXT_RUNTIME", "edge");
+
+    await onRequestError(...args);
+
+    expect(posthogServer.captureRequestError).not.toHaveBeenCalled();
   });
 });
