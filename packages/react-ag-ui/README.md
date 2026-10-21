@@ -5,7 +5,7 @@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-ag-ui @ag-ui/client@^1
+npm install @assistant-ui/react @assistant-ui/react-ag-ui @ag-ui/client@^1.0.3
 ```
 
 ## Usage
