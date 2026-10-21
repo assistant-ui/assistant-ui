@@ -97,7 +97,7 @@ export const actionBarCopy = (options?: {
   const composerText = useAuiState((s) => s.composer.text, { item });
 
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
-  let copiedMessageId: string | undefined;
+  let copiedFeedbackTarget: ((value: boolean) => void) | undefined;
   let destroyed = false;
   // Best effort: created during component initialization the builder cleans
   // up with the component, matching the react and vue implementations; with
@@ -105,14 +105,10 @@ export const actionBarCopy = (options?: {
   try {
     onDestroy(() => {
       destroyed = true;
-      if (copiedTimer === undefined) return;
-      clearTimeout(copiedTimer);
+      if (copiedTimer !== undefined) clearTimeout(copiedTimer);
       copiedTimer = undefined;
-      // The index may have been retargeted since the copy; only the copied
-      // message's own flag is cleared
-      if (aui.message.getState().id === copiedMessageId) {
-        flushTapSync(() => aui.message.setIsCopied(false));
-      }
+      flushTapSync(() => copiedFeedbackTarget?.(false));
+      copiedFeedbackTarget = undefined;
     });
   } catch {
     /* outside component init */
@@ -124,11 +120,8 @@ export const actionBarCopy = (options?: {
       ? composerText.current
       : aui.message.getCopyText();
     if (!value) return;
-    // The item's slot follows whatever message occupies the index, so late
-    // completions and timers re-check the copied message's id before touching
-    // state.
-    copiedMessageId = aui.message.getState().id;
-    const anchorId = copiedMessageId;
+    const anchorId = aui.message.getState().id;
+    const setIsCopied = aui.message.setIsCopied;
     const stillCopiedMessage = () =>
       !destroyed && aui.message.getState().id === anchorId;
     // The writer runs synchronously inside the click so the user-gesture
@@ -146,12 +139,16 @@ export const actionBarCopy = (options?: {
       () => {
         if (!stillCopiedMessage()) return;
         if (copiedTimer !== undefined) clearTimeout(copiedTimer);
-        flushTapSync(() => aui.message.setIsCopied(true));
+        flushTapSync(() => {
+          copiedFeedbackTarget?.(false);
+          copiedFeedbackTarget = setIsCopied;
+          setIsCopied(true);
+        });
+        if (destroyed) return;
         copiedTimer = setTimeout(() => {
           copiedTimer = undefined;
-          if (stillCopiedMessage()) {
-            flushTapSync(() => aui.message.setIsCopied(false));
-          }
+          flushTapSync(() => setIsCopied(false));
+          copiedFeedbackTarget = undefined;
         }, copiedDuration);
       },
       () => {},

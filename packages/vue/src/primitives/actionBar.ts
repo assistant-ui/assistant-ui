@@ -103,13 +103,14 @@ export const ActionBarPrimitiveCopy = defineComponent({
     const composerText = useAuiState((s) => s.composer.text);
 
     let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+    let copiedFeedbackTarget: ((value: boolean) => void) | undefined;
     let disposed = false;
     onScopeDispose(() => {
       disposed = true;
-      if (copiedTimer === undefined) return;
-      clearTimeout(copiedTimer);
+      if (copiedTimer !== undefined) clearTimeout(copiedTimer);
       copiedTimer = undefined;
-      aui.message.setIsCopied(false);
+      flushTapSync(() => copiedFeedbackTarget?.(false));
+      copiedFeedbackTarget = undefined;
     });
 
     const onClick = (event: MouseEvent) => {
@@ -119,10 +120,8 @@ export const ActionBarPrimitiveCopy = defineComponent({
         ? composerText.value
         : aui.message.getCopyText();
       if (!value) return;
-      // A by-index scope follows whatever message occupies the slot, so late
-      // completions and timers re-check the copied message's id before
-      // touching state.
       const copiedMessageId = aui.message.getState().id;
+      const setIsCopied = aui.message.setIsCopied;
       const stillCopiedMessage = () =>
         !disposed && aui.message.getState().id === copiedMessageId;
       // The rejection handler swallows clipboard write failures (permission
@@ -132,12 +131,16 @@ export const ActionBarPrimitiveCopy = defineComponent({
         () => {
           if (!stillCopiedMessage()) return;
           if (copiedTimer !== undefined) clearTimeout(copiedTimer);
-          flushTapSync(() => aui.message.setIsCopied(true));
+          flushTapSync(() => {
+            copiedFeedbackTarget?.(false);
+            copiedFeedbackTarget = setIsCopied;
+            setIsCopied(true);
+          });
+          if (disposed) return;
           copiedTimer = setTimeout(() => {
             copiedTimer = undefined;
-            if (stillCopiedMessage()) {
-              flushTapSync(() => aui.message.setIsCopied(false));
-            }
+            flushTapSync(() => setIsCopied(false));
+            copiedFeedbackTarget = undefined;
           }, props.copiedDuration);
         },
         () => {},
