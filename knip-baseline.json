@@ -297,7 +297,6 @@
     ],
     "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
     "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
-    "packages/react-ag-ui/src/runtime/adapter/conversions.ts": ["InputContent"],
     "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
       "AgUiSubscriber"
     ],
