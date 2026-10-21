@@ -146,6 +146,41 @@ describe("action bar builders", () => {
     flushSync(() => void unmount(app));
   });
 
+  it("clears copy feedback on the original message after history is prepended", async () => {
+    const original = { id: "a0", role: "assistant" as const, text: "reply" };
+    const { app, echo, messages } = mountThread([original]);
+    const item = messages().item(0);
+    const write = Promise.resolve();
+    const copy = actionBarCopy({
+      item,
+      copiedDuration: 300,
+      copyToClipboard: () => write,
+    });
+    expect(copy.props.disabled).toBe(false);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    copy.props.onclick();
+    await write;
+    expect(copy.isCopied).toBe(true);
+
+    flushTapSync(() =>
+      echo.setMessages([
+        { id: "older", role: "user", text: "earlier question" },
+        original,
+      ]),
+    );
+    const moved = useAuiState((s) => s.message.isCopied, {
+      item: messages().item(1),
+    });
+    expect(copy.isCopied).toBe(false);
+    expect(moved.current).toBe(true);
+
+    vi.advanceTimersByTime(300);
+
+    expect(moved.current).toBe(false);
+    expect(copy.isCopied).toBe(false);
+    flushSync(() => void unmount(app));
+  });
+
   it("copy while editing copies the edit composer draft", async () => {
     const { app, messages } = mountThread([
       { id: "u0", role: "user", text: "original" },

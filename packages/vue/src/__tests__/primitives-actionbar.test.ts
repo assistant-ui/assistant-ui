@@ -141,6 +141,25 @@ const MessageView = defineComponent({
   },
 });
 
+const FirstMessage = defineComponent({
+  setup(_, { slots }) {
+    const aui = useAui();
+    const config = AuiConfig({
+      message: Derived({
+        source: "thread",
+        query: { type: "index", index: 0 },
+        get: (aui) => aui.thread.message({ index: 0 }),
+      }),
+      composer: Derived({
+        source: "message",
+        query: {},
+        get: (aui) => aui.message.composer(),
+      }),
+    });
+    return () => h(AuiProvider, { config, extends: aui }, slots);
+  },
+});
+
 const mountChat = (
   runtime: AssistantRuntimeImpl,
   messages: Component = ThreadPrimitiveMessages,
@@ -371,24 +390,6 @@ describe("edit flow and branches", () => {
   });
 
   it("drops a late copy completion after the branch under the index changes", async () => {
-    const FirstMessage = defineComponent({
-      setup(_, { slots }) {
-        const aui = useAui();
-        const config = AuiConfig({
-          message: Derived({
-            source: "thread",
-            query: { type: "index", index: 0 },
-            get: (aui) => aui.thread.message({ index: 0 }),
-          }),
-          composer: Derived({
-            source: "message",
-            query: {},
-            get: (aui) => aui.message.composer(),
-          }),
-        });
-        return () => h(AuiProvider, { config, extends: aui }, slots);
-      },
-    });
     let resolveWrite!: () => void;
     const write = new Promise<void>((resolve) => {
       resolveWrite = resolve;
@@ -446,6 +447,43 @@ describe("edit flow and branches", () => {
       false,
     );
 
+    unmount();
+  });
+
+  it("clears copy feedback after the message moves out of an index scope", async () => {
+    const write = Promise.resolve();
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn(() => write) },
+      configurable: true,
+    });
+    const original: DemoMessage = {
+      id: "a1",
+      role: "assistant",
+      text: "reply",
+    };
+    const { runtime, seed } = createEditableRuntime();
+    flushTapSync(() => seed([original]));
+    const { el, unmount } = mountChat(runtime, FirstMessage);
+    await nextTick();
+    const copy = q<HTMLButtonElement>(assistantItem(el), "button.copy");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    copy.click();
+    await write;
+    await nextTick();
+    expect(copy.hasAttribute("data-copied")).toBe(true);
+
+    flushTapSync(() =>
+      seed([{ id: "older", role: "user", text: "earlier question" }, original]),
+    );
+    await nextTick();
+    expect(q(userItem(el), "button.copy")).toBe(copy);
+    expect(copy.hasAttribute("data-copied")).toBe(false);
+    vi.advanceTimersByTime(300);
+    flushTapSync(() => seed([original]));
+    await nextTick();
+
+    expect(q(assistantItem(el), "button.copy")).toBe(copy);
+    expect(copy.hasAttribute("data-copied")).toBe(false);
     unmount();
   });
 
