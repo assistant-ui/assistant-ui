@@ -198,4 +198,34 @@ describe("unstable_useInteractable", () => {
     expect(convert).toHaveBeenCalledTimes(1);
     expect(mocks.register).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["an object", { success: true, id: "panel-1" }],
+    ["JSON text", JSON.stringify({ success: true, id: "panel-1" })],
+  ])(
+    "registers an id-less update call under the instance its result resolved, given as %s",
+    async (_, result) => {
+      mocks.state.optional.part = {
+        type: "tool-call",
+        toolName: "update_panel",
+        args: { value: "edited" },
+        result,
+      } as never;
+      try {
+        renderHook(() =>
+          unstable_useInteractable("panel", {
+            description: "A panel",
+            stateSchema: { type: "object" },
+            initialState: { value: "edited" },
+          }),
+        );
+        await waitFor(() => expect(mocks.register).toHaveBeenCalled());
+        expect(mocks.register).toHaveBeenLastCalledWith(
+          expect.objectContaining({ id: "panel-1", scope: "thread" }),
+        );
+      } finally {
+        mocks.state.optional.part = undefined;
+      }
+    },
+  );
 });

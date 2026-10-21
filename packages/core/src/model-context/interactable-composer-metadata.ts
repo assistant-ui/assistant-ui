@@ -246,10 +246,25 @@ const asToolCallPart = (part: unknown): ToolCallLikePart | undefined => {
   return p.type === "tool-call" ? p : undefined;
 };
 
+/** A tool call's result as a record. LangGraph and LangChain send a frontend
+ *  tool's result as JSON text and bring it back as that text. */
+export const toolResultRecord = (
+  result: unknown,
+): Record<string, unknown> | undefined => {
+  if (typeof result === "string" && result.startsWith("{")) {
+    try {
+      result = JSON.parse(result);
+    } catch {
+      return undefined;
+    }
+  }
+  return isRecord(result) ? result : undefined;
+};
+
 /** Whether an accepted `update_*` call addressed instance `id`. */
 const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
   if (!p.args || typeof p.args !== "object") return false;
-  const result = isRecord(p.result) ? p.result : undefined;
+  const result = toolResultRecord(p.result);
   if (result?.success === false) return false;
   if (typeof result?.id === "string") return result.id === id;
   const argsId = (p.args as Record<string, unknown>).id;
@@ -257,7 +272,7 @@ const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
 };
 
 const createAddedItemIdFactory = (result: unknown) => {
-  const value = isRecord(result) ? result.addedItemIds : undefined;
+  const value = toolResultRecord(result)?.addedItemIds;
   if (!isRecord(value)) return undefined;
 
   const idsByField = new Map<string, string[]>();
