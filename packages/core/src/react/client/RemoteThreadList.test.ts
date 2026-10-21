@@ -488,7 +488,11 @@ describe("RemoteThreadList", () => {
           threads: RemoteThreadList({
             adapter: makeAdapter(),
             backgroundThreads,
-            thread: () => ThreadClient({ runtime: runtime.thread }),
+            thread: () =>
+              ThreadClient({
+                runtime: runtime.thread,
+                threadListItem: runtime.threads.mainItem,
+              }),
           }),
         }),
       );

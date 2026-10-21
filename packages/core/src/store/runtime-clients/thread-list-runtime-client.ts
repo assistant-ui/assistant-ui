@@ -63,6 +63,7 @@ const useThreadListClient = ({
   const main = useClientResource(
     ThreadClient({
       runtime: runtime.main,
+      threadListItem: runtime.mainItem,
     }),
   );
   const threadItems = useClientLookup(

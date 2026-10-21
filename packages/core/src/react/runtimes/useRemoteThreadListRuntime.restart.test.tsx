@@ -119,7 +119,7 @@ it("records from a retained part on the successor core after a thread restart", 
   await waitFor(() =>
     expect(runtime.thread.getState().messages[0]?.id).toBe("message-1"),
   );
-  const threadId = runtime.thread.getState().threadId;
+  const threadId = runtime.threads.mainItem.getState().id;
   const recordInteraction = runtime.thread
     .getMessageByIndex(0)
     .getMessagePartByIndex(0).unstable_recordInteraction!;
@@ -128,7 +128,7 @@ it("records from a retained part on the successor core after a thread restart", 
   events.length = 0;
 
   await actSettled(() => runtime.threads.reloadMainThread());
-  expect(runtime.thread.getState().threadId).toBe(threadId);
+  expect(runtime.threads.mainItem.getState().id).toBe(threadId);
   const currentRecordInteraction = runtime.thread
     .getMessageByIndex(0)
     .getMessagePartByIndex(0).unstable_recordInteraction!;

@@ -351,7 +351,7 @@ describe.each(["class", "client"] as const)(
         expect(mounted).not.toHaveBeenCalledWith(activeId);
         if (outcome === "retained") {
           expect(runtime.threads.getState().mainThreadId).toBe(activeId);
-          expect(runtime.thread.getState().threadId).toBe(activeId);
+          expect(runtime.threads.mainItem.getState().id).toBe(activeId);
           expect(runtime.thread.composer.getState().text).toBe(
             "keep composing",
           );
@@ -481,17 +481,17 @@ describe.each(["class", "client"] as const)(
         act(() => runtime.thread.composer.setText("keep one"));
 
         let selectedId!: string;
-        let runtimeId!: string;
+        let itemId!: string;
         await actSettled(() =>
           runtime.threads.switchToNewThread().then(() => {
             selectedId = runtime.threads.getState().mainThreadId;
-            runtimeId = runtime.thread.getState().threadId;
+            itemId = runtime.threads.mainItem.getState().id;
             runtime.thread.composer.setText("draft text");
           }),
         );
 
         expect(selectedId).not.toBe("one");
-        expect(runtimeId).toBe(selectedId);
+        expect(itemId).toBe(selectedId);
         expect(runtime.threads.mainItem.getState().status).toBe("new");
         expect(runtime.thread.composer.getState().text).toBe("draft text");
         expect(runtime.threads.getById("one").composer.getState().text).toBe(
@@ -1122,7 +1122,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     await waitFor(() =>
       expect(runtime!.threads.getState().mainThreadId).toBe(firstId),
     );
-    expect(runtime!.thread.getState().threadId).toBe(firstId);
+    expect(runtime!.threads.mainItem.getState().id).toBe(firstId);
     expect(runtime!.thread).toBe(runtime!.threads.main);
   });
 
@@ -1321,7 +1321,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     expect(runtime!.threads.getState().mainThreadId).not.toBe(localId);
     await actSettled(() => runtime!.threads.switchToThread(remoteId));
     expect(runtime!.threads.getState().mainThreadId).toBe(localId);
-    expect(runtime!.thread.getState().threadId).toBe(localId);
+    expect(runtime!.threads.mainItem.getState().id).toBe(localId);
     model.run.mockClear();
     await act(async () => {
       runtime!.thread.composer.setText("again");
@@ -1447,7 +1447,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
       });
       await waitFor(() => expect(initialize).toHaveBeenCalledWith(nextId));
       await waitFor(() => expect(model.run).toHaveBeenCalledTimes(2));
-      expect(runtime!.thread.getState().threadId).toBe(nextId);
+      expect(runtime!.threads.mainItem.getState().id).toBe(nextId);
     },
   );
 

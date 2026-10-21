@@ -46,7 +46,9 @@ export type MessagePartRuntime = {
 };
 
 type ThreadBindingWithState = ThreadRuntimeCoreBinding &
-  Partial<Pick<ThreadRuntimeImpl["__internal_threadBinding"], "getStateState">>;
+  Partial<
+    Pick<ThreadRuntimeImpl["__internal_threadBinding"], "threadListItem">
+  >;
 
 export class MessagePartRuntimeImpl implements MessagePartRuntime {
   public get path() {
@@ -76,7 +78,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
         : undefined;
     this.interactionThreadId =
       this.interactionState.type === "tool-call"
-        ? this.threadApi?.getStateState?.().threadId
+        ? this.threadApi?.threadListItem?.getState().id
         : undefined;
     this.interactionCore =
       this.interactionState.type === "tool-call"
@@ -102,7 +104,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   private getInteractionCore() {
     const core =
       this.interactionThreadId !== undefined &&
-      this.threadApi?.getStateState?.().threadId === this.interactionThreadId
+      this.threadApi?.threadListItem?.getState().id === this.interactionThreadId
         ? this.threadApi.getState()
         : this.interactionCore;
     if (!core) throw new Error("Thread API is not available");
