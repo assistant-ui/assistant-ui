@@ -169,6 +169,9 @@ export const createChat = <UI_MESSAGE extends UIMessage>(
     ...init,
     ...(transport && {
       transport: {
+        get resumeStreamIsReplay() {
+          return transport.resumeStreamIsReplay ?? false;
+        },
         sendMessages: (options) => {
           requestsByChat.set(chat, Symbol());
           // A new send or regeneration changes the replay target even when
