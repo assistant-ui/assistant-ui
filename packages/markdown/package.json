@@ -23,6 +23,14 @@
       "types": "./dist/react.d.ts",
       "default": "./dist/react.js"
     },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "default": "./dist/vue.js"
+    },
+    "./react-native": {
+      "types": "./dist/react-native.d.ts",
+      "default": "./dist/react-native.js"
+    },
     "./ink": {
       "types": "./dist/ink.d.ts",
       "default": "./dist/ink.js"
@@ -52,7 +60,9 @@
   "peerDependencies": {
     "@types/react": "*",
     "ink": ">=6",
-    "react": "^18 || ^19"
+    "react": "^18 || ^19",
+    "react-native": "*",
+    "vue": "^3.5.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -62,6 +72,12 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -76,7 +92,10 @@
     "jsdom": "^30.1.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "vitest": "^5.0.5"
+    "react-native": "^0.88.0",
+    "react-native-web": "^0.21.4",
+    "vitest": "^5.0.5",
+    "vue": "^3.5.44"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

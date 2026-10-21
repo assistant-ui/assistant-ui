@@ -341,6 +341,9 @@ const useLocalStorageThreadAdapters = (
   );
 };
 
+/**
+ * Persists threads and messages in `storage`. Writes are serialized within one JavaScript realm only, so one browser tab or process may write to a given storage at a time; two writers on the same storage can lose or resurrect threads.
+ */
 export const createLocalStorageAdapter = (
   options: LocalStorageAdapterOptions,
 ): RemoteThreadListAdapter &

@@ -45,7 +45,7 @@ import {
   type AgUiThreadState,
 } from "./agUiThreadState";
 import type { Logger } from "./logger";
-import { readMcpAppResourceUri } from "./mcp-tool-result";
+import { readMcpAppResourceUri, toolContentText } from "./mcp-tool-result";
 import type {
   AgUiCustomMetadata,
   AgUiEvent,
@@ -91,6 +91,39 @@ const isResolvedToolCall = (
   part: ThreadAssistantMessage["content"][number],
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
+
+const listedPendingToolCallIds = (
+  assistant: ThreadAssistantMessage,
+): ReadonlySet<string> | undefined => {
+  const ids = (
+    assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+      | AgUiCustomMetadata
+      | undefined
+  )?.pendingToolCallIds;
+  return ids?.length ? new Set(ids) : undefined;
+};
+
+const withoutPendingToolCallIds = (
+  metadata: ThreadAssistantMessage["metadata"],
+): ThreadAssistantMessage["metadata"] => {
+  const namespace = metadata.custom[AG_UI_METADATA_NAMESPACE] as
+    | AgUiCustomMetadata
+    | undefined;
+  if (!namespace || !("pendingToolCallIds" in namespace)) return metadata;
+  const { pendingToolCallIds: _pendingToolCallIds, ...remainingNamespace } =
+    namespace;
+  const { [AG_UI_METADATA_NAMESPACE]: _namespace, ...remainingCustom } =
+    metadata.custom;
+  return {
+    ...metadata,
+    custom: {
+      ...remainingCustom,
+      ...(Object.keys(remainingNamespace).length > 0
+        ? { [AG_UI_METADATA_NAMESPACE]: remainingNamespace }
+        : {}),
+    },
+  };
+};
 
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
   part.type === "data" && part.name.startsWith("agui-activity/");
@@ -601,8 +634,10 @@ export class AgUiThreadController {
     const assistant = this.findRequiresActionAssistant("tool-calls");
     if (!assistant) return null;
     const toolCallIds: string[] = [];
+    const listed = listedPendingToolCallIds(assistant);
     for (const part of iterateToolCallParts(assistant.content)) {
-      if (isResolvedToolCall(part)) continue;
+      if (isResolvedToolCall(part) || (listed && !listed.has(part.toolCallId)))
+        continue;
       toolCallIds.push(part.toolCallId);
     }
     if (toolCallIds.length === 0) return null;
@@ -638,6 +673,7 @@ export class AgUiThreadController {
     this.assertInterruptsAnswerable(
       "submitInterruptResponses",
       pending.interrupts,
+      responsesById,
     );
 
     await this.resumeWithResponses(
@@ -685,6 +721,7 @@ export class AgUiThreadController {
   private assertInterruptsAnswerable(
     method: "submitInterruptResponses" | "respondToToolApproval",
     interrupts: readonly AgUiInterrupt[],
+    responsesById?: ReadonlyMap<string, AgUiResumeEntry>,
   ): void {
     const now = Date.now();
     for (const interrupt of interrupts) {
@@ -695,7 +732,10 @@ export class AgUiThreadController {
           `[agui] ${method}: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
         );
       }
-      if (expiry <= now) {
+      if (
+        expiry <= now &&
+        responsesById?.get(interrupt.id)?.status !== "cancelled"
+      ) {
         throw new Error(
           `[agui] ${method}: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
         );
@@ -1143,7 +1183,9 @@ export class AgUiThreadController {
       return false;
     }
     let allResolved = true;
+    const listed = listedPendingToolCallIds(assistant);
     for (const part of iterateToolCallParts(assistant.content)) {
+      if (listed && !listed.has(part.toolCallId)) continue;
       if (!isResolvedToolCall(part)) {
         allResolved = false;
         break;
@@ -1156,6 +1198,7 @@ export class AgUiThreadController {
         ? {
             ...(current as ThreadAssistantMessage),
             status: { type: "complete" as const, reason: "unknown" as const },
+            metadata: withoutPendingToolCallIds(current.metadata),
           }
         : current,
     );
@@ -1834,10 +1877,15 @@ export class AgUiThreadController {
     const touched = this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
-      const metadata = update.metadata
+      const mergedMetadata = update.metadata
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
         : assistant.metadata;
       latestStatus = update.status ?? assistant.status;
+      const metadata =
+        latestStatus?.type === "requires-action" &&
+        latestStatus.reason === "tool-calls"
+          ? mergedMetadata
+          : withoutPendingToolCallIds(mergedMetadata);
       const content =
         update.content !== undefined
           ? this.preserveToolResults(
@@ -2213,6 +2261,7 @@ export class AgUiThreadController {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const mcpAppUri = readMcpAppResourceUri(event.mcpResult?._meta);
+      const modelText = toolContentText(event.content);
       let matchedToolCall = false;
       const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
         if (part.toolCallId !== event.toolCallId) return part;
@@ -2229,11 +2278,9 @@ export class AgUiThreadController {
         if (snapshotResultApplied) {
           return {
             ...part,
-            ...(part.modelContent === undefined && event.content
+            ...(part.modelContent === undefined
               ? {
-                  modelContent: [
-                    { type: "text" as const, text: event.content },
-                  ],
+                  modelContent: [{ type: "text" as const, text: modelText }],
                 }
               : {}),
             ...(part.isError === undefined
@@ -2248,12 +2295,18 @@ export class AgUiThreadController {
               : {}),
           };
         }
+        const { modelContent: _modelContent, ...partWithoutModelContent } =
+          part;
         return {
-          ...part,
+          ...(event.mcpResult === undefined && Array.isArray(event.content)
+            ? partWithoutModelContent
+            : part),
           result: (event.mcpResult ??
-            tryParseJSON(event.content ?? "")) as ReadonlyJSONValue,
+            (Array.isArray(event.content)
+              ? event.content
+              : tryParseJSON(event.content))) as ReadonlyJSONValue,
           ...(event.mcpResult !== undefined
-            ? { modelContent: [{ type: "text" as const, text: event.content }] }
+            ? { modelContent: [{ type: "text" as const, text: modelText }] }
             : {}),
           ...(typeof event.mcpResult?.isError === "boolean"
             ? { isError: event.mcpResult.isError }

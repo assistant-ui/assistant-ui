@@ -24,6 +24,7 @@
     "packages/cloud/package.json": ["ai-v6"],
     "packages/generative-frame/package.json": ["react-native-web"],
     "packages/generative-ui/package.json": ["react-native-web"],
+    "packages/markdown/package.json": ["react-native-web"],
     "packages/mcp-docs-server/package.json": ["@modelcontextprotocol/core"],
     "packages/react-data-stream/package.json": ["@types/json-schema"],
     "packages/react-devtools/package.json": ["@assistant-ui/tap"],
@@ -297,7 +298,6 @@
     ],
     "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
     "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
-    "packages/react-ag-ui/src/runtime/adapter/conversions.ts": ["InputContent"],
     "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
       "AgUiSubscriber"
     ],

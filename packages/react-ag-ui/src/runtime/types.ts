@@ -12,7 +12,12 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import type { JoinStrategy } from "@assistant-ui/core/react";
-import type { AbstractAgent, Context, Message } from "@ag-ui/client";
+import type {
+  AbstractAgent,
+  ContentPart,
+  Context,
+  Message,
+} from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { McpToolCallResult } from "./mcp-tool-result";
@@ -33,6 +38,7 @@ export type AgUiCustomMetadata = {
    * represent (a developer record rides as a system message). */
   role?: "developer";
   interrupts?: AgUiInterrupt[];
+  pendingToolCallIds?: string[];
   opaqueReasoning?: AgUiOpaqueReasoning[];
 };
 
@@ -189,8 +195,9 @@ export type AgUiRuntimeExtras = {
 };
 
 export type AgUiRunFinishedOutcome =
-  | { type: "success" }
-  | { type: "interrupt"; interrupts: AgUiInterrupt[] };
+  | { type: "success"; pendingToolCallIds?: string[] }
+  | { type: "interrupt"; interrupts: AgUiInterrupt[] }
+  | { type: "cancelled" };
 
 export type AgUiSubagentFinishedOutcome =
   | { type: "success" }
@@ -214,37 +221,26 @@ export type AgUiEvent =
     }
   | { type: "TEXT_MESSAGE_END"; messageId?: string; subagentRunId?: string }
   | {
-      type: "TEXT_MESSAGE_CHUNK";
-      messageId?: string;
-      delta: string;
-      subagentRunId?: string;
-    }
-  | { type: "THINKING_START"; title?: string; timestamp?: number }
-  | { type: "THINKING_TEXT_MESSAGE_START"; timestamp?: number }
-  | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
-  | { type: "THINKING_TEXT_MESSAGE_END"; timestamp?: number }
-  | { type: "THINKING_END"; timestamp?: number }
-  | {
       type: "REASONING_START";
-      messageId?: string;
+      messageId: string;
       subagentRunId?: string;
       timestamp?: number;
     }
   | {
       type: "REASONING_MESSAGE_START";
-      messageId?: string;
+      messageId: string;
       subagentRunId?: string;
       timestamp?: number;
     }
   | {
       type: "REASONING_MESSAGE_CONTENT";
-      messageId?: string;
+      messageId: string;
       delta: string;
       subagentRunId?: string;
     }
   | {
       type: "REASONING_MESSAGE_END";
-      messageId?: string;
+      messageId: string;
       subagentRunId?: string;
       timestamp?: number;
     }
@@ -257,7 +253,7 @@ export type AgUiEvent =
     }
   | {
       type: "REASONING_END";
-      messageId?: string;
+      messageId: string;
       subagentRunId?: string;
       timestamp?: number;
     }
@@ -276,18 +272,10 @@ export type AgUiEvent =
     }
   | { type: "TOOL_CALL_END"; toolCallId: string; subagentRunId?: string }
   | {
-      type: "TOOL_CALL_CHUNK";
-      toolCallId?: string;
-      toolCallName?: string;
-      parentMessageId?: string;
-      delta?: string;
-      subagentRunId?: string;
-    }
-  | {
       type: "TOOL_CALL_RESULT";
       messageId?: string;
       toolCallId: string;
-      content: string;
+      content: string | ContentPart[];
       role?: "tool";
       mcpResult?: McpToolCallResult;
       subagentRunId?: string;

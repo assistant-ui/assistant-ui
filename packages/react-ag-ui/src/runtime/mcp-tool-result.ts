@@ -1,5 +1,6 @@
 import { isRecord } from "@assistant-ui/core/internal";
 import { isMcpAppUri } from "@assistant-ui/core";
+import { contentToText, type ContentPart } from "@ag-ui/client";
 
 export type McpToolCallResult = Record<string, unknown> & {
   content: unknown[];
@@ -8,9 +9,16 @@ export type McpToolCallResult = Record<string, unknown> & {
   isError?: boolean;
 };
 
+export const toolContentText = (content: string | ContentPart[]): string =>
+  contentToText(
+    Array.isArray(content)
+      ? (content.filter(isRecord) as ContentPart[])
+      : content,
+  );
+
 export const parseMcpToolCallResult = (
   source: Record<string, unknown>,
-  modelContent: string,
+  content: string | ContentPart[],
 ): McpToolCallResult | undefined => {
   const structuredContent = isRecord(source.structuredContent)
     ? source.structuredContent
@@ -18,8 +26,14 @@ export const parseMcpToolCallResult = (
   const meta = isRecord(source._meta) ? source._meta : undefined;
   if (!structuredContent && !meta) return undefined;
 
+  const modelContent = toolContentText(content);
+
   return {
-    content: modelContent ? [{ type: "text", text: modelContent }] : [],
+    content: Array.isArray(content)
+      ? content
+      : modelContent
+        ? [{ type: "text", text: modelContent }]
+        : [],
     ...(structuredContent ? { structuredContent } : {}),
     ...(meta ? { _meta: meta } : {}),
     ...(typeof source.isError === "boolean" ? { isError: source.isError } : {}),
