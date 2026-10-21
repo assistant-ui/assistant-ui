@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { convertLangChainContentBlock } from "./converter";
+import { AIMessage } from "@langchain/core/messages";
+import {
+  convertLangChainContentBlock,
+  createLangChainStreamingTimingAccessors,
+} from "./converter";
+
+describe("createLangChainStreamingTimingAccessors", () => {
+  it("distinguishes an absent assistant message from existing output", () => {
+    const accessors = createLangChainStreamingTimingAccessors<AIMessage>(
+      (message) => message.getType(),
+    );
+    const messages = [new AIMessage({ id: "a1", content: "Previous answer" })];
+
+    expect(accessors.getMessageContent?.(messages, "a1")).toMatchObject({
+      content: "Previous answer",
+    });
+    expect(accessors.getMessageContent?.(messages, "a2")).toBeUndefined();
+  });
+});
 
 describe("convertLangChainContentBlock standard content blocks", () => {
   it("converts a base64 image block to an image part", () => {
