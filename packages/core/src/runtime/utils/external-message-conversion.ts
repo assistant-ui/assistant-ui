@@ -475,6 +475,7 @@ export const createExternalMessageMetadataKey = <TMessage extends WeakKey>(
 type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
+  createdAtByMessageId?: Map<string, Date>;
 };
 
 type ExternalMessageConversionCallbackCacheEntry<T> =
@@ -494,6 +495,7 @@ export type InternalExternalMessageConversionCache<
   converterCache: ThreadMessageConverter;
   // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
   generatedFallbackMessages: WeakSet<object>;
+  createdAtByMessageId: Map<string, Date>;
 };
 
 export const createExternalMessageConversionCache = <
@@ -503,6 +505,7 @@ export const createExternalMessageConversionCache = <
   chunkCache: new WeakMap(),
   converterCache: new ThreadMessageConverter(),
   generatedFallbackMessages: new WeakSet(),
+  createdAtByMessageId: new Map(),
 });
 
 export const convertExternalMessageChunk = <T>(
@@ -577,7 +580,28 @@ export const convertExternalMessageChunk = <T>(
     }
   }
 
-  const newMessage = fromThreadMessageLike(joined, fallbackId, autoStatus);
+  const createdAtByMessageId = cache?.createdAtByMessageId;
+  const createdAt =
+    joined.createdAt ??
+    (joined.id === undefined
+      ? undefined
+      : createdAtByMessageId?.get(joined.id));
+  const messageToConvert =
+    joined.createdAt == null && createdAt !== undefined
+      ? { ...joined, createdAt }
+      : joined;
+  const newMessage = fromThreadMessageLike(
+    messageToConvert,
+    fallbackId,
+    autoStatus,
+  );
+  if (
+    createdAtByMessageId &&
+    joined.createdAt == null &&
+    joined.id !== undefined
+  ) {
+    createdAtByMessageId.set(joined.id, newMessage.createdAt);
+  }
   if (cache && joined.id == null) {
     cache.generatedFallbackMessages.add(newMessage);
   }
@@ -678,6 +702,7 @@ export const convertExternalMessages = <T extends WeakKey>(
           {
             message: cached,
             generatedFallbackMessages: cache.generatedFallbackMessages,
+            createdAtByMessageId: cache.createdAtByMessageId,
           },
           metadata.cancelledMessageIds,
         ),
