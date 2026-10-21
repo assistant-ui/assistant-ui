@@ -1,7 +1,11 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  useAssistantClientDestroySignal,
+  useOptionalAssistantClientRef,
+  useOptionalAssistantEmit,
+} from "@assistant-ui/store/internal";
 import { useClientLookup } from "@assistant-ui/store/client";
 
 import type { AppendMessage } from "../../types/message";
@@ -17,7 +21,11 @@ import {
 } from "../../types/attachment";
 import type { QuoteInfo } from "../../types/quote";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
-import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
+import type {
+  AttachmentAddErrorReason,
+  ComposerSetTextOptions,
+  ComposerSubmission,
+} from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { QueueItemState } from "../scopes/queue-item";
 import type { ComposerSendOptions } from "../scopes/composer";
@@ -151,7 +159,7 @@ const useComposerClientResource = ({
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
   );
-  const [text, setText, textRef] = useLiveState("");
+  const [text, setTextState, textRef] = useLiveState("");
   const [role, setRole, roleRef] = useLiveState<
     "user" | "assistant" | "system"
   >("user");
@@ -173,6 +181,8 @@ const useComposerClientResource = ({
     readonly ExternalThreadMessage["content"][number][]
   >([]);
   const destroySignal = useAssistantClientDestroySignal();
+  const emit = useOptionalAssistantEmit();
+  const clientRef = useOptionalAssistantClientRef();
   const [submission, setSubmission, submissionRef] = useLiveState<
     ComposerSubmission | undefined
   >(undefined);
@@ -189,6 +199,49 @@ const useComposerClientResource = ({
   const messageKeysRef = useRef(messageKeys);
   const sendGeneration = useRef(0);
   const cleanupEpoch = useRef(0);
+  const messageId = message?.id;
+  const getEventContext = useCallback(
+    () => ({
+      threadId:
+        clientRef?.current?.threads?.().getState().mainThreadId || "unknown",
+      ...(type === "edit" && messageId !== undefined
+        ? { messageId }
+        : undefined),
+    }),
+    [clientRef, messageId, type],
+  );
+  const setText = useCallback(
+    (next: string, options?: ComposerSetTextOptions) => {
+      if (next === textRef.current) return;
+      setTextState(next);
+      emit("composer.textChange", {
+        ...getEventContext(),
+        text: next,
+        origin: options?.origin ?? "external",
+      });
+    },
+    [emit, getEventContext, setTextState, textRef],
+  );
+  const emitAttachmentAdd = (contentType?: string) => {
+    emit("composer.attachmentAdd", {
+      ...getEventContext(),
+      ...(contentType ? { contentType } : undefined),
+    });
+  };
+  const emitAttachmentAddError = (
+    reason: AttachmentAddErrorReason,
+    message: string,
+    attachmentId?: string,
+    contentType?: string,
+  ) => {
+    emit("composer.attachmentAddError", {
+      ...getEventContext(),
+      ...(attachmentId !== undefined ? { attachmentId } : undefined),
+      reason,
+      message,
+      ...(contentType ? { contentType } : undefined),
+    });
+  };
 
   // A dispatched message stays on screen until the host shows it, so the two
   // never swap through an empty frame. Each new message of a send's role
@@ -511,7 +564,9 @@ const useComposerClientResource = ({
       return restored ? [restored] : [];
     });
     setAttachments((prev) => [...returned, ...prev]);
-    setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
+    setText([content.text, textRef.current].filter(Boolean).join("\n"), {
+      origin: "return",
+    });
     setQuote((prev) => prev ?? content.quote);
   };
 
@@ -640,6 +695,11 @@ const useComposerClientResource = ({
       returnToDraft(returned);
       return;
     }
+    emit("composer.send", {
+      ...getEventContext(),
+      chars: current.text.length,
+      attachments: attachments.length,
+    });
     if (isSubmission)
       for (const attachment of current.attachments)
         if (!isAttachmentComplete(attachment))
@@ -724,17 +784,20 @@ const useComposerClientResource = ({
               type: fileOrAttachment.contentType ?? "",
             }
           : { name: fileOrAttachment.name, type: fileOrAttachment.type };
-        if (!fileMatchesAccept(file, attachmentAdapter.accept))
-          throw new Error(
-            `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`,
-          );
+        if (!fileMatchesAccept(file, attachmentAdapter.accept)) {
+          const message = `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`;
+          emitAttachmentAddError("not-accepted", message, undefined, file.type);
+          throw new Error(message);
+        }
       }
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
         const operation = attachmentAddOperations.start();
+        let lastAttachment: PendingAttachment | undefined;
         try {
           await drainAttachmentAdd(
             attachmentAdapter.add({ file: fileOrAttachment }),
             (attachment) => {
+              lastAttachment = attachment;
               if (!attachmentAddOperations.accept(operation, attachment))
                 return false;
               upsertAttachment(attachment);
@@ -744,7 +807,31 @@ const useComposerClientResource = ({
           attachmentAddOperations.finish(operation);
         } catch (error) {
           attachmentAddOperations.finish(operation);
-          if (!attachmentAddOperations.isCancelled(operation)) throw error;
+          if (attachmentAddOperations.isCancelled(operation)) return;
+          emitAttachmentAddError(
+            "adapter-error",
+            error instanceof Error ? error.message : String(error),
+            lastAttachment?.id,
+            lastAttachment?.contentType || fileOrAttachment.type,
+          );
+          throw error;
+        }
+        if (attachmentAddOperations.isCancelled(operation)) return;
+        if (
+          lastAttachment?.status.type === "incomplete" &&
+          lastAttachment.status.reason === "error"
+        ) {
+          emitAttachmentAddError(
+            "adapter-error",
+            lastAttachment.status.message ??
+              "Attachment upload did not complete successfully.",
+            lastAttachment.id,
+            lastAttachment.contentType || fileOrAttachment.type,
+          );
+        } else {
+          emitAttachmentAdd(
+            lastAttachment?.contentType || fileOrAttachment.type,
+          );
         }
       } else if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
@@ -757,6 +844,7 @@ const useComposerClientResource = ({
           content: [],
         };
         setAttachments((prev) => [...prev, newAttachment]);
+        emitAttachmentAdd(newAttachment.contentType);
       } else {
         const newAttachment: Attachment = {
           id: fileOrAttachment.id ?? generateId(),
@@ -767,6 +855,7 @@ const useComposerClientResource = ({
           status: { type: "complete" },
         };
         setAttachments((prev) => [...prev, newAttachment]);
+        emitAttachmentAdd(newAttachment.contentType);
       }
     },
     clearAttachments: async () => {
@@ -812,7 +901,7 @@ const useComposerClientResource = ({
       sendGeneration.current++;
       const discarded = discardSubmission();
       const removed = attachmentsRef.current;
-      setText("");
+      setText("", { origin: "reset" });
       setRole("user");
       setRunConfig({});
       setAttachments([]);
@@ -856,7 +945,7 @@ const useComposerClientResource = ({
         setAttachments((prev) =>
           prev.filter((attachment) => !detached.has(attachment)),
         );
-        setText("");
+        setText("", { origin: "send" });
         setQuote(undefined);
       }
       const generation = ++sendGeneration.current;
