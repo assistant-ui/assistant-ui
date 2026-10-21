@@ -299,7 +299,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 
 | Event | Effect |
 | --- | --- |
-| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved; with no list or an empty list, any unresolved call does. |
+| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved, and `getPendingToolCalls` then returns only the listed calls, so the run resumes once those are answered; with no list or an empty list, any unresolved call counts. |
 | `RUN_CANCELLED` | Marks the in-flight assistant message as cancelled. |
 | `RUN_ERROR` | Marks the message as errored; fires `onError`. |
 | `TEXT_MESSAGE_START` / `_CONTENT` / `_END` | Streams text content into an assistant message. |
