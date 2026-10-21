@@ -2650,7 +2650,7 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
   });
 
-  it("keeps file-source parts in media order around merged text", () => {
+  it("keeps the wire order of user text and media parts", () => {
     const image = {
       type: "image",
       source: { type: "url", value: "https://example.com/photo.png" },
@@ -2658,6 +2658,10 @@ describe("adapter conversions", () => {
     const document = {
       type: "document",
       source: { type: "file", value: "file-123" },
+    };
+    const pasted = {
+      type: "image",
+      source: { type: "data", value: "aGk=", mimeType: "image/png" },
     };
     const inputs = [
       {
@@ -2674,12 +2678,55 @@ describe("adapter conversions", () => {
           { type: "text", text: "after" },
         ],
       },
+      {
+        id: "u-3",
+        role: "user",
+        content: [
+          { type: "text", text: "first" },
+          pasted,
+          { type: "text", text: "second" },
+          image,
+        ],
+      },
+      {
+        id: "u-4",
+        role: "user",
+        content: [
+          { type: "text", text: "one" },
+          { type: "text", text: "two" },
+        ],
+      },
     ];
 
     const output = toAgUiMessages(fromAgUiMessages(inputs));
-    expect(output.map((message) => message.content)).toEqual([
-      [{ type: "text", text: "caption" }, image, document],
-      [{ type: "text", text: "before\nafter" }, document],
+    expect(output.map((message) => message.content)).toEqual(
+      inputs.map((input) => input.content),
+    );
+  });
+
+  it("merges user text when the imported text was edited", () => {
+    const [imported] = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "before" },
+          {
+            type: "image",
+            source: { type: "url", value: "https://example.com/photo.png" },
+          },
+          { type: "text", text: "after" },
+        ],
+      },
+    ]);
+
+    const [output] = toAgUiMessages([{ ...imported!, content: "rewritten" }]);
+    expect(output!.content).toEqual([
+      { type: "text", text: "rewritten" },
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/photo.png" },
+      },
     ]);
   });
 

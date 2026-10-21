@@ -507,16 +507,61 @@ function upgradeBinaryInputPart(
   };
 }
 
+function normalizeInputPart(
+  rawPart: Record<string, unknown>,
+): Record<string, unknown> | null {
+  return getString(rawPart, "type") === "binary"
+    ? upgradeBinaryInputPart(rawPart)
+    : rawPart;
+}
+
+type ContentSlot<T> = { index: number } & T;
+
+// Text imports as one string and encoded media as attachments, so the wire
+// position of each text part and file source part is recorded to restore the
+// original order on export. Text positions are kept only when that order is
+// not the default leading text.
+function toUserContentLayout(content: unknown): {
+  fileSourceParts: ContentSlot<{ part: Record<string, unknown> }>[];
+  textParts: ContentSlot<{ text: string }>[];
+} {
+  const fileSourceParts: ContentSlot<{ part: Record<string, unknown> }>[] = [];
+  const textParts: ContentSlot<{ text: string }>[] = [];
+  if (!Array.isArray(content)) return { fileSourceParts, textParts };
+
+  let index = 0;
+  for (const rawPart of content) {
+    if (!isObject(rawPart)) continue;
+    if (rawPart.type === "text" && typeof rawPart.text === "string") {
+      textParts.push({ index: index++, text: rawPart.text });
+      continue;
+    }
+    const part = normalizeInputPart(rawPart);
+    if (!part || !mediaInputTypes.has(getString(part, "type") ?? "")) continue;
+    if (
+      isObject(part.source) &&
+      part.source.type === "file" &&
+      typeof part.source.value === "string"
+    ) {
+      fileSourceParts.push({ index: index++, part });
+    } else if (partSourceToString(part.source)) {
+      index++;
+    }
+  }
+
+  const leadingText =
+    textParts.length === 0 ||
+    (textParts.length === 1 && textParts[0]!.index === 0);
+  return { fileSourceParts, textParts: leadingText ? [] : textParts };
+}
+
 function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
   if (!Array.isArray(content)) return [];
 
   const attachments: SnapshotAttachment[] = [];
   for (const rawPart of content) {
     if (!isObject(rawPart)) continue;
-    const part =
-      getString(rawPart, "type") === "binary"
-        ? upgradeBinaryInputPart(rawPart)
-        : rawPart;
+    const part = normalizeInputPart(rawPart);
     if (!part) continue;
     const type = getString(part, "type");
     if (type === undefined || !mediaInputTypes.has(type)) continue;
@@ -567,6 +612,20 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
   return attachments;
 }
 
+function readContentSlots(
+  value: unknown,
+): { index: number; entry: Record<string, unknown> }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) =>
+    isObject(entry) &&
+    typeof entry.index === "number" &&
+    Number.isInteger(entry.index) &&
+    entry.index >= 0
+      ? [{ index: entry.index, entry }]
+      : [],
+  );
+}
+
 function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
   const contentParts = Array.isArray(message.content) ? message.content : [];
 
@@ -595,36 +654,41 @@ function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
     }
   }
 
-  const fileSourceParts = readNamespacedMetadata(
-    message.metadata,
-  ).fileSourceParts;
-  if (Array.isArray(fileSourceParts)) {
-    for (const entry of fileSourceParts) {
-      if (!isObject(entry) || !isObject(entry.part)) continue;
-      const { index, part } = entry;
-      if (
-        typeof index !== "number" ||
-        !Number.isInteger(index) ||
-        index < 0 ||
-        !mediaInputTypes.has(getString(part, "type") ?? "") ||
-        !isObject(part.source) ||
-        part.source.type !== "file" ||
-        typeof part.source.value !== "string"
-      )
-        continue;
-      const mediaIndices = converted.flatMap((contentPart, position) =>
-        contentPart.type !== "text" ? [position] : [],
-      );
-      converted.splice(
-        mediaIndices[index] ?? converted.length,
-        0,
-        part as ContentPart,
-      );
-    }
+  const namespaced = readNamespacedMetadata(message.metadata);
+  const textSlots = readContentSlots(namespaced.textParts).flatMap(
+    ({ index, entry }) =>
+      typeof entry.text === "string"
+        ? [{ index, part: { type: "text" as const, text: entry.text } }]
+        : [],
+  );
+  const mergedText = converted
+    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+    .join("\n");
+  const restoresText =
+    textSlots.length > 0 &&
+    textSlots.map(({ part }) => part.text).join("\n") === mergedText;
+  const fileSourceSlots = readContentSlots(namespaced.fileSourceParts).flatMap(
+    ({ index, entry: { part } }) =>
+      isObject(part) &&
+      mediaInputTypes.has(getString(part, "type") ?? "") &&
+      isObject(part.source) &&
+      part.source.type === "file" &&
+      typeof part.source.value === "string"
+        ? [{ index, part: part as ContentPart }]
+        : [],
+  );
+  const ordered = restoresText
+    ? converted.filter((part) => part.type !== "text")
+    : converted;
+  const slots = [...(restoresText ? textSlots : []), ...fileSourceSlots].sort(
+    (a, b) => a.index - b.index,
+  );
+  for (const { index, part } of slots) {
+    ordered.splice(Math.min(index, ordered.length), 0, part);
   }
 
-  const hasNonText = converted.some((part) => part.type !== "text");
-  if (hasNonText) return converted;
+  if (restoresText || ordered.some((part) => part.type !== "text"))
+    return ordered;
 
   // All-text path: collapse to plain string. Join text parts collected from
   // both content and attachments so attachment-sourced text is not dropped.
@@ -846,26 +910,14 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
-  let mediaIndex = 0;
-  const fileSourceParts =
-    role === "user" && Array.isArray(rawMessage.content)
-      ? rawMessage.content.flatMap((part) => {
-          if (
-            !isObject(part) ||
-            !mediaInputTypes.has(getString(part, "type") ?? "")
-          )
-            return [];
-          const index = mediaIndex++;
-          return isObject(part.source) &&
-            part.source.type === "file" &&
-            typeof part.source.value === "string"
-            ? [{ index, part }]
-            : [];
-        })
-      : [];
+  const { fileSourceParts, textParts } =
+    role === "user"
+      ? toUserContentLayout(rawMessage.content)
+      : { fileSourceParts: [], textParts: [] };
   const custom = toSnapshotCustom(rawMessage.metadata, {
     ...(role === "developer" ? { role: "developer" } : {}),
     ...(fileSourceParts.length > 0 ? { fileSourceParts } : {}),
+    ...(textParts.length > 0 ? { textParts } : {}),
   });
   const attachments =
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
