@@ -1,3 +1,5 @@
+"use client";
+
 import { useInsertionEffect, useRef, useState } from "react";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
@@ -11,7 +13,8 @@ import { DEFAULT_CLOUD_SCOPE } from "./AssistantCloudThreadHistoryAdapter";
 
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
-): RemoteThreadListAdapter => {
+): RemoteThreadListAdapter &
+  Pick<Required<RemoteThreadListAdapter>, "unarchive"> => {
   const adapterRef = useRef(adapter);
   const [cloudRef] = useState(() => ({
     get current() {
@@ -34,7 +37,8 @@ export const useCloudThreadListAdapter = (
 
   const cloud = adapter.cloud ?? autoCloud;
   const scope = adapter.scopeId;
-  const createAdapter = (): RemoteThreadListAdapter => {
+  const createAdapter = (): RemoteThreadListAdapter &
+    Pick<Required<RemoteThreadListAdapter>, "unarchive"> => {
     // Construction registers this render's SDK on the new cloud; the adapter's callbacks read the committed options.
     let readOptions = () => adapter;
     const base = createCloudThreadListAdapter(() => ({

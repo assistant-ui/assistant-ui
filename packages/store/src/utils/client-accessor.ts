@@ -21,6 +21,10 @@ type AnyRecord = Record<string | symbol, unknown>;
 
 const accessors = new WeakSet<object>();
 
+// Bundlers that lower optional chaining emit `a.b?.()` as `a.b.call(a)`, so
+// these must reach the apply trap instead of the client.
+const FUNCTION_MEMBERS = new Set<string | symbol>(["call", "apply", "bind"]);
+
 export const createClientAccessor = <K extends ClientNames>(
   meta: AccessorMeta,
   read: () => ClientMethods,
@@ -30,7 +34,8 @@ export const createClientAccessor = <K extends ClientNames>(
       read();
       return proxy;
     },
-    get: (_, prop) => {
+    get: (target, prop) => {
+      if (FUNCTION_MEMBERS.has(prop)) return Reflect.get(target, prop);
       if (prop === "source") return meta.source;
       if (prop === "query") return meta.query;
       if (prop === "name") return meta.name;
@@ -69,7 +74,8 @@ export const createErrorClientAccessor = (
     (() => {}) as unknown as AssistantClientAccessor<ClientNames>,
     {
       apply: fail,
-      get: (_, prop) => {
+      get: (target, prop) => {
+        if (FUNCTION_MEMBERS.has(prop)) return Reflect.get(target, prop);
         if (prop === "source" || prop === "query") return null;
         if (prop === "name") return name;
         if (prop === CLIENT_ID_SYMBOL) return fail();

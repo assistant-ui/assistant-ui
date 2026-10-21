@@ -1,10 +1,11 @@
 import { useCallback } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 
 import { useAui } from "@assistant-ui/store";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type AttachmentRemoveProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -21,12 +22,12 @@ export const AttachmentRemove = ({
   }, [aui]);
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={handleRemove}
       accessibilityRole="button"
       {...pressableProps}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

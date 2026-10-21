@@ -3,6 +3,12 @@
 import { create } from "zustand";
 import type { Unsubscribe } from "@assistant-ui/core";
 import { notifyEventListeners } from "@assistant-ui/core/internal";
+import {
+  createThreadViewportAutoScroll,
+  type ThreadViewportAutoScroll,
+  type ThreadViewportAutoScrollOptions,
+} from "@assistant-ui/store/client";
+import type { ReadonlyStore } from "../ReadonlyStore";
 
 export type SizeHandle = {
   /** Update the height */
@@ -137,6 +143,20 @@ export type ThreadViewportStoreOptions = {
     | undefined;
 };
 
+type ViewportAutoScroll = {
+  controller: ThreadViewportAutoScroll;
+  getOptions: () => ThreadViewportAutoScrollOptions;
+};
+
+const viewportAutoScroll = new WeakMap<
+  ReadonlyStore<ThreadViewportState>,
+  ViewportAutoScroll
+>();
+
+export const getThreadViewportAutoScroll = (
+  store: ReadonlyStore<ThreadViewportState>,
+) => viewportAutoScroll.get(store)!;
+
 export const makeThreadViewportStore = (
   options: ThreadViewportStoreOptions = {},
 ) => {
@@ -152,14 +172,21 @@ export const makeThreadViewportStore = (
       },
     });
   });
-  const insetRegistry = createSizeRegistry((total) => {
-    store.setState({
-      height: {
-        ...store.getState().height,
-        inset: total,
+  const autoScroll: ViewportAutoScroll = {
+    getOptions: () => ({
+      autoScroll: options.turnAnchor !== "top",
+      scrollToBottomOnInitialize: true,
+      scrollToBottomOnRunStart: options.turnAnchor !== "top",
+      scrollToBottomOnThreadSwitch: true,
+    }),
+    controller: createThreadViewportAutoScroll({
+      getOptions: () => autoScroll.getOptions(),
+      onAtBottomChange: (isAtBottom) => store.setState({ isAtBottom }),
+      onContentInsetChange: (inset) => {
+        store.setState({ height: { ...store.getState().height, inset } });
       },
-    });
-  });
+    }),
+  };
   const registerElementSlot = (
     key: "viewport" | "anchor",
     element: HTMLElement | null,
@@ -217,7 +244,7 @@ export const makeThreadViewportStore = (
     topAnchorTurn: null,
 
     registerViewport: viewportRegistry.register,
-    registerContentInset: insetRegistry.register,
+    registerContentInset: autoScroll.controller.registerContentInset,
     registerViewportElement: (element) =>
       registerElementSlot("viewport", element),
     registerAnchorElement: (element) => registerElementSlot("anchor", element),
@@ -246,5 +273,6 @@ export const makeThreadViewportStore = (
     },
   }));
 
+  viewportAutoScroll.set(store, autoScroll);
   return store;
 };

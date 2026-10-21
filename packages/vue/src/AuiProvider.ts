@@ -76,10 +76,7 @@ export const AuiProvider = defineComponent({
     const release = handle.subscribe(() => {});
     onScopeDispose(release);
 
-    const source = {
-      getClient: handle.getClient,
-      subscribe: handle.subscribe,
-    };
+    const source = handle;
     provide(auiInjectionKey, {
       source,
       aui: createClientFacade(source),

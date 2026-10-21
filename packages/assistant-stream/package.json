@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.51",
+  "version": "0.3.53",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -69,7 +69,7 @@
     "@standard-schema/spec": "^1.1.0",
     "@types/json-schema": "^7.0.15",
     "nanoid": "^6.0.2",
-    "secure-json-parse": "^4.1.0"
+    "secure-json-parse": "^4.1.1"
   },
   "peerDependencies": {
     "ai": "^6.0.0 || ^7.0.0",
@@ -89,12 +89,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "ai": "^7.0.130",
+    "ai": "^7.0.143",
     "ai-v6": "npm:ai@^6.0.277",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.3.0",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
   "publishConfig": {
     "access": "public",

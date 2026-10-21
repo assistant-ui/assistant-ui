@@ -6,9 +6,9 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^7.0.130",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "ai": "^7.0.143",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -16,7 +16,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.4.0",
     "typescript": "^7.0.2"

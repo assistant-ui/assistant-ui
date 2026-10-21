@@ -299,7 +299,9 @@ export class AISDKToolkit {
   ): Promise<MCPClient> {
     const existing = this.#mcpClients.get(name);
     if (existing) return existing;
-    const createPromise = createMCPClient(toMCPClientConfig(config));
+    const createPromise = createMCPClient(
+      toMCPClientConfig(config),
+    ) as Promise<MCPClient>;
     let next: Promise<MCPClient>;
     next = withMcpConnectionTimeout(createPromise, {
       name,

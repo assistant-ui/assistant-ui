@@ -21,6 +21,12 @@ on:
       - "templates/**/*.tsx"
       - "templates/**/*.vue"
       - "templates/*/tsconfig.json"
+      - "templates/cloud-clerk/app/globals.css"
+      - "templates/cloud-harness/app/globals.css"
+      - "templates/cloud/app/globals.css"
+      - "templates/default/app/globals.css"
+      - "templates/mcp/app/globals.css"
+      - "templates/minimal/app/globals.css"
       - ".github/workflows/template-sync.yaml"
   pull_request:
     branches: [main]
@@ -42,6 +48,12 @@ on:
       - "templates/**/*.tsx"
       - "templates/**/*.vue"
       - "templates/*/tsconfig.json"
+      - "templates/cloud-clerk/app/globals.css"
+      - "templates/cloud-harness/app/globals.css"
+      - "templates/cloud/app/globals.css"
+      - "templates/default/app/globals.css"
+      - "templates/mcp/app/globals.css"
+      - "templates/minimal/app/globals.css"
       - ".github/workflows/template-sync.yaml"
 
 permissions:

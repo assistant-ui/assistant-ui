@@ -104,6 +104,17 @@ const getQueueItemParts = (
         mimeType: "image/*",
         ...(part.filename !== undefined && { filename: part.filename }),
       });
+    } else if (part.type === "audio") {
+      const dataUrlMatch = part.audio.data.match(
+        /^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i,
+      );
+      parts.push({
+        type: "file",
+        data: dataUrlMatch
+          ? `data:audio/${part.audio.format};base64,${dataUrlMatch[1]}`
+          : part.audio.data,
+        mimeType: `audio/${part.audio.format}`,
+      });
     }
   }
   return parts;

@@ -163,8 +163,7 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
 
   it("costs two passes per provider commit in the documented shape", async () => {
     // Fresh children on every render, as the AssistantRuntimeProvider JSDoc
-    // example does, so its memo does not block: the host renders once against
-    // the previously committed hook, then the publish adds the corrective pass.
+    // example does, so its memo does not block.
     const { App, onNewA, renderThreadRuntime } = createHarness();
     const view = render(<App onNew={onNewA} />);
 

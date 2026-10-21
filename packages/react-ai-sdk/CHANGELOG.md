@@ -1,5 +1,20 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.19
+
+### Patch Changes
+
+- Updated dependencies [[`69bf91a`](https://github.com/assistant-ui/assistant-ui/commit/69bf91a6d5eb3c652ed6f2188dc6fb6934178e9b), [`2dc72a8`](https://github.com/assistant-ui/assistant-ui/commit/2dc72a8699ffe1181ecd7f6636bbb5f770de4916), [`82e1ab6`](https://github.com/assistant-ui/assistant-ui/commit/82e1ab688d41ade47c30a5d8d6e7a5a55fdf99c0)]:
+  - @assistant-ui/ai-sdk@0.0.14
+
+## 1.4.18
+
+### Patch Changes
+
+- [#9775](https://github.com/assistant-ui/assistant-ui/pull/9775) [`6c4e8e2`](https://github.com/assistant-ui/assistant-ui/commit/6c4e8e22af500b3a9d6dd0b047556e2d748cf024) - Add `unstable_enableMessageQueue` to the AI SDK runtimes. Messages sent during a run wait in `composer.queue`; steered messages run first after the current request and its client tools finish. Failed queued sends remain available for retry, and the runtime error hook exposes the failure. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`6c4e8e2`](https://github.com/assistant-ui/assistant-ui/commit/6c4e8e22af500b3a9d6dd0b047556e2d748cf024), [`f0aeadb`](https://github.com/assistant-ui/assistant-ui/commit/f0aeadb9ae90f205ffc187caef3a88ac610b665d), [`dcf82cc`](https://github.com/assistant-ui/assistant-ui/commit/dcf82cc9b9d6a45fb3a1ef3f9729001861163720), [`5d59d2f`](https://github.com/assistant-ui/assistant-ui/commit/5d59d2f15dd67d9132eb2a8283640bfc68262036), [`e2b0050`](https://github.com/assistant-ui/assistant-ui/commit/e2b00501c1f47514adf8dc8720a8d5d3ff143cdf)]:
+  - @assistant-ui/ai-sdk@0.0.13
+
 ## 1.4.17
 
 ### Patch Changes

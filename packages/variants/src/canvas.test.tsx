@@ -109,6 +109,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   store.reset();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -309,14 +310,18 @@ describe("canvas", () => {
 
   it("opens from ?variants=canvas and unmounts variant content when closed", () => {
     const mounts: string[] = [];
+    const unmounts: string[] = [];
     function Counter({ name }: { name: string }) {
       useEffect(() => {
         mounts.push(name);
+        return () => {
+          unmounts.push(name);
+        };
       }, [name]);
       return <span>{name}</span>;
     }
     setUrl("?variants=canvas");
-    renderPage(
+    const { unmount } = renderPage(
       <Variants id="g">
         <Variant id="a">
           <Counter name="a" />
@@ -328,8 +333,13 @@ describe("canvas", () => {
     );
     expect(dialog()).not.toBeNull();
     expect(mounts.sort()).toEqual(["a", "a", "b"]);
+    expect(unmounts).toEqual([]);
     act(() => store.setCanvas(false));
     expect(document.body.textContent).not.toContain("b");
+    expect(unmounts.sort()).toEqual(["a", "b"]);
+    expect(mounts).toEqual(["a", "a", "b"]);
+    unmount();
+    expect(unmounts.sort()).toEqual(["a", "a", "b"]);
   });
 
   it("keeps focus inside the dialog", () => {
@@ -412,6 +422,7 @@ describe("sidebar", () => {
   });
 
   it("animates a toggle but not the first render", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     renderPage();
     const panel = () =>
       document
@@ -423,7 +434,7 @@ describe("sidebar", () => {
     );
     expect(panel().hasAttribute("data-enter")).toBe(true);
     expect(html.hasAttribute("data-variants-animating")).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await act(() => vi.advanceTimersByTimeAsync(300));
     expect(html.hasAttribute("data-variants-animating")).toBe(false);
   });
 
@@ -502,6 +513,7 @@ describe("container replication", () => {
   });
 
   it("keeps display: contents wrappers' classes and follows container resizes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const { container } = renderPage(
       <div className="prose">
         <div className="wrapper" style={{ display: "contents" }}>
@@ -529,13 +541,14 @@ describe("container replication", () => {
     act(() => {
       parent.append(document.createElement("span"));
     });
-    await act(() => new Promise((resolve) => setTimeout(resolve, 60)));
+    await act(() => vi.advanceTimersByTimeAsync(60));
     expect(slot.style.getPropertyValue("--cw")).toBe("320px");
   });
 });
 
 describe("page changes", () => {
   it("reorders rows when groups move on the page", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const Two = ({ swap }: { swap: boolean }) => {
       const a = (
         <Variants key="a" id="a">
@@ -561,7 +574,7 @@ describe("page changes", () => {
         <Two swap />
       </StoreContext.Provider>,
     );
-    await act(() => new Promise((resolve) => setTimeout(resolve, 60)));
+    await act(() => vi.advanceTimersByTimeAsync(60));
     expect(rows().map(([id]) => id)).toEqual(["b", "a"]);
   });
 
@@ -578,6 +591,7 @@ describe("page changes", () => {
 describe("copy prompt", () => {
   const writeText = vi.fn(async (_text: string) => {});
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     writeText.mockClear();
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -586,6 +600,7 @@ describe("copy prompt", () => {
   });
   afterEach(() => {
     delete (navigator as { clipboard?: unknown }).clipboard;
+    vi.useRealTimers();
   });
 
   const flush = () => act(async () => {});

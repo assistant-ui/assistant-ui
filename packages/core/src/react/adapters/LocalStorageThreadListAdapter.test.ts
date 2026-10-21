@@ -7,9 +7,11 @@ import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
   createLocalStorageAdapter,
   createLocalStorageHistoryAdapter,
+} from "./LocalStorageThreadListAdapter";
+import {
   parseStoredMessageRepository,
   parseStoredThreadMetadata,
-} from "./LocalStorageThreadListAdapter";
+} from "./storageCodec";
 
 const storedMessage = (
   id: string,
@@ -622,6 +624,23 @@ describe("parseStoredMessageRepository", () => {
 });
 
 describe("createLocalStorageAdapter", () => {
+  it("exposes per-thread adapters only through unstable_useAdapters", () => {
+    const adapter = createLocalStorageAdapter({ storage: createStorage() });
+    expect(adapter.unstable_useAdapters).toBeTypeOf("function");
+    expect(adapter.unstable_Provider).toBeUndefined();
+  });
+
+  it("stores custom metadata during initialization", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await adapter.initialize("thread-1", { custom: { label: "draft" } });
+
+    expect((await adapter.list()).threads[0]?.custom).toEqual({
+      label: "draft",
+    });
+  });
+
   it("persists history for a newly initialized thread", async () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage();

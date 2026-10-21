@@ -49,16 +49,16 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.9.22",
-    "statewire": "^0.19.4"
+    "@assistant-ui/tap": "^0.9.24",
+    "statewire": "^0.20.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.1.2",
-    "@types/react": "^19.2.17",
-    "react": "^19.2.8",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=20"

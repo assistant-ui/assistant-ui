@@ -58,3 +58,76 @@ describe("mergeModelContexts", () => {
     },
   );
 });
+
+describe("mergeModelContexts system", () => {
+  const systems = () =>
+    new Set([
+      contextProvider({ system: "low", priority: -1 }),
+      contextProvider({ system: "high", priority: 10 }),
+      contextProvider({ system: "default" }),
+      contextProvider({ priority: 5 }),
+    ]);
+
+  it("joins every system in priority order without options", () => {
+    expect(mergeModelContexts(systems()).system).toBe("high\n\ndefault\n\nlow");
+  });
+
+  it("omits system when no provider sets one", () => {
+    const result = mergeModelContexts(new Set([contextProvider({})]));
+    expect(Object.hasOwn(result, "system")).toBe(false);
+  });
+
+  it("keeps higher-priority parts whole and cuts the first part that does not fit", () => {
+    const result = mergeModelContexts(systems(), { maxSystemLength: 16 });
+    expect(result.system).toBe("high\n\ndefault\n\nl");
+  });
+
+  it("counts separators toward the cap and drops parts with no room left", () => {
+    expect(mergeModelContexts(systems(), { maxSystemLength: 6 }).system).toBe(
+      "high",
+    );
+    expect(mergeModelContexts(systems(), { maxSystemLength: 7 }).system).toBe(
+      "high\n\nd",
+    );
+    expect(mergeModelContexts(systems(), { maxSystemLength: 2 }).system).toBe(
+      "hi",
+    );
+  });
+
+  it("does not split a surrogate pair at the cut", () => {
+    const result = mergeModelContexts(
+      new Set([contextProvider({ system: "ab\u{1F600}cd" })]),
+      { maxSystemLength: 3 },
+    );
+    expect(result.system).toBe("ab");
+  });
+
+  it("leaves the system unchanged when it fits the cap", () => {
+    expect(mergeModelContexts(systems(), { maxSystemLength: 100 }).system).toBe(
+      "high\n\ndefault\n\nlow",
+    );
+  });
+
+  it("passes parts to mergeSystem in priority order", () => {
+    const result = mergeModelContexts(systems(), {
+      mergeSystem: (parts) => {
+        expect(parts).toEqual([
+          { system: "high", priority: 10 },
+          { system: "default", priority: 0 },
+          { system: "low", priority: -1 },
+        ]);
+        return parts.map((part) => part.system).join(" | ");
+      },
+    });
+    expect(result.system).toBe("high | default | low");
+  });
+
+  it("throws when both maxSystemLength and mergeSystem are passed", () => {
+    expect(() =>
+      mergeModelContexts(systems(), {
+        maxSystemLength: 10,
+        mergeSystem: () => "",
+      }),
+    ).toThrow(/either maxSystemLength or mergeSystem/);
+  });
+});

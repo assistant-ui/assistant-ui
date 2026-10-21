@@ -8,6 +8,7 @@ import {
   type UIMessage,
 } from "ai";
 import { toToolsJSONSchema } from "assistant-stream";
+import { SSEEventDecoder } from "assistant-stream/utils";
 import {
   RESUMABLE_STREAM_ID_HEADER,
   type AssistantChatResumableOptions,
@@ -18,7 +19,6 @@ export type InitializableThreadListItem = Pick<
   "initialize"
 >;
 
-const FINISH_MARKER = '"type":"finish"';
 const FINISH_BUFFER_LIMIT = 4096;
 const FINISH_BUFFER_TAIL = 1024;
 const RESUMABLE_THREAD_ID_HEADER = "x-assistant-ui-resumable-thread-id";
@@ -158,15 +158,14 @@ function wrapFetchWithResumable(
     }
     if (!res.body || NULL_BODY_STATUSES.has(res.status)) return res;
 
-    const detectFinish = resumable.isFinishEvent ?? defaultIsFinishEvent;
-    // a single decoder is required so multi-byte sequences split across
-    // chunks buffer via stream: true rather than getting dropped.
-    const decoder = new TextDecoder();
+    const detectFinish =
+      resumable.isFinishEvent ?? createDefaultFinishDetector();
+    const decoder = resumable.isFinishEvent ? new TextDecoder() : undefined;
     let accumulator = "";
     const tap = new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         controller.enqueue(chunk);
-        accumulator += decoder.decode(chunk, { stream: true });
+        accumulator += decoder?.decode(chunk, { stream: true }) ?? "";
         if (detectFinish(chunk, accumulator)) {
           if (
             ownsCheckpoint &&
@@ -190,8 +189,21 @@ function wrapFetchWithResumable(
   };
 }
 
-function defaultIsFinishEvent(_chunk: Uint8Array, accumulator: string) {
-  return accumulator.includes(FINISH_MARKER);
+function createDefaultFinishDetector() {
+  const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+  // Observing completion must not impose a smaller event limit than the AI SDK.
+  const events = new SSEEventDecoder({
+    maxLineLength: Number.MAX_SAFE_INTEGER,
+    maxEventLength: Number.MAX_SAFE_INTEGER,
+  });
+  return (chunk: Uint8Array) =>
+    events.push(decoder.decode(chunk, { stream: true })).some(({ data }) => {
+      try {
+        return JSON.parse(data)?.type === "finish";
+      } catch {
+        return false;
+      }
+    });
 }
 
 function wrapPrepareReconnect(

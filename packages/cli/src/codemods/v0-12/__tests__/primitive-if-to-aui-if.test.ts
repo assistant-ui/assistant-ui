@@ -969,7 +969,7 @@ function MyComponent() {
   });
 });
 
-describe("condition precedence", () => {
+describe("condition semantics", () => {
   const compileCondition = (jsx: string) => {
     const output = applyTransform(`
 import { MessagePrimitive, ComposerPrimitive } from "@assistant-ui/react";
@@ -981,6 +981,40 @@ const view = ${jsx};
       s: unknown,
     ) => boolean;
   };
+
+  it.each(["hasBranches", "lastOrHover"])(
+    "keeps %s={false} unconditional",
+    (filter) => {
+      const condition = compileCondition(
+        `<MessagePrimitive.If ${filter}={false} />`,
+      );
+
+      for (const branchCount of [1, 2]) {
+        for (const isLast of [false, true]) {
+          for (const isHovering of [false, true]) {
+            expect(
+              condition({ message: { branchCount, isLast, isHovering } }),
+            ).toBe(true);
+          }
+        }
+      }
+    },
+  );
+
+  it.each(["hasBranches", "lastOrHover"])(
+    "keeps the role filter when %s={false}",
+    (filter) => {
+      const condition = compileCondition(
+        `<MessagePrimitive.If ${filter}={false} assistant />`,
+      );
+      const message = { branchCount: 1, isLast: false, isHovering: false };
+
+      expect(condition({ message: { ...message, role: "assistant" } })).toBe(
+        true,
+      );
+      expect(condition({ message: { ...message, role: "user" } })).toBe(false);
+    },
+  );
 
   it.each([
     {

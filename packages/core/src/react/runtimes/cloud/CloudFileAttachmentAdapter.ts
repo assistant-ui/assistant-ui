@@ -1,3 +1,5 @@
+"use client";
+
 import type { AssistantCloud } from "assistant-cloud";
 import type {
   Attachment,

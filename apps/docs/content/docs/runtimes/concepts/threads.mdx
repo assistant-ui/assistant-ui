@@ -81,10 +81,10 @@ const adapter: RemoteThreadListAdapter = {
       })),
     };
   },
-  async initialize(localId) {
+  async initialize(localId, options) {
     const t = await fetch("/api/threads", {
       method: "POST",
-      body: JSON.stringify({ localId }),
+      body: JSON.stringify({ localId, custom: options?.custom }),
     }).then((r) => r.json());
     return { remoteId: t.id };
   },
@@ -137,10 +137,9 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 ### Persisting messages
 
-`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments are a separate seam with two faces:
+`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments come from `unstable_useAdapters`. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host, and `useRemoteThreadListRuntime` calls it for each hosted thread unless it mounts with an adapter that has `unstable_Provider`, in which case it renders that provider instead.
 
-- `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host. `useRemoteThreadListRuntime` also calls it when `unstable_Provider` is omitted.
-- `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it when present. The store entry ignores it.
+`unstable_Provider` is an older React-component face for the same adapters. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. The store entry ignores it, so implement `unstable_useAdapters` instead.
 
 On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
 
@@ -154,11 +153,10 @@ threads: RemoteThreadList({
 }),
 ```
 
-Share one hook between both faces:
+Implement the hook:
 
 ```tsx
 import {
-  RuntimeAdapterProvider,
   useAui,
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
@@ -193,20 +191,8 @@ function useThreadListAdapters() {
 const adapterWithHistory: RemoteThreadListAdapter = {
   // ...metadata methods above...
   unstable_useAdapters: useThreadListAdapters,
-  unstable_Provider({ children }) {
-    const adapters = useThreadListAdapters();
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  },
 };
 ```
-
-<Callout type="warn">
-`unstable_Provider` must render `children` synchronously on first commit. Do not gate `children` behind a loading state, suspense, or `useEffect`. If you need to load data before the thread is usable, do it inside an always-rendered child (for example via the history adapter), not by withholding `children`.
-</Callout>
 
 ### Avoiding the first-message race
 
@@ -366,6 +352,8 @@ export function ThreadList() {
 
 ### Adapter contract
 
+`generateTitle` is called automatically once the first message settles and, if the thread still has no title, again after its first run ends, including errors and cancellations. The second trigger also covers untitled threads opened with `switchToThread` and runs at most once per thread per thread-list instance. It waits for any title generation already in flight before checking the title, and a manual rename suppresses it. A backend that titles the thread asynchronously may keep the stream open until its title is ready.
+
 <ParametersTable
   type="RemoteThreadListAdapter"
   parameters={[
@@ -378,9 +366,9 @@ export function ThreadList() {
     },
     {
       name: "initialize",
-      type: "(localId: string) => Promise<{ remoteId: string; externalId?: string }>",
+      type: "(localId: string, options?: { custom?: Record<string, unknown> }) => Promise<{ remoteId: string; externalId?: string }>",
       description:
-        "Create a new remote record when the user starts a conversation. Return the canonical ids.",
+        "Create a new remote record when the user starts a conversation, persisting `options.custom` from the draft. Return the canonical ids.",
       required: true,
     },
     {
@@ -404,8 +392,7 @@ export function ThreadList() {
     {
       name: "unarchive",
       type: "(remoteId: string) => Promise<void>",
-      description: "Restore an archived thread.",
-      required: true,
+      description: "Optional. Omit when the backend cannot unarchive; archived threads still open as archived, and explicit unarchive rejects.",
     },
     {
       name: "delete",
@@ -430,13 +417,13 @@ export function ThreadList() {
       name: "unstable_Provider",
       type: "RemoteThreadListProviderComponent",
       description:
-        "Optional React wrapper rendered around each active thread by useRemoteThreadListRuntime when present. Inject thread-scoped adapters here. Omit it to let that host use unstable_useAdapters.",
+        "Older React-component face of unstable_useAdapters. useRemoteThreadListRuntime renders it around each active thread only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. It must render children synchronously on first commit. Prefer unstable_useAdapters.",
     },
     {
       name: "unstable_useAdapters",
       type: "() => RuntimeAdapters | null | undefined",
       description:
-        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime when unstable_Provider is omitted. Per-thread history requires the thread factory to be keyed with withKey.",
+        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime except while it renders unstable_Provider. Per-thread history requires the thread factory to be keyed with withKey.",
     },
   ]}
 />
@@ -469,7 +456,7 @@ function ThreadListItemMeta() {
 }
 ```
 
-`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. The cloud adapter persists this through `cloud.threads.update(threadId, { metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
+`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. On a new draft, this updates the item immediately without calling the adapter; `initialize(threadId, options?)` receives the value as `options.custom` when it creates the thread, and an adapter that ignores it loses the draft's metadata on the next `list()`. Later updates call `updateCustom` on the adapter. The cloud adapter includes it in `cloud.threads.create({ metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
 
 ## ExternalStoreThreadListAdapter
 

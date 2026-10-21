@@ -15,6 +15,7 @@ export const FULL_API_SURFACE_INPUTS = [
   "scripts/update-api-surface.mjs",
   "scripts/lib/changed-files.mjs",
   "scripts/lib/main.mjs",
+  "scripts/lib/package-exports.mjs",
   "scripts/check-api-surface.mjs",
   "scripts/lib/script-options.mjs",
   "scripts/lib/workspace.mjs",

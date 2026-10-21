@@ -7,6 +7,10 @@
     "aui-react18-types": "./bin/aui-react18-types.mjs"
   },
   "exports": {
+    "./testing": {
+      "types": "./src/testing.d.mts",
+      "default": "./src/testing.mjs"
+    },
     "./vitest": {
       "types": "./src/vitest.d.mts",
       "default": "./src/vitest.mjs"
@@ -27,6 +31,6 @@
     "vitest": "^5.0.1"
   },
   "devDependencies": {
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

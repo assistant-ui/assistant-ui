@@ -175,6 +175,7 @@ type Kind = "array" | "object" | "string" | "number";
 type Descriptor = {
   Component: ElementType;
   required: [string, Kind][];
+  acceptsNumericUnit?: boolean;
   /** Fields a chart accepts in place of one another; at least one must be present. */
   either?: [string, Kind][];
 };
@@ -301,7 +302,10 @@ const REGISTRY: Record<string, Descriptor> = {
   ]),
   choropleth: entry(charts.Choropleth, [["values", "array"]]),
   "symbol-map": entry(charts.SymbolMap, [["marks", "array"]]),
-  "dot-map": entry(charts.DotMap, [["counts", "array"]]),
+  "dot-map": {
+    ...entry(charts.DotMap, [["counts", "array"]]),
+    acceptsNumericUnit: true,
+  },
   "flow-map": entry(charts.FlowMap, [
     ["origin", "object"],
     ["routes", "array"],
@@ -432,9 +436,10 @@ export function Chart({ spec, className }: ChartProps): ReactElement {
   const props: Record<string, unknown> = { ...rest };
   if (
     typeof unit === "number" &&
-    descriptor.required.some(
-      ([key, kind]) => key === "unit" && kind === "number",
-    )
+    (descriptor.acceptsNumericUnit ||
+      descriptor.required.some(
+        ([key, kind]) => key === "unit" && kind === "number",
+      ))
   ) {
     props["unit"] = unit;
   } else if (unit !== undefined) {

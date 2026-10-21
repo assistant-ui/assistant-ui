@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { stripVTControlCharacters } from "node:util";
 import {
   createSupervisorUiBridge,
   PiUnsupportedHostUiError,
@@ -131,6 +132,54 @@ describe("createSupervisorUiBridge — blocking dialogs", () => {
 });
 
 describe("createSupervisorUiBridge — degradation table", () => {
+  it("formats themed extension status and notification text", () => {
+    const onNotify = vi.fn();
+    const { bridge } = harness({ onNotify });
+    const theme = bridge.ui.theme;
+
+    expect(() =>
+      bridge.ui.setStatus("ready", theme.fg("dim", theme.bold("Ready"))),
+    ).not.toThrow();
+    bridge.ui.notify(theme.bg("toolSuccessBg", theme.fg("success", "Done")));
+
+    expect(onNotify).toHaveBeenCalledWith("Done", "info");
+  });
+
+  it("sends themed dialog text as plain text and answers with the original option", async () => {
+    const { bridge, emitted } = harness();
+    const theme = bridge.ui.theme;
+    const option = theme.fg("accent", "Deploy");
+
+    const selected = bridge.ui.select(theme.bold("Pick"), [option, "Skip"]);
+    bridge.ui.confirm(theme.fg("warning", "Run?"), theme.fg("dim", "Proceed?"));
+
+    expect(emitted[0]).toMatchObject({
+      title: "Pick",
+      options: ["Deploy", "Skip"],
+    });
+    expect(emitted[1]).toMatchObject({ title: "Run?", message: "Proceed?" });
+    bridge.resolve({ requestId: "r1", value: "Deploy" });
+    expect(await selected).toBe(option);
+  });
+
+  it("supports the theme helpers used by extension renderers", () => {
+    const { bridge } = harness();
+    const theme = bridge.ui.theme;
+    const formatted = [
+      theme.italic("text"),
+      theme.underline("text"),
+      theme.inverse("text"),
+      theme.strikethrough("text"),
+      theme.getThinkingBorderColor("high")("text"),
+      theme.getBashModeBorderColor()("text"),
+      `${theme.getFgAnsi("toolTitle")}${theme.getBgAnsi("selectedBg")}text`,
+    ];
+
+    expect(formatted.map(stripVTControlCharacters)).toEqual(
+      formatted.map(() => "text"),
+    );
+  });
+
   it("rejects custom() with a typed unsupported error", async () => {
     const { bridge } = harness();
     await expect(bridge.ui.custom(() => ({}) as never)).rejects.toBeInstanceOf(

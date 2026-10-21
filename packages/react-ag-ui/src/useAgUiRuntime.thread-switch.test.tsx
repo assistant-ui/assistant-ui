@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { HttpAgent } from "@ag-ui/client";
 import type { ThreadHistoryAdapter, ThreadMessage } from "@assistant-ui/core";
-import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "./runtime/AgUiThreadController";
 import type {
   UseAgUiRuntimeOptions,
   UseAgUiThreadListAdapter,
@@ -661,7 +661,7 @@ describe("useAgUiRuntime thread switching", () => {
     "ignores an older load and its resume request with state %j",
     async (state) => {
       const resume = vi
-        .spyOn(AgUiThreadRuntimeCore.prototype, "resumeInFlightRun")
+        .spyOn(AgUiThreadController.prototype, "resumeInFlightRun")
         .mockResolvedValue();
       const first = deferred<ThreadLoad>();
       const second = deferred<ThreadLoad>();
@@ -778,7 +778,7 @@ describe("useAgUiRuntime thread switching", () => {
 
   it("ignores a load superseded by creating a new thread", async () => {
     const resume = vi
-      .spyOn(AgUiThreadRuntimeCore.prototype, "resumeInFlightRun")
+      .spyOn(AgUiThreadController.prototype, "resumeInFlightRun")
       .mockResolvedValue();
     const load = deferred<ThreadLoad>();
     const { result } = renderRuntime(() => load.promise);
@@ -839,7 +839,7 @@ describe("useAgUiRuntime thread switching", () => {
 
   it("applies the current load and resumes it", async () => {
     const resume = vi
-      .spyOn(AgUiThreadRuntimeCore.prototype, "resumeInFlightRun")
+      .spyOn(AgUiThreadController.prototype, "resumeInFlightRun")
       .mockResolvedValue();
     const messages = [message("thread-a")];
     const { result } = renderRuntime(async () => ({

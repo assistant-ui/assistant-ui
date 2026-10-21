@@ -58,6 +58,53 @@ export type AssistantContextConfig = {
   disabled?: boolean | undefined;
 };
 
+export type SystemPart = {
+  system: string;
+  priority: number;
+};
+
+export type ModelContextOptions = {
+  maxSystemLength?: number | undefined;
+  mergeSystem?: ((parts: readonly SystemPart[]) => string) | undefined;
+};
+
+const SYSTEM_SEPARATOR = "\n\n";
+
+const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
+
+const capSystem = (parts: readonly SystemPart[], maxLength: number) => {
+  let result = "";
+  for (const { system } of parts) {
+    const separator = result ? SYSTEM_SEPARATOR : "";
+    const room = maxLength - result.length - separator.length;
+    const end =
+      room < system.length && isHighSurrogate(system.charCodeAt(room - 1))
+        ? room - 1
+        : room;
+    if (end <= 0) break;
+    result += separator + system.slice(0, end);
+    if (system.length > end) break;
+  }
+  return result;
+};
+
+const mergeSystem = (
+  parts: readonly SystemPart[],
+  options: ModelContextOptions,
+) => {
+  if (options.mergeSystem) {
+    if (options.maxSystemLength !== undefined) {
+      throw new Error(
+        "Pass either maxSystemLength or mergeSystem, not both. Apply the cap inside mergeSystem instead.",
+      );
+    }
+    return options.mergeSystem(parts);
+  }
+  if (options.maxSystemLength !== undefined)
+    return capSystem(parts, options.maxSystemLength);
+  return parts.map((part) => part.system).join(SYSTEM_SEPARATOR);
+};
+
 const stripOverwrite = (tool: Tool<any, any>): Tool<any, any> => {
   if (!tool.overwrite) return tool;
   const { overwrite: _, ...rest } = tool;
@@ -66,21 +113,19 @@ const stripOverwrite = (tool: Tool<any, any>): Tool<any, any> => {
 
 export const mergeModelContexts = (
   configSet: Set<ModelContextProvider>,
+  options: ModelContextOptions = {},
 ): ModelContext => {
   const configs = Array.from(configSet)
     .map((c) => c.getModelContext())
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
   const toolPriorities = nullProtoRecord<number>();
+  const systemParts: SystemPart[] = [];
 
-  return configs.reduce((acc, config) => {
+  const merged = configs.reduce((acc, config) => {
     const priority = config.priority ?? 0;
     if (config.system) {
-      if (acc.system) {
-        acc.system += `\n\n${config.system}`;
-      } else {
-        acc.system = config.system;
-      }
+      systemParts.push({ system: config.system, priority });
     }
     if (config.tools) {
       for (const [name, tool] of Object.entries(config.tools)) {
@@ -138,4 +183,8 @@ export const mergeModelContexts = (
     }
     return acc;
   }, {} as ModelContext);
+
+  const system = mergeSystem(systemParts, options);
+  if (system) merged.system = system;
+  return merged;
 };

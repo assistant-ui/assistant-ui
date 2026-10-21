@@ -1,3 +1,5 @@
+import type { ThreadMessage } from "../../types/message";
+
 export type ThreadTitleClaim = {
   readonly title: string;
   readonly order: number;
@@ -29,15 +31,58 @@ export type ThreadTitleState = {
 };
 
 const waitingAutomatics = new WeakMap<ThreadTitleState, number>();
+const automaticTitleHistory = new WeakMap<
+  Map<string, ThreadTitleState>,
+  Map<
+    string,
+    {
+      runEnded: boolean;
+      renamed: boolean;
+      messages: readonly ThreadMessage[] | undefined;
+    }
+  >
+>();
+
+function getAutomaticTitleHistory(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+) {
+  let history = automaticTitleHistory.get(states);
+  if (history === undefined) {
+    history = new Map();
+    automaticTitleHistory.set(states, history);
+  }
+  let thread = history.get(threadId);
+  if (thread === undefined) {
+    thread = { runEnded: false, renamed: false, messages: undefined };
+    history.set(threadId, thread);
+  }
+  return thread;
+}
+
+const successorObservers = new WeakMap<
+  ThreadTitleState,
+  Set<(settled: Promise<boolean>) => void>
+>();
+
+function notifySuccessor(
+  state: ThreadTitleState,
+  settled: Promise<boolean>,
+): void {
+  for (const observe of successorObservers.get(state) ?? []) observe(settled);
+}
 
 export type ThreadTitleGenerationRun = {
   states: Map<string, ThreadTitleState>;
   threadId: string;
   automatic: boolean;
+  messages?: readonly ThreadMessage[];
+  afterRun?: (() => string | undefined) | undefined;
   generate: (
     onTitle: (title: string | undefined) => Promise<void>,
   ) => Promise<void>;
   rename: (title: string) => Promise<void>;
+  readTitle: () => Promise<string | undefined>;
   applyTitle: (title: string | undefined) => Promise<void>;
 };
 
@@ -123,6 +168,7 @@ export function startThreadTitleRename(
   };
   state.pendingClaim = claim;
   state.inFlightClaims.add(claim);
+  notifySuccessor(state, settled);
   for (const generation of state.generations) {
     if (generation.order < claim.order) {
       generation.claim = claim;
@@ -142,6 +188,7 @@ export function finishThreadTitleRename(
   claim.settle(renamed);
   const state = states.get(threadId);
   if (state === undefined) return;
+  if (renamed) getAutomaticTitleHistory(states, threadId).renamed = true;
   state.inFlightClaims.delete(claim);
   if (
     renamed &&
@@ -280,6 +327,12 @@ function startThreadTitleGeneration(
   }
   state.latestGeneration = generation;
   state.generations.add(generation);
+  if (successorObservers.has(state)) {
+    notifySuccessor(
+      state,
+      persisted.then((title) => title !== undefined),
+    );
+  }
   return generation;
 }
 
@@ -296,8 +349,48 @@ function startThreadTitleGeneration(
 export async function runThreadTitleGeneration(
   run: ThreadTitleGenerationRun,
 ): Promise<void> {
-  const { states, threadId, automatic } = run;
+  const { states, threadId, automatic, afterRun } = run;
   const state = getThreadTitleState(states, threadId);
+  const history = getAutomaticTitleHistory(states, threadId);
+  if (afterRun) {
+    if (history.runEnded || history.renamed) {
+      pruneThreadTitleState(states, threadId, state);
+      return;
+    }
+    history.runEnded = true;
+    const coalesced =
+      history.messages !== undefined &&
+      history.messages.some((message) => message.role === "assistant") &&
+      history.messages.length === run.messages?.length &&
+      history.messages.every(
+        (message, index) => message === run.messages![index],
+      );
+    history.messages = undefined;
+    if (coalesced) {
+      pruneThreadTitleState(states, threadId, state);
+      return;
+    }
+    waitingAutomatics.set(state, (waitingAutomatics.get(state) ?? 0) + 1);
+    let proceed = false;
+    try {
+      while (state.generations.size > 0 || state.inFlightClaims.size > 0) {
+        await Promise.all([
+          ...[...state.generations].map((generation) => generation.persisted),
+          ...[...state.inFlightClaims].map((claim) => claim.settled),
+        ]);
+        if (states.get(threadId) !== state) return;
+      }
+      if (history.renamed || afterRun()) return;
+      proceed = true;
+    } finally {
+      const remaining = waitingAutomatics.get(state)! - 1;
+      if (remaining === 0) waitingAutomatics.delete(state);
+      else waitingAutomatics.set(state, remaining);
+      if (!proceed) pruneThreadTitleState(states, threadId, state);
+    }
+  } else if (automatic && !history.runEnded) {
+    history.messages = run.messages;
+  }
   const explicitAtStart = automatic
     ? [...state.generations].filter((generation) => !generation.automatic)
     : [];
@@ -381,6 +474,45 @@ export async function runThreadTitleGeneration(
   let sawTitle = false;
   let lastTitle: string | undefined;
 
+  const writeBack = async (title: string, ownsTitle: () => boolean) => {
+    const order = state.nextOrder;
+    const successors: Promise<boolean>[] = [];
+    const observe = (settled: Promise<boolean>) => successors.push(settled);
+    let observers = successorObservers.get(state);
+    if (observers === undefined) {
+      observers = new Set();
+      successorObservers.set(state, observers);
+    }
+    observers.add(observe);
+    try {
+      await rename(title);
+      persistedTitle = title;
+    } catch (error) {
+      try {
+        while (isLive()) {
+          const count = successors.length;
+          const results = await Promise.all(successors);
+          if (successors.length !== count) continue;
+          if (results.some(Boolean)) break;
+          if (count === 0 && (state.nextOrder !== order || !ownsTitle())) break;
+          const readOrder = state.nextOrder;
+          const serverTitle = await run.readTitle();
+          if (!isLive()) break;
+          if (state.nextOrder !== readOrder || successors.length !== count)
+            continue;
+          if (count === 0 && !ownsTitle()) break;
+          persistedTitle = serverTitle;
+          await applyTitle(serverTitle);
+          break;
+        }
+      } catch {}
+      throw error;
+    } finally {
+      observers.delete(observe);
+      if (observers.size === 0) successorObservers.delete(state);
+    }
+  };
+
   const settleClaim = async (claim: ThreadTitleClaim) => {
     const renamed = await claim.settled;
     if (generation.claim !== claim) return undefined;
@@ -432,9 +564,11 @@ export async function runThreadTitleGeneration(
       ) {
         const renamed = await settleClaim(claim);
         if (renamed === true) {
-          persistedTitle = claim.title;
+          await writeBack(
+            claim.title,
+            () => generation.claim === claim && isCurrentClaim(state, claim),
+          );
           persistedOrder = claim.order;
-          await rename(claim.title);
         }
         continue;
       }
@@ -447,10 +581,14 @@ export async function runThreadTitleGeneration(
         return;
       const title = await winner.persisted;
       if (state.latestGeneration !== winner) continue;
-      persistedOrder = winner.order;
       if (title === undefined || title === persistedTitle) return;
-      persistedTitle = title;
-      await rename(title);
+      await writeBack(
+        title,
+        () =>
+          state.latestGeneration === winner &&
+          (generation.claim?.order ?? 0) <= winner.order,
+      );
+      persistedOrder = winner.order;
     }
   };
 
@@ -524,8 +662,11 @@ export async function runThreadTitleGeneration(
         if (!isCurrentClaim(state, claim)) return;
         if (generation.claim !== claim) continue;
       }
-      await rename(claim.title);
-      persistedTitle = claim.title;
+      await writeBack(
+        claim.title,
+        () =>
+          generation.claim === claim && isCurrentGeneration(state, generation),
+      );
       persistedOrder = claim.order;
       if (generation.claim !== claim) continue;
       if (!isCurrentGeneration(state, generation)) return;

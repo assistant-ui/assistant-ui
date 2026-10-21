@@ -109,6 +109,8 @@ With no custom parser, both `DirectiveText` and a `createDirectiveText` call wit
 // → "Ask ", a chip labeled "Search" (type "tool", id "web-search"), " to look this up."
 ```
 
+For labels containing `]` or IDs containing `}`, the formatter can emit quoted fields: `:file{label="[id].tsx" name="src/pages/[id].tsx"}`. Both renderers decode these fields into the original label and ID. See [Directive Format](/docs/guides/mentions#directive-format) for escaping and compatibility details.
+
 ### Map directive types to icons
 
 `iconMap` and `fallbackIcon` work the same whether the formatter is the default or your own; keys match each segment's `type`.

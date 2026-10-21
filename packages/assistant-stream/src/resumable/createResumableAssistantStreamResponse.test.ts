@@ -10,36 +10,24 @@ import { createInMemoryResumableStreamStore } from "./stores/InMemoryResumableSt
 import { DataStreamDecoder } from "../core/serialization/data-stream/DataStream";
 import { AssistantTransportEncoder } from "../core/serialization/assistant-transport/AssistantTransport";
 import { AssistantMessageAccumulator } from "../core/accumulators/assistant-message-accumulator";
-import type { AssistantStreamChunk } from "../core/AssistantStreamChunk";
+import { promiseWithResolvers } from "../utils/promiseWithResolvers";
 
-async function decodeAssistantText(response: Response): Promise<string> {
-  const chunks: AssistantStreamChunk[] = [];
-  const stream = response.body!.pipeThrough(new DataStreamDecoder());
-  for await (const chunk of stream) chunks.push(chunk);
-
-  const acc = new AssistantMessageAccumulator();
-  const messageStream = new ReadableStream<AssistantStreamChunk>({
-    start(c) {
-      for (const ch of chunks) c.enqueue(ch);
-      c.close();
-    },
-  }).pipeThrough(acc);
-
-  const reader = messageStream.getReader();
-  let last:
-    | { parts: ReadonlyArray<{ type: string; text?: string }> }
-    | undefined;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    last = value;
-  }
-  return (
-    last?.parts
-      .filter((p): p is { type: "text"; text: string } => p.type === "text")
+async function decodeAssistantText(
+  response: Response,
+  onText?: (text: string) => void,
+): Promise<string> {
+  const stream = response
+    .body!.pipeThrough(new DataStreamDecoder())
+    .pipeThrough(new AssistantMessageAccumulator());
+  let text = "";
+  for await (const message of stream) {
+    text = message.parts
+      .filter((p) => p.type === "text")
       .map((p) => p.text)
-      .join("") ?? ""
-  );
+      .join("");
+    onText?.(text);
+  }
+  return text;
 }
 
 describe("createResumableAssistantStreamResponse", () => {
@@ -183,37 +171,69 @@ describe("createResumableAssistantStreamResponse", () => {
   });
 
   it("mid-stream consumer joins active production and receives every chunk in order", async () => {
+    const continueProduction = promiseWithResolvers<void>();
+    const finishProduction = promiseWithResolvers<void>();
+    const tasks: Promise<unknown>[] = [];
+    const store = createInMemoryResumableStreamStore();
     const ctx = createResumableStreamContext({
-      store: createInMemoryResumableStreamStore(),
+      store,
+      waitUntil: (task) => tasks.push(task),
     });
-
-    let emitted = 0;
+    let producerText = "";
+    let replayText = "";
     const producerDone = createResumableAssistantStreamResponse({
       context: ctx,
       streamId: "s1",
       callback: async (controller) => {
-        for (let i = 0; i < 5; i++) {
-          await new Promise((r) => setTimeout(r, 5));
-          controller.appendText(`chunk${i};`);
-          emitted += 1;
-        }
+        controller.appendText("chunk0;");
+        controller.appendText("chunk1;");
+        await continueProduction.promise;
+        controller.appendText("chunk2;");
+        controller.appendText("chunk3;");
+        controller.appendText("chunk4;");
+        await finishProduction.promise;
       },
-    });
+    })
+      .then((response) =>
+        decodeAssistantText(response, (text) => {
+          producerText = text;
+        }),
+      )
+      .catch((error: unknown) => error);
+    let replayDone: Promise<unknown> = Promise.resolve();
 
-    const producer = await producerDone;
+    try {
+      await expect
+        .poll(() => producerText, { interval: 1 })
+        .toBe("chunk0;chunk1;");
+      replayDone = createResumeAssistantStreamResponse({
+        context: ctx,
+        streamId: "s1",
+      })
+        .then((response) =>
+          decodeAssistantText(response, (text) => {
+            replayText = text;
+          }),
+        )
+        .catch((error: unknown) => error);
+      await expect
+        .poll(() => replayText, { interval: 1 })
+        .toBe("chunk0;chunk1;");
 
-    while (emitted < 2) {
-      await new Promise((r) => setTimeout(r, 1));
+      continueProduction.resolve();
+      const expected = "chunk0;chunk1;chunk2;chunk3;chunk4;";
+      await expect.poll(() => replayText, { interval: 1 }).toBe(expected);
+      expect(await ctx.status("s1")).toBe("streaming");
+
+      finishProduction.resolve();
+      expect(await producerDone).toBe(expected);
+      expect(await replayDone).toBe(expected);
+      expect(await ctx.status("s1")).toBe("done");
+    } finally {
+      continueProduction.resolve();
+      finishProduction.resolve();
+      await Promise.allSettled([producerDone, replayDone, ...tasks]);
+      store.dispose();
     }
-
-    const replay = await ctx.resume("s1");
-    expect(replay).not.toBeNull();
-
-    const [producerBody, replayText] = await Promise.all([
-      new Response(producer.body).arrayBuffer(),
-      decodeAssistantText(new Response(replay)),
-    ]);
-    expect(producerBody.byteLength).toBeGreaterThan(0);
-    expect(replayText).toBe("chunk0;chunk1;chunk2;chunk3;chunk4;");
   });
 });

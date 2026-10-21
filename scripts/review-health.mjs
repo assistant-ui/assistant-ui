@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createGitHubClient } from "./lib/review-github-client.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import {
   loadReviewPolicy,
@@ -220,43 +221,6 @@ export function renderReviewHealth(metrics, { since, until }) {
   ].join("\n");
 }
 
-async function request(url, token, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...options.headers,
-    },
-  });
-  if (!response.ok) {
-    throw Object.assign(
-      new Error(
-        `GitHub request failed (${response.status} ${response.statusText}): ${url}`,
-      ),
-      {
-        status: response.status,
-      },
-    );
-  }
-  return {
-    data: await response.json(),
-    next: /<([^>]+)>; rel="next"/.exec(response.headers.get("link") ?? "")?.[1],
-  };
-}
-
-async function graphql(query, variables, token) {
-  const { data } = await request(`${apiRoot}/graphql`, token, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (data.errors?.length)
-    throw new Error(data.errors.map((error) => error.message).join("; "));
-  return data.data;
-}
-
 const mergedQuery = `query($owner: String!, $name: String!, $after: String) {
   repository(owner: $owner, name: $name) {
     pullRequests(states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}, first: 100, after: $after) {
@@ -291,7 +255,7 @@ const detailsQuery = `query($owner: String!, $name: String!, $number: Int!, $rev
   }
 }`;
 
-async function pullRequestDetails(owner, name, number, token) {
+async function pullRequestDetails(owner, name, number, client) {
   const reviews = [];
   const comments = [];
   const events = [];
@@ -302,19 +266,15 @@ async function pullRequestDetails(owner, name, number, token) {
   };
   const active = { reviews: true, comments: true, timelineItems: true };
   while (Object.values(active).some(Boolean)) {
-    const data = await graphql(
-      detailsQuery,
-      {
-        owner,
-        name,
-        number,
-        ...cursors,
-        loadReviews: active.reviews,
-        loadComments: active.comments,
-        loadEvents: active.timelineItems,
-      },
-      token,
-    );
+    const data = await client.graphql(detailsQuery, {
+      owner,
+      name,
+      number,
+      ...cursors,
+      loadReviews: active.reviews,
+      loadComments: active.comments,
+      loadEvents: active.timelineItems,
+    });
     const pr = data.repository.pullRequest;
     if (!pr) throw new Error(`Pull request #${number} was not found.`);
     for (const [key, target, cursor] of [
@@ -331,7 +291,13 @@ async function pullRequestDetails(owner, name, number, token) {
   return { reviews, comments, events };
 }
 
-async function fetchPullRequests(policy, people, since, untilExclusive, token) {
+async function fetchPullRequests(
+  policy,
+  people,
+  since,
+  untilExclusive,
+  client,
+) {
   const [owner, name] = policy.repository.split("/");
   const maintainers = new Set([
     ...loginKeys(people.admins),
@@ -340,7 +306,7 @@ async function fetchPullRequests(policy, people, since, untilExclusive, token) {
   const pullRequests = [];
   let after = null;
   while (true) {
-    const data = await graphql(mergedQuery, { owner, name, after }, token);
+    const data = await client.graphql(mergedQuery, { owner, name, after });
     const connection = data.repository.pullRequests;
     for (const node of connection.nodes) {
       if (
@@ -353,7 +319,7 @@ async function fetchPullRequests(policy, people, since, untilExclusive, token) {
         owner,
         name,
         node.number,
-        token,
+        client,
       );
       const readyForReviewAt = events.at(-1)?.createdAt ?? node.createdAt;
       const firstMaintainerResponseAt =
@@ -406,22 +372,16 @@ async function fetchPullRequests(policy, people, since, untilExclusive, token) {
   return pullRequests;
 }
 
-async function fetchMembers(url, token) {
-  const members = [];
-  while (url) {
-    const response = await request(url, token);
-    members.push(...response.data.map(({ login }) => login));
-    url = response.next;
-  }
-  return members;
+async function fetchMembers(url, client) {
+  return (await client.paginate(url)).map(({ login }) => login);
 }
 
-async function fetchPeople(policy, token) {
+async function fetchPeople(policy, client) {
   const [org] = policy.repository.split("/");
   const orgUrl = `${apiRoot}/orgs/${encodeURIComponent(org)}`;
   const admins = await fetchMembers(
     `${orgUrl}/members?role=admin&per_page=100`,
-    token,
+    client,
   );
   const teams = {};
   for (const slug of new Set([
@@ -432,7 +392,7 @@ async function fetchPeople(policy, token) {
     try {
       teams[slug] = await fetchMembers(
         `${orgUrl}/teams/${encodeURIComponent(slug)}/members?per_page=100`,
-        token,
+        client,
       );
     } catch (error) {
       if (error.status !== 404) throw error;
@@ -443,26 +403,21 @@ async function fetchPeople(policy, token) {
   return { admins, teams };
 }
 
-async function fetchRuleSuites(policy, since, untilExclusive, token) {
+async function fetchRuleSuites(policy, since, untilExclusive, client) {
   const suites = [];
   const seen = new Set();
-  let url = `${apiRoot}/repos/${policy.repository}/rulesets/rule-suites?ref=refs%2Fheads%2Fmain&time_period=month&per_page=100`;
-  while (url) {
-    const response = await request(url, token);
-    for (const suite of response.data) {
-      if (seen.has(suite.id)) continue;
-      seen.add(suite.id);
-      if (suite.pushed_at < since || suite.pushed_at >= untilExclusive)
-        continue;
-      suites.push({
-        id: suite.id,
-        actorName: suite.actor_name,
-        result: suite.result,
-        afterSha: suite.after_sha,
-        pushedAt: suite.pushed_at,
-      });
-    }
-    url = response.next;
+  const url = `${apiRoot}/repos/${policy.repository}/rulesets/rule-suites?ref=refs%2Fheads%2Fmain&time_period=month&per_page=100`;
+  for (const suite of await client.paginate(url)) {
+    if (seen.has(suite.id)) continue;
+    seen.add(suite.id);
+    if (suite.pushed_at < since || suite.pushed_at >= untilExclusive) continue;
+    suites.push({
+      id: suite.id,
+      actorName: suite.actor_name,
+      result: suite.result,
+      afterSha: suite.after_sha,
+      pushedAt: suite.pushed_at,
+    });
   }
   return suites;
 }
@@ -517,31 +472,33 @@ async function main() {
     process.env.GITHUB_TOKEN ||
     execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
   if (!token) throw new Error("GITHUB_TOKEN or gh auth token is required.");
+  const client = createGitHubClient({ token });
   const sinceTime = `${since}T00:00:00Z`;
   const untilTime = untilExclusive.toISOString();
-  const people = await fetchPeople(policy, token);
+  const people = await fetchPeople(policy, client);
   const pullRequests = await fetchPullRequests(
     policy,
     people,
     sinceTime,
     untilTime,
-    token,
+    client,
   );
-  const ruleSuites = await fetchRuleSuites(policy, sinceTime, untilTime, token);
+  const ruleSuites = await fetchRuleSuites(
+    policy,
+    sinceTime,
+    untilTime,
+    client,
+  );
   const body = renderReviewHealth(
     computeReviewHealth({ pullRequests, ruleSuites, people }, policy),
     { since, until },
   );
   console.log(body);
   if (issueValues.length) {
-    await request(
+    await client.rest(
+      "PATCH",
       `${apiRoot}/repos/${policy.repository}/issues/${issueValues[0]}`,
-      token,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body }),
-      },
+      { body },
     );
   }
 }

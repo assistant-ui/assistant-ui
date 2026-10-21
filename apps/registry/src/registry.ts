@@ -1284,6 +1284,24 @@ export const registry: RegistryItem[] = [
       "tooltip",
       "https://r.assistant-ui.com/elements-tokens.json",
       "https://r.assistant-ui.com/elements-context-usage.json",
+      "https://r.assistant-ui.com/elements-context-display-state.json",
+    ],
+  },
+  {
+    name: "elements-context-display-state",
+    type: "registry:component",
+    title: "Elements Context Display State",
+    description: "Shared context display state and reset behavior.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/context-display-state.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/context-display-state.ts",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-context-usage.json",
     ],
   },
   {
@@ -1602,6 +1620,24 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "zustand"],
   },
   {
+    name: "elements-attachment-state",
+    type: "registry:component",
+    title: "Elements Attachment State",
+    description: "Shared attachment status and preview state.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/attachment-state.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/attachment-state.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/use-attachment-src.json",
+    ],
+  },
+  {
     name: "attachment",
     type: "registry:component",
     title: "Attachment",
@@ -1620,7 +1656,7 @@ export const registry: RegistryItem[] = [
       "tooltip",
       "avatar",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
-      "https://r.assistant-ui.com/use-attachment-src.json",
+      "https://r.assistant-ui.com/elements-attachment-state.json",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
@@ -1870,7 +1906,7 @@ export const registry: RegistryItem[] = [
         type: "registry:ui",
         path: "components/ui/diff-viewer.tsx",
         sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/diff-viewer.tsx",
+          "../../packages/ui/src/components/react/ui/base/diff-viewer.tsx",
       },
     ],
     dependencies: [
@@ -2160,7 +2196,7 @@ export const registry: RegistryItem[] = [
         type: "registry:ui",
         path: "components/ui/dot-matrix.tsx",
         sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/dot-matrix.tsx",
+          "../../packages/ui/src/components/react/ui/base/dot-matrix.tsx",
       },
     ],
     dependencies: [],
@@ -2177,7 +2213,7 @@ export const registry: RegistryItem[] = [
         type: "registry:ui",
         path: "components/ui/number-roll.tsx",
         sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/number-roll.tsx",
+          "../../packages/ui/src/components/react/ui/base/number-roll.tsx",
       },
     ],
     dependencies: [],
@@ -2194,6 +2230,12 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/elements/heat-graph.tsx",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/heat-graph.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
       },
     ],
     dependencies: ["heat-graph"],

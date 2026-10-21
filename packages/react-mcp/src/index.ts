@@ -17,6 +17,7 @@ export {
 
 // Connector helper
 export { defineConnector } from "./connector";
+export { getMcpToolName } from "./utils/toolName";
 
 // Storage resources
 export {

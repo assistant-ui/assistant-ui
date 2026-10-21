@@ -47,27 +47,34 @@ describe("ResourceHandle - Basic Usage", () => {
     expect(listener).toHaveBeenCalled();
   });
 
-  it("should support subscribing and unsubscribing", () => {
-    const useTestResource = () => {
-      return { timestamp: 0 };
-    };
-
+  it("stops notifying each subscriber after it unsubscribes", () => {
     const sub = createTapRoot(function Root() {
-      return useTestResource();
+      const [count, setCount] = useState(0);
+      return { count, increment: () => setCount((value) => value + 1) };
     });
 
-    const subscriber1 = vi.fn();
-    const subscriber2 = vi.fn();
+    try {
+      const subscriber1 = vi.fn();
+      const subscriber2 = vi.fn();
+      const unsub1 = sub.subscribe(subscriber1);
+      const unsub2 = sub.subscribe(subscriber2);
 
-    // Can subscribe multiple callbacks
-    const unsub1 = sub.subscribe(subscriber1);
-    const unsub2 = sub.subscribe(subscriber2);
+      flushTapSync(() => sub.getValue().increment());
+      expect(subscriber1).toHaveBeenCalledTimes(1);
+      expect(subscriber2).toHaveBeenCalledTimes(1);
 
-    // Can unsubscribe individually
-    expect(typeof unsub1).toBe("function");
-    expect(typeof unsub2).toBe("function");
+      unsub1();
+      flushTapSync(() => sub.getValue().increment());
+      expect(subscriber1).toHaveBeenCalledTimes(1);
+      expect(subscriber2).toHaveBeenCalledTimes(2);
 
-    unsub1();
-    unsub2();
+      unsub2();
+      flushTapSync(() => sub.getValue().increment());
+      expect(sub.getValue().count).toBe(3);
+      expect(subscriber1).toHaveBeenCalledTimes(1);
+      expect(subscriber2).toHaveBeenCalledTimes(2);
+    } finally {
+      sub.unmount();
+    }
   });
 });

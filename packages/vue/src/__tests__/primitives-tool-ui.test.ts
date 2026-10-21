@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  clearPartWarningsForTesting();
 });
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
@@ -23,7 +22,6 @@ import { useAui } from "../useAui";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import {
   MessagePrimitiveParts,
-  clearPartWarningsForTesting,
   type ToolUIProps,
 } from "../primitives/MessagePrimitiveParts";
 

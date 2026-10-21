@@ -56,6 +56,7 @@ const COMMON_EXTRA_SOURCE_FILES = [
 const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/react/assistant-ui/elements/collapsible-root.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/attachment.aui.tsx",
+  "packages/ui/src/components/react/assistant-ui/elements/attachment-state.ts",
   "packages/ui/src/components/react/ui/base/badge.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/composer-trigger-popover.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/directive-text.tsx",

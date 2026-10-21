@@ -37,6 +37,7 @@ const setup = () => {
     runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic,
       generate: async (onTitle) => {
         await gate.promise;
@@ -62,6 +63,7 @@ describe("title generation retraction", () => {
       const explicit = runThreadTitleGeneration({
         states: h.states,
         threadId: "t1",
+        readTitle: async () => h.server.title,
         automatic: false,
         generate: async () => {
           await eGate.promise;
@@ -97,6 +99,7 @@ describe("title generation retraction", () => {
     const explicit = runThreadTitleGeneration({
       states: h.states,
       threadId: "t1",
+      readTitle: async () => h.server.title,
       automatic: false,
       generate: async (onTitle) => {
         await eGate.promise;
@@ -147,6 +150,7 @@ describe("title generation retraction", () => {
       const first = runThreadTitleGeneration({
         states: h.states,
         threadId: "t1",
+        readTitle: async () => h.server.title,
         automatic: true,
         generate: async (onTitle) => {
           await firstGate.promise;
@@ -159,6 +163,7 @@ describe("title generation retraction", () => {
       const second = runThreadTitleGeneration({
         states: h.states,
         threadId: "t1",
+        readTitle: async () => h.server.title,
         automatic: true,
         generate: async (onTitle) => {
           await secondGate.promise;
@@ -214,6 +219,7 @@ describe("title generation retraction", () => {
     const automatic = runThreadTitleGeneration({
       states: h.states,
       threadId: "t1",
+      readTitle: async () => h.server.title,
       automatic: true,
       generate,
       rename: h.rename,
@@ -238,6 +244,7 @@ describe("title generation retraction", () => {
       runThreadTitleGeneration({
         states: h.states,
         threadId: "t1",
+        readTitle: async () => h.server.title,
         automatic: true,
         generate: next,
         rename: h.rename,
@@ -258,6 +265,7 @@ describe("title generation retraction", () => {
     const automatic = runThreadTitleGeneration({
       states: h.states,
       threadId: "t1",
+      readTitle: async () => h.server.title,
       automatic: true,
       generate: async (onTitle) => {
         await aGate.promise;
@@ -294,6 +302,7 @@ describe("title generation retraction", () => {
       const automatic = runThreadTitleGeneration({
         states: h.states,
         threadId: "t1",
+        readTitle: async () => h.server.title,
         automatic: true,
         generate: async (onTitle) => {
           await aGate.promise;
@@ -307,6 +316,7 @@ describe("title generation retraction", () => {
       const explicit = runThreadTitleGeneration({
         states: h.states,
         threadId: "t1",
+        readTitle: async () => h.server.title,
         automatic: false,
         generate: async () => {
           await eGate.promise;
@@ -410,6 +420,7 @@ describe("title generation retraction", () => {
     const automatic = runThreadTitleGeneration({
       states: h.states,
       threadId: "t1",
+      readTitle: async () => h.server.title,
       automatic: true,
       generate,
       rename: h.rename,
@@ -445,6 +456,7 @@ describe("title generation retraction", () => {
     const waitingAutomatic = runThreadTitleGeneration({
       states: h.states,
       threadId: "t1",
+      readTitle: async () => h.server.title,
       automatic: true,
       generate,
       rename: h.rename,
@@ -476,6 +488,7 @@ describe("title generation retraction", () => {
     const automatic = runThreadTitleGeneration({
       states: h.states,
       threadId: "t1",
+      readTitle: async () => h.server.title,
       automatic: true,
       generate,
       rename: h.rename,
@@ -593,6 +606,7 @@ describe("title generation retraction", () => {
               runThreadTitleGeneration({
                 states,
                 threadId: "t1",
+                readTitle: async () => server.title,
                 automatic: automatic[index]!,
                 generate: async (onTitle) => {
                   await gates[index]!.promise;

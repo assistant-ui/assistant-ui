@@ -240,6 +240,7 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
 /AGENTS.md @assistant-ui/owners
 /scripts/review-tier.mjs @assistant-ui/owners
 /scripts/diff-api-surface.mjs @assistant-ui/owners
+/scripts/review-coverage-advice.mjs @assistant-ui/owners
 /scripts/sync-review-policy.mjs @assistant-ui/owners
 /scripts/review-health.mjs @assistant-ui/owners
 /scripts/lib/review-*.mjs @assistant-ui/owners
@@ -319,6 +320,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "/AGENTS.md",
                     "/scripts/review-tier.mjs",
                     "/scripts/diff-api-surface.mjs",
+                    "/scripts/review-coverage-advice.mjs",
                     "/scripts/sync-review-policy.mjs",
                     "/scripts/review-health.mjs",
                     "/scripts/lib/review-*.mjs",
@@ -370,6 +372,7 @@ test("contract review floors group each owner team's paths and contract docs", (
         "/AGENTS.md",
         "/scripts/review-tier.mjs",
         "/scripts/diff-api-surface.mjs",
+        "/scripts/review-coverage-advice.mjs",
         "/scripts/sync-review-policy.mjs",
         "/scripts/review-health.mjs",
         "/scripts/lib/review-*.mjs",

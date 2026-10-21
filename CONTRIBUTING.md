@@ -2,9 +2,11 @@
 
 A big welcome and thank you for considering contributing to assistant-ui! It’s people like you that make it a reality for users in our community.
 
-You can contribute by opening an issue, or by making a pull request. [Opening a pull request](#opening-a-pull-request) says when to open an issue first.
+You can contribute by opening an issue, or by making a pull request. [Opening an issue](#opening-an-issue) says what an issue needs, and [Opening a pull request](#opening-a-pull-request) says when to open one first.
 
 Project conventions live in [`AGENTS.md`](./AGENTS.md) and in the `AGENTS.md` of the directory you change, such as [`packages/AGENTS.md`](./packages/AGENTS.md) for package code and runtime adapters; please read and follow them.
+
+For bug fixes, behavior changes, and test reviews, follow the [test-quality guidance](./.claude/skills/test-quality/tests.md) and consult the [mocking guidance](./.claude/skills/test-quality/mocking.md) when using test doubles. In the PR's Verification section, identify the supported behavior protected by the tests, list exact checks and results, and, for a bug, demonstrate failure without the fix and success with it. State any verification limitations.
 
 ### Setting up your environment
 
@@ -40,11 +42,23 @@ cd examples/<your-example>
 pnpm dev
 ```
 
+### Opening an issue
+
+Pick the issue form that matches what you are reporting. Usage questions go to Discord.
+
+- An issue created through the API or `gh` skips the forms, so give it the same headings as the matching form in `.github/ISSUE_TEMPLATE/`, set the issue type the form sets (`Bug`, `Feature` or `Task`), and add the label it applies. This holds for maintainers and for agents.
+- Label by what the issue is. `bug` means shipped code misbehaves. Documentation takes `type/docs`, performance `type/perf`, refactors `type/refactor`, and CI and other upkeep `maintenance`.
+- State how a bug was found and whether it was reproduced. A finding from reading the source that nobody ran says so and still includes the snippet expected to fail, since an issue a maintainer cannot reproduce is closed.
+- Link the pull request or issue a follow-up came from.
+- Report a vulnerability through a private advisory (see [`SECURITY.md`](./SECURITY.md)), including one a maintainer or an agent finds. Hardening with no exploit path can be a public issue.
+- Do not name, link, or quote anything from a private repository.
+
 ### Opening a pull request
 
 Open an issue before a non-trivial feature pull request, so a maintainer can confirm the direction is wanted before you invest in code. Trivial fixes, such as a typo or a small docs change, need no issue.
 
 - Keep one concern per pull request, so each one can be reviewed, approved, and reverted on its own.
+- Before opening a pull request or after substantive revisions, use the [change-review skill](./.claude/skills/change-review/SKILL.md) to apply the existing repository review standards to the diff.
 - Attach a minimal reproduction to every bug report and fix: a repository, a sandbox, or a snippet on the exact version. An issue or pull request whose behavior a maintainer cannot reproduce is closed.
 - Do not add an example app that duplicates one in `examples/`. A new example belongs in a repository of your own unless a maintainer asked for it here.
 - Title the pull request `<type>(<scope>): <observable outcome>`, for example `fix(react): preserve message status when switching threads` or `feat: expose runtime metadata mutation`. Omit the scope when no package or surface name improves the title, and put trade-offs and divergences in the body. The type is one of `fix`, `feat`, `docs`, `test`, `perf`, `refactor`, `chore`, `ci`, `build` or `revert`.
@@ -65,6 +79,7 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 
 - Approvals count only on the current head, so every push, autofix commits included, needs fresh approvals. They never count from the author or from anyone who authored or committed a commit in the pull request; committing a review suggestion or updating the branch from the web makes you one.
 - Every review thread is resolved before merge, every check passes (the rulesets require `autofix`, `Build Changed Packages`, `Typecheck Changed Packages`, `Review Policy Scripts`, `Test Coverage` and `review-tier`), and the `review-tier` comment lists nothing still needed.
+- The `review-tier` comment also lists advice under "Worth a look", such as another pull request that is open or already merged for the same issue, a `feat` with no linked issue, a description with no Verification or AI use text, or coverage thresholds and measured-file selections that changed. Coverage advice compares literal settings in `vitest.config.*` and `vite.config.*`; it does not evaluate imported or computed configuration. Advice never blocks a merge.
 - Size never lowers a tier. A T2 or T3 pull request that changes more than 400 lines outside tests, generated files and the T0 paths lands as a stack of smaller pull requests.
 - The title type is a claim reviewers hold the pull request to: `fix` carries a regression test, `feat` links an issue where a maintainer confirmed the direction, and `perf` attaches x-performance numbers. The check verifies `refactor`: it fails a refactor that changes `api-surface/`, an `exports` map or an existing test assertion.
 - An owner of the affected area may add `review-tier/override: size`, `review-tier/override: type` or `review-tier/override: window`, with a comment giving the reason. An override waives that one signal until the label is removed and never lowers the approvals a tier needs.

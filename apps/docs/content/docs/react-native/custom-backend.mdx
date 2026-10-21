@@ -191,7 +191,7 @@ export default function App() {
 | `initialize(localId)` | Create a thread server-side, return `{ remoteId }` |
 | `rename(remoteId, title)` | Persist title changes |
 | `archive(remoteId)` | Mark thread as archived |
-| `unarchive(remoteId)` | Restore archived thread |
+| `unarchive(remoteId)` | Optional. Omit when the backend cannot unarchive; archived threads still open as archived, and explicit unarchive rejects. |
 | `delete(remoteId)` | Permanently remove thread |
 | `fetch(remoteId)` | Fetch single thread metadata |
 | `generateTitle(remoteId, unstable_messages)` | Return an `AssistantStream` with the generated title |

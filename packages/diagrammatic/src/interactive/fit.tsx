@@ -35,8 +35,16 @@ export const Fit = forwardRef<HTMLDivElement, FitProps>(
     const setRefs = useCallback(
       (node: HTMLDivElement | null) => {
         container.current = node;
-        if (typeof ref === "function") ref(node);
-        else if (ref) ref.current = node;
+        if (typeof ref === "function") {
+          const cleanup: unknown = ref(node);
+          if (typeof cleanup === "function") {
+            return () => {
+              container.current = null;
+              (cleanup as () => void)();
+            };
+          }
+        } else if (ref) ref.current = node;
+        return undefined;
       },
       [ref],
     );

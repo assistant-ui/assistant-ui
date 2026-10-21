@@ -5,10 +5,15 @@ import { ThreadListItemUnarchive } from "./ThreadListItemUnarchive";
 
 const h = vi.hoisted(() => ({
   unarchive: vi.fn<() => void>(),
+  supported: true,
 }));
 
-vi.mock("@assistant-ui/core/react", () => ({
-  useThreadListItemUnarchive: () => ({ unarchive: h.unarchive }),
+vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
+  useThreadListItemUnarchive: () => ({
+    unarchive: h.unarchive,
+    disabled: !h.supported,
+  }),
 }));
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -24,6 +29,7 @@ describe("ThreadListItemUnarchive", () => {
 
   beforeEach(() => {
     h.unarchive.mockReset();
+    h.supported = true;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -67,6 +73,16 @@ describe("ThreadListItemUnarchive", () => {
       click(el);
     });
 
+    expect(h.unarchive).not.toHaveBeenCalled();
+  });
+
+  it("stays inaccessible to presses when unarchive is unsupported, even with disabled=false", async () => {
+    h.supported = false;
+    const el = await mount({ disabled: false });
+    await act(async () => {
+      click(el);
+    });
+    expect(el.getAttribute("aria-disabled")).toBe("true");
     expect(h.unarchive).not.toHaveBeenCalled();
   });
 });

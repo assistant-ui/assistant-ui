@@ -291,6 +291,14 @@ const unsubscribe = host.subscribe(() => {
 });
 ```
 
+##### `frameLoaded()`
+
+Call it on every `load` event of the iframe. The host asks the new page for its tools; if no provider answers within two seconds, it clears the previous page's tools and fails its pending tool calls. `useAssistantFrameHost` calls it for you.
+
+```tsx
+iframe.addEventListener("load", () => host.frameLoaded());
+```
+
 ##### `dispose()`
 
 Cleans up the connection to the iframe.
@@ -312,6 +320,8 @@ useAssistantFrameHost({
 ```
 
 `register` is required. The hook calls it with the new `AssistantFrameHost` and calls the returned function on cleanup. Pass a stable function (for example from `useCallback`), because the hook reconnects whenever `register` changes.
+
+After a reload, the host asks the frame for its tools. If no provider answers within two seconds, the host clears the previous page's tools and fails its pending tool calls.
 
 ### ModelContextRegistry
 

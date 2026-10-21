@@ -2,6 +2,33 @@ import { describe, expect, it, vi } from "vitest";
 import { createAdkApiRoute } from "./createAdkApiRoute";
 
 describe("createAdkApiRoute", () => {
+  it.each([undefined, "sent-user"])(
+    "forwards user message metadata to runAsync when messageId is %j",
+    async (messageId) => {
+      const runAsync = vi.fn(async function* () {});
+      const handler = createAdkApiRoute({
+        runner: { runAsync },
+        userId: "user-1",
+        sessionId: "session-1",
+      });
+      const response = await handler(
+        new Request("https://example.test/api/adk", {
+          method: "POST",
+          body: JSON.stringify({ message: "Hello", messageId }),
+        }),
+      );
+      await response.text();
+      expect(runAsync).toHaveBeenCalledExactlyOnceWith({
+        userId: "user-1",
+        sessionId: "session-1",
+        newMessage: { role: "user", parts: [{ text: "Hello" }] },
+        ...(messageId !== undefined && {
+          customMetadata: { assistant_ui_message_id: messageId },
+        }),
+      });
+    },
+  );
+
   it("creates the client thread session before the first run", async () => {
     const sessions = new Set<string>();
     const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) =>

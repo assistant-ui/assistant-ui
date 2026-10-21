@@ -16,6 +16,7 @@ import {
 import {
   DEFAULT_MODEL_ID,
   getContextWindow,
+  getProvider,
   supportsReasoningEffort,
 } from "@/lib/model";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
@@ -23,24 +24,12 @@ import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
 import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 
-const PROVIDER_NAMES: Record<string, string> = {
-  openai: "OpenAI",
-  "google-ai-studio": "Google",
-  grok: "xAI",
-  deepseek: "DeepSeek",
-  groq: "Groq",
-};
-
-function providerOf(modelId: string): string {
-  return modelId.includes("/") ? modelId.split("/")[0]! : "openai";
-}
-
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
 const models: ModelOption[] = [];
 const modelsByProvider = new Map<string, ModelOption[]>();
 for (const option of docsModelOptions()) {
-  const provider = PROVIDER_NAMES[providerOf(option.id)] ?? "Other";
+  const provider = getProvider(option.id) ?? "Other";
   const model: ModelOption = {
     ...option,
     description: `${compactNumber.format(getContextWindow(option.id))} context window`,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
+import { useIsomorphicLayoutEffect } from "@assistant-ui/store/internal";
 import {
   useAssistantContextProvider,
   useConfiguredAui,
@@ -39,6 +40,7 @@ export type RemoteThreadResourceProps = {
     generation: number,
   ) => void;
   destroySignal: AbortSignal;
+  publishInCommit?: boolean;
 };
 
 const useRemoteThreadBinder = ({
@@ -47,12 +49,14 @@ const useRemoteThreadBinder = ({
   runtimeHook,
   publish,
   itemRuntime,
+  publishInCommit,
 }: {
   threadId: string;
   generation: number;
   runtimeHook: RemoteThreadListHook;
   publish: RemoteThreadResourceProps["publish"];
   itemRuntime: ThreadListItemRuntime;
+  publishInCommit: boolean;
 }) => {
   const runtime = useRemoteThreadRuntimeHostProvider(runtimeHook);
   const threadBinding = (runtime?.thread as ThreadRuntimeImpl | undefined)
@@ -64,16 +68,30 @@ const useRemoteThreadBinder = ({
   }, [threadId, generation, threadBinding, publish]);
 
   const isMounted = useRef(false);
-  if (!isMounted.current) {
+  if (!publishInCommit && !isMounted.current) {
     updateRuntime();
   }
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!threadBinding) return undefined;
     isMounted.current = true;
     updateRuntime();
     return threadBinding.outerSubscribe(updateRuntime);
   }, [threadBinding, updateRuntime]);
+
+  const remoteIdRef = useRef<string | undefined>(undefined);
+  const applyRemoteId = useEffectEvent(() => {
+    const remoteId = remoteIdRef.current;
+    if (remoteId === undefined || !threadBinding) return;
+    const core = threadBinding.getState();
+    const setGetThreadId = (core as Record<string, unknown>)
+      .__internal_setGetThreadId;
+    if (typeof setGetThreadId === "function")
+      setGetThreadId.call(core, () => remoteId);
+  });
+  useEffect(() => {
+    applyRemoteId();
+  }, [threadBinding]);
 
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
@@ -90,6 +108,13 @@ const useRemoteThreadBinder = ({
 
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
+    void initPromise.then(
+      ({ remoteId }) => {
+        remoteIdRef.current = remoteId;
+        applyRemoteId();
+      },
+      () => {},
+    );
 
     void initPromise.catch(() => {
       if (initPromiseRef.current === initPromise) {
@@ -131,6 +156,7 @@ const useRemoteThreadResource = ({
   adapters,
   publish,
   destroySignal,
+  publishInCommit = false,
 }: RemoteThreadResourceProps) => {
   const itemRuntime = useMemo(
     () =>
@@ -176,6 +202,7 @@ const useRemoteThreadResource = ({
           runtimeHook,
           publish,
           itemRuntime,
+          publishInCommit,
         });
       });
     });

@@ -5,8 +5,6 @@ import {
   applyToolCallUpdate,
   attachToolCallApproval,
   buildToolCallPart,
-  isAllowKind,
-  isRejectKind,
   mergeToolCallPart,
   permissionOptionToApprovalOption,
   resolvePermissionOutcome,
@@ -96,15 +94,6 @@ describe("permissionOptionToApprovalOption", () => {
         kind: "reject_always",
       }),
     ).toEqual({ id: "o2", kind: "reject-always", label: "Reject always" });
-  });
-
-  it("classifies option families", () => {
-    expect(isAllowKind("allow_once")).toBe(true);
-    expect(isAllowKind("allow_always")).toBe(true);
-    expect(isAllowKind("reject_once")).toBe(false);
-    expect(isRejectKind("reject_once")).toBe(true);
-    expect(isRejectKind("reject_always")).toBe(true);
-    expect(isRejectKind("allow_always")).toBe(false);
   });
 });
 

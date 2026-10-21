@@ -44,8 +44,8 @@
     "lucide-react": "^1.27.0"
   },
   "peerDependencies": {
-    "@farming-labs/docs": "0.2.124",
-    "@farming-labs/theme": "0.2.124",
+    "@farming-labs/docs": "0.2.125",
+    "@farming-labs/theme": "0.2.125",
     "fumadocs-ui": "16.17.1",
     "next": "^16.0.0",
     "next-themes": "^0.4.0",
@@ -59,8 +59,8 @@
     "@types/react-dom": "^19.2.3",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3",
-    "@farming-labs/docs": "0.2.124",
-    "@farming-labs/theme": "0.2.124",
+    "@farming-labs/docs": "0.2.125",
+    "@farming-labs/theme": "0.2.125",
     "fumadocs-ui": "16.17.1",
     "next": "^16.2.12",
     "next-themes": "^0.4.6",

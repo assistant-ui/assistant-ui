@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import {
-  createGitHubClient,
   dailySweepCron,
   evaluatePullRequest,
   gatherPullRequest,
@@ -69,6 +68,17 @@ const file = (filename, overrides = {}) => ({
   deletions: 5,
   patch: "@@ -1 +1 @@\n-old\n+new",
   ...overrides,
+});
+
+const closingIssue = (number, pullRequests = []) => ({
+  number,
+  repository: { nameWithOwner: "assistant-ui/assistant-ui" },
+  closedByPullRequestsReferences: {
+    nodes: pullRequests.map((pullRequest) => ({
+      repository: { nameWithOwner: "assistant-ui/assistant-ui" },
+      ...pullRequest,
+    })),
+  },
 });
 
 function tapPullRequest(overrides = {}) {
@@ -227,7 +237,12 @@ function fakeClient({
           `Unrecorded decision issue ${variables.number}`,
         );
         return {
-          repository: { issue: structuredClone(issues[variables.number]) },
+          repository: {
+            issue: {
+              ...closingIssue(variables.number),
+              ...structuredClone(issues[variables.number]),
+            },
+          },
         };
       }
       if (query.includes("query ReviewTierAuthorCount(")) {
@@ -437,193 +452,6 @@ function connectionPages(nodes) {
   return chunks;
 }
 
-test("the GitHub client sends authenticated JSON, follows Link pages, and accepts empty responses", async () => {
-  const calls = [];
-  const responses = [
-    new Response(JSON.stringify([{ id: 1 }]), {
-      headers: {
-        link: '<https://api.test/items?page=2>; rel="next", <https://api.test/items?page=2>; rel="last"',
-      },
-    }),
-    new Response(JSON.stringify([{ id: 2 }]), {
-      headers: { link: '<https://api.test/items>; rel="prev"' },
-    }),
-    new Response(null, { status: 204 }),
-    new Response(JSON.stringify({ id: 3 }), {
-      status: 201,
-      headers: { "x-test": "present" },
-    }),
-  ];
-  const client = createGitHubClient({
-    token: "test-token",
-    apiRoot: "https://api.test/",
-    fetch: async (url, options) => {
-      calls.push({ url, options });
-      return responses.shift();
-    },
-  });
-  assert.deepEqual(await client.paginate("/items"), [{ id: 1 }, { id: 2 }]);
-  assert.equal((await client.rest("DELETE", "/item/1")).data, null);
-  const response = await client.rest("POST", "/items", { name: "new" });
-  assert.equal(response.status, 201);
-  assert.equal(response.headers.get("x-test"), "present");
-  assert.deepEqual(response.data, { id: 3 });
-  assert.deepEqual(
-    calls.map(({ url }) => url),
-    [
-      "https://api.test/items",
-      "https://api.test/items?page=2",
-      "https://api.test/item/1",
-      "https://api.test/items",
-    ],
-  );
-  assert.equal(calls[0].options.headers.Authorization, "Bearer test-token");
-  assert.equal(calls[0].options.headers.Accept, "application/vnd.github+json");
-  assert.equal(calls[0].options.headers["X-GitHub-Api-Version"], "2022-11-28");
-  assert.equal(calls[3].options.headers["Content-Type"], "application/json");
-  assert.equal(calls[3].options.body, JSON.stringify({ name: "new" }));
-});
-
-test("the GitHub client returns raw text, handles only raw 404 as missing, and unwraps GraphQL", async () => {
-  const calls = [];
-  const responses = [
-    new Response("export const value = 1;"),
-    new Response("", { status: 404 }),
-    new Response("Denied", { status: 403 }),
-    new Response(JSON.stringify({ data: { repository: { name: "example" } } })),
-    new Response(
-      JSON.stringify({
-        errors: [
-          { message: "First error", type: "NOT_FOUND" },
-          { message: "Second error", type: "FORBIDDEN" },
-        ],
-      }),
-    ),
-  ];
-  const client = createGitHubClient({
-    token: "token",
-    fetch: async (url, options) => {
-      calls.push({ url, options });
-      return responses.shift();
-    },
-  });
-  assert.equal(await client.raw("/contents/source"), "export const value = 1;");
-  assert.equal(calls[0].options.headers.Accept, "application/vnd.github.raw");
-  assert.equal(await client.raw("/contents/missing"), null);
-  await assert.rejects(client.raw("/contents/denied"), { status: 403 });
-  assert.deepEqual(await client.graphql("query Example", { n: 12 }), {
-    repository: { name: "example" },
-  });
-  assert.equal(calls[3].url, "https://api.github.com/graphql");
-  assert.deepEqual(JSON.parse(calls[3].options.body), {
-    query: "query Example",
-    variables: { n: 12 },
-  });
-  await assert.rejects(client.graphql("query Broken", {}), {
-    status: 200,
-    message: "First error; Second error",
-    types: ["NOT_FOUND", "FORBIDDEN"],
-  });
-});
-
-test("HTTP, transport, and invalid JSON failures carry a status", async () => {
-  const client = createGitHubClient({
-    token: "token",
-    fetch: async () => new Response("Missing", { status: 404 }),
-  });
-  await assert.rejects(client.rest("GET", "/missing"), { status: 404 });
-  const offline = createGitHubClient({
-    token: "token",
-    wait: async () => {},
-    fetch: async () => {
-      throw new Error("Offline");
-    },
-  });
-  await assert.rejects(offline.rest("GET", "/items"), {
-    status: 0,
-    message: "Offline",
-  });
-  const invalid = createGitHubClient({
-    token: "token",
-    fetch: async () => new Response("not json"),
-  });
-  await assert.rejects(invalid.rest("GET", "/items"), { status: 200 });
-});
-
-test("the GitHub client retries transient failures on reads but never on writes", async () => {
-  const requests = [];
-  const waits = [];
-  const responses = [
-    new Response("Bad gateway", { status: 502 }),
-    new Response(
-      new ReadableStream({
-        start(controller) {
-          controller.error(new Error("Connection reset"));
-        },
-      }),
-    ),
-    new Response(JSON.stringify([{ id: 1 }])),
-    new Response("Gateway timeout", { status: 504 }),
-    new Response(JSON.stringify({ data: { viewer: { login: "octo" } } })),
-    new Response("Bad gateway", { status: 502 }),
-  ];
-  const client = createGitHubClient({
-    token: "token",
-    wait: async (ms) => {
-      waits.push(ms);
-    },
-    fetch: async (url, options) => {
-      requests.push(`${options.method} ${url}`);
-      return responses.shift();
-    },
-  });
-  assert.deepEqual((await client.rest("GET", "/items")).data, [{ id: 1 }]);
-  assert.deepEqual(await client.graphql("query Viewer", {}), {
-    viewer: { login: "octo" },
-  });
-  await assert.rejects(client.rest("POST", "/items", { name: "new" }), {
-    status: 502,
-  });
-  assert.deepEqual(requests, [
-    "GET https://api.github.com/items",
-    "GET https://api.github.com/items",
-    "GET https://api.github.com/items",
-    "POST https://api.github.com/graphql",
-    "POST https://api.github.com/graphql",
-    "POST https://api.github.com/items",
-  ]);
-  assert.deepEqual(waits, [1000, 2000, 1000]);
-});
-
-test("the GitHub client stops after three attempts and leaves other statuses alone", async () => {
-  const waits = [];
-  let unavailable = 0;
-  const failing = createGitHubClient({
-    token: "token",
-    wait: async (ms) => {
-      waits.push(ms);
-    },
-    fetch: async () => {
-      unavailable++;
-      return new Response("Unavailable", { status: 503 });
-    },
-  });
-  await assert.rejects(failing.rest("GET", "/items"), { status: 503 });
-  assert.equal(unavailable, 3);
-  assert.deepEqual(waits, [1000, 2000]);
-  let missing = 0;
-  const notFound = createGitHubClient({
-    token: "token",
-    wait: async () => {},
-    fetch: async () => {
-      missing++;
-      return new Response("Missing", { status: 404 });
-    },
-  });
-  await assert.rejects(notFound.rest("GET", "/missing"), { status: 404 });
-  assert.equal(missing, 1);
-});
-
 test("the merged tap fixture is T3 with owner, decision, and window still needed", async () => {
   const { client, calls } = fakeClient();
   const gathered = await gatherPullRequest(client, policy, 12, { now });
@@ -801,7 +629,7 @@ test("unresolved Decision issue numbers are skipped while closing issues still r
   const recording = fakeClient({
     pr: tapPullRequest({
       body: "## Decision\nSee #9002.\n",
-      closingIssuesReferences: { nodes: [{ number: 42 }] },
+      closingIssuesReferences: { nodes: [closingIssue(42)] },
     }),
     issues: { 42: { labels: { nodes: [] }, timelineItems: { nodes: [] } } },
     issueErrors: { 9002: missing },
@@ -919,7 +747,7 @@ test("decision references include closing issues and only the Decision section, 
   const recording = fakeClient({
     pr: tapPullRequest({
       body: "## Summary\r\nMention #999.\r\n## Decision\r\nSee #42, #43 and #42.\r\n### Context\r\nAlso #44.\r\n## Tests\r\nIgnore #888.\r\n",
-      closingIssuesReferences: { nodes: [{ number: 42 }] },
+      closingIssuesReferences: { nodes: [closingIssue(42)] },
     }),
     issues: {
       42: issue([labelEvent("decision: accepted", "outsider")]),
@@ -1264,6 +1092,99 @@ test("hard policy failures stay failures", async () => {
     waivable,
     /\| ⏳ Waiting window \| \d+ hours after ready for review, until .+ UTC; an owner can waive it with `review-tier\/override: window` \|/,
   );
+});
+
+test("the comment names another pull request for the same issue without blocking", async () => {
+  const issues = {
+    42: { labels: { nodes: [] }, timelineItems: { nodes: [] } },
+  };
+  const parallel = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        closingIssuesReferences: {
+          nodes: [
+            closingIssue(42, [
+              { number: 12, state: "OPEN" },
+              { number: 15, state: "OPEN" },
+            ]),
+          ],
+        },
+      }),
+      issues,
+    }),
+  );
+  const alone = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        body: "Clarify installation.\n\n## AI use\nNone.\n",
+        closingIssuesReferences: {
+          nodes: [closingIssue(42, [{ number: 12, state: "OPEN" }])],
+        },
+      }),
+      issues,
+    }),
+  );
+  assert.equal(parallel.conclusion, alone.conclusion);
+  assert.ok(
+    renderComment(parallel, policy).includes("- #15 is also open for #42"),
+  );
+  assert.ok(!renderComment(alone, policy).includes("Worth a look"));
+});
+
+test("an issue linked only under Decision still names other pull requests for it, once per issue", async () => {
+  const unlabeled = { labels: { nodes: [] }, timelineItems: { nodes: [] } };
+  const closing = closingIssue(42, [{ number: 14, state: "OPEN" }]);
+  const evaluation = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        body: "Clarify installation.\n\n## Decision\n#9780 and #42\n\n## AI use\nNone.\n",
+        closingIssuesReferences: { nodes: [closing] },
+      }),
+      issues: {
+        42: { ...unlabeled, ...closing },
+        9780: {
+          ...unlabeled,
+          ...closingIssue(9780, [
+            { number: 15, state: "OPEN" },
+            { number: 9, state: "MERGED" },
+          ]),
+        },
+      },
+    }),
+  );
+  assert.deepEqual(evaluation.advice, [
+    "#14 is also open for #42",
+    "#15 closes #9780, which this PR cites as its decision",
+    "#9 closed #9780, which this PR cites as its decision",
+  ]);
+});
+
+test("a closing issue in another repository keeps its repository and is not looked up here", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({
+      body: "Clarify installation.\n\n## AI use\nNone.\n",
+      closingIssuesReferences: {
+        nodes: [
+          {
+            ...closingIssue(42, [{ number: 15, state: "OPEN" }]),
+            repository: { nameWithOwner: "someone/fork-tools" },
+          },
+        ],
+      },
+    }),
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.linkedIssues, []);
+  assert.ok(
+    !recording.calls.some(({ query }) =>
+      query?.includes("query ReviewTierDecision("),
+    ),
+  );
+  assert.deepEqual(evaluatePullRequest(gathered, policy).advice, [
+    "#15 is also open for someone/fork-tools#42",
+  ]);
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
@@ -2682,4 +2603,52 @@ test("the executable guard reports invalid CLI input with exit status 1", () => 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /only digits/);
   assert.equal(result.stdout, "");
+});
+
+test("coverage advice reaches the review comment without changing merge requirements", async () => {
+  const configPath = "packages/react-langchain/vitest.config.ts";
+  const text = (branches) =>
+    `export default { test: { coverage: { thresholds: { branches: ${branches} } } } };`;
+  const recording = (branches) =>
+    fakeClient({
+      pr: docsPullRequest({
+        title: "chore: update coverage",
+        body: "## Verification\npnpm test\n\n## AI use\nNone.\n",
+      }),
+      files: [file(configPath)],
+      contents: {
+        [`${repo}/contents/${configPath}?ref=merge-base`]: text(86),
+        [`${repo}/contents/${configPath}?ref=head`]: text(branches),
+      },
+    });
+  const raised = await evaluationFor(recording(87));
+  const lowered = await evaluationFor(recording(0));
+  assert.deepEqual(raised.advice, []);
+  assert.equal(lowered.advice.length, 1);
+  assert.match(lowered.advice[0], /branches.*lowered from 86 to 0/);
+  assert.match(
+    renderComment(lowered, policy),
+    /Worth a look[\s\S]*branches.*86 to 0/,
+  );
+  assert.equal(lowered.tierResult.tier, raised.tierResult.tier);
+  assert.deepEqual(lowered.requirementResult, raised.requirementResult);
+  assert.equal(lowered.conclusion, raised.conclusion);
+});
+
+test("renaming a coverage config compares against its previous path", async () => {
+  const oldPath = "packages/react-langchain/vitest.config.ts";
+  const newPath = "packages/react-langchain/vitest.config.mts";
+  const text =
+    "export default { test: { coverage: { thresholds: { lines: 80 } } } };";
+  const evaluation = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({ body: "## AI use\nNone.\n" }),
+      files: [file(newPath, { status: "renamed", previous_filename: oldPath })],
+      contents: {
+        [`${repo}/contents/${oldPath}?ref=merge-base`]: text,
+        [`${repo}/contents/${newPath}?ref=head`]: text,
+      },
+    }),
+  );
+  assert.deepEqual(evaluation.advice, []);
 });

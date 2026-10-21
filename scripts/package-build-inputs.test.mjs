@@ -156,8 +156,11 @@ const step = (name) => {
 test("the workflow gates dependency-backed package steps", () => {
   const detector = step("Detect package build inputs");
   assert.match(detector, /node scripts\/package-build-inputs\.mjs/);
-  assert.match(detector, /BASE=HEAD\^1/);
-  assert.match(detector, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  assert.match(
+    detector,
+    /BASE=\$\(node scripts\/prepare-ci-base\.mjs --resolve\)/,
+  );
+  assert.match(detector, /CI_BEFORE: \$\{\{ github\.event\.before \}\}/);
   assert.match(
     detector,
     /git rev-parse --verify --quiet "\$\{BASE\}\^\{commit\}"/,

@@ -32,6 +32,7 @@ import {
   DynamicChatTransport,
   getResumedStreamIds,
 } from "./DynamicChatTransport";
+import type { ResumableClientStorage } from "../transport/resumable";
 import { getResumableAdapter } from "./getResumableAdapter";
 import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
@@ -42,19 +43,23 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
+      canResume?: AISDKRuntimeAdapter["canResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
       onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
-       * Called when an automatic resumable stream reconnect fails. Use this to
+       * Called when a resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
-       * retry. The failed stream id is cleared after the callback unless a
-       * newer id has replaced it.
+       * retry. With `canResume: true`, transient errors keep the stream id for
+       * manual retry. Otherwise, a failed reconnect clears the matching id.
+       * A 204 or 404 from the resume endpoint always clears the matching id.
        */
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
       messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
       /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
       unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
+      /** @deprecated Experimental since 2026-10-15. Not scheduled for removal; the API may change in any release. */
+      unstable_enableMessageQueue?: AISDKRuntimeAdapter["unstable_enableMessageQueue"];
     };
 
 export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
@@ -107,12 +112,14 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
     ...chatInit
   } = options ?? {};
   // peel guard: any shared key left in `chatInit` collapses this to `never`
@@ -126,12 +133,14 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     throttle,
     toCreateMessage,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
     chatInit,
   };
 };
@@ -139,7 +148,10 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
 type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
   ChatInit<UI_MESSAGE>,
   "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
->;
+> & {
+  canResume?: boolean | undefined;
+  resumableStorage?: ResumableClientStorage | undefined;
+};
 
 const requestsByChat = new WeakMap<object, symbol>();
 
@@ -159,6 +171,14 @@ export const createChat = <UI_MESSAGE extends UIMessage>(
       transport: {
         sendMessages: (options) => {
           requestsByChat.set(chat, Symbol());
+          // A new send or regeneration changes the replay target even when
+          // the request fails before returning a replacement checkpoint.
+          if (callbacksRef.current?.canResume) {
+            const storage =
+              callbacksRef.current.resumableStorage ??
+              getResumableAdapter(transport)?.storage;
+            storage?.clear(options.chatId);
+          }
           return transport.sendMessages(options);
         },
         reconnectToStream: (options) => {
@@ -187,12 +207,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     throttle,
     toCreateMessage,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
     chatInit: chatOptions,
   } = splitChatThreadOptions(options);
 
@@ -248,9 +270,17 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     [initialTransportBinding, transport, transportContextOwner],
   );
 
-  const latestChatOptionsRef = useRef(chatOptions);
+  const latestChatOptionsRef = useRef({
+    ...chatOptions,
+    canResume,
+    resumableStorage,
+  });
   useEffect(() => {
-    latestChatOptionsRef.current = chatOptions;
+    latestChatOptionsRef.current = {
+      ...chatOptions,
+      canResume,
+      resumableStorage,
+    };
   });
   // `useChat` stops a chat it constructs whenever it unmounts, and a
   // resource's soft unmount runs that cleanup, so the thread owns its chat.
@@ -276,6 +306,89 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     hostDestroySignal,
   );
 
+  const subscribeToResumableStorage = useCallback(
+    (callback: () => void) =>
+      isMainThread
+        ? (resumableStorage?.subscribe?.(callback, id) ?? (() => {}))
+        : () => {},
+    [id, isMainThread, resumableStorage],
+  );
+  const getPendingStreamId = useCallback(
+    () => (isMainThread ? (resumableStorage?.getStreamId(id) ?? null) : null),
+    [id, isMainThread, resumableStorage],
+  );
+  const pendingStreamId = useSyncExternalStore(
+    subscribeToResumableStorage,
+    getPendingStreamId,
+    getNoPendingStreamId,
+  );
+  const isChatRunning =
+    chat.status === "submitted" || chat.status === "streaming";
+
+  const staticResumedStreamIds = useMemo(
+    () => getResumedStreamIds(resumableStorage),
+    [resumableStorage],
+  );
+  const onResumeErrorRef = useRef(onResumeError);
+  useEffect(() => {
+    onResumeErrorRef.current = onResumeError;
+  });
+  const resumeChatStream = chat.resumeStream;
+  const resumeStream = useCallback(async () => {
+    const resumedStreamIds =
+      transport instanceof DynamicChatTransport
+        ? transport.getResumedStreamIds()
+        : staticResumedStreamIds;
+    const streamId = resumableStorage?.getStreamId(id);
+    if (!streamId) return;
+    resumedStreamIds.add(streamId);
+    try {
+      const activeChat = externalChat ?? ownedChat;
+      activeChat.clearError();
+      const pending = resumeChatStream();
+      const request = requestsByChat.get(activeChat);
+      await pending;
+      // Chat.error is shared with sends and resumes that can start before
+      // this promise settles, including inside the caller's onFinish.
+      if (requestsByChat.get(activeChat) === request && activeChat.error) {
+        throw activeChat.error;
+      }
+    } catch (error) {
+      try {
+        onResumeErrorRef.current?.(error);
+      } catch (callbackError) {
+        console.error(
+          "[assistant-ui] resumable: onResumeError callback failed",
+          callbackError,
+        );
+      } finally {
+        if (!canResume && resumableStorage?.getStreamId(id) === streamId) {
+          resumableStorage.clear(id);
+        }
+      }
+      throw error;
+    }
+  }, [
+    canResume,
+    externalChat,
+    id,
+    ownedChat,
+    resumeChatStream,
+    resumableStorage,
+    staticResumedStreamIds,
+    transport,
+  ]);
+
+  const handleBranchChange = useCallback<
+    NonNullable<AISDKRuntimeAdapter["unstable_onBranchChange"]>
+  >(
+    (event) => {
+      if (canResume) resumableStorage?.clear(id);
+      unstable_onBranchChange?.(event);
+    },
+    [canResume, id, resumableStorage, unstable_onBranchChange],
+  );
+
   const runtime = useAISDKRuntime(chat, {
     adapters: {
       ...adapters,
@@ -283,7 +396,18 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
-    ...(onResume && { onResume }),
+    ...(onResume
+      ? { onResume }
+      : canResume && resumableStorage
+        ? { onResume: resumeStream }
+        : {}),
+    // AI SDK 7 starts resume-stream with fresh message state (chat.ts), so the
+    // host must replay the full message with its original start.messageId.
+    // Without that ID the replay appends a second message. A stored stream ID
+    // alone cannot establish this contract; only the host can opt in.
+    canResume: onResume
+      ? !!canResume
+      : !!canResume && !!pendingStreamId && !isChatRunning,
     ...(onResumeToolCall && { onResumeToolCall }),
     ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),
@@ -296,8 +420,12 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     // instance, not the useChat helpers, which are re-minted every render and
     // would be a dead WeakMap key by the next one.
     unstable_hostApprovalOwner: externalChat ?? ownedChat,
-    ...(unstable_onBranchChange && { unstable_onBranchChange }),
+    ...(((canResume && resumableStorage) || unstable_onBranchChange) && {
+      unstable_onBranchChange: handleBranchChange,
+    }),
+    ...(unstable_enableMessageQueue && { unstable_enableMessageQueue }),
   });
+
   initialTransportBinding = {
     runtime,
     getThreadListItem: getCurrentThreadListItem,
@@ -350,33 +478,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getHistoryLoadingSnapshot,
   );
 
-  const subscribeToResumableStorage = useCallback(
-    (callback: () => void) =>
-      isMainThread
-        ? (resumableStorage?.subscribe?.(callback, id) ?? (() => {}))
-        : () => {},
-    [id, isMainThread, resumableStorage],
-  );
-  const getPendingStreamId = useCallback(
-    () => (isMainThread ? (resumableStorage?.getStreamId(id) ?? null) : null),
-    [id, isMainThread, resumableStorage],
-  );
-  const pendingStreamId = useSyncExternalStore(
-    subscribeToResumableStorage,
-    getPendingStreamId,
-    getNoPendingStreamId,
-  );
-  const isChatRunning =
-    chat.status === "submitted" || chat.status === "streaming";
-
-  const staticResumedStreamIds = useMemo(
-    () => getResumedStreamIds(resumableStorage),
-    [resumableStorage],
-  );
-  const onResumeErrorRef = useRef(onResumeError);
-  useEffect(() => {
-    onResumeErrorRef.current = onResumeError;
-  });
   useEffect(() => {
     const resumedStreamIds =
       transport instanceof DynamicChatTransport
@@ -390,43 +491,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       return;
     }
     if (isLoadingHistory) return;
-    resumedStreamIds.add(pendingStreamId);
-    const activeChat = externalChat ?? ownedChat;
-    activeChat.clearError();
-    const pending = chat.resumeStream();
-    const request = requestsByChat.get(activeChat);
-    pending
-      .then(() => {
-        // Chat.error is shared with sends and resumes that can start before
-        // this promise settles, including inside the caller's onFinish.
-        if (requestsByChat.get(activeChat) === request && activeChat.error) {
-          throw activeChat.error;
-        }
-      })
-      .catch((err: unknown) => {
-        console.warn("[assistant-ui] resumable: resume failed", err);
-        try {
-          onResumeErrorRef.current?.(err);
-        } catch (callbackError) {
-          console.error(
-            "[assistant-ui] resumable: onResumeError callback failed",
-            callbackError,
-          );
-        } finally {
-          if (resumableStorage?.getStreamId(id) === pendingStreamId) {
-            resumableStorage.clear(id);
-          }
-        }
-      });
+    resumeStream().catch((err: unknown) => {
+      console.warn("[assistant-ui] resumable: resume failed", err);
+    });
   }, [
-    chat,
-    externalChat,
-    id,
     isChatRunning,
     isLoadingHistory,
     pendingStreamId,
-    ownedChat,
-    resumableStorage,
+    resumeStream,
     staticResumedStreamIds,
     transport,
   ]);

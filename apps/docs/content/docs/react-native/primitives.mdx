@@ -116,7 +116,7 @@ Keep `groupBy` at module scope (or in `useCallback`): a new function on every re
 |------|------|-------------|
 | `children` | `(info) => ReactNode` | Render function for each row, with the same contract as `ThreadPrimitive.Row` |
 | `groupBy` | ``(part, context) => readonly `group-${string}`[] \| null`` | Coalesces adjacent assistant parts into one row, like `MessagePrimitive.GroupedParts`; without it every part is its own row. Keep its identity stable |
-| `inverted` | `boolean` | Renders the newest row at offset 0. Earlier pages load through `onEndReached`, and `maintainVisibleContentPosition` defaults to `{ minIndexForVisible: 0, autoscrollToTopThreshold: 4 }`, so the visible row stays put while rows arrive and the list follows new rows while it is at the bottom |
+| `inverted` | `boolean` | Renders the newest row at offset 0. Earlier pages load through `onEndReached`, and `maintainVisibleContentPosition` defaults to `{ minIndexForVisible: 0, autoscrollToTopThreshold: 4 }` (without the threshold when `autoScroll` is `false`), so the visible row stays put while rows arrive and the list follows new rows while it is at the bottom. A list header at least 1pt tall, empty unless you pass `ListHeaderComponent`, keeps the list anchored on a newest row that renders nothing, such as a turn-end footer hidden while the reply streams |
 | `autoScroll`, `scrollToBottomOnRunStart`, `scrollToBottomOnInitialize`, `scrollToBottomOnThreadSwitch` | `boolean` | As on `ThreadPrimitive.MessagesFlatList`; with `inverted`, the bottom is offset 0 |
 | `history` | `{ hasMore: boolean; isLoadingMore: boolean; loadMore: () => void }` | As on `ThreadPrimitive.MessagesFlatList`: defaults to the runtime's `thread.hasEarlier` paging, and loads at the start of the list, or at its end when `inverted` |
 | `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, `keyExtractor`, and `children` |
@@ -257,6 +257,20 @@ import {
   QueueItemPrimitive,
 } from "@assistant-ui/react-native";
 ```
+
+### Using your own button
+
+Every pressable primitive accepts `asChild`, including the action bar, branch picker, attachment, queue item, suggestion, thread list, thread list item, and chain of thought triggers, as well as the composer controls. With it, the primitive renders its single child instead of its own `Pressable` and passes its press handler, disabled state, and accessibility role to that child, so a button from your UI kit becomes the press target.
+
+```tsx
+<ComposerPrimitive.Send asChild>
+  <Button>
+    <Text>Send</Text>
+  </Button>
+</ComposerPrimitive.Send>
+```
+
+The child's `onPress` runs before the primitive's action, the child's other props take precedence, styles are combined (including `Pressable` style functions), and refs are composed. The child must forward these props to a pressable element.
 
 ### ComposerPrimitive.Root
 

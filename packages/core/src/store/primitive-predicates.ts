@@ -17,6 +17,14 @@ export const composerSendDisabled = (s: AssistantState): boolean =>
     !s.thread.capabilities.queue &&
     s.thread.voice === undefined);
 
+export const composerResumeDisabled = (s: AssistantState): boolean =>
+  s.thread.isDisabled ||
+  s.thread.isRunning ||
+  s.thread.voice !== undefined ||
+  !s.thread.canResume ||
+  s.composer.type !== "thread" ||
+  !s.composer.isEmpty;
+
 export const composerCancelDisabled = (s: AssistantState): boolean =>
   !s.composer.canCancel;
 
@@ -103,3 +111,6 @@ export const messageErrorText = (
 
 export const threadListLoadMoreDisabled = (s: AssistantState): boolean =>
   !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore;
+
+export const threadListItemUnarchiveDisabled = (s: AssistantState): boolean =>
+  !s.threads.canUnarchive;

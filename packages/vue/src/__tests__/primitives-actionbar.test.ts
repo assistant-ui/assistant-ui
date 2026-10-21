@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
-import { AuiConfig } from "@assistant-ui/store/client";
+import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type { ExternalStoreAdapter } from "@assistant-ui/core";
 import {
@@ -9,6 +9,7 @@ import {
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
+import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ComposerPrimitiveInput } from "../primitives/ComposerPrimitiveInput";
@@ -25,8 +26,10 @@ import {
   BranchPickerPrimitiveNumber,
   BranchPickerPrimitivePrevious,
 } from "../primitives/branchPicker";
+import { flushEvents } from "./fixtures";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   // vi.restoreAllMocks does not undo hand-installed property descriptors.
   Reflect.deleteProperty(navigator, "clipboard");
@@ -138,7 +141,10 @@ const MessageView = defineComponent({
   },
 });
 
-const mountChat = (runtime: AssistantRuntimeImpl, view?: Component) => {
+const mountChat = (
+  runtime: AssistantRuntimeImpl,
+  messages: Component = ThreadPrimitiveMessages,
+) => {
   const app = createApp(
     defineComponent({
       setup: () => () =>
@@ -147,8 +153,8 @@ const mountChat = (runtime: AssistantRuntimeImpl, view?: Component) => {
           { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
           {
             default: () =>
-              h(ThreadPrimitiveMessages, null, {
-                default: () => h(view ?? MessageView),
+              h(messages, null, {
+                default: () => h(MessageView),
               }),
           },
         ),
@@ -365,30 +371,45 @@ describe("edit flow and branches", () => {
   });
 
   it("drops a late copy completion after the branch under the index changes", async () => {
+    const FirstMessage = defineComponent({
+      setup(_, { slots }) {
+        const aui = useAui();
+        const config = AuiConfig({
+          message: Derived({
+            source: "thread",
+            query: { type: "index", index: 0 },
+            get: (aui) => aui.thread.message({ index: 0 }),
+          }),
+          composer: Derived({
+            source: "message",
+            query: {},
+            get: (aui) => aui.message.composer(),
+          }),
+        });
+        return () => h(AuiProvider, { config, extends: aui }, slots);
+      },
+    });
     let resolveWrite!: () => void;
-    const writeText = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveWrite = resolve;
-        }),
-    );
+    const write = new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    });
+    const writeText = vi.fn(() => write);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
     });
 
     const { runtime, seed } = createEditableRuntime();
-    const { el, unmount } = mountChat(runtime);
-
     flushTapSync(() =>
       seed([
         { id: "u1", role: "user", text: "hello" },
         { id: "a1", role: "assistant", text: "Echo: hello" },
       ]),
     );
+    const { el, unmount } = mountChat(runtime, FirstMessage);
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("li.msg")).toHaveLength(2);
+      expect(el.querySelectorAll("li.msg")).toHaveLength(1);
     });
 
     const user = userItem(el);
@@ -417,8 +438,10 @@ describe("edit flow and branches", () => {
       { interval: 5 },
     );
 
+    expect(userItem(el)).toBe(user);
     resolveWrite();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await write;
+    await nextTick();
     expect(q(userItem(el), "button.copy").hasAttribute("data-copied")).toBe(
       false,
     );
@@ -448,7 +471,8 @@ describe("edit flow and branches", () => {
     expect(() =>
       q<HTMLButtonElement>(assistantItem(el), "button.copy").click(),
     ).not.toThrow();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await flushEvents();
+    await nextTick();
     expect(
       q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
     ).toBe(false);
@@ -457,7 +481,8 @@ describe("edit flow and branches", () => {
   });
 
   it("copies message text and flags data-copied for the configured window", async () => {
-    const writeText = vi.fn(() => Promise.resolve());
+    const write = Promise.resolve();
+    const writeText = vi.fn(() => write);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
@@ -479,26 +504,24 @@ describe("edit flow and branches", () => {
 
     const copy = q<HTMLButtonElement>(assistantItem(el), "button.copy");
     expect(copy.disabled).toBe(false);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     copy.click();
 
-    await vi.waitFor(
-      async () => {
-        await nextTick();
-        expect(writeText).toHaveBeenCalledWith("Echo: hello");
-        expect(q(assistantItem(el), "span.probe").textContent).toBe("true");
-        expect(
-          q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
-        ).toBe(true);
-      },
-      { interval: 5 },
-    );
+    await write;
+    await nextTick();
+    expect(writeText).toHaveBeenCalledWith("Echo: hello");
+    expect(q(assistantItem(el), "span.probe").textContent).toBe("true");
+    expect(copy.hasAttribute("data-copied")).toBe(true);
 
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(
-        q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
-      ).toBe(false);
-    });
+    vi.advanceTimersByTime(299);
+    await nextTick();
+    expect(q(assistantItem(el), "span.probe").textContent).toBe("true");
+    expect(copy.hasAttribute("data-copied")).toBe(true);
+
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(q(assistantItem(el), "span.probe").textContent).toBe("false");
+    expect(copy.hasAttribute("data-copied")).toBe(false);
 
     unmount();
   });

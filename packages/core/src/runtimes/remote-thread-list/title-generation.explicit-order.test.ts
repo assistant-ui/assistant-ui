@@ -42,6 +42,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     const explicit = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: false,
       generate: async (onTitle) => {
         await explicitOpen.promise;
@@ -66,6 +67,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: true,
       generate: automaticGenerate,
       rename: automaticRename,
@@ -95,6 +97,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: false,
       generate: (onTitle) =>
         server.generate("Explicit title", Promise.resolve(), onTitle),
@@ -107,6 +110,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: true,
       generate: automaticGenerate,
       rename: server.rename,
@@ -127,6 +131,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     const explicit = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: false,
       generate: async () => {
         await explicitOpen.promise;
@@ -143,6 +148,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: true,
       generate: automaticGenerate,
       rename: server.rename,
@@ -170,6 +176,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     const explicit = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: false,
       generate: async (onTitle) => {
         await explicitOpen.promise;
@@ -186,6 +193,7 @@ describe("runThreadTitleGeneration explicit order", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => server.title,
       automatic: true,
       generate: automaticGenerate,
       rename: server.rename,

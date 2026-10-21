@@ -11,7 +11,10 @@ import {
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
 import { CLIENT_ID_SYMBOL, INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
-import { useScopedSignal } from "./utils/tap-assistant-context";
+import {
+  useOptionalAssistantInvalidate,
+  useScopedSignal,
+} from "./utils/tap-assistant-context";
 import { trackSignal, type ScopedSignal } from "./utils/scoped-signal";
 
 /**
@@ -28,6 +31,19 @@ type ClientInternal = {
 
 export const getClientSignal = (client: ClientMethods) =>
   (client as unknown as ClientInternal)[SYMBOL_SIGNAL];
+
+/** @deprecated Experimental since 2026-10-15. Not scheduled for removal; the API may change in any release. */
+export const unstable_useClientSource = (
+  subscribe: ((callback: () => void) => () => void) | undefined,
+) => {
+  const client = useClientStack().at(-1);
+  const signal = client && getClientSignal(client);
+  const invalidate = useOptionalAssistantInvalidate();
+  useEffect(() => {
+    if (!signal || !invalidate || !subscribe) return;
+    return subscribe(() => invalidate(signal));
+  }, [subscribe, signal, invalidate]);
+};
 
 export const getClientState = (client: ClientMethods) => {
   const output = (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
@@ -152,6 +168,70 @@ class ClientProxyHandler
     return prop in this.outputRef.current;
   }
 }
+
+class ForwardingClientProxyHandler extends BaseProxyHandler {
+  private readonly targetRef: { current: ClientMethods };
+  private readonly signal: ScopedSignal | undefined;
+
+  constructor(
+    targetRef: { current: ClientMethods },
+    signal: ScopedSignal | undefined,
+  ) {
+    super();
+    this.targetRef = targetRef;
+    this.signal = signal;
+  }
+
+  get(_: unknown, prop: string | symbol) {
+    if (prop === SYMBOL_SIGNAL) return this.signal;
+    trackSignal(this.signal);
+    return (this.targetRef.current as Record<PropertyKey, unknown>)[prop];
+  }
+
+  ownKeys(): ArrayLike<string | symbol> {
+    trackSignal(this.signal);
+    return Reflect.ownKeys(this.targetRef.current);
+  }
+
+  has(_: unknown, prop: string | symbol) {
+    trackSignal(this.signal);
+    return prop in this.targetRef.current;
+  }
+
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    trackSignal(this.signal);
+    const value = Reflect.getOwnPropertyDescriptor(
+      this.targetRef.current,
+      prop,
+    )?.value;
+    if (value === undefined) return undefined;
+    return {
+      value,
+      writable: false,
+      enumerable: true,
+      configurable: true,
+    };
+  }
+}
+
+export const useForwardingClient = <TMethods extends ClientMethods>(
+  target: TMethods,
+): TMethods => {
+  const targetRef = useRef(target);
+  const { signal, markChanged } = useScopedSignal();
+  const methods = useMemo(() => {
+    const handler = new ForwardingClientProxyHandler(targetRef, signal);
+    return new Proxy<TMethods>({} as TMethods, handler);
+  }, [signal]);
+
+  useEffect(() => {
+    if (targetRef.current === target) return;
+    targetRef.current = target;
+    if (signal) markChanged!(signal);
+  }, [markChanged, signal, target]);
+
+  return methods;
+};
 
 /**
  * Mounts a client resource and returns its stable methods facade and state.

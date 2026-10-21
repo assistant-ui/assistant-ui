@@ -803,7 +803,7 @@ describe("useAISDKRuntime", () => {
     );
     expect(chat.addToolResult).not.toHaveBeenCalled();
     expect(
-      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.get("tc-1"),
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.().get("tc-1"),
     ).toEqual({ preview: "72°F and sunny" });
 
     chat.messages = chat.messages.map((message: UIMessage) => ({
@@ -1051,8 +1051,9 @@ describe("useAISDKRuntime", () => {
       expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
     });
 
-    const toolArtifacts = vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5];
-    expect(toolArtifacts?.get("tc-1")).toEqual({
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.().get("tc-1"),
+    ).toEqual({
       preview: "72°F and sunny",
     });
     await act(async () => {
@@ -1060,7 +1061,9 @@ describe("useAISDKRuntime", () => {
     });
 
     expect(deleteMessage).toHaveBeenCalledWith("a1");
-    expect(toolArtifacts?.has("tc-1")).toBe(false);
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.().has("tc-1"),
+    ).toBe(false);
   });
 
   it("removes tool interactions with their deleted message", async () => {
@@ -1102,17 +1105,18 @@ describe("useAISDKRuntime", () => {
       });
     });
 
-    const toolInteractions = vi
-      .mocked(useExternalHistory)
-      .mock.calls.at(-1)?.[7];
-    expect(toolInteractions?.has("tc-1")).toBe(true);
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[7]?.().has("tc-1"),
+    ).toBe(true);
 
     await act(async () => {
       await result.current.thread.getMessageById("a1").delete();
     });
 
     expect(deleteMessage).toHaveBeenCalledWith("a1");
-    expect(toolInteractions?.has("tc-1")).toBe(false);
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[7]?.().has("tc-1"),
+    ).toBe(false);
   });
 
   it("edit slices history to parentId and sends the edited message", async () => {
@@ -1356,20 +1360,12 @@ describe("useAISDKRuntime", () => {
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
   });
 
-  it("imports a message tree without replacing the chat feed", async () => {
+  it("imports a child-first message tree without replacing the chat feed", async () => {
     const chat = createChatHelpers();
     const onBranchChange = vi.fn();
     const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a2",
       messages: [
-        {
-          parentId: null,
-          message: {
-            id: "u1",
-            role: "user" as const,
-            parts: [{ type: "text" as const, text: "question" }],
-          },
-        },
         {
           parentId: "u1",
           message: {
@@ -1384,6 +1380,14 @@ describe("useAISDKRuntime", () => {
             id: "a2",
             role: "assistant" as const,
             parts: [{ type: "text" as const, text: "second" }],
+          },
+        },
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
           },
         },
       ],

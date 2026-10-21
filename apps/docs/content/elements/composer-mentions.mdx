@@ -157,7 +157,7 @@ export function ChatBox() {
 </div>
 ```
 
-With a runtime, a pick does not insert a chip directly into the textarea; it inserts literal directive text in `defaultDirectiveFormatter`'s `:type[label]{name=id}` syntax (the `{name=…}` part is dropped when `id` and `label` match), which only renders as a chip once a message renderer parses it back out. Standalone, `applyMention` inserts the plain name instead, since there is no message-rendering step to hand a directive to.
+With a runtime, a pick inserts literal directive text using `defaultDirectiveFormatter`. Ordinary names use `:type[label]{name=id}`, with `{name=…}` omitted when the ID equals the label. Names containing directive delimiters use [quoted fields](/docs/guides/mentions#directive-format). The text renders as a chip once a message renderer parses it. Standalone, `applyMention` inserts the plain name instead, since there is no message-rendering step to hand a directive to.
 
 ## Examples
 

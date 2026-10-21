@@ -466,7 +466,7 @@ By default, sending while the thread is running is disabled. Provide a `queue` a
 
 The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
 
-The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. A rejected dispatch that never reported busy needs no idle notification, including when a steer cancelled it. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue logs failures other than aborts.
+The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. A rejected dispatch that never reported busy needs no idle notification. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue logs failures other than aborts.
 
 Call `notifyBusy()` synchronously before committing a message or starting work that can fail. A busy notification from a later React effect can arrive after a fast failure and is too late to establish that the message was already accepted. After accepting a message, the driver owns failure handling and must eventually report `notifyIdle()` when that run settles.
 
@@ -521,6 +521,8 @@ const runtime = useExternalStoreRuntime({
 ```
 
 With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
+
+For client tool calls, publish the current run's id as `activeRunId` and keep it through `cancelRun`. Set `metadata.runId` on each assistant message from that run, including late messages. The runtime discards calls from the cancelled run in addition to calls caught by its message and parent rules. A replacement started under the same parent can run its calls once that parent rule closes. Run ids should be unique within a thread session.
 
 ```tsx
 const runtime = useExternalStoreRuntime({
@@ -882,6 +884,12 @@ useExternalStoreRuntime({
       default: "false",
     },
     {
+      name: "activeRunId",
+      type: "string",
+      description:
+        "Id of the current run. Keep it through cancelRun so late assistant tool calls from that run can be discarded.",
+    },
+    {
       name: "isDisabled",
       type: "boolean",
       description:
@@ -1074,10 +1082,23 @@ useExternalStoreRuntime({
     {
       name: "metadata",
       type: "object",
-      description: "Additional message metadata (steps, custom fields).",
+      description:
+        "Additional message metadata (steps, custom fields, and assistant runId for cancellation attribution).",
     },
   ]}
 />
+
+## Resuming an interrupted run
+
+A cancellation is not necessarily resumable. Set `canResume: true` only when your backend retains a checkpoint for the current run, and supply `onResume` to reconnect to that checkpoint. The composer then shows Resume when its draft is empty. Adapters without an explicit checkpoint keep the Send/Cancel controls.
+
+`onResume` must continue the same assistant message and tool state. Do not implement it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting and clear `canResume` when the checkpoint is consumed, expires, or the thread changes. With `canResume: true`, `useExternalStoreRuntime` and `ExternalThread` share one pending resume attempt per thread. Later calls join that attempt even if the callback or run configuration changes; the first call's configuration is used. Once it settles, a new call uses the current callback and its own configuration. `useExternalStoreRuntime` also releases a pending attempt when the runtime resets, imports state, switches branches, or receives a different message repository. Adapters that discard a backing session without replacing the runtime should call `unstable_notifySessionReset()`. An older attempt settling does not clear a newer one. Without this opt-in, explicit resume calls retain their existing independent behavior. A rejected callback re-enables the control for retry; report the failure through your adapter's normal error state. The runtime also suppresses repeated clicks across controls for the same thread while the callback is pending and preserves nonempty composer drafts.
+
+The same opt-in fields are available on `ExternalThread`, `useAISDKRuntime`, and `useChatRuntime`. Merely providing `onResume` does not advertise a resumable checkpoint. `useAssistantTransportRuntime` accepts `canResume` with its existing `resumeApi`; the flag must come from the backend's checkpoint state for the current thread.
+
+For AI SDK replay requirements, retry policy, and branch cleanup, see [Resumable Streams](/docs/guides/resumable-streams#stop-and-resume-in-the-composer).
+
+`useAgUiRuntime` does not expose the generic Resume control: its default resume path starts a new AG-UI run, which does not establish checkpoint availability. Its existing interrupt handling and history-stream resumption APIs remain available.
 
 ## Related
 

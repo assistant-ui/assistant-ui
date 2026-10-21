@@ -130,6 +130,39 @@ const makeAdapter = (
   ...overrides,
 });
 
+describe("RemoteThreadList draft custom metadata", () => {
+  it("passes draft metadata to initialize without updating the adapter, then updates initialized metadata", async () => {
+    const updateCustom = vi.fn(async () => {});
+    const adapter = makeAdapter({ updateCustom });
+    const { handle } = mountList(adapter);
+    await handle.getClient().threads.getLoadThreadsPromise();
+    const draftId = handle.getClient().threads.getState().mainThreadId;
+
+    flushTapSync(() => {
+      handle.getClient().threads.item("main").updateCustom({ label: "draft" });
+    });
+    expect(handle.getClient().threads.item("main").getState().custom).toEqual({
+      label: "draft",
+    });
+    expect(updateCustom).not.toHaveBeenCalled();
+
+    await handle.getClient().threads.item("main").initialize();
+    expect(adapter.initialize).toHaveBeenCalledWith(draftId, {
+      custom: { label: "draft" },
+    });
+    expect(updateCustom).not.toHaveBeenCalled();
+
+    await handle
+      .getClient()
+      .threads.item("main")
+      .updateCustom({ label: "saved" });
+    expect(updateCustom).toHaveBeenCalledWith(`remote-${draftId}`, {
+      label: "saved",
+    });
+    handle.destroy();
+  });
+});
+
 const mountList = (
   adapter: RemoteThreadListAdapter,
   threadId?: string,
@@ -154,6 +187,72 @@ const mountList = (
   handle.subscribe(() => {});
   return { handle, onThreadIdChange };
 };
+
+describe("RemoteThreadList without adapter unarchive", () => {
+  const makeArchivedAdapter = () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "archived" as const, remoteId: "archived" }],
+      })),
+    });
+    delete adapter.unarchive;
+    return adapter;
+  };
+
+  it("opens an archived thread and keeps it archived", async () => {
+    const { handle } = mountList(makeArchivedAdapter());
+    try {
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      expect(threads.getState().canUnarchive).toBe(false);
+      await waitFor(() =>
+        expect(threads.getState().archivedThreadIds).toContain("archived"),
+      );
+
+      await expect(
+        threads.__internal_getRawActions!().switchToThread("archived"),
+      ).resolves.toBeUndefined();
+
+      await waitFor(() =>
+        expect(threads.getState().mainThreadId).toBe("archived"),
+      );
+      expect(threads.item("main").getState().status).toBe("archived");
+      expect(threads.getState().archivedThreadIds).toContain("archived");
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("rejects explicit unarchive without changing the archived status", async () => {
+    const { handle } = mountList(makeArchivedAdapter());
+    try {
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      const optimisticUpdate = vi.spyOn(
+        OptimisticState.prototype,
+        "optimisticUpdate",
+      );
+
+      try {
+        await expect(
+          threads.item({ id: "archived" }).unarchive(),
+        ).rejects.toThrow(
+          "Remote thread list adapter does not support unarchiving",
+        );
+
+        expect(optimisticUpdate).not.toHaveBeenCalled();
+        expect(threads.item({ id: "archived" }).getState().status).toBe(
+          "archived",
+        );
+        expect(threads.getState().archivedThreadIds).toContain("archived");
+      } finally {
+        optimisticUpdate.mockRestore();
+      }
+    } finally {
+      handle.destroy();
+    }
+  });
+});
 
 const mountDeletableThread = async () => {
   const deleted = deferred<void>();
@@ -192,6 +291,47 @@ const openTitleStream = () => {
 
 const microtasks = async (count: number) => {
   for (let i = 0; i < count; i++) await Promise.resolve();
+};
+
+const mountControlledDraft = async (adapter: RemoteThreadListAdapter) => {
+  const listeners = new Set<() => void>();
+  const onThreadIdChange = vi.fn();
+  const onSwitchToNewThread = vi.fn();
+  const attachThread = deferred<void>();
+  let threadId: string | undefined = "t0";
+  const handle = createAssistantClient({
+    getConfig: () =>
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          thread: (id) => StubThread({ threadId: id }) as never,
+          threadId,
+          onThreadIdChange,
+          onSwitchToNewThread,
+          __internal_ensureThread: (item) =>
+            item.id === "t0" ? attachThread.promise : Promise.resolve(),
+        }),
+      }),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
+  handle.subscribe(() => {});
+  await handle.getClient().threads.getLoadThreadsPromise();
+  const draftId = handle.getClient().threads.getState().newThreadId!;
+  expect(handle.getClient().threads.getState().mainThreadId).toBe(draftId);
+  threadId = undefined;
+  flushTapSync(() => {
+    for (const listener of listeners) listener();
+  });
+  return {
+    handle,
+    draftId,
+    onThreadIdChange,
+    onSwitchToNewThread,
+    attachThread,
+  };
 };
 
 const mountArchivedInitializingThread = async () => {
@@ -1362,7 +1502,15 @@ describe("RemoteThreadList", () => {
       const { adapter, aui, handle, deleted, isDeletionCommitted } =
         await mountDeletableThread();
       const renamed = deferred<void>();
-      vi.mocked(adapter.rename).mockImplementation(() => renamed.promise);
+      let renameSettled = false;
+      vi.mocked(adapter.rename).mockImplementation(async () => {
+        await renamed.promise;
+        renameSettled = true;
+      });
+      vi.mocked(adapter.delete).mockImplementation(() => {
+        expect(renameSettled).toBe(true);
+        return deleted.promise;
+      });
       vi.mocked(adapter.generateTitle).mockImplementation(async () => {
         if (isDeletionCommitted()) late.push(offset);
         return new ReadableStream({
@@ -1375,13 +1523,14 @@ describe("RemoteThreadList", () => {
       const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
       const generation = aui.threads.item({ id: "t1" }).generateTitle();
       const deleting = aui.threads.item({ id: "t1" }).delete();
+      expect(adapter.delete).not.toHaveBeenCalled();
+      renamed.resolve();
       await vi.waitFor(
         () => {
           expect(adapter.delete).toHaveBeenCalledOnce();
         },
         { interval: 5 },
       );
-      renamed.resolve();
       await microtasks(offset);
       deleted.resolve();
       await Promise.all([renaming, generation, deleting]);
@@ -1433,11 +1582,18 @@ describe("RemoteThreadList", () => {
 
   it("does not request a title for a thread deleted while the request waits on a rename", async () => {
     const renamed = deferred<void>();
+    let renameSettled = false;
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
       })),
-      rename: vi.fn(() => renamed.promise),
+      rename: vi.fn(async () => {
+        await renamed.promise;
+        renameSettled = true;
+      }),
+      delete: vi.fn(async () => {
+        expect(renameSettled).toBe(true);
+      }),
     });
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
@@ -1451,12 +1607,16 @@ describe("RemoteThreadList", () => {
     });
 
     const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
-    const generation = aui.threads.item({ id: "t1" }).generateTitle();
-    await aui.threads.item({ id: "t1" }).delete();
+    const generation = aui.threads
+      .item({ id: "t1" })
+      .generateTitle({ automatic: true });
+    const deleting = aui.threads.item({ id: "t1" }).delete();
+    expect(adapter.delete).not.toHaveBeenCalled();
+    renamed.resolve();
+    await deleting;
     await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
-    renamed.resolve();
     await renaming;
     await generation;
 
@@ -1599,6 +1759,218 @@ describe("RemoteThreadList", () => {
     });
     expect(onThreadIdChange).not.toHaveBeenCalled();
     handle.destroy();
+  });
+
+  it.each(["before", "after"] as const)(
+    "opens a fresh draft when initialization starts %s a controlled new-thread request",
+    async (initializationStart) => {
+      const attachThread = deferred<void>();
+      const initialization = deferred<{
+        remoteId: string;
+        externalId: undefined;
+      }>();
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "t0", title: "Zero" },
+          ],
+        })),
+        initialize: vi.fn(() => initialization.promise),
+      });
+      const listeners = new Set<() => void>();
+      const onThreadIdChange = vi.fn();
+      let threadId: string | undefined = "t0";
+      const ensureThread = vi.fn((item: { id: string }) =>
+        item.id === "t0" ? attachThread.promise : Promise.resolve(),
+      );
+      const source: AssistantConfigSource = {
+        getConfig: () =>
+          AuiConfig({
+            threads: RemoteThreadList({
+              adapter,
+              thread: (id) => StubThread({ threadId: id }) as never,
+              threadId,
+              onThreadIdChange,
+              __internal_ensureThread: ensureThread,
+            }),
+          }),
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      };
+      const handle = createAssistantClient(source);
+      handle.subscribe(() => {});
+      await waitFor(() => {
+        expect(ensureThread).toHaveBeenCalledWith(
+          expect.objectContaining({ id: "t0" }),
+        );
+      });
+      const draftId = handle.getClient().threads.getState().newThreadId;
+      expect(draftId).toBeDefined();
+      expect(handle.getClient().threads.getState().mainThreadId).toBe(draftId);
+
+      const initializing =
+        initializationStart === "before"
+          ? handle.getClient().threads.item({ id: draftId! }).initialize()
+          : undefined;
+      threadId = undefined;
+      flushTapSync(() => {
+        for (const listener of listeners) listener();
+      });
+      const pending =
+        initializing ??
+        handle.getClient().threads.item({ id: draftId! }).initialize();
+      initialization.resolve({ remoteId: "t1", externalId: undefined });
+      await pending;
+      attachThread.resolve();
+
+      await waitFor(() => {
+        const threads = handle.getClient().threads;
+        const main = threads.item("main").getState();
+        expect(main.id).not.toBe(draftId);
+        expect(main.status).toBe("new");
+        expect(main.remoteId).toBeUndefined();
+        expect(threads.getState().threadIds).toContain(draftId);
+        expect(threads.item({ id: draftId! }).getState().remoteId).toBe("t1");
+      });
+      expect(onThreadIdChange).not.toHaveBeenCalledWith("t1");
+      handle.destroy();
+    },
+  );
+
+  it("keeps a restarted controlled new-thread request controlled while its fresh draft attaches", async () => {
+    const attachThread = deferred<void>();
+    const attachFresh = deferred<void>();
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t0", title: "Zero" },
+        ],
+      })),
+      initialize: vi.fn(() => initialization.promise),
+    });
+    const listeners = new Set<() => void>();
+    const onThreadIdChange = vi.fn();
+    let threadId: string | undefined = "t0";
+    let draftId: string | undefined;
+    const ensureThread = vi.fn((item: { id: string }) => {
+      if (item.id === "t0") return attachThread.promise;
+      if (item.id === draftId) return Promise.resolve();
+      return attachFresh.promise;
+    });
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            threadId,
+            onThreadIdChange,
+            __internal_ensureThread: ensureThread,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await waitFor(() => {
+      expect(ensureThread).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "t0" }),
+      );
+    });
+    draftId = handle.getClient().threads.getState().newThreadId ?? undefined;
+    threadId = undefined;
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    const initializing = handle
+      .getClient()
+      .threads.item({ id: draftId! })
+      .initialize();
+    initialization.resolve({ remoteId: "t1", externalId: undefined });
+    await initializing;
+    attachThread.resolve();
+    await waitFor(() => {
+      expect(ensureThread).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: expect.not.stringMatching(new RegExp(`^(t0|${draftId})$`)),
+        }),
+      );
+    });
+
+    void handle.getClient().threads.__internal_getRawActions!().switchToThread(
+      draftId!,
+    );
+    attachFresh.resolve();
+
+    await waitFor(() => {
+      const main = handle.getClient().threads.item("main").getState();
+      expect(main.id).not.toBe(draftId);
+      expect(main.status).toBe("new");
+    });
+    expect(onThreadIdChange).not.toHaveBeenCalledWith("t1");
+    handle.destroy();
+  });
+
+  it("reports an ordinary initialization after a controlled switch settles", async () => {
+    const adapter = makeAdapter();
+    const { handle, draftId, onThreadIdChange } =
+      await mountControlledDraft(adapter);
+    await microtasks(5);
+
+    await handle.getClient().threads.item({ id: draftId }).initialize();
+    expect(onThreadIdChange).toHaveBeenCalledWith(`remote-${draftId}`);
+    expect(handle.getClient().threads.getState().mainThreadId).toBe(draftId);
+    handle.destroy();
+  });
+
+  it("treats a retry after initialization rejection as an ordinary message", async () => {
+    const adapter = makeAdapter({
+      initialize: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("failed"))
+        .mockResolvedValueOnce({ remoteId: "t1", externalId: undefined }),
+    });
+    const { handle, draftId, onThreadIdChange } =
+      await mountControlledDraft(adapter);
+    await microtasks(5);
+
+    await expect(
+      handle.getClient().threads.item({ id: draftId }).initialize(),
+    ).rejects.toThrow("failed");
+    await handle.getClient().threads.item({ id: draftId }).initialize();
+    expect(onThreadIdChange).toHaveBeenCalledWith("t1");
+    expect(handle.getClient().threads.getState().mainThreadId).toBe(draftId);
+    handle.destroy();
+  });
+
+  it("does not start a switch when initialization resolves after destruction", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialization.promise),
+    });
+    const { handle, draftId, onSwitchToNewThread } =
+      await mountControlledDraft(adapter);
+    const pending = handle
+      .getClient()
+      .threads.item({ id: draftId })
+      .initialize();
+    handle.destroy();
+    initialization.resolve({ remoteId: "t1", externalId: undefined });
+    await pending;
+    await microtasks(5);
+    expect(onSwitchToNewThread).not.toHaveBeenCalled();
   });
 
   it("opens a controlled threadId whose fetch failed once the list loads it", async () => {
@@ -2288,7 +2660,18 @@ describe("RemoteThreadList", () => {
     },
   );
 
-  it("retains an unlisted controlled selection through a failed replacement load", async () => {
+  it.each([
+    {
+      name: "retains an unlisted controlled selection through a failed replacement load",
+      reopen: undefined,
+      failedFetches: 0,
+    },
+    {
+      name: "reopens an unlisted controlled selection through a replacement adapter whose list fails, then after a later load",
+      reopen: true,
+      failedFetches: 1,
+    },
+  ])("$name", async ({ reopen, failedFetches }) => {
     const selected = { status: "regular" as const, remoteId: "selected" };
     let threadId = "old-selected";
     let adapter = makeAdapter({
@@ -2305,6 +2688,7 @@ describe("RemoteThreadList", () => {
             adapter,
             threadId,
             onThreadIdChange,
+            __internal_reopenControlledThreadOnAdapterChange: reopen,
             thread: (id) => StubThread({ threadId: id }) as never,
           }),
         }),
@@ -2340,14 +2724,17 @@ describe("RemoteThreadList", () => {
       await handle.getClient().threads.reload();
       await microtasks(20);
       expect(handle.getClient().threads.getState().loadError).toBe(error);
-      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload);
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload + failedFetches);
+      if (reopen) expect(fetch).toHaveBeenLastCalledWith("selected");
       await handle.getClient().threads.reload();
       await waitFor(() =>
         expect(handle.getClient().threads.getState().mainThreadId).toBe(
           "selected",
         ),
       );
-      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload + 1);
+      expect(fetch).toHaveBeenCalledTimes(
+        fetchesBeforeReload + failedFetches + 1,
+      );
       expect(fetch).toHaveBeenLastCalledWith("selected");
       expect(onThreadIdChange).not.toHaveBeenCalled();
     } finally {

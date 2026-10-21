@@ -22,7 +22,6 @@ export default defineConfig({
     pool: "threads",
     fsModuleCache: true,
     globals: true,
-    passWithNoTests: true,
     include: ["src/**/*.test.{ts,tsx}"],
   },
 });

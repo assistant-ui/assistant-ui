@@ -5,7 +5,14 @@ import {
   render,
   within,
 } from "@testing-library/react";
-import { lazy, StrictMode, type ComponentType, type ReactNode } from "react";
+import {
+  lazy,
+  StrictMode,
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureVariants } from "./config";
@@ -147,13 +154,23 @@ describe("resolution order", () => {
     expect(html).toBe('<h1 id="b1">B</h1>');
   });
 
-  it("unmounts inactive variants", () => {
+  it("unmounts inactive variants and resets their state when reselected", () => {
     const effects: string[] = [];
     const Probe = ({ name }: { name: string }) => {
-      effects.push(name);
-      return null;
+      const [count, setCount] = useState(0);
+      useEffect(() => {
+        effects.push(`mount ${name}`);
+        return () => {
+          effects.push(`unmount ${name}`);
+        };
+      }, [name]);
+      return (
+        <button type="button" onClick={() => setCount((value) => value + 1)}>
+          {name}: {count}
+        </button>
+      );
     };
-    renderWithStore(
+    const { getByRole, unmount } = renderWithStore(
       <Variants id="g">
         <Variant id="x">
           <Probe name="x" />
@@ -163,7 +180,25 @@ describe("resolution order", () => {
         </Variant>
       </Variants>,
     );
-    expect(effects).not.toContain("y");
+    expect(effects).toEqual(["mount x"]);
+    fireEvent.click(getByRole("button", { name: "x: 0" }));
+    expect(getByRole("button", { name: "x: 1" })).toBeTruthy();
+
+    act(() => store.select("g", "y"));
+    expect(effects).toEqual(["mount x", "unmount x", "mount y"]);
+    expect(getByRole("button", { name: "y: 0" })).toBeTruthy();
+
+    act(() => store.select("g", "x"));
+    expect(getByRole("button", { name: "x: 0" })).toBeTruthy();
+    unmount();
+    expect(effects).toEqual([
+      "mount x",
+      "unmount x",
+      "mount y",
+      "unmount y",
+      "mount x",
+      "unmount x",
+    ]);
   });
 });
 

@@ -81,10 +81,6 @@ export default {
         __dirname,
         "../../packages/ui/src/components/react/icons/discord",
       ),
-      "@/components/icons/gemini": resolve(
-        __dirname,
-        "../../packages/ui/src/components/react/icons/gemini",
-      ),
       "@/components/icons/github": resolve(
         __dirname,
         "../../packages/ui/src/components/react/icons/github",

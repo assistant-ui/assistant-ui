@@ -32,8 +32,8 @@ update:
 # Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  - '@farming-labs/docs@0.2.124'
-  - '@farming-labs/theme@0.2.124'
+  - '@farming-labs/docs@0.2.125'
+  - '@farming-labs/theme@0.2.125'
   - '@assistant-ui/*'
   - '@next/*'
   - '@openuidev/assistant-ui'
@@ -61,11 +61,10 @@ allowBuilds:
   core-js-pure: false
   cpu-features: false
   esbuild@0.27.0: true
-  esbuild@0.28.1: true
   esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false
   ssh2: false
   vue-demi: false
-  workerd@1.20261006.1: true
+  workerd@1.20261012.1: true

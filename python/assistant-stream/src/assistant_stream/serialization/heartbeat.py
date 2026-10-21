@@ -1,5 +1,7 @@
 import asyncio
 import math
+from anyio import CancelScope
+from assistant_stream.create_run import _EARLY_CLOSE_GRACE_SECONDS
 from typing import AsyncGenerator, Optional, Union
 
 DEFAULT_HEARTBEAT_INTERVAL = 15.0
@@ -9,6 +11,11 @@ SSE_HEARTBEAT_LINE = ": heartbeat\n\n"
 DATA_STREAM_KEEPALIVE_LINE = "\n"
 
 HeartbeatOption = Union[float, int, bool, None]
+
+
+def _retrieve_task_exception(task: asyncio.Task) -> None:
+    if not task.cancelled():
+        task.exception()
 
 
 def resolve_heartbeat_interval(
@@ -57,10 +64,16 @@ async def add_keepalive(
             yield item
     finally:
         if task is not None:
-            task.cancel()
-            await asyncio.wait({task})
-            if not task.cancelled():
-                task.exception()  # retrieve the outcome so asyncio does not log "Task exception was never retrieved"
+            try:
+                with CancelScope(shield=True):
+                    task.cancel()
+                    await asyncio.wait({task}, timeout=_EARLY_CLOSE_GRACE_SECONDS)
+                if not task.done():
+                    await asyncio.wait({task})
+            except asyncio.CancelledError:
+                task.add_done_callback(_retrieve_task_exception)
+                raise
+            _retrieve_task_exception(task)
         await stream.aclose()
 
 

@@ -13,6 +13,7 @@ type ResourceElement<V> = {
 
 declare const createTapRoot: <R>(render: () => R, options?: {
   mountOnSubscribe?: boolean;
+  onError?: (error: unknown) => void;
 }) => useTapRoot.Root<R> & {
   unmount: () => void;
 };

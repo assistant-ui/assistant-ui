@@ -183,7 +183,7 @@ declare function RenderChildrenWithAccessor<T>(_param0: {
   children: (getItem: () => T) => ReactNode;
 }): ReactNode;
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -219,7 +219,12 @@ type ThreadViewportAutoScroll = {
   attach(element: HTMLElement): () => void;
   readonly isAtBottom: boolean;
   scrollToBottom(behavior?: ScrollBehavior): void;
+  messagesPrepended(previousFirstMessageId: string): void;
   setContentInset(inset: number): void;
+  registerContentInset(): {
+    setHeight(height: number): void;
+    unregister(): void;
+  };
   setHasMessages(hasMessages: boolean): void;
   runStarted(): void;
   threadSwitched(): void;
@@ -228,6 +233,7 @@ type ThreadViewportAutoScroll = {
 
 type ThreadViewportAutoScrollOptions = {
   readonly autoScroll: boolean;
+  readonly holdFollow?: boolean;
   readonly scrollToBottomOnInitialize: boolean;
   readonly scrollToBottomOnRunStart: boolean;
   readonly scrollToBottomOnThreadSwitch: boolean;
@@ -247,7 +253,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type ViewportMetrics = {
   scrollTop: number;
@@ -269,7 +275,7 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, ThreadViewportAutoScroll, ThreadViewportAutoScrollOptions, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, createThreadViewportAutoScroll, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, shallowEqual, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, useDestroySignalProvider, viewportOverflows };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, ThreadViewportAutoScroll, ThreadViewportAutoScrollOptions, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, createThreadViewportAutoScroll, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, shallowEqual, unstable_useClientSource, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, useDestroySignalProvider, viewportOverflows };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
@@ -292,6 +298,7 @@ declare const createStaleReporter: (options: {
 declare const createThreadViewportAutoScroll: (input: {
   getOptions: () => ThreadViewportAutoScrollOptions;
   onAtBottomChange: (isAtBottom: boolean) => void;
+  onContentInsetChange?: (total: number) => void;
 }) => ThreadViewportAutoScroll;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
@@ -311,7 +318,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useIsServerRender, useIsomorphicLayoutEffect, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useForwardingClient, useHostDestroySignal, useIsServerRender, useIsomorphicLayoutEffect, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -329,6 +336,8 @@ declare const normalizeEventSelector: <TEvent extends AssistantEventName>(select
 declare const observeContentResize: (el: HTMLElement, callback: () => void) => (() => void);
 
 declare const shallowEqual: (a: object, b: object) => boolean;
+
+declare const unstable_useClientSource: (subscribe: ((callback: () => void) => () => void) | undefined) => void;
 
 declare const useAssistantClientDestroySignal: () => AbortSignal | undefined;
 
@@ -400,6 +409,8 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input, destroySignal?: AbortSignal) => ScopedAuiClient;
 
 declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
+
+declare const useForwardingClient: <TMethods extends ClientMethods>(target: TMethods) => TMethods;
 
 declare const useHostDestroySignal: () => AbortSignal;
 

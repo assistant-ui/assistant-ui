@@ -42,6 +42,29 @@ const makeCloud = () =>
   }) as unknown as AssistantCloud;
 
 describe("createCloudThreadListAdapter", () => {
+  it("sends custom metadata when creating a cloud thread", async () => {
+    const cloud = makeCloud();
+    const adapter = createCloudThreadListAdapter({ cloud });
+
+    await adapter.initialize("local-1", { custom: { label: "draft" } });
+
+    expect(cloud.threads.create).toHaveBeenCalledWith({
+      last_message_at: expect.any(Date),
+      external_id: undefined,
+      metadata: { label: "draft" },
+    });
+  });
+
+  it("keeps custom metadata in the in-memory cloud fallback", async () => {
+    const adapter = createCloudThreadListAdapter({});
+
+    await adapter.initialize("local-1", { custom: { label: "draft" } });
+
+    expect((await adapter.fetch("local-1")).custom).toEqual({
+      label: "draft",
+    });
+  });
+
   it("falls back to an in-memory list without a cloud instance", async () => {
     const create = vi.fn(async () => ({ externalId: "ext-1" }));
     const adapter = createCloudThreadListAdapter({ create });

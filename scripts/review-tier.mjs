@@ -3,117 +3,22 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
+import { createGitHubClient } from "./lib/review-github-client.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import { coverageAdvice, isCoverageConfig } from "./review-coverage-advice.mjs";
+import { advise, sectionText } from "./lib/review-tier-advice.mjs";
 import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
 import { hasOption, optionValues } from "./lib/script-options.mjs";
 
 const marker = "<!-- review-tier -->";
-const rawAccept = "application/vnd.github.raw";
-const transientStatuses = new Set([0, 502, 503, 504]);
 export const dailySweepCron = "0 4 * * *";
 
-export function createGitHubClient({
-  token,
-  fetch = globalThis.fetch,
-  apiRoot = "https://api.github.com",
-  wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-}) {
-  async function rest(
-    method,
-    resource,
-    body,
-    accept = "application/vnd.github+json",
-  ) {
-    const retries = method === "GET" || resource === "/graphql" ? 2 : 0;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await request(method, resource, body, accept);
-      } catch (error) {
-        if (attempt === retries || !transientStatuses.has(error.status))
-          throw error;
-        await wait(1000 * 2 ** attempt);
-      }
-    }
-  }
-
-  async function request(method, resource, body, accept) {
-    const url = /^https?:\/\//.test(resource)
-      ? resource
-      : `${apiRoot.replace(/\/$/, "")}/${resource.replace(/^\//, "")}`;
-    let status = 0;
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Accept: accept,
-          Authorization: `Bearer ${token}`,
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-      status = response.status;
-      if (!response.ok) {
-        throw new Error(
-          `GitHub request failed (${status} ${response.statusText}): ${method} ${url}`,
-        );
-      }
-      const text = await response.text().catch((error) => {
-        status = 0;
-        throw error;
-      });
-      return {
-        status,
-        data:
-          accept === rawAccept ? text : text === "" ? null : JSON.parse(text),
-        headers: response.headers,
-      };
-    } catch (error) {
-      throw Object.assign(
-        error instanceof Error ? error : new Error(String(error)),
-        { status },
-      );
-    }
-  }
-
-  return {
-    rest,
-    async paginate(resource) {
-      const items = [];
-      while (resource) {
-        const { data, headers } = await rest("GET", resource);
-        items.push(...data);
-        resource = /<([^>]+)>;\s*rel="next"/.exec(
-          headers.get("link") ?? "",
-        )?.[1];
-      }
-      return items;
-    },
-    async graphql(query, variables) {
-      const { status, data } = await rest("POST", "/graphql", {
-        query,
-        variables,
-      });
-      if (data.errors?.length) {
-        throw Object.assign(
-          new Error(data.errors.map(({ message }) => message).join("; ")),
-          { status, types: data.errors.map((error) => error.type) },
-        );
-      }
-      return data.data;
-    },
-    async raw(resource) {
-      try {
-        return (await rest("GET", resource, undefined, rawAccept)).data;
-      } catch (error) {
-        if (error.status === 404) return null;
-        throw error;
-      }
-    },
-  };
-}
+const issuePullRequestsFields = `number repository { nameWithOwner }
+  closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+    nodes { number state repository { nameWithOwner } }
+  }`;
 
 const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
@@ -137,7 +42,7 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
         nodes { commit { oid author { user { login } } committer { user { login } } } }
         pageInfo { hasNextPage endCursor }
       }
-      closingIssuesReferences(first: 10) { nodes { number } }
+      closingIssuesReferences(first: 10) { nodes { ${issuePullRequestsFields} } }
     }
   }
 }`;
@@ -173,6 +78,7 @@ const commitsQuery = `query ReviewTierCommits($owner: String!, $name: String!, $
 const decisionQuery = `query ReviewTierDecision($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
+      ${issuePullRequestsFields}
       labels(first: 100) { nodes { name } }
       timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
         nodes { ... on LabeledEvent { label { name } actor { login } createdAt } }
@@ -248,18 +154,32 @@ export async function gatherPullRequest(
   const readyForReviewAt =
     node.readyEvents.nodes.map(({ createdAt }) => createdAt).at(-1) ??
     node.createdAt;
-  const decisionNumbers = new Set(
-    node.closingIssuesReferences.nodes.map((issue) => issue.number),
+  const withPullRequests = (issue, closing) => ({
+    number: issue.number,
+    repository: issue.repository.nameWithOwner,
+    closing,
+    pullRequests: issue.closedByPullRequestsReferences.nodes.map((other) => ({
+      number: other.number,
+      state: other.state,
+      repository: other.repository.nameWithOwner,
+    })),
+  });
+  const adviceIssues = node.closingIssuesReferences.nodes.map((issue) =>
+    withPullRequests(issue, true),
   );
+  // Decision labels live on this repository's issues, so a closing issue in
+  // another repository is never looked up here by its bare number.
+  const decisionNumbers = new Set(
+    adviceIssues
+      .filter((issue) => issue.repository === policy.repository)
+      .map((issue) => issue.number),
+  );
+  const closingNumbers = new Set(decisionNumbers);
   const body = withoutHtmlComments(node.body);
-  const heading = /^## Decision[ \t]*\r?$/im.exec(body);
-  if (heading) {
-    const section = body
-      .slice(heading.index + heading[0].length)
-      .split(/^##[ \t]+/m)[0];
-    for (const match of section.matchAll(/#(\d+)\b/g))
-      decisionNumbers.add(Number(match[1]));
-  }
+  for (const match of (sectionText(body, "Decision") ?? "").matchAll(
+    /#(\d+)\b/g,
+  ))
+    decisionNumbers.add(Number(match[1]));
   const linkedIssues = [];
   for (const issueNumber of decisionNumbers) {
     let result;
@@ -281,6 +201,8 @@ export async function gatherPullRequest(
     const issue = result.repository.issue;
     if (!issue) continue;
     linkedIssues.push({ number: issueNumber, labels: attributedLabels(issue) });
+    if (!closingNumbers.has(issueNumber))
+      adviceIssues.push(withPullRequests(issue, false));
   }
 
   const files = (await client.paginate(`${repo}/pulls/${number}/files`)).map(
@@ -300,6 +222,7 @@ export async function gatherPullRequest(
     `${repo}/compare/${node.baseRefOid}...${node.headRefOid}`,
   );
   const mergeBase = comparison.data.merge_base_commit.sha;
+  const coverageNotices = [];
   const apiSurface = [];
   const manifests = [];
   const invalidManifests = [];
@@ -313,15 +236,46 @@ export async function gatherPullRequest(
   );
   for (const file of paths) {
     const isSurface = /^api-surface\/[^/]+\.ts$/.test(file);
-    if (!isSurface && !/^packages\/[^/]+\/package\.json$/.test(file)) continue;
+    const isCoverage = isCoverageConfig(file);
+    if (
+      isCoverage &&
+      files.some(
+        (changed) =>
+          changed.status === "renamed" &&
+          changed.previousPath === file &&
+          isCoverageConfig(changed.path),
+      )
+    )
+      continue;
+    const renamedConfig =
+      isCoverage &&
+      files.find(
+        (changed) =>
+          changed.status === "renamed" &&
+          changed.path === file &&
+          isCoverageConfig(changed.previousPath),
+      );
+    if (
+      !isSurface &&
+      !isCoverage &&
+      !/^packages\/[^/]+\/package\.json$/.test(file)
+    )
+      continue;
     const contents = `${repo}/contents/${file.split("/").map(encodeURIComponent).join("/")}`;
+    const baseContents = renamedConfig
+      ? `${repo}/contents/${renamedConfig.previousPath.split("/").map(encodeURIComponent).join("/")}`
+      : contents;
     const baseText = await client.raw(
-      `${contents}?ref=${encodeURIComponent(mergeBase)}`,
+      `${baseContents}?ref=${encodeURIComponent(mergeBase)}`,
     );
     const headText = await client.raw(
       `${contents}?ref=${encodeURIComponent(node.headRefOid)}`,
     );
-    if (isSurface) {
+    if (isCoverage) {
+      coverageNotices.push(
+        ...coverageAdvice({ path: file, base: baseText, head: headText }),
+      );
+    } else if (isSurface) {
       apiSurface.push({ file, diff: diffApiSurface(baseText, headText) });
     } else {
       let base;
@@ -377,6 +331,15 @@ export async function gatherPullRequest(
       state: node.state,
       headSha: node.headRefOid,
       updatedAt: node.updatedAt,
+    },
+    adviceInput: {
+      number,
+      title: node.title,
+      body,
+      authorIsBot: node.author?.__typename === "Bot",
+      hasLinkedIssue: linkedIssues.length > 0,
+      linkedIssues: adviceIssues,
+      coverageNotices,
     },
     signalsInput: {
       title: node.title,
@@ -460,6 +423,7 @@ export function evaluatePullRequest(gathered, policy) {
   return {
     tierResult,
     requirementResult,
+    advice: advise(gathered.adviceInput, policy),
     context: {
       headSha: gathered.pr.headSha,
       readyForReviewAt: gathered.people.readyForReviewAt,
@@ -621,7 +585,7 @@ export function statusLine({ tierResult, requirementResult, context }, policy) {
 }
 
 export function renderComment(evaluation, policy) {
-  const { tierResult, requirementResult, context } = evaluation;
+  const { tierResult, requirementResult, advice, context } = evaluation;
   const { tier } = tierResult;
   const reasons = tierResult.reasons.toSorted((a, b) => b.tier - a.tier);
   const { unmet, waived, approvals } = requirementResult;
@@ -666,6 +630,14 @@ export function renderComment(evaluation, policy) {
           ),
         ]),
       ),
+    );
+  }
+  if (advice.length) {
+    out.push(
+      "",
+      "**Worth a look** (never blocks a merge):",
+      "",
+      ...advice.map((line) => `- ${line}`),
     );
   }
   const signals = [];

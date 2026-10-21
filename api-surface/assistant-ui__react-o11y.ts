@@ -39,7 +39,7 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -133,7 +133,7 @@ declare namespace SpanPrimitiveCollapseToggle {
 }
 
 declare const SpanPrimitiveCollapseToggle: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace SpanPrimitiveIndent {
@@ -145,7 +145,7 @@ declare namespace SpanPrimitiveIndent {
 }
 
 declare const SpanPrimitiveIndent: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   baseIndent?: number;
   indentPerLevel?: number;
@@ -157,7 +157,7 @@ declare namespace SpanPrimitiveName {
 }
 
 declare const SpanPrimitiveName: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace SpanPrimitiveRoot {
@@ -166,7 +166,7 @@ declare namespace SpanPrimitiveRoot {
 }
 
 declare const SpanPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace SpanPrimitiveStatusIndicator {
@@ -175,7 +175,7 @@ declare namespace SpanPrimitiveStatusIndicator {
 }
 
 declare const SpanPrimitiveStatusIndicator: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace SpanPrimitiveTimeline {
@@ -187,7 +187,7 @@ declare namespace SpanPrimitiveTimeline {
 }
 
 declare const SpanPrimitiveTimeline: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   timeRange?: SpanTimelineRange | undefined;
   paddingEnd?: number | undefined;
@@ -202,7 +202,7 @@ declare namespace SpanPrimitiveTimelineBar {
 }
 
 declare const SpanPrimitiveTimelineBar: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   now?: number | undefined;
   timeRange?: SpanTimelineRange | undefined;
@@ -214,7 +214,7 @@ declare namespace SpanPrimitiveTypeBadge {
 }
 
 declare const SpanPrimitiveTypeBadge: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare const SpanResource: Resource<ClientOutput<"span">, [
@@ -244,7 +244,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare namespace entry_root_exports {
   export { SpanByIndexProvider, SpanData, SpanItemState, span_d_exports as SpanPrimitive, SpanResource, SpanState };

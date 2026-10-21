@@ -39,6 +39,7 @@
         "AGENTS.md",
         "scripts/review-tier.mjs",
         "scripts/diff-api-surface.mjs",
+        "scripts/review-coverage-advice.mjs",
         "scripts/sync-review-policy.mjs",
         "scripts/review-health.mjs",
         "scripts/lib/review-*.mjs"
@@ -58,6 +59,7 @@
     ".github/workflows/pypi-publish.yaml",
     "scripts/review-tier.mjs",
     "scripts/diff-api-surface.mjs",
+    "scripts/review-coverage-advice.mjs",
     "scripts/sync-review-policy.mjs",
     "scripts/review-health.mjs",
     "scripts/lib/review-*.mjs"

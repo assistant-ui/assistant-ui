@@ -28,7 +28,7 @@ Both are defined in the root `package.json`; `deps:update` runs `scripts/update-
 3. `pnpm install --no-frozen-lockfile` — **required** before the repin: `expo install --fix` resolves the installed versions off the file system and compares those against the SDK matrix, so it has to see a tree resolved from the manifest taze just wrote. It has to be this fresh resolve, because an install that still had the old lockfile to reuse would resolve back to the versions taze replaced and the repin would inspect a tree that will never ship.
 4. `npx expo install --fix` inside `examples/with-expo` — **required**: taze does not know about Expo's SDK compatibility matrix and will bump `expo-*` / `react-native-*` / `react` / `react-dom` to versions that crash at runtime. `expo install --fix` re-pins them to the versions sanctioned by the current `expo` SDK. Do not skip this step, and do not commit Expo-related bumps without it. When either step fails the script restores the entries in the SDK's native-module matrix from `examples/with-expo/package.json`, because taze's Expo bumps are unsanctioned without the repin, finishes the remaining steps, and exits non-zero.
 5. `pnpm install` + `pnpm dedupe` — reconcile the lockfile with whatever the repin rewrote.
-6. `bash scripts/generate-deps-changeset.sh` — write a patch changeset for each published package whose `package.json` changed.
+6. `bash scripts/generate-deps-changeset.sh` — write a patch changeset for each published package whose `package.json` changed in a field consumers install, the same rule the Changeset Semver Check applies; edits confined to `devDependencies`, `version`, or workspace ranges release nothing and are left out.
 
 ### Expo notes
 
@@ -52,7 +52,7 @@ Both are defined in the root `package.json`; `deps:update` runs `scripts/update-
 
 ### Notes
 
-- Do **not** hand-edit the generated changeset's bump levels — `generate-deps-changeset.sh` correctly emits `patch` for every published package whose `package.json` changed and skips private packages (`@assistant-ui/docs-site`, `@assistant-ui/shadcn-registry`, etc.). Per `AGENTS.md`, dependency updates are always patch.
+- Do **not** hand-edit the generated changeset's bump levels — `generate-deps-changeset.sh` emits `patch` for every published package whose `package.json` changed in a consumer-facing field and skips private packages (`@assistant-ui/docs-site`, `@assistant-ui/shadcn-registry`, etc.). Per `AGENTS.md`, dependency updates are always patch.
 - The script compares every `package.json` against the point where the branch left `origin/main`, so committed, staged and unstaged edits all count and it can run after the bumps are committed; fetch `origin/main` first. A rerun on an existing dependency branch rewrites the changeset an earlier run added instead of writing a second one.
 - `pnpm-lock.yaml` will have a huge diff; that's expected since step 2 deletes it.
 - `pnpm unmanaged-pins:check` guards two pins the updater never opens, so a routine run can go red on a file it did not touch. Raise the exact pins in `apps/docs/lib/xulux/learn/courses/*/shared/project/package.json` to whatever the workspace now prevailingly declares (pins on packages this repository publishes are exempt, since those move on every release), and move any version-scoped `allowBuilds` entry in `pnpm-workspace.yaml` to the version the refreshed lockfile installs.

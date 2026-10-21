@@ -12,14 +12,6 @@ import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
 import { createAssistantStream } from "../modules/assistant-stream";
 import { AssistantMessageStream } from "../accumulators/AssistantMessageStream";
 
-const createDelayedTool = (delay: number, result?: string): Tool => ({
-  parameters: { type: "object", properties: {} },
-  execute: async () => {
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    return result ?? `Tool with ${delay}ms delay executed`;
-  },
-});
-
 const createPendingToolMessage = (toolCallId: string): AssistantMessage => ({
   role: "assistant",
   status: { type: "requires-action", reason: "tool-calls" },
@@ -282,55 +274,48 @@ describe("unstable_runPendingTools", () => {
     expect(settled).toBe(message);
   });
 
-  it("removes the abort listener after tool execution settles", async () => {
-    const abortController = new AbortController();
-    const addEventListener = vi.spyOn(
-      abortController.signal,
-      "addEventListener",
-    );
-    const removeEventListener = vi.spyOn(
-      abortController.signal,
-      "removeEventListener",
-    );
-    const message: AssistantMessage = {
-      role: "assistant",
-      status: { type: "requires-action", reason: "tool-calls" },
-      parts: [
+  it.each(["resolves", "rejects"] as const)(
+    "removes the abort listener after tool execution %s",
+    async (outcome) => {
+      const abortController = new AbortController();
+      const addEventListener = vi.spyOn(
+        abortController.signal,
+        "addEventListener",
+      );
+      const removeEventListener = vi.spyOn(
+        abortController.signal,
+        "removeEventListener",
+      );
+      const toolError = new Error("tool failed");
+      const pending = unstable_runPendingTools(
+        createPendingToolMessage("1"),
         {
-          type: "tool-call",
-          toolCallId: "1",
-          toolName: "tool",
-          args: {},
-        } as ToolCallPart,
-      ],
-      content: [],
-      metadata: {
-        unstable_state: {},
-        unstable_data: [],
-        unstable_annotations: [],
-        steps: [],
-        custom: {},
-      },
-    };
-
-    await unstable_runPendingTools(
-      message,
-      {
-        tool: {
-          parameters: { type: "object", properties: {} },
-          execute: async () => "done",
+          tool: {
+            parameters: { type: "object", properties: {} },
+            execute: async () => {
+              if (outcome === "rejects") throw toolError;
+              return "done";
+            },
+          },
         },
-      },
-      abortController.signal,
-      async () => {},
-    );
+        abortController.signal,
+        async () => {},
+      );
 
-    expect(addEventListener).toHaveBeenCalledOnce();
-    expect(removeEventListener).toHaveBeenCalledWith(
-      "abort",
-      addEventListener.mock.calls[0]![1],
-    );
-  });
+      if (outcome === "rejects") {
+        await expect(pending).rejects.toBe(toolError);
+      } else {
+        await expect(pending).resolves.toMatchObject({
+          parts: [{ result: "done" }],
+        });
+      }
+      expect(addEventListener).toHaveBeenCalledOnce();
+      expect(removeEventListener).toHaveBeenCalledWith(
+        "abort",
+        addEventListener.mock.calls[0]![1],
+      );
+    },
+  );
 
   it.each(["sync", "async"] as const)(
     "uses %s schema output for execution and model content",
@@ -682,162 +667,70 @@ describe("unstable_runPendingTools", () => {
     },
   );
 
-  describe("parallel execution", () => {
-    it("should run tool calls in parallel", async () => {
-      const tool1 = createDelayedTool(100, "Tool 1");
-      const tool2 = createDelayedTool(100, "Tool 2");
-      const tool3 = createDelayedTool(100, "Tool 3");
+  it("starts pending tools together and preserves results completed out of order", async () => {
+    const completionOrder: string[] = [];
+    const calls = ["1", "2", "3"].map((id) => {
+      const result = promiseWithResolvers<string>();
+      const execute = vi.fn(async () => {
+        const value = await result.promise;
+        completionOrder.push(id);
+        return value;
+      });
+      return { id, toolName: `tool${id}`, result, execute };
+    });
+    const tools: Record<string, Tool> = Object.fromEntries(
+      calls.map(({ toolName, execute }) => [
+        toolName,
+        { parameters: { type: "object", properties: {} }, execute },
+      ]),
+    );
+    const message = createPendingToolMessage("1");
+    message.parts = calls.map(
+      ({ id, toolName }) =>
+        ({
+          type: "tool-call",
+          toolCallId: id,
+          toolName,
+          args: {},
+        }) as ToolCallPart,
+    );
 
-      const tools: Record<string, Tool> = {
-        tool1,
-        tool2,
-        tool3,
-      };
+    const pending = unstable_runPendingTools(
+      message,
+      tools,
+      new AbortController().signal,
+      async () => {},
+    );
+    try {
+      await vi.waitFor(() => {
+        for (const { execute } of calls) {
+          expect(execute).toHaveBeenCalledOnce();
+        }
+      });
+      expect(completionOrder).toEqual([]);
 
-      const message: AssistantMessage = {
-        role: "assistant",
-        status: {
-          type: "requires-action",
-          reason: "tool-calls",
-        },
-        parts: [
-          {
-            type: "tool-call",
-            toolCallId: "1",
-            toolName: "tool1",
-            args: {},
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "2",
-            toolName: "tool2",
-            args: {},
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "3",
-            toolName: "tool3",
-            args: {},
-          } as ToolCallPart,
-        ],
-        content: [],
-        metadata: {
-          unstable_state: {},
-          unstable_data: [],
-          unstable_annotations: [],
-          steps: [],
-          custom: {},
-        },
-      };
+      for (const index of [2, 0, 1]) {
+        const call = calls[index]!;
+        call.result.resolve(`Tool ${call.id}`);
+        await call.execute.mock.results[0]!.value;
+      }
+      const updatedMessage = await pending;
 
-      const startTime = Date.now();
-      const updatedMessage = await unstable_runPendingTools(
-        message,
-        tools,
-        new AbortController().signal,
-        async () => {},
-      );
-      const endTime = Date.now();
-
-      const executionTime = endTime - startTime;
-
-      expect(executionTime).toBeGreaterThanOrEqual(90); // Allow for timer imprecision
-      // The execution time should be less than the sum of the delays of both tools.
-      expect(executionTime).toBeLessThan(300);
-
+      expect(completionOrder).toEqual(["3", "1", "2"]);
       expect(updatedMessage.parts).toHaveLength(3);
-      expect(updatedMessage.parts[0]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "1",
-        state: "result",
-        result: "Tool 1",
-        isError: false,
-      });
-      expect(updatedMessage.parts[1]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "2",
-        state: "result",
-        result: "Tool 2",
-        isError: false,
-      });
-      expect(updatedMessage.parts[2]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "3",
-        state: "result",
-        result: "Tool 3",
-        isError: false,
-      });
-    });
-
-    it("should verify parallel execution via execution order", async () => {
-      let tool1Started = false;
-      let tool2Started = false;
-      let tool1Finished = false;
-
-      const tool1: Tool = {
-        parameters: {
-          type: "object",
-          properties: {},
-        },
-        execute: async () => {
-          tool1Started = true;
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          tool1Finished = true;
-          return "Tool 1 executed";
-        },
-      };
-
-      const tool2: Tool = {
-        parameters: { type: "object", properties: {} },
-        execute: async () => {
-          tool2Started = true;
-          // In parallel execution, tool2 should start before tool1 finishes
-          expect(tool1Finished).toBe(false);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          return "Tool 2 executed";
-        },
-      };
-
-      const tools = { tool1, tool2 };
-
-      const message: AssistantMessage = {
-        role: "assistant",
-        status: { type: "requires-action", reason: "tool-calls" },
-        parts: [
-          {
-            type: "tool-call",
-            toolCallId: "1",
-            toolName: "tool1",
-            args: {},
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "2",
-            toolName: "tool2",
-            args: {},
-          } as ToolCallPart,
-        ],
-        content: [],
-        metadata: {
-          unstable_state: {},
-          unstable_data: [],
-          unstable_annotations: [],
-          steps: [],
-          custom: {},
-        },
-      };
-
-      await unstable_runPendingTools(
-        message,
-        tools,
-        new AbortController().signal,
-        async () => {},
+      expect(updatedMessage.parts).toMatchObject(
+        calls.map(({ id }) => ({
+          type: "tool-call",
+          toolCallId: id,
+          state: "result",
+          result: `Tool ${id}`,
+          isError: false,
+        })),
       );
-
-      // Verifying that both tools started (proving parallel execution)
-      expect(tool1Started).toBe(true);
-      expect(tool2Started).toBe(true);
-    });
+    } finally {
+      for (const { id, result } of calls) result.resolve(`Tool ${id}`);
+      await pending;
+    }
   });
 
   it("keeps same-id tool executions separate when they overlap", async () => {
@@ -1063,74 +956,6 @@ describe("unstable_runPendingTools", () => {
         type: "text",
         text: "Done",
         status: { type: "complete", reason: "stop" },
-      });
-    });
-
-    it("should handle tools with different execution times", async () => {
-      const fastTool = createDelayedTool(10, "fast");
-      const slowTool = createDelayedTool(100, "slow");
-
-      const tools = { fastTool, slowTool };
-
-      const message: AssistantMessage = {
-        role: "assistant",
-        status: {
-          type: "requires-action",
-          reason: "tool-calls",
-        },
-        parts: [
-          {
-            type: "tool-call",
-            toolCallId: "1",
-            toolName: "slowTool",
-            args: {},
-            status: {
-              type: "requires-action",
-              reason: "tool-call-result",
-            },
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "2",
-            toolName: "fastTool",
-            args: {},
-            status: {
-              type: "requires-action",
-              reason: "tool-call-result",
-            },
-          } as ToolCallPart,
-        ],
-        content: [],
-        metadata: {
-          unstable_state: {},
-          unstable_data: [],
-          unstable_annotations: [],
-          steps: [],
-          custom: {},
-        },
-      };
-
-      const updatedMessage = await unstable_runPendingTools(
-        message,
-        tools,
-        new AbortController().signal,
-        async () => {},
-      );
-
-      // Both should complete successfully
-      expect(updatedMessage.parts[0]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "1",
-        state: "result",
-        result: "slow",
-        isError: false,
-      });
-      expect(updatedMessage.parts[1]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "2",
-        state: "result",
-        result: "fast",
-        isError: false,
       });
     });
   });

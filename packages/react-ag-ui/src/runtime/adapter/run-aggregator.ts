@@ -11,6 +11,7 @@ import {
   type ToolCallMessagePart,
   type ToolModelContentPart,
 } from "@assistant-ui/core";
+import type { JoinStrategy } from "@assistant-ui/core/react";
 import {
   applyA2uiOperations,
   surfaceToPresentToolCall,
@@ -176,6 +177,7 @@ export const isPlainObject = (
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
+  joinStrategy?: JoinStrategy | undefined;
   logger: Logger;
   emit: Emit;
   onServerMessageId?: (messageId: string) => void;
@@ -195,6 +197,7 @@ export type RunAggregatorOptions = {
 export class RunAggregator {
   private readonly emitUpdate: Emit;
   private readonly showThinking: boolean;
+  private readonly joinStrategy: JoinStrategy | undefined;
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
   private readonly onTextMessageStart:
@@ -259,6 +262,7 @@ export class RunAggregator {
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
     this.showThinking = options.showThinking;
+    this.joinStrategy = options.joinStrategy;
     this.logger = options.logger;
     this.onServerMessageId = options.onServerMessageId;
     this.onTextMessageStart = options.onTextMessageStart;
@@ -319,8 +323,14 @@ export class RunAggregator {
       }
       case "RUN_CANCELLED": {
         // A cancel can land after RUN_FINISHED while the response is still
-        // closing, and the answer it finished is already persisted as complete.
-        if (this.status?.type === "complete") break;
+        // closing: the finished answer stays complete, and an interrupt the run
+        // already delivered stays answerable.
+        if (
+          this.status?.type === "complete" ||
+          (this.status?.type === "requires-action" &&
+            this.status.reason === "interrupt")
+        )
+          break;
         this.status = { type: "incomplete", reason: "cancelled" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
@@ -845,6 +855,7 @@ export class RunAggregator {
 
   private beginDistinctTextMessage(messageId: string | undefined): void {
     if (
+      this.joinStrategy === "concat-content" ||
       !messageId ||
       this.lastTextMessageId === undefined ||
       this.lastTextMessageId === messageId ||

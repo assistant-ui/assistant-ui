@@ -99,6 +99,9 @@ const handlePartStart = (
       type: partInit.type,
       text: "",
       status: { type: "running" },
+      ...(partInit.providerMetadata != null && {
+        providerMetadata: partInit.providerMetadata,
+      }),
       ...(partInit.type === "reasoning" &&
       partInit.unstable_summary !== undefined
         ? { unstable_summary: partInit.unstable_summary }
@@ -200,9 +203,15 @@ const handlePartFinish = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "tool-call" && part.isPreliminary) return part;
+    const providerMetadata =
+      (part.type === "text" || part.type === "reasoning") &&
+      chunk.providerMetadata != null
+        ? { providerMetadata: chunk.providerMetadata }
+        : {};
     if (part.type === "reasoning" && part.timing !== undefined) {
       return {
         ...part,
+        ...providerMetadata,
         status: { type: "complete", reason: "unknown" },
         timing: {
           ...part.timing,
@@ -212,6 +221,7 @@ const handlePartFinish = (
     }
     return {
       ...part,
+      ...providerMetadata,
       status: { type: "complete", reason: "unknown" },
     };
   });
@@ -225,7 +235,13 @@ const handleTextDelta = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "text" || part.type === "reasoning") {
-      return { ...part, text: part.text + chunk.textDelta };
+      return {
+        ...part,
+        text: part.text + chunk.textDelta,
+        ...(chunk.providerMetadata != null && {
+          providerMetadata: chunk.providerMetadata,
+        }),
+      };
     } else if (part.type === "tool-call") {
       const newArgsText = part.argsText + chunk.textDelta;
 

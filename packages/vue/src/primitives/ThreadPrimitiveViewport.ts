@@ -49,7 +49,6 @@ export const ThreadPrimitiveViewport = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const divRef = shallowRef<HTMLElement | null>(null);
-    const contentInsetEntries = new Map<symbol, number>();
     const isAtBottom = shallowRef(true);
     const autoScroll = createThreadViewportAutoScroll({
       getOptions: () => ({
@@ -62,29 +61,6 @@ export const ThreadPrimitiveViewport = defineComponent({
         isAtBottom.value = value;
       },
     });
-
-    const updateContentInset = () => {
-      let total = 0;
-      for (const height of contentInsetEntries.values()) total += height;
-      autoScroll.setContentInset(total);
-    };
-
-    const registerContentInset = () => {
-      const id = Symbol();
-      contentInsetEntries.set(id, 0);
-
-      return {
-        setHeight: (height: number) => {
-          if (contentInsetEntries.get(id) === height) return;
-          contentInsetEntries.set(id, height);
-          updateContentInset();
-        },
-        unregister: () => {
-          if (!contentInsetEntries.delete(id)) return;
-          updateContentInset();
-        },
-      };
-    };
 
     let detach: (() => void) | undefined;
     onMounted(() => {
@@ -112,7 +88,7 @@ export const ThreadPrimitiveViewport = defineComponent({
       isAtBottom,
       scrollToBottom: (behavior: ScrollBehavior = "auto") =>
         autoScroll.scrollToBottom(behavior),
-      registerContentInset,
+      registerContentInset: autoScroll.registerContentInset,
     });
 
     return () => h("div", { ref: divRef }, slots.default?.());

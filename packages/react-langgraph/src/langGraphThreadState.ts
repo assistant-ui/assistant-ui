@@ -5,13 +5,25 @@ import type {
 } from "./types";
 import { bufferToolResult } from "./bufferToolResults";
 import { hasToolResult } from "./messageHelpers";
+import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
 
 type ToolMessage = LangChainMessage & { type: "tool" };
 type OwnershipMessage =
   | LangChainMessage
   | (LangChainMessageChunk & { tool_calls?: LangChainToolCall[] });
+type StagedMessage = {
+  message: LangChainMessage & { id: string };
+  runConfig: AppendMessage["runConfig"];
+};
 
 export type LangGraphThreadState = {
+  stagedMessages: ReadonlyMap<string, StagedMessage>;
+  unsentTranscriptIds: ReadonlySet<string>;
+  // Attachments the composer handed to onNew/onEdit, keyed by the staged human
+  // message id. The wire message only carries flattened `content` (so the model
+  // input is unchanged), while the converter reattaches them here so
+  // MessagePrimitive.Attachments can render them as standalone cards.
+  attachmentsByMessageId: ReadonlyMap<string, readonly CompleteAttachment[]>;
   runConfigByMessageId: ReadonlyMap<string, unknown>;
   runConfigByToolCallId: ReadonlyMap<string, unknown>;
   runIdByMessageId: ReadonlyMap<string, string>;
@@ -43,6 +55,18 @@ export type LangGraphThreadState = {
 };
 
 export type LangGraphThreadAction =
+  | { type: "staged.set"; entry: StagedMessage }
+  | { type: "staged.remove"; ids: readonly string[] }
+  | { type: "staged.restore"; entries: ReadonlyMap<string, StagedMessage> }
+  | { type: "transcripts.add"; ids: readonly string[] }
+  | { type: "transcripts.remove"; ids: readonly string[] }
+  | { type: "transcripts.prune"; ids: ReadonlySet<string | undefined> }
+  | {
+      type: "attachments.stage";
+      id: string;
+      attachments: readonly CompleteAttachment[];
+    }
+  | { type: "operation.restore"; previous: LangGraphThreadState }
   | {
       type: "messages.remember";
       messages: OwnershipMessage[];
@@ -83,6 +107,9 @@ export type LangGraphThreadAction =
     };
 
 export const createLangGraphThreadState = (): LangGraphThreadState => ({
+  stagedMessages: new Map(),
+  unsentTranscriptIds: new Set(),
+  attachmentsByMessageId: new Map(),
   runConfigByMessageId: new Map(),
   runConfigByToolCallId: new Map(),
   runIdByMessageId: new Map(),
@@ -110,6 +137,83 @@ export const reduceLangGraphThreadState = (
   action: LangGraphThreadAction,
 ): LangGraphThreadState => {
   switch (action.type) {
+    case "staged.set":
+      return {
+        ...state,
+        stagedMessages: new Map(state.stagedMessages).set(
+          action.entry.message.id,
+          action.entry,
+        ),
+      };
+    case "staged.remove": {
+      if (!action.ids.some((id) => state.stagedMessages.has(id))) return state;
+      const stagedMessages = new Map(state.stagedMessages);
+      for (const id of action.ids) stagedMessages.delete(id);
+      return { ...state, stagedMessages };
+    }
+    case "staged.restore": {
+      const stagedMessages = new Map(state.stagedMessages);
+      let changed = false;
+      for (const [id, entry] of action.entries) {
+        if (!stagedMessages.has(id)) {
+          stagedMessages.set(id, entry);
+          changed = true;
+        }
+      }
+      return changed ? { ...state, stagedMessages } : state;
+    }
+    case "transcripts.add": {
+      if (action.ids.every((id) => state.unsentTranscriptIds.has(id)))
+        return state;
+      return {
+        ...state,
+        unsentTranscriptIds: new Set([
+          ...state.unsentTranscriptIds,
+          ...action.ids,
+        ]),
+      };
+    }
+    case "transcripts.remove": {
+      if (!action.ids.some((id) => state.unsentTranscriptIds.has(id)))
+        return state;
+      const unsentTranscriptIds = new Set(state.unsentTranscriptIds);
+      for (const id of action.ids) unsentTranscriptIds.delete(id);
+      return { ...state, unsentTranscriptIds };
+    }
+    case "transcripts.prune": {
+      const unsentTranscriptIds = new Set(
+        [...state.unsentTranscriptIds].filter((id) => action.ids.has(id)),
+      );
+      return unsentTranscriptIds.size === state.unsentTranscriptIds.size
+        ? state
+        : { ...state, unsentTranscriptIds };
+    }
+    case "attachments.stage":
+      return {
+        ...state,
+        attachmentsByMessageId: new Map(state.attachmentsByMessageId).set(
+          action.id,
+          action.attachments,
+        ),
+      };
+    case "operation.restore": {
+      const previous = action.previous;
+      return {
+        ...state,
+        stagedMessages: restoreMissingEntries(
+          previous.stagedMessages,
+          state.stagedMessages,
+        ),
+        unsentTranscriptIds: new Set([
+          ...state.unsentTranscriptIds,
+          ...previous.unsentTranscriptIds,
+        ]),
+        attachmentsByMessageId: restoreMissingEntries(
+          previous.attachmentsByMessageId,
+          state.attachmentsByMessageId,
+        ),
+      };
+    }
     case "messages.remember": {
       let runConfigByMessageId: Map<string, unknown> | undefined;
       let runConfigByToolCallId: Map<string, unknown> | undefined;
@@ -207,8 +311,21 @@ export const reduceLangGraphThreadState = (
             toolCallIds.add(toolCall.id);
         }
       }
+      const survivingMessageIds = new Set(
+        action.history.flatMap((message) => (message.id ? [message.id] : [])),
+      );
+      const attachmentsByMessageId = [
+        ...state.attachmentsByMessageId.keys(),
+      ].every((id) => survivingMessageIds.has(id))
+        ? state.attachmentsByMessageId
+        : new Map(
+            [...state.attachmentsByMessageId].filter(([id]) =>
+              survivingMessageIds.has(id),
+            ),
+          );
       return {
         ...state,
+        attachmentsByMessageId,
         runConfigByMessageId: new Map(
           [...state.runConfigByMessageId].filter(([id]) => messageIds.has(id)),
         ),
@@ -246,15 +363,22 @@ export const reduceLangGraphThreadState = (
       return { ...state, interruptRunConfig: action.runConfig };
     case "run.started": {
       const runId = String(state.nextRunId + 1);
-      const pendingResume = new Map(state.pendingResume);
-      const pendingToolCallIdsByRun = new Map(state.pendingToolCallIdsByRun);
+      let pendingResume = state.pendingResume;
+      let pendingToolCallIdsByRun = state.pendingToolCallIdsByRun;
       let startedMessages: LangChainMessage[] = action.messages;
-      for (const [groupKey, entry] of pendingResume) {
+      for (const [groupKey, entry] of state.pendingResume) {
         if (entry.queued === action.messages) {
           startedMessages = entry.messages;
-          pendingResume.delete(groupKey);
-          if (groupKey.startsWith("run:"))
-            pendingToolCallIdsByRun.delete(groupKey.slice(4));
+          const nextPendingResume = new Map(state.pendingResume);
+          nextPendingResume.delete(groupKey);
+          pendingResume = nextPendingResume;
+          if (groupKey.startsWith("run:")) {
+            const nextPendingToolCallIdsByRun = new Map(
+              state.pendingToolCallIdsByRun,
+            );
+            nextPendingToolCallIdsByRun.delete(groupKey.slice(4));
+            pendingToolCallIdsByRun = nextPendingToolCallIdsByRun;
+          }
           break;
         }
       }

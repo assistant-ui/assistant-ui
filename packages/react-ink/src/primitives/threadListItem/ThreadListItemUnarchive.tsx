@@ -12,10 +12,14 @@ export const ThreadListItemUnarchive = ({
   children,
   ...pressableProps
 }: ThreadListItemUnarchiveProps) => {
-  const { unarchive } = useThreadListItemUnarchive();
+  const { unarchive, disabled } = useThreadListItemUnarchive();
 
   return (
-    <Pressable onPress={unarchive} {...pressableProps}>
+    <Pressable
+      onPress={unarchive}
+      {...pressableProps}
+      disabled={pressableProps.disabled || disabled}
+    >
       {children}
     </Pressable>
   );

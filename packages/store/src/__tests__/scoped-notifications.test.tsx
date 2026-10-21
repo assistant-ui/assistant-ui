@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { FC, ReactNode } from "react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { renderToString } from "react-dom/server";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,7 +12,13 @@ import { Derived } from "../Derived";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";
+import { useForwardingClient } from "../useClientResource";
 import type { AssistantClient } from "../types/client";
+import {
+  getClientId,
+  getClientInstanceId,
+  isForwardingClient,
+} from "../utils/client-accessor";
 
 type SignalItemMethods = {
   getState: () => { id: string; text: string };
@@ -111,21 +117,7 @@ const useForwardList = () => {
     ["a", "b"].map((id) => withKey(id, SignalItem({ id }), [id])),
   );
   const current = items.get({ index: main });
-  const currentRef = useRef(current);
-  useEffect(() => {
-    currentRef.current = current;
-  }, [current]);
-  const [facade] = useState(
-    () =>
-      new Proxy({} as SignalItemMethods, {
-        get: (_, prop) =>
-          (currentRef.current as unknown as Record<PropertyKey, unknown>)[prop],
-        has: (_, prop) => prop in currentRef.current,
-        ownKeys: () => Reflect.ownKeys(currentRef.current),
-        getOwnPropertyDescriptor: (_, prop) =>
-          Reflect.getOwnPropertyDescriptor(currentRef.current, prop),
-      }),
-  );
+  const facade = useForwardingClient(current);
   return {
     getState: () => ({ main }),
     item: (lookup: { index: number }) => items.get(lookup),
@@ -356,6 +348,53 @@ describe("scoped store notifications", () => {
 
     update(() => aui.forwardList.item({ index: 1 }).setText("changed"));
     expect(screen.getByTestId("main").textContent).toBe("changed");
+  });
+
+  it("follows a captured forwarding client to its new target", () => {
+    let aui!: AssistantClient;
+    let runs = 0;
+    const CapturedText: FC = () => {
+      aui = useAui();
+      const threadRef = useRef<SignalItemMethods | null>(null);
+      threadRef.current ??= aui.forwardList.main();
+      expect(isForwardingClient(threadRef.current)).toBe(true);
+      const text = useAuiState(() => {
+        runs += 1;
+        return threadRef.current!.getState().text;
+      });
+      return <span data-testid="captured-main">{text}</span>;
+    };
+    render(
+      <AuiProvider
+        config={AuiConfig({
+          forwardList: ForwardList(),
+          signalCounter: SignalCounter(),
+        })}
+      >
+        <CapturedText />
+      </AuiProvider>,
+    );
+    expect(screen.getByTestId("captured-main").textContent).toBe("text-a");
+    const thread = aui.forwardList.main();
+    const firstTarget = aui.forwardList.item({ index: 0 });
+    const firstId = getClientId(thread);
+    const firstInstanceId = getClientInstanceId(thread);
+    expect(firstId).toBe(getClientId(firstTarget));
+    expect(firstInstanceId).toBe(getClientInstanceId(firstTarget));
+
+    const beforeUnrelated = runs;
+    update(() => aui.signalCounter.setCount(1));
+    expect(runs).toBe(beforeUnrelated);
+
+    const beforeSwitch = runs;
+    update(() => aui.forwardList.setMain(1));
+
+    expect(screen.getByTestId("captured-main").textContent).toBe("text-b");
+    expect(runs).toBeGreaterThan(beforeSwitch);
+    const nextTarget = aui.forwardList.item({ index: 1 });
+    expect(getClientId(thread)).not.toBe(firstId);
+    expect(getClientId(thread)).toBe(getClientId(nextTarget));
+    expect(getClientInstanceId(thread)).toBe(getClientInstanceId(nextTarget));
   });
 
   it("keeps a selector that reads nothing through the store on every notification", () => {

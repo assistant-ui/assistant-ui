@@ -4,7 +4,11 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { type FC, useEffect, useReducer } from "react";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "@assistant-ui/core";
-import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
+import {
+  useRemoteThreadListRuntime,
+  useLocalRuntime,
+  useExternalStoreRuntime,
+} from "@assistant-ui/core/react";
 import {
   makeAdapter,
   settleOutsideAct,
@@ -17,8 +21,6 @@ import {
   type AssistantRuntime,
   type ChatModelAdapter,
 } from "../index";
-import { useExternalStoreRuntime } from "../legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
-import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
 
 const Probe: FC = () => {
   const id = useAuiState((s) => s.threadListItem.id);

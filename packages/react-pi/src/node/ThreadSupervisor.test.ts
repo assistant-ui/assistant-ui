@@ -141,7 +141,7 @@ describe("PiThreadSupervisor", () => {
 
     const snapshot = await supervisor.getThread("t1");
 
-    expect(sdk.list).toHaveBeenCalledWith("/ws");
+    expect(sdk.list).toHaveBeenCalledWith("/ws", undefined);
     expect(sdk.open).toHaveBeenCalledWith(SESSION.path);
     expect(sdk.createAgentSession).not.toHaveBeenCalled();
     expect(snapshot.messages).toEqual([
@@ -189,6 +189,61 @@ describe("PiThreadSupervisor", () => {
 
     expect(sdk.createAgentSession).toHaveBeenCalledTimes(1);
     expect(session.setThinkingLevel).toHaveBeenCalledTimes(2);
+  });
+
+  it("initializes extensions that format their session status with the host theme", async () => {
+    const actual = await vi.importActual<typeof PiSdk>(
+      "@earendil-works/pi-coding-agent",
+    );
+    const cwd = await mkdtemp(join(tmpdir(), "pi-extension-theme-"));
+    const supervisor = new PiThreadSupervisor({ workspacePath: cwd });
+    const initialized = vi.fn();
+    try {
+      const modelRuntime = await actual.ModelRuntime.create({
+        authPath: join(cwd, "auth.json"),
+        modelsPath: null,
+        refreshOnCreate: false,
+      });
+      const settingsManager = actual.SettingsManager.inMemory();
+      const resourceLoader = new actual.DefaultResourceLoader({
+        cwd,
+        agentDir: cwd,
+        settingsManager,
+        noExtensions: true,
+        noSkills: true,
+        noPromptTemplates: true,
+        noThemes: true,
+        extensionFactories: [
+          (pi) => {
+            pi.on("session_start", (_event, ctx) => {
+              ctx.ui.setStatus("status", ctx.ui.theme.fg("dim", "Ready"));
+              initialized();
+            });
+          },
+        ],
+      });
+      await resourceLoader.reload();
+      sdk.create.mockReturnValue(actual.SessionManager.inMemory(cwd));
+      sdk.createAgentSession.mockImplementation(
+        (options: PiSdk.CreateAgentSessionOptions) =>
+          actual.createAgentSession({
+            ...options,
+            modelRuntime,
+            settingsManager,
+            tools: [],
+            resourceLoader,
+          }),
+      );
+
+      const snapshot = await supervisor.createThread();
+
+      expect(snapshot.lastError).toBeUndefined();
+      expect(snapshot.metadata.status).toBe("idle");
+      expect(initialized).toHaveBeenCalledOnce();
+    } finally {
+      await supervisor.dispose();
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 
   it("cancels a send while its cold session is opening", async () => {

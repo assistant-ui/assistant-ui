@@ -943,7 +943,16 @@ export function expandBundledRegistryDependencies(
     ...[...uiPrimitives].sort().map((name) => ({
       type: "registry:file" as const,
       path: `components/ui/${name}.tsx`,
-      sourcePath: `${UI_PRIMITIVE_SOURCE_ROOT}/${flavor}/${name}.tsx`,
+      sourcePath:
+        flavor === "radix" &&
+        existsSync(
+          path.join(
+            process.cwd(),
+            `${UI_PRIMITIVE_SOURCE_ROOT}/radix/${name}.tsx`,
+          ),
+        )
+          ? `${UI_PRIMITIVE_SOURCE_ROOT}/radix/${name}.tsx`
+          : `${UI_PRIMITIVE_SOURCE_ROOT}/base/${name}.tsx`,
       target: `components/ui/${name}.tsx`,
     })),
   ];
