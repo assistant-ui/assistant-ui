@@ -171,6 +171,7 @@ See the [Suggestions guide](/docs/guides/suggestions) for the full configuration
 | `ToolGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive tool calls; receives the group's `indices` and `status`. |
 | `ReasoningGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive reasoning parts; receives the same shape. |
 | `TaskGroup` | `ComponentType<{ group: ThreadGroupPart }>` | Opt in: once set, a run of tool calls that carry a nested conversation, have no registered UI, and are not MCP apps renders through it; it receives the group's `indices` and `counts` and mounts the lanes itself. `TaskGroup` from [Task card](/elements/task-card) is the kit's implementation. |
+| `ComposerExtra` | `ComponentType` | Renders in the composer's action row beside the attach button, for a control such as a mode toggle. |
 
 ### Primitives
 

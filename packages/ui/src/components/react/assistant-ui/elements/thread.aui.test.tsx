@@ -368,6 +368,20 @@ describe("Thread", () => {
     expect(document.activeElement).toBe(pageControl);
   });
 
+  it("renders ComposerExtra in the composer action row", () => {
+    const ModeToggle = () => <button type="button">Mode</button>;
+    render(<TestThread components={{ ComposerExtra: ModeToggle }} />);
+
+    const toggle = screen.getByRole("button", { name: "Mode" });
+    expect(toggle.closest(".aui-composer-action-wrapper")).not.toBeNull();
+  });
+
+  it("leaves the composer action row unchanged without ComposerExtra", () => {
+    const { container } = render(<TestThread />);
+
+    expect(container.querySelector(".aui-composer-action-start")).toBeNull();
+  });
+
   it("hides the empty user attachment wrapper", async () => {
     render(<UserMessageTestThread />);
 
