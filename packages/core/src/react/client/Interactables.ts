@@ -29,6 +29,7 @@ import {
 import {
   findModelKnownState,
   interactableToolName,
+  isInteractableCreateCall,
 } from "../../model-context/interactable-composer-metadata";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import {
@@ -51,6 +52,7 @@ type ToolCallLikePart = {
   type?: string;
   toolCallId?: string;
   toolName?: string;
+  result?: unknown;
 };
 
 type MessageLike = {
@@ -79,9 +81,7 @@ const hasInteractableCreateCall = (
       message.content?.some((part) => {
         if (!part || typeof part !== "object") return false;
         const p = part as ToolCallLikePart;
-        return (
-          p.type === "tool-call" && p.toolCallId === id && p.toolName === name
-        );
+        return p.type === "tool-call" && isInteractableCreateCall(p, id, name);
       }),
   );
 
@@ -184,7 +184,7 @@ const useInteractablesResource = ({
       threadAccessor && threadAccessor.source != null
         ? (threadAccessor().getState().messages ?? [])
         : [];
-    const threadCreated = new Map<string, Set<string>>();
+    const threadCalls = new Map<string, ToolCallLikePart[]>();
     for (const message of threadMessages) {
       if (message.role !== "assistant") continue;
       for (const part of message.content ?? []) {
@@ -197,12 +197,9 @@ const useInteractablesResource = ({
         ) {
           continue;
         }
-        let names = threadCreated.get(candidate.toolCallId);
-        if (!names) {
-          names = new Set();
-          threadCreated.set(candidate.toolCallId, names);
-        }
-        names.add(candidate.toolName);
+        const calls = threadCalls.get(candidate.toolCallId);
+        if (calls) calls.push(candidate);
+        else threadCalls.set(candidate.toolCallId, [candidate]);
       }
     }
     const isThreadScoped = (
@@ -210,7 +207,10 @@ const useInteractablesResource = ({
       entry: Unstable_InteractablePersistedState[string],
     ) =>
       stateRef.current.definitions[id]?.scope === "thread" ||
-      threadCreated.get(id)?.has(entry.name) === true;
+      threadCalls
+        .get(id)
+        ?.some((call) => isInteractableCreateCall(call, id, entry.name)) ===
+        true;
 
     const result =
       nullProtoRecord<Unstable_InteractablePersistedState[string]>();

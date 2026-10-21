@@ -24,7 +24,10 @@ const mocks = vi.hoisted(() => {
     register,
     unregister,
     aui: { unstable_interactables: { register } },
-    state: { optional: { part: undefined }, thread: { messages: [] } },
+    state: {
+      optional: { part: undefined as unknown },
+      thread: { messages: [] as unknown[] },
+    },
     methods: {
       setState: vi.fn(),
       isPending: false,
@@ -166,6 +169,66 @@ describe("unstable_useInteractable", () => {
 
     hook.rerender({ stateSchema: createSchema() });
     expect(mocks.register).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an interactable app-scoped inside another tool's call that shares its id", async () => {
+    mocks.state.optional.part = {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "generate_report",
+      args: { topic: "sales" },
+      result: { report: "Q3" },
+    };
+    try {
+      renderHook(() =>
+        unstable_useInteractable("report", {
+          id: "call-1",
+          description: "A report",
+          stateSchema: { type: "object", properties: {} },
+          initialState: { report: "Q3" },
+        }),
+      );
+      await waitFor(() =>
+        expect(mocks.register).toHaveBeenLastCalledWith(
+          expect.objectContaining({ id: "call-1", name: "report" }),
+        ),
+      );
+      expect(mocks.register).toHaveBeenLastCalledWith(
+        expect.not.objectContaining({ scope: "thread" }),
+      );
+    } finally {
+      mocks.state.optional.part = undefined;
+    }
+  });
+
+  it("keeps an interactable app-scoped inside another instance's creating call", async () => {
+    mocks.state.optional.part = {
+      type: "tool-call",
+      toolCallId: "call-9",
+      toolName: "create_report",
+      args: {},
+      result: { success: true, interactable: "report" },
+    };
+    try {
+      renderHook(() =>
+        unstable_useInteractable("report", {
+          id: "call-1",
+          description: "A report",
+          stateSchema: { type: "object", properties: {} },
+          initialState: {},
+        }),
+      );
+      await waitFor(() =>
+        expect(mocks.register).toHaveBeenLastCalledWith(
+          expect.objectContaining({ id: "call-1", name: "report" }),
+        ),
+      );
+      expect(mocks.register).toHaveBeenLastCalledWith(
+        expect.not.objectContaining({ scope: "thread" }),
+      );
+    } finally {
+      mocks.state.optional.part = undefined;
+    }
   });
 
   it("converts a referentially stable schema only once", async () => {

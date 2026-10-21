@@ -166,6 +166,8 @@ const toolkit = defineToolkit({
 });
 ```
 
+The toolkit key names the creating tool and, unless `name` gives it another, the interactable. To name the creating tool apart, pass `name`: `create_notepad: unstable_interactableTool({ name: "notepad", ... })` gives the model `create_notepad` and `update_notepad`, and the versions stay under `notepad`.
+
 Register the toolkit alongside the `unstable_Interactables` scope:
 
 ```tsx
@@ -1000,10 +1002,10 @@ const [state, { setState, isPending, error, flush }] =
 ### `unstable_interactableTool`
 
 ```tsx
-notepad: unstable_interactableTool({ description, stateSchema, render }),
+notepad: unstable_interactableTool({ description, stateSchema, render, name }),
 ```
 
-Returns a complete toolkit tool entry (a frontend tool with standalone display); the entry key is the interactable name, and the tool's arguments are its initial state. The same `render` then appears at every message that creates or updates the instance. `render` receives:
+Returns a complete toolkit tool entry (a frontend tool with standalone display); the entry key is the creating tool's name and, unless `name` gives it another, the interactable's, and the tool's arguments are its initial state. The same `render` then appears at every message that creates or updates the instance. `render` receives:
 
 <PrimitivesTypeTable
   type="unstable_interactableTool-render-props"
