@@ -29,13 +29,17 @@ describe("createToolInteraction", () => {
     ).toHaveProperty("payload", payload);
   });
 
-  it("returns a JSON clone of the payload", () => {
-    const payload = { answer: { value: "yes" } };
+  it("clones shared payload values without treating them as cycles", () => {
+    const answer = { value: "yes" };
+    const payload = { answer, selections: [answer, answer] };
     const interaction = createToolInteraction({ type: "action", payload }, 10);
 
     payload.answer.value = "no";
 
-    expect(interaction.payload).toEqual({ answer: { value: "yes" } });
+    expect(interaction.payload).toEqual({
+      answer: { value: "yes" },
+      selections: [{ value: "yes" }, { value: "yes" }],
+    });
     expect(interaction.payload).not.toBe(payload);
   });
 
