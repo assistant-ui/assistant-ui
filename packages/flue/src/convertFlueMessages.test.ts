@@ -211,6 +211,42 @@ describe("convertFlueMessages", () => {
     });
   });
 
+  it("keeps restored terminal statuses scoped to their submissions", () => {
+    const converted = convertFlueMessages(
+      [
+        { ...messages[1]!, id: "failed-reply", submissionId: "failed" },
+        { ...messages[1]!, id: "aborted-reply", submissionId: "aborted" },
+        { ...messages[1]!, id: "completed-reply", submissionId: "completed" },
+      ],
+      {
+        settlements: [
+          { submissionId: "failed", outcome: "failed", error: "model failed" },
+          { submissionId: "aborted", outcome: "aborted" },
+          { submissionId: "completed", outcome: "completed" },
+        ],
+      },
+    );
+
+    expect(converted).toMatchObject([
+      {
+        id: "failed-reply",
+        status: {
+          type: "incomplete",
+          reason: "error",
+          error: { code: "unknown", message: "model failed" },
+        },
+      },
+      {
+        id: "aborted-reply",
+        status: { type: "incomplete", reason: "cancelled" },
+      },
+      {
+        id: "completed-reply",
+        status: { type: "complete", reason: "unknown" },
+      },
+    ]);
+  });
+
   it("ignores unknown assistant part types", () => {
     const converted = convertFlueMessages([
       {
