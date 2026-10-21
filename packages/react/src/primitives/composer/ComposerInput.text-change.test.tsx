@@ -39,9 +39,9 @@ it("emits composer.textChange with the user origin for typing and the send origi
     </AssistantRuntimeProvider>
   );
   render(<App />);
-  const changes: { text: string; origin: string }[] = [];
-  aui.on({ scope: "*", event: "composer.textChange" }, ({ text, origin }) =>
-    changes.push({ text, origin }),
+  const changes: unknown[] = [];
+  aui.on({ scope: "*", event: "composer.textChange" }, (change) =>
+    changes.push(change),
   );
   const input = screen.getByRole("textbox", { name: "Composer" });
 
@@ -58,10 +58,11 @@ it("emits composer.textChange with the user origin for typing and the send origi
     aui.composer().send();
   });
 
+  const threadId = aui.threads().getState().mainThreadId;
   expect(changes).toEqual([
-    { text: "hi", origin: "user" },
-    { text: "", origin: "user" },
-    { text: "hello", origin: "user" },
-    { text: "", origin: "send" },
+    { threadId, text: "hi", origin: "user" },
+    { threadId, text: "", origin: "user" },
+    { threadId, text: "hello", origin: "user" },
+    { threadId, text: "", origin: "send" },
   ]);
 });
