@@ -19,6 +19,25 @@ export type AttachmentAddErrorEvent = {
   readonly error?: Error;
 };
 
+/**
+ * What wrote the composer text: `user` for typing, dictation, and other input
+ * the user authored, `recall` for input history, `send` for the clear when a
+ * send takes the draft, `return` for a send's text coming back to the draft
+ * after it failed or its run was cancelled, `reset` for `reset()`, and
+ * `external` for every other write, including `setText` without an origin.
+ */
+export type ComposerTextOrigin =
+  | "user"
+  | "recall"
+  | "send"
+  | "return"
+  | "reset"
+  | "external";
+
+export type ComposerSetTextOptions = {
+  readonly origin?: ComposerTextOrigin;
+};
+
 export type ComposerRuntimeEventPayload = {
   /**
    * Fired after a send with the size of what went out. The composer state is
@@ -35,6 +54,15 @@ export type ComposerRuntimeEventPayload = {
   attachmentAdd: { readonly contentType?: string | undefined };
   attachmentAddError: AttachmentAddErrorEvent & {
     readonly contentType?: string | undefined;
+  };
+  /**
+   * Fired once per write that changed the text, in write order, after the
+   * write's state notification. `text` is the text that write left, even when
+   * a listener has written again since.
+   */
+  textChange: {
+    readonly text: string;
+    readonly origin: ComposerTextOrigin;
   };
 };
 
@@ -84,7 +112,7 @@ export type ComposerRuntimeCore = Readonly<{
   removeAttachment: (attachmentId: string) => Promise<void>;
 
   text: string;
-  setText: (value: string) => void;
+  setText: (value: string, options?: ComposerSetTextOptions) => void;
 
   role: MessageRole;
   setRole: (role: MessageRole) => void;

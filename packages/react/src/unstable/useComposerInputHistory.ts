@@ -98,7 +98,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
       const browse = browseRef.current;
 
       const commitText = (text: string): void => {
-        flushTapSync(() => aui.composer.setText(text));
+        flushTapSync(() => aui.composer.setText(text, { origin: "recall" }));
         // React's controlled-value commit restores the pre-recall caret;
         // reposition after the commit, before paint.
         requestAnimationFrame(() => {

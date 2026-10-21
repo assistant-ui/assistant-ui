@@ -543,6 +543,7 @@ The rule of thumb:
 | `composer.send`               | The user sent the composer contents; `messageId` is set for edit-composer sends |
 | `composer.attachmentAdd`      | An attachment was added to the composer                                      |
 | `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` is `no-adapter`, `not-accepted`, or `adapter-error`, and `message` is a human-readable description. The underlying `Error` instance is available only through the low-level `runtime.unstable_on("attachmentAddError")` API, because raw `Error` objects are not store-serializable. |
+| `composer.textChange`         | A write changed the composer text. Payload `text` is the text that write left and `origin` names the writer: `user` (typing, dictation), `recall` (input history), `send` (the clear when a send takes the draft), `return` (a failed or cancelled send coming back), `reset`, or `external` (any other `setText`, which accepts `{ origin }` as a second argument) |
 | `composer.cancel`             | The composer cancelled the run in progress                                   |
 | `message.reload`              | The user asked for the assistant message to be generated again               |
 | `message.branchSwitched`      | The user moved to another branch at the message                              |

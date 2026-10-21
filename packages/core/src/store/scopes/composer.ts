@@ -5,6 +5,8 @@ import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
 import type {
   AttachmentAddErrorReason,
+  ComposerSetTextOptions,
+  ComposerTextOrigin,
   ComposerSubmission,
   DictationState,
   SendOptions,
@@ -86,7 +88,7 @@ export type ComposerState = {
 
 export type ComposerMethods = {
   getState(): ComposerState;
-  setText(text: string): void;
+  setText(text: string, options?: ComposerSetTextOptions): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
@@ -156,6 +158,17 @@ export type ComposerEvents = {
     contentType?: string;
   };
   "composer.cancel": { threadId: string };
+  /**
+   * A write changed the composer text. `origin` tells a user edit apart from
+   * the clear on send, a returned send, a reset, and programmatic writes, all
+   * of which can leave the same text. `messageId` is set for an edit composer.
+   */
+  "composer.textChange": {
+    threadId: string;
+    messageId?: string;
+    text: string;
+    origin: ComposerTextOrigin;
+  };
 };
 
 export type ComposerClientSchema = {

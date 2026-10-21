@@ -427,7 +427,7 @@ export const ComposerPrimitiveInput = forwardRef<
           const isComposing = nativeIsComposing || compositionRef.current;
           // Standalone tap roots need a synchronous flush while the input is composing.
           flushTapSync(() => {
-            aui.composer.setText(e.target.value);
+            aui.composer.setText(e.target.value, { origin: "user" });
           });
           if (isComposing) return;
           const pos = e.target.selectionStart ?? e.target.value.length;
@@ -454,7 +454,7 @@ export const ComposerPrimitiveInput = forwardRef<
           if (!aui.composer.getState().isEditing) return;
           const target = e.target as HTMLTextAreaElement;
           flushTapSync(() => {
-            aui.composer.setText(target.value);
+            aui.composer.setText(target.value, { origin: "user" });
           });
           const pos = target.selectionStart ?? target.value.length;
           if (pluginRegistry) {

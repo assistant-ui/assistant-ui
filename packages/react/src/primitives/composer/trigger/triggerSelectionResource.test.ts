@@ -77,7 +77,7 @@ describe("TriggerSelectionResource", () => {
 
     root.getValue().selectItem(item);
 
-    expect(setText).toHaveBeenCalledWith("@file.txt tail");
+    expect(setText).toHaveBeenCalledWith("@file.txt tail", { origin: "user" });
     expect(setCursorPosition).toHaveBeenCalledWith("@file.txt".length + 1);
     expect(onSelected).toHaveBeenCalledOnce();
   });
@@ -120,7 +120,7 @@ describe("TriggerSelectionResource", () => {
 
     root.getValue().selectItem(item);
 
-    expect(setText).toHaveBeenCalledWith("before tail");
+    expect(setText).toHaveBeenCalledWith("before tail", { origin: "user" });
     expect(setCursorPosition).toHaveBeenCalledWith(7);
   });
 
@@ -153,7 +153,7 @@ describe("TriggerSelectionResource", () => {
     root.getValue().selectItem(item);
 
     expect(setText).toHaveBeenCalledOnce();
-    expect(setText).toHaveBeenCalledWith("@file.txt ");
+    expect(setText).toHaveBeenCalledWith("@file.txt ", { origin: "user" });
     expect(textRef.value).toBe("@file.txt ");
   });
 
@@ -166,6 +166,8 @@ describe("TriggerSelectionResource", () => {
 
     root.getValue().selectItem(item);
 
-    expect(setText).toHaveBeenCalledWith("hello @file.txt tail");
+    expect(setText).toHaveBeenCalledWith("hello @file.txt tail", {
+      origin: "user",
+    });
   });
 });

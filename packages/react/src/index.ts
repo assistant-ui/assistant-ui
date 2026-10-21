@@ -303,6 +303,7 @@ export type {
   QueueItemMethods,
 } from "@assistant-ui/core/store";
 export type { ComposerSendOptions } from "@assistant-ui/core/store";
+export type { ComposerTextOrigin } from "@assistant-ui/core";
 
 export { makeAssistantVisible } from "./model-context/makeAssistantVisible";
 

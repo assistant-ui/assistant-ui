@@ -99,6 +99,7 @@ A composer can belong to a thread or a message. Use `message` for a composer eve
 | `composer.send` | `{ threadId: string; messageId?: string; chars: number; attachments: number; suggestion?: boolean }` | The composer runtime reports a send, or `aui.thread.append()` appends a user message. `messageId` identifies an edit composer; `suggestion` is present when the sent text matches a suggestion. |
 | `composer.attachmentAdd` | `{ threadId: string; messageId?: string; contentType?: string }` | The composer runtime reports an attachment being added. `messageId` identifies an edit composer. |
 | `composer.attachmentAddError` | `{ threadId: string; messageId?: string; attachmentId?: string; reason: "no-adapter" \| "not-accepted" \| "adapter-error"; message: string; contentType?: string }` | The composer runtime reports an attachment add error. `messageId` identifies an edit composer; the raw error is omitted. |
+| `composer.textChange` | `{ threadId: string; messageId?: string; text: string; origin: "user" \| "recall" \| "send" \| "return" \| "reset" \| "external" }` | The composer runtime reports a write that changed the text, once per write and in write order. `origin` tells typing apart from the clear on send, a returned send, a reset, and other `setText` calls. `messageId` identifies an edit composer. |
 | `composer.cancel` | `{ threadId: string }` | `aui.composer.cancel()` is called on a thread composer that can cancel. Edit composer cancellation does not emit this event. |
 
 ### Message
