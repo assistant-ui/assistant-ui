@@ -98,6 +98,9 @@ describe("createMessageRepositorySession", () => {
               "root",
               "child",
             ]);
+            expect(
+              session.getMessages().find((item) => item.id === id)?.content,
+            ).toEqual([{ type: "text", text: "updated" }]);
           },
         };
       }),
