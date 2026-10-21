@@ -41,6 +41,20 @@ import { Markdown } from "@assistant-ui/markdown/react";
 
 Math renders as its TeX source in `code` elements with the `language-math` class and `math-inline` or `math-display`.
 
+## Vue
+
+```vue
+<script setup lang="ts">
+import { Markdown } from "@assistant-ui/markdown/vue";
+</script>
+
+<template>
+  <Markdown :text="text" :final="status !== 'running'" />
+</template>
+```
+
+`Markdown` renders the same HTML elements as the React renderer, with no wrapper, and keeps settled blocks from rendering again while a message streams. Pass `final` once the message is complete. `components` replaces how a node type renders; each Vue component receives the `node` prop and its rendered children in the default slot, including a table's rendered head and body.
+
 ## URLs and HTML
 
 A link destination or image source must be relative or use a scheme other than `javascript:`, `vbscript:`, `file:`, or `data:`, except a `data:image/` URL in GIF, PNG, JPEG, or WebP. A link or image that fails this check, including one defined by a reference, stays in the tree as its literal text. While a message streams, a link whose destination is unfinished carries no `url`.
