@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useInsertionEffect,
   useRef,
   type RefCallback,
@@ -56,7 +57,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const divRef = useRef<TElement>(null);
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const firstMessageId = useAuiState((s) => s.thread.messages[0]?.id);
-  const threadId = useAuiState((s) => s.threadListItem.id);
+  const threadId = useAuiState((s) => s.optional.threadListItem?.id);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const threadViewportStore = useThreadViewportStore();
   const binding = getThreadViewportAutoScroll(threadViewportStore);
@@ -105,7 +106,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   useOnScrollToBottom(({ behavior }) => controller.scrollToBottom(behavior));
   useAuiEvent("thread.runStart", () => controller.runStarted());
-  useAuiEvent("threads.selectionChanged", () => controller.threadSwitched());
+  useEffect(() => {
+    if (!aui.optional.threads) return;
+    return aui.on("threads.selectionChanged", () =>
+      controller.threadSwitched(),
+    );
+  }, [aui, controller]);
 
   return useManagedRef(
     useCallback(
