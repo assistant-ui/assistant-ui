@@ -81,28 +81,37 @@ vi.mock("react-native", async (importOriginal) => {
   };
 });
 
-vi.mock("@assistant-ui/store", async () => {
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const React = await import("react");
 
-  const aui = { thread: { loadEarlier: h.loadEarlier } };
+  const aui = {
+    thread: { loadEarlier: h.loadEarlier },
+    optional: { threads: {} },
+    on: (
+      selector: string | { scope: string; event: string },
+      callback: () => void,
+    ) => {
+      const event =
+        typeof selector === "string"
+          ? selector
+          : `${selector.scope}.${selector.event}`;
+      const callbacks = (h.events[event] ??= new Set());
+      callbacks.add(callback);
+      return () => {
+        callbacks.delete(callback);
+      };
+    },
+  };
   return {
+    ...actual,
     useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
     useAuiEvent: (
       selector: string | { scope: string; event: string },
       callback: () => void,
     ) => {
-      React.useEffect(() => {
-        const event =
-          typeof selector === "string"
-            ? selector
-            : `${selector.scope}.${selector.event}`;
-        const callbacks = (h.events[event] ??= new Set());
-        callbacks.add(callback);
-        return () => {
-          callbacks.delete(callback);
-        };
-      }, [selector, callback]);
+      React.useEffect(() => aui.on(selector, callback), [selector, callback]);
     },
     RenderChildrenWithAccessor: ({
       children,

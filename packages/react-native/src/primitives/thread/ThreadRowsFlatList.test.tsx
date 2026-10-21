@@ -62,7 +62,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAui: () => ({ thread: { loadEarlier: h.loadEarlier } }),
+    useAui: () => ({ thread: { loadEarlier: h.loadEarlier }, optional: {} }),
     useAuiState: <T,>(selector: (state: AssistantState) => T) =>
       selector(h.state as unknown as AssistantState),
     useAuiEvent: () => {},
