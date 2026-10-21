@@ -66,7 +66,7 @@ describe("getExternalStoreMessages", () => {
     expect(getExternalStoreMessages(part)).toEqual([]);
   });
 
-  it("reads sources from a message or a part without a transcript", () => {
+  it("keeps the first bound sources on a message and its part", () => {
     const message = fromThreadMessageLike(
       { role: "user", content: "Hello" },
       "user",
@@ -75,6 +75,8 @@ describe("getExternalStoreMessages", () => {
     const source = { id: "original-message" };
     bindExternalStoreMessage(message, source);
     bindExternalStoreMessage(message.content[0]!, source);
+    bindExternalStoreMessage(message, { id: "replacement-message" });
+    bindExternalStoreMessage(message.content[0]!, { id: "replacement-part" });
     expect(getExternalStoreMessages(message)).toEqual([source]);
     expect(getExternalStoreMessages(message.content[0]!)).toEqual([source]);
   });
