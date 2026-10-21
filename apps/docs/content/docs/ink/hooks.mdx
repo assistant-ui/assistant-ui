@@ -91,9 +91,11 @@ useNotification({
 | Option | Type | Description |
 |--------|------|-------------|
 | `enabled` | `boolean` | Master switch. Defaults to `true`. |
-| `onTaskComplete` | `NotificationHandler<"task-complete"> \| false` | Fired when the latest assistant message status flips to `complete` after a run was observed. |
-| `onTaskIncomplete` | `NotificationHandler<"task-incomplete"> \| false` | Fired when the latest assistant message status flips to `incomplete` after a run was observed. |
+| `onTaskComplete` | `NotificationHandler<"task-complete"> \| false` | Fired after an observed run ends with the latest assistant message in `complete` status. |
+| `onTaskIncomplete` | `NotificationHandler<"task-incomplete"> \| false` | Fired after an observed run ends with the latest assistant message in `incomplete` status. |
 | `onNeedsInput` | `NotificationHandler<"needs-input"> \| false` | Fired when the latest assistant message enters `requires-action` with `reason: "interrupt"`. Tool-call pauses are skipped. |
+
+If a message settles while the thread is still running, completion and incomplete notifications wait until `thread.isRunning` becomes `false`.
 
 `NotificationHandler<T>` fields (all optional, any combination):
 
