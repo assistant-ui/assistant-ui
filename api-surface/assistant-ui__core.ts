@@ -4639,6 +4639,7 @@ type StreamingTimingAccessors<TMessage> = {
   readonly getAssistantMessageId: (messages: readonly TMessage[]) => string | undefined;
   readonly getTextLength: (messages: readonly TMessage[], messageId: string) => number;
   readonly getToolCallCount: (messages: readonly TMessage[], messageId: string) => number;
+  readonly getMessageContent?: (messages: readonly TMessage[], messageId: string) => unknown;
 };
 
 type StreamingTimingOptions = {

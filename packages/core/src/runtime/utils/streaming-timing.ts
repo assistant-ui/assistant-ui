@@ -3,7 +3,7 @@ import type { MessageTiming } from "../../types/message";
 /**
  * Shape-specific accessors that adapt {@link stepStreamingTiming} /
  * {@link useStreamingTiming} to a runtime's message list. Each adapter
- * provides three pure functions over its own message type; the timing state
+ * provides pure functions over its own message type; the timing state
  * machine itself lives once in core.
  */
 export type StreamingTimingAccessors<TMessage> = {
@@ -21,6 +21,16 @@ export type StreamingTimingAccessors<TMessage> = {
     messages: readonly TMessage[],
     messageId: string,
   ) => number;
+  /**
+   * JSON-serializable assistant output, including text, tools, and non-text
+   * parts. The hook snapshots it to preserve timing for unchanged history.
+   * Without this accessor, or when its result cannot be serialized, the hook
+   * retains the legacy behavior of timing the latest assistant on every run.
+   */
+  readonly getMessageContent?: (
+    messages: readonly TMessage[],
+    messageId: string,
+  ) => unknown;
 };
 
 export type StreamingTimingOptions = {

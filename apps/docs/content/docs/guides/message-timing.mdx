@@ -95,6 +95,8 @@ const runtime = useDataStreamRuntime({ api: "/api/chat" });
 
 Timing is tracked automatically on the client side by observing streaming state transitions and content changes. Timing is finalized when each stream completes.
 
+A run that ends without new assistant output leaves earlier answers' timing unchanged. Same-message continuations, including file and source output, receive timing when their content changes.
+
 <Callout type="warn">
   `tokenCount` and `tokensPerSecond` are estimates. The client-side tracker derives the token count from the streamed text length (one token per four characters) and does not read the usage metadata from your AI SDK route.
 </Callout>

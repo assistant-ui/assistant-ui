@@ -15,6 +15,19 @@ export type {
   StreamingTimingState,
 };
 
+const getContentKey = <TMessage>(
+  messages: readonly TMessage[],
+  messageId: string,
+  accessors: StreamingTimingAccessors<TMessage>,
+): string | undefined => {
+  const content = accessors.getMessageContent?.(messages, messageId);
+  try {
+    return JSON.stringify(content);
+  } catch {
+    return undefined;
+  }
+};
+
 /**
  * Tracks per-message streaming timing client-side and returns finalized
  * `MessageTiming` keyed by message id.
@@ -30,6 +43,10 @@ export type {
  *   getAssistantMessageId: (msgs) => msgs.findLast((m) => m.role === "assistant")?.id,
  *   getTextLength: (msgs, id) => msgs.find((m) => m.id === id)?.content?.length ?? 0,
  *   getToolCallCount: (msgs, id) => msgs.find((m) => m.id === id)?.tool_calls?.length ?? 0,
+ *   getMessageContent: (msgs, id) => {
+ *     const message = msgs.find((m) => m.id === id);
+ *     return { content: message?.content, tool_calls: message?.tool_calls };
+ *   },
  * });
  * ```
  */
@@ -43,8 +60,7 @@ export const useStreamingTiming = <TMessage>(
   const stateRef = useRef<StreamingTimingState | null>(null);
   const idleMessageRef = useRef<{
     id: string;
-    textLength: number;
-    toolCallCount: number;
+    contentKey: string;
   } | null>(null);
   // Read the latest accessors/options from refs so the effect keeps the
   // original `[messages, isRunning]` reactivity of the adapter hooks this
@@ -59,13 +75,14 @@ export const useStreamingTiming = <TMessage>(
     const currentAccessors = accessorsRef.current;
     const id = currentAccessors.getAssistantMessageId(messages);
     const idleMessage = idleMessageRef.current;
+    const contentKey =
+      id !== undefined && (!isRunning || id === idleMessage?.id)
+        ? getContentKey(messages, id, currentAccessors)
+        : undefined;
     if (
       idleMessage !== null &&
       id === idleMessage.id &&
-      (currentAccessors.getTextLength(messages, id) !==
-        idleMessage.textLength ||
-        currentAccessors.getToolCallCount(messages, id) !==
-          idleMessage.toolCallCount)
+      contentKey !== idleMessage.contentKey
     ) {
       idleMessageRef.current = null;
     }
@@ -76,13 +93,9 @@ export const useStreamingTiming = <TMessage>(
       }
 
       idleMessageRef.current =
-        id === undefined
+        id === undefined || contentKey === undefined
           ? null
-          : {
-              id,
-              textLength: currentAccessors.getTextLength(messages, id),
-              toolCallCount: currentAccessors.getToolCallCount(messages, id),
-            };
+          : { id, contentKey };
     }
 
     const result = stepStreamingTiming(

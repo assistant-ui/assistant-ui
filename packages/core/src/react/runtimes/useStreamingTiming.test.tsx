@@ -21,6 +21,8 @@ const accessors: StreamingTimingAccessors<Message> = {
     messages.find((message) => message.id === id)?.text.length ?? 0,
   getToolCallCount: (messages, id) =>
     messages.find((message) => message.id === id)?.toolCalls ?? 0,
+  getMessageContent: (messages, id) =>
+    messages.find((message) => message.id === id),
 };
 
 const answer: Message = {
@@ -158,3 +160,51 @@ it("times a regenerated message even when its final text has the same length", (
     firstTokenTime: 500,
   });
 });
+
+it("times an equal-length replacement received only when the run ends", () => {
+  vi.useFakeTimers();
+  const { result, rerender } = renderHook(
+    ({ messages, isRunning }) =>
+      useStreamingTiming(messages, isRunning, accessors),
+    { initialProps: { messages: [answer], isRunning: false } },
+  );
+  vi.setSystemTime(2000);
+  rerender({ messages: [answer], isRunning: true });
+  vi.setSystemTime(2500);
+  rerender({
+    messages: [{ ...answer, text: "Other answer" }],
+    isRunning: false,
+  });
+  expect(result.current.a1).toMatchObject({
+    streamStartTime: 2000,
+    totalStreamTime: 500,
+    tokenCount: 3,
+  });
+});
+
+it.each(["missing", "unserializable"])(
+  "keeps legacy timing with a %s content snapshot",
+  (snapshot) => {
+    vi.useFakeTimers();
+    const legacyAccessors: StreamingTimingAccessors<Message> = {
+      getAssistantMessageId: accessors.getAssistantMessageId,
+      getTextLength: accessors.getTextLength,
+      getToolCallCount: accessors.getToolCallCount,
+      ...(snapshot === "unserializable" ? { getMessageContent: () => 1n } : {}),
+    };
+    const { result, rerender } = renderHook(
+      ({ isRunning }) =>
+        useStreamingTiming([answer], isRunning, legacyAccessors),
+      { initialProps: { isRunning: false } },
+    );
+    vi.setSystemTime(1000);
+    rerender({ isRunning: true });
+    vi.setSystemTime(1500);
+    rerender({ isRunning: false });
+    expect(result.current.a1).toMatchObject({
+      streamStartTime: 1000,
+      totalStreamTime: 500,
+      tokenCount: 3,
+    });
+  },
+);
