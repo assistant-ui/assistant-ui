@@ -348,6 +348,35 @@ describe("findModelKnownState", () => {
     });
   });
 
+  it.each([
+    ["an object", { success: true, interactable: "note" }],
+    ["a JSON string", JSON.stringify({ success: true, interactable: "note" })],
+  ])(
+    "seeds the baseline from a creating call whose result names the interactable as %s",
+    (_form, result) => {
+      const history = [
+        assistantToolCall("create_note", { v: 1, title: "draft" }, result, "a"),
+        assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
+      ];
+      expect(findModelKnownState(history, "a", "note")?.state).toEqual({
+        v: 2,
+        title: "draft",
+      });
+    },
+  );
+
+  it("does not seed the baseline from another tool's call that shares the instance id", () => {
+    const history = [
+      assistantToolCall(
+        "generate_report",
+        { topic: "sales" },
+        { success: true },
+        "a",
+      ),
+    ];
+    expect(findModelKnownState(history, "a", "report")).toBeUndefined();
+  });
+
   it("ignores calls targeting another instance id", () => {
     const history = [
       userMsg([entry("a", { v: 1 }, "note")]),

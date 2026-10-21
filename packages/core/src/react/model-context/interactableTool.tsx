@@ -32,6 +32,13 @@ export type Unstable_InteractableToolRenderProps<TState> = {
 export type Unstable_InteractableToolConfig<
   TSchema extends Unstable_InteractableStateSchema,
 > = {
+  /**
+   * The interactable's name, which names its generated `update_{name}` tool
+   * and its versions. Defaults to the toolkit entry key, the creating tool's
+   * name; set it to name the creating tool apart, as `create_notepad` beside
+   * `update_notepad`.
+   */
+  name?: string | undefined;
   description: string;
   stateSchema: TSchema;
   render: (
@@ -47,7 +54,8 @@ const UPDATE_TOOL_PREFIX = "update_";
 
 /**
  * Defines a tool that creates a thread-scoped interactable from its arguments,
- * for assignment to a toolkit entry — the entry key is the interactable name:
+ * for assignment to a toolkit entry — the entry key is the creating tool's
+ * name, and the interactable's unless `name` gives it another:
  *
  * ```tsx
  * notepad: unstable_interactableTool({
@@ -69,7 +77,10 @@ export const unstable_interactableTool = <
   TSchema extends Unstable_InteractableStateSchema,
 >(
   config: Unstable_InteractableToolConfig<TSchema>,
-): ToolDefinition<Record<string, unknown>, { success: true }> => {
+): ToolDefinition<
+  Record<string, unknown>,
+  { success: true; interactable?: string | undefined }
+> => {
   type TState = Unstable_InferInteractableState<TSchema>;
   type UpdateArgs = { id?: string | undefined } & Record<string, unknown>;
   type UpdateResult =
@@ -135,11 +146,12 @@ export const unstable_interactableTool = <
     }
     if (!result.success) return null;
     const { id: _id, ...partial } = args;
-    // The interactable name is the creating tool's name (the toolkit entry
-    // key), so the update tool's name reverses by stripping the prefix.
+    // Without `name`, the interactable is named after the creating tool (the
+    // toolkit entry key), so the update tool's name reverses by stripping the
+    // prefix.
     return (
       <Anchor
-        name={toolName.slice(UPDATE_TOOL_PREFIX.length)}
+        name={config.name ?? toolName.slice(UPDATE_TOOL_PREFIX.length)}
         initial={partial as TState}
       />
     );
@@ -147,7 +159,7 @@ export const unstable_interactableTool = <
 
   const InteractableToolUI: ToolCallMessagePartComponent<
     Record<string, unknown>,
-    { success: true }
+    { success: true; interactable?: string | undefined }
   > = ({ toolName, toolCallId, args, result }) => {
     const state = args as TState;
     if (!result) {
@@ -163,7 +175,9 @@ export const unstable_interactableTool = <
         </>
       );
     }
-    return <Anchor name={toolName} id={toolCallId} initial={state} />;
+    return (
+      <Anchor name={config.name ?? toolName} id={toolCallId} initial={state} />
+    );
   };
 
   return {
@@ -171,7 +185,12 @@ export const unstable_interactableTool = <
     description: config.description,
     parameters: config.stateSchema,
     display: "standalone",
-    execute: async () => ({ success: true as const }),
+    // The result names the interactable when the tool is named apart from it,
+    // so the thread record alone shows which interactable this call created.
+    execute: async () =>
+      config.name === undefined
+        ? { success: true as const }
+        : { success: true as const, interactable: config.name },
     render: InteractableToolUI,
   };
 };

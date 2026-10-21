@@ -195,6 +195,7 @@ const createCall = (
   id: string,
   args: Record<string, unknown> = { v: 0 },
   name = "note",
+  result: unknown = { success: true },
 ) =>
   ({
     role: "assistant",
@@ -204,7 +205,7 @@ const createCall = (
         toolCallId: id,
         toolName: name,
         args,
-        result: { success: true },
+        result,
       },
     ],
   }) as unknown as ThreadMessage;
@@ -344,6 +345,28 @@ describe("Interactables registration", () => {
     root = mount({ threadMessages: [createCall("n1", { v: 7 })] });
     root.getValue().register(reg("n1"));
     expect(stateOf(root, "n1")).toEqual({ v: 7 });
+  });
+
+  it.each([
+    ["an object", { success: true, interactable: "note" }],
+    ["a JSON string", JSON.stringify({ success: true, interactable: "note" })],
+  ])(
+    "restores a registration whose creating tool is named apart from it, its result %s",
+    (_form, result) => {
+      root = mount({
+        threadMessages: [createCall("n1", { v: 7 }, "create_note", result)],
+      });
+      root.getValue().register(reg("n1"));
+      expect(stateOf(root, "n1")).toEqual({ v: 7 });
+    },
+  );
+
+  it("keeps a registration app-scoped when another tool's call shares its id", () => {
+    root = mount({
+      threadMessages: [createCall("n1", { topic: "sales" }, "generate_report")],
+    });
+    root.getValue().register(reg("n1"));
+    expect(stateOf(root, "n1")).toEqual({ v: 0 });
   });
 
   it("keeps the definition alive until the last of several anchors unregisters", async () => {
@@ -1337,6 +1360,33 @@ describe("Interactables persistence load", () => {
       n2: { name: "note", state: { v: 2 } },
     });
   });
+
+  it.each([
+    ["an object", { success: true, interactable: "note" }],
+    ["a JSON string", JSON.stringify({ success: true, interactable: "note" })],
+  ])(
+    "does not save loaded thread state whose creating tool is named apart from it, its result %s",
+    async (_form, result) => {
+      const attached = adapter({
+        t1: { name: "note", state: { v: 9 } },
+        n2: { name: "note", state: { v: 2 } },
+      });
+      root = mount({
+        persistence: attached,
+        threadMessages: [createCall("t1", {}, "create_note", result)],
+      });
+      await flushMicrotasks();
+      root.getValue().register(reg("n1"));
+
+      root.getValue().setState("n1", () => ({ v: 1 }));
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(attached.save).toHaveBeenCalledWith({
+        n1: { name: "note", state: { v: 1 } },
+        n2: { name: "note", state: { v: 2 } },
+      });
+    },
+  );
 
   it("does not save loaded thread state with empty tool identifiers", async () => {
     const attached = adapter({

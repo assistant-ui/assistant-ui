@@ -261,6 +261,21 @@ export const toolResultRecord = (
   return isRecord(result) ? result : undefined;
 };
 
+/** Whether `p` is the call that created instance `id` of interactable `name`:
+ *  the call is named after the interactable, or its result names it, as
+ *  `unstable_interactableTool` records when `name` sets the two apart. */
+export const isInteractableCreateCall = (
+  p: {
+    toolCallId?: string | undefined;
+    toolName?: string | undefined;
+    result?: unknown;
+  },
+  id: string,
+  name: string,
+): boolean =>
+  p.toolCallId === id &&
+  (p.toolName === name || toolResultRecord(p.result)?.interactable === name);
+
 /** Whether an accepted `update_*` call addressed instance `id`. */
 const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
   if (!p.args || typeof p.args !== "object") return false;
@@ -366,7 +381,7 @@ export function unstable_getInteractableVersions(
     for (const part of msg.content ?? []) {
       const p = asToolCallPart(part);
       if (!p) continue;
-      if (p.toolCallId === id && p.toolName === name) {
+      if (isInteractableCreateCall(p, id, name)) {
         if (p.args && typeof p.args === "object") {
           versions.push({ state: p.args, origin: "create", toolCallId: id });
         }

@@ -6427,6 +6427,7 @@ type Unstable_InteractableStateSchema = NonNullable<Extract<Tool, {
 }>["parameters"]>;
 
 type Unstable_InteractableToolConfig<TSchema extends Unstable_InteractableStateSchema> = {
+  name?: string | undefined;
   description: string;
   stateSchema: TSchema;
   render: (props: Unstable_InteractableToolRenderProps<Unstable_InferInteractableState<TSchema>>) => ReactNode;
@@ -7020,6 +7021,7 @@ declare function unstable_getInteractableVersions(messages: readonly SnapshotCar
 
 declare const unstable_interactableTool: <TSchema extends Unstable_InteractableStateSchema>(config: Unstable_InteractableToolConfig<TSchema>) => ToolDefinition<Record<string, unknown>, {
   success: true;
+  interactable?: string | undefined;
 }>;
 
 declare const unstable_useInteractable: <TSchema extends Unstable_InteractableStateSchema>(name: string, config: Unstable_InteractableConfig<TSchema>) => readonly [
