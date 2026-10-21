@@ -17,6 +17,7 @@ describe("link destinations", () => {
     ["[a](mailto:team@example.com)", "mailto:team@example.com"],
     ["<https://example.com>", "https://example.com"],
     ["www.example.com", "http://www.example.com"],
+    ["[a](data:image/png;base64,AAAA)", "data:image/png;base64,AAAA"],
   ])("keeps %s", (text, url) => {
     expect(inlineOf(text)).toEqual([
       expect.objectContaining({ type: "link", url }),
@@ -24,16 +25,15 @@ describe("link destinations", () => {
   });
 
   test.each([
-    "[a](javascript:alert(1))",
-    "[a](JaVaScRiPt:alert(1))",
-    "[a](&#106;avascript:alert(1))",
-    "[a](vbscript:msgbox(1))",
-    "[a](file:///etc/passwd)",
-    "[a](data:text/html,x)",
-    "<javascript:alert(1)>",
-  ])("leaves %s as text", (text) => {
-    const nodes = inlineOf(text);
-    expect(nodes.every((node) => node.type === "text")).toBe(true);
+    ["[a](javascript:alert(1))", "[a](javascript:alert(1))"],
+    ["[a](JaVaScRiPt:alert(1))", "[a](JaVaScRiPt:alert(1))"],
+    ["[a](&#106;avascript:alert(1))", "[a](javascript:alert(1))"],
+    ["[a](vbscript:msgbox(1))", "[a](vbscript:msgbox(1))"],
+    ["[a](file:///etc/passwd)", "[a](file:///etc/passwd)"],
+    ["[a](data:text/html,x)", "[a](data:text/html,x)"],
+    ["<javascript:alert(1)>", "<javascript:alert(1)>"],
+  ])("leaves %s as text", (text, value) => {
+    expect(inlineOf(text)).toEqual([{ type: "text", value }]);
   });
 
   test("a definition with an unsafe destination defines nothing", () => {
@@ -58,8 +58,7 @@ describe("image sources", () => {
     "![i](data:image/svg+xml;base64,AAAA)",
     "![i](data:text/html,x)",
   ])("leaves %s as text", (text) => {
-    const nodes = inlineOf(text);
-    expect(nodes.every((node) => node.type === "text")).toBe(true);
+    expect(inlineOf(text)).toEqual([{ type: "text", value: text }]);
   });
 });
 
@@ -91,9 +90,17 @@ describe("raw HTML", () => {
   });
 });
 
-test("a streaming link with an unfinished destination carries no url", () => {
-  const session = createMarkdownSession();
-  for (const text of ["[a](java", "[a](javascript:alert(1)"]) {
-    expect(JSON.stringify(session.update(text))).not.toContain('"url"');
-  }
+describe("a streaming link with an unfinished destination", () => {
+  test("shows its label", () => {
+    const root = createMarkdownSession().update("[a](javascript:al");
+    expect(root.children[0]).toMatchObject({
+      type: "paragraph",
+      children: [{ type: "text", value: "a" }],
+    });
+  });
+
+  test("carries no url once the destination holds a parenthesis", () => {
+    const root = createMarkdownSession().update("[a](javascript:alert(1)");
+    expect(JSON.stringify(root)).not.toContain('"url"');
+  });
 });
