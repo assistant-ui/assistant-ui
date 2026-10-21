@@ -61,7 +61,7 @@ This gives you:
 
 ## Option 2: Local file persistence
 
-When you want threads and messages to survive across sessions without running a backend, use `createFileStorageAdapter`. It writes each thread to a JSON file on disk and plugs into `useRemoteThreadListRuntime`.
+When you want threads and messages to survive across sessions without running a backend, use `createFileStorageAdapter`. It writes each thread to a JSON file on disk and plugs into `useRemoteThreadListRuntime`. Give each process its own directory: two processes writing to the same directory can lose or resurrect threads.
 
 ```tsx title="app.tsx"
 import { join } from "node:path";
