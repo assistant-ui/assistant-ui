@@ -623,7 +623,7 @@ type ComposerRuntime = {
   readonly type: "edit" | "thread";
   getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
-  setText(text: string): void;
+  setText(text: string, options?: ComposerSetTextOptions): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   reset(): Promise<void>;
@@ -654,6 +654,10 @@ type ComposerRuntimeEventPayload = {
   attachmentAddError: AttachmentAddErrorEvent & {
     readonly contentType?: string | undefined;
   };
+  textChange: {
+    readonly text: string;
+    readonly origin: ComposerTextOrigin;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -666,6 +670,10 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
+type ComposerSetTextOptions = {
+  readonly origin?: ComposerTextOrigin;
+};
+
 type ComposerSubmission = {
   readonly id: string;
   readonly role: MessageRole;
@@ -673,6 +681,8 @@ type ComposerSubmission = {
   readonly quote: QuoteInfo | undefined;
   readonly attachments: readonly Attachment[];
 };
+
+type ComposerTextOrigin = "external" | "recall" | "reset" | "return" | "send" | "user";
 
 type CreateAppendMessage = string | {
   parentId?: string | null | undefined;

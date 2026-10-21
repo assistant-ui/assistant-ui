@@ -90,6 +90,7 @@ const useTriggerSelectionResource = ({
       const directive = behavior.formatter.serialize(item);
       aui.composer.setText(
         before + directive + (after.startsWith(" ") ? after : ` ${after}`),
+        { origin: "user" },
       );
       setCursorPosition(before.length + directive.length + 1);
     };
@@ -101,6 +102,7 @@ const useTriggerSelectionResource = ({
       if (behavior.removeOnExecute) {
         aui.composer.setText(
           before + (after.startsWith(" ") ? after.slice(1) : after),
+          { origin: "user" },
         );
         setCursorPosition(before.length);
       } else {

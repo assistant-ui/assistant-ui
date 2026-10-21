@@ -133,9 +133,9 @@ describe("ComposerInput", () => {
     expect(buffer.dispatchAction).toHaveBeenNthCalledWith(4, {
       type: "delete-forward",
     });
-    expect(setText).toHaveBeenNthCalledWith(1, "heXllo");
-    expect(setText).toHaveBeenNthCalledWith(2, "hello");
-    expect(setText).toHaveBeenNthCalledWith(3, "helo");
+    expect(setText).toHaveBeenNthCalledWith(1, "heXllo", { origin: "user" });
+    expect(setText).toHaveBeenNthCalledWith(2, "hello", { origin: "user" });
+    expect(setText).toHaveBeenNthCalledWith(3, "helo", { origin: "user" });
   });
 
   it("submits on enter when submitOnEnter is enabled", async () => {
@@ -364,7 +364,7 @@ describe("ComposerInput", () => {
       type: "insert",
       text: "\n",
     });
-    expect(setText).toHaveBeenCalledWith("hello\n");
+    expect(setText).toHaveBeenCalledWith("hello\n", { origin: "user" });
   });
 
   it("inserts a newline on ctrl-j in multi-line mode", async () => {
@@ -394,7 +394,7 @@ describe("ComposerInput", () => {
       type: "insert",
       text: "\n",
     });
-    expect(setText).toHaveBeenCalledWith("hello\n");
+    expect(setText).toHaveBeenCalledWith("hello\n", { origin: "user" });
   });
 
   it("inserts a newline on shift-enter in multi-line submit mode", async () => {
@@ -425,7 +425,7 @@ describe("ComposerInput", () => {
       type: "insert",
       text: "\n",
     });
-    expect(setText).toHaveBeenCalledWith("hello\n");
+    expect(setText).toHaveBeenCalledWith("hello\n", { origin: "user" });
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -506,7 +506,7 @@ describe("ComposerInput", () => {
     expect(buffer.dispatchAction).toHaveBeenCalledWith({
       type: "kill-word-forward",
     });
-    expect(setText).toHaveBeenCalledWith(" beta gamma");
+    expect(setText).toHaveBeenCalledWith(" beta gamma", { origin: "user" });
   });
 
   it("dispatches readline-style ctrl bindings", async () => {
@@ -662,7 +662,7 @@ describe("ComposerInput", () => {
     instance.rerender(<ComposerInput />);
     await flush();
 
-    expect(setStoreText).toHaveBeenCalledWith("helo");
+    expect(setStoreText).toHaveBeenCalledWith("helo", { origin: "user" });
     expect(buffer.setText).not.toHaveBeenCalled();
   });
 });

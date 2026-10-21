@@ -82,7 +82,7 @@ describe("unstable_useComposerInputHistory", () => {
     const { textarea } = setup("");
     const notPrevented = arrow(textarea, "ArrowUp");
     expect(notPrevented).toBe(false);
-    expect(setText).toHaveBeenCalledWith("second");
+    expect(setText).toHaveBeenCalledWith("second", { origin: "recall" });
   });
 
   it("steps to older entries and consumes the key at the oldest", () => {
@@ -90,7 +90,7 @@ describe("unstable_useComposerInputHistory", () => {
     arrow(textarea, "ArrowUp");
     textarea.value = "second";
     arrow(textarea, "ArrowUp");
-    expect(setText).toHaveBeenLastCalledWith("first");
+    expect(setText).toHaveBeenLastCalledWith("first", { origin: "recall" });
 
     textarea.value = "first";
     const notPrevented = arrow(textarea, "ArrowUp");
@@ -103,7 +103,7 @@ describe("unstable_useComposerInputHistory", () => {
     arrow(textarea, "ArrowUp");
     textarea.value = "second";
     arrow(textarea, "ArrowDown");
-    expect(setText).toHaveBeenLastCalledWith("  ");
+    expect(setText).toHaveBeenLastCalledWith("  ", { origin: "recall" });
 
     textarea.value = "  ";
     const notPrevented = arrow(textarea, "ArrowDown");
@@ -122,7 +122,9 @@ describe("unstable_useComposerInputHistory", () => {
     fixture.messages = [user("other"), user("line1\nline2")];
     const { textarea } = setup("");
     arrow(textarea, "ArrowUp");
-    expect(setText).toHaveBeenLastCalledWith("line1\nline2");
+    expect(setText).toHaveBeenLastCalledWith("line1\nline2", {
+      origin: "recall",
+    });
     textarea.value = "line1\nline2";
     textarea.setSelectionRange(8, 8);
     const notPrevented = arrow(textarea, "ArrowUp");
@@ -165,10 +167,10 @@ describe("unstable_useComposerInputHistory", () => {
     ];
     const { textarea } = setup("");
     arrow(textarea, "ArrowUp");
-    expect(setText).toHaveBeenLastCalledWith("second");
+    expect(setText).toHaveBeenLastCalledWith("second", { origin: "recall" });
     textarea.value = "second";
     arrow(textarea, "ArrowUp");
-    expect(setText).toHaveBeenLastCalledWith("first");
+    expect(setText).toHaveBeenLastCalledWith("first", { origin: "recall" });
     textarea.value = "first";
     arrow(textarea, "ArrowUp");
     expect(setText).toHaveBeenCalledTimes(2);
@@ -180,7 +182,7 @@ describe("unstable_useComposerInputHistory", () => {
     fixture.messages = [...fixture.messages, user("third")];
     textarea.value = "";
     arrow(textarea, "ArrowUp");
-    expect(setText).toHaveBeenLastCalledWith("third");
+    expect(setText).toHaveBeenLastCalledWith("third", { origin: "recall" });
   });
 
   it("is inert on edit composers", () => {

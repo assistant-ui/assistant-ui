@@ -515,24 +515,34 @@ describe("SyncPlugin", () => {
         { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
       );
     });
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n", {
+      origin: "user",
+    });
     const after = editor.getEditorState();
     await act(async () => {
       editor.dispatchCommand(UNDO_COMMAND, undefined);
     });
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello", {
+      origin: "user",
+    });
     await act(async () => {
       editor.dispatchCommand(REDO_COMMAND, undefined);
     });
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n", {
+      origin: "user",
+    });
     await act(async () => {
       editor.setEditorState(before, { tag: SKIP_DOM_SELECTION_TAG });
     });
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello", {
+      origin: "user",
+    });
     await act(async () => {
       editor.setEditorState(after, { tag: SKIP_DOM_SELECTION_TAG });
     });
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n", {
+      origin: "user",
+    });
   });
 
   it("retries a deferred parser on a clean selection update after composition", async () => {
@@ -725,7 +735,9 @@ describe("SyncPlugin", () => {
         textNode.selectEnd();
       });
     });
-    expect(mocks.aui.composer.setText).toHaveBeenLastCalledWith("[[alice]]");
+    expect(mocks.aui.composer.setText).toHaveBeenLastCalledWith("[[alice]]", {
+      origin: "user",
+    });
 
     await act(async () => {
       render(true);
@@ -1024,7 +1036,9 @@ describe("SyncPlugin", () => {
       });
     });
 
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("\nhello!");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("\nhello!", {
+      origin: "user",
+    });
   });
 
   it("preserves multiple leading blank lines", async () => {
@@ -1054,6 +1068,8 @@ describe("SyncPlugin", () => {
       });
     });
 
-    expect(aui.composer.setText).toHaveBeenLastCalledWith("\n\nx!");
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("\n\nx!", {
+      origin: "user",
+    });
   });
 });

@@ -140,6 +140,17 @@ const useComposerClient = ({
       }),
     );
 
+    unsubscribers.push(
+      runtime.unstable_on("textChange", (payload) => {
+        emit("composer.textChange", {
+          threadId: threadIdRef.current,
+          ...(messageIdRef && { messageId: messageIdRef.current }),
+          text: payload.text,
+          origin: payload.origin,
+        });
+      }),
+    );
+
     return () => runCleanups(unsubscribers);
   }, [runtime, emit, threadIdRef, messageIdRef]);
 

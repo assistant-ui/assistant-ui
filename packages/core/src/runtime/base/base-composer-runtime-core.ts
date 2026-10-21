@@ -22,6 +22,8 @@ import type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
+  ComposerSetTextOptions,
+  ComposerTextOrigin,
   DictationState,
   SendOptions,
 } from "../interfaces/composer-runtime-core";
@@ -97,9 +99,7 @@ export abstract class BaseComposerRuntimeCore
     {
       getAdapter: () => this.getDictationAdapter(),
       getText: () => this._text,
-      setText: (value) => {
-        this._text = value;
-      },
+      setText: (value) => this._writeText(value, "user"),
       notify: () => this._notifySubscribers(),
     },
   );
@@ -133,12 +133,45 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  public setText(value: string) {
+  public setText(value: string, options?: ComposerSetTextOptions) {
+    if (this._text === value) return;
+
+    this._writeText(value, options?.origin ?? "external");
+    this._rebaseDictation(value);
+    this._notifySubscribers();
+  }
+
+  private _pendingTextChanges: ComposerRuntimeEventPayload["textChange"][] = [];
+  private _isFlushingTextChanges = false;
+  private _notifyDepth = 0;
+
+  private _writeText(value: string, origin: ComposerTextOrigin) {
     if (this._text === value) return;
 
     this._text = value;
-    this._rebaseDictation(value);
-    this._notifySubscribers();
+    this._pendingTextChanges.push({ text: value, origin });
+  }
+
+  protected override _notifySubscribers() {
+    this._notifyDepth++;
+    try {
+      super._notifySubscribers();
+    } finally {
+      if (--this._notifyDepth === 0) this._flushTextChanges();
+    }
+  }
+
+  private _flushTextChanges() {
+    if (this._isFlushingTextChanges) return;
+
+    this._isFlushingTextChanges = true;
+    for (
+      let change = this._pendingTextChanges.shift();
+      change;
+      change = this._pendingTextChanges.shift()
+    )
+      this._notifyEventSubscribers("textChange", change);
+    this._isFlushingTextChanges = false;
   }
 
   private _rebaseDictation(value: string) {
@@ -243,7 +276,7 @@ export abstract class BaseComposerRuntimeCore
 
   private _emptyTextAndAttachments() {
     this._attachments = [];
-    this._text = "";
+    this._writeText("", "reset");
     this._rebaseDictation("");
     this._notifySubscribers();
   }
@@ -351,7 +384,7 @@ export abstract class BaseComposerRuntimeCore
     if (this.detachesDraftOnSend) {
       const detached = new Set(attachments);
       this._attachments = this._attachments.filter((a) => !detached.has(a));
-      this._text = "";
+      this._writeText("", "send");
       this._rebaseDictation("");
       this._quote = undefined;
     }
@@ -588,7 +621,7 @@ export abstract class BaseComposerRuntimeCore
       });
       this._attachments = [...returned, ...this._attachments];
       const text = [submission.text, this._text].filter(Boolean).join("\n");
-      this._text = text;
+      this._writeText(text, "return");
       this._rebaseDictation(text);
       this._quote = this._quote ?? submission.quote;
     } else {
@@ -652,7 +685,7 @@ export abstract class BaseComposerRuntimeCore
     )
       return false;
 
-    this._text = draft.text;
+    this._writeText(draft.text, "return");
     this._rebaseDictation(draft.text);
     this._quote = draft.quote;
     this._attachments = draft.attachments ?? [];
@@ -681,7 +714,7 @@ export abstract class BaseComposerRuntimeCore
     )
       return;
 
-    this._text = "";
+    this._writeText("", "send");
     this._rebaseDictation("");
     this._quote = undefined;
     this._attachments = [];
