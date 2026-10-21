@@ -156,6 +156,10 @@ const h = vi.hoisted(() => {
   const rootComposer = makeComposer(() => state.composer);
   const client: any = {
     getState: () => state,
+    get optional() {
+      return { threads: this.threads };
+    },
+    on: () => () => {},
     composer: rootComposer,
     thread: {
       getState: () => state.thread,
