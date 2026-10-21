@@ -510,8 +510,8 @@ export function SyncPlugin({
   }, [editor, aui]);
 
   useEffect(() => {
-    const composerRuntime = aui.composer.__internal_getRuntime?.();
-    if (!composerRuntime) return;
+    const legacyRuntime = aui.composer.__internal_getRuntime?.();
+    const composerRuntime = legacyRuntime ?? aui.composer;
 
     const updateComposerIdentity = () => {
       const nextIdentity = { composerRuntime, threadId: mainThreadId };
@@ -584,7 +584,7 @@ export function SyncPlugin({
       tryApplyParserChange();
     }
 
-    return composerRuntime.subscribe(() => {
+    const onUpdate = () => {
       if (isSyncingFromLexicalRef.current) return;
 
       const composerChanged = updateComposerIdentity();
@@ -594,7 +594,10 @@ export function SyncPlugin({
       if (runtimeText === lastSyncedTextRef.current) return;
 
       applyRuntimeText(runtimeText, undefined, undefined, composerChanged);
-    });
+    };
+    return legacyRuntime
+      ? legacyRuntime.subscribe(onUpdate)
+      : aui.subscribe(onUpdate);
   }, [editor, aui, parser, mainThreadId]);
 
   return null;
