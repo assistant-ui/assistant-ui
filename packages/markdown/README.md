@@ -41,6 +41,16 @@ import { Markdown } from "@assistant-ui/markdown/react";
 
 Math renders as its TeX source in `code` elements with the `language-math` class and `math-inline` or `math-display`.
 
+## React Native
+
+```tsx
+import { Markdown } from "@assistant-ui/markdown/react-native";
+
+<Markdown text={text} final={status !== "running"} />;
+```
+
+`Markdown` renders native `View`, `Text`, and `Image` elements with vertical spacing between blocks. It accepts the same `text`, `final`, and `components` props as the React renderer and keeps settled blocks from rendering again while streaming. Links open through `Linking.openURL`; code and math render as monospace source, and raw HTML renders as plain text. Override node components to customize styling, including text colors.
+
 ## URLs and HTML
 
 A link destination or image source must be relative or use a scheme other than `javascript:`, `vbscript:`, `file:`, or `data:`, except a `data:image/` URL in GIF, PNG, JPEG, or WebP. A link or image that fails this check, including one defined by a reference, stays in the tree as its literal text. While a message streams, a link whose destination is unfinished carries no `url`.
