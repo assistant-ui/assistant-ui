@@ -161,7 +161,7 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
     expect(onNewB).toHaveBeenCalledTimes(1);
   });
 
-  it("costs two passes per provider commit in the documented shape", async () => {
+  it("costs one pass per provider commit in the documented shape", async () => {
     // Fresh children on every render, as the AssistantRuntimeProvider JSDoc
     // example does, so its memo does not block.
     const { App, onNewA, renderThreadRuntime } = createHarness();
@@ -174,7 +174,7 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
       view.rerender(<App onNew={onNewA} />);
     });
 
-    expect(renderThreadRuntime).toHaveBeenCalledTimes(2);
+    expect(renderThreadRuntime).toHaveBeenCalledTimes(1);
   });
 
   it("costs one pass when the provider memo blocks the host render", async () => {
