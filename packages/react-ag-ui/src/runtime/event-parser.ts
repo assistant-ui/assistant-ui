@@ -7,6 +7,7 @@ import type {
 import type { Logger } from "./logger";
 import { parseMcpToolCallResult } from "./mcp-tool-result";
 import { withRawResponseSchema } from "./interrupt-internals";
+import type { ContentPart } from "@ag-ui/client";
 
 export type ParseAgUiEventOptions = {
   logger?: Logger;
@@ -79,7 +80,19 @@ const parseRunFinishedOutcome = (
     );
     return undefined;
   }
-  if (raw.type === "success") return { type: "success" };
+  if (raw.type === "success") {
+    return withOptional(
+      { type: "success" as const },
+      {
+        pendingToolCallIds:
+          Array.isArray(raw.pendingToolCallIds) &&
+          raw.pendingToolCallIds.every(isString)
+            ? raw.pendingToolCallIds
+            : undefined,
+      },
+    );
+  }
+  if (raw.type === "cancelled") return { type: "cancelled" };
   if (raw.type === "interrupt") {
     if (!Array.isArray(raw.interrupts)) {
       logRejectedEvent(
@@ -210,74 +223,50 @@ export const parseAgUiEvent = (
           subagentRunId: getString("subagentRunId"),
         },
       );
-    case "TEXT_MESSAGE_CHUNK": {
-      const delta = getString("delta") ?? "";
+    case "REASONING_START": {
+      const messageId = getString("messageId");
+      if (!messageId) return reject("missing messageId");
       return withOptional(
-        { type: "TEXT_MESSAGE_CHUNK" as const, delta },
+        { type: "REASONING_START" as const, messageId },
         {
-          messageId: getString("messageId"),
-          subagentRunId: getString("subagentRunId"),
-        },
-      );
-    }
-    case "THINKING_START":
-      return withOptional(
-        { type: "THINKING_START" as const },
-        { title: getString("title"), timestamp },
-      );
-    case "THINKING_TEXT_MESSAGE_START":
-      return withOptional(
-        { type: "THINKING_TEXT_MESSAGE_START" as const },
-        { timestamp },
-      );
-    case "THINKING_TEXT_MESSAGE_CONTENT": {
-      const delta = getString("delta") ?? "";
-      return { type: "THINKING_TEXT_MESSAGE_CONTENT", delta };
-    }
-    case "THINKING_TEXT_MESSAGE_END":
-      return withOptional(
-        { type: "THINKING_TEXT_MESSAGE_END" as const },
-        { timestamp },
-      );
-    case "THINKING_END":
-      return withOptional({ type: "THINKING_END" as const }, { timestamp });
-    case "REASONING_START":
-      return withOptional(
-        { type: "REASONING_START" as const },
-        {
-          messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
           timestamp,
         },
       );
-    case "REASONING_MESSAGE_START":
+    }
+    case "REASONING_MESSAGE_START": {
+      const messageId = getString("messageId");
+      if (!messageId) return reject("missing messageId");
       return withOptional(
-        { type: "REASONING_MESSAGE_START" as const },
+        { type: "REASONING_MESSAGE_START" as const, messageId },
         {
-          messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
           timestamp,
         },
       );
+    }
     case "REASONING_MESSAGE_CONTENT": {
+      const messageId = getString("messageId");
+      if (!messageId) return reject("missing messageId");
       const delta = getString("delta") ?? "";
       return withOptional(
-        { type: "REASONING_MESSAGE_CONTENT" as const, delta },
+        { type: "REASONING_MESSAGE_CONTENT" as const, messageId, delta },
         {
-          messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
         },
       );
     }
-    case "REASONING_MESSAGE_END":
+    case "REASONING_MESSAGE_END": {
+      const messageId = getString("messageId");
+      if (!messageId) return reject("missing messageId");
       return withOptional(
-        { type: "REASONING_MESSAGE_END" as const },
+        { type: "REASONING_MESSAGE_END" as const, messageId },
         {
-          messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
           timestamp,
         },
       );
+    }
     case "REASONING_ENCRYPTED_VALUE": {
       const entityId = getString("entityId");
       const encryptedValue = getString("encryptedValue");
@@ -299,15 +288,17 @@ export const parseAgUiEvent = (
         ...(subagentRunId !== undefined ? { subagentRunId } : {}),
       };
     }
-    case "REASONING_END":
+    case "REASONING_END": {
+      const messageId = getString("messageId");
+      if (!messageId) return reject("missing messageId");
       return withOptional(
-        { type: "REASONING_END" as const },
+        { type: "REASONING_END" as const, messageId },
         {
-          messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
           timestamp,
         },
       );
+    }
     case "TOOL_CALL_START": {
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return reject("missing toolCallId");
@@ -337,21 +328,12 @@ export const parseAgUiEvent = (
         { subagentRunId: getString("subagentRunId") },
       );
     }
-    case "TOOL_CALL_CHUNK":
-      return withOptional(
-        { type: "TOOL_CALL_CHUNK" as const },
-        {
-          toolCallId: getString("toolCallId"),
-          toolCallName: getString("toolCallName"),
-          parentMessageId: getString("parentMessageId"),
-          delta: getString("delta"),
-          subagentRunId: getString("subagentRunId"),
-        },
-      );
     case "TOOL_CALL_RESULT": {
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return reject("missing toolCallId");
-      const content = getString("content") ?? "";
+      const content = Array.isArray(payload.content)
+        ? (payload.content as ContentPart[])
+        : (getString("content") ?? "");
       return withOptional(
         {
           type: "TOOL_CALL_RESULT" as const,

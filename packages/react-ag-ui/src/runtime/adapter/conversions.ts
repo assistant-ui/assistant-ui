@@ -1,6 +1,10 @@
 "use client";
 
-import type { InputContent, RunAgentParameters } from "@ag-ui/client";
+import type {
+  ContentPart,
+  PartSource,
+  RunAgentParameters,
+} from "@ag-ui/client";
 import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
@@ -34,9 +38,8 @@ import { projectAgUiToolApprovals } from "./tool-approval";
 import {
   parseMcpToolCallResult,
   readMcpAppResourceUri,
+  toolContentText,
 } from "../mcp-tool-result";
-
-export type { InputContent };
 
 type AttachmentLike = {
   name?: string | undefined;
@@ -67,7 +70,7 @@ export type AgUiMessage =
   | {
       id: string;
       role: "user";
-      content: string | InputContent[];
+      content: string | ContentPart[];
       name?: string;
       metadata?: Record<string, unknown>;
     }
@@ -96,7 +99,7 @@ export type AgUiMessage =
   | {
       id: string;
       role: "tool";
-      content: string;
+      content: string | ContentPart[];
       toolCallId: string;
       error?: string;
       metadata?: Record<string, unknown>;
@@ -246,7 +249,7 @@ const readAgUiReasoningMeta = (providerMetadata: unknown) => {
 // AG-UI carries per-item extras in `metadata`; anything else on the item is
 // stripped by its schema. The part's own `filename` wins over a key of the
 // same name in the bag.
-const buildInputMetadata = (
+const buildPartMetadata = (
   part: Record<string, unknown>,
   filename?: string | undefined,
 ) => {
@@ -260,7 +263,7 @@ const buildInputMetadata = (
 // The inverse: `filename` lands on the part's own field, everything else the
 // item carried goes back into the namespace it came from, so a snapshot echo
 // resends what the host attached.
-const readInputMetadata = (
+const readPartMetadata = (
   metadata: unknown,
 ): {
   filename?: string | undefined;
@@ -326,9 +329,7 @@ function extractText(content: unknown): string {
     .join("\n");
 }
 
-type InputContentSource =
-  | { type: "data"; value: string; mimeType: string }
-  | { type: "url"; value: string; mimeType?: string };
+type EncodedPartSource = Extract<PartSource, { type: "data" | "url" }>;
 
 type MediaInputType = "image" | "audio" | "video" | "document";
 
@@ -345,11 +346,11 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 // `sourceType: "url"` on the part forces the url leg for non-http references,
 // and a data URL that is not base64 takes it too, since a `data` source
 // carries base64 bytes.
-function buildInputSource(
+function buildPartSource(
   value: string,
   declaredMimeType: string | undefined,
   sourceType?: string,
-): InputContentSource {
+): EncodedPartSource {
   const source = resolveFilePartSource({
     data: value,
     mimeType: declaredMimeType ?? "application/octet-stream",
@@ -368,10 +369,10 @@ function buildInputSource(
   };
 }
 
-function toInputContent(
+function toContentPart(
   part: unknown,
   fallbackMimeType: string | undefined,
-): InputContent | null {
+): ContentPart | null {
   if (!isObject(part)) return null;
   const type = getString(part, "type");
 
@@ -384,8 +385,8 @@ function toInputContent(
   if (type === "image") {
     const image = getString(part, "image");
     if (image === undefined) return null;
-    const metadata = buildInputMetadata(part, getString(part, "filename"));
-    const source = buildInputSource(image, fallbackMimeType);
+    const metadata = buildPartMetadata(part, getString(part, "filename"));
+    const source = buildPartSource(image, fallbackMimeType);
     return {
       type: "image",
       source:
@@ -404,12 +405,12 @@ function toInputContent(
     if (data === undefined) return null;
     const declaredMimeType = getString(part, "mimeType") || fallbackMimeType;
     const filename = getString(part, "filename");
-    const source = buildInputSource(
+    const source = buildPartSource(
       data,
       declaredMimeType,
       getString(part, "sourceType"),
     );
-    const metadata = buildInputMetadata(part, filename);
+    const metadata = buildPartMetadata(part, filename);
     switch (mediaTypeForMime(source.mimeType)) {
       case "image":
         return { type: "image", source, ...(metadata && { metadata }) };
@@ -430,7 +431,7 @@ function toInputContent(
     if (data === undefined || format === undefined) return null;
     return {
       type: "audio",
-      source: buildInputSource(
+      source: buildPartSource(
         parseDataUrl(data)?.data ?? data,
         `audio/${format}`,
       ),
@@ -446,8 +447,7 @@ type SnapshotAttachment = NonNullable<
 
 const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
 
-// Inverse of buildInputSource.
-function inputSourceToString(
+function partSourceToString(
   value: unknown,
 ): { value: string; mimeType?: string; isUrl?: boolean } | null {
   if (!isObject(value)) return null;
@@ -469,6 +469,7 @@ function inputSourceToString(
       mimeType: resolvedMimeType,
     };
   }
+  if (type === "file") return null;
   return null;
 }
 
@@ -507,10 +508,10 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
     if (!part) continue;
     const type = getString(part, "type");
     if (type === undefined || !mediaInputTypes.has(type)) continue;
-    const source = inputSourceToString(part.source);
+    const source = partSourceToString(part.source);
     if (!source) continue;
 
-    const { filename, providerMetadata } = readInputMetadata(part.metadata);
+    const { filename, providerMetadata } = readPartMetadata(part.metadata);
     const id = attachments.length.toString();
 
     if (type === "image") {
@@ -554,12 +555,12 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
   return attachments;
 }
 
-function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
+function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
   const contentParts = Array.isArray(message.content) ? message.content : [];
 
   const attachments = message.attachments ?? [];
 
-  const converted: InputContent[] = [];
+  const converted: ContentPart[] = [];
 
   // Promote string-form content to a leading text part so it survives when
   // non-text attachments are present (fromAgUiMessages emits string content).
@@ -568,7 +569,7 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   }
 
   for (const part of contentParts) {
-    const input = toInputContent(part, undefined);
+    const input = toContentPart(part, undefined);
     if (input) converted.push(input);
   }
   for (const attachment of attachments) {
@@ -577,8 +578,33 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
     if (!Array.isArray(attachmentContent)) continue;
     const fallbackMime = getString(attachment, "contentType");
     for (const part of attachmentContent) {
-      const input = toInputContent(part, fallbackMime);
+      const input = toContentPart(part, fallbackMime);
       if (input) converted.push(input);
+    }
+  }
+
+  const fileSourceParts = readNamespacedMetadata(
+    message.metadata,
+  ).fileSourceParts;
+  if (Array.isArray(fileSourceParts)) {
+    for (const entry of fileSourceParts) {
+      if (!isObject(entry) || !isObject(entry.part)) continue;
+      const { index, part } = entry;
+      if (
+        typeof index !== "number" ||
+        !Number.isInteger(index) ||
+        index < 0 ||
+        !mediaInputTypes.has(getString(part, "type") ?? "") ||
+        !isObject(part.source) ||
+        part.source.type !== "file" ||
+        typeof part.source.value !== "string"
+      )
+        continue;
+      converted.splice(
+        Math.min(index, converted.length),
+        0,
+        part as ContentPart,
+      );
     }
   }
 
@@ -794,10 +820,22 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
-  const custom = toSnapshotCustom(
-    rawMessage.metadata,
-    role === "developer" ? { role: "developer" } : {},
-  );
+  const fileSourceParts =
+    role === "user" && Array.isArray(rawMessage.content)
+      ? rawMessage.content.flatMap((part, index) =>
+          isObject(part) &&
+          mediaInputTypes.has(getString(part, "type") ?? "") &&
+          isObject(part.source) &&
+          part.source.type === "file" &&
+          typeof part.source.value === "string"
+            ? [{ index, part }]
+            : [],
+        )
+      : [];
+  const custom = toSnapshotCustom(rawMessage.metadata, {
+    ...(role === "developer" ? { role: "developer" } : {}),
+    ...(fileSourceParts.length > 0 ? { fileSourceParts } : {}),
+  });
   const attachments =
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
   return {
@@ -1030,18 +1068,27 @@ export function fromAgUiMessages(
       flushPendingReasoning();
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
       const toolMessageId = getString(rawMessage, "id");
-      const modelContent = extractText(rawMessage.content);
-      const mcpResult = parseMcpToolCallResult(rawMessage, modelContent);
-      const mcpModelContent = mcpResult
+      const modelContent = Array.isArray(rawMessage.content)
+        ? toolContentText(rawMessage.content as ContentPart[])
+        : extractText(rawMessage.content);
+      const mcpResult = parseMcpToolCallResult(
+        rawMessage,
+        Array.isArray(rawMessage.content)
+          ? (rawMessage.content as ContentPart[])
+          : modelContent,
+      );
+      const toolModelContent = mcpResult
         ? [{ type: "text" as const, text: modelContent }]
         : undefined;
       const result =
         mcpResult ??
-        (rawMessage.result !== undefined
-          ? rawMessage.result
-          : typeof rawMessage.content === "string"
-            ? parseJSONText(rawMessage.content)
-            : rawMessage.content);
+        (Array.isArray(rawMessage.content)
+          ? rawMessage.content
+          : rawMessage.result !== undefined
+            ? rawMessage.result
+            : typeof rawMessage.content === "string"
+              ? parseJSONText(rawMessage.content)
+              : rawMessage.content);
       const isError =
         typeof rawMessage.error === "string" ||
         rawMessage.isError === true ||
@@ -1078,10 +1125,14 @@ export function fromAgUiMessages(
           if (!isObject(part) || part.type !== "tool-call") continue;
           if (getString(part, "toolCallId") !== toolCallId) continue;
 
+          const { modelContent: _modelContent, ...partWithoutModelContent } =
+            part as ToolCallPart;
           const updatedPart: ToolCallPart = {
-            ...(part as ToolCallPart),
+            ...(Array.isArray(rawMessage.content) && !mcpResult
+              ? partWithoutModelContent
+              : (part as ToolCallPart)),
             result,
-            ...(mcpModelContent ? { modelContent: mcpModelContent } : {}),
+            ...(toolModelContent ? { modelContent: toolModelContent } : {}),
             ...(isError !== undefined ? { isError } : {}),
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
@@ -1125,7 +1176,7 @@ export function fromAgUiMessages(
             args: {},
             argsText: "{}",
             result,
-            ...(mcpModelContent ? { modelContent: mcpModelContent } : {}),
+            ...(toolModelContent ? { modelContent: toolModelContent } : {}),
             ...(isError !== undefined ? { isError } : {}),
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
@@ -1478,6 +1529,22 @@ function convertAssistantMessage(
   }
 }
 
+function isToolContentParts(value: unknown): value is ContentPart[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (part) =>
+        isObject(part) &&
+        (part.type === "text"
+          ? typeof part.text === "string"
+          : mediaInputTypes.has(getString(part, "type") ?? "") &&
+            isObject(part.source) &&
+            typeof part.source.value === "string"),
+    )
+  );
+}
+
 function emitToolResult(
   toolCallId: string,
   part: ToolCallPart,
@@ -1488,9 +1555,11 @@ function emitToolResult(
   const resultContent =
     part.modelContent !== undefined
       ? extractText(part.modelContent)
-      : typeof part.result === "string"
+      : isToolContentParts(part.result)
         ? part.result
-        : JSON.stringify(part.result);
+        : typeof part.result === "string"
+          ? part.result
+          : JSON.stringify(part.result);
   const messageMetadata = readAgUiPartMessageMetadata(part.providerMetadata);
 
   converted.push({
@@ -1498,7 +1567,13 @@ function emitToolResult(
     role: "tool",
     content: resultContent,
     toolCallId,
-    ...(part.isError ? { error: resultContent } : {}),
+    ...(part.isError
+      ? {
+          error: Array.isArray(resultContent)
+            ? toolContentText(resultContent)
+            : resultContent,
+        }
+      : {}),
     ...(messageMetadata ? { metadata: messageMetadata } : {}),
   });
 }
@@ -1507,7 +1582,9 @@ function convertToolMessage(
   message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
-  const content = extractText(message.content);
+  const content = isToolContentParts(message.content)
+    ? message.content
+    : extractText(message.content);
   const toolCallId = message.toolCallId ?? generateId();
 
   converted.push({

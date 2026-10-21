@@ -12,6 +12,7 @@ import {
   type ToolModelContentPart,
 } from "@assistant-ui/core";
 import type { JoinStrategy } from "@assistant-ui/core/react";
+import type { ContentPart } from "@ag-ui/client";
 import {
   applyA2uiOperations,
   surfaceToPresentToolCall,
@@ -19,7 +20,7 @@ import {
   type A2uiSurfaceState,
 } from "@assistant-ui/generative-ui/a2ui";
 import jsonpatch, { type Operation } from "fast-json-patch";
-import { readMcpAppResourceUri } from "../mcp-tool-result";
+import { readMcpAppResourceUri, toolContentText } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import {
   AG_UI_METADATA_NAMESPACE,
@@ -214,20 +215,14 @@ export class RunAggregator {
   >();
   private readonly reasoningSignatures = new Map<string, string>();
   private readonly reasoningSignatureIds = new Map<string, string>();
-  // Signatures captured while thinking is hidden have no block to live on;
-  // they are transport state that must survive to the next run input. The
-  // claim rules mirror the visible path: an id-carrying block, or an open
-  // anonymous one.
   private readonly hiddenSignatures = new Map<string, string>();
   private readonly hiddenSignatureAnchors = new Map<string, number>();
   private readonly hiddenBlockAnchors = new Map<string, number>();
-  private hiddenAnonymousAnchor: number | undefined;
   private readonly hiddenReasoningIds = new Set<string>();
-  private hiddenActiveReasoning: "none" | "anonymous" | "identified" = "none";
+  private hiddenActiveReasoningId: string | undefined;
   private hasEmittedOpaqueReasoning = false;
   private readonly loggedDroppedOpaqueIds = new Set<string>();
   private readonly reasoningMessageIds = new Map<string, string>();
-  private readonly anonymousReasoningKeys = new Set<string>();
   private readonly activeReasoningKeyByScope = new Map<string, string>();
   private readonly subagentRuns = new Map<string, SubagentRunState>();
   // The nesting graph only moves when a run is announced or a tool call is
@@ -239,7 +234,6 @@ export class RunAggregator {
         reachable: Set<string>;
       }
     | undefined;
-  private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly a2uiBuckets = new Map<string, A2uiState>();
   private readonly a2uiToolCallIds = new Set<string>();
@@ -288,6 +282,13 @@ export class RunAggregator {
         break;
       }
       case "RUN_FINISHED": {
+        if (event.outcome?.type === "cancelled") {
+          this.interrupts = undefined;
+          this.status = { type: "incomplete", reason: "cancelled" };
+          this.closeOpenSubagentRuns(this.status);
+          this.emit();
+          break;
+        }
         if (event.outcome?.type === "interrupt") {
           this.interrupts = event.outcome.interrupts;
           this.status = { type: "requires-action", reason: "interrupt" };
@@ -300,9 +301,19 @@ export class RunAggregator {
         // a root call is: getPendingToolCalls and addToolResult walk
         // ToolCallMessagePart.messages, so any unresolved call keeps the run
         // resumable.
-        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
-          (tc) => tc.result === undefined,
-        );
+        const pendingToolCallIds =
+          event.outcome?.type === "success"
+            ? event.outcome.pendingToolCallIds
+            : undefined;
+        const hasUnresolvedToolCalls =
+          pendingToolCallIds && pendingToolCallIds.length > 0
+            ? pendingToolCallIds.some((id) => {
+                const call = this.toolCalls.get(id);
+                return call !== undefined && call.result === undefined;
+              })
+            : Array.from(this.toolCalls.values()).some(
+                (tc) => tc.result === undefined,
+              );
 
         this.status = hasUnresolvedToolCalls
           ? { type: "requires-action", reason: "tool-calls" }
@@ -348,9 +359,8 @@ export class RunAggregator {
         this.emit();
         break;
       }
-      case "TEXT_MESSAGE_CONTENT":
-      case "TEXT_MESSAGE_CHUNK": {
-        const incomingId = "messageId" in event ? event.messageId : undefined;
+      case "TEXT_MESSAGE_CONTENT": {
+        const incomingId = event.messageId;
         const scope = this.scopeOf(event);
         if (scope === ROOT_SCOPE) {
           this.beginDistinctTextMessage(incomingId);
@@ -390,13 +400,11 @@ export class RunAggregator {
         break;
       }
 
-      case "THINKING_START":
-      case "THINKING_TEXT_MESSAGE_START":
       case "REASONING_START":
       case "REASONING_MESSAGE_START":
         this.handleReasoningStart(
-          this.scopeOf("subagentRunId" in event ? event : {}),
-          "messageId" in event ? event.messageId : undefined,
+          this.scopeOf(event),
+          event.messageId,
           event.type === "REASONING_MESSAGE_START",
           event.timestamp,
         );
@@ -404,60 +412,41 @@ export class RunAggregator {
       case "REASONING_ENCRYPTED_VALUE":
         if (event.subtype === "message") {
           const scope = this.scopeOf(event);
-          // entityId names any message, not necessarily a reasoning one, so an
-          // unmatched id may only claim a block that has no id to contradict it.
-          const active = this.activeReasoningKeyByScope.get(scope);
           const entityKey = this.partKey(scope, event.entityId);
-          const key = this.showThinking
-            ? this.reasoningParts.has(entityKey)
+          const key =
+            this.showThinking && this.reasoningParts.has(entityKey)
               ? entityKey
-              : active !== undefined && this.anonymousReasoningKeys.has(active)
-                ? active
-                : undefined
-            : undefined;
+              : undefined;
           if (key !== undefined) {
             this.reasoningSignatures.set(key, event.encryptedValue);
             this.reasoningSignatureIds.set(key, event.entityId);
             this.emit();
           } else if (
             !this.showThinking &&
-            // Hidden-reasoning bookkeeping stays root-only for this task — a
-            // subagent's opaque/hidden reasoning signatures are not preserved.
             scope === ROOT_SCOPE &&
             event.entityId.trim().length > 0 &&
             event.encryptedValue.trim().length > 0 &&
-            (this.hiddenReasoningIds.has(event.entityId) ||
-              this.hiddenActiveReasoning === "anonymous")
+            this.hiddenReasoningIds.has(event.entityId)
           ) {
             this.hiddenSignatures.set(event.entityId, event.encryptedValue);
             this.hiddenSignatureAnchors.set(
               event.entityId,
               this.hiddenBlockAnchors.get(event.entityId) ??
-                this.hiddenAnonymousAnchor ??
                 this.partOrder.length,
             );
             this.emit();
           }
         }
         break;
-      case "THINKING_TEXT_MESSAGE_CONTENT":
-        this.handleReasoningContent(ROOT_SCOPE, event.delta);
-        this.totalChunks++;
-        this.recordFirstToken();
-        break;
       case "REASONING_MESSAGE_CONTENT":
         this.handleReasoningContent(
           this.scopeOf(event),
           event.delta,
-          "messageId" in event ? event.messageId : undefined,
+          event.messageId,
           true,
         );
         this.totalChunks++;
         this.recordFirstToken();
-        break;
-      case "THINKING_TEXT_MESSAGE_END":
-      case "THINKING_END":
-        this.handleReasoningEnd(ROOT_SCOPE, event.timestamp);
         break;
       case "REASONING_MESSAGE_END":
       case "REASONING_END":
@@ -478,14 +467,7 @@ export class RunAggregator {
         this.emit();
         break;
       }
-      case "TOOL_CALL_ARGS":
-      case "TOOL_CALL_CHUNK": {
-        if (
-          event.type === "TOOL_CALL_CHUNK" &&
-          this.scopeOf(event) === ROOT_SCOPE
-        ) {
-          this.reportServerMessageId(event.parentMessageId);
-        }
+      case "TOOL_CALL_ARGS": {
         if (!event.delta) break;
         this.appendToolArgs(event.toolCallId, event.delta);
         this.emit();
@@ -813,15 +795,12 @@ export class RunAggregator {
     this.hiddenSignatures.clear();
     this.hiddenSignatureAnchors.clear();
     this.hiddenBlockAnchors.clear();
-    this.hiddenAnonymousAnchor = undefined;
     this.hiddenReasoningIds.clear();
-    this.hiddenActiveReasoning = "none";
+    this.hiddenActiveReasoningId = undefined;
     this.loggedDroppedOpaqueIds.clear();
-    this.anonymousReasoningKeys.clear();
     this.activeReasoningKeyByScope.clear();
     this.nestingMemo = undefined;
     this.subagentRuns.clear();
-    this.reasoningPartCounter = 0;
     this.toolCalls.clear();
     this.a2uiBuckets.clear();
     this.a2uiToolCallIds.clear();
@@ -867,10 +846,8 @@ export class RunAggregator {
     if (carried.parts.length > 0 || carried.hiddenSignatures.length > 0) {
       this.emit();
     }
-    const reasoningPartCounter = this.reasoningPartCounter;
     this.resetMessageParts();
     this.onTextMessageStart(messageId);
-    this.reasoningPartCounter = reasoningPartCounter;
     this.restoreReasoning(carried);
   }
 
@@ -881,7 +858,6 @@ export class RunAggregator {
       signature: string | undefined;
       signatureId: string | undefined;
       reasoningId: string | undefined;
-      anonymous: boolean;
     }[] = [];
     let last = this.partOrder.at(-1);
     while (
@@ -896,7 +872,6 @@ export class RunAggregator {
         signature: this.reasoningSignatures.get(last.key),
         signatureId: this.reasoningSignatureIds.get(last.key),
         reasoningId: this.reasoningMessageIds.get(last.key),
-        anonymous: this.anonymousReasoningKeys.has(last.key),
       });
       last = this.partOrder.at(-1);
     }
@@ -911,22 +886,17 @@ export class RunAggregator {
     const hiddenBlockIds = Array.from(this.hiddenBlockAnchors)
       .filter(([, anchor]) => anchor >= cut)
       .map(([id]) => id);
-    const hiddenAnonymous =
-      this.hiddenAnonymousAnchor !== undefined &&
-      this.hiddenAnonymousAnchor >= cut;
-    const activeCarried =
-      (this.hiddenActiveReasoning === "identified" &&
-        hiddenBlockIds.length > 0) ||
-      (this.hiddenActiveReasoning === "anonymous" && hiddenAnonymous);
+    const hiddenActiveReasoningId = this.hiddenActiveReasoningId;
     return {
       parts,
       activeKey: this.activeReasoningKeyByScope.get(ROOT_SCOPE),
       hiddenSignatures,
       hiddenBlockIds,
-      hiddenAnonymous,
-      hiddenActiveReasoning: activeCarried
-        ? this.hiddenActiveReasoning
-        : ("none" as const),
+      hiddenActiveReasoningId:
+        hiddenActiveReasoningId !== undefined &&
+        hiddenBlockIds.includes(hiddenActiveReasoningId)
+          ? hiddenActiveReasoningId
+          : undefined,
     };
   }
 
@@ -942,7 +912,6 @@ export class RunAggregator {
         this.reasoningSignatureIds.set(part.key, part.signatureId);
       if (part.reasoningId !== undefined)
         this.reasoningMessageIds.set(part.key, part.reasoningId);
-      if (part.anonymous) this.anonymousReasoningKeys.add(part.key);
     }
     if (
       carried.activeKey !== undefined &&
@@ -958,8 +927,7 @@ export class RunAggregator {
       this.hiddenReasoningIds.add(id);
       this.hiddenBlockAnchors.set(id, 0);
     }
-    if (carried.hiddenAnonymous) this.hiddenAnonymousAnchor = 0;
-    this.hiddenActiveReasoning = carried.hiddenActiveReasoning;
+    this.hiddenActiveReasoningId = carried.hiddenActiveReasoningId;
   }
 
   private generateTextKey(): string {
@@ -1118,12 +1086,13 @@ export class RunAggregator {
   private finishToolCall(
     scope: string,
     id: string,
-    content: string,
+    content: string | ContentPart[],
     isError?: boolean,
     toolMessageId?: string,
     mcpResult?: Record<string, unknown>,
   ) {
     if (!id) return;
+    const modelText = toolContentText(content);
     let entry = this.toolCalls.get(id);
     if (!entry) {
       entry = {
@@ -1148,7 +1117,7 @@ export class RunAggregator {
     }
     if (mcpResult !== undefined && !entry.snapshotResultApplied) {
       entry.result = mcpResult;
-      entry.modelContent = [{ type: "text", text: content }];
+      entry.modelContent = [{ type: "text", text: modelText }];
       entry.snapshotResultApplied = true;
       entry.isError = isError;
       if (entry.mcpAppResourceUri === undefined) {
@@ -1157,13 +1126,16 @@ export class RunAggregator {
       }
     } else if (entry.snapshotResultApplied) {
       if (entry.modelContent === undefined) {
-        entry.modelContent = [{ type: "text", text: content }];
+        entry.modelContent = [{ type: "text", text: modelText }];
       }
       if (entry.isError === undefined) {
         entry.isError = isError;
       }
     } else {
-      entry.result = tryParseJSON(content);
+      entry.result = Array.isArray(content) ? content : tryParseJSON(content);
+      if (Array.isArray(content)) {
+        delete entry.modelContent;
+      }
       entry.isError = isError;
     }
     if (toolMessageId) {
@@ -1448,15 +1420,6 @@ export class RunAggregator {
     const snapshot = this.buildParts(ROOT_SCOPE, 0, ctx);
     const { opaqueCandidates, lastMaterializedIndex } = root;
 
-    // An anonymous claim promotes the signature's entityId to a wire message
-    // id; when that id actually names a text message or the adopted assistant
-    // message id (which can also arrive via TOOL_CALL_START.parentMessageId),
-    // replaying it as its own record would put two wire records under one id,
-    // so such entries are dropped instead — the same outcome the visible
-    // path's claim guard produces for a signature that is "not for this
-    // block". Entries with no materialized part after their anchor trail the
-    // assistant record, matching the snapshot path's anchor/after
-    // bookkeeping.
     const toolMessageIds = new Set<string>();
     for (const call of this.toolCalls.values()) {
       if (call.toolMessageId) toolMessageIds.add(call.toolMessageId);
@@ -1552,38 +1515,23 @@ export class RunAggregator {
 
   private handleReasoningStart(
     scope: string,
-    messageId?: string,
+    messageId: string,
     isMessageId = false,
     timestamp?: number,
   ): void {
     if (!this.showThinking) {
-      // Hidden-reasoning bookkeeping stays root-only for this task — a
-      // subagent's opaque/hidden reasoning signatures are not preserved.
       if (scope !== ROOT_SCOPE) return;
       const anchor = this.partOrder.length;
-      if (messageId === undefined) {
-        this.hiddenActiveReasoning = "anonymous";
-        this.hiddenAnonymousAnchor = anchor;
-      } else {
-        this.hiddenReasoningIds.add(messageId);
-        this.hiddenBlockAnchors.set(messageId, anchor);
-        this.hiddenActiveReasoning = "identified";
-      }
+      this.hiddenReasoningIds.add(messageId);
+      this.hiddenBlockAnchors.set(messageId, anchor);
+      this.hiddenActiveReasoningId = messageId;
       return;
     }
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text — scoped.
     this.activeTextMessageIdByScope.delete(scope);
-    const key = this.partKey(
-      scope,
-      messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`,
-    );
-    // Two different questions: which id may be replayed as a ReasoningMessage.id
-    // (only the message-scoped aliases carry one), and which block an unmatched
-    // signature may claim (any block opened without an id at all).
-    if (messageId === undefined) {
-      this.anonymousReasoningKeys.add(key);
-    } else if (isMessageId) {
+    const key = this.partKey(scope, messageId);
+    if (isMessageId) {
       this.reasoningMessageIds.set(key, messageId);
     }
     if (!this.reasoningParts.has(key)) {
@@ -1611,7 +1559,7 @@ export class RunAggregator {
   private handleReasoningContent(
     scope: string,
     delta: string,
-    messageId?: string,
+    messageId: string,
     isMessageId = false,
   ): void {
     if (!delta) return;
@@ -1619,7 +1567,7 @@ export class RunAggregator {
       // Content without a preceding START still names the block (the visible
       // path opens it lazily); register it so a signature can claim it.
       if (scope !== ROOT_SCOPE) return;
-      if (this.hiddenActiveReasoning === "none") {
+      if (this.hiddenActiveReasoningId === undefined) {
         this.handleReasoningStart(scope, messageId, isMessageId);
       }
       return;
@@ -1637,7 +1585,7 @@ export class RunAggregator {
 
   private handleReasoningEnd(scope: string, timestamp?: number): void {
     if (!this.showThinking) {
-      if (scope === ROOT_SCOPE) this.hiddenActiveReasoning = "none";
+      if (scope === ROOT_SCOPE) this.hiddenActiveReasoningId = undefined;
       return;
     }
     const key = this.activeReasoningKeyByScope.get(scope);

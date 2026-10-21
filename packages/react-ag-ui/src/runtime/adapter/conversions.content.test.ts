@@ -1,9 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import {
-  MessageSchema,
-  UserMessageSchema,
-  type Message as AgUiWireMessage,
-} from "@ag-ui/client";
+import type { Message as AgUiWireMessage } from "@ag-ui/client";
+import { MessageSchema, UserMessageSchema } from "@ag-ui/core/schemas";
 import type { AppendMessage } from "@assistant-ui/core";
 import {
   fromAgUiMessages,
@@ -82,6 +79,41 @@ describe("toAgUiMessages data URLs", () => {
 });
 
 describe("toAgUiMessages content metadata", () => {
+  it.each(["image", "document"] as const)(
+    "preserves a %s file source and its metadata through a snapshot round trip",
+    (type) => {
+      const part = {
+        type,
+        source: {
+          type: "file",
+          value: `${type}-handle`,
+          provider: "openai",
+          mimeType: type === "image" ? "image/png" : "application/pdf",
+        },
+        metadata: { filename: `${type}.bin`, file_id: `${type}-1` },
+      };
+      const original = {
+        id: "u-file",
+        role: "user",
+        content: [
+          part,
+          { type: "text", text: "label" },
+          {
+            type: "image",
+            source: { type: "url", value: "https://example.com/other.png" },
+          },
+        ],
+        metadata: { trace: "kept" },
+      };
+
+      const imported = fromAgUiMessages([original]);
+      const exported = toAgUiMessages(imported);
+
+      expect(MessageSchema.parse(exported[0])).toEqual(original);
+      expect(exported).toEqual([original]);
+    },
+  );
+
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
   });

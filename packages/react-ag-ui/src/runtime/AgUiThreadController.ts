@@ -45,7 +45,7 @@ import {
   type AgUiThreadState,
 } from "./agUiThreadState";
 import type { Logger } from "./logger";
-import { readMcpAppResourceUri } from "./mcp-tool-result";
+import { readMcpAppResourceUri, toolContentText } from "./mcp-tool-result";
 import type {
   AgUiCustomMetadata,
   AgUiEvent,
@@ -638,6 +638,7 @@ export class AgUiThreadController {
     this.assertInterruptsAnswerable(
       "submitInterruptResponses",
       pending.interrupts,
+      responsesById,
     );
 
     await this.resumeWithResponses(
@@ -685,6 +686,7 @@ export class AgUiThreadController {
   private assertInterruptsAnswerable(
     method: "submitInterruptResponses" | "respondToToolApproval",
     interrupts: readonly AgUiInterrupt[],
+    responsesById?: ReadonlyMap<string, AgUiResumeEntry>,
   ): void {
     const now = Date.now();
     for (const interrupt of interrupts) {
@@ -695,7 +697,10 @@ export class AgUiThreadController {
           `[agui] ${method}: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
         );
       }
-      if (expiry <= now) {
+      if (
+        expiry <= now &&
+        responsesById?.get(interrupt.id)?.status !== "cancelled"
+      ) {
         throw new Error(
           `[agui] ${method}: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
         );
@@ -2213,6 +2218,7 @@ export class AgUiThreadController {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const mcpAppUri = readMcpAppResourceUri(event.mcpResult?._meta);
+      const modelText = toolContentText(event.content);
       let matchedToolCall = false;
       const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
         if (part.toolCallId !== event.toolCallId) return part;
@@ -2229,11 +2235,9 @@ export class AgUiThreadController {
         if (snapshotResultApplied) {
           return {
             ...part,
-            ...(part.modelContent === undefined && event.content
+            ...(part.modelContent === undefined && modelText
               ? {
-                  modelContent: [
-                    { type: "text" as const, text: event.content },
-                  ],
+                  modelContent: [{ type: "text" as const, text: modelText }],
                 }
               : {}),
             ...(part.isError === undefined
@@ -2248,12 +2252,18 @@ export class AgUiThreadController {
               : {}),
           };
         }
+        const { modelContent: _modelContent, ...partWithoutModelContent } =
+          part;
         return {
-          ...part,
+          ...(event.mcpResult === undefined && Array.isArray(event.content)
+            ? partWithoutModelContent
+            : part),
           result: (event.mcpResult ??
-            tryParseJSON(event.content ?? "")) as ReadonlyJSONValue,
+            (Array.isArray(event.content)
+              ? event.content
+              : tryParseJSON(event.content))) as ReadonlyJSONValue,
           ...(event.mcpResult !== undefined
-            ? { modelContent: [{ type: "text" as const, text: event.content }] }
+            ? { modelContent: [{ type: "text" as const, text: modelText }] }
             : {}),
           ...(typeof event.mcpResult?.isError === "boolean"
             ? { isError: event.mcpResult.isError }

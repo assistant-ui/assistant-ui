@@ -1,4 +1,4 @@
-import { AbstractAgent, Context, InputContent, Message } from "@ag-ui/client";
+import { AbstractAgent, ContentPart, Context, Message } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -34,7 +34,7 @@ type AgUiInterruptReason = "tool_call" | "input_required" | "confirmation" | (st
 type AgUiMessage = {
   id: string;
   role: "user";
-  content: string | InputContent[];
+  content: string | ContentPart[];
   name?: string;
   metadata?: Record<string, unknown>;
 } | {
@@ -59,7 +59,7 @@ type AgUiMessage = {
 } | {
   id: string;
   role: "tool";
-  content: string;
+  content: string | ContentPart[];
   toolCallId: string;
   error?: string;
   metadata?: Record<string, unknown>;
@@ -75,9 +75,12 @@ type AgUiResumeTranscript = "appended" | "full";
 
 type AgUiRunFinishedOutcome = {
   type: "success";
+  pendingToolCallIds?: string[];
 } | {
   type: "interrupt";
   interrupts: AgUiInterrupt[];
+} | {
+  type: "cancelled";
 };
 
 type AgUiToolCall = {
