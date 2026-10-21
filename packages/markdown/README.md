@@ -41,6 +41,16 @@ import { Markdown } from "@assistant-ui/markdown/react";
 
 Math renders as its TeX source in `code` elements with the `language-math` class and `math-inline` or `math-display`.
 
+## Terminal
+
+```tsx
+import { Markdown } from "@assistant-ui/markdown/ink";
+
+<Markdown text={text} final={status !== "running"} />;
+```
+
+The terminal renderer uses Ink's `Box` and `Text` components, with the same streaming behavior and `components` overrides as the React renderer. Blocks have a blank line between them; links show their destinations, tables align their columns, and math renders as colored TeX source. Inline overrides must render within `Text`.
+
 ## URLs and HTML
 
 A link destination or image source must be relative or use a scheme other than `javascript:`, `vbscript:`, `file:`, or `data:`, except a `data:image/` URL in GIF, PNG, JPEG, or WebP. A link or image that fails this check, including one defined by a reference, stays in the tree as its literal text. While a message streams, a link whose destination is unfinished carries no `url`.
