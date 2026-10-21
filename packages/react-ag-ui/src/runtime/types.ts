@@ -38,6 +38,7 @@ export type AgUiCustomMetadata = {
    * represent (a developer record rides as a system message). */
   role?: "developer";
   interrupts?: AgUiInterrupt[];
+  pendingToolCallIds?: string[];
   opaqueReasoning?: AgUiOpaqueReasoning[];
 };
 

@@ -92,6 +92,39 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
+const listedPendingToolCallIds = (
+  assistant: ThreadAssistantMessage,
+): ReadonlySet<string> | undefined => {
+  const ids = (
+    assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+      | AgUiCustomMetadata
+      | undefined
+  )?.pendingToolCallIds;
+  return ids?.length ? new Set(ids) : undefined;
+};
+
+const withoutPendingToolCallIds = (
+  metadata: ThreadAssistantMessage["metadata"],
+): ThreadAssistantMessage["metadata"] => {
+  const namespace = metadata.custom[AG_UI_METADATA_NAMESPACE] as
+    | AgUiCustomMetadata
+    | undefined;
+  if (!namespace || !("pendingToolCallIds" in namespace)) return metadata;
+  const { pendingToolCallIds: _pendingToolCallIds, ...remainingNamespace } =
+    namespace;
+  const { [AG_UI_METADATA_NAMESPACE]: _namespace, ...remainingCustom } =
+    metadata.custom;
+  return {
+    ...metadata,
+    custom: {
+      ...remainingCustom,
+      ...(Object.keys(remainingNamespace).length > 0
+        ? { [AG_UI_METADATA_NAMESPACE]: remainingNamespace }
+        : {}),
+    },
+  };
+};
+
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
   part.type === "data" && part.name.startsWith("agui-activity/");
 
@@ -601,8 +634,10 @@ export class AgUiThreadController {
     const assistant = this.findRequiresActionAssistant("tool-calls");
     if (!assistant) return null;
     const toolCallIds: string[] = [];
+    const listed = listedPendingToolCallIds(assistant);
     for (const part of iterateToolCallParts(assistant.content)) {
-      if (isResolvedToolCall(part)) continue;
+      if (isResolvedToolCall(part) || (listed && !listed.has(part.toolCallId)))
+        continue;
       toolCallIds.push(part.toolCallId);
     }
     if (toolCallIds.length === 0) return null;
@@ -1148,7 +1183,9 @@ export class AgUiThreadController {
       return false;
     }
     let allResolved = true;
+    const listed = listedPendingToolCallIds(assistant);
     for (const part of iterateToolCallParts(assistant.content)) {
+      if (listed && !listed.has(part.toolCallId)) continue;
       if (!isResolvedToolCall(part)) {
         allResolved = false;
         break;
@@ -1161,6 +1198,7 @@ export class AgUiThreadController {
         ? {
             ...(current as ThreadAssistantMessage),
             status: { type: "complete" as const, reason: "unknown" as const },
+            metadata: withoutPendingToolCallIds(current.metadata),
           }
         : current,
     );
@@ -1839,10 +1877,15 @@ export class AgUiThreadController {
     const touched = this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
-      const metadata = update.metadata
+      const mergedMetadata = update.metadata
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
         : assistant.metadata;
       latestStatus = update.status ?? assistant.status;
+      const metadata =
+        latestStatus?.type === "requires-action" &&
+        latestStatus.reason === "tool-calls"
+          ? mergedMetadata
+          : withoutPendingToolCallIds(mergedMetadata);
       const content =
         update.content !== undefined
           ? this.preserveToolResults(
@@ -2235,7 +2278,7 @@ export class AgUiThreadController {
         if (snapshotResultApplied) {
           return {
             ...part,
-            ...(part.modelContent === undefined && modelText
+            ...(part.modelContent === undefined
               ? {
                   modelContent: [{ type: "text" as const, text: modelText }],
                 }

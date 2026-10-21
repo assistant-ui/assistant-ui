@@ -207,6 +207,7 @@ export class RunAggregator {
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
+  private pendingToolCallIds: string[] | undefined;
   private readonly textParts = new Map<string, { buffer: string }>();
   private readonly activeTextMessageIdByScope = new Map<string, string>();
   private readonly reasoningParts = new Map<
@@ -318,6 +319,10 @@ export class RunAggregator {
         this.status = hasUnresolvedToolCalls
           ? { type: "requires-action", reason: "tool-calls" }
           : { type: "complete", reason: "unknown" };
+        this.pendingToolCallIds =
+          hasUnresolvedToolCalls && pendingToolCallIds?.length
+            ? pendingToolCallIds
+            : undefined;
         this.closeOpenSubagentRuns(this.status);
         this.emit();
         break;
@@ -1451,11 +1456,20 @@ export class RunAggregator {
     const timing = this.getTiming();
     const metadata = {
       ...(timing ? { timing } : {}),
-      ...(this.interrupts || includeOpaque
+      ...(this.interrupts ||
+      (this.status?.type === "requires-action" &&
+        this.status.reason === "tool-calls" &&
+        this.pendingToolCallIds) ||
+      includeOpaque
         ? {
             custom: {
               [AG_UI_METADATA_NAMESPACE]: {
                 ...(this.interrupts ? { interrupts: this.interrupts } : {}),
+                ...(this.status?.type === "requires-action" &&
+                this.status.reason === "tool-calls" &&
+                this.pendingToolCallIds
+                  ? { pendingToolCallIds: this.pendingToolCallIds }
+                  : {}),
                 ...(includeOpaque
                   ? { opaqueReasoning: publishableOpaqueReasoning }
                   : {}),

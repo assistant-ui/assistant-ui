@@ -12,6 +12,7 @@ import type {
 } from "@assistant-ui/core";
 import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
+import { toAgUiMessages } from "../src/runtime/adapter/conversions";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 import type {
   AgUiResumeTranscript,
@@ -4772,6 +4773,83 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
+  it("waits only for listed tool calls across a run, reload, and resume", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length === 1) {
+        for (const id of ["A", "B"]) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: id,
+              toolCallName: "lookup",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: id },
+          });
+        }
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success", pendingToolCallIds: ["A"] },
+          },
+        });
+      } else {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["A"]);
+    const wire = toAgUiMessages(core.getMessages());
+    expect(
+      wire.find((message) => message.role === "assistant")?.metadata,
+    ).toBeUndefined();
+    const reloaded = createCore(agent);
+    reloaded.applyExternalMessages(core.getMessages());
+    expect(reloaded.getPendingToolCalls()?.toolCallIds).toEqual(["A"]);
+
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "A",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    const settled = core
+      .getMessages()
+      .find((message) => message.id === assistant.id) as ThreadAssistantMessage;
+    expect(settled.status).toMatchObject({ type: "complete" });
+    const callB = settled.content.find(
+      (part) => part.type === "tool-call" && part.toolCallId === "B",
+    );
+    expect(callB).toBeDefined();
+    expect(
+      callB && "result" in callB ? callB.result : undefined,
+    ).toBeUndefined();
+    expect(
+      (settled.metadata.custom.agui as any)?.pendingToolCallIds,
+    ).toBeUndefined();
+  });
+
   it("steerAway cancels a pending client-side tool call and starts one fresh run", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
@@ -6476,6 +6554,64 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart.modelContent).toEqual([
       { type: "text", text: '{"temperature":"22C"}' },
     ]);
+  });
+
+  it("sets empty model text for a textless cross-run MCP result on a snapshot part", async () => {
+    const snapshotResult = {
+      content: [{ type: "image", data: "aW1hZ2U=", mimeType: "image/png" }],
+    };
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "user-1", role: "user", content: "show image" },
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: { name: "image", arguments: "{}" },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            result: snapshotResult,
+            resourceUri: "ui://srv/image.html",
+          },
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          role: "tool",
+          content: snapshotResult.content,
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const part = assistant.content.find((p) => p.type === "tool-call") as any;
+    expect(part.result).toEqual(snapshotResult);
+    expect(part.modelContent).toEqual([{ type: "text", text: "" }]);
   });
 
   it("clears a stale cross-run error when the snapshot result succeeds", async () => {
