@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import type { EventSessionStatus } from "@opencode-ai/sdk/v2/client";
+import {
+  createOpencodeClient,
+  type EventSessionStatus,
+} from "@opencode-ai/sdk/v2/client";
 import {
   OpenCodeEventSource,
   STREAM_RECONNECTED_EVENT_TYPE,
@@ -23,6 +26,7 @@ const waitFor = async (assertion: () => void) => {
 
 const createAbortableStream = (signal: AbortSignal) =>
   (async function* () {
+    yield { type: "server.connected", properties: {} };
     await new Promise<void>((resolve) => {
       if (signal.aborted) {
         resolve();
@@ -34,28 +38,108 @@ const createAbortableStream = (signal: AbortSignal) =>
   })();
 
 describe("OpenCodeEventSource", () => {
-  it("backs off repeated connection failures up to thirty seconds", async () => {
-    vi.useFakeTimers();
-    const subscribe = vi.fn().mockRejectedValue(new Error("offline"));
-    const source = new OpenCodeEventSource({ event: { subscribe } } as never);
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it.each(["http", "network"] as const)(
+    "backs off repeated %s connection failures up to thirty seconds",
+    async (failure) => {
+      vi.useFakeTimers();
+      const fetchImpl = vi.fn(async () => {
+        if (failure === "network") throw new Error("offline");
+        return new Response(null, { status: 503 });
+      });
+      const source = new OpenCodeEventSource(
+        createOpencodeClient({
+          baseUrl: "https://opencode.test",
+          fetch: fetchImpl,
+        }),
+      );
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    try {
-      source.subscribe(vi.fn());
-      await vi.advanceTimersByTimeAsync(0);
-      expect(subscribe).toHaveBeenCalledOnce();
+      try {
+        source.subscribe(vi.fn());
+        await vi.advanceTimersByTimeAsync(0);
+        expect(fetchImpl).toHaveBeenCalledOnce();
 
-      const delays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000];
-      for (const [index, delay] of delays.entries()) {
-        await vi.advanceTimersByTimeAsync(delay - 1);
-        expect(subscribe).toHaveBeenCalledTimes(index + 1);
-        await vi.advanceTimersByTimeAsync(1);
-        expect(subscribe).toHaveBeenCalledTimes(index + 2);
+        const delays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000];
+        for (const [index, delay] of delays.entries()) {
+          await vi.advanceTimersByTimeAsync(delay - 1);
+          expect(fetchImpl).toHaveBeenCalledTimes(index + 1);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(fetchImpl).toHaveBeenCalledTimes(index + 2);
+        }
+      } finally {
+        source.dispose();
+        await vi.advanceTimersByTimeAsync(0);
+        warnSpy.mockRestore();
+        vi.useRealTimers();
       }
+    },
+  );
+
+  it("only announces successful reconnects and resets backoff after receiving events", async () => {
+    vi.useFakeTimers();
+    let activeStream!: ReadableStreamDefaultController<Uint8Array>;
+    const connect = async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            activeStream = controller;
+            controller.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"server.connected","properties":{}}\n\n',
+              ),
+            );
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    const fetchImpl = vi
+      .fn(connect)
+      .mockImplementationOnce(async () => new Response(null, { status: 503 }))
+      .mockImplementationOnce(async () => new Response(null, { status: 503 }))
+      .mockImplementationOnce(connect)
+      .mockImplementationOnce(async () => new Response(null, { status: 503 }));
+    const source = new OpenCodeEventSource(
+      createOpencodeClient({
+        baseUrl: "https://opencode.test",
+        fetch: fetchImpl,
+      }),
+    );
+    const listener = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      source.subscribe(listener);
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      expect(listener).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      expect(listener.mock.calls.map(([event]) => event.type)).toEqual([
+        STREAM_RECONNECTED_EVENT_TYPE,
+        "server.connected",
+      ]);
+
+      activeStream.error(new Error("connection dropped"));
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchImpl).toHaveBeenCalledTimes(4);
+      expect(listener).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(fetchImpl).toHaveBeenCalledTimes(4);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchImpl).toHaveBeenCalledTimes(5);
+      expect(listener.mock.calls.map(([event]) => event.type)).toEqual([
+        STREAM_RECONNECTED_EVENT_TYPE,
+        "server.connected",
+        STREAM_RECONNECTED_EVENT_TYPE,
+        "server.connected",
+      ]);
     } finally {
       source.dispose();
       await vi.advanceTimersByTimeAsync(0);
-      warnSpy.mockRestore();
+      warn.mockRestore();
       vi.useRealTimers();
     }
   });
@@ -115,6 +199,7 @@ describe("OpenCodeEventSource", () => {
     expect(client.event.subscribe).toHaveBeenLastCalledWith(undefined, {
       signal: expect.any(AbortSignal),
       sseMaxRetryAttempts: 1,
+      onSseError: expect.any(Function),
     });
 
     unsubscribe();
@@ -142,9 +227,13 @@ describe("OpenCodeEventSource", () => {
     const unsubscribe = source.subscribe(firstListener);
 
     await waitFor(() => {
-      expect(client.event.subscribe).toHaveBeenCalledTimes(1);
+      expect(firstListener).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "server.connected" }),
+      );
     });
-    expect(firstListener).not.toHaveBeenCalled();
+    expect(firstListener).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: STREAM_RECONNECTED_EVENT_TYPE }),
+    );
 
     unsubscribe();
     await Promise.resolve();
@@ -156,7 +245,10 @@ describe("OpenCodeEventSource", () => {
         expect.objectContaining({ type: STREAM_RECONNECTED_EVENT_TYPE }),
       );
     });
-    expect(secondListener).toHaveBeenCalledTimes(1);
+    expect(secondListener.mock.calls.map(([event]) => event.type)).toEqual([
+      STREAM_RECONNECTED_EVENT_TYPE,
+      "server.connected",
+    ]);
   });
 
   it("continues notifying listeners when one throws", () => {
