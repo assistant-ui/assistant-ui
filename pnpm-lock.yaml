@@ -4885,6 +4885,12 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+      react-native:
+        specifier: ^0.88.0
+        version: 0.88.0(@babel/core@8.0.7)(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2)
+      react-native-web:
+        specifier: ^0.21.4
+        version: 0.21.4(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
