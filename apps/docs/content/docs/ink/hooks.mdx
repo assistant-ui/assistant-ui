@@ -107,6 +107,8 @@ If a message settles while the thread is still running, completion and incomplet
 
 Notifications are deduplicated per `thread:message:status:reason` tuple, so passing an inline config object does not produce duplicate fires. `ringBell` and `sendOSCNotification(title, body?, variant?)` are also exported for imperative use. OSC support depends on the terminal emulator.
 
+Custom callbacks receive the thread-list item's ID as `event.threadId`. For a standalone thread without a `threadListItem` scope, `event.threadId` is `"unknown"`.
+
 ## Runtime Hooks
 
 ### useLocalRuntime

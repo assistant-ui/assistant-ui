@@ -88,6 +88,7 @@ beforeEach(() => {
     selector({
       thread: snapshot,
       threadListItem: { id: "thread-1" },
+      optional: { threadListItem: { id: "thread-1" } },
     } as never),
   );
 });
@@ -394,6 +395,7 @@ describe("useNotification", () => {
       selector({
         thread: snapshot,
         threadListItem: { id: "thread-A" },
+        optional: { threadListItem: { id: "thread-A" } },
       } as never),
     );
     const w = spyStdout();
@@ -411,6 +413,7 @@ describe("useNotification", () => {
       selector({
         thread: snapshot,
         threadListItem: { id: "thread-B" },
+        optional: { threadListItem: { id: "thread-B" } },
       } as never),
     );
     instance.rerender(<Notifier />);
