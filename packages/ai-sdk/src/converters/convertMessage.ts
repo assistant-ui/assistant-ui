@@ -66,6 +66,7 @@ const toThreadMetadata = (metadata: unknown): MessageMetadata => {
 };
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
+    createdAtCache?: Map<string, Date>;
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     /**
      * Frozen text and completion-marked args keyed weakly by a settled tool
@@ -753,7 +754,8 @@ function convertParts(
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
   (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
-    const createdAt = new Date();
+    const createdAt = metadata.createdAtCache?.get(message.id) ?? new Date();
+    metadata.createdAtCache?.set(message.id, createdAt);
     const content = convertParts(message, metadata);
 
     switch (message.role) {
