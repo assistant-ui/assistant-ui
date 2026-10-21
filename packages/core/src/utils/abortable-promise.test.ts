@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import { raceWithAbortSignal } from "./abortable-promise";
 
@@ -74,12 +75,18 @@ describe("raceWithAbortSignal", () => {
     }
   });
 
-  it("turns a synchronous throw into a rejected promise", async () => {
-    const error = new Error("failed");
-    const result = raceWithAbortSignal(new AbortController().signal, () => {
-      throw error;
-    });
+  it.each(["throw", "reject"] as const)(
+    "releases the abort listener when the operation fails via %s",
+    async (failure) => {
+      const controller = new AbortController();
+      const error = new Error("failed");
+      const result = raceWithAbortSignal(controller.signal, () => {
+        if (failure === "throw") throw error;
+        return Promise.reject(error);
+      });
 
-    await expect(result).rejects.toBe(error);
-  });
+      await expect(result).rejects.toBe(error);
+      expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
+    },
+  );
 });
