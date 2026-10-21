@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   convertExternalMessages,
   createExternalMessageConversionCache,
@@ -7,6 +7,104 @@ import type { useExternalMessageConverter } from "./external-message-converter";
 import { isErrorMessageId } from "../../utils/id";
 
 describe("convertExternalMessages", () => {
+  it("keeps generated timestamps stable when conversion is invalidated", () => {
+    vi.useFakeTimers();
+
+    try {
+      type Input = { id: string; text: string };
+      const input: Input = { id: "answer", text: "hello" };
+      const cache = createExternalMessageConversionCache();
+      const callback: useExternalMessageConverter.Callback<Input> = (
+        message,
+      ) => ({
+        id: message.id,
+        role: "assistant",
+        content: message.text,
+      });
+
+      const first = convertExternalMessages(
+        [input],
+        callback,
+        false,
+        {},
+        cache,
+      );
+      const firstCreatedAt = first[0]!.createdAt;
+      vi.setSystemTime(new Date(firstCreatedAt.getTime() + 1_000));
+
+      const second = convertExternalMessages(
+        [input],
+        callback,
+        false,
+        {},
+        cache,
+      );
+
+      expect(second[0]).not.toBe(first[0]);
+      expect(second[0]!.createdAt).toEqual(firstCreatedAt);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves explicit source timestamps when conversion is invalidated", () => {
+    type Input = { id: string; createdAt: Date };
+    const sourceCreatedAt = new Date("2026-01-02T03:04:05.000Z");
+    const input: Input = { id: "answer", createdAt: sourceCreatedAt };
+    const cache = createExternalMessageConversionCache();
+    const callback: useExternalMessageConverter.Callback<Input> = (
+      message,
+    ) => ({
+      id: message.id,
+      role: "assistant",
+      content: "hello",
+      createdAt: message.createdAt,
+    });
+
+    const first = convertExternalMessages([input], callback, false, {}, cache);
+    const second = convertExternalMessages([input], callback, false, {}, cache);
+
+    expect(second[0]).not.toBe(first[0]);
+    expect(first[0]!.createdAt).toBe(sourceCreatedAt);
+    expect(second[0]!.createdAt).toBe(sourceCreatedAt);
+  });
+
+  it("keeps generated timestamps separate between conversion caches", () => {
+    vi.useFakeTimers();
+
+    try {
+      const input = { id: "answer" };
+      const callback: useExternalMessageConverter.Callback<typeof input> = (
+        message,
+      ) => ({
+        id: message.id,
+        role: "assistant",
+        content: "hello",
+      });
+      const first = convertExternalMessages(
+        [input],
+        callback,
+        false,
+        {},
+        createExternalMessageConversionCache(),
+      );
+      const firstCreatedAt = first[0]!.createdAt;
+      vi.setSystemTime(new Date(firstCreatedAt.getTime() + 1_000));
+
+      const second = convertExternalMessages(
+        [input],
+        callback,
+        false,
+        {},
+        createExternalMessageConversionCache(),
+      );
+
+      expect(second[0]!.createdAt).not.toEqual(firstCreatedAt);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps unchanged messages and rebuilds a replaced one with an opt-in cache", () => {
     type Input = { id: string; role: "user" | "assistant"; text: string };
     const metadata = {};
