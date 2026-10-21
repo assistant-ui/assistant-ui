@@ -2,11 +2,13 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { ChatModelRunResult } from "@assistant-ui/core";
+import { MessageSchema } from "@ag-ui/core/schemas";
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
 } from "@assistant-ui/generative-ui/a2ui";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
+import { toAgUiMessages } from "../src/runtime/adapter/conversions";
 import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
 import { parseAgUiEvent } from "../src/runtime/event-parser";
 import type { AgUiEvent } from "../src/runtime/types";
@@ -34,6 +36,74 @@ const getLastResult = (
 };
 
 describe("RunAggregator", () => {
+  it("keeps parsed tool result parts without setting modelContent", () => {
+    const parts = [
+      { type: "text", text: "first" },
+      { type: "text", text: "second" },
+      { type: "document", source: { type: "file", value: "doc-1" } },
+    ];
+    const aggregator = new RunAggregator({
+      showThinking: false,
+      logger: makeLogger(),
+      emit: (update) => results.push(update),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" });
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "call-1",
+      toolCallName: "search",
+    });
+    const parsed = parseAgUiEvent({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "call-1",
+      content: parts,
+    });
+    if (!parsed) throw new Error("expected a parsed tool result");
+    aggregator.handle(parsed);
+
+    const toolPart = getLastResult(results).content[0];
+    expect(toolPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      result: parts,
+    });
+    expect(toolPart).not.toHaveProperty("modelContent");
+  });
+
+  it("sends an image-only tool result as AG-UI content parts", () => {
+    const parts = [
+      {
+        type: "image" as const,
+        source: {
+          type: "url" as const,
+          value: "https://example.com/result.png",
+        },
+      },
+    ];
+    const aggregator = createAggregator(false);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" });
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "call-1",
+      toolCallName: "inspect",
+    });
+    const parsed = parseAgUiEvent({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "call-1",
+      content: parts,
+    });
+    if (!parsed) throw new Error("expected a parsed tool result");
+    aggregator.handle(parsed);
+
+    const toolPart = getLastResult(results).content[0];
+    expect(toolPart).not.toHaveProperty("modelContent");
+    const emitted = toAgUiMessages([
+      { id: "assistant-1", role: "assistant", content: [toolPart] },
+    ])[1];
+    expect(emitted?.content).toEqual(parts);
+    expect(MessageSchema.parse(emitted).content).toEqual(parts);
+  });
   let results: ChatModelRunResult[];
 
   beforeEach(() => {
@@ -233,18 +303,21 @@ describe("RunAggregator", () => {
     ).toBeUndefined();
   });
 
-  it("captures a hidden signature claimed by an open anonymous block", () => {
+  it("captures a hidden signature claimed by an open reasoning span", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "m1",
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_ENCRYPTED_VALUE",
       subtype: "message",
       entityId: "m1",
       encryptedValue: "sig-1",
     } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_END", messageId: "m1" } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
@@ -298,7 +371,10 @@ describe("RunAggregator", () => {
       toolCallName: "search",
       parentMessageId: "srv-1",
     } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "reason-1",
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_ENCRYPTED_VALUE",
       subtype: "message",
@@ -362,14 +438,20 @@ describe("RunAggregator", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "reason-1",
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_ENCRYPTED_VALUE",
       subtype: "message",
       entityId: "",
       encryptedValue: "sig",
     } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_END",
+      messageId: "reason-1",
+    } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
@@ -404,7 +486,10 @@ describe("RunAggregator", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "reason-1",
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "t1",
@@ -434,11 +519,14 @@ describe("RunAggregator", () => {
     ).toBeUndefined();
   });
 
-  it("closes the anonymous claim when an identified hidden block opens", () => {
+  it("does not claim an unrelated signature after a new hidden block opens", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "m1",
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_MESSAGE_START",
       messageId: "m2",
@@ -510,7 +598,7 @@ describe("RunAggregator", () => {
     ]);
   });
 
-  it("drops an anonymous-claimed signature whose id names a text message", () => {
+  it("drops a signature whose id names a text message", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -523,7 +611,10 @@ describe("RunAggregator", () => {
       messageId: "t1",
       delta: "answer",
     } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "r1",
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_ENCRYPTED_VALUE",
       subtype: "message",
@@ -607,35 +698,6 @@ describe("RunAggregator", () => {
     ).toBeUndefined();
   });
 
-  it("maps thinking events to reasoning part when enabled", () => {
-    const aggregator = createAggregator(true);
-
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_START" } as AgUiEvent);
-    aggregator.handle({
-      type: "THINKING_TEXT_MESSAGE_CONTENT",
-      delta: "Reasoning...",
-    } as AgUiEvent);
-    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_END" } as AgUiEvent);
-
-    const reasoningPart = results.at(-1)?.content?.[0];
-    expect(reasoningPart?.type).toBe("reasoning");
-    expect((reasoningPart as any).text).toBe("Reasoning...");
-  });
-
-  it("ignores thinking events when disabled", () => {
-    const aggregator = createAggregator(false);
-
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({
-      type: "THINKING_TEXT_MESSAGE_CONTENT",
-      delta: "hidden",
-    } as AgUiEvent);
-
-    const parts = results.at(-1)?.content ?? [];
-    expect(parts.every((part) => part.type !== "reasoning")).toBe(true);
-  });
-
   it("maps reasoning events to reasoning part when enabled", () => {
     const aggregator = createAggregator(true);
 
@@ -710,25 +772,29 @@ describe("RunAggregator", () => {
     });
 
     handle({
-      type: "THINKING_TEXT_MESSAGE_START",
+      type: "REASONING_MESSAGE_START",
+      messageId: "running",
       timestamp: 1_700_000_003_000,
     });
     handle({
-      type: "THINKING_TEXT_MESSAGE_CONTENT",
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "running",
       delta: "Running",
     });
     expect(getLastResult(results).content[1]).toHaveProperty("timing", {
       startedAt: 1_700_000_003_000,
     });
 
-    handle({ type: "THINKING_TEXT_MESSAGE_END" });
-    handle({ type: "REASONING_START" });
+    handle({ type: "REASONING_MESSAGE_END", messageId: "running" });
+    handle({ type: "REASONING_START", messageId: "untimed" });
     handle({
       type: "REASONING_MESSAGE_CONTENT",
+      messageId: "untimed",
       delta: "Untimed",
     });
     handle({
       type: "REASONING_END",
+      messageId: "untimed",
       timestamp: 1_700_000_005_000,
     });
     expect(getLastResult(results).content[2]).not.toHaveProperty("timing");
@@ -2029,13 +2095,17 @@ describe("RunAggregator", () => {
     }
   });
 
-  it("positions reasoning content before text when thinking is shown", () => {
+  it("positions reasoning content before text when reasoning is shown", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_START" } as AgUiEvent);
     aggregator.handle({
-      type: "THINKING_TEXT_MESSAGE_CONTENT",
+      type: "REASONING_MESSAGE_START",
+      messageId: "r1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "r1",
       delta: "Reasoning first",
     } as AgUiEvent);
     aggregator.handle({
@@ -2166,6 +2236,119 @@ describe("RunAggregator", () => {
       type: "requires-action",
       reason: "tool-calls",
     });
+  });
+
+  it("ends a server-cancelled run and clears its interrupts", () => {
+    const aggregator = createAggregator(false);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" });
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "spawn",
+      toolCallName: "task",
+    });
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "spawn",
+    });
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "approval" }],
+      },
+    });
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "cancelled" },
+    } as AgUiEvent);
+
+    expect(results.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(results.at(-1)?.metadata?.custom).toBeUndefined();
+    const toolCall = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call");
+    expect(
+      toolCall?.type === "tool-call" && toolCall.messages?.[0]?.status,
+    ).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("uses a non-empty producer list and otherwise falls back to unresolved calls", () => {
+    for (const { name, pendingToolCallIds, resolved, status } of [
+      {
+        name: "listed unresolved call",
+        pendingToolCallIds: ["pending"],
+        resolved: false,
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+      {
+        name: "listed resolved call",
+        pendingToolCallIds: ["pending"],
+        resolved: true,
+        status: { type: "complete", reason: "unknown" },
+      },
+      {
+        name: "unlisted unresolved server call",
+        pendingToolCallIds: ["unknown"],
+        resolved: false,
+        status: { type: "complete", reason: "unknown" },
+      },
+      {
+        name: "absent producer list",
+        pendingToolCallIds: undefined,
+        resolved: false,
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+      {
+        name: "empty producer list",
+        pendingToolCallIds: [],
+        resolved: false,
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+    ]) {
+      const aggregator = createAggregator(false);
+      aggregator.handle({ type: "RUN_STARTED", runId: "r1" });
+      aggregator.handle({
+        type: "TOOL_CALL_START",
+        toolCallId: "pending",
+        toolCallName: "lookup",
+      });
+      if (resolved) {
+        aggregator.handle({
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "pending",
+          content: '"done"',
+          role: "tool",
+        });
+      }
+      if (resolved) {
+        aggregator.handle({
+          type: "TOOL_CALL_START",
+          toolCallId: "server-call",
+          toolCallName: "serverTool",
+        });
+      }
+      aggregator.handle({
+        type: "RUN_FINISHED",
+        runId: "r1",
+        outcome: {
+          type: "success",
+          ...(pendingToolCallIds !== undefined ? { pendingToolCallIds } : {}),
+        },
+      } as AgUiEvent);
+
+      expect(results.at(-1)?.status, name).toEqual(status);
+      results = [];
+    }
   });
 
   it("clears interrupts metadata when a fresh run starts", () => {
@@ -2309,32 +2492,6 @@ describe("RunAggregator", () => {
       delta: "follow-up",
     } as AgUiEvent);
 
-    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
-    const last = results.at(-1);
-    expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
-  });
-
-  it("records a later CHUNK id even when the opening frame has no delta", () => {
-    const onTextMessageStart = vi.fn();
-    const aggregator = createAggregator(false, undefined, onTextMessageStart);
-
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
-    aggregator.handle({
-      type: "TEXT_MESSAGE_START",
-      messageId: "srv-1",
-    } as AgUiEvent);
-    aggregator.handle({
-      type: "TEXT_MESSAGE_CHUNK",
-      messageId: "srv-2",
-      delta: "",
-    } as AgUiEvent);
-    aggregator.handle({
-      type: "TEXT_MESSAGE_CHUNK",
-      messageId: "srv-2",
-      delta: "follow-up",
-    } as AgUiEvent);
-
-    expect(onTextMessageStart).toHaveBeenCalledTimes(1);
     expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
     const last = results.at(-1);
     expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
@@ -2488,7 +2645,7 @@ describe("RunAggregator", () => {
       toolCallName: "search",
     } as AgUiEvent);
     aggregator.handle({
-      type: "TOOL_CALL_CHUNK",
+      type: "TOOL_CALL_ARGS",
       toolCallId: "t1",
       delta: '{"q":"test"}',
     } as AgUiEvent);
@@ -3391,7 +3548,7 @@ describe("RunAggregator", () => {
     expect(nested.status).toEqual({ type: "incomplete", reason: "cancelled" });
   });
 
-  it("attributes TEXT_MESSAGE_CHUNK to its subagent, the same as TEXT_MESSAGE_CONTENT", () => {
+  it("attributes TEXT_MESSAGE_CONTENT to its subagent", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -3407,7 +3564,7 @@ describe("RunAggregator", () => {
       parentToolCallId: "t-spawn",
     } as AgUiEvent);
     aggregator.handle({
-      type: "TEXT_MESSAGE_CHUNK",
+      type: "TEXT_MESSAGE_CONTENT",
       messageId: "m-sub",
       delta: "chunked subagent text",
       subagentRunId: "sub-1",
@@ -3603,10 +3760,12 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_START",
+      messageId: "sub-reasoning",
       subagentRunId: "sub-1",
     } as AgUiEvent); // subagent reasoning — must NOT clear root's activeTextMessageIdByScope
     aggregator.handle({
       type: "REASONING_MESSAGE_CONTENT",
+      messageId: "sub-reasoning",
       delta: "sub-thought",
       subagentRunId: "sub-1",
     } as AgUiEvent);
@@ -3620,7 +3779,7 @@ describe("RunAggregator", () => {
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
   });
 
-  it("claims a subagent's own anonymous reasoning block with its own encrypted signature, not the root's", () => {
+  it("claims a subagent's reasoning block with its own encrypted signature", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -3635,32 +3794,40 @@ describe("RunAggregator", () => {
       name: "investigate",
       parentToolCallId: "t-investigate",
     } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_START" } as AgUiEvent); // root, anonymous
+    aggregator.handle({
+      type: "REASONING_START",
+      messageId: "shared-reasoning",
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_MESSAGE_CONTENT",
+      messageId: "shared-reasoning",
       delta: "root thought",
     } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_START",
+      messageId: "shared-reasoning",
       subagentRunId: "sub-1",
-    } as AgUiEvent); // subagent, anonymous
+    } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_MESSAGE_CONTENT",
+      messageId: "shared-reasoning",
       delta: "subagent thought",
       subagentRunId: "sub-1",
     } as AgUiEvent);
-    // entityId matches no known block, so this can only be claimed by the
-    // open anonymous block of the scope it names — the subagent's, not root's.
     aggregator.handle({
       type: "REASONING_ENCRYPTED_VALUE",
       subtype: "message",
-      entityId: "sig-owner",
+      entityId: "shared-reasoning",
       encryptedValue: "sub-sig",
       subagentRunId: "sub-1",
     } as AgUiEvent);
-    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
     aggregator.handle({
       type: "REASONING_END",
+      messageId: "shared-reasoning",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_END",
+      messageId: "shared-reasoning",
       subagentRunId: "sub-1",
     } as AgUiEvent);
     aggregator.handle({

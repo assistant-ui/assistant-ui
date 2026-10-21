@@ -5,6 +5,20 @@ import { parseAgUiEvent } from "../src/runtime/event-parser";
 import { readRawResponseSchema } from "../src/runtime/interrupt-internals";
 
 describe("parseAgUiEvent", () => {
+  it("retains content parts in a tool result event", () => {
+    const parts = [
+      { type: "text", text: "first" },
+      { type: "text", text: "second" },
+    ];
+
+    expect(
+      parseAgUiEvent({
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "call-1",
+        content: parts,
+      }),
+    ).toMatchObject({ type: "TOOL_CALL_RESULT", content: parts });
+  });
   it("parses text content event", () => {
     const event = parseAgUiEvent({
       type: "TEXT_MESSAGE_CONTENT",
@@ -73,6 +87,12 @@ describe("parseAgUiEvent", () => {
   it.each([
     ["RUN_STARTED", { type: "RUN_STARTED" }],
     ["RUN_FINISHED", { type: "RUN_FINISHED" }],
+    ["REASONING_START", { type: "REASONING_START" }],
+    ["REASONING_MESSAGE_START", { type: "REASONING_MESSAGE_START" }],
+    [
+      "REASONING_MESSAGE_CONTENT",
+      { type: "REASONING_MESSAGE_CONTENT", delta: "hi" },
+    ],
     ["TEXT_MESSAGE_CONTENT", { type: "TEXT_MESSAGE_CONTENT", delta: "" }],
     [
       "REASONING_ENCRYPTED_VALUE",
@@ -299,6 +319,46 @@ describe("parseAgUiEvent", () => {
     });
   });
 
+  it("parses a cancelled RUN_FINISHED outcome", () => {
+    expect(
+      parseAgUiEvent({
+        type: "RUN_FINISHED",
+        runId: "r1",
+        outcome: { type: "cancelled" },
+      }),
+    ).toEqual({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "cancelled" },
+    });
+  });
+
+  it("keeps valid pending tool call ids and drops invalid lists", () => {
+    for (const [input, expected] of [
+      [
+        ["tc-1", "tc-2"],
+        ["tc-1", "tc-2"],
+      ],
+      ["tc-1", undefined],
+      [["tc-1", 42], undefined],
+    ] as const) {
+      expect(
+        parseAgUiEvent({
+          type: "RUN_FINISHED",
+          runId: "r1",
+          outcome: { type: "success", pendingToolCallIds: input },
+        }),
+      ).toEqual({
+        type: "RUN_FINISHED",
+        runId: "r1",
+        outcome: {
+          type: "success",
+          ...(expected !== undefined ? { pendingToolCallIds: expected } : {}),
+        },
+      });
+    }
+  });
+
   it("parses RUN_FINISHED interrupt outcome with interrupts", () => {
     const event = parseAgUiEvent({
       type: "RUN_FINISHED",
@@ -516,33 +576,7 @@ describe("parseAgUiEvent", () => {
     });
   });
 
-  it("parses subagentRunId on the chunk variants and ACTIVITY_SNAPSHOT", () => {
-    expect(
-      parseAgUiEvent({
-        type: "TEXT_MESSAGE_CHUNK",
-        messageId: "m1",
-        delta: "hi",
-        subagentRunId: "sub-1",
-      }),
-    ).toEqual({
-      type: "TEXT_MESSAGE_CHUNK",
-      messageId: "m1",
-      delta: "hi",
-      subagentRunId: "sub-1",
-    });
-    expect(
-      parseAgUiEvent({
-        type: "TOOL_CALL_CHUNK",
-        toolCallId: "t1",
-        delta: "{}",
-        subagentRunId: "sub-1",
-      }),
-    ).toEqual({
-      type: "TOOL_CALL_CHUNK",
-      toolCallId: "t1",
-      delta: "{}",
-      subagentRunId: "sub-1",
-    });
+  it("parses subagentRunId on ACTIVITY_SNAPSHOT", () => {
     expect(
       parseAgUiEvent({
         type: "ACTIVITY_SNAPSHOT",

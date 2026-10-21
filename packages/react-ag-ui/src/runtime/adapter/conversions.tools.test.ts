@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { ToolSchema, type RunAgentParameters } from "@ag-ui/client";
+import type { RunAgentParameters } from "@ag-ui/client";
+import { ToolSchema } from "@ag-ui/core/schemas";
 import { toAgUiTools } from "./conversions";
 
 describe("toAgUiTools", () => {
