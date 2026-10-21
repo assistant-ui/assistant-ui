@@ -471,10 +471,10 @@ export class AgUiThreadController {
 
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
-    const pending = this.getPendingToolCalls();
-    if (!pending) return;
-    this.cancelUnresolvedToolCalls(pending.messageId);
-    this.maybeCompleteAfterToolResults(pending.messageId);
+    for (const assistant of this.getPendingToolCallMessages()) {
+      this.cancelUnresolvedToolCalls(assistant.id);
+      this.maybeCompleteAfterToolResults(assistant.id);
+    }
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -612,6 +612,25 @@ export class AgUiThreadController {
     return assistant;
   }
 
+  private getTrailingAssistantTurn(): ThreadAssistantMessage[] {
+    const messages = this.getMessages();
+    const turn: ThreadAssistantMessage[] = [];
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index];
+      if (message?.role !== "assistant") break;
+      turn.unshift(message as ThreadAssistantMessage);
+    }
+    return turn;
+  }
+
+  private getPendingToolCallMessages(): ThreadAssistantMessage[] {
+    return this.getTrailingAssistantTurn().filter(
+      (message) =>
+        message.status?.type === "requires-action" &&
+        message.status.reason === "tool-calls",
+    );
+  }
+
   getPendingInterrupts(): {
     messageId: string;
     interrupts: readonly AgUiInterrupt[];
@@ -631,17 +650,21 @@ export class AgUiThreadController {
     messageId: string;
     toolCallIds: string[];
   } | null {
-    const assistant = this.findRequiresActionAssistant("tool-calls");
-    if (!assistant) return null;
     const toolCallIds: string[] = [];
-    const listed = listedPendingToolCallIds(assistant);
-    for (const part of iterateToolCallParts(assistant.content)) {
-      if (isResolvedToolCall(part) || (listed && !listed.has(part.toolCallId)))
-        continue;
-      toolCallIds.push(part.toolCallId);
+    let messageId: string | undefined;
+    for (const assistant of this.getPendingToolCallMessages()) {
+      const listed = listedPendingToolCallIds(assistant);
+      for (const part of iterateToolCallParts(assistant.content)) {
+        if (
+          isResolvedToolCall(part) ||
+          (listed && !listed.has(part.toolCallId))
+        )
+          continue;
+        messageId ??= assistant.id;
+        toolCallIds.push(part.toolCallId);
+      }
     }
-    if (toolCallIds.length === 0) return null;
-    return { messageId: assistant.id, toolCallIds };
+    return messageId === undefined ? null : { messageId, toolCallIds };
   }
 
   async submitInterruptResponses(
@@ -838,8 +861,10 @@ export class AgUiThreadController {
         if (this.state.isRunning) {
           throw new Error("[agui] steerAway: a run is already in progress");
         }
-        this.cancelUnresolvedToolCalls(pendingTools.messageId);
-        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        for (const assistant of this.getPendingToolCallMessages()) {
+          this.cancelUnresolvedToolCalls(assistant.id);
+          this.maybeCompleteAfterToolResults(assistant.id);
+        }
         const normalized = this.toAppendMessage(message);
         const threadMessageId = this.appendEntry(normalized);
         await this.startRun(threadMessageId, normalized.runConfig);
@@ -1157,6 +1182,11 @@ export class AgUiThreadController {
   // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    const turn = this.getTrailingAssistantTurn();
+    if (!turn.some((message) => message.id === messageId)) return;
+    if (this.getPendingToolCalls()) return;
+    const headId = turn.at(-1)?.id;
+    if (headId === undefined) return;
 
     const owner = this.abortController;
     if (owner) {
@@ -1165,11 +1195,11 @@ export class AgUiThreadController {
       this.dispatch({
         type: "resumeDeferred",
         owner,
-        messageId,
+        messageId: headId,
       });
       return;
     }
-    this.startResumeRun(messageId);
+    this.startResumeRun(headId);
   }
 
   private maybeCompleteAfterToolResults(messageId: string): boolean {
@@ -1384,6 +1414,8 @@ export class AgUiThreadController {
     // resurrecting for custom-event data would leave a trailing data-only
     // duplicate.
     let assistantCollided = false;
+    const heldMessageIds: string[] = [];
+    let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -1424,6 +1456,58 @@ export class AgUiThreadController {
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
+      const terminalStatus = update.status;
+      if (terminalStatus && terminalStatus.type !== "running") {
+        for (const messageId of heldMessageIds) {
+          const updated = this.session.updateMessage(messageId, (message) => {
+            if (message.role !== "assistant") return message;
+            const assistant = message as ThreadAssistantMessage;
+            const pendingToolCallIds = Array.from(
+              iterateToolCallParts(assistant.content),
+            )
+              .filter(
+                (part) =>
+                  !isResolvedToolCall(part) &&
+                  (!restrictedPendingToolCallIds ||
+                    restrictedPendingToolCallIds.has(part.toolCallId)),
+              )
+              .map((part) => part.toolCallId);
+            const canWaitForTools =
+              terminalStatus.type === "complete" ||
+              terminalStatus.type === "requires-action";
+            const status: MessageStatus = canWaitForTools
+              ? pendingToolCallIds.length > 0
+                ? { type: "requires-action", reason: "tool-calls" }
+                : { type: "complete", reason: "unknown" }
+              : terminalStatus;
+            const metadata = withoutPendingToolCallIds(assistant.metadata);
+            return {
+              ...assistant,
+              status,
+              metadata:
+                status.type === "requires-action" &&
+                restrictedPendingToolCallIds
+                  ? {
+                      ...metadata,
+                      custom: {
+                        ...metadata.custom,
+                        [AG_UI_METADATA_NAMESPACE]: {
+                          ...(metadata.custom[AG_UI_METADATA_NAMESPACE] as
+                            | AgUiCustomMetadata
+                            | undefined),
+                          pendingToolCallIds,
+                        },
+                      },
+                    }
+                  : metadata,
+            };
+          });
+          if (updated) {
+            this.publishUpdate();
+            this.persistAssistantHistory(messageId);
+          }
+        }
+      }
     };
 
     const adoptServerMessageId = (
@@ -1431,7 +1515,18 @@ export class AgUiThreadController {
       startNewMessage: boolean,
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
-        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        const previous =
+          this.session.tryGetMessage(assistantMessageId)?.message;
+        const hasUnresolvedToolCalls =
+          previous?.role === "assistant" &&
+          Array.from(iterateToolCallParts(previous.content)).some(
+            (part) => !isResolvedToolCall(part),
+          );
+        if (hasUnresolvedToolCalls) {
+          heldMessageIds.push(assistantMessageId);
+        } else {
+          applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        }
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
         if (this.session.tryGetMessage(previousId)) {
@@ -1478,7 +1573,14 @@ export class AgUiThreadController {
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
-      if (event.type === "RUN_FINISHED") runFinished = true;
+      if (event.type === "RUN_FINISHED") {
+        runFinished = true;
+        const ids =
+          event.outcome?.type === "success"
+            ? event.outcome.pendingToolCallIds
+            : undefined;
+        restrictedPendingToolCallIds = ids?.length ? new Set(ids) : undefined;
+      }
       const nextAssistantMessageId = this.handleEvent(
         aggregator,
         event,
