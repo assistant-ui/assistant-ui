@@ -150,6 +150,8 @@ export const useNotification = (config: NotificationConfig = {}) => {
     if (isRunning && runContext) {
       seenRunningForRef.current = runContext;
     }
+    if (isRunning && (statusType === "complete" || statusType === "incomplete"))
+      return;
     if (!messageId || !statusType || !key || !runContext) return;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
