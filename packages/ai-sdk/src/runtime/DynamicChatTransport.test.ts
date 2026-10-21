@@ -1,5 +1,6 @@
 import type { AssistantRuntime } from "@assistant-ui/core";
 import type { UIMessage } from "@ai-sdk/react";
+import type { ChatTransport, UIMessageChunk } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { DynamicChatTransport } from "./DynamicChatTransport";
@@ -36,6 +37,30 @@ const createRuntime = (system: string) =>
 describe("DynamicChatTransport", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("forwards replay behavior through the dynamic transport and thread proxy", () => {
+    const createTransport = (
+      resumeStreamIsReplay: boolean,
+    ): ChatTransport<UIMessage> => ({
+      resumeStreamIsReplay,
+      sendMessages: async () => new ReadableStream<UIMessageChunk>(),
+      reconnectToStream: async () => new ReadableStream<UIMessageChunk>(),
+    });
+    const dynamicTransport = new DynamicChatTransport(createTransport(false));
+    const owner = {};
+    const proxy = dynamicTransport.createThreadProxy(owner, () => ({
+      runtime: createRuntime("system"),
+      getThreadListItem: () => undefined,
+    }));
+
+    expect(dynamicTransport.resumeStreamIsReplay).toBe(false);
+    expect(proxy.resumeStreamIsReplay).toBe(false);
+
+    dynamicTransport.setTransport(createTransport(true));
+
+    expect(dynamicTransport.resumeStreamIsReplay).toBe(true);
+    expect(proxy.resumeStreamIsReplay).toBe(true);
   });
 
   it("rejects sends without a registered thread context", () => {
