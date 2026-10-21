@@ -475,6 +475,7 @@ export const createExternalMessageMetadataKey = <TMessage extends WeakKey>(
 type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
+  generatedCreatedAtCache?: WeakMap<WeakKey, Date>;
 };
 
 type ExternalMessageConversionCallbackCacheEntry<T> =
@@ -494,6 +495,7 @@ export type InternalExternalMessageConversionCache<
   converterCache: ThreadMessageConverter;
   // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
   generatedFallbackMessages: WeakSet<object>;
+  generatedCreatedAtCache: WeakMap<T, Date>;
 };
 
 export const createExternalMessageConversionCache = <
@@ -503,6 +505,7 @@ export const createExternalMessageConversionCache = <
   chunkCache: new WeakMap(),
   converterCache: new ThreadMessageConverter(),
   generatedFallbackMessages: new WeakSet(),
+  generatedCreatedAtCache: new WeakMap(),
 });
 
 export const convertExternalMessageChunk = <T>(
@@ -577,7 +580,30 @@ export const convertExternalMessageChunk = <T>(
     }
   }
 
-  const newMessage = fromThreadMessageLike(joined, fallbackId, autoStatus);
+  const sourceMessage = message.inputs[0];
+  const generatedCreatedAt =
+    sourceMessage === undefined
+      ? undefined
+      : cache?.generatedCreatedAtCache?.get(sourceMessage as WeakKey);
+  const messageToConvert =
+    joined.createdAt == null && generatedCreatedAt
+      ? { ...joined, createdAt: generatedCreatedAt }
+      : joined;
+  const newMessage = fromThreadMessageLike(
+    messageToConvert,
+    fallbackId,
+    autoStatus,
+  );
+  if (
+    joined.createdAt == null &&
+    sourceMessage !== undefined &&
+    cache?.generatedCreatedAtCache
+  ) {
+    cache.generatedCreatedAtCache.set(
+      sourceMessage as WeakKey,
+      newMessage.createdAt,
+    );
+  }
   if (cache && joined.id == null) {
     cache.generatedFallbackMessages.add(newMessage);
   }
@@ -678,6 +704,7 @@ export const convertExternalMessages = <T extends WeakKey>(
           {
             message: cached,
             generatedFallbackMessages: cache.generatedFallbackMessages,
+            generatedCreatedAtCache: cache.generatedCreatedAtCache,
           },
           metadata.cancelledMessageIds,
         ),

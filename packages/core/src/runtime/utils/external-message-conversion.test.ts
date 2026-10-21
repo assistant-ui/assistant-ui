@@ -741,3 +741,159 @@ describe("external message source identity", () => {
     },
   );
 });
+
+describe("external message timestamps", () => {
+  it("keeps a generated timestamp when a metadata key reconverts a source", () => {
+    vi.useFakeTimers();
+    try {
+      const input = { id: "source" };
+      const cache = createExternalMessageConversionCache<typeof input>();
+      const callback: ExternalMessageConverterCallback<typeof input> = (
+        _input,
+        metadata,
+      ) => ({
+        id: "message",
+        role: "user",
+        content: String(metadata.messageTiming?.message?.totalChunks),
+      });
+      const convert = (totalChunks: number) =>
+        convertExternalMessages(
+          [input],
+          callback,
+          false,
+          {
+            messageTiming: {
+              message: { streamStartTime: 0, totalChunks, toolCallCount: 0 },
+            },
+          },
+          undefined,
+          cache,
+          (_input, metadata) => metadata.messageTiming?.message?.totalChunks,
+        )[0]!;
+
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const first = convert(1);
+      vi.setSystemTime(new Date("2026-01-01T00:00:01.000Z"));
+      const second = convert(2);
+
+      expect(second).not.toBe(first);
+      expect(second.content).toMatchObject([{ type: "text", text: "2" }]);
+      expect(second.createdAt).toEqual(first.createdAt);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a generated timestamp when the callback changes", () => {
+    vi.useFakeTimers();
+    try {
+      const input = { id: "source" };
+      const cache = createExternalMessageConversionCache<typeof input>();
+      const convert = (label: string) =>
+        convertExternalMessages(
+          [input],
+          (_input) => ({
+            id: "message",
+            role: "user",
+            content: label,
+          }),
+          false,
+          {},
+          undefined,
+          cache,
+        )[0]!;
+
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const first = convert("before refresh");
+      vi.setSystemTime(new Date("2026-01-01T00:00:01.000Z"));
+      const second = convert("after refresh");
+
+      expect(second).not.toBe(first);
+      expect(second.content).toMatchObject([
+        { type: "text", text: "after refresh" },
+      ]);
+      expect(second.createdAt).toEqual(first.createdAt);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps explicit source timestamps authoritative", () => {
+    vi.useFakeTimers();
+    try {
+      const input = { id: "source" };
+      const cache = createExternalMessageConversionCache<typeof input>();
+      const explicitCreatedAt = new Date("2026-02-01T00:00:00.000Z");
+      const callback: ExternalMessageConverterCallback<typeof input> = (
+        _input,
+        metadata,
+      ) => ({
+        id: "message",
+        role: "user",
+        content: String(metadata.messageTiming?.message?.totalChunks),
+        ...(metadata.messageTiming?.message?.totalChunks === 1 && {
+          createdAt: explicitCreatedAt,
+        }),
+      });
+      const convert = (totalChunks: number) =>
+        convertExternalMessages(
+          [input],
+          callback,
+          false,
+          {
+            messageTiming: {
+              message: { streamStartTime: 0, totalChunks, toolCallCount: 0 },
+            },
+          },
+          undefined,
+          cache,
+          (_input, metadata) => metadata.messageTiming?.message?.totalChunks,
+        )[0]!;
+
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const first = convert(0);
+      vi.setSystemTime(new Date("2026-01-01T00:00:01.000Z"));
+      const explicit = convert(1);
+      vi.setSystemTime(new Date("2026-01-01T00:00:02.000Z"));
+      const third = convert(2);
+
+      expect(explicit.createdAt).toEqual(explicitCreatedAt);
+      expect(third.createdAt).toEqual(first.createdAt);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("isolates generated timestamps between conversion caches", () => {
+    vi.useFakeTimers();
+    try {
+      const input = { id: "source" };
+      const callback: ExternalMessageConverterCallback<typeof input> = () => ({
+        id: "message",
+        role: "user",
+        content: "message",
+      });
+      const firstCache = createExternalMessageConversionCache<typeof input>();
+      const secondCache = createExternalMessageConversionCache<typeof input>();
+      const convert = (cache: typeof firstCache) =>
+        convertExternalMessages(
+          [input],
+          callback,
+          false,
+          {},
+          undefined,
+          cache,
+        )[0]!;
+
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const first = convert(firstCache);
+      vi.setSystemTime(new Date("2026-01-01T00:00:01.000Z"));
+      const second = convert(secondCache);
+
+      expect(first.createdAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+      expect(second.createdAt).toEqual(new Date("2026-01-01T00:00:01.000Z"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
