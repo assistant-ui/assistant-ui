@@ -756,6 +756,219 @@ describe("AGUIThreadRuntimeCore", () => {
     ).toBe("assistant-1");
   });
 
+  it("keeps an earlier frontend tool call answerable after the next assistant message", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    let statusAtMessageBoundary: unknown;
+    let readFirstMessageStatus: (() => unknown) | undefined;
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(input);
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onTextMessageStartEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_START",
+              messageId: "a",
+              role: "assistant",
+            },
+          });
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_CONTENT",
+              messageId: "a",
+              delta: "checking",
+            },
+          });
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "lookup",
+              parentMessageId: "a",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          subscriber.onTextMessageStartEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_START",
+              messageId: "b",
+              role: "assistant",
+            },
+          });
+          statusAtMessageBoundary = readFirstMessageStatus?.();
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_CONTENT",
+              messageId: "b",
+              delta: "waiting",
+            },
+          });
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              threadId: "thread",
+              runId: input.runId,
+              outcome: { type: "success" },
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+    readFirstMessageStatus = () =>
+      core.getMessages().find((message) => message.id === "a")?.status;
+
+    await core.append(createAppendMessage());
+
+    expect(statusAtMessageBoundary).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    expect(
+      core
+        .getMessages()
+        .filter((message) => message.role === "assistant")
+        .map((message) => ({
+          id: message.id,
+          status: message.status,
+        })),
+    ).toEqual([
+      {
+        id: "a",
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+      { id: "b", status: { type: "complete", reason: "unknown" } },
+    ]);
+
+    const pending = core.getPendingToolCalls();
+    expect(pending).toEqual({ messageId: "a", toolCallIds: ["call-1"] });
+    core.addToolResult({
+      messageId: pending!.messageId,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "found",
+      isError: false,
+    });
+    await vi.waitFor(() => expect(runCount).toBe(2));
+
+    expect(runInputs[1]?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "call-1",
+          content: "found",
+        }),
+        expect.objectContaining({ role: "assistant", content: "waiting" }),
+      ]),
+    );
+  });
+
+  it("waits for pending calls on every assistant message before resuming", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(input);
+        runCount++;
+        if (runCount === 1) {
+          for (const [messageId, toolCallId] of [
+            ["a", "call-1"],
+            ["b", "call-2"],
+            ["c", undefined],
+          ] as const) {
+            subscriber.onTextMessageStartEvent?.({
+              event: {
+                type: "TEXT_MESSAGE_START",
+                messageId,
+                role: "assistant",
+              },
+            });
+            if (toolCallId) {
+              subscriber.onToolCallStartEvent?.({
+                event: {
+                  type: "TOOL_CALL_START",
+                  toolCallId,
+                  toolCallName: "lookup",
+                  parentMessageId: messageId,
+                },
+              });
+              subscriber.onToolCallEndEvent?.({
+                event: { type: "TOOL_CALL_END", toolCallId },
+              });
+            } else {
+              subscriber.onTextMessageContentEvent?.({
+                event: {
+                  type: "TEXT_MESSAGE_CONTENT",
+                  messageId,
+                  delta: "waiting",
+                },
+              });
+            }
+          }
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              threadId: "thread",
+              runId: input.runId,
+              outcome: { type: "success" },
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "b",
+      toolCallIds: ["call-2"],
+    });
+    core.addToolResult({
+      messageId: "b",
+      toolCallId: "call-2",
+      toolName: "lookup",
+      result: "second",
+      isError: false,
+    });
+    expect(runCount).toBe(1);
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "first",
+      isError: false,
+    });
+    await vi.waitFor(() => expect(runCount).toBe(2));
+
+    expect(runInputs[1]?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: "assistant", content: "waiting" }),
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "call-1",
+          content: "first",
+        }),
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "call-2",
+          content: "second",
+        }),
+      ]),
+    );
+  });
+
   it("keeps the tool assistant on the head path before a snapshot", async () => {
     let midRunIds: string[] | undefined;
     let midRunTool: ThreadAssistantMessage | undefined;

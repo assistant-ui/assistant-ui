@@ -438,10 +438,16 @@ export class AgUiThreadController {
 
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
-    const pending = this.getPendingToolCalls();
-    if (!pending) return;
-    this.cancelUnresolvedToolCalls(pending.messageId);
-    this.maybeCompleteAfterToolResults(pending.messageId);
+    this.cancelPendingToolCalls();
+  }
+
+  private cancelPendingToolCalls(): void {
+    let pending = this.getPendingToolCalls();
+    while (pending) {
+      this.cancelUnresolvedToolCalls(pending.messageId);
+      this.maybeCompleteAfterToolResults(pending.messageId);
+      pending = this.getPendingToolCalls();
+    }
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -598,7 +604,19 @@ export class AgUiThreadController {
     messageId: string;
     toolCallIds: string[];
   } | null {
-    const assistant = this.findRequiresActionAssistant("tool-calls");
+    const assistant = this.getMessages().findLast((message) => {
+      if (
+        message.role !== "assistant" ||
+        message.status?.type !== "requires-action" ||
+        message.status.reason !== "tool-calls"
+      ) {
+        return false;
+      }
+      const candidate = message as ThreadAssistantMessage;
+      return Array.from(iterateToolCallParts(candidate.content)).some(
+        (part) => !isResolvedToolCall(part),
+      );
+    }) as ThreadAssistantMessage | undefined;
     if (!assistant) return null;
     const toolCallIds: string[] = [];
     for (const part of iterateToolCallParts(assistant.content)) {
@@ -798,8 +816,7 @@ export class AgUiThreadController {
         if (this.state.isRunning) {
           throw new Error("[agui] steerAway: a run is already in progress");
         }
-        this.cancelUnresolvedToolCalls(pendingTools.messageId);
-        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        this.cancelPendingToolCalls();
         const normalized = this.toAppendMessage(message);
         const threadMessageId = this.appendEntry(normalized);
         await this.startRun(threadMessageId, normalized.runConfig);
@@ -1117,6 +1134,9 @@ export class AgUiThreadController {
   // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    if (this.getPendingToolCalls()) return;
+
+    const resumeParentId = this.session.headId ?? messageId;
 
     const owner = this.abortController;
     if (owner) {
@@ -1125,11 +1145,11 @@ export class AgUiThreadController {
       this.dispatch({
         type: "resumeDeferred",
         owner,
-        messageId,
+        messageId: resumeParentId,
       });
       return;
     }
-    this.startResumeRun(messageId);
+    this.startResumeRun(resumeParentId);
   }
 
   private maybeCompleteAfterToolResults(messageId: string): boolean {
@@ -1388,7 +1408,25 @@ export class AgUiThreadController {
       startNewMessage: boolean,
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
-        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        const previousMessage =
+          this.session.tryGetMessage(assistantMessageId)?.message;
+        const hasUnresolvedToolCalls =
+          previousMessage?.role === "assistant" &&
+          Array.from(
+            iterateToolCallParts(
+              (previousMessage as ThreadAssistantMessage).content,
+            ),
+          ).some((part) => !isResolvedToolCall(part));
+        applyUpdate(
+          hasUnresolvedToolCalls
+            ? {
+                status: {
+                  type: "requires-action",
+                  reason: "tool-calls",
+                },
+              }
+            : { status: { type: "complete", reason: "unknown" } },
+        );
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
         if (this.session.tryGetMessage(previousId)) {
