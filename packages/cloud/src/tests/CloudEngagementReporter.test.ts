@@ -65,6 +65,69 @@ describe("CloudEngagementReporter", () => {
     });
   });
 
+  it("drops pending events when the cloud client changes and reports new events to the replacement", async () => {
+    const first = createCloud();
+    const replacement = createCloud();
+    let cloud = first.cloud;
+    let resolveIds!: (ids: { thread_id: string; message_id: string }) => void;
+    const pendingIds = new Promise<{
+      thread_id: string;
+      message_id: string;
+    }>((resolve) => {
+      resolveIds = resolve;
+    });
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const reporter = new CloudEngagementReporter(
+      () => cloud,
+      (threadId) => {
+        if (threadId === "first") {
+          markStarted();
+          return pendingIds;
+        }
+        return { thread_id: "replacement-thread" };
+      },
+    );
+
+    reporter.messageCopied("first", "local-message");
+    await started;
+    cloud = replacement.cloud;
+    resolveIds({
+      thread_id: "first-thread",
+      message_id: "first-message",
+    });
+    await flush();
+
+    expect(first.track).not.toHaveBeenCalled();
+    expect(replacement.track).not.toHaveBeenCalled();
+
+    reporter.messageCopied("replacement");
+    await flush();
+
+    expect(replacement.track).toHaveBeenCalledExactlyOnceWith({
+      kind: "message_copied",
+      thread_id: "replacement-thread",
+    });
+  });
+
+  it("captures the client before an event is deferred", async () => {
+    const first = createCloud();
+    const replacement = createCloud();
+    let cloud = first.cloud;
+    const resolveIds = vi.fn(() => ({ thread_id: "first-thread" }));
+    const reporter = new CloudEngagementReporter(() => cloud, resolveIds);
+
+    reporter.messageCopied("first-thread", "first-message");
+    cloud = replacement.cloud;
+    await flush();
+
+    expect(resolveIds).not.toHaveBeenCalled();
+    expect(first.track).not.toHaveBeenCalled();
+    expect(replacement.track).not.toHaveBeenCalled();
+  });
+
   it("reports tool approval decisions with their resolved message IDs", async () => {
     const { cloud, track } = createCloud();
     const reporter = new CloudEngagementReporter(

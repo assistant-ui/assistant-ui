@@ -218,20 +218,21 @@ export class CloudEngagementReporter {
     this.track("thread_switched", threadId);
   }
 
-  private track(
+  private async track(
     kind: AssistantCloudEventKind,
     threadId: string,
     messageId?: string,
     init: EngagementEventInit = {},
     options: { awaitThread: boolean } = { awaitThread: false },
-  ): void {
-    void Promise.resolve()
-      .then(() => this.resolveIds(threadId, messageId, options))
-      .then((ids) => {
-        if (!ids) return;
-        if (kind === "thread_switched" && !ids.thread_id) return;
-        this.getCloud().events.track({ kind, ...init, ...ids });
-      })
-      .catch(() => {});
+  ): Promise<void> {
+    try {
+      const cloud = this.getCloud();
+      await Promise.resolve();
+      if (cloud !== this.getCloud()) return;
+      const ids = await this.resolveIds(threadId, messageId, options);
+      if (!ids || cloud !== this.getCloud()) return;
+      if (kind === "thread_switched" && !ids.thread_id) return;
+      cloud.events.track({ kind, ...init, ...ids });
+    } catch {}
   }
 }
