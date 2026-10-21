@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, ready_for_review, reopened]
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] fork job runs only base-branch code
     branches: [main]
     types: [opened, synchronize, ready_for_review, reopened]
 
@@ -97,6 +97,7 @@ jobs:
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Review
         id: review
@@ -115,8 +116,9 @@ jobs:
       # which the action redacts from its own logs.
       - name: Fail on Claude execution error
         if: always()
+        env:
+          FILE: ${{ steps.review.outputs.execution_file }}
         run: |
-          FILE='${{ steps.review.outputs.execution_file }}'
           [ -f "$FILE" ] || exit 0
           jq -e 'last(.[] | select(.type == "result")) | .is_error == true' "$FILE" >/dev/null || exit 0
           echo "::error::Claude review failed: $(jq -r 'last(.[] | select(.type == "result")) | .result // "no error text"' "$FILE" | tr '\n' ' ' | head -c 500)"
@@ -128,8 +130,8 @@ jobs:
       - name: Attribute review model
         env:
           GH_TOKEN: ${{ github.token }}
+          FILE: ${{ steps.review.outputs.execution_file }}
         run: |
-          FILE='${{ steps.review.outputs.execution_file }}'
           [ -f "$FILE" ] || exit 0
           NOTE=$(jq -r "$REVIEW_MODEL_NOTE" "$FILE")
           jq -e 'any(.[]; .subtype == "model_refusal_fallback")' "$FILE" >/dev/null \

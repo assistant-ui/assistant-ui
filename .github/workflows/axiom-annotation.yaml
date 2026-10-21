@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       # The docs app runs the same script as its Vercel ignore command, so a
       # commit Vercel declines to build must not be marked as shipped either.

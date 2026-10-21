@@ -42,6 +42,7 @@ jobs:
 
         with:
           fetch-depth: 2
+          persist-credentials: false
 
       - name: Test Python suite selection
         if: strategy.job-index == 0

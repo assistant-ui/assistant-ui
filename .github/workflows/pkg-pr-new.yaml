@@ -31,6 +31,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -45,5 +46,6 @@ jobs:
       - name: Build packages
         run: pnpm turbo build --filter="./packages/*"
 
+      # pkg.pr.new authenticates through its GitHub App and publishes no npm release.
       - name: Publish PR previews
-        run: pnpm exec pkg-pr-new publish --comment=update --packageManager=pnpm "./packages/*"
+        run: pnpm exec pkg-pr-new publish --comment=update --packageManager=pnpm "./packages/*" # zizmor: ignore[use-trusted-publishing]

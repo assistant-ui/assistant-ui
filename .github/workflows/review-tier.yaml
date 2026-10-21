@@ -1,7 +1,8 @@
 name: Review Tier
 
+# Both triggers below run only base-branch code; the relayed artifact is read as a validated PR number.
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       [
         opened,
@@ -16,7 +17,7 @@ on:
       ]
   issues:
     types: [labeled, unlabeled]
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows: [Review Tier Relay]
     types: [completed]
   merge_group:

@@ -107,6 +107,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
 
       - name: Validate release commit is on default branch
         run: |
@@ -204,18 +205,22 @@ jobs:
 
       - name: Write release summary
         if: steps.target.outputs.shouldPublish == 'true'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
         run: |
           {
             echo "## PyPI Release Summary"
             echo
             echo "**Release SHA:** \`${RELEASE_SHA:0:12}\`"
             echo "**Package:** \`$PYTHON_PACKAGE_NAME\`"
-            echo "**Version:** **${{ steps.target.outputs.version }}**"
+            echo "**Version:** **$VERSION**"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: No targets
         if: steps.target.outputs.shouldPublish == 'false'
-        run: echo "$PYTHON_PACKAGE_NAME@${{ steps.target.outputs.version }} is already published; nothing to do."
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: echo "$PYTHON_PACKAGE_NAME@$VERSION is already published; nothing to do."
 
   publish:
     name: Publish to PyPI
@@ -243,6 +248,7 @@ jobs:
           fetch-depth: 1
           fetch-tags: true
           ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
 
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0

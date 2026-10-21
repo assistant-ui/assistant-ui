@@ -89,6 +89,7 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ steps.deploy-sha.outputs.value }}
+          persist-credentials: false
 
       - name: Validate the packages are published
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0

@@ -220,6 +220,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
 
       - name: Validate release commit is on default branch
         run: |
@@ -688,6 +689,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -720,7 +722,8 @@ jobs:
       - publish
     permissions:
       contents: read
-    uses: ./.github/workflows/registry.yaml
+    # A job-level reusable workflow call already resolves from this run's commit, and check-unmanaged-pins does not recognize `$/` refs.
+    uses: ./.github/workflows/registry.yaml # zizmor: ignore[self-repository]
     with:
       releaseSha: ${{ needs.approve.outputs.release_sha }}
     secrets:
