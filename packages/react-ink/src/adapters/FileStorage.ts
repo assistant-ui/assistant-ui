@@ -126,6 +126,9 @@ const getFileStorage = (dir: string): FileStorage => {
   return storage;
 };
 
+/**
+ * Persists threads and messages as files in `dir`. One process may use a given directory at a time; two processes on the same directory can lose or resurrect threads.
+ */
 export const createFileStorageAdapter = (
   options: CreateFileStorageAdapterOptions,
 ): RemoteThreadListAdapter &
