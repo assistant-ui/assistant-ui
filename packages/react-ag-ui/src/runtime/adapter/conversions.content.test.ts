@@ -96,12 +96,12 @@ describe("toAgUiMessages content metadata", () => {
         id: "u-file",
         role: "user",
         content: [
-          part,
           { type: "text", text: "label" },
           {
             type: "image",
             source: { type: "url", value: "https://example.com/other.png" },
           },
+          part,
         ],
         metadata: { trace: "kept" },
       };

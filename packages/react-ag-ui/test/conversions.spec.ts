@@ -2650,6 +2650,39 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
   });
 
+  it("keeps file-source parts in media order around merged text", () => {
+    const image = {
+      type: "image",
+      source: { type: "url", value: "https://example.com/photo.png" },
+    };
+    const document = {
+      type: "document",
+      source: { type: "file", value: "file-123" },
+    };
+    const inputs = [
+      {
+        id: "u-1",
+        role: "user",
+        content: [image, document, { type: "text", text: "caption" }],
+      },
+      {
+        id: "u-2",
+        role: "user",
+        content: [
+          { type: "text", text: "before" },
+          document,
+          { type: "text", text: "after" },
+        ],
+      },
+    ];
+
+    const output = toAgUiMessages(fromAgUiMessages(inputs));
+    expect(output.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "caption" }, image, document],
+      [{ type: "text", text: "before\nafter" }, document],
+    ]);
+  });
+
   it("converts a native audio content part to an AG-UI audio source", () => {
     const result = toAgUiMessages([
       {

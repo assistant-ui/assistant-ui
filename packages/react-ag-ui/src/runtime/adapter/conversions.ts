@@ -140,14 +140,22 @@ function readLegacyAgUiNamespace(metadata: unknown): Record<string, unknown> {
     : {};
 }
 
-function withoutPersistedInterrupts(
+function withoutPersistedStatusMetadata(
   wire: Record<string, unknown>,
 ): Record<string, unknown> {
   if (!isObject(wire.custom)) return wire;
   const namespaced = wire.custom[AG_UI_METADATA_NAMESPACE];
-  if (!isObject(namespaced) || !("interrupts" in namespaced)) return wire;
+  if (
+    !isObject(namespaced) ||
+    (!("interrupts" in namespaced) && !("pendingToolCallIds" in namespaced))
+  )
+    return wire;
 
-  const { interrupts: _interrupts, ...remainingNamespace } = namespaced;
+  const {
+    interrupts: _interrupts,
+    pendingToolCallIds: _pendingToolCallIds,
+    ...remainingNamespace
+  } = namespaced;
   const { [AG_UI_METADATA_NAMESPACE]: _namespace, ...remainingCustom } =
     wire.custom;
   if (Object.keys(remainingNamespace).length > 0) {
@@ -163,12 +171,17 @@ function toSnapshotCustom(
   metadata: unknown,
   state: Record<string, unknown> = {},
 ): Record<string, unknown> {
-  const wire = withoutPersistedInterrupts(toAgUiWireMetadata(metadata) ?? {});
+  const wire = withoutPersistedStatusMetadata(
+    toAgUiWireMetadata(metadata) ?? {},
+  );
   const needsWireSlot =
     isObject(metadata) &&
     (Object.keys(metadata).length === 0 || AG_UI_METADATA_NAMESPACE in wire);
   const namespaced = {
     ...readLegacyAgUiNamespace(metadata),
+    ...(readPersistedPendingToolCallIds(metadata) !== undefined
+      ? { pendingToolCallIds: readPersistedPendingToolCallIds(metadata) }
+      : {}),
     ...state,
     ...(needsWireSlot ? { messageMetadata: wire } : {}),
   };
@@ -469,7 +482,6 @@ function partSourceToString(
       mimeType: resolvedMimeType,
     };
   }
-  if (type === "file") return null;
   return null;
 }
 
@@ -600,8 +612,11 @@ function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
         typeof part.source.value !== "string"
       )
         continue;
+      const mediaIndices = converted.flatMap((contentPart, position) =>
+        contentPart.type !== "text" ? [position] : [],
+      );
       converted.splice(
-        Math.min(index, converted.length),
+        mediaIndices[index] ?? converted.length,
         0,
         part as ContentPart,
       );
@@ -721,6 +736,17 @@ function readPersistedInterrupts(
   return validateInterrupts(namespaced.interrupts);
 }
 
+function readPersistedPendingToolCallIds(
+  metadata: unknown,
+): string[] | undefined {
+  const value = readNamespacedMetadata(metadata).pendingToolCallIds;
+  return Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((id): id is string => typeof id === "string")
+    ? value
+    : undefined;
+}
+
 function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
   if (!isObject(metadata)) return [];
   const custom = metadata.custom;
@@ -820,17 +846,22 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
+  let mediaIndex = 0;
   const fileSourceParts =
     role === "user" && Array.isArray(rawMessage.content)
-      ? rawMessage.content.flatMap((part, index) =>
-          isObject(part) &&
-          mediaInputTypes.has(getString(part, "type") ?? "") &&
-          isObject(part.source) &&
-          part.source.type === "file" &&
-          typeof part.source.value === "string"
+      ? rawMessage.content.flatMap((part) => {
+          if (
+            !isObject(part) ||
+            !mediaInputTypes.has(getString(part, "type") ?? "")
+          )
+            return [];
+          const index = mediaIndex++;
+          return isObject(part.source) &&
+            part.source.type === "file" &&
+            typeof part.source.value === "string"
             ? [{ index, part }]
-            : [],
-        )
+            : [];
+        })
       : [];
   const custom = toSnapshotCustom(rawMessage.metadata, {
     ...(role === "developer" ? { role: "developer" } : {}),
@@ -1396,13 +1427,18 @@ export function fromAgUiMessages(
 
     const hasInterrupt =
       readPersistedInterrupts(message.metadata) !== undefined;
+    const pendingToolCallIds = readPersistedPendingToolCallIds(
+      message.metadata,
+    );
     const hasPendingToolCall =
       Array.isArray(message.content) &&
       message.content.some(
         (part) =>
           isObject(part) &&
           part.type === "tool-call" &&
-          part.result === undefined,
+          part.result === undefined &&
+          (pendingToolCallIds === undefined ||
+            pendingToolCallIds.includes(getString(part, "toolCallId") ?? "")),
       );
 
     if (hasInterrupt || hasPendingToolCall) {
