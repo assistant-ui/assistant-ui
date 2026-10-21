@@ -10,6 +10,7 @@ const createSource = () => {
     signals.push(options.signal);
     return Promise.resolve({
       stream: (async function* () {
+        yield { type: "server.connected", properties: {} };
         await new Promise<void>((resolve) => {
           options.signal.addEventListener("abort", () => resolve(), {
             once: true,
@@ -67,8 +68,13 @@ it("disconnects after a genuine last unsubscribe", async () => {
 
 it("reconnects when a listener returns after the replay window", async () => {
   const { source, signals, subscribe } = createSource();
-  const unsubscribe = source.subscribe(vi.fn());
-  await Promise.resolve();
+  const firstListener = vi.fn();
+  const unsubscribe = source.subscribe(firstListener);
+  await vi.waitFor(() =>
+    expect(firstListener).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "server.connected" }),
+    ),
+  );
   expect(subscribe).toHaveBeenCalledOnce();
 
   unsubscribe();

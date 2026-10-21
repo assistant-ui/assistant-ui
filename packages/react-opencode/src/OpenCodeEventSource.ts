@@ -81,7 +81,7 @@ export class OpenCodeEventSource {
   private interruptReconnectWait: (() => void) | null = null;
   private stopped = false;
   private nextReconnectDelayMs = this.reconnectDelayMs;
-  private hadConnection = false;
+  private hasAttemptedConnection = false;
 
   private readonly client: OpencodeClient;
 
@@ -173,28 +173,35 @@ export class OpenCodeEventSource {
       this.abortController = abortController;
       let failedToConnect = true;
       let reconnectDelayMs = this.reconnectDelayMs;
+      const isReconnect = this.hasAttemptedConnection;
+      this.hasAttemptedConnection = true;
 
       try {
         const subscription = await this.client.event.subscribe(undefined, {
           signal: abortController.signal,
           sseMaxRetryAttempts: 1,
+          // The SDK otherwise swallows stream failures and ends iteration.
+          onSseError: (error) => {
+            throw error;
+          },
         });
-        failedToConnect = false;
-        this.nextReconnectDelayMs = this.reconnectDelayMs;
-
-        if (this.hadConnection) {
-          this.emit({
-            type: STREAM_RECONNECTED_EVENT_TYPE,
-            sessionId: undefined,
-            raw: undefined,
-            properties: {},
-          });
-        }
-        this.hadConnection = true;
 
         for await (const event of subscription.stream) {
           if (abortController.signal.aborted || this.stopped) {
             return;
+          }
+
+          if (failedToConnect) {
+            failedToConnect = false;
+            this.nextReconnectDelayMs = this.reconnectDelayMs;
+            if (isReconnect) {
+              this.emit({
+                type: STREAM_RECONNECTED_EVENT_TYPE,
+                sessionId: undefined,
+                raw: undefined,
+                properties: {},
+              });
+            }
           }
 
           const normalized = normalizeEventPayload(event);
