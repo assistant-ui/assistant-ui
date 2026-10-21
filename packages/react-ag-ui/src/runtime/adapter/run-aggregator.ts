@@ -182,7 +182,7 @@ export type RunAggregatorOptions = {
   logger: Logger;
   emit: Emit;
   onServerMessageId?: (messageId: string) => void;
-  onTextMessageStart?: (messageId: string) => void;
+  onTextMessageStart?: (messageId: string, openToolCallIds: string[]) => void;
 };
 
 /**
@@ -202,7 +202,7 @@ export class RunAggregator {
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
   private readonly onTextMessageStart:
-    | ((messageId: string) => void)
+    | ((messageId: string, openToolCallIds: string[]) => void)
     | undefined;
 
   private status: ChatModelRunResult["status"] | undefined;
@@ -851,8 +851,11 @@ export class RunAggregator {
     if (carried.parts.length > 0 || carried.hiddenSignatures.length > 0) {
       this.emit();
     }
+    const openToolCallIds = Array.from(this.toolCalls.values())
+      .filter((call) => call.result === undefined)
+      .map((call) => call.toolCallId);
     this.resetMessageParts();
-    this.onTextMessageStart(messageId);
+    this.onTextMessageStart(messageId, openToolCallIds);
     this.restoreReasoning(carried);
   }
 
