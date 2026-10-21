@@ -638,6 +638,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const [createdAtCache] = useState(() => new Map<string, Date>());
   const toolLastInputCacheRef = useRef<Map<string, ReadonlyJSONObject>>(
     new Map(),
   );
@@ -724,6 +725,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toThreadMessages = useCallback(
     (sourceMessages: UI_MESSAGE[]) => {
       const metadata: AISDKMessageConverterMetadata = {
+        createdAtCache,
         supportsRichToolApprovalResponses,
         toolArtifacts: toolArtifactsRef.current,
         toolInteractions: toolInteractionsRef.current,
@@ -735,7 +737,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         metadata,
       );
     },
-    [supportsRichToolApprovalResponses],
+    [createdAtCache, supportsRichToolApprovalResponses],
   );
 
   const retractCancellation = useCallback(
@@ -783,6 +785,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     joinStrategy,
     metadata: useMemo<AISDKMessageConverterMetadata>(
       () => ({
+        createdAtCache,
         toolStatuses,
         messageTiming,
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
@@ -803,6 +806,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         ...(toolApprovalResponses.size > 0 && { toolApprovalResponses }),
       }),
       [
+        createdAtCache,
         toolStatuses,
         messageTiming,
         optimisticMessageId,
