@@ -23,7 +23,8 @@ export type StreamingTimingAccessors<TMessage> = {
   ) => number;
   /**
    * JSON-serializable assistant output, including text, tools, and non-text
-   * parts. The hook snapshots it to preserve timing for unchanged history.
+   * parts, or `undefined` when the message is absent. The hook snapshots it
+   * to preserve timing for unchanged history.
    * Without this accessor, or when its result cannot be serialized, the hook
    * retains the legacy behavior of timing the latest assistant on every run.
    */

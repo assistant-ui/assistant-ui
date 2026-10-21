@@ -457,10 +457,11 @@ export const createLangChainStreamingTimingAccessors = <
     getToolCallCount,
     getMessageContent: (messages, id) => {
       const message = findAiMessage(messages, id);
+      if (message === undefined) return undefined;
       return {
-        content: message?.content,
-        tool_calls: message?.tool_calls,
-        additional_kwargs: message?.additional_kwargs,
+        content: message.content,
+        tool_calls: message.tool_calls,
+        additional_kwargs: message.additional_kwargs,
       };
     },
   };

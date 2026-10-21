@@ -98,6 +98,38 @@ it("does not invent timing for loaded history when a run produces no output", ()
   expect(result.current).toEqual({});
 });
 
+it("preserves an older answer's timing when a reload removes the latest answer", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(1000);
+  const { result, rerender } = renderHook(
+    ({ messages, isRunning }) =>
+      useStreamingTiming(messages, isRunning, accessors),
+    { initialProps: { messages: [answer], isRunning: true } },
+  );
+  vi.setSystemTime(1100);
+  rerender({ messages: [answer], isRunning: false });
+  const firstTiming = result.current.a1;
+  expect(firstTiming).toMatchObject({
+    streamStartTime: 1000,
+    totalStreamTime: 100,
+  });
+
+  const secondAnswer = { ...answer, id: "a2", text: "Second answer" };
+  vi.setSystemTime(2000);
+  rerender({ messages: [answer, nextQuestion, secondAnswer], isRunning: true });
+  vi.setSystemTime(2200);
+  rerender({
+    messages: [answer, nextQuestion, secondAnswer],
+    isRunning: false,
+  });
+
+  vi.setSystemTime(3000);
+  rerender({ messages: [answer, nextQuestion], isRunning: true });
+  vi.setSystemTime(3500);
+  rerender({ messages: [answer, nextQuestion], isRunning: false });
+  expect(result.current.a1).toBe(firstTiming);
+});
+
 it.each([
   { text: "First answer continued", toolCalls: 0, tokenCount: 6 },
   { text: "First answer", toolCalls: 1, tokenCount: 3 },

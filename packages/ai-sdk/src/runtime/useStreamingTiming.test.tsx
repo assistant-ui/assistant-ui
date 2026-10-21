@@ -57,3 +57,24 @@ it("leaves equivalent history without timing after an empty run", () => {
   rerender({ messages: [structuredClone(answer)], isRunning: false });
   expect(result.current).toEqual({});
 });
+
+it("leaves older history untimed when regeneration drops the latest answer", () => {
+  const question: UIMessage = {
+    id: "u2",
+    role: "user",
+    parts: [{ type: "text", text: "Next question" }],
+  };
+  const secondAnswer: UIMessage = { ...answer, id: "a2" };
+  const { result, rerender } = renderHook(
+    ({ messages, isRunning }) => useStreamingTiming(messages, isRunning),
+    {
+      initialProps: {
+        messages: [answer, question, secondAnswer],
+        isRunning: false,
+      },
+    },
+  );
+  rerender({ messages: [answer, question], isRunning: true });
+  rerender({ messages: [answer, question], isRunning: false });
+  expect(result.current).toEqual({});
+});

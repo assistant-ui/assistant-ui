@@ -45,7 +45,7 @@ const getContentKey = <TMessage>(
  *   getToolCallCount: (msgs, id) => msgs.find((m) => m.id === id)?.tool_calls?.length ?? 0,
  *   getMessageContent: (msgs, id) => {
  *     const message = msgs.find((m) => m.id === id);
- *     return { content: message?.content, tool_calls: message?.tool_calls };
+ *     return message ? { content: message.content, tool_calls: message.tool_calls } : undefined;
  *   },
  * });
  * ```
@@ -58,6 +58,7 @@ export const useStreamingTiming = <TMessage>(
 ): Record<string, MessageTiming> => {
   const [timings, setTimings] = useState<Record<string, MessageTiming>>({});
   const stateRef = useRef<StreamingTimingState | null>(null);
+  const idleMessagesRef = useRef<readonly TMessage[] | null>(null);
   const idleMessageRef = useRef<{
     id: string;
     contentKey: string;
@@ -74,6 +75,20 @@ export const useStreamingTiming = <TMessage>(
   useEffect(() => {
     const currentAccessors = accessorsRef.current;
     const id = currentAccessors.getAssistantMessageId(messages);
+    if (
+      isRunning &&
+      id !== undefined &&
+      stateRef.current?.messageId !== id &&
+      idleMessageRef.current?.id !== id
+    ) {
+      const previousMessages = idleMessagesRef.current;
+      const previousKey =
+        previousMessages === null
+          ? undefined
+          : getContentKey(previousMessages, id, currentAccessors);
+      idleMessageRef.current =
+        previousKey === undefined ? null : { id, contentKey: previousKey };
+    }
     const idleMessage = idleMessageRef.current;
     const contentKey =
       id !== undefined && (!isRunning || id === idleMessage?.id)
@@ -96,6 +111,7 @@ export const useStreamingTiming = <TMessage>(
         id === undefined || contentKey === undefined
           ? null
           : { id, contentKey };
+      idleMessagesRef.current = messages;
     }
 
     const result = stepStreamingTiming(
