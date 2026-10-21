@@ -143,6 +143,7 @@ export abstract class BaseComposerRuntimeCore
 
   private _pendingTextChanges: ComposerRuntimeEventPayload["textChange"][] = [];
   private _isFlushingTextChanges = false;
+  private _notifyDepth = 0;
 
   private _writeText(value: string, origin: ComposerTextOrigin) {
     if (this._text === value) return;
@@ -152,10 +153,11 @@ export abstract class BaseComposerRuntimeCore
   }
 
   protected override _notifySubscribers() {
+    this._notifyDepth++;
     try {
       super._notifySubscribers();
     } finally {
-      this._flushTextChanges();
+      if (--this._notifyDepth === 0) this._flushTextChanges();
     }
   }
 
@@ -712,7 +714,7 @@ export abstract class BaseComposerRuntimeCore
     )
       return;
 
-    this._writeText("", "external");
+    this._writeText("", "send");
     this._rebaseDictation("");
     this._quote = undefined;
     this._attachments = [];

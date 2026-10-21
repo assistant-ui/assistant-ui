@@ -21,8 +21,8 @@ export type AttachmentAddErrorEvent = {
 
 /**
  * What wrote the composer text: `user` for typing, dictation, and other input
- * the user authored, `recall` for input history, `send` for the clear when a
- * send takes the draft, `return` for a send's text coming back to the draft
+ * the user authored, `recall` for input history, `send` for the clear when the
+ * draft goes into the thread as a message, `return` for a send's text coming back to the draft
  * after it failed or its run was cancelled, `reset` for `reset()`, and
  * `external` for every other write, including `setText` without an origin.
  */
@@ -57,7 +57,7 @@ export type ComposerRuntimeEventPayload = {
   };
   /**
    * Fired once per write that changed the text, in write order, after the
-   * write's state notification. `text` is the text that write left, even when
+   * write's state notification has reached every subscriber. `text` is the text that write left, even when
    * a listener has written again since.
    */
   textChange: {

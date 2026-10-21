@@ -496,7 +496,7 @@ export function SyncPlugin({
               if (fullText !== lastSyncedTextRef.current) {
                 textDirtySinceSyncRef.current = true;
                 lastSyncedTextRef.current = fullText;
-                composer.setText(fullText);
+                composer.setText(fullText, { origin: "user" });
               }
             } finally {
               isSyncingFromLexicalRef.current = false;

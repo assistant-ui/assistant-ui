@@ -61,6 +61,19 @@ describe("BaseComposerRuntimeCore textChange", () => {
     expect(changes.at(-1)).toEqual({ text: "hello", origin: "return" });
   });
 
+  it("labels a message moved into the draft as return and moved back as send", () => {
+    const { composer, changes } = makeComposer();
+    const draft = { text: "hello" };
+
+    composer.restoreDraft(draft);
+    composer.retractDraft(draft);
+
+    expect(changes).toEqual([
+      { text: "hello", origin: "return" },
+      { text: "", origin: "send" },
+    ]);
+  });
+
   it("fires nothing for a write that leaves the text unchanged", async () => {
     const { composer, changes } = makeComposer();
 
@@ -88,18 +101,20 @@ describe("BaseComposerRuntimeCore textChange", () => {
     ]);
   });
 
-  it("delivers the text a state listener overwrote before the event fired", () => {
-    const { composer, changes } = makeComposer();
+  it("delivers after every state subscriber, keeping the text a state subscriber overwrote", () => {
+    const { composer } = makeComposer();
+    const log: string[] = [];
     composer.subscribe(() => {
       if (composer.text === "a") composer.setText("b");
     });
+    composer.subscribe(() => log.push(`state ${composer.text}`));
+    composer.unstable_on("textChange", (change) =>
+      log.push(`${change.origin} ${change.text}`),
+    );
 
     composer.setText("a", { origin: "user" });
 
-    expect(changes).toEqual([
-      { text: "a", origin: "user" },
-      { text: "b", origin: "external" },
-    ]);
+    expect(log).toEqual(["state b", "state b", "user a", "external b"]);
   });
 
   it("keeps delivering and completes the write when a listener throws", () => {

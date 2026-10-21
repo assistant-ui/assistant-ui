@@ -3,6 +3,7 @@
 "@assistant-ui/react": patch
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-ink": patch
+"@assistant-ui/react-lexical": patch
 "@assistant-ui/vue": patch
 ---
 
