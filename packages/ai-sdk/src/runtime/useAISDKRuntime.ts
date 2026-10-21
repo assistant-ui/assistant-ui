@@ -638,7 +638,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
-  const [createdAtCache] = useState(() => new Map<string, Date>());
+  const [createdAtCaches] = useState(
+    () => new Map<string, Map<string, Date>>(),
+  );
+  let createdAtCache = createdAtCaches.get(chatHelpers.id);
+  if (!createdAtCache) {
+    createdAtCache = new Map();
+    createdAtCaches.set(chatHelpers.id, createdAtCache);
+  }
   const toolLastInputCacheRef = useRef<Map<string, ReadonlyJSONObject>>(
     new Map(),
   );

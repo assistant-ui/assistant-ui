@@ -166,6 +166,30 @@ it("keeps earlier createdAt values when streaming timing changes", async () => {
   view.unmount();
 });
 
+it("stamps a message id afresh when the runtime switches chats", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+  let chat = createChat();
+  let runtime!: ReturnType<typeof useAISDKRuntime>;
+  const Host = () => {
+    runtime = useAISDKRuntime(chat as never);
+    return null;
+  };
+  const view = render(<Host />);
+  const firstChatCreatedAt = runtime.thread
+    .getState()
+    .messages[0]!.createdAt.getTime();
+
+  vi.setSystemTime(new Date("2026-01-01T00:01:00.000Z"));
+  chat = { ...createChat(), id: "chat-2" };
+  view.rerender(<Host />);
+
+  expect(runtime.thread.getState().messages[0]!.createdAt.getTime()).not.toBe(
+    firstChatCreatedAt,
+  );
+  view.unmount();
+});
+
 it("completes AI SDK suggestion generation after Fast Refresh", async () => {
   const chat = createChat();
   const { generate, finish } = makeGeneration();
