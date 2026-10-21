@@ -517,10 +517,10 @@ function normalizeInputPart(
 
 type ContentSlot<T> = { index: number } & T;
 
-// Text imports as one string and encoded media as attachments, so the wire
-// position of each text part and file source part is recorded to restore the
-// original order on export. Text positions are kept only when that order is
-// not the default leading text.
+// Text imports as one string and encoded media as attachments, so export
+// needs the wire layout to restore the original order: each file source part
+// keeps its rank among media, and each text part its position among all kept
+// parts unless the text is one non-empty leading part.
 function toUserContentLayout(content: unknown): {
   fileSourceParts: ContentSlot<{ part: Record<string, unknown> }>[];
   textParts: ContentSlot<{ text: string }>[];
@@ -529,11 +529,14 @@ function toUserContentLayout(content: unknown): {
   const textParts: ContentSlot<{ text: string }>[] = [];
   if (!Array.isArray(content)) return { fileSourceParts, textParts };
 
-  let index = 0;
+  let mediaIndex = 0;
   for (const rawPart of content) {
     if (!isObject(rawPart)) continue;
     if (rawPart.type === "text" && typeof rawPart.text === "string") {
-      textParts.push({ index: index++, text: rawPart.text });
+      textParts.push({
+        index: textParts.length + mediaIndex,
+        text: rawPart.text,
+      });
       continue;
     }
     const part = normalizeInputPart(rawPart);
@@ -543,15 +546,17 @@ function toUserContentLayout(content: unknown): {
       part.source.type === "file" &&
       typeof part.source.value === "string"
     ) {
-      fileSourceParts.push({ index: index++, part });
+      fileSourceParts.push({ index: mediaIndex++, part });
     } else if (partSourceToString(part.source)) {
-      index++;
+      mediaIndex++;
     }
   }
 
   const leadingText =
     textParts.length === 0 ||
-    (textParts.length === 1 && textParts[0]!.index === 0);
+    (textParts.length === 1 &&
+      textParts[0]!.index === 0 &&
+      textParts[0]!.text !== "");
   return { fileSourceParts, textParts: leadingText ? [] : textParts };
 }
 
@@ -680,11 +685,18 @@ function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
   const ordered = restoresText
     ? converted.filter((part) => part.type !== "text")
     : converted;
-  const slots = [...(restoresText ? textSlots : []), ...fileSourceSlots].sort(
+  for (const { index, part } of fileSourceSlots.sort(
     (a, b) => a.index - b.index,
-  );
-  for (const { index, part } of slots) {
-    ordered.splice(Math.min(index, ordered.length), 0, part);
+  )) {
+    const mediaPositions = ordered.flatMap((contentPart, position) =>
+      contentPart.type !== "text" ? [position] : [],
+    );
+    ordered.splice(mediaPositions[index] ?? ordered.length, 0, part);
+  }
+  if (restoresText) {
+    for (const { index, part } of textSlots.sort((a, b) => a.index - b.index)) {
+      ordered.splice(Math.min(index, ordered.length), 0, part);
+    }
   }
 
   if (restoresText || ordered.some((part) => part.type !== "text"))

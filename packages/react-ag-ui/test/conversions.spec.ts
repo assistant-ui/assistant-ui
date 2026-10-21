@@ -2696,6 +2696,11 @@ describe("adapter conversions", () => {
           { type: "text", text: "two" },
         ],
       },
+      {
+        id: "u-5",
+        role: "user",
+        content: [{ type: "text", text: "" }, document, image],
+      },
     ];
 
     const output = toAgUiMessages(fromAgUiMessages(inputs));
@@ -2704,29 +2709,38 @@ describe("adapter conversions", () => {
     );
   });
 
-  it("merges user text when the imported text was edited", () => {
-    const [imported] = fromAgUiMessages([
+  it("leads with the user text when the imported text was edited", () => {
+    const image = {
+      type: "image",
+      source: { type: "url", value: "https://example.com/photo.png" },
+    };
+    const document = {
+      type: "document",
+      source: { type: "file", value: "file-123" },
+    };
+    const imported = fromAgUiMessages([
       {
         id: "u-1",
         role: "user",
         content: [
           { type: "text", text: "before" },
-          {
-            type: "image",
-            source: { type: "url", value: "https://example.com/photo.png" },
-          },
+          image,
           { type: "text", text: "after" },
         ],
       },
+      {
+        id: "u-2",
+        role: "user",
+        content: [document, { type: "text", text: "caption" }, image],
+      },
     ]);
 
-    const [output] = toAgUiMessages([{ ...imported!, content: "rewritten" }]);
-    expect(output!.content).toEqual([
-      { type: "text", text: "rewritten" },
-      {
-        type: "image",
-        source: { type: "url", value: "https://example.com/photo.png" },
-      },
+    const output = toAgUiMessages(
+      imported.map((message) => ({ ...message, content: "rewritten" })),
+    );
+    expect(output.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "rewritten" }, image],
+      [{ type: "text", text: "rewritten" }, document, image],
     ]);
   });
 
