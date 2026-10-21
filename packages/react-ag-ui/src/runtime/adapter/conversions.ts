@@ -63,6 +63,10 @@ type AgUiToolCall = {
   function: { name: string; arguments: string };
 };
 
+type UserContentOrderEntry =
+  | { type: "text"; length: number }
+  | { type: "attachment"; index: number };
+
 export type AgUiMessage =
   | {
       id: string;
@@ -494,12 +498,20 @@ function upgradeBinaryInputPart(
   };
 }
 
-function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
-  if (!Array.isArray(content)) return [];
+function toSnapshotUserContent(content: unknown): {
+  attachments: SnapshotAttachment[];
+  contentOrder: UserContentOrderEntry[];
+} {
+  if (!Array.isArray(content)) return { attachments: [], contentOrder: [] };
 
   const attachments: SnapshotAttachment[] = [];
+  const contentOrder: UserContentOrderEntry[] = [];
   for (const rawPart of content) {
     if (!isObject(rawPart)) continue;
+    if (rawPart.type === "text" && typeof rawPart.text === "string") {
+      contentOrder.push({ type: "text", length: rawPart.text.length });
+      continue;
+    }
     const part =
       getString(rawPart, "type") === "binary"
         ? upgradeBinaryInputPart(rawPart)
@@ -512,6 +524,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
 
     const { filename, providerMetadata } = readInputMetadata(part.metadata);
     const id = attachments.length.toString();
+    const attachmentIndex = attachments.length;
 
     if (type === "image") {
       attachments.push({
@@ -529,6 +542,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
           },
         ],
       });
+      contentOrder.push({ type: "attachment", index: attachmentIndex });
       continue;
     }
 
@@ -550,27 +564,47 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
         },
       ],
     });
+    contentOrder.push({ type: "attachment", index: attachmentIndex });
   }
-  return attachments;
+  return { attachments, contentOrder };
 }
 
-function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
-  const contentParts = Array.isArray(message.content) ? message.content : [];
+function readUserContentOrder(
+  metadata: unknown,
+): UserContentOrderEntry[] | undefined {
+  const value = readNamespacedMetadata(metadata).userContentOrder;
+  if (!Array.isArray(value)) return undefined;
 
-  const attachments = message.attachments ?? [];
+  const entries: UserContentOrderEntry[] = [];
+  for (const entry of value) {
+    if (!isObject(entry)) return undefined;
+    if (
+      entry.type === "text" &&
+      Number.isInteger(entry.length) &&
+      (entry.length as number) >= 0
+    ) {
+      entries.push({ type: "text", length: entry.length as number });
+      continue;
+    }
+    if (
+      entry.type === "attachment" &&
+      Number.isInteger(entry.index) &&
+      (entry.index as number) >= 0
+    ) {
+      entries.push({ type: "attachment", index: entry.index as number });
+      continue;
+    }
+    return undefined;
+  }
+  return entries.some((entry) => entry.type === "attachment")
+    ? entries
+    : undefined;
+}
 
+function buildAttachmentContent(
+  attachments: readonly AttachmentLike[],
+): InputContent[] {
   const converted: InputContent[] = [];
-
-  // Promote string-form content to a leading text part so it survives when
-  // non-text attachments are present (fromAgUiMessages emits string content).
-  if (typeof message.content === "string" && message.content.length > 0) {
-    converted.push({ type: "text", text: message.content });
-  }
-
-  for (const part of contentParts) {
-    const input = toInputContent(part, undefined);
-    if (input) converted.push(input);
-  }
   for (const attachment of attachments) {
     if (!isObject(attachment)) continue;
     const attachmentContent = attachment.content;
@@ -581,6 +615,84 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
       if (input) converted.push(input);
     }
   }
+  return converted;
+}
+
+function restoreUserContentOrder(
+  message: ThreadMessageLike,
+  attachmentContent: readonly InputContent[],
+): InputContent[] | undefined {
+  if (typeof message.content !== "string") return undefined;
+  if (!attachmentContent.some((part) => part.type !== "text")) {
+    return undefined;
+  }
+
+  const order = readUserContentOrder(message.metadata);
+  if (!order) return undefined;
+
+  const attachmentIndexes = order.flatMap((entry) =>
+    entry.type === "attachment" ? [entry.index] : [],
+  );
+  if (attachmentIndexes.length !== attachmentContent.length) return undefined;
+  const seenAttachmentIndexes = new Set(attachmentIndexes);
+  if (
+    seenAttachmentIndexes.size !== attachmentContent.length ||
+    attachmentIndexes.some((index) => index >= attachmentContent.length)
+  ) {
+    return undefined;
+  }
+
+  const textEntries = order.filter(
+    (entry): entry is Extract<UserContentOrderEntry, { type: "text" }> =>
+      entry.type === "text",
+  );
+  const textParts: string[] = [];
+  let textOffset = 0;
+  for (let index = 0; index < textEntries.length; index++) {
+    const length = textEntries[index]!.length;
+    const textPart = message.content.slice(textOffset, textOffset + length);
+    if (textPart.length !== length) return undefined;
+    textParts.push(textPart);
+    textOffset += length;
+    if (index < textEntries.length - 1) {
+      if (message.content[textOffset] !== "\n") return undefined;
+      textOffset++;
+    }
+  }
+  if (textOffset !== message.content.length) return undefined;
+
+  const converted: InputContent[] = [];
+  let textIndex = 0;
+  for (const entry of order) {
+    if (entry.type === "text") {
+      converted.push({ type: "text", text: textParts[textIndex++]! });
+    } else {
+      const part = attachmentContent[entry.index];
+      if (!part) return undefined;
+      converted.push(part);
+    }
+  }
+  return converted;
+}
+
+function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
+  const contentParts = Array.isArray(message.content) ? message.content : [];
+  const attachments = message.attachments ?? [];
+  const attachmentContent = buildAttachmentContent(attachments);
+  const restoredOrder = restoreUserContentOrder(message, attachmentContent);
+  if (restoredOrder) return restoredOrder;
+
+  const converted: InputContent[] = [];
+
+  if (typeof message.content === "string" && message.content.length > 0) {
+    converted.push({ type: "text", text: message.content });
+  }
+
+  for (const part of contentParts) {
+    const input = toInputContent(part, undefined);
+    if (input) converted.push(input);
+  }
+  converted.push(...attachmentContent);
 
   const hasNonText = converted.some((part) => part.type !== "text");
   if (hasNonText) return converted;
@@ -794,12 +906,26 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
-  const custom = toSnapshotCustom(
+  let custom = toSnapshotCustom(
     rawMessage.metadata,
     role === "developer" ? { role: "developer" } : {},
   );
-  const attachments =
-    role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
+  const userContent =
+    role === "user"
+      ? toSnapshotUserContent(rawMessage.content)
+      : { attachments: [], contentOrder: [] };
+  if (userContent.attachments.length > 0) {
+    const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
+      ? custom[AG_UI_METADATA_NAMESPACE]
+      : {};
+    custom = {
+      ...custom,
+      [AG_UI_METADATA_NAMESPACE]: {
+        ...namespaced,
+        userContentOrder: userContent.contentOrder,
+      },
+    };
+  }
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     // The internal message model has no developer role; it rides as a system
@@ -807,7 +933,9 @@ function toUserOrSystemSnapshotMessage(
     role: role === "developer" ? "system" : role,
     content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
-    ...(attachments.length > 0 ? { attachments } : {}),
+    ...(userContent.attachments.length > 0
+      ? { attachments: userContent.attachments }
+      : {}),
     ...(Object.keys(custom).length > 0 ? { metadata: { custom } } : {}),
   };
 }

@@ -318,6 +318,49 @@ describe("toAgUiMessages content metadata", () => {
   });
 });
 
+describe("fromAgUiMessages user content order", () => {
+  it("preserves interleaved text, image, and document parts through history", () => {
+    const content = [
+      { type: "text", text: "before" },
+      {
+        type: "image",
+        source: { type: "data", value: "aGk=", mimeType: "image/png" },
+      },
+      { type: "text", text: "between" },
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/cat.png" },
+      },
+      { type: "text", text: "after" },
+      {
+        type: "document",
+        source: { type: "data", value: "cGRm", mimeType: "application/pdf" },
+      },
+    ];
+    const imported = fromAgUiMessages([
+      {
+        id: "u1",
+        role: "user",
+        content,
+        metadata: { agui: { traceId: "t1" } },
+      },
+    ]);
+    const persisted = JSON.parse(JSON.stringify(imported));
+    const rebuilt = toAgUiMessages(persisted as never)[0];
+
+    if (!rebuilt || rebuilt.role !== "user") {
+      throw new Error("expected a rebuilt user message");
+    }
+    expect(rebuilt).toEqual({
+      id: "u1",
+      role: "user",
+      content,
+      metadata: { agui: { traceId: "t1" } },
+    });
+    expect(UserMessageSchema.safeParse(rebuilt).success).toBe(true);
+  });
+});
+
 describe("toAgUiMessages percent-encoded data URLs", () => {
   it("sends a data URL that is not base64 as a url source", () => {
     expect(
