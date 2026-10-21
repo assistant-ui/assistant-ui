@@ -5241,6 +5241,30 @@ describe("AGUIThreadRuntimeCore", () => {
     );
   });
 
+  it("keeps waiting on an earlier held call when the later call is answered before RUN_FINISHED", async () => {
+    let core: ReturnType<typeof createCore>;
+    const { runAgent } = createSplitPendingAgent({
+      callInB: true,
+      beforeFinish: () =>
+        core.addToolResult({
+          messageId: "b",
+          toolCallId: "call-2",
+          toolName: "lookup",
+          result: "two",
+          isError: false,
+        }),
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+  });
+
   it.each(["append", "steerAway"] as const)(
     "%s cancels pending calls in every message of a split assistant turn",
     async (method) => {

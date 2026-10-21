@@ -1447,7 +1447,66 @@ export class AgUiThreadController {
 
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
+    const settleHeldMessages = (terminalStatus: MessageStatus): string[] => {
+      const pendingMessages: string[] = [];
+      for (const [messageId, openToolCallIds] of heldMessages) {
+        let requiresToolResult = false;
+        const updated = this.session.updateMessage(messageId, (message) => {
+          if (message.role !== "assistant") return message;
+          const assistant = message as ThreadAssistantMessage;
+          const pendingToolCallIds = Array.from(openToolCallIds).filter(
+            (id) =>
+              !restrictedPendingToolCallIds ||
+              restrictedPendingToolCallIds.has(id),
+          );
+          const canWaitForTools =
+            terminalStatus.type === "complete" ||
+            terminalStatus.type === "requires-action";
+          const status: MessageStatus = canWaitForTools
+            ? pendingToolCallIds.length > 0
+              ? { type: "requires-action", reason: "tool-calls" }
+              : { type: "complete", reason: "unknown" }
+            : terminalStatus;
+          requiresToolResult = status.type === "requires-action";
+          const metadata = withoutPendingToolCallIds(assistant.metadata);
+          return {
+            ...assistant,
+            status,
+            metadata:
+              status.type === "requires-action" && restrictedPendingToolCallIds
+                ? {
+                    ...metadata,
+                    custom: {
+                      ...metadata.custom,
+                      [AG_UI_METADATA_NAMESPACE]: {
+                        ...(metadata.custom[AG_UI_METADATA_NAMESPACE] as
+                          | AgUiCustomMetadata
+                          | undefined),
+                        pendingToolCallIds,
+                      },
+                    },
+                  }
+                : metadata,
+          };
+        });
+        if (updated) {
+          this.publishUpdate();
+          this.persistAssistantHistory(messageId);
+          if (requiresToolResult) {
+            pendingMessages.push(messageId);
+          }
+        }
+      }
+      heldMessages.clear();
+      return pendingMessages;
+    };
+
     const applyUpdate = (update: ChatModelRunResult) => {
+      const terminalStatus = update.status;
+      const pendingMessages =
+        settlingRun && terminalStatus && terminalStatus.type !== "running"
+          ? settleHeldMessages(terminalStatus)
+          : [];
       const hasStreamContent =
         Array.isArray(update.content) &&
         update.content.some((part) => part.type !== "data");
@@ -1458,62 +1517,8 @@ export class AgUiThreadController {
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
-      const terminalStatus = update.status;
-      if (settlingRun && terminalStatus && terminalStatus.type !== "running") {
-        const pendingMessages: string[] = [];
-        for (const [messageId, openToolCallIds] of heldMessages) {
-          let requiresToolResult = false;
-          const updated = this.session.updateMessage(messageId, (message) => {
-            if (message.role !== "assistant") return message;
-            const assistant = message as ThreadAssistantMessage;
-            const pendingToolCallIds = Array.from(openToolCallIds).filter(
-              (id) =>
-                !restrictedPendingToolCallIds ||
-                restrictedPendingToolCallIds.has(id),
-            );
-            const canWaitForTools =
-              terminalStatus.type === "complete" ||
-              terminalStatus.type === "requires-action";
-            const status: MessageStatus = canWaitForTools
-              ? pendingToolCallIds.length > 0
-                ? { type: "requires-action", reason: "tool-calls" }
-                : { type: "complete", reason: "unknown" }
-              : terminalStatus;
-            requiresToolResult = status.type === "requires-action";
-            const metadata = withoutPendingToolCallIds(assistant.metadata);
-            return {
-              ...assistant,
-              status,
-              metadata:
-                status.type === "requires-action" &&
-                restrictedPendingToolCallIds
-                  ? {
-                      ...metadata,
-                      custom: {
-                        ...metadata.custom,
-                        [AG_UI_METADATA_NAMESPACE]: {
-                          ...(metadata.custom[AG_UI_METADATA_NAMESPACE] as
-                            | AgUiCustomMetadata
-                            | undefined),
-                          pendingToolCallIds,
-                        },
-                      },
-                    }
-                  : metadata,
-            };
-          });
-          if (updated) {
-            this.publishUpdate();
-            this.persistAssistantHistory(messageId);
-            if (requiresToolResult) {
-              pendingMessages.push(messageId);
-            }
-          }
-        }
-        heldMessages.clear();
-        for (const messageId of pendingMessages) {
-          this.maybeResumeAfterToolResults(messageId);
-        }
+      for (const messageId of pendingMessages) {
+        this.maybeResumeAfterToolResults(messageId);
       }
     };
 
