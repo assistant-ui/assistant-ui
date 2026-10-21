@@ -5,16 +5,15 @@ import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
 import type { AgUiEvent } from "../src/runtime/types";
 
 describe("createAgUiSubscriber", () => {
-  it("dispatches typed events without duplication", () => {
+  it("dispatches a typed text event", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
       runId: "run",
     });
 
-    subscriber.onTextMessageContentEvent?.({ event: { delta: "Hi" } });
-    subscriber.onEvent?.({
-      event: { type: "TEXT_MESSAGE_CONTENT", delta: "ignored" },
+    subscriber.onTextMessageContentEvent?.({
+      event: { type: "TEXT_MESSAGE_CONTENT", delta: "Hi" },
     });
 
     expect(events).toHaveLength(1);
@@ -217,7 +216,7 @@ describe("createAgUiSubscriber", () => {
     });
 
     subscriber.onRunFinishedEvent?.({
-      event: { type: "TEXT_MESSAGE_CHUNK", delta: "hi" },
+      event: { type: "TEXT_MESSAGE_CONTENT", delta: "hi" },
     });
     subscriber.onRunFinalized?.();
 
@@ -241,7 +240,6 @@ describe("createAgUiSubscriber", () => {
       },
     };
     subscriber.onActivitySnapshotEvent?.({ event });
-    subscriber.onEvent?.({ event });
 
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
@@ -276,27 +274,16 @@ describe("createAgUiSubscriber", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it("logs malformed events received by the untyped callback", () => {
-    const debug = vi.fn();
+  it("ignores typed callback payloads without a type", () => {
     const dispatch = vi.fn();
-    const subscriber = createAgUiSubscriber({
-      dispatch,
-      runId: "run",
-      logger: { debug } as any,
-    });
-    const event = { type: 42, payload: "bad" };
+    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
 
-    subscriber.onEvent?.({ event });
+    subscriber.onTextMessageContentEvent?.({ event: { delta: "bad" } });
 
     expect(dispatch).not.toHaveBeenCalled();
-    expect(debug).toHaveBeenCalledTimes(1);
-    expect(debug).toHaveBeenCalledWith(
-      expect.stringContaining("unknown"),
-      event,
-    );
   });
 
-  it("dispatches reasoning handlers without duplication", () => {
+  it("dispatches a typed reasoning event", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
@@ -304,13 +291,10 @@ describe("createAgUiSubscriber", () => {
     });
 
     subscriber.onReasoningMessageContentEvent?.({
-      event: { messageId: "m1", delta: "think" },
-    });
-    subscriber.onEvent?.({
       event: {
         type: "REASONING_MESSAGE_CONTENT",
         messageId: "m1",
-        delta: "ignored",
+        delta: "think",
       },
     });
 
