@@ -41,6 +41,11 @@ export const useStreamingTiming = <TMessage>(
 ): Record<string, MessageTiming> => {
   const [timings, setTimings] = useState<Record<string, MessageTiming>>({});
   const stateRef = useRef<StreamingTimingState | null>(null);
+  const idleMessageRef = useRef<{
+    id: string;
+    textLength: number;
+    toolCallCount: number;
+  } | null>(null);
   // Read the latest accessors/options from refs so the effect keeps the
   // original `[messages, isRunning]` reactivity of the adapter hooks this
   // replaces (a stable timings object while streaming, a single new reference
@@ -51,6 +56,35 @@ export const useStreamingTiming = <TMessage>(
   optionsRef.current = options;
 
   useEffect(() => {
+    const currentAccessors = accessorsRef.current;
+    const id = currentAccessors.getAssistantMessageId(messages);
+    const idleMessage = idleMessageRef.current;
+    if (
+      idleMessage !== null &&
+      id === idleMessage.id &&
+      (currentAccessors.getTextLength(messages, id) !==
+        idleMessage.textLength ||
+        currentAccessors.getToolCallCount(messages, id) !==
+          idleMessage.toolCallCount)
+    ) {
+      idleMessageRef.current = null;
+    }
+
+    if (!isRunning) {
+      if (stateRef.current?.messageId === idleMessageRef.current?.id) {
+        stateRef.current = null;
+      }
+
+      idleMessageRef.current =
+        id === undefined
+          ? null
+          : {
+              id,
+              textLength: currentAccessors.getTextLength(messages, id),
+              toolCallCount: currentAccessors.getToolCallCount(messages, id),
+            };
+    }
+
     const result = stepStreamingTiming(
       stateRef.current,
       messages,
