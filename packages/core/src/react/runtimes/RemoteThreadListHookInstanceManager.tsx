@@ -462,6 +462,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           publishInCommit: this.publishInCommit,
           destroySignal,
         }),
+        [
+          id,
+          generation,
+          this.parent,
+          runtimeHook,
+          parentClient,
+          threadAdapters,
+          this._publish,
+          this.publishInCommit,
+          destroySignal,
+        ],
       );
     });
   }
