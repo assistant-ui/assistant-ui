@@ -243,6 +243,50 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it.each(["queued", "debounced"] as const)(
+    "cancels a %s search when disabled and allows searching after re-enabling",
+    async (phase) => {
+      const fetcher = vi.fn(async () => [item("alice")]);
+      const { result, rerender } = renderHook(
+        ({ enabled }) =>
+          unstable_useLiveCompletionAdapter({
+            fetcher,
+            enabled,
+            debounceMs: 50,
+          }),
+        { initialProps: { enabled: true } },
+      );
+
+      if (phase === "debounced") {
+        await act(async () => {
+          result.current.adapter.search!("alice");
+        });
+        rerender({ enabled: false });
+      } else {
+        act(() => {
+          result.current.adapter.search!("alice");
+          rerender({ enabled: false });
+        });
+      }
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(result.current.adapter.search!("alice")).toEqual([]);
+      expect(result.current.isLoading).toBe(false);
+
+      rerender({ enabled: true });
+      await act(async () => {
+        result.current.adapter.search!("alice");
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(fetcher).toHaveBeenCalledExactlyOnceWith("alice");
+      expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+      expect(result.current.isLoading).toBe(false);
+    },
+  );
+
   it("drops a stale in-flight result when the query changes", async () => {
     const resolvers: Record<
       string,

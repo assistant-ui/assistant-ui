@@ -192,10 +192,11 @@ export function unstable_useLiveCompletionAdapter(
       categories: () => [],
       categoryItems: () => [],
       search: (query: string) => {
+        if (!enabled) return [];
         // search() runs inside the popover's render; defer state updates with
         // queueMicrotask so they are not dispatched while another component renders.
         if (query !== state.query || retryableQueryRef.current === query) {
-          queueMicrotask(() => scheduleFetch(query));
+          queueMicrotask(() => scheduleFetchRef.current(query));
         } else {
           queueMicrotask(() => {
             if (
@@ -215,7 +216,7 @@ export function unstable_useLiveCompletionAdapter(
         return state.items;
       },
     }),
-    [state, scheduleFetch, invalidatePending],
+    [enabled, state, invalidatePending],
   );
 
   return { adapter, isLoading };
