@@ -12,6 +12,7 @@ const setText = vi.fn();
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
+    optional: { threads: {} },
     composer: {
       getState: () => ({ type: fixture.composerType }),
       setText,

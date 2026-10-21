@@ -40,6 +40,7 @@ let pluginRegistry: { getPlugins: () => (typeof plugin)[] } | null = null;
 
 vi.mock("@assistant-ui/store", () => {
   const aui = {
+    optional: { threads: {} },
     composer: {
       setText: (text: string) => setText(text),
       getState: () => composerState,
