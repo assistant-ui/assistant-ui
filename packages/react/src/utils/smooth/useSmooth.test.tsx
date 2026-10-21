@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   MessagePartState,
@@ -68,7 +69,7 @@ const driveAndCount = (minCommitMs: number) => {
     .spyOn(globalThis, "cancelAnimationFrame")
     .mockImplementation(() => {});
   let now = 1000;
-  const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+  const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
 
   const state = runningState("0123456789");
   const { result, unmount } = renderHook(() =>
@@ -103,6 +104,16 @@ describe("useSmooth", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, "matchMedia");
+  });
+
+  it("does not read the wall clock during server render", () => {
+    const nowSpy = vi.spyOn(Date, "now");
+    const Probe = () => (
+      <span>{useSmooth(runningState("streaming"), true).text}</span>
+    );
+
+    expect(renderToString(<Probe />)).toBe("<span></span>");
+    expect(nowSpy).not.toHaveBeenCalled();
   });
 
   it("returns the input state unchanged when disabled", () => {
@@ -152,17 +163,44 @@ describe("useSmooth", () => {
     expect(result.current.status.type).toBe("running");
   });
 
-  it("falls back to defaults for non-positive or NaN options", () => {
-    const state = textState("hello");
-    const { result } = renderHook(() =>
-      useSmooth(state, {
-        drainMs: -1,
-        maxCharIntervalMs: NaN,
-        maxCharsPerFrame: 0,
-      }),
+  it.each([
+    { name: "negative drain time", options: { drainMs: -1 } },
+    { name: "NaN character interval", options: { maxCharIntervalMs: NaN } },
+    { name: "zero frame cap", options: { maxCharsPerFrame: 0 } },
+  ])("uses default animation timing for $name", ({ options }) => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(
+      (callback) => {
+        const id = ++nextFrame;
+        frames.set(id, callback);
+        return id;
+      },
     );
-    expect(result.current.text).toBe("hello");
-    expect(result.current.status).toBe(state.status);
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation((id) => {
+      frames.delete(id);
+    });
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const frame = (time: number) => {
+      now = time;
+      const queued = [...frames.values()];
+      frames.clear();
+      act(() => queued.forEach((callback) => callback(now)));
+    };
+
+    const { result, unmount } = renderHook(() =>
+      useSmooth(runningState("hello"), options),
+    );
+    try {
+      expect(result.current.text).toBe("");
+      frame(16);
+      expect(result.current.text).toBe("hel");
+      frame(32);
+      expect(result.current.text).toBe("hello");
+    } finally {
+      unmount();
+    }
   });
 
   it("accepts a SmoothOptions object as the enabled form", () => {
@@ -189,8 +227,8 @@ describe("useSmooth", () => {
       return raf.length;
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    let now = 1_000_000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;
@@ -246,7 +284,7 @@ describe("useSmooth", () => {
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     let now = 1000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;
@@ -297,7 +335,7 @@ describe("useSmooth", () => {
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     let now = 1000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;

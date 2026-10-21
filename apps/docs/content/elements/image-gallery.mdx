@@ -85,7 +85,7 @@ export function Results() {
 </div>
 ```
 
-The grid uses two columns and grows to three when its container has room. It shows six images by default. When there are more, the final visible tile reads `+N` and opens at that image rather than hiding the rest of the gallery. The dialog keeps its place with previous and next controls, ArrowLeft and ArrowRight, and Escape.
+The grid uses two columns and grows to three when its container has room. It shows six images by default. When there are more, the final visible tile reads `+N` and opens at that image rather than hiding the rest of the gallery. The dialog keeps its place with previous and next controls, ArrowLeft and ArrowRight, and Escape. It takes focus itself when it opens, keeps focus on a navigation control when the first or last image disables the other one, and returns focus to the tile that opened it.
 
 ## Examples
 

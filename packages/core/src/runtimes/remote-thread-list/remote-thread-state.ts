@@ -1,5 +1,6 @@
 import type {
   RemoteThreadInitializeResponse,
+  RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "./types";
 import { generateId } from "../../utils/id";
@@ -12,7 +13,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "new";
       readonly title: undefined;
-      readonly custom: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
       readonly localOrigin?: true;
     }
   | {
@@ -22,7 +23,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
-      readonly custom: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
       readonly localOrigin?: true;
     }
   | {
@@ -133,9 +134,28 @@ export const classifyThreads = (
   return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
+// Merges a fetched thread into a state: a remote id that already resolves to
+// a slot refreshes that slot; an unknown one is appended, since it may live on
+// a page that has not loaded yet.
+export const mergeFetchedThread = (
+  state: RemoteThreadState,
+  thread: RemoteThreadMetadata,
+): RemoteThreadState => ({
+  ...state,
+  ...classifyThreads([thread], {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: state.threadIdMap,
+    threadData: state.threadData,
+  }),
+});
+
 export type RemoteThreadState = {
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError?:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore: boolean;
   readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
@@ -148,6 +168,7 @@ export type RemoteThreadState = {
 export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   isLoading: true,
   loadError: undefined,
+  switchError: undefined,
   isLoadingMore: false,
   cursor: undefined,
   newThreadId: undefined,
@@ -157,6 +178,23 @@ export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   threadData: nullProtoRecord(),
 });
 
+export const seedDraftThread = (
+  state: RemoteThreadState,
+  draft: Extract<RemoteThreadData, { status: "new" }>,
+): RemoteThreadState => {
+  const mappingId = createThreadMappingId(draft.id);
+  return {
+    ...state,
+    newThreadId: draft.id,
+    threadIdMap: nullProtoRecord(state.threadIdMap, {
+      [draft.id]: mappingId,
+    }),
+    threadData: nullProtoRecord(state.threadData, {
+      [mappingId]: draft,
+    }),
+  };
+};
+
 export const seedNewThread = (
   state: RemoteThreadState,
   initialThreadIdSeed?: string,
@@ -165,27 +203,17 @@ export const seedNewThread = (
   while (state.threadIdMap[id]) {
     id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   }
-  const mappingId = createThreadMappingId(id);
   return {
     id,
-    state: {
-      ...state,
-      newThreadId: id,
-      threadIdMap: nullProtoRecord(state.threadIdMap, {
-        [id]: mappingId,
-      }),
-      threadData: nullProtoRecord(state.threadData, {
-        [mappingId]: {
-          status: "new",
-          id,
-          remoteId: undefined,
-          externalId: undefined,
-          title: undefined,
-          custom: undefined,
-          localOrigin: true,
-        } satisfies RemoteThreadData,
-      }),
-    },
+    state: seedDraftThread(state, {
+      status: "new",
+      id,
+      remoteId: undefined,
+      externalId: undefined,
+      title: undefined,
+      custom: undefined,
+      localOrigin: true,
+    }),
   };
 };
 
@@ -261,6 +289,51 @@ export const statusSnapshot = (
   state: RemoteThreadState,
 ): ReadonlyMap<string, RemoteThreadData["status"]> =>
   new Map(Object.values(state.threadData).map((d) => [d.id, d.status]));
+
+export const applyInitialThreadPage = (
+  state: RemoteThreadState,
+  page: RemoteThreadListResponse,
+  statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
+): RemoteThreadState => {
+  const fresh = classifyThreads(page.threads, {
+    threadIds: [],
+    archivedThreadIds: [],
+    threadIdMap: { ...state.threadIdMap },
+    threadData: { ...state.threadData },
+  });
+  const merged = {
+    ...state,
+    isLoading: false,
+    loadError: undefined,
+    cursor: normalizeCursor(page.nextCursor),
+    threadIds: fresh.threadIds,
+    archivedThreadIds: fresh.archivedThreadIds,
+    threadIdMap: fresh.threadIdMap,
+    threadData: fresh.threadData,
+  };
+  return preserveMidLoadTransitions(merged, state, statusAtRequest);
+};
+
+export const appendThreadPage = (
+  state: RemoteThreadState,
+  page: RemoteThreadListResponse,
+): RemoteThreadState => {
+  const appended = classifyThreads(page.threads, {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: { ...state.threadIdMap },
+    threadData: { ...state.threadData },
+  });
+  return {
+    ...state,
+    isLoadingMore: false,
+    cursor: normalizeCursor(page.nextCursor),
+    threadIds: appended.threadIds,
+    archivedThreadIds: appended.archivedThreadIds,
+    threadIdMap: appended.threadIdMap,
+    threadData: appended.threadData,
+  };
+};
 
 export const getThreadData = (
   state: RemoteThreadState,
@@ -482,3 +555,20 @@ export const promoteNewThreadReducer = (
   threadIdOrRemoteId: string,
   initializeTask: Promise<RemoteThreadInitializeResponse>,
 ) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);
+
+/**
+ * Deletes a thread by its slot id and, once known, its remote id. Deleting a
+ * slot drops every id that resolved to it, so a list() response served before
+ * the deletion re-mints the thread under its remote id; replaying the deletion
+ * by slot id alone would no longer find it.
+ */
+export const deleteThreadReducer = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string | undefined,
+) => {
+  const deleted = updateStatusReducer(state, threadId, "deleted");
+  return remoteId === undefined
+    ? deleted
+    : updateStatusReducer(deleted, remoteId, "deleted");
+};

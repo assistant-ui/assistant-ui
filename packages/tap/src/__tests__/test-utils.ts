@@ -6,7 +6,6 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import type { ResourceFiber } from "../core/types";
-import { useState } from "../react-hooks/useState";
 
 export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
   readonly __args?: (args: A) => void;
@@ -130,38 +129,6 @@ export function getCommittedValue<R>(fiber: ResourceFiber<R>): R {
 }
 
 /**
- * Helper to subscribe to resource state changes for testing.
- * Tracks call count and latest state value.
- */
-export class TestSubscriber<T> {
-  public callCount = 0;
-  public lastState: T;
-  private fiber: ResourceFiber<any>;
-
-  constructor(fiber: ResourceFiber<any>) {
-    this.fiber = fiber;
-    // Need to render once to get initial state
-    const initialValue = runPass(() => {
-      const lastArgs = propsMap.get(fiber) ?? [];
-      const value = renderResourceFiber(fiber, lastArgs as any);
-      commitResourceFiber(fiber);
-      return value;
-    });
-    drainPendingRerenders();
-    this.lastState = initialValue;
-    lastRenderValueMap.set(fiber, initialValue);
-    activeResources.add(fiber);
-  }
-
-  cleanup() {
-    if (activeResources.has(this.fiber)) {
-      unmountResourceFiber(this.fiber);
-      activeResources.delete(this.fiber);
-    }
-  }
-}
-
-/**
  * Helper class to manage resource lifecycle in tests with explicit control.
  * Useful when you need fine-grained control over mount/unmount timing.
  */
@@ -217,24 +184,6 @@ export function waitForNextTick(): Promise<void> {
 }
 
 /**
- * Waits for a condition to be true with timeout.
- * Useful for testing eventual consistency.
- */
-export async function waitFor(
-  condition: () => boolean,
-  timeout = 1000,
-  interval = 10,
-): Promise<void> {
-  const start = Date.now();
-  while (!condition()) {
-    if (Date.now() - start > timeout) {
-      throw new Error("Timeout waiting for condition");
-    }
-    await new Promise((resolve) => setTimeout(resolve, interval));
-  }
-}
-
-/**
  * Creates a simple counter resource for testing.
  * Commonly used across multiple test files.
  */
@@ -242,20 +191,5 @@ export function createCounterResource(initialValue = 0) {
   return (props: { value?: number }) => {
     const value = props.value ?? initialValue;
     return { count: value };
-  };
-}
-
-/**
- * Creates a stateful counter resource for testing.
- * Includes increment/decrement functions.
- */
-export function createStatefulCounterResource() {
-  return (props: { initial: number }) => {
-    const [count, setCount] = useState(props.initial);
-    return {
-      count,
-      increment: () => setCount((c: number) => c + 1),
-      decrement: () => setCount((c: number) => c - 1),
-    };
   };
 }

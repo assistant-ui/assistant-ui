@@ -65,15 +65,15 @@ export function FileTree({
           >
             {node.kind === "folder" ? (
               <>
-                <ChevronDownIcon className="text-foreground/25 size-3 shrink-0" />
-                <FolderIcon className="text-foreground/35 size-3.5 shrink-0" />
+                <ChevronDownIcon className="text-muted-foreground size-3 shrink-0" />
+                <FolderIcon className="text-muted-foreground size-3.5 shrink-0" />
                 <span className="text-foreground/60 min-w-0 flex-1 truncate">
                   {node.name}
                 </span>
               </>
             ) : (
               <>
-                <FileIcon className="text-foreground/30 ms-3 size-3.5 shrink-0" />
+                <FileIcon className="text-muted-foreground ms-3 size-3.5 shrink-0" />
                 <span className="text-foreground/85 min-w-0 flex-1 truncate">
                   {node.name}
                 </span>

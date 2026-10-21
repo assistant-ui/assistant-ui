@@ -41,16 +41,24 @@ describe("ActionBarPrimitiveExportMarkdown", () => {
     vi.restoreAllMocks();
   });
 
-  it("clicks a download anchor that is attached to the document", async () => {
+  it("downloads the message as Markdown through an attached anchor", async () => {
     const createObjectURL = vi
       .spyOn(URL, "createObjectURL")
       .mockReturnValue("blob:export");
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-    const connectedAtClick: boolean[] = [];
+    const downloads: {
+      isConnected: boolean;
+      href: string;
+      download: string;
+    }[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      connectedAtClick.push(this.isConnected);
+      downloads.push({
+        isConnected: this.isConnected,
+        href: this.href,
+        download: this.download,
+      });
     });
 
     await act(async () => {
@@ -65,9 +73,20 @@ describe("ActionBarPrimitiveExportMarkdown", () => {
       container.querySelector("button")!.click();
     });
 
-    expect(createObjectURL).toHaveBeenCalled();
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    const blob = createObjectURL.mock.calls[0]![0] as Blob;
+    expect(blob.type).toBe("text/markdown");
+    const content = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+    expect(content).toBe("# Exported message");
     // Firefox ignores a programmatic click on a detached anchor.
-    expect(connectedAtClick).toEqual([true]);
+    expect(downloads).toEqual([
+      { isConnected: true, href: "blob:export", download: "message.md" },
+    ]);
     expect(document.querySelector('a[download="message.md"]')).toBeNull();
   });
 

@@ -21,6 +21,12 @@ export const describeAnswer = (input: Checkout.Input): string | undefined => {
   if (input.status !== "answered") return undefined;
   const answer = input.answer ?? "";
   switch (input.kind) {
+    case "entry-point": {
+      const option = input.options?.find((entry) => entry.id === answer);
+      return option?.entryPoint
+        ? `${option.label} · ${option.entryPoint.placement} · ${option.entryPoint.trigger}`
+        : answer;
+    }
     case "choice": {
       const entries = (input.multiple && parseMultipleAnswer(answer)) || [
         answer,

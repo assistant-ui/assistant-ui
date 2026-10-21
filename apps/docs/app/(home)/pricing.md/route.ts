@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 import {
@@ -6,8 +7,6 @@ import {
   libraryHighlights,
   pricingPlans,
 } from "../pricing/pricing-data";
-
-export const revalidate = false;
 
 const formatPlan = (plan: (typeof pricingPlans)[number]) => {
   const price = plan.period ? `${plan.price}${plan.period}` : plan.price;
@@ -26,7 +25,9 @@ const formatPlan = (plan: (typeof pricingPlans)[number]) => {
   ].join("\n");
 };
 
-export function GET() {
+async function getMarkdown() {
+  "use cache";
+  cacheLife("max");
   const markdown = [
     "# assistant-ui pricing",
     "",
@@ -62,5 +63,9 @@ export function GET() {
     ...faqs.flatMap((faq) => [`### ${faq.question}`, "", faq.answer, ""]),
   ].join("\n");
 
-  return createMarkdownResponse(`${markdown}\n`);
+  return `${markdown}\n`;
+}
+
+export async function GET() {
+  return createMarkdownResponse(await getMarkdown());
 }

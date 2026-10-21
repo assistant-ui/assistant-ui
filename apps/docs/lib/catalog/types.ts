@@ -29,6 +29,7 @@ export type CatalogItem = {
   agentMinutes: [number, number];
   /** The /elements slug of the element whose demo shows the product running. */
   preview?: string;
+  hidden?: boolean;
 };
 
 /** A product with its own page under /components. */

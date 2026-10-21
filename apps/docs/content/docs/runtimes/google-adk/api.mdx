@@ -95,15 +95,27 @@ import {
 One-liner API route handler that combines request parsing and SSE streaming:
 
 ```ts
+import { requireUser } from "./auth"; // Your authentication helper
+
 export const POST = createAdkApiRoute({
   runner,
-  userId: "default-user",
-  sessionId: (req) =>
-    new URL(req.url).searchParams.get("sessionId") ?? "default",
+  userId: async (req) => (await requireUser(req)).id,
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
+  },
 });
 ```
 
-Both `userId` and `sessionId` accept a static string or a function `(req: Request) => string | Promise<string>` for dynamic resolution.
+`userId` accepts a static string or a request resolver. `sessionId` accepts a
+static string or `(req, clientSessionId) => string | Promise<string>`; proxy
+mode supplies the initialized assistant-ui thread ID as `clientSessionId`.
+For ADK runners that expose `appName` and `sessionService`, the route creates a
+missing resolved session before the first run and coalesces concurrent creation
+within the server process.
+Authenticate the request when resolving `userId`, because a client-provided
+session ID is an identifier rather than authorization. Static IDs are intended
+only for local, single-user development.
 
 ### adkEventStream
 
@@ -116,7 +128,7 @@ return adkEventStream(events);
 
 ### parseAdkRequest and toAdkContent
 
-Lower-level helpers for custom API routes. `parseAdkRequest` parses incoming requests; `toAdkContent` converts to ADK's `Content` format. Supports user messages, tool results, `stateDelta`, `checkpointId`, and multimodal content:
+Lower-level helpers for custom API routes. `parseAdkRequest` parses incoming requests; `toAdkContent` converts to ADK's `Content` format. Supports user messages, tool results, `messageId`, `stateDelta`, `checkpointId`, and multimodal content:
 
 ```ts
 const parsed = await parseAdkRequest(req);
@@ -125,14 +137,36 @@ const parsed = await parseAdkRequest(req);
 // parsed.stateDelta contains session state changes
 
 const newMessage = toAdkContent(parsed);
+const stateDelta = validateSessionState(parsed.stateDelta);
 const events = runner.runAsync({
   userId,
   sessionId,
   newMessage,
-  stateDelta: parsed.stateDelta,
+  stateDelta,
+  customMetadata: parsed.customMetadata,
 });
 return adkEventStream(events);
 ```
+
+`messageId` is the ID of the first human message a run sends, which is the ID the merged user message shows. `parseAdkRequest` turns it into `parsed.customMetadata`; forward that to `runner.runAsync` as shown above so the stored user event keeps the message's ID across reloads. `createAdkApiRoute` forwards it for you.
+
+`runConfig` and `stateDelta` arrive from the browser and must be treated as
+untrusted input. Custom routes using `parseAdkRequest` must validate
+`parsed.stateDelta` before passing it to `runAsync`. `createAdkApiRoute` ignores
+both values by default; opt in only after validating them on the server:
+
+```ts
+export const POST = createAdkApiRoute({
+  runner,
+  userId,
+  sessionId,
+  resolveRunConfig: () => ({ maxLlmCalls: 10 }),
+  resolveStateDelta: (_req, delta) => validateSessionState(delta),
+});
+```
+
+Do not accept client-provided `app:` or `user:` keys unless the caller is
+authorized to update application-wide or user-wide ADK state.
 
 ## Thread management
 
@@ -197,6 +231,10 @@ The resolved `checkpointId` is passed to your `stream` callback via `config.chec
 Without `getCheckpointId`, edit and regenerate buttons will not appear. This is intentional; truncating client-side messages without forking from the correct server-side checkpoint would produce incorrect state.
 </Callout>
 
+<Callout type="warn">
+`createAdkApiRoute` and the direct `/run_sse` mode do not rewind the ADK session to the checkpoint yet. After an edit or regenerate, the session still holds the turns the client removed, and the agent sees them on the next run. adk-js has no session rewind API, and `adk api_server` does not expose the rewind that adk-python's `Runner.rewind_async` provides. A custom Python route can call `rewind_async` before it runs the new message, if your `getCheckpointId` returns the ID of the invocation to rewind before.
+</Callout>
+
 ## Event handlers
 
 Listen to streaming events:
@@ -238,7 +276,10 @@ send(messages, {
 });
 ```
 
-`stateDelta` maps to ADK's `stateDelta` parameter on `/run_sse`.
+In direct mode, `stateDelta` maps to ADK's `stateDelta` parameter on
+`/run_sse`. With `createAdkApiRoute`, client `runConfig` and `stateDelta` values
+are ignored unless the corresponding server resolver validates or replaces
+them.
 
 ## Next
 

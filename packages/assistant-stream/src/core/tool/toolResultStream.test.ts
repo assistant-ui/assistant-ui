@@ -9,14 +9,8 @@ import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
-
-const createDelayedTool = (delay: number, result?: string): Tool => ({
-  parameters: { type: "object", properties: {} },
-  execute: async () => {
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    return result ?? `Tool with ${delay}ms delay executed`;
-  },
-});
+import { createAssistantStream } from "../modules/assistant-stream";
+import { AssistantMessageStream } from "../accumulators/AssistantMessageStream";
 
 const createPendingToolMessage = (toolCallId: string): AssistantMessage => ({
   role: "assistant",
@@ -59,6 +53,42 @@ afterEach(() => {
 });
 
 describe("unstable_runPendingTools", () => {
+  it.each([false, true])(
+    "allows tools to mutate nested arguments (streamed: %s)",
+    async (streamed) => {
+      const message = await AssistantMessageStream.fromAssistantStream(
+        createAssistantStream(async (controller) => {
+          const call = controller.addToolCallPart({
+            toolName: "sort",
+            toolCallId: "sort-1",
+          });
+          const text = '{"items":[3,1,2],"filter":{"enabled":true}}';
+          for (const delta of streamed ? text : [text])
+            call.argsText.append(delta);
+          await call.close();
+        }),
+      ).unstable_result();
+      const result = await unstable_runPendingTools(
+        message,
+        {
+          sort: {
+            parameters: { type: "object" },
+            execute: (args) => {
+              (args.items as number[]).sort();
+              (args.filter as { enabled: boolean }).enabled = false;
+              return args;
+            },
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      );
+      expect(result.parts[0]).toMatchObject({
+        result: { items: [1, 2, 3], filter: { enabled: false } },
+      });
+    },
+  );
+
   it("keeps provider messages when a pending tool settles", async () => {
     const settled = await unstable_runPendingTools(
       createPendingToolMessage("messages"),
@@ -244,55 +274,48 @@ describe("unstable_runPendingTools", () => {
     expect(settled).toBe(message);
   });
 
-  it("removes the abort listener after tool execution settles", async () => {
-    const abortController = new AbortController();
-    const addEventListener = vi.spyOn(
-      abortController.signal,
-      "addEventListener",
-    );
-    const removeEventListener = vi.spyOn(
-      abortController.signal,
-      "removeEventListener",
-    );
-    const message: AssistantMessage = {
-      role: "assistant",
-      status: { type: "requires-action", reason: "tool-calls" },
-      parts: [
+  it.each(["resolves", "rejects"] as const)(
+    "removes the abort listener after tool execution %s",
+    async (outcome) => {
+      const abortController = new AbortController();
+      const addEventListener = vi.spyOn(
+        abortController.signal,
+        "addEventListener",
+      );
+      const removeEventListener = vi.spyOn(
+        abortController.signal,
+        "removeEventListener",
+      );
+      const toolError = new Error("tool failed");
+      const pending = unstable_runPendingTools(
+        createPendingToolMessage("1"),
         {
-          type: "tool-call",
-          toolCallId: "1",
-          toolName: "tool",
-          args: {},
-        } as ToolCallPart,
-      ],
-      content: [],
-      metadata: {
-        unstable_state: {},
-        unstable_data: [],
-        unstable_annotations: [],
-        steps: [],
-        custom: {},
-      },
-    };
-
-    await unstable_runPendingTools(
-      message,
-      {
-        tool: {
-          parameters: { type: "object", properties: {} },
-          execute: async () => "done",
+          tool: {
+            parameters: { type: "object", properties: {} },
+            execute: async () => {
+              if (outcome === "rejects") throw toolError;
+              return "done";
+            },
+          },
         },
-      },
-      abortController.signal,
-      async () => {},
-    );
+        abortController.signal,
+        async () => {},
+      );
 
-    expect(addEventListener).toHaveBeenCalledOnce();
-    expect(removeEventListener).toHaveBeenCalledWith(
-      "abort",
-      addEventListener.mock.calls[0]![1],
-    );
-  });
+      if (outcome === "rejects") {
+        await expect(pending).rejects.toBe(toolError);
+      } else {
+        await expect(pending).resolves.toMatchObject({
+          parts: [{ result: "done" }],
+        });
+      }
+      expect(addEventListener).toHaveBeenCalledOnce();
+      expect(removeEventListener).toHaveBeenCalledWith(
+        "abort",
+        addEventListener.mock.calls[0]![1],
+      );
+    },
+  );
 
   it.each(["sync", "async"] as const)(
     "uses %s schema output for execution and model content",
@@ -644,162 +667,70 @@ describe("unstable_runPendingTools", () => {
     },
   );
 
-  describe("parallel execution", () => {
-    it("should run tool calls in parallel", async () => {
-      const tool1 = createDelayedTool(100, "Tool 1");
-      const tool2 = createDelayedTool(100, "Tool 2");
-      const tool3 = createDelayedTool(100, "Tool 3");
+  it("starts pending tools together and preserves results completed out of order", async () => {
+    const completionOrder: string[] = [];
+    const calls = ["1", "2", "3"].map((id) => {
+      const result = promiseWithResolvers<string>();
+      const execute = vi.fn(async () => {
+        const value = await result.promise;
+        completionOrder.push(id);
+        return value;
+      });
+      return { id, toolName: `tool${id}`, result, execute };
+    });
+    const tools: Record<string, Tool> = Object.fromEntries(
+      calls.map(({ toolName, execute }) => [
+        toolName,
+        { parameters: { type: "object", properties: {} }, execute },
+      ]),
+    );
+    const message = createPendingToolMessage("1");
+    message.parts = calls.map(
+      ({ id, toolName }) =>
+        ({
+          type: "tool-call",
+          toolCallId: id,
+          toolName,
+          args: {},
+        }) as ToolCallPart,
+    );
 
-      const tools: Record<string, Tool> = {
-        tool1,
-        tool2,
-        tool3,
-      };
+    const pending = unstable_runPendingTools(
+      message,
+      tools,
+      new AbortController().signal,
+      async () => {},
+    );
+    try {
+      await vi.waitFor(() => {
+        for (const { execute } of calls) {
+          expect(execute).toHaveBeenCalledOnce();
+        }
+      });
+      expect(completionOrder).toEqual([]);
 
-      const message: AssistantMessage = {
-        role: "assistant",
-        status: {
-          type: "requires-action",
-          reason: "tool-calls",
-        },
-        parts: [
-          {
-            type: "tool-call",
-            toolCallId: "1",
-            toolName: "tool1",
-            args: {},
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "2",
-            toolName: "tool2",
-            args: {},
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "3",
-            toolName: "tool3",
-            args: {},
-          } as ToolCallPart,
-        ],
-        content: [],
-        metadata: {
-          unstable_state: {},
-          unstable_data: [],
-          unstable_annotations: [],
-          steps: [],
-          custom: {},
-        },
-      };
+      for (const index of [2, 0, 1]) {
+        const call = calls[index]!;
+        call.result.resolve(`Tool ${call.id}`);
+        await call.execute.mock.results[0]!.value;
+      }
+      const updatedMessage = await pending;
 
-      const startTime = Date.now();
-      const updatedMessage = await unstable_runPendingTools(
-        message,
-        tools,
-        new AbortController().signal,
-        async () => {},
-      );
-      const endTime = Date.now();
-
-      const executionTime = endTime - startTime;
-
-      expect(executionTime).toBeGreaterThanOrEqual(90); // Allow for timer imprecision
-      // The execution time should be less than the sum of the delays of both tools.
-      expect(executionTime).toBeLessThan(300);
-
+      expect(completionOrder).toEqual(["3", "1", "2"]);
       expect(updatedMessage.parts).toHaveLength(3);
-      expect(updatedMessage.parts[0]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "1",
-        state: "result",
-        result: "Tool 1",
-        isError: false,
-      });
-      expect(updatedMessage.parts[1]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "2",
-        state: "result",
-        result: "Tool 2",
-        isError: false,
-      });
-      expect(updatedMessage.parts[2]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "3",
-        state: "result",
-        result: "Tool 3",
-        isError: false,
-      });
-    });
-
-    it("should verify parallel execution via execution order", async () => {
-      let tool1Started = false;
-      let tool2Started = false;
-      let tool1Finished = false;
-
-      const tool1: Tool = {
-        parameters: {
-          type: "object",
-          properties: {},
-        },
-        execute: async () => {
-          tool1Started = true;
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          tool1Finished = true;
-          return "Tool 1 executed";
-        },
-      };
-
-      const tool2: Tool = {
-        parameters: { type: "object", properties: {} },
-        execute: async () => {
-          tool2Started = true;
-          // In parallel execution, tool2 should start before tool1 finishes
-          expect(tool1Finished).toBe(false);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          return "Tool 2 executed";
-        },
-      };
-
-      const tools = { tool1, tool2 };
-
-      const message: AssistantMessage = {
-        role: "assistant",
-        status: { type: "requires-action", reason: "tool-calls" },
-        parts: [
-          {
-            type: "tool-call",
-            toolCallId: "1",
-            toolName: "tool1",
-            args: {},
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "2",
-            toolName: "tool2",
-            args: {},
-          } as ToolCallPart,
-        ],
-        content: [],
-        metadata: {
-          unstable_state: {},
-          unstable_data: [],
-          unstable_annotations: [],
-          steps: [],
-          custom: {},
-        },
-      };
-
-      await unstable_runPendingTools(
-        message,
-        tools,
-        new AbortController().signal,
-        async () => {},
+      expect(updatedMessage.parts).toMatchObject(
+        calls.map(({ id }) => ({
+          type: "tool-call",
+          toolCallId: id,
+          state: "result",
+          result: `Tool ${id}`,
+          isError: false,
+        })),
       );
-
-      // Verifying that both tools started (proving parallel execution)
-      expect(tool1Started).toBe(true);
-      expect(tool2Started).toBe(true);
-    });
+    } finally {
+      for (const { id, result } of calls) result.resolve(`Tool ${id}`);
+      await pending;
+    }
   });
 
   it("keeps same-id tool executions separate when they overlap", async () => {
@@ -1025,74 +956,6 @@ describe("unstable_runPendingTools", () => {
         type: "text",
         text: "Done",
         status: { type: "complete", reason: "stop" },
-      });
-    });
-
-    it("should handle tools with different execution times", async () => {
-      const fastTool = createDelayedTool(10, "fast");
-      const slowTool = createDelayedTool(100, "slow");
-
-      const tools = { fastTool, slowTool };
-
-      const message: AssistantMessage = {
-        role: "assistant",
-        status: {
-          type: "requires-action",
-          reason: "tool-calls",
-        },
-        parts: [
-          {
-            type: "tool-call",
-            toolCallId: "1",
-            toolName: "slowTool",
-            args: {},
-            status: {
-              type: "requires-action",
-              reason: "tool-call-result",
-            },
-          } as ToolCallPart,
-          {
-            type: "tool-call",
-            toolCallId: "2",
-            toolName: "fastTool",
-            args: {},
-            status: {
-              type: "requires-action",
-              reason: "tool-call-result",
-            },
-          } as ToolCallPart,
-        ],
-        content: [],
-        metadata: {
-          unstable_state: {},
-          unstable_data: [],
-          unstable_annotations: [],
-          steps: [],
-          custom: {},
-        },
-      };
-
-      const updatedMessage = await unstable_runPendingTools(
-        message,
-        tools,
-        new AbortController().signal,
-        async () => {},
-      );
-
-      // Both should complete successfully
-      expect(updatedMessage.parts[0]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "1",
-        state: "result",
-        result: "slow",
-        isError: false,
-      });
-      expect(updatedMessage.parts[1]).toMatchObject({
-        type: "tool-call",
-        toolCallId: "2",
-        state: "result",
-        result: "fast",
-        isError: false,
       });
     });
   });
@@ -1584,4 +1447,261 @@ describe("unstable_runPendingTools", () => {
       },
     );
   });
+
+  it("preserves synchronous streamCall failures", async () => {
+    const callbackError = new Error("stream callback failed");
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-sync-error",
+            toolName: "lookup",
+          },
+        });
+        controller.close();
+      },
+    });
+
+    await expect(
+      input
+        .pipeThrough(
+          unstable_toolResultStream(
+            {
+              lookup: {
+                parameters: { type: "object", properties: {} },
+                streamCall: () => {
+                  throw callbackError;
+                },
+              },
+            },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(new WritableStream<AssistantStreamChunk>()),
+    ).rejects.toBe(callbackError);
+  });
+
+  it.each(["during input", "after completion"] as const)(
+    "reports async streamCall failures %s without failing the stream",
+    async (timing) => {
+      const callbackError = new Error("stream callback failed");
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const callbackStarted = promiseWithResolvers<void>();
+      const callbackResult = promiseWithResolvers<void>();
+      let controller!: ReadableStreamDefaultController<AssistantStreamChunk>;
+      const input = new ReadableStream<AssistantStreamChunk>({
+        start(value) {
+          controller = value;
+        },
+      });
+      const output: AssistantStreamChunk[] = [];
+
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const drain = input
+          .pipeThrough(
+            unstable_toolResultStream(
+              {
+                lookup: {
+                  parameters: { type: "object", properties: {} },
+                  streamCall: async () => {
+                    callbackStarted.resolve();
+                    await callbackResult.promise;
+                  },
+                },
+              },
+              new AbortController().signal,
+              async () => {},
+            ),
+          )
+          .pipeTo(
+            new WritableStream<AssistantStreamChunk>({
+              write(chunk) {
+                output.push(chunk);
+              },
+            }),
+          );
+        void drain.catch(() => {});
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-call",
+            toolName: "lookup",
+          },
+        });
+        await callbackStarted.promise;
+        if (timing === "after completion") {
+          controller.close();
+          await drain;
+        }
+
+        callbackResult.reject(callbackError);
+        try {
+          await vi.waitFor(() => {
+            expect(error).toHaveBeenCalledExactlyOnceWith(
+              "[assistant-stream] streamCall callback threw an error",
+              callbackError,
+            );
+          });
+          if (timing === "during input") {
+            controller.enqueue({
+              type: "part-start",
+              path: [],
+              part: { type: "text" },
+            });
+            controller.enqueue({
+              type: "text-delta",
+              path: [1],
+              textDelta: "still streaming",
+            });
+            controller.enqueue({ type: "part-finish", path: [1] });
+          }
+        } finally {
+          if (timing === "during input") controller.close();
+        }
+        await drain;
+      });
+
+      expect(unhandledRejections).toEqual([]);
+      if (timing === "during input") {
+        expect(output).toContainEqual(
+          expect.objectContaining({
+            type: "text-delta",
+            path: [1],
+            textDelta: "still streaming",
+          }),
+        );
+      }
+    },
+  );
+
+  it("keeps later arguments flowing without waiting for callback completion", async () => {
+    const callbackStarted = promiseWithResolvers<void>();
+    const callbackReachedArgs = promiseWithResolvers<void>();
+    const releaseCallback = promiseWithResolvers<void>();
+    const callbackFinished = vi.fn();
+    let controller!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(value) {
+        controller = value;
+      },
+    });
+    const drain = input
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            lookup: {
+              parameters: { type: "object", properties: {} },
+              streamCall: async (reader) => {
+                callbackStarted.resolve();
+                expect(await reader.args.get("x")).toBe("later");
+                callbackReachedArgs.resolve();
+                await releaseCallback.promise;
+                callbackFinished();
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(new WritableStream<AssistantStreamChunk>());
+    controller.enqueue({
+      type: "part-start",
+      path: [],
+      part: {
+        type: "tool-call",
+        toolCallId: "tc-stream-args",
+        toolName: "lookup",
+      },
+    });
+    await callbackStarted.promise;
+    controller.enqueue({
+      type: "text-delta",
+      path: [0],
+      textDelta: '{"x":"later"}',
+    });
+    controller.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+    controller.enqueue({ type: "part-finish", path: [0] });
+    controller.close();
+    await callbackReachedArgs.promise;
+    try {
+      await drain;
+      expect(callbackFinished).not.toHaveBeenCalled();
+    } finally {
+      releaseCallback.resolve();
+    }
+    await vi.waitFor(() => expect(callbackFinished).toHaveBeenCalledOnce());
+  });
+
+  it.each(["response", "result", "human", "incomplete args"] as const)(
+    "finishes while streamCall awaits %s",
+    async (pending) => {
+      const humanResponse = promiseWithResolvers<unknown>();
+      const callbackFinished = vi.fn();
+      const input = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          controller.enqueue({
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "tc-pending",
+              toolName: "lookup",
+            },
+          });
+          if (pending !== "incomplete args") {
+            controller.enqueue({
+              type: "text-delta",
+              path: [0],
+              textDelta: "{}",
+            });
+            controller.enqueue({
+              type: "tool-call-args-text-finish",
+              path: [0],
+            });
+            controller.enqueue({ type: "part-finish", path: [0] });
+          }
+          controller.close();
+        },
+      });
+      await input
+        .pipeThrough(
+          unstable_toolResultStream(
+            {
+              lookup: {
+                parameters: { type: "object", properties: {} },
+                streamCall: async (reader, context) => {
+                  switch (pending) {
+                    case "response":
+                      await reader.response.get();
+                      break;
+                    case "result":
+                      await reader.result.get();
+                      break;
+                    case "human":
+                      await context.human("confirm");
+                      break;
+                    case "incomplete args":
+                      await reader.args.get("missing");
+                      break;
+                  }
+                  callbackFinished();
+                },
+              },
+            },
+            new AbortController().signal,
+            () => humanResponse.promise,
+          ),
+        )
+        .pipeTo(new WritableStream<AssistantStreamChunk>());
+      expect(callbackFinished).not.toHaveBeenCalled();
+      humanResponse.resolve(undefined);
+    },
+  );
 });

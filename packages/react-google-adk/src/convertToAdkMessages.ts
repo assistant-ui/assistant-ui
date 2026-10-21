@@ -37,9 +37,14 @@ export const getMessageContent = (msg: AppendMessage) => {
             type: "image" as const,
             mimeType: resolveImageMediaType(part.image, contentType),
             data: parsed.data,
+            ...(part.filename != null && { filename: part.filename }),
           };
         }
-        return { type: "image_url" as const, url: part.image };
+        return {
+          type: "image_url" as const,
+          url: part.image,
+          ...(part.filename != null && { filename: part.filename }),
+        };
       }
       case "file": {
         const source = resolveFilePartSource(part);
@@ -48,11 +53,12 @@ export const getMessageContent = (msg: AppendMessage) => {
             type: "file_url" as const,
             url: source.url,
             mimeType: part.mimeType,
+            ...(part.filename != null && { filename: part.filename }),
           };
         }
         return {
           type: "file" as const,
-          mimeType: part.mimeType,
+          mimeType: source.mimeType,
           // Lands in Gemini `inlineData.data`, which takes bare base64, so a
           // data URL envelope is stripped rather than forwarded.
           data: source.data,

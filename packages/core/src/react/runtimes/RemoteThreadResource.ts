@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
+import { useIsomorphicLayoutEffect } from "@assistant-ui/store/internal";
 import {
   useAssistantContextProvider,
   useConfiguredAui,
@@ -22,8 +23,6 @@ import {
   useRuntimeAdaptersProvider,
   type RuntimeAdapters,
 } from "./RuntimeAdapterProvider";
-import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
-import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 import { useRemoteThreadRuntimeHostProvider } from "./RemoteThreadRuntimeHostContext";
 
 export type RemoteThreadListHook = () => AssistantRuntime;
@@ -41,34 +40,7 @@ export type RemoteThreadResourceProps = {
     generation: number,
   ) => void;
   destroySignal: AbortSignal;
-};
-
-export const subscribeToTitleGeneration = (
-  threadRuntime: AssistantRuntime["thread"],
-  itemRuntime: ThreadListItemRuntime,
-) => {
-  const generate = () =>
-    void itemRuntime
-      .generateTitle({ automatic: true })
-      .catch((error: unknown) => {
-        if (isSilentRuntimeAction(error)) return;
-        console.error("[assistant-ui] Thread title generation failed", error);
-      });
-
-  const hasTitleSource = () =>
-    threadRuntime.getState().messages.some(isTitleSourceMessage);
-
-  if (hasTitleSource()) {
-    generate();
-    return () => {};
-  }
-
-  const unsubscribe = threadRuntime.subscribe(() => {
-    if (!hasTitleSource()) return;
-    unsubscribe();
-    generate();
-  });
-  return unsubscribe;
+  publishInCommit?: boolean;
 };
 
 const useRemoteThreadBinder = ({
@@ -77,12 +49,14 @@ const useRemoteThreadBinder = ({
   runtimeHook,
   publish,
   itemRuntime,
+  publishInCommit,
 }: {
   threadId: string;
   generation: number;
   runtimeHook: RemoteThreadListHook;
   publish: RemoteThreadResourceProps["publish"];
   itemRuntime: ThreadListItemRuntime;
+  publishInCommit: boolean;
 }) => {
   const runtime = useRemoteThreadRuntimeHostProvider(runtimeHook);
   const threadBinding = (runtime?.thread as ThreadRuntimeImpl | undefined)
@@ -94,24 +68,36 @@ const useRemoteThreadBinder = ({
   }, [threadId, generation, threadBinding, publish]);
 
   const isMounted = useRef(false);
-  if (!isMounted.current) {
+  if (!publishInCommit && !isMounted.current) {
     updateRuntime();
   }
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!threadBinding) return undefined;
     isMounted.current = true;
     updateRuntime();
     return threadBinding.outerSubscribe(updateRuntime);
   }, [threadBinding, updateRuntime]);
 
+  const remoteIdRef = useRef<string | undefined>(undefined);
+  const applyRemoteId = useEffectEvent(() => {
+    const remoteId = remoteIdRef.current;
+    if (remoteId === undefined || !threadBinding) return;
+    const core = threadBinding.getState();
+    const setGetThreadId = (core as Record<string, unknown>)
+      .__internal_setGetThreadId;
+    if (typeof setGetThreadId === "function")
+      setGetThreadId.call(core, () => remoteId);
+  });
+  useEffect(() => {
+    applyRemoteId();
+  }, [threadBinding]);
+
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
   // Any caller's initialize() moves the item off "new"; a thread born "new"
-  // here still joins that initialization so its title arms.
+  // here still joins that initialization so its first send waits for it.
   const bornNewRef = useRef(itemRuntime.getState().status === "new");
-  const titleDisposeRef = useRef<(() => void) | undefined>(undefined);
-  const titleAliveRef = useRef(false);
 
   const handleInitialize = useEffectEvent(() => {
     if (hasInitializedRef.current) return;
@@ -122,27 +108,20 @@ const useRemoteThreadBinder = ({
 
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
-
-    // The title needs the thread to exist and its first message, so it arms
-    // when initialization resolves rather than at the first runEnd; waiting
-    // for the run would leave the thread on "New Chat" for the whole
-    // response, and forever when the run never completes.
     void initPromise.then(
-      () => {
-        if (!titleAliveRef.current) return;
-        titleDisposeRef.current?.();
-        titleDisposeRef.current = subscribeToTitleGeneration(
-          runtime.thread,
-          itemRuntime,
-        );
+      ({ remoteId }) => {
+        remoteIdRef.current = remoteId;
+        applyRemoteId();
       },
-      () => {
-        if (initPromiseRef.current === initPromise) {
-          initPromiseRef.current = undefined;
-          hasInitializedRef.current = false;
-        }
-      },
+      () => {},
     );
+
+    void initPromise.catch(() => {
+      if (initPromiseRef.current === initPromise) {
+        initPromiseRef.current = undefined;
+        hasInitializedRef.current = false;
+      }
+    });
   });
 
   const getInitializePromise = useEffectEvent(() => {
@@ -162,17 +141,7 @@ const useRemoteThreadBinder = ({
   useEffect(() => {
     if (!runtime?.threads?.main) return undefined;
     hasInitializedRef.current = false;
-    titleAliveRef.current = true;
-    const unsubscribe = runtime.threads.main.unstable_on(
-      "initialize",
-      handleInitialize,
-    );
-    return () => {
-      titleAliveRef.current = false;
-      unsubscribe();
-      titleDisposeRef.current?.();
-      titleDisposeRef.current = undefined;
-    };
+    return runtime.threads.main.unstable_on("initialize", handleInitialize);
   }, [runtime]);
 
   return runtime;
@@ -187,6 +156,7 @@ const useRemoteThreadResource = ({
   adapters,
   publish,
   destroySignal,
+  publishInCommit = false,
 }: RemoteThreadResourceProps) => {
   const itemRuntime = useMemo(
     () =>
@@ -232,6 +202,7 @@ const useRemoteThreadResource = ({
           runtimeHook,
           publish,
           itemRuntime,
+          publishInCommit,
         });
       });
     });

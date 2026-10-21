@@ -302,8 +302,10 @@ async def test_rejects_acquire_when_max_streams_exceeded() -> None:
 @pytest.mark.anyio
 async def test_gc_sweeper_evicts_expired_streams() -> None:
     now = 1_000.0
+    clock_sampled = asyncio.Event()
 
     def clock() -> float:
+        clock_sampled.set()
         return now
 
     store = create_in_memory_resumable_stream_store(
@@ -311,12 +313,17 @@ async def test_gc_sweeper_evicts_expired_streams() -> None:
         gc_interval_ms=50,
         now=clock,
     )
-    await store.acquire("a")
-    await store.append("a", _bytes("hi"))
-    now += 200
-    await asyncio.sleep(0.08)
-    assert await store.status("a") == "missing"
-    store.dispose()
+    try:
+        await store.acquire("a")
+        await store.append("a", _bytes("hi"))
+        clock_sampled.clear()
+        now += 200
+        await asyncio.wait_for(clock_sampled.wait(), timeout=1)
+        # Resetting the clock prevents status() from performing the eviction.
+        now = 1_000.0
+        assert await store.status("a") == "missing"
+    finally:
+        store.dispose()
 
 
 @pytest.mark.anyio

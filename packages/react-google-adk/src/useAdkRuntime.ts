@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   pickExternalStoreSharedOptions,
@@ -17,10 +18,14 @@ import {
   type ToolCallMessagePart,
   type ToolExecutionStatus,
   generateId,
+  MessageNotSentError,
+  isMessageNotSentError,
 } from "@assistant-ui/core";
 import {
   createAbortableThreadLoad,
   createCloudThreadListAdapterCreateFallback,
+  RunLeases,
+  type RunLease,
 } from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
@@ -41,7 +46,7 @@ import type {
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
 } from "./types";
-import { useAdkMessages } from "./useAdkMessages";
+import { useAdkMessagesInternal } from "./useAdkMessages";
 import {
   convertAdkMessage,
   createAdkMessageConverter,
@@ -56,8 +61,36 @@ import {
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
+import {
+  getToolResultOwnerKey,
+  isInterruptReply,
+  type AdkThreadState,
+} from "./adkThreadState";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
+
+const overlayBufferedToolResults = (
+  messages: AdkMessage[],
+  bufferedResults: ReadonlyMap<string, Extract<AdkMessage, { type: "tool" }>>,
+): AdkMessage[] => {
+  if (bufferedResults.size === 0) return messages;
+  const ids = new Set(messages.map((message) => message.id));
+  return [
+    ...messages,
+    ...[...bufferedResults.values()].filter((message) => !ids.has(message.id)),
+  ];
+};
+
+const getToolCallIds = (messages: readonly AdkMessage[]) =>
+  new Set(
+    messages.flatMap((message) =>
+      message.type === "ai"
+        ? (message.tool_calls ?? []).flatMap((call) =>
+            call && typeof call.id === "string" ? [call.id] : [],
+          )
+        : [],
+    ),
+  );
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
@@ -71,6 +104,7 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
    */
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
+  /** @deprecated Experimental since 2025-01-03. Not scheduled for removal; the API may change in any release. */
   unstable_allowCancellation?: boolean | undefined;
   getCheckpointId?: (
     threadId: string,
@@ -106,6 +140,11 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
     | undefined;
   cloud?: AssistantCloud | undefined;
   /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
+  /**
    * A `RemoteThreadListAdapter` to use instead of the cloud adapter.
    * Use with `createAdkSessionAdapter` for ADK session-backed persistence.
    */
@@ -123,8 +162,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     eventHandlers,
   } = options;
   const aui = useAui();
+  const sentTruncationRef = useRef<{
+    lease: RunLease;
+    snapshot: AdkThreadState;
+  } | null>(null);
+  const clearSentTruncation = useCallback(
+    (rollbackState: AdkThreadState | undefined) => {
+      if (sentTruncationRef.current?.snapshot === rollbackState)
+        sentTruncationRef.current = null;
+    },
+    [],
+  );
   const {
-    messages,
+    controller,
+    messages: publishedMessages,
     stateDelta,
     agentInfo,
     longRunningToolIds,
@@ -133,25 +184,86 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     authRequests,
     escalated,
     messageMetadata,
-    sendMessage,
+    sendMessageWithExecutor,
     cancel,
     setMessages,
-    replaceMessages,
-    applySnapshot,
-  } = useAdkMessages({
+    replaceMessages: replaceAdkMessages,
+    applySnapshot: applyAdkSnapshot,
+  } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers && { eventHandlers }),
+    onFirstEvent: clearSentTruncation,
   });
+  const threadState = useSyncExternalStore(
+    controller.subscribe,
+    controller.getState,
+    controller.getState,
+  );
+  const messages = useMemo(
+    () =>
+      overlayBufferedToolResults(
+        publishedMessages,
+        threadState.toolResultBuffer,
+      ),
+    [publishedMessages, threadState.toolResultBuffer],
+  );
+  const visibleToolConfirmations = useMemo(
+    () =>
+      toolConfirmations.filter(
+        (request) => !threadState.toolResultBuffer.has(request.toolCallId),
+      ),
+    [toolConfirmations, threadState.toolResultBuffer],
+  );
+  const visibleAuthRequests = useMemo(
+    () =>
+      authRequests.filter(
+        (request) => !threadState.toolResultBuffer.has(request.toolCallId),
+      ),
+    [authRequests, threadState.toolResultBuffer],
+  );
 
   const loadRef = useRef(load);
   useInsertionEffect(() => {
     loadRef.current = load;
   }, [load]);
   const [loadController] = useState(createAbortableThreadLoad);
+  const initialLoadRef = useRef<{
+    promise: Promise<void>;
+    active: boolean;
+    snapshot: AdkThreadSnapshot | undefined;
+  } | null>(null);
+  const waitForInitialLoad = () => {
+    const load = initialLoadRef.current;
+    if (!load) return undefined;
+    return load.promise.then(() => ({
+      active:
+        load.active &&
+        (!threadListItem ||
+          aui.threads.getState().mainThreadId === threadListItem.getState().id),
+      snapshot: load.snapshot,
+    }));
+  };
   const messagesRef = useRef(messages);
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  const applySnapshot = useCallback(
+    (snapshot: AdkThreadSnapshot) => {
+      controller.dispatch({
+        type: "messages.seed",
+        history: snapshot.messages,
+      });
+      applyAdkSnapshot(snapshot);
+    },
+    [applyAdkSnapshot, controller],
+  );
+  const replaceMessages = useCallback(
+    (nextMessages: AdkMessage[]) => {
+      controller.dispatch({ type: "messages.prune", history: nextMessages });
+      replaceAdkMessages(nextMessages);
+    },
+    [controller, replaceAdkMessages],
+  );
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
       load !== undefined && aui.threadListItem.getState().externalId != null,
@@ -169,19 +281,175 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
-  const runGenerationRef = useRef(0);
+  const [runLeases] = useState(() => new RunLeases());
+  const checkpointLookupRef = useRef<{
+    lease: RunLease;
+    snapshot: ReturnType<typeof controller.getState>;
+    ownIds: readonly string[];
+  } | null>(null);
+  const inheritedSnapshot = () => {
+    const snapshot = [
+      checkpointLookupRef.current,
+      sentTruncationRef.current,
+    ].find(
+      (pending) =>
+        pending?.lease.isCurrent() &&
+        pending.snapshot.loadGeneration ===
+          controller.getState().loadGeneration,
+    )?.snapshot;
+    if (!snapshot) return undefined;
+    const toolResultBuffer = controller.getState().toolResultBuffer;
+    if (toolResultBuffer.size === 0) return snapshot;
+    const toolCallIds = getToolCallIds(snapshot.messages);
+    return {
+      ...snapshot,
+      toolResultBuffer: new Map([
+        ...snapshot.toolResultBuffer,
+        ...[...toolResultBuffer].filter(([id]) => toolCallIds.has(id)),
+      ]),
+    };
+  };
 
-  const handleSendMessage = async (
-    msgs: AdkMessage[],
-    config: AdkSendMessageConfig,
+  const runExclusive = async (
+    run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
-    const generation = ++runGenerationRef.current;
+    const lease = runLeases.begin();
+    const runId = controller.dispatch({ type: "run.active" }).currentRunId!;
+    let failed = false;
     try {
       setIsRunning(true);
-      await sendMessage(msgs, config);
+      await run(lease.isCurrent);
+    } catch (error) {
+      failed = true;
+      throw error;
     } finally {
-      if (runGenerationRef.current === generation) setIsRunning(false);
+      const wasActive = controller.getState().activeRunIds.has(runId);
+      failed ||= controller.getState().failedRunIds.has(runId);
+      controller.dispatch({ type: "run.finished", runId });
+      if (lease.isCurrent()) setIsRunning(false);
+      if (wasActive && lease.isCurrent()) {
+        const batch = controller.dispatch({
+          type: "results.flush",
+          runId,
+          failed,
+        }).readyBatch;
+        if (batch) await handleSendMessage(batch, {});
+      }
     }
+  };
+
+  const handleSendMessage = (
+    msgs: AdkMessage[],
+    config: AdkSendMessageConfig,
+    rollbackState?: ReturnType<typeof controller.getState>,
+    onFirstEvent?: () => void,
+    chain?: object,
+  ): Promise<void> => {
+    const toolResultBatches = new Map<string, AdkMessage[]>();
+    const otherMessages: AdkMessage[] = [];
+    for (const message of msgs) {
+      if (message.type !== "tool") {
+        otherMessages.push(message);
+        continue;
+      }
+      const ownerKey = getToolResultOwnerKey(
+        controller.getState(),
+        message.tool_call_id,
+      );
+      const batch = toolResultBatches.get(ownerKey);
+      if (batch) batch.push(message);
+      else toolResultBatches.set(ownerKey, [message]);
+    }
+    if (toolResultBatches.size > 1) {
+      const batches = [...toolResultBatches.values()];
+      batches.at(-1)!.push(...otherMessages);
+      const chain = {};
+      const started = batches.map(() => false);
+      const sends = batches.map((batch, index) =>
+        handleSendMessage(
+          batch,
+          config,
+          rollbackState,
+          () => {
+            started[index] = true;
+          },
+          chain,
+        ),
+      );
+      return (async () => {
+        const results = await Promise.allSettled(sends);
+        if (results.some((result) => result.status === "rejected")) {
+          const toolCallIds = getToolCallIds(controller.getState().messages);
+          const unsent = batches
+            .flatMap((batch, index) =>
+              results[index]?.status === "rejected" && !started[index]
+                ? batch
+                : [],
+            )
+            .filter(
+              (message): message is Extract<AdkMessage, { type: "tool" }> =>
+                message.type === "tool" &&
+                toolCallIds.has(message.tool_call_id),
+            );
+          if (unsent.length > 0)
+            controller.dispatch({ type: "results.restore", messages: unsent });
+          if (
+            otherMessages.some((message) => message.type === "human") &&
+            results.at(-1)?.status === "rejected" &&
+            !started.at(-1)
+          ) {
+            const notSent = new MessageNotSentError();
+            const cause = results.find(
+              (result) =>
+                result.status === "rejected" &&
+                !isMessageNotSentError(result.reason),
+            );
+            if (cause?.status === "rejected") notSent.cause = cause.reason;
+            throw notSent;
+          }
+          const failure = results.find(
+            (result) => result.status === "rejected",
+          );
+          if (failure?.status === "rejected") throw failure.reason;
+        }
+      })();
+    }
+    const isToolContinuation =
+      msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
+    const continuationConfig =
+      isToolContinuation && config.runConfig === undefined
+        ? {
+            ...config,
+            runConfig: controller
+              .getState()
+              .runConfigByToolCallId.get(msgs[0]!.tool_call_id),
+          }
+        : config;
+
+    return sendMessageWithExecutor(
+      msgs,
+      continuationConfig,
+      (run) => runExclusive(() => run()),
+      rollbackState,
+      { onFirstEvent, chain },
+    );
+  };
+
+  const receiveToolResult = async (
+    message: Extract<AdkMessage, { type: "tool" }>,
+  ) => {
+    const batch = controller.dispatch({
+      type: "results.received",
+      message,
+    }).readyBatch;
+    if (batch) await handleSendMessage(batch, {});
+  };
+
+  const stopRun = () => {
+    controller.dispatch({ type: "run.cancelled" });
+    runLeases.invalidate();
+    setIsRunning(false);
+    cancel();
   };
 
   const { approvals: toolApprovals, key: toolApprovalsKey } =
@@ -206,13 +474,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     [],
   );
 
-  const messageConverter = useMemo(
-    () =>
-      toolApprovalsKey === ""
+  const messageConverter = useMemo(() => {
+    if (threadState.toolResultBuffer.size === 0)
+      return toolApprovalsKey === ""
         ? convertAdkMessage
-        : createAdkMessageConverter(toolApprovalsRef.current),
-    [toolApprovalsKey],
-  );
+        : createAdkMessageConverter(toolApprovalsRef.current);
+    return createAdkMessageConverter(
+      toolApprovalsRef.current,
+      new Set(threadState.toolResultBuffer.keys()),
+    );
+  }, [toolApprovalsKey, threadState.toolResultBuffer]);
 
   const threadMessages = useExternalMessageConverter({
     callback: messageConverter,
@@ -233,43 +504,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     adkMessagesRef.current = messages;
   }, [messages]);
 
-  const stagedMessagesRef = useRef(
-    new Map<
-      string,
-      {
-        message: AdkMessage & { id: string };
-        runConfig: AppendMessage["runConfig"];
-      }
-    >(),
+  const stagedMessageCount = useSyncExternalStore(
+    controller.subscribe,
+    controller.getStagedMessageCount,
+    controller.getStagedMessageCount,
   );
-  const [stagedMessageCount, setStagedMessageCount] = useState(0);
   const hasStagedMessages = stagedMessageCount > 0;
-
-  const getStagedRun = (parentId: string | null) => {
-    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
-
-    const staged: AdkMessage[] = [];
-    for (const message of adkMessagesRef.current) {
-      if (message.id && stagedMessagesRef.current.has(message.id)) {
-        staged.push(stagedMessagesRef.current.get(message.id)!.message);
-      }
-      if (message.id === parentId) break;
-    }
-
-    return {
-      messages: staged,
-      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
-    };
-  };
 
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toAdkUserMessage(msg);
-    stagedMessagesRef.current.set(stagedMessage.id, {
-      message: stagedMessage,
-      runConfig: msg.runConfig,
+    controller.dispatch({
+      type: "staged.stage",
+      entry: { message: stagedMessage, runConfig: msg.runConfig },
     });
-    setStagedMessageCount(stagedMessagesRef.current.size);
-    const nextMessages = [...adkMessagesRef.current, stagedMessage];
+    const nextMessages = [...controller.getState().messages, stagedMessage];
     adkMessagesRef.current = nextMessages;
     setMessages(nextMessages);
   };
@@ -281,6 +529,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const runLoad = useCallback(
     (purpose: "initial" | "reload" = "initial") => {
+      if (purpose === "reload") controller.dispatch({ type: "results.clear" });
       const loadFn = loadRef.current;
       if (!loadFn || !threadListItem) return Promise.resolve();
 
@@ -312,7 +561,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               messagesRef.current !== messagesAtLoadStart)
           )
             return;
+          checkpointLookupRef.current = null;
           applySnapshot(snapshot);
+          messagesRef.current = snapshot.messages;
+          adkMessagesRef.current = snapshot.messages;
+          longRunningToolIdsRef.current = snapshot.longRunningToolIds ?? [];
+          if (purpose === "initial" && initialLoadRef.current) {
+            initialLoadRef.current.snapshot = snapshot;
+          }
         },
         onSettled: () => {
           setIsLoadingThread(false);
@@ -322,15 +578,31 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         },
       });
     },
-    [threadListItem, loadController, applySnapshot],
+    [threadListItem, loadController, applySnapshot, controller],
   );
 
   useReplaySafeEffect(() => {
-    runLoad();
+    let release!: () => void;
+    const barrier = {
+      promise: new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+      active: true,
+      snapshot: undefined as AdkThreadSnapshot | undefined,
+    };
+    initialLoadRef.current = barrier;
+    const settle = () => {
+      if (initialLoadRef.current === barrier) initialLoadRef.current = null;
+      release();
+    };
+    void runLoad().then(settle, settle);
     return () => {
+      barrier.active = false;
+      controller.dispatch({ type: "run.cancelled" });
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
       loadController.abort();
+      settle();
       setIsLoadingThread(false);
     };
   }, [threadListItem]);
@@ -349,13 +621,26 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       stateDelta,
       artifactDelta,
       longRunningToolIds,
-      toolConfirmations,
-      authRequests,
+      toolConfirmations: visibleToolConfirmations,
+      authRequests: visibleAuthRequests,
       escalated,
       messageMetadata,
-      send: handleSendMessage,
+      send: (messages, config) => {
+        const initialLoad = waitForInitialLoad();
+        const send = () =>
+          isInterruptReply(messages, config)
+            ? receiveToolResult(messages[0])
+            : handleSendMessage(messages, config);
+        if (!initialLoad) return send();
+        return initialLoad.then(({ active }) => (active ? send() : undefined));
+      },
     }),
     onNew: async (msg) => {
+      const pendingInitialLoad = waitForInitialLoad();
+      const initialLoad = pendingInitialLoad
+        ? await pendingInitialLoad
+        : undefined;
+      if (initialLoad && !initialLoad.active) return;
       if (!(msg.startRun ?? msg.role === "user")) {
         stageUserMessage(msg);
         return;
@@ -363,12 +648,26 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
       const cancellations =
         autoCancelPendingToolCalls !== false
-          ? getPendingCancellations(messages, longRunningToolIds)
+          ? getPendingCancellations(
+              initialLoad?.snapshot?.messages ?? messagesRef.current,
+              initialLoad?.snapshot?.longRunningToolIds ??
+                longRunningToolIdsRef.current,
+            )
           : [];
+      const bufferedResults =
+        controller.dispatch({ type: "run.newTurn" }).readyBatch ?? [];
+      const answeredIds = new Set(
+        bufferedResults.map((result) => result.tool_call_id),
+      );
 
       return handleSendMessage(
         [
-          ...cancellations,
+          ...bufferedResults,
+          ...cancellations.filter(
+            (cancellation) =>
+              cancellation.type !== "tool" ||
+              !answeredIds.has(cancellation.tool_call_id),
+          ),
           {
             id: generateId(),
             type: "human",
@@ -380,6 +679,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onEdit: getCheckpointId
       ? async (msg) => {
+          const initialLoad = waitForInitialLoad();
+          if (initialLoad && !(await initialLoad).active) return;
+          const beforeEdit = inheritedSnapshot() ?? controller.getState();
+          stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -387,64 +690,130 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           replaceMessages(truncated);
           if (!(msg.startRun ?? msg.role === "user")) {
             const stagedMessage = toAdkUserMessage(msg);
-            stagedMessagesRef.current.set(stagedMessage.id, {
-              message: stagedMessage,
-              runConfig: msg.runConfig,
+            controller.dispatch({
+              type: "staged.stage",
+              entry: { message: stagedMessage, runConfig: msg.runConfig },
             });
-            setStagedMessageCount(stagedMessagesRef.current.size);
             const nextMessages = [...truncated, stagedMessage];
             adkMessagesRef.current = nextMessages;
             setMessages(nextMessages);
             return;
           }
+          const editedMessage = toAdkUserMessage(msg);
+          setMessages([...truncated, editedMessage]);
           const externalId = aui.threadListItem.getState().externalId;
-          const checkpointId = externalId
-            ? await getCheckpointId(externalId, truncated)
-            : null;
-          return handleSendMessage(
-            [
+          return runExclusive(async (isCurrent) => {
+            const lookup = {
+              lease: runLeases.current(),
+              snapshot: beforeEdit,
+              ownIds: [editedMessage.id!],
+            };
+            checkpointLookupRef.current = lookup;
+            let checkpointId: string | null;
+            try {
+              checkpointId = externalId
+                ? await getCheckpointId(externalId, truncated)
+                : null;
+            } catch (error) {
+              if (isCurrent() && checkpointLookupRef.current === lookup)
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: beforeEdit,
+                  ownIds: lookup.ownIds,
+                });
+              throw error;
+            } finally {
+              if (checkpointLookupRef.current === lookup)
+                checkpointLookupRef.current = null;
+            }
+            if (!isCurrent()) return;
+            sentTruncationRef.current = lookup;
+            await sendMessageWithExecutor(
+              [editedMessage],
               {
-                id: generateId(),
-                type: "human",
-                content: getMessageContent(msg),
+                runConfig: msg.runConfig,
+                ...(checkpointId && { checkpointId }),
               },
-            ],
-            {
-              runConfig: msg.runConfig,
-              ...(checkpointId && { checkpointId }),
-            },
-          );
+              undefined,
+              beforeEdit,
+            ).finally(() => {
+              if (sentTruncationRef.current === lookup)
+                sentTruncationRef.current = null;
+            });
+          });
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
-            const stagedRun = getStagedRun(parentId);
+            const initialLoad = waitForInitialLoad();
+            if (initialLoad && !(await initialLoad).active) return;
+            const beforeReload = controller.getState();
+            const inherited = inheritedSnapshot();
+            controller.dispatch({ type: "results.clear" });
+            const stagedRun = controller.getStagedRun(parentId);
             if (stagedRun) {
-              for (const message of stagedRun.messages) {
-                stagedMessagesRef.current.delete(message.id);
-              }
-              setStagedMessageCount(stagedMessagesRef.current.size);
-              return handleSendMessage(stagedRun.messages, {
-                runConfig: config.runConfig ?? stagedRun.runConfig,
+              controller.dispatch({
+                type: "staged.unstage",
+                ids: stagedRun.messages.map((message) => message.id!),
               });
+              return handleSendMessage(
+                stagedRun.messages,
+                {
+                  runConfig: config.runConfig ?? stagedRun.runConfig,
+                },
+                beforeReload,
+              );
             }
 
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
+            stopRun();
+            const beforeReloadState = inherited ?? beforeReload;
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
             );
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
-            const checkpointId = externalId
-              ? await getCheckpointId(externalId, truncated)
-              : null;
-            return handleSendMessage([], {
-              runConfig: config.runConfig,
-              ...(checkpointId && { checkpointId }),
+            return runExclusive(async (isCurrent) => {
+              const lookup = {
+                lease: runLeases.current(),
+                snapshot: beforeReloadState,
+                ownIds: [],
+              };
+              checkpointLookupRef.current = lookup;
+              let checkpointId: string | null;
+              try {
+                checkpointId = externalId
+                  ? await getCheckpointId(externalId, truncated)
+                  : null;
+              } catch (error) {
+                if (isCurrent() && checkpointLookupRef.current === lookup)
+                  controller.dispatch({
+                    type: "run.rollback",
+                    state: beforeReloadState,
+                  });
+                throw error;
+              } finally {
+                if (checkpointLookupRef.current === lookup)
+                  checkpointLookupRef.current = null;
+              }
+              if (!isCurrent()) return;
+              sentTruncationRef.current = lookup;
+              await sendMessageWithExecutor(
+                [],
+                {
+                  runConfig: config.runConfig,
+                  ...(checkpointId && { checkpointId }),
+                },
+                undefined,
+                beforeReloadState,
+              ).finally(() => {
+                if (sentTruncationRef.current === lookup)
+                  sentTruncationRef.current = null;
+              });
             });
           },
         }
@@ -456,35 +825,42 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       isError,
       artifact,
     }) => {
-      await handleSendMessage(
-        [
-          {
-            id: generateId(),
-            type: "tool",
-            name: toolName,
-            tool_call_id: toolCallId,
-            content: JSON.stringify(result),
-            artifact,
-            status: isError ? "error" : "success",
-          },
-        ],
-        {},
-      );
+      const initialLoad = waitForInitialLoad();
+      if (initialLoad && !(await initialLoad).active) return;
+      const message: Extract<AdkMessage, { type: "tool" }> = {
+        id: generateId(),
+        type: "tool",
+        name: toolName,
+        tool_call_id: toolCallId,
+        content: JSON.stringify(result),
+        artifact,
+        status: isError ? "error" : "success",
+      };
+      await receiveToolResult(message);
     },
     onRespondToToolApproval: async (options) => {
-      await handleSendMessage(
-        [
-          toAdkToolConfirmationReply(
-            options,
-            projectAdkToolApprovals(adkMessagesRef.current).approvals,
-          ),
-        ],
-        {},
+      const initialLoad = waitForInitialLoad();
+      if (initialLoad && !(await initialLoad).active) return;
+      await receiveToolResult(
+        toAdkToolConfirmationReply(
+          options,
+          projectAdkToolApprovals(adkMessagesRef.current).approvals,
+        ),
       );
     },
     onCancel: unstable_allowCancellation
       ? async () => {
-          cancel();
+          const pendingLookup = checkpointLookupRef.current;
+          const lookup = pendingLookup?.lease.isCurrent()
+            ? pendingLookup
+            : null;
+          stopRun();
+          if (lookup)
+            controller.dispatch({
+              type: "run.rollback",
+              state: lookup.snapshot,
+              ownIds: lookup.ownIds,
+            });
         }
       : undefined,
     ...(load !== undefined && {
@@ -497,6 +873,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
 export const useAdkRuntime = ({
   cloud,
+  scopeId,
   sessionAdapter,
   create,
   delete: deleteFn,
@@ -507,6 +884,7 @@ export const useAdkRuntime = ({
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: ADK_SDK,
     cloud,
+    scopeId,
     create: createCloudThreadListAdapterCreateFallback(
       create,
       aui.threadListItem,

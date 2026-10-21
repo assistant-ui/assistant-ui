@@ -3,8 +3,8 @@ import path from "node:path";
 import type { TransformOptions } from "./transform-options";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
-import { sync as globSync } from "glob";
 import { runSpawnCapture, SpawnExitError, SpawnSignalError } from "./run-spawn";
+import { readProjectFiles } from "./utils/file-scanner";
 
 const log = debug("codemod:transform");
 
@@ -22,7 +22,8 @@ export function getRelevantFiles(source: string): string[] {
   }
 
   const pattern = "**/*.{js,jsx,ts,tsx}";
-  const files = globSync(pattern, {
+  const relevantFiles: string[] = [];
+  for (const { fullPath, content } of readProjectFiles(pattern, {
     cwd: target,
     ignore: [
       "**/node_modules/**",
@@ -31,25 +32,10 @@ export function getRelevantFiles(source: string): string[] {
       "**/*.min.js",
       "**/*.bundle.js",
     ],
-  }).map((file) => path.join(target, file));
-
-  const relevantFiles = files.filter((file) => {
-    try {
-      const content = fs.readFileSync(file, "utf8");
-      return content.includes("assistant-ui");
-    } catch {
-      return false;
-    }
-  });
-
+  })) {
+    if (content.includes("assistant-ui")) relevantFiles.push(fullPath);
+  }
   return relevantFiles;
-}
-
-/**
- * Counts the number of files that need to be processed
- */
-export function countFilesToProcess(source: string): number {
-  return getRelevantFiles(source).length;
 }
 
 function buildCommand(

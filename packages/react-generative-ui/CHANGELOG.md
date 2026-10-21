@@ -1,5 +1,74 @@
 # @assistant-ui/react-generative-ui
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @assistant-ui/generative-ui@0.0.6
+
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [[`40b797d`](https://github.com/assistant-ui/assistant-ui/commit/40b797d9c2155e67b16261340f3d2be6b7d10e9a), [`846e007`](https://github.com/assistant-ui/assistant-ui/commit/846e0079be756eaacc3b357cc0352e9c7ef383c9), [`43a34f2`](https://github.com/assistant-ui/assistant-ui/commit/43a34f2ee9700b1c7c6c9bc996177c6d8795a69b), [`f2c2b5e`](https://github.com/assistant-ui/assistant-ui/commit/f2c2b5e4955f811f9eb6cd0a2fd0c63a6dfc6b92), [`b569bbd`](https://github.com/assistant-ui/assistant-ui/commit/b569bbd3c353b205acba6ef1ea17cb89575c76cf), [`fd9e6a0`](https://github.com/assistant-ui/assistant-ui/commit/fd9e6a055f7d1842546acf0d7d6747188dfea7c7)]:
+  - @assistant-ui/generative-ui@0.0.5
+
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`d0c7f28`](https://github.com/assistant-ui/assistant-ui/commit/d0c7f28127dc602fc84bd55fea566fd971d7c327), [`c08f1fc`](https://github.com/assistant-ui/assistant-ui/commit/c08f1fc107a111309c38aa9b1008e649fcc94f4a), [`463644d`](https://github.com/assistant-ui/assistant-ui/commit/463644df51915717842c32c3f671d4921eca9566), [`7945f55`](https://github.com/assistant-ui/assistant-ui/commit/7945f5580cc549cfdd667e8944b9ff4ab41c1948), [`890b9c8`](https://github.com/assistant-ui/assistant-ui/commit/890b9c88e44040b84cb1f48641cff1111cdcd46b), [`3227ffc`](https://github.com/assistant-ui/assistant-ui/commit/3227ffcdd901c5a06ee4c8f437f32642f49e87c7), [`1abdaaa`](https://github.com/assistant-ui/assistant-ui/commit/1abdaaaa9f57f0ff8dba51ab7153b70d3a206339), [`1f4e878`](https://github.com/assistant-ui/assistant-ui/commit/1f4e8785df34d231bdb8bb13a689165adc2c9727), [`8fd311d`](https://github.com/assistant-ui/assistant-ui/commit/8fd311d3b1e73d95add5d8a75ce0496470cadc2f)]:
+  - @assistant-ui/generative-ui@0.0.4
+
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`e47f4df`](https://github.com/assistant-ui/assistant-ui/commit/e47f4df79c3edd76244435cb137a145ef62b682a), [`5c61b44`](https://github.com/assistant-ui/assistant-ui/commit/5c61b4458f9dbe9adea802b73beb0035b577c771), [`11aa9e0`](https://github.com/assistant-ui/assistant-ui/commit/11aa9e077123169b357acf4ab8ee60a61a21b715), [`1636929`](https://github.com/assistant-ui/assistant-ui/commit/16369291970085cec4083bd9b17274338d9bb17a), [`b5fd740`](https://github.com/assistant-ui/assistant-ui/commit/b5fd740e6ade360b072dd74869091b0226114719), [`d203be7`](https://github.com/assistant-ui/assistant-ui/commit/d203be764dce4942fbb299f7ede6342eb3df432c), [`22bbf64`](https://github.com/assistant-ui/assistant-ui/commit/22bbf64d1955367ea607cb563ffabdf465608cae), [`8fcde98`](https://github.com/assistant-ui/assistant-ui/commit/8fcde9898c26b68b1329286f47c061d8216c769c), [`5c61b44`](https://github.com/assistant-ui/assistant-ui/commit/5c61b4458f9dbe9adea802b73beb0035b577c771), [`8e566e3`](https://github.com/assistant-ui/assistant-ui/commit/8e566e332a9035406f9d82f52b2abfea3828cacc)]:
+  - @assistant-ui/generative-ui@0.0.3
+
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`7e40981`](https://github.com/assistant-ui/assistant-ui/commit/7e409818675f324881bcf3d0538cc33394858c7f), [`19130f0`](https://github.com/assistant-ui/assistant-ui/commit/19130f0217423e082bc89cd750e0113542b0c11f), [`4ec2945`](https://github.com/assistant-ui/assistant-ui/commit/4ec2945e53f67f01b35dc0395df1f91c0b9f5cf4), [`d61fd6b`](https://github.com/assistant-ui/assistant-ui/commit/d61fd6b8c8bf7b25f18c5dff4d528cde884f5239), [`a8a2f91`](https://github.com/assistant-ui/assistant-ui/commit/a8a2f91f3281b58a9061df1254a905028872c431), [`8443db3`](https://github.com/assistant-ui/assistant-ui/commit/8443db34577d16bdbe5a468467a36c7c41ca87a4)]:
+  - @assistant-ui/generative-ui@0.0.2
+
+## 0.1.0
+
+### Minor Changes
+
+- [#9071](https://github.com/assistant-ui/assistant-ui/pull/9071) [`7a1342e`](https://github.com/assistant-ui/assistant-ui/commit/7a1342edd7849fda809161752182cc9da7c67983) - refactor: the package now re-exports `@assistant-ui/generative-ui`, starting the 0.1 line. all existing imports keep working unchanged; new code should depend on `@assistant-ui/generative-ui` directly. ([@okisdev](https://github.com/okisdev))
+  
+  <!-- caret-break: intended -->
+
+### Patch Changes
+
+- [#8446](https://github.com/assistant-ui/assistant-ui/pull/8446) [`d8a9b1b`](https://github.com/assistant-ui/assistant-ui/commit/d8a9b1b1a56ce5b6b7d2aded92f0911c342101ec) - fix: read current input values for A2UI action bindings nested in objects and arrays. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8937](https://github.com/assistant-ui/assistant-ui/pull/8937) [`92f2ed9`](https://github.com/assistant-ui/assistant-ui/commit/92f2ed9d1b9a66b223128a0e39b50b6e4cd53477) - fix: resolve nested A2UI action paths without losing empty property names ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8876](https://github.com/assistant-ui/assistant-ui/pull/8876) [`287b768`](https://github.com/assistant-ui/assistant-ui/commit/287b7689572522cd24c159b22d30a0e4f736e031) - build the A2UI `present` tool call in one place: `surfaceToPresentToolCall` in `@assistant-ui/generative-ui/a2ui`, used by the AG-UI and A2A adapters ([@okisdev](https://github.com/okisdev))
+
+- [#8916](https://github.com/assistant-ui/assistant-ui/pull/8916) [`b8b3e74`](https://github.com/assistant-ui/assistant-ui/commit/b8b3e7417165a790549f6e470f449540db99b7f1) - decode A2UI JSON pointers through one shared decoder with explicit absolute and scope-relative entry points ([@okisdev](https://github.com/okisdev))
+
+- [#8437](https://github.com/assistant-ui/assistant-ui/pull/8437) [`48b31a9`](https://github.com/assistant-ui/assistant-ui/commit/48b31a9dea59260a26d8296b3ba79e0c7faa9a55) - fix: enable Slack single-line input action events on Enter outside forms when the input declares an action, and decode passive single-line inputs from `fromSlackBlocks` without an `$action`. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9087](https://github.com/assistant-ui/assistant-ui/pull/9087) [`650942c`](https://github.com/assistant-ui/assistant-ui/commit/650942ce6da486a07dc2ab1a0f14c2a7ecc1526f) - feat: export `resolveFieldReferences` and `hasFieldReference`, so a custom component that dispatches its own `$action` can resolve `{ "$field": name }` references against its own values. `resolveFieldReferences` now keeps a reference nested deeper than 64 levels as is, matching `hasFieldReference`. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`d8a9b1b`](https://github.com/assistant-ui/assistant-ui/commit/d8a9b1b1a56ce5b6b7d2aded92f0911c342101ec), [`92f2ed9`](https://github.com/assistant-ui/assistant-ui/commit/92f2ed9d1b9a66b223128a0e39b50b6e4cd53477), [`287b768`](https://github.com/assistant-ui/assistant-ui/commit/287b7689572522cd24c159b22d30a0e4f736e031), [`b8b3e74`](https://github.com/assistant-ui/assistant-ui/commit/b8b3e7417165a790549f6e470f449540db99b7f1), [`48b31a9`](https://github.com/assistant-ui/assistant-ui/commit/48b31a9dea59260a26d8296b3ba79e0c7faa9a55), [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20), [`650942c`](https://github.com/assistant-ui/assistant-ui/commit/650942ce6da486a07dc2ab1a0f14c2a7ecc1526f), [`55af03b`](https://github.com/assistant-ui/assistant-ui/commit/55af03b6e12ff70c2d046f10539636f852655fa5), [`7ff9ec2`](https://github.com/assistant-ui/assistant-ui/commit/7ff9ec2ec5b50de5c5f39eb4bfe087b65d0c1aea), [`7a1342e`](https://github.com/assistant-ui/assistant-ui/commit/7a1342edd7849fda809161752182cc9da7c67983)]:
+  - @assistant-ui/generative-ui@0.0.1
+
+## 0.0.24
+
+### Patch Changes
+
+- [#8748](https://github.com/assistant-ui/assistant-ui/pull/8748) [`70c9a6e`](https://github.com/assistant-ui/assistant-ui/commit/70c9a6e3cd7ab73071f0b4edf1040a035773ffe7) - a DatePicker with its own action dispatches it once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form, instead of dispatching every intermediate value while typing ([@okisdev](https://github.com/okisdev))
+
+- [#8756](https://github.com/assistant-ui/assistant-ui/pull/8756) [`48601e4`](https://github.com/assistant-ui/assistant-ui/commit/48601e40fed32f8ec469fd1f17a64ad24a3e7484) - keep a datetime DatePicker's value stable while a year is typed in a time zone whose historical offset has seconds, by submitting second precision when the offset needs it ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e)]:
+  - assistant-stream@0.3.48
+
 ## 0.0.23
 
 ### Patch Changes

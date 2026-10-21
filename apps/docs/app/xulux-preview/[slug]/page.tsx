@@ -3,6 +3,8 @@ import { ExamplePreview } from "@/components/xulux/examples/ExamplePreview";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { getXuluxExamplePreview } from "@/lib/xulux/examples-catalog";
 
+export const instant = false;
+
 export default async function Page({
   params,
 }: {

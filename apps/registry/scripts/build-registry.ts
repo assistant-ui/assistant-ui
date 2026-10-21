@@ -726,11 +726,51 @@ export function validateStyleScopedDependencies(
 const CSS_SELECTOR_COMPONENT_RE = /\[data-aui="([a-z-]+)"\]/;
 const CSS_SELECTOR_ATTRIBUTE_VALUE_RE = /\[data-aui-([a-z]+)="([^"]*)"\]/g;
 
+/** Splits `selector` at every top-level character `isBreak` accepts, leaving brackets and parentheses whole. */
+function splitTopLevel(selector: string, isBreak: (char: string) => boolean) {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < selector.length; index++) {
+    const char = selector[index]!;
+    if (char === "[" || char === "(") depth++;
+    else if (char === "]" || char === ")") depth--;
+    else if (depth === 0 && isBreak(char)) {
+      parts.push(selector.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(selector.slice(start));
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/** Expands each `:is(...)` and `:where(...)` into one selector per argument, so every alternative is read on its own. */
+function expandSelectorLists(selector: string): string[] {
+  const match = /:(?:is|where)\(/.exec(selector);
+  if (!match) return [selector];
+  const open = match.index + match[0].length - 1;
+  let close = open;
+  for (let depth = 0; close < selector.length; close++) {
+    if (selector[close] === "(") depth++;
+    else if (selector[close] === ")" && --depth === 0) break;
+  }
+  const head = selector.slice(0, match.index);
+  const tail = selector.slice(close + 1);
+  return splitTopLevel(
+    selector.slice(open + 1, close),
+    (char) => char === ",",
+  ).flatMap((argument) => expandSelectorLists(head + argument + tail));
+}
+
 /**
  * Walks a generative-ui CSS ruleset and collects every `[data-aui-<attr>="<value>"]`
- * value-selector, keyed by `<component>:<attribute>` (the component read from the
- * same comma-separated selector branch). Presence-only boolean selectors like
- * `[data-aui-flush]` carry no `="value"` and are not matched, by design.
+ * value-selector, keyed by `<component>:<attribute>`. The component is read from
+ * the same compound selector, so `[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]`
+ * counts as `image:size`, or from the nearest compound before it when that one
+ * names none, so `[data-aui="table"] td[data-aui-align="end"]` counts as
+ * `table:align`; an `:is(...)` or `:where(...)` list counts once per argument.
+ * Presence-only boolean selectors like `[data-aui-flush]` carry no `="value"`
+ * and are not matched, by design.
  */
 export function collectAttributeSelectorValues(
   css: Record<string, unknown>,
@@ -738,15 +778,24 @@ export function collectAttributeSelectorValues(
   const values = new Map<string, Set<string>>();
 
   const visitSelectorKey = (selectorKey: string) => {
-    for (const rawBranch of selectorKey.split(",")) {
-      const branch = rawBranch.trim();
-      const component = CSS_SELECTOR_COMPONENT_RE.exec(branch)?.[1];
-      if (!component) continue;
-      for (const match of branch.matchAll(CSS_SELECTOR_ATTRIBUTE_VALUE_RE)) {
-        const key = `${component}:${match[1]}`;
-        const set = values.get(key) ?? new Set<string>();
-        set.add(match[2]!);
-        values.set(key, set);
+    for (const branch of splitTopLevel(
+      selectorKey,
+      (char) => char === ",",
+    ).flatMap(expandSelectorLists)) {
+      let component: string | undefined;
+      for (const compound of splitTopLevel(branch, (char) =>
+        /[\s>+~]/.test(char),
+      )) {
+        component = CSS_SELECTOR_COMPONENT_RE.exec(compound)?.[1] ?? component;
+        if (!component) continue;
+        for (const match of compound.matchAll(
+          CSS_SELECTOR_ATTRIBUTE_VALUE_RE,
+        )) {
+          const key = `${component}:${match[1]}`;
+          const set = values.get(key) ?? new Set<string>();
+          set.add(match[2]!);
+          values.set(key, set);
+        }
       }
     }
   };
@@ -894,7 +943,16 @@ export function expandBundledRegistryDependencies(
     ...[...uiPrimitives].sort().map((name) => ({
       type: "registry:file" as const,
       path: `components/ui/${name}.tsx`,
-      sourcePath: `${UI_PRIMITIVE_SOURCE_ROOT}/${flavor}/${name}.tsx`,
+      sourcePath:
+        flavor === "radix" &&
+        existsSync(
+          path.join(
+            process.cwd(),
+            `${UI_PRIMITIVE_SOURCE_ROOT}/radix/${name}.tsx`,
+          ),
+        )
+          ? `${UI_PRIMITIVE_SOURCE_ROOT}/radix/${name}.tsx`
+          : `${UI_PRIMITIVE_SOURCE_ROOT}/base/${name}.tsx`,
       target: `components/ui/${name}.tsx`,
     })),
   ];
@@ -946,33 +1004,44 @@ export function expandBundledRegistryDependencies(
   };
 }
 
-export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
+function createFlavorRegistryItem(
+  item: RegistryItem,
+  flavor: UiFlavor,
+): RegistryBuildItem {
   const {
-    baseRegistryDependencies: _,
     registryDependencyUsageExemptions: _usageExemptions,
     radixRegistryDependencies,
+    baseRegistryDependencies,
     radixDependencies,
-    baseDependencies: __,
-    ...radixItem
+    baseDependencies,
+    ...flavorItem
   } = item;
+  const flavorRegistryDependencies =
+    flavor === "radix" ? radixRegistryDependencies : baseRegistryDependencies;
+  const flavorDependencies =
+    flavor === "radix" ? radixDependencies : baseDependencies;
 
   const hasRegistryDependencies =
-    radixItem.registryDependencies !== undefined ||
-    radixRegistryDependencies !== undefined;
+    flavorItem.registryDependencies !== undefined ||
+    flavorRegistryDependencies !== undefined;
 
   const hasDependencies =
-    radixItem.dependencies !== undefined || radixDependencies !== undefined;
+    flavorItem.dependencies !== undefined || flavorDependencies !== undefined;
 
-  let result = radixItem;
+  let result = flavorItem;
 
   if (hasRegistryDependencies) {
     result = {
       ...result,
       registryDependencies: [
-        ...new Set([
-          ...(radixItem.registryDependencies ?? []),
-          ...(radixRegistryDependencies ?? []),
-        ]),
+        ...new Set(
+          [
+            ...(flavorItem.registryDependencies ?? []),
+            ...(flavorRegistryDependencies ?? []),
+          ].map((dependency) =>
+            getFlavorRegistryDependency(dependency, flavor),
+          ),
+        ),
       ],
     };
   }
@@ -984,51 +1053,18 @@ export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
     dependencies: [
       ...new Set([
         ...(result.dependencies ?? []),
-        ...(radixDependencies ?? []),
+        ...(flavorDependencies ?? []),
       ]),
     ],
   };
 }
 
+export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
+  return createFlavorRegistryItem(item, "radix");
+}
+
 export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
-  const {
-    baseRegistryDependencies,
-    registryDependencyUsageExemptions: _usageExemptions,
-    radixRegistryDependencies: _,
-    radixDependencies: __,
-    baseDependencies,
-    ...baseItem
-  } = item;
-
-  const hasRegistryDependencies =
-    baseItem.registryDependencies !== undefined ||
-    baseRegistryDependencies !== undefined;
-
-  const hasDependencies =
-    baseItem.dependencies !== undefined || baseDependencies !== undefined;
-
-  let result = baseItem;
-
-  if (hasRegistryDependencies) {
-    const registryDependencies = [
-      ...(baseItem.registryDependencies ?? []),
-      ...(baseRegistryDependencies ?? []),
-    ].map((dependency) => getFlavorRegistryDependency(dependency, "base"));
-
-    result = {
-      ...result,
-      registryDependencies: [...new Set(registryDependencies)],
-    };
-  }
-
-  if (!hasDependencies) return result;
-
-  return {
-    ...result,
-    dependencies: [
-      ...new Set([...(result.dependencies ?? []), ...(baseDependencies ?? [])]),
-    ],
-  };
+  return createFlavorRegistryItem(item, "base");
 }
 
 /**

@@ -11,7 +11,7 @@ type ChatInput = {
 };
 
 export const chatStream = createServerFn({ method: "POST" })
-  .inputValidator((data: ChatInput) => data)
+  .validator((data: ChatInput) => data)
   .handler(async function* ({ data }) {
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,

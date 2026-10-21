@@ -1,0 +1,161 @@
+---
+title: Cloud persistence
+description: Store threads, messages, titles, and attachments in assistant-cloud with AISDKThreads.
+---
+
+Pass an `AssistantCloud` client to `AISDKThreads` to keep conversations across reloads. The cloud supplies the thread list and the runtime stores each thread's AI SDK messages. Without `cloud`, `AISDKThreads` keeps its list in memory. See [Thread list](/docs/vue/thread-list) for the list controls.
+
+## Create a project
+
+Create a project and copy its **Frontend API URL** from **Settings › General**, as shown in the [cloud quickstart](/docs/cloud/quickstart). For the anonymous example below, enable [anonymous sessions](/docs/cloud/anonymous-sessions). Before serving the app from a restricted browser origin, configure [allowed origins](/docs/cloud/allowed-origins). The chat route still needs to return an AI SDK UI message stream; see the [AI SDK runtime](/docs/vue/ai-sdk).
+
+## Connect AISDKThreads
+
+Add `assistant-cloud` to an app that already runs the [AI SDK runtime](/docs/vue/ai-sdk):
+
+```sh
+pnpm add assistant-cloud
+```
+
+Use the project's Frontend API URL as `baseUrl`. This client uses an anonymous browser session:
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+import { AssistantCloud } from "assistant-cloud";
+import Thread from "~/components/assistant-ui/thread.vue";
+import ThreadList from "~/components/assistant-ui/thread-list.vue";
+
+const cloud = new AssistantCloud({
+  baseUrl: "https://proj-<id>.assistant-api.com",
+  anonymous: true,
+});
+
+const config = AuiConfig({
+  threads: AISDKThreads({ cloud }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <div class="flex h-dvh">
+      <aside class="w-64 shrink-0 border-r p-2"><ThreadList /></aside>
+      <Thread class="min-w-0 flex-1" />
+    </div>
+  </AuiProvider>
+</template>
+```
+
+The `Thread` and `ThreadList` imports refer to the [styled components](/docs/vue/components). Keep the `AssistantCloud` instance stable while this provider is mounted. `AssistantCloud` also sends telemetry, such as [run reports](/docs/cloud/run-reports), unless you pass `telemetry: false`.
+
+## Sign users in
+
+For signed in users, configure an [auth provider](/docs/cloud/auth-providers) and return its token from your own server. `authToken` may return `null` when the user is signed out. Replace the anonymous client with this one; the rest of the provider can stay as above:
+
+```vue title="app/components/SignedInAssistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+import { AssistantCloud } from "assistant-cloud";
+import Thread from "~/components/assistant-ui/thread.vue";
+import ThreadList from "~/components/assistant-ui/thread-list.vue";
+
+const cloud = new AssistantCloud({
+  baseUrl: "https://proj-<id>.assistant-api.com",
+  authToken: async () => {
+    const response = await fetch("/api/assistant-ui-token", { method: "POST" });
+    if (!response.ok) throw new Error("Could not get a cloud token");
+    return response.text();
+  },
+});
+
+const config = AuiConfig({
+  threads: AISDKThreads({ cloud }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <div class="flex h-dvh">
+      <aside class="w-64 shrink-0 border-r p-2"><ThreadList /></aside>
+      <Thread class="min-w-0 flex-1" />
+    </div>
+  </AuiProvider>
+</template>
+```
+
+The endpoint must authenticate the user and return a token accepted by the cloud project. The [auth provider guide](/docs/cloud/auth-providers) covers provider JWTs and server minted cloud tokens.
+
+## What is stored
+
+| Data | Cloud behavior |
+|---|---|
+| Thread list | Loads active and archived threads separately, up to 20 of each per page. Archive, restore, rename, and delete call the cloud thread API. [Thread list](/docs/vue/thread-list) shows how to render archived threads and load more. |
+| Messages | The cloud history adapter loads and writes each thread's AI SDK messages. A message edit or branch stays in that thread's history. |
+| Titles | A thread created in this session requests a title once it has a remote id and at least one message that is not running. The adapter sends the thread's text and tool call parts to the cloud title stream, then saves the generated title. A manual rename also saves to the cloud. |
+| Attachments | `CloudFileAttachmentAdapter` requests an upload URL, uploads the file, and turns the result into an image or file message part. See [Attachments](/docs/vue/attachments). |
+| Feedback | The cloud feedback adapter submits feedback against the stored cloud message id when one is available. |
+
+## Runs in the background
+
+With `cloud`, `AISDKThreads` keeps every visited thread mounted. A response can continue while the user opens another thread, and deleting a thread stops its run. Each visited thread retains its own chat and loaded history in memory for the provider's lifetime, so the memory used by an open session grows as users visit more threads.
+
+## Keep the selected thread in the URL
+
+`threadId` selects a cloud thread by its remote id. `onThreadIdChange` receives the selected thread's remote id after the user switches threads or a new thread is initialized, and `undefined` for a new thread that has none yet. A change you make through `threadId` is not reported back. A reactive `AuiConfig` lets `AISDKThreads` follow a later `threadId` change, including browser history navigation:
+
+```vue title="app/components/UrlAssistant.client.vue"
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+import { AssistantCloud } from "assistant-cloud";
+import Thread from "~/components/assistant-ui/thread.vue";
+import ThreadList from "~/components/assistant-ui/thread-list.vue";
+
+const cloud = new AssistantCloud({
+  baseUrl: "https://proj-<id>.assistant-api.com",
+  anonymous: true,
+});
+
+const readThreadId = () =>
+  new URL(window.location.href).searchParams.get("thread") ?? undefined;
+
+const threadId = ref<string | undefined>(readThreadId());
+
+const config = computed(() =>
+  AuiConfig({
+    threads: AISDKThreads({
+      cloud,
+      threadId: threadId.value,
+      onThreadIdChange: (nextId) => {
+        threadId.value = nextId;
+        const url = new URL(window.location.href);
+        if (nextId) url.searchParams.set("thread", nextId);
+        else url.searchParams.delete("thread");
+        window.history.replaceState(null, "", url);
+      },
+    }),
+  }),
+);
+
+const onPopState = () => {
+  threadId.value = readThreadId();
+};
+
+onMounted(() => window.addEventListener("popstate", onPopState));
+onUnmounted(() => window.removeEventListener("popstate", onPopState));
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <div class="flex h-dvh">
+      <aside class="w-64 shrink-0 border-r p-2"><ThreadList /></aside>
+      <Thread class="min-w-0 flex-1" />
+    </div>
+  </AuiProvider>
+</template>
+```
+
+`replaceState` updates the current history entry. Use a valid cloud thread id in the URL; the runtime fetches a thread that is not in the loaded list when it selects that id.

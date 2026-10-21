@@ -1,5 +1,17 @@
 # @assistant-ui/react-devtools
 
+## 1.2.25
+
+### Patch Changes
+
+- [#9808](https://github.com/assistant-ui/assistant-ui/pull/9808) [`5dc1c33`](https://github.com/assistant-ui/assistant-ui/commit/5dc1c33c55017d7bfe651f5030a3c5524f98b85d) - fix: preserve the selected Activity run when older events leave the DevTools log ([@Kinfe123](https://github.com/Kinfe123))
+
+## 1.2.24
+
+### Patch Changes
+
+- [#8900](https://github.com/assistant-ui/assistant-ui/pull/8900) [`8f6b33d`](https://github.com/assistant-ui/assistant-ui/commit/8f6b33d8968a96fcba840117c49a960ab350316e) - share one registry subscription and one projection per change across in-process devtools subscribers ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.23
 
 ### Patch Changes

@@ -17,7 +17,10 @@ const h = vi.hoisted(() => ({
         return this.content;
       },
     },
-    tools: { toolUIs: {} as Record<string, unknown> },
+    tools: {
+      toolUIs: {} as Record<string, unknown>,
+      mcpApp: undefined as { render: unknown } | undefined,
+    },
     dataRenderers: {
       renderers: {} as Record<string, unknown>,
       fallbacks: [] as unknown[],
@@ -25,7 +28,8 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@assistant-ui/store", () => {
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const message = Object.assign(() => message, {
     part: ({ index }: { index: number }) => ({
       addToolResult: (...args: unknown[]) => h.addToolResult(index, ...args),
@@ -38,6 +42,7 @@ vi.mock("@assistant-ui/store", () => {
   });
   const aui = { message };
   return {
+    ...actual,
     useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
   };
@@ -56,6 +61,7 @@ describe("MessageContent", () => {
     h.unstable_recordInteraction.mockReset();
     h.state.message.content = [];
     h.state.tools.toolUIs = {};
+    h.state.tools.mcpApp = undefined;
     h.state.dataRenderers.renderers = {};
     h.state.dataRenderers.fallbacks = [];
 
@@ -153,9 +159,8 @@ describe("MessageContent", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("renders null for optional parts when no renderer is provided", async () => {
+  it("renders null for reasoning, source, and file without renderers", async () => {
     h.state.message.content = [
-      { type: "image", image: "x" },
       { type: "reasoning", text: "r" },
       { type: "source", sourceType: "url", id: "1", url: "u" },
       { type: "file", filename: "f" },
@@ -186,6 +191,7 @@ describe("MessageContent", () => {
     await mount({ renderImage, renderReasoning, renderSource, renderFile });
 
     expect(container.textContent).toBe("image-0reasoning-1source-2file-3");
+    expect(container.querySelector("img")).toBeNull();
     expect(renderImage).toHaveBeenCalledWith({
       part: h.state.message.content[0],
       index: 0,
@@ -260,6 +266,64 @@ describe("MessageContent", () => {
         part: h.state.message.content[0],
         index: 0,
       });
+    });
+
+    it("renders tools.mcpApp for a tool call with a ui:// resource", async () => {
+      const Mcp = vi.fn(() => <span data-testid="mcp">mcp</span>);
+      h.state.message.content = [
+        {
+          type: "tool-call",
+          toolName: "show_chart",
+          toolCallId: "c1",
+          mcp: { app: { resourceUri: "ui://chart" } },
+        },
+      ];
+      h.state.tools.mcpApp = { render: Mcp };
+      await mount();
+      expect(container.querySelector('[data-testid="mcp"]')?.textContent).toBe(
+        "mcp",
+      );
+    });
+
+    it("prefers a named tool UI over tools.mcpApp", async () => {
+      const NamedTool = vi.fn(() => <span data-testid="named">named</span>);
+      const Mcp = vi.fn(() => <span data-testid="mcp">mcp</span>);
+      h.state.message.content = [
+        {
+          type: "tool-call",
+          toolName: "show_chart",
+          toolCallId: "c1",
+          mcp: { app: { resourceUri: "ui://chart" } },
+        },
+      ];
+      h.state.tools.toolUIs = { show_chart: [{ render: NamedTool }] };
+      h.state.tools.mcpApp = { render: Mcp };
+      await mount();
+      expect(container.querySelector('[data-testid="named"]')).not.toBeNull();
+      expect(Mcp).not.toHaveBeenCalled();
+    });
+
+    it("does not use tools.mcpApp when the resource URI is not ui://", async () => {
+      const Mcp = vi.fn(() => <span data-testid="mcp">mcp</span>);
+      h.state.message.content = [
+        {
+          type: "tool-call",
+          toolName: "show_chart",
+          toolCallId: "c1",
+          mcp: { app: { resourceUri: "https://example.com/chart" } },
+        },
+      ];
+      h.state.tools.mcpApp = { render: Mcp };
+      const renderToolCall = vi.fn(({ part, index }): ReactElement => (
+        <span data-testid="fallback">
+          fallback:{String(part.toolName)}:{index}
+        </span>
+      ));
+      await mount({ renderToolCall });
+      expect(
+        container.querySelector('[data-testid="fallback"]'),
+      ).not.toBeNull();
+      expect(Mcp).not.toHaveBeenCalled();
     });
 
     it("renders null when no renderer is registered and no fallback is given", async () => {

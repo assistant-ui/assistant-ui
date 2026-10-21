@@ -31,10 +31,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 
 import { useAssistantInteractable } from "./useAssistantInteractable";
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
+afterEach(cleanup);
 
 describe("useAssistantInteractable", () => {
   it("refreshes the registration when its JSON schema changes", async () => {

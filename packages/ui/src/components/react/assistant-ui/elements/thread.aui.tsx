@@ -5,7 +5,7 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
-import { File } from "@/components/assistant-ui/elements/file";
+import { File, getFileHref } from "@/components/assistant-ui/elements/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
@@ -59,18 +59,29 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   SquareIcon,
+  PlayIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
 import {
   createContext,
   useContext,
+  useLayoutEffect,
+  useRef,
   type ComponentType,
   type FC,
   type PropsWithChildren,
 } from "react";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+
+const shouldShowComposerResume = (s: AssistantState) =>
+  !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
+
+const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
+  timing?.completedAt === undefined
+    ? undefined
+    : Math.round((timing.completedAt - timing.startedAt) / 1000);
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -80,6 +91,8 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
  * tool group; without it they render like any other tool call.
+ * `ComposerExtra` renders in the composer's action row beside the attach
+ * button.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -92,6 +105,7 @@ export type ThreadComponents = {
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
     | undefined;
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
+  ComposerExtra?: ComponentType | undefined;
 };
 
 const messageGroupBy = groupPartByType({
@@ -215,6 +229,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
           <AuiIf condition={isHistoryLoadingView}>
             <ThreadHistorySkeleton />
           </AuiIf>
+
+          <ThreadLoadEarlier />
 
           <div
             data-slot="aui_message-group"
@@ -359,6 +375,74 @@ const SpokenActionBar: FC = () => {
   );
 };
 
+const FOCUSABLE_SELECTOR =
+  "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1']):not([disabled])";
+
+const nextFocusable = (start: Element) => {
+  for (
+    let element = start.nextElementSibling;
+    element;
+    element = element.nextElementSibling
+  ) {
+    const target = element.matches(FOCUSABLE_SELECTOR)
+      ? element
+      : element.querySelector(FOCUSABLE_SELECTOR);
+    if (target instanceof HTMLElement) return target;
+  }
+  return null;
+};
+
+const ThreadLoadEarlier: FC = () => {
+  const visible = useAuiState(
+    (s) => s.thread.hasEarlier || s.thread.isLoadingEarlier,
+  );
+  const loading = useAuiState((s) => s.thread.isLoadingEarlier);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const focusedRef = useRef<Element | null>(null);
+
+  // The last page removes the button; a keyboard user on it continues from the
+  // next control in tab order rather than from the document body.
+  useLayoutEffect(() => {
+    const focused = focusedRef.current;
+    const slot = slotRef.current;
+    if (visible || !focused || focused.isConnected || !slot) return;
+    focusedRef.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    nextFocusable(slot)?.focus();
+  }, [visible]);
+
+  return (
+    <div
+      ref={slotRef}
+      className="contents"
+      onFocus={(event) => {
+        focusedRef.current = event.target;
+      }}
+    >
+      <span role="status" className="sr-only">
+        {loading ? "Loading earlier messages" : ""}
+      </span>
+      {visible && (
+        <ThreadPrimitive.LoadEarlier asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-slot="aui_thread-load-earlier"
+            className="aui-thread-load-earlier text-muted-foreground mb-6 self-center rounded-full"
+          >
+            <span
+              className={cn(loading && "shimmer motion-reduce:animate-none")}
+            >
+              {loading ? "Loading earlier messages" : "Load earlier messages"}
+            </span>
+          </Button>
+        </ThreadPrimitive.LoadEarlier>
+      )}
+    </div>
+  );
+};
+
 const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
@@ -442,6 +526,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
+  const { ComposerExtra } = useContext(ThreadComponentsContext);
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -451,7 +536,14 @@ const ComposerAction: FC = () => {
 
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-      <ComposerAddAttachment />
+      {ComposerExtra ? (
+        <div className="aui-composer-action-start flex items-center gap-1.5">
+          <ComposerAddAttachment />
+          <ComposerExtra />
+        </div>
+      ) : (
+        <ComposerAddAttachment />
+      )}
       <div className="flex items-center gap-1.5">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
@@ -487,9 +579,10 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            !s.composer.canCancel ||
-            (s.thread.voice !== undefined &&
-              s.composer.submission === undefined)
+            (!s.composer.canCancel ||
+              (s.thread.voice !== undefined &&
+                s.composer.submission === undefined)) &&
+            !shouldShowComposerResume(s)
           }
         >
           <ComposerPrimitive.Send asChild>
@@ -505,6 +598,21 @@ const ComposerAction: FC = () => {
               <ArrowUpIcon className="aui-composer-send-icon size-4" />
             </TooltipIconButton>
           </ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf condition={shouldShowComposerResume}>
+          <ComposerPrimitive.Resume asChild>
+            <TooltipIconButton
+              tooltip="Resume generating"
+              side="bottom"
+              type="button"
+              variant="default"
+              size="icon"
+              className="aui-composer-resume size-7 rounded-full"
+              aria-label="Resume generating"
+            >
+              <PlayIcon className="aui-composer-resume-icon size-4" />
+            </TooltipIconButton>
+          </ComposerPrimitive.Resume>
         </AuiIf>
         <AuiIf
           condition={(s) =>
@@ -594,7 +702,10 @@ const AssistantMessage: FC = () => {
                 const running = part.status.type === "running";
                 return (
                   <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
+                    <ReasoningTrigger
+                      active={running}
+                      duration={reasoningDuration(part.timing)}
+                    />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>
                     </ReasoningContent>
@@ -612,7 +723,7 @@ const AssistantMessage: FC = () => {
               case "file":
                 return (
                   <div data-slot="aui_assistant-message-file" className="py-1">
-                    <File {...part} />
+                    <MessageFile {...part} />
                   </div>
                 );
               case "image":
@@ -717,9 +828,24 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+const MessageFile: FileMessagePartComponent = (part) => {
+  const image = part.mimeType.toLowerCase().startsWith("image/")
+    ? getFileHref(part.data, part.mimeType, part.sourceType)
+    : null;
+  if (!image) return <File {...part} />;
+  return (
+    <Image
+      type="image"
+      image={image}
+      status={part.status}
+      {...(part.filename !== undefined && { filename: part.filename })}
+    />
+  );
+};
+
 const UserFilePart: FileMessagePartComponent = (part) => (
   <div data-slot="aui_user-message-file" className="py-1">
-    <File {...part} />
+    <MessageFile {...part} />
   </div>
 );
 

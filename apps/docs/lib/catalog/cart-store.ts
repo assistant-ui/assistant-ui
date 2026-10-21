@@ -2,28 +2,50 @@
 
 import { useSyncExternalStore } from "react";
 import { isCartSlug } from "./index";
+import {
+  cartEntryId,
+  cartEntrySlug,
+  isAgentToolCartEntry,
+  type CartEntry,
+} from "./agent-tool-config";
 
 const storageKey = "aui-catalog-cart";
 const instructionsKey = "aui-catalog-instructions";
 let instructions = "";
-const empty: readonly string[] = [];
+const empty: readonly CartEntry[] = [];
+const emptySlugs: readonly string[] = [];
+let slugs: readonly string[] = emptySlugs;
 const listeners = new Set<() => void>();
-let items: readonly string[] = empty;
-let lastAdded: { slug: string; at: number } | null = null;
+let items: readonly CartEntry[] = empty;
+let lastAdded: { slug: string; at: number; name?: string } | null = null;
 let loaded = false;
 let listening = false;
 
 const isBrowser = () => typeof window !== "undefined";
 
-const normalize = (value: unknown): readonly string[] => {
+const normalize = (value: unknown): readonly CartEntry[] => {
   if (!Array.isArray(value)) return empty;
-  const slugs = value.filter(
-    (entry): entry is string => typeof entry === "string" && isCartSlug(entry),
-  );
-  return [...new Set(slugs)];
+  const seen = new Set<string>();
+  return value.filter((entry): entry is CartEntry => {
+    if (
+      !(typeof entry === "string"
+        ? isCartSlug(entry)
+        : isAgentToolCartEntry(entry) && isCartSlug(entry.slug))
+    )
+      return false;
+    const id = cartEntryId(entry);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 };
 
-const readStored = (): readonly string[] | null => {
+const updateItems = (next: readonly CartEntry[]) => {
+  items = next;
+  slugs = next.length === 0 ? emptySlugs : next.map(cartEntrySlug);
+};
+
+const readStored = (): readonly CartEntry[] | null => {
   try {
     const raw = window.localStorage.getItem(storageKey);
     return raw === null ? empty : normalize(JSON.parse(raw));
@@ -32,7 +54,7 @@ const readStored = (): readonly string[] | null => {
   }
 };
 
-const writeStored = (next: readonly string[]) => {
+const writeStored = (next: readonly CartEntry[]) => {
   try {
     if (next.length === 0) window.localStorage.removeItem(storageKey);
     else window.localStorage.setItem(storageKey, JSON.stringify(next));
@@ -52,8 +74,8 @@ const notify = () => {
   for (const listener of listeners) listener();
 };
 
-const same = (a: readonly string[], b: readonly string[]) =>
-  a.length === b.length && a.every((slug, i) => slug === b[i]);
+const same = (a: readonly CartEntry[], b: readonly CartEntry[]) =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 const clearInstructionsForEmptyCart = () => {
   if (items.length !== 0 || instructions === "") return false;
@@ -62,13 +84,13 @@ const clearInstructionsForEmptyCart = () => {
   return true;
 };
 
-const commit = (next: readonly string[]) => {
+const commit = (next: readonly CartEntry[]) => {
   const nextItems = next.length === 0 ? empty : next;
   const changed = !same(items, nextItems);
   const clearsInstructions = nextItems.length === 0 && instructions !== "";
   if (!changed && !clearsInstructions) return;
   if (changed) {
-    items = nextItems;
+    updateItems(nextItems);
     writeStored(items);
   }
   clearInstructionsForEmptyCart();
@@ -79,7 +101,7 @@ const load = () => {
   if (loaded || !isBrowser()) return;
   loaded = true;
   const stored = readStored();
-  if (stored !== null) items = stored;
+  if (stored !== null) updateItems(stored);
   try {
     instructions = window.localStorage.getItem(instructionsKey) ?? "";
   } catch {}
@@ -90,7 +112,7 @@ const refresh = () => {
   let changed = false;
   const stored = readStored();
   if (stored !== null && !same(items, stored)) {
-    items = stored;
+    updateItems(stored);
     changed = true;
   }
   try {
@@ -127,7 +149,7 @@ const handleStorage = (event: StorageEvent) => {
   if (event.key === null || event.key === storageKey) {
     const stored = readStored();
     if (stored !== null && !same(items, stored)) {
-      items = stored;
+      updateItems(stored);
       changed = true;
     }
   }
@@ -150,11 +172,29 @@ const subscribe = (listener: () => void) => {
 
 export const getCart = (): readonly string[] => {
   load();
+  return slugs;
+};
+
+export const getCartEntries = (): readonly CartEntry[] => {
+  load();
   return items;
 };
 
+export const addAgentTool = (name: string, purpose: string) => {
+  if (!isCartSlug("agent-tools") || !name.trim() || !purpose.trim()) return;
+  load();
+  const entry = {
+    id: crypto.randomUUID(),
+    slug: "agent-tools" as const,
+    name: name.trim(),
+    purpose: purpose.trim(),
+  };
+  lastAdded = { slug: entry.slug, at: Date.now(), name: entry.name };
+  commit([...items.filter((item) => item !== "agent-tools"), entry]);
+};
+
 export const addToCart = (slug: string) => {
-  if (!isCartSlug(slug)) return;
+  if (!isCartSlug(slug) || slug === "agent-tools") return;
   load();
   if (items.includes(slug)) return;
   lastAdded = { slug, at: Date.now() };
@@ -173,7 +213,7 @@ export const subscribeCart = subscribe;
 
 export const removeFromCart = (slug: string) => {
   load();
-  commit(items.filter((item) => item !== slug));
+  commit(items.filter((item) => cartEntryId(item) !== slug));
 };
 
 export const toggleCartItem = (slug: string) => {
@@ -188,12 +228,14 @@ export const replaceCart = (slugs: readonly string[]) => {
 };
 
 /** Adds the given products after the ones already in the cart. */
-export const mergeIntoCart = (slugs: readonly string[]) => {
+export const mergeIntoCart = (entries: readonly CartEntry[]) => {
   load();
-  commit([
-    ...items,
-    ...normalize([...slugs]).filter((s) => !items.includes(s)),
-  ]);
+  const merged = normalize([...items, ...entries]);
+  commit(
+    merged.some(isAgentToolCartEntry)
+      ? merged.filter((entry) => entry !== "agent-tools")
+      : merged,
+  );
 };
 
 export const clearCart = () => {
@@ -203,7 +245,10 @@ export const clearCart = () => {
 
 /** The cart's product slugs. Empty on the server and through hydration. */
 export const useCart = (): readonly string[] =>
-  useSyncExternalStore(subscribe, getCart, () => empty);
+  useSyncExternalStore(subscribe, getCart, () => emptySlugs);
+
+export const useCartEntries = (): readonly CartEntry[] =>
+  useSyncExternalStore(subscribe, getCartEntries, () => empty);
 
 export const useInCart = (slug: string): boolean => useCart().includes(slug);
 

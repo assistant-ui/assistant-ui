@@ -1,5 +1,40 @@
 # create-assistant-ui
 
+## 0.0.88
+
+### Patch Changes
+
+- Updated dependencies [[`49a0d2b`](https://github.com/assistant-ui/assistant-ui/commit/49a0d2b48f6c73537c8de51d0f49748a14a4db98), [`51e7052`](https://github.com/assistant-ui/assistant-ui/commit/51e7052f132b19b30f537effb1cd47f524cd33d7), [`4b5d044`](https://github.com/assistant-ui/assistant-ui/commit/4b5d044517e53d7fb440ae9b43e03d997f10894a)]:
+  - assistant-ui@0.0.125
+
+## 0.0.87
+
+### Patch Changes
+
+- Updated dependencies [[`bd0b31b`](https://github.com/assistant-ui/assistant-ui/commit/bd0b31b1047e65056a4a72c158a5ae138c3e1933), [`87f7c36`](https://github.com/assistant-ui/assistant-ui/commit/87f7c36ada5bd7509dfce26ef92776a7a4dc1e83), [`a08acc9`](https://github.com/assistant-ui/assistant-ui/commit/a08acc987406753b80ceca081319ea9d0fa36f6b), [`616663b`](https://github.com/assistant-ui/assistant-ui/commit/616663baa568388c6a5af02395e8e4fbbc37c6c1), [`c6c1199`](https://github.com/assistant-ui/assistant-ui/commit/c6c11991cf4811d72eee7f337e72d8b028c05f5d), [`471b88d`](https://github.com/assistant-ui/assistant-ui/commit/471b88d0d3d003485bcc09a9cd0ff8a1133f425b)]:
+  - assistant-ui@0.0.124
+
+## 0.0.86
+
+### Patch Changes
+
+- Updated dependencies [[`36691cc`](https://github.com/assistant-ui/assistant-ui/commit/36691cc0f089368d1145acdb5e3a086e5290f83d)]:
+  - assistant-ui@0.0.123
+
+## 0.0.85
+
+### Patch Changes
+
+- Updated dependencies [[`97b053b`](https://github.com/assistant-ui/assistant-ui/commit/97b053b93c025e48c2e2458b83cd7a870cd95592), [`bddc100`](https://github.com/assistant-ui/assistant-ui/commit/bddc1003a0a67440142119672fd93204ed41f1e7), [`025505a`](https://github.com/assistant-ui/assistant-ui/commit/025505a948664137e47a5e6a753ddb8911c14e53)]:
+  - assistant-ui@0.0.122
+
+## 0.0.84
+
+### Patch Changes
+
+- Updated dependencies [[`cae68a4`](https://github.com/assistant-ui/assistant-ui/commit/cae68a45bf24b528151d182e657979053910bec5), [`880d66a`](https://github.com/assistant-ui/assistant-ui/commit/880d66af8cdb171cd5eee1b1159e35df5b0d9919), [`a73237b`](https://github.com/assistant-ui/assistant-ui/commit/a73237b277793c9b9e56cd638357fc57005c07e1)]:
+  - assistant-ui@0.0.121
+
 ## 0.0.83
 
 ### Patch Changes

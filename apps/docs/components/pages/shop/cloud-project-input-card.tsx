@@ -16,6 +16,7 @@ import {
 } from "@/components/pages/shop/input-shared";
 import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { analytics } from "@/lib/analytics";
 import { useCloudProjects } from "@/lib/cloud-projects-client";
 import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import { CLOUD_URL } from "@/lib/constants";
@@ -59,15 +60,23 @@ export function CloudProjectInputCard({
   const value =
     chosen?.frontendUrl ?? (typing ? frontendUrlOf(url) : undefined);
   const signingIn = session.status === "anonymous";
-  const submit = (event: FormEvent) => {
+  const track = (choice: "existing" | "another" | "sign_in_clicked") =>
+    analytics.setup.cloudProjectPicked({
+      choice,
+      project_count: projects.length,
+      ...(projects.length > 0 && { org_count: organizations.size }),
+    });
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (value === undefined) return;
-    void answer(value, note);
+    if (!(await answer(value, note))) return;
+    if (chosen) analytics.setup.projectGroup(chosen.id);
+    track(chosen ? "existing" : "another");
   };
   return (
     <form
       id={useWizardFormId()}
-      onSubmit={submit}
+      onSubmit={(event) => void submit(event)}
       className={inputCardClassName}
     >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
@@ -77,6 +86,7 @@ export function CloudProjectInputCard({
             <p className="text-sm">Sign in to pick one of your projects.</p>
             <a
               href={`/api/auth/login?redirect=${encodeURIComponent(pathname)}`}
+              onClick={() => track("sign_in_clicked")}
               className={buttonVariants({ variant: "outline" })}
             >
               <LogInIcon data-icon="inline-start" />

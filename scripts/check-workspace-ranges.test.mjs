@@ -9,6 +9,7 @@ import {
   findDriftingPeerRanges,
   findNarrowWorkspaceRanges,
   findPrivatePeerCopies,
+  findPrivateWorkspaceDependencies,
   runCheck,
 } from "./check-workspace-ranges.mjs";
 
@@ -150,6 +151,60 @@ test("fields that never ship and private packages are exempt", () => {
   ]);
 
   assert.deepEqual(problems, []);
+});
+
+test("a published package never depends on a private workspace package", () => {
+  const problems = findPrivateWorkspaceDependencies([
+    {
+      manifest: "packages/private-kit/package.json",
+      pkg: { name: "@fixture/private-kit", private: true },
+    },
+    {
+      manifest: "apps/private-app/package.json",
+      pkg: {
+        name: "private-app",
+        private: true,
+        dependencies: { "@fixture/private-kit": "workspace:^" },
+      },
+    },
+    consumer({ "@fixture/private-kit": "workspace:^" }),
+    consumer({ "@fixture/private-kit": "workspace:^" }, "peerDependencies"),
+    consumer({ "@fixture/private-kit": "workspace:^" }, "optionalDependencies"),
+    consumer({ "@fixture/private-kit": "workspace:^" }, "devDependencies"),
+  ]);
+
+  assert.deepEqual(
+    problems.map(({ manifest, name, field, dependency, range }) => ({
+      manifest,
+      name,
+      field,
+      dependency,
+      range,
+    })),
+    [
+      {
+        manifest: "packages/consumer/package.json",
+        name: "@fixture/consumer",
+        field: "dependencies",
+        dependency: "@fixture/private-kit",
+        range: "workspace:^",
+      },
+      {
+        manifest: "packages/consumer/package.json",
+        name: "@fixture/consumer",
+        field: "peerDependencies",
+        dependency: "@fixture/private-kit",
+        range: "workspace:^",
+      },
+      {
+        manifest: "packages/consumer/package.json",
+        name: "@fixture/consumer",
+        field: "optionalDependencies",
+        dependency: "@fixture/private-kit",
+        range: "workspace:^",
+      },
+    ],
+  );
 });
 
 const bare = (name, version) => ({
@@ -505,6 +560,30 @@ test("the executable reports the offending dependency and exits 1", () => {
     assert.match(
       result.stderr,
       /packages\/consumer\/package\.json: "@fixture\/consumer" dependencies\["@fixture\/dep"\] is "1\.0\.0"/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the executable reports a published dependency on a private workspace package and exits 1", () => {
+  const root = createWorkspace([
+    ["private-kit", { name: "@fixture/private-kit", private: true }],
+    [
+      "consumer",
+      {
+        name: "@fixture/consumer",
+        version: "1.0.0",
+        dependencies: { "@fixture/private-kit": "workspace:^" },
+      },
+    ],
+  ]);
+  try {
+    const result = runExecutable(root);
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /packages\/consumer\/package\.json: "@fixture\/consumer" dependencies\["@fixture\/private-kit"\] is "workspace:\^"/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

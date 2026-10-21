@@ -11,15 +11,21 @@ The npm packages and their private tooling; the root AGENTS.md still applies.
 - Extract a resource as a `use`-prefixed hook (`const Foo = resource(useFoo)`) and pass `createTapRoot` or `useTapRoot` a named function expression, because oxlint's hook rules skip anonymous bodies.
 - `aui-build` fails on a published import or declaration type reference missing from `dependencies`, `peerDependencies`, or `optionalDependencies`; a `devDependencies` entry never satisfies it.
 - `pnpm distributions:check` asserts the react, react-native, and react-ink barrels re-export the same shared surface; its `EXCEPTIONS` table is the only place a platform keeps a symbol out.
-- `pnpm workspace-ranges:check` asserts every peer on a workspace package is `workspace:^` except its named consumer-installed exemptions, which keep a wide floor; when this file and a check disagree, the check wins.
+- `pnpm experimental:check` asserts every `unstable_`, `Unstable_` or `experimental_` declaration carries `@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release.` or a removal notice, written on the export specifier when a rename creates the experimental name.
+- `pnpm workspace-ranges:check` asserts every peer on a workspace package is `workspace:^` except its named consumer-installed exemptions, which keep a wide floor, and that no published package depends on a private one; when this file and a check disagree, the check wins.
+- Land a new package with `"private": true` and no changeset, `api-surface/` snapshot, traction entry, docs page, or `create` template until it publishes, because a public package npm lacks breaks the next release; a rename whose published shell re-exports it ships public.
+- Keep `@assistant-ui/tap` and `@assistant-ui/store` in `peerDependencies` wherever core or store declares them, never `dependencies`, because a second installed copy splits tap's context singleton.
+- Never use `import.meta` in `@assistant-ui/core` or any package React Native bundles, because Hermes rejects it.
+- Run layout effects in core and store through `useIsomorphicLayoutEffect` from `@assistant-ui/store/internal`, never a bare `useLayoutEffect`, which warns on React 18 server renders, or a `typeof window` helper, which moves Ink's effects out of the layout phase.
+- Publish a render-derived value that a callback reads into its ref from `useInsertionEffect`, never a bare `ref.current =` in render, which an abandoned render still runs; a value the same render reads stays in a local variable.
 
 ### Adapters
 
-- Build a framework adapter on `useExternalStoreRuntime`, or `useLocalRuntime` with a `ChatModelAdapter`, wrapped in `useRemoteThreadListRuntime` for threads, and expose its state with `createRuntimeExtras` from `@assistant-ui/core/internal`; `@assistant-ui/react-langchain` is the reference shape.
+- Build a framework adapter on `useExternalStoreRuntime`, or `useLocalRuntime` with a `ChatModelAdapter`, wrapped in `useRemoteThreadListRuntime` for threads, and expose its state with `createRuntimeExtras` from `@assistant-ui/core/react`; `@assistant-ui/react-langchain` is the reference shape.
 - Let the provider decide the core primitive, whether a thin wrapper, accumulator, or controller, the transport, HITL richness, and thread-list depth.
 - Split an adapter into `use<Name>Runtime.ts` (orchestration only), `<name>Extras.ts`, `hooks.ts`, a pure two-way `convertMessages.ts`, and `types.ts`, plus a `<Name>ThreadController.ts` with a pure `reduce<Name>ThreadState` when it owns thread state.
 - Colocate tests for the converter in both directions and the reducer or controller, and give each accessor hook its own `.test.tsx`.
-- Never introduce a `*ThreadRuntimeCore` state holder, a hand-rolled `Symbol` brand and guard, a `notifyUpdate` or version-counter re-render hack, `Object.create` method grafting, or monkeypatching of caller objects.
+- Never introduce a `*ThreadRuntimeCore` state holder, a hand-rolled `Symbol` brand and guard, a `notifyUpdate` or version-counter re-render hack, `Object.create` method grafting, or monkeypatching of caller objects; `pnpm adapter-architecture:check` catches their literal forms.
 - Add adapter behavior as a hook on the `createRuntimeExtras` surface, reusing shared core primitives (`getAutoStatus`, `useStreamingTiming`) instead of a per-adapter copy or a new opt-out flag.
 - Expose a capability added to one runtime on every runtime that supports the concept, or document why one diverges, because users switching adapters expect parity.
 - Keep server-only and provider SDK code in a `./server` or `./node` subpath, added when the protocol owns the wire, out of the default and React Native entries.

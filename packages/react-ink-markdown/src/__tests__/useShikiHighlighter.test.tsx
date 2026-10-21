@@ -1,5 +1,5 @@
 import { Text } from "ink";
-import { render } from "ink-testing-library";
+import { cleanup, render } from "ink-testing-library";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { useShikiHighlighter } from "../useShikiHighlighter";
 
@@ -54,6 +54,7 @@ const Probe = ({ theme, langs }: { theme: string; langs: string[] }) => {
 
 describe("useShikiHighlighter", () => {
   afterEach(() => {
+    cleanup();
     createHighlighterMock.mockReset();
   });
 

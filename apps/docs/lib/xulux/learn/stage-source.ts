@@ -1,13 +1,11 @@
 import {
   createRepoSourceReader,
-  snapshotSourceReader,
   type RepoSourceReader,
 } from "@/lib/repo-source";
 import { createZip } from "../demo-downloads/zip";
 import { getLearnCourse, getLearnStage } from "./registry";
 import type { LearnCourseDefinition } from "./types";
 
-export type LearnSourceSnapshot = Record<string, string>;
 export type LearnStageFiles = Record<string, string>;
 
 export async function resolveStageFiles(
@@ -25,16 +23,6 @@ export async function createLearnStageZip(courseId: string, stageId: string) {
   return createZip(await resolveStageFiles(courseId, stageId));
 }
 
-export async function createLearnStageZipFromSnapshot(
-  courseId: string,
-  stageId: string,
-  snapshot: LearnSourceSnapshot,
-) {
-  return createZip(
-    await resolveStageFilesFromSnapshot(courseId, stageId, snapshot),
-  );
-}
-
 export function getLearnStageArchiveFilename(
   courseId: string,
   stageId: string,
@@ -42,18 +30,6 @@ export function getLearnStageArchiveFilename(
   getLearnCourse(courseId);
   getLearnStage(courseId, stageId);
   return `xulux-${courseId}-${stageId.toLowerCase()}.zip`;
-}
-
-export function resolveStageFilesFromSnapshot(
-  courseId: string,
-  stageId: string,
-  snapshot: LearnSourceSnapshot,
-): Promise<LearnStageFiles> {
-  return resolveStageFilesFromReader(
-    courseId,
-    stageId,
-    snapshotSourceReader(snapshot),
-  );
 }
 
 export async function resolveStageFilesFromReader(

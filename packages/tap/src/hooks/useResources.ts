@@ -31,6 +31,7 @@ type Pending =
   | {
       value: any;
       deps: readonly unknown[] | undefined;
+      element: ResourceElement<any>;
       remount?: ResourceFiber<unknown>;
     }
   | "skip"
@@ -43,6 +44,7 @@ type FiberState = {
   isDirty: boolean;
   // Last committed deps + value, used to decide and serve a bailout.
   committedDeps: readonly unknown[] | undefined;
+  committedElement: ResourceElement<any> | undefined;
   committedValue: unknown;
 };
 
@@ -55,13 +57,13 @@ const markChildDirty = (
   if (state) state.isDirty = true;
 };
 
-// A child is reused when its deps are unchanged and it has no pending work.
-const canReuse = (state: FiberState, deps: readonly unknown[] | undefined) =>
+const canReuse = (state: FiberState, element: ResourceElement<any>) =>
   !state.isDirty &&
   !hasContextDepsChanged(state.fiber) &&
-  deps !== undefined &&
-  state.committedDeps !== undefined &&
-  depsShallowEqual(state.committedDeps, deps);
+  (state.committedElement === element ||
+    (element.deps !== undefined &&
+      state.committedDeps !== undefined &&
+      depsShallowEqual(state.committedDeps, element.deps)));
 
 const hasAnyChildContextDepsChanged = (
   fibers: Map<string | number, FiberState>,
@@ -117,9 +119,10 @@ export function useResources<E extends ResourceElement<any>>(
           const value = renderResourceFiber(fiber, element.args);
           state = {
             fiber,
-            next: { value: value, deps: element.deps },
+            next: { value: value, deps: element.deps, element },
             isDirty: false,
             committedDeps: undefined,
+            committedElement: undefined,
             committedValue: undefined,
           };
           newCount++;
@@ -129,9 +132,14 @@ export function useResources<E extends ResourceElement<any>>(
             markChildDirty(fibers, elementKey),
           );
           const value = renderResourceFiber(fiber, element.args);
-          state.next = { value: value, deps: element.deps, remount: fiber };
+          state.next = {
+            value: value,
+            deps: element.deps,
+            element,
+            remount: fiber,
+          };
           releases = true;
-        } else if (!isRefreshing && canReuse(state, element.deps)) {
+        } else if (!isRefreshing && canReuse(state, element)) {
           if (typeof state.next === "object") {
             discardWipRender(state.fiber);
           }
@@ -141,7 +149,7 @@ export function useResources<E extends ResourceElement<any>>(
           state.next = "skip";
         } else {
           const value = renderResourceFiber(state.fiber, element.args);
-          state.next = { value: value, deps: element.deps };
+          state.next = { value: value, deps: element.deps, element };
         }
 
         values.push(
@@ -198,6 +206,7 @@ export function useResources<E extends ResourceElement<any>>(
       } else if (next !== "delete") {
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
+        state.committedElement = next.element;
         state.committedValue = next.value;
         state.isDirty = false;
         state.next = "skip";

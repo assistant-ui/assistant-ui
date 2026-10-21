@@ -1,5 +1,59 @@
 # @assistant-ui/store
 
+## 0.3.22
+
+### Patch Changes
+
+- [#9108](https://github.com/assistant-ui/assistant-ui/pull/9108) [`ed0d969`](https://github.com/assistant-ui/assistant-ui/commit/ed0d969c1d73347da217272e5ec42d10092a3473) - Track selectors that read through a forwarding client when its target changes. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9776](https://github.com/assistant-ui/assistant-ui/pull/9776) [`32a1b79`](https://github.com/assistant-ui/assistant-ui/commit/32a1b79108ae40a87947905529fbf1f14726e395) - `useAuiState` and `aui.composer.getState()` now see composer text as soon as `setText` returns, so an input that keeps its own state, such as react-mentions, no longer moves the caret to the end. ([@okisdev](https://github.com/okisdev))
+
+- [#9772](https://github.com/assistant-ui/assistant-ui/pull/9772) [`1808265`](https://github.com/assistant-ui/assistant-ui/commit/1808265f30837afe77a00d8bd3081a8fa20081c0) - Notify child handles after their derived scopes catch up with parent changes. ([@okisdev](https://github.com/okisdev))
+
+- [#9865](https://github.com/assistant-ui/assistant-ui/pull/9865) [`727a02d`](https://github.com/assistant-ui/assistant-ui/commit/727a02dc3fe5286ded479cb792f48acbff336cd7) - preserve reading position when earlier messages load and support held follow and content inset updates ([@okisdev](https://github.com/okisdev))
+
+- [#9771](https://github.com/assistant-ui/assistant-ui/pull/9771) [`0c049eb`](https://github.com/assistant-ui/assistant-ui/commit/0c049ebbfcfc5589288f47b6039c883b2f1c581f) - Keep Vue and Svelte viewport footer insets in the shared store controller. ([@okisdev](https://github.com/okisdev))
+
+## 0.3.21
+
+### Patch Changes
+
+- [#9790](https://github.com/assistant-ui/assistant-ui/pull/9790) [`d2f04ca`](https://github.com/assistant-ui/assistant-ui/commit/d2f04ca1bb8a987a2510f91ebeae7dc90847334d) - fix: a client accessor called through `call`, `apply` or `bind` resolves its client like a direct call, so an optional call such as `clientRef.current?.threads?.()` no longer throws `_b.call is not a function` once a bundler lowers optional chaining (Vite 6's default build target does). Scope methods named `call`, `apply`, or `bind` are rejected by type validation because those names are reserved for invoking the accessor. ([@bgeils](https://github.com/bgeils))
+
+## 0.3.20
+
+### Patch Changes
+
+- [#9338](https://github.com/assistant-ui/assistant-ui/pull/9338) [`a12da09`](https://github.com/assistant-ui/assistant-ui/commit/a12da099497ce433823b7f7d7e4824ed720ee302) - fix: run layout effects through `useIsomorphicLayoutEffect` so React 18 server renders stop warning, while Ink keeps its layout phase ([@okisdev](https://github.com/okisdev))
+
+## 0.3.19
+
+### Patch Changes
+
+- [#9093](https://github.com/assistant-ui/assistant-ui/pull/9093) [`96fd2a2`](https://github.com/assistant-ui/assistant-ui/commit/96fd2a253a2b97e5c530f3487721a39d918b57dc) - fix(store): cancel a queued bottom scroll on wheel and touch, matching React ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.3.18
+
+### Patch Changes
+
+- [#9094](https://github.com/assistant-ui/assistant-ui/pull/9094) [`3ad209c`](https://github.com/assistant-ui/assistant-ui/commit/3ad209c9b1692dcaa3fcfb4d12130b318ca566eb) - perf(store): wake only the selectors whose clients changed, so a token in a long thread no longer re-runs every message and part selector ([@okisdev](https://github.com/okisdev))
+
+- [#8869](https://github.com/assistant-ui/assistant-ui/pull/8869) [`9125e30`](https://github.com/assistant-ui/assistant-ui/commit/9125e302f47c2cd62e4f39752f913e6bc0287abf) - Forward `ExternalThread` model-context changes through `thread.modelContextUpdate`. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8865](https://github.com/assistant-ui/assistant-ui/pull/8865) [`4ac25b9`](https://github.com/assistant-ui/assistant-ui/commit/4ac25b9a8cff8857b8b74667e8ff488e9faed00d) - return the registered model context from `ExternalThread`'s `getModelContext` instead of an empty one ([@okisdev](https://github.com/okisdev))
+
+- [#9003](https://github.com/assistant-ui/assistant-ui/pull/9003) [`116424f`](https://github.com/assistant-ui/assistant-ui/commit/116424ff9e2b682ec4687aa3bc4e7597b611b1d8) - Keep thread viewport observers stable and preserve scheduled scroll behavior. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9135](https://github.com/assistant-ui/assistant-ui/pull/9135) [`f306b40`](https://github.com/assistant-ui/assistant-ui/commit/f306b40286c16253c60c68007b5cb6411ed22816) - fix(store): cancel a queued bottom scroll when Enter, Space or a navigation key is pressed outside text entry, matching React ([@okisdev](https://github.com/okisdev))
+
+- [#8909](https://github.com/assistant-ui/assistant-ui/pull/8909) [`0d72f48`](https://github.com/assistant-ui/assistant-ui/commit/0d72f4852980f8a98118753b3bcca053eca75643) - move the Vue thread viewport's auto scroll into a framework-neutral `createThreadViewportAutoScroll` in `@assistant-ui/store/client` ([@okisdev](https://github.com/okisdev))
+
+- [#8903](https://github.com/assistant-ui/assistant-ui/pull/8903) [`df2ab0a`](https://github.com/assistant-ui/assistant-ui/commit/df2ab0a7ebac27430926d6fbb56a97eeb0206faf) - the thread viewport follows content that grows without a DOM change (an expanding collapsible, a loading image, an autosizing textarea) and updates `isAtBottom` so the scroll-to-bottom button shows; the React viewport now shares `observeContentResize` with Vue and Svelte ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8915](https://github.com/assistant-ui/assistant-ui/pull/8915) [`8831c76`](https://github.com/assistant-ui/assistant-ui/commit/8831c76821cdcf0e8b5f1d4c562640a33056442d) - cancel a queued scroll to bottom when the user scrolls up in the shared thread viewport auto scroll, as a pointer gesture already does ([@okisdev](https://github.com/okisdev))
+
+- [#8956](https://github.com/assistant-ui/assistant-ui/pull/8956) [`7a3e496`](https://github.com/assistant-ui/assistant-ui/commit/7a3e4966ae50d181a58a73ccb138af8ebee038bf) - pause thread bottom-follow when a message disclosure expands ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.17
 
 ### Patch Changes

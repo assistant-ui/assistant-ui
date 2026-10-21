@@ -6,9 +6,22 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageGallery, type GalleryImage } from "./image-gallery";
+
+vi.mock("@/components/ui/dialog", async (importOriginal) => {
+  const dialog =
+    await importOriginal<typeof import("@/components/ui/dialog")>();
+  const DialogContentWithoutRef = ({
+    ref: _ref,
+    ...props
+  }: ComponentProps<typeof dialog.DialogContent>) => (
+    <dialog.DialogContent {...props} />
+  );
+  return { ...dialog, DialogContent: DialogContentWithoutRef };
+});
 
 const images: readonly GalleryImage[] = Array.from(
   { length: 8 },
@@ -146,6 +159,69 @@ describe("ImageGallery", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(document.activeElement).toBe(tile);
     });
+  });
+
+  it("focuses the dialog rather than the first link when it opens", async () => {
+    render(
+      <ImageGallery
+        images={[
+          {
+            ...images[0]!,
+            source: { label: "Source", url: "https://example.com/source" },
+          },
+          images[1]!,
+        ]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open image: Image 1" }),
+    );
+    const dialog = screen.getByRole("dialog");
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(document.activeElement).toBe(dialog);
+    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+    expect(screen.getByText("2 / 2")).toBeTruthy();
+    expect(document.activeElement).toBe(dialog);
+  });
+
+  it("moves focus off a navigation button that the first or last image disables", () => {
+    render(<ImageGallery images={images.slice(0, 3)} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open image: Image 2" }),
+    );
+    const previous = screen.getByRole("button", { name: "Previous image" });
+    const next = screen.getByRole("button", { name: "Next image" });
+
+    previous.focus();
+    fireEvent.click(previous);
+    expect(screen.getByText("1 / 3")).toBeTruthy();
+    expect(document.activeElement).toBe(next);
+
+    fireEvent.keyDown(next, { key: "ArrowRight" });
+    fireEvent.click(next);
+    expect(screen.getByText("3 / 3")).toBeTruthy();
+    expect(document.activeElement).toBe(previous);
+
+    fireEvent.keyDown(previous, { key: "ArrowLeft" });
+    expect(screen.getByText("2 / 3")).toBeTruthy();
+    expect(document.activeElement).toBe(previous);
+  });
+
+  it("leaves arrow keys alone while the lightbox is closed", () => {
+    render(
+      <>
+        <ImageGallery images={images} />
+        <textarea aria-label="Composer" />
+      </>,
+    );
+    const composer = screen.getByRole("textbox", { name: "Composer" });
+
+    expect(fireEvent.keyDown(composer, { key: "ArrowLeft" })).toBe(true);
+    expect(fireEvent.keyDown(composer, { key: "ArrowRight" })).toBe(true);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("does not link an unsafe image source", () => {

@@ -156,12 +156,17 @@ const h = vi.hoisted(() => {
   const rootComposer = makeComposer(() => state.composer);
   const client: any = {
     getState: () => state,
+    get optional() {
+      return { threads: this.threads };
+    },
+    on: () => () => {},
     composer: rootComposer,
     thread: {
       getState: () => state.thread,
       composer: () => rootComposer,
       message: ({ index }: { index: number }) => makeMessageClient(index),
       suggestions: vi.fn(),
+      loadEarlier: vi.fn(async () => {}),
     },
     message: makeMessageClient(0),
     attachment: { getState: () => state.attachment, remove: removeAttachment },
@@ -466,10 +471,17 @@ vi.mock("./reasoning.aui", async () => {
   const React = await import("react");
   const Root = ({ children }: { children?: React.ReactNode }) =>
     React.createElement("div", { "data-testid": "reasoning-root" }, children);
-  const Trigger = ({ active }: { active?: boolean }) =>
+  const Trigger = ({
+    active,
+    duration,
+  }: {
+    active?: boolean;
+    duration?: number;
+  }) =>
     React.createElement("button", {
       "data-testid": "reasoning-trigger",
       "data-active": String(active),
+      "data-duration": String(duration),
     });
   const Content = ({ children }: { children?: React.ReactNode }) =>
     React.createElement(
@@ -697,8 +709,36 @@ describe("Thread", () => {
 
     await render();
 
-    expect(container.textContent).toContain("Hello");
+    expect(
+      container.querySelector(".aui-user-message-content")?.textContent,
+    ).toBe("Hello");
     expect(container.textContent).toContain("Hello from the assistant");
+  });
+
+  it("keeps file attachments without an empty bubble when the user message has no parts", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        parts: [],
+        attachments: [
+          {
+            id: "attachment-1",
+            type: "file",
+            name: "report.pdf",
+            contentType: "application/pdf",
+            content: [],
+            status: { type: "complete" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container.querySelector(".aui-user-message-attachments")?.textContent,
+    ).toContain("report.pdf");
+    expect(container.querySelector(".aui-user-message-content")).toBeNull();
   });
 
   it("renders voice messages as grouped spoken rows with copy as the only action", async () => {
@@ -835,6 +875,65 @@ describe("Thread", () => {
     );
     expect(triggers).toHaveLength(1);
     expect(triggers[0]?.getAttribute("data-active")).toBe("true");
+  });
+
+  it("labels a settled reasoning group with its span from part timing", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "complete" },
+        parts: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "complete" },
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "complete" },
+            timing: { startedAt: 6_000, completedAt: 13_400 },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    const trigger = container.querySelector(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(trigger?.getAttribute("data-active")).toBe("false");
+    expect(trigger?.getAttribute("data-duration")).toBe("12");
+  });
+
+  it("leaves a reasoning group unlabelled while one of its parts still streams", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "running" },
+        parts: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "complete" },
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "running" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    const trigger = container.querySelector(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(trigger?.getAttribute("data-active")).toBe("true");
+    expect(trigger?.getAttribute("data-duration")).toBe("undefined");
   });
 
   it("disables send while composer.canSend is false and enables it when true", async () => {
@@ -1168,6 +1267,28 @@ describe("Thread", () => {
 
   describe("windowed history", () => {
     const edge = () => container.querySelector(".aui-thread-history-edge");
+
+    it("pages through the runtime and shows its loading edge when no history is passed", async () => {
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      h.state.thread.hasEarlier = true;
+      h.state.thread.isLoadingEarlier = false;
+      try {
+        await render();
+        h.list.props.onStartReached({ distanceFromStart: 0 });
+        expect(h.client.thread.loadEarlier).toHaveBeenCalledTimes(1);
+        expect(edge()).toBeNull();
+
+        h.state.thread.isLoadingEarlier = true;
+        await render();
+        expect(edge()).not.toBeNull();
+        expect(h.list.props.onStartReached).toBeUndefined();
+      } finally {
+        h.state.thread.hasEarlier = false;
+        h.state.thread.isLoadingEarlier = false;
+      }
+    });
     const oneMessage = () =>
       addMessages(
         h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),

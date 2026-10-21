@@ -28,12 +28,24 @@ export const TooltipDispatchContext = createContext<TooltipDispatch | null>(
   null,
 );
 
-export const useTooltipDispatch = () => useContext(TooltipDispatchContext);
+export const useTooltipDispatch = (): TooltipDispatch => {
+  const ctx = useContext(TooltipDispatchContext);
+  if (!ctx) {
+    throw new Error("useTooltipDispatch must be used within a HeatGraph.Root");
+  }
+  return ctx;
+};
 
 // State context: changes on hover, consumed only by Tooltip
 export const TooltipStateContext = createContext<TooltipState | null>(null);
 
-export const useTooltipState = () => useContext(TooltipStateContext);
+export const useTooltipState = (): TooltipState => {
+  const ctx = useContext(TooltipStateContext);
+  if (!ctx) {
+    throw new Error("useTooltipState must be used within a HeatGraph.Root");
+  }
+  return ctx;
+};
 
 // Legend item context: set by Legend per level
 export type LegendItemData = {

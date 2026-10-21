@@ -19,6 +19,155 @@ const makeTextEvent = (
     content: { role: "model", parts: [{ text }] },
   });
 
+describe("stable invocation message ids", () => {
+  it("keeps the first partial id when only the final event is reloaded", () => {
+    const live = new AdkEventAccumulator();
+    const events = [
+      makeTextEvent("Hel", true),
+      makeTextEvent("lo", true),
+      makeTextEvent("Hello"),
+    ].map((event, index) => ({
+      ...event,
+      id: `e${index + 1}`,
+      invocationId: "run-1",
+    }));
+    expect(live.processEvent(events[0]!)[0]?.id).toBe("run-1:ai");
+    expect(live.processEvent(events[1]!)[0]?.id).toBe("run-1:ai");
+    const streamed = live.processEvent(events[2]!);
+    const reloaded = new AdkEventAccumulator().processEvent(events[2]!);
+    expect(streamed[0]?.id).toBe("run-1:ai");
+    expect(reloaded).toEqual(streamed);
+  });
+
+  it("numbers separate AI messages within one invocation", () => {
+    const events = [
+      makeEvent({
+        id: "first",
+        invocationId: "run-1",
+        author: "agent-a",
+        content: { parts: [{ text: "First" }] },
+      }),
+      makeEvent({
+        id: "second",
+        invocationId: "run-1",
+        author: "agent-b",
+        content: { parts: [{ text: "Second" }] },
+      }),
+    ];
+    const accumulator = new AdkEventAccumulator();
+    for (const event of events) accumulator.processEvent(event);
+    expect(accumulator.getMessages().map((message) => message.id)).toEqual([
+      "run-1:ai",
+      "run-1:ai1",
+    ]);
+  });
+
+  it("preserves assistant messages across runs of the same invocation", () => {
+    const firstEvent = makeEvent({
+      id: "first-final",
+      invocationId: "X",
+      author: "agent",
+      longRunningToolIds: ["call-1"],
+      content: {
+        parts: [
+          { text: "Waiting for confirmation" },
+          { functionCall: { id: "call-1", name: "confirm", args: {} } },
+        ],
+      },
+    });
+    const secondEvent = makeEvent({
+      id: "second-final",
+      invocationId: "X",
+      author: "agent",
+      content: { parts: [{ text: "Confirmed" }] },
+    });
+    const firstRun = new AdkEventAccumulator();
+    const firstMessages = firstRun.processEvent(firstEvent);
+    expect(firstMessages[0]?.id).toBe("X:ai");
+
+    const secondRun = new AdkEventAccumulator(firstMessages);
+    const liveMessages = secondRun.processEvent(secondEvent);
+    expect(liveMessages.map((message) => message.id)).toEqual([
+      "X:ai",
+      "X:ai1",
+    ]);
+    expect(liveMessages[0]).toEqual(firstMessages[0]);
+    expect(liveMessages[0]?.content).toEqual([
+      { type: "text", text: "Waiting for confirmation" },
+    ]);
+
+    const replay = new AdkEventAccumulator();
+    replay.processEvent(firstEvent);
+    expect(replay.processEvent(secondEvent)).toEqual(liveMessages);
+  });
+
+  it("replays a user message with its sent id from custom metadata", () => {
+    const accumulator = new AdkEventAccumulator();
+    expect(
+      accumulator.processEvent(
+        makeEvent({
+          id: "stored-user",
+          invocationId: "X",
+          author: "user",
+          customMetadata: { assistant_ui_message_id: "sent-user" },
+          content: { parts: [{ text: "Hi" }] },
+        }),
+      ),
+    ).toEqual([{ id: "sent-user", type: "human", content: "Hi" }]);
+  });
+
+  it.each([undefined, "", 42, false, null, {}])(
+    "uses the user event id when message metadata is %j",
+    (messageId) => {
+      const accumulator = new AdkEventAccumulator();
+      expect(
+        accumulator.processEvent(
+          makeEvent({
+            id: "stored-user",
+            invocationId: "X",
+            author: "user",
+            customMetadata:
+              messageId === undefined
+                ? {}
+                : { assistant_ui_message_id: messageId },
+            content: { parts: [{ text: "Hi" }] },
+          }),
+        ),
+      ).toEqual([{ id: "stored-user", type: "human", content: "Hi" }]);
+    },
+  );
+
+  it("ignores user message metadata on agent events", () => {
+    const accumulator = new AdkEventAccumulator();
+    const messages = accumulator.processEvent(
+      makeEvent({
+        id: "stored-agent",
+        invocationId: "X",
+        author: "agent",
+        customMetadata: { assistant_ui_message_id: "sent-user" },
+        content: { parts: [{ text: "Hello" }] },
+      }),
+    );
+    expect(messages[0]).toMatchObject({ id: "X:ai", type: "ai" });
+  });
+
+  it("keeps event ids when invocationId is absent", () => {
+    const accumulator = new AdkEventAccumulator();
+    accumulator.processEvent(
+      makeEvent({
+        id: "user-event",
+        author: "user",
+        content: { parts: [{ text: "Hi" }] },
+      }),
+    );
+    accumulator.processEvent(makeTextEvent("Hello"));
+    expect(accumulator.getMessages().map((message) => message.id)).toEqual([
+      "user-event",
+      "evt-1:ai",
+    ]);
+  });
+});
+
 describe.each(["user", "agent"])("%s function response status", (author) => {
   it.each([
     [{ error: "denied" }, "error"],
@@ -1450,17 +1599,33 @@ describe("AdkEventAccumulator - snake_case normalization", () => {
   describe.each(["user", "agent"])("%s media", (author) => {
     it.each([
       {
-        part: { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
-        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+        part: {
+          inline_data: {
+            mime_type: "image/png",
+            data: "aGVsbG8=",
+            display_name: "photo.png",
+          },
+        },
+        expected: {
+          type: "image",
+          mimeType: "image/png",
+          data: "aGVsbG8=",
+          filename: "photo.png",
+        },
       },
       {
         part: {
-          inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" },
+          inline_data: {
+            mime_type: "application/pdf",
+            data: "aGVsbG8=",
+            display_name: "report.pdf",
+          },
         },
         expected: {
           type: "file",
           mimeType: "application/pdf",
           data: "aGVsbG8=",
+          filename: "report.pdf",
         },
       },
       {
@@ -1468,21 +1633,28 @@ describe("AdkEventAccumulator - snake_case normalization", () => {
           file_data: {
             mime_type: "image/png",
             file_uri: "https://example.test/image.png",
+            display_name: "photo.png",
           },
         },
-        expected: { type: "image_url", url: "https://example.test/image.png" },
+        expected: {
+          type: "image_url",
+          url: "https://example.test/image.png",
+          filename: "photo.png",
+        },
       },
       {
         part: {
           file_data: {
             mime_type: "application/pdf",
             file_uri: "https://example.test/report.pdf",
+            display_name: "report.pdf",
           },
         },
         expected: {
           type: "file_url",
           mimeType: "application/pdf",
           url: "https://example.test/report.pdf",
+          filename: "report.pdf",
         },
       },
       {
@@ -1789,14 +1961,29 @@ describe("AdkEventAccumulator - user message handling", () => {
         author: "user",
         content: {
           role: "user",
-          parts: [{ inlineData: { mimeType: "image/png", data: "abc123" } }],
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: "abc123",
+                displayName: "photo.png",
+              },
+            },
+          ],
         },
       }),
     );
     expect(msgs).toHaveLength(1);
     expect(msgs[0]).toMatchObject({
       type: "human",
-      content: [{ type: "image", mimeType: "image/png", data: "abc123" }],
+      content: [
+        {
+          type: "image",
+          mimeType: "image/png",
+          data: "abc123",
+          filename: "photo.png",
+        },
+      ],
     });
   });
 
@@ -1836,6 +2023,7 @@ describe("AdkEventAccumulator - user message handling", () => {
               fileData: {
                 fileUri: "gs://bucket/image.png",
                 mimeType: "image/png",
+                displayName: "photo.png",
               },
             },
           ],
@@ -1845,7 +2033,13 @@ describe("AdkEventAccumulator - user message handling", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0]).toMatchObject({
       type: "human",
-      content: [{ type: "image_url", url: "gs://bucket/image.png" }],
+      content: [
+        {
+          type: "image_url",
+          url: "gs://bucket/image.png",
+          filename: "photo.png",
+        },
+      ],
     });
   });
 
@@ -1858,7 +2052,11 @@ describe("AdkEventAccumulator - user message handling", () => {
           role: "user",
           parts: [
             {
-              inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+              inlineData: {
+                mimeType: "application/pdf",
+                data: "JVBERi0xLjQK",
+                displayName: "report.pdf",
+              },
             },
           ],
         },
@@ -1868,7 +2066,12 @@ describe("AdkEventAccumulator - user message handling", () => {
     expect(msgs[0]).toMatchObject({
       type: "human",
       content: [
-        { type: "file", mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          filename: "report.pdf",
+        },
       ],
     });
   });
@@ -1885,6 +2088,7 @@ describe("AdkEventAccumulator - user message handling", () => {
               fileData: {
                 fileUri: "gs://bucket/report.pdf",
                 mimeType: "application/pdf",
+                displayName: "report.pdf",
               },
             },
           ],
@@ -1899,6 +2103,7 @@ describe("AdkEventAccumulator - user message handling", () => {
           type: "file_url",
           url: "gs://bucket/report.pdf",
           mimeType: "application/pdf",
+          filename: "report.pdf",
         },
       ],
     });

@@ -1,0 +1,7 @@
+{
+  "title": "API Reference",
+  "description": "Components, composables, client, state, and events exported for Vue",
+  "icon": "FileCode",
+  "root": true,
+  "pages": ["composables", "client", "state", "events"]
+}

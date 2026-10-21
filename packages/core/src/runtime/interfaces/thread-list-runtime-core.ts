@@ -25,8 +25,13 @@ export type ThreadListRuntimeEvent = {
 };
 
 export type ThreadListRuntimeCore = {
+  /** Whether archived threads can be restored. Omission preserves support for custom cores that predate capability reporting. */
+  readonly canUnarchive?: boolean;
   readonly isLoading: boolean;
   readonly loadError?: unknown;
+  readonly switchError?:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
@@ -47,6 +52,8 @@ export type ThreadListRuntimeCore = {
    * whenever the answer changes. A thread list that mounts only the main thread
    * leaves this undefined: its other threads have no runtime and so cannot be
    * running, and the main thread's run state is read from its runtime directly.
+   *
+   * @deprecated Experimental since 2026-08-03. Not scheduled for removal; the API may change in any release.
    */
   unstable_isThreadRunning?(threadId: string): boolean;
 
@@ -56,6 +63,8 @@ export type ThreadListRuntimeCore = {
    * runtimes alive for non-main threads. A thread list that mounts only the
    * main thread leaves this undefined: its other threads have no runtime and so
    * emit nothing, and the main thread's runtime is observed directly.
+   *
+   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_subscribeThreadEvents?(
     callback: (event: ThreadListRuntimeEvent) => void,

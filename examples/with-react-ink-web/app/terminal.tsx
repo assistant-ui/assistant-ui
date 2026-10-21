@@ -113,7 +113,35 @@ export default function InkTerminal() {
 
   return (
     <div className="terminal-center">
-      <div ref={wrapperRef} className="terminal-host">
+      <div
+        ref={wrapperRef}
+        className="terminal-host"
+        onKeyDownCapture={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          const key = event.key.toLowerCase();
+          const input =
+            event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
+              ? ({ g: "\x07", n: "\x0e", r: "\x12" } as Record<string, string>)[
+                  key
+                ]
+              : event.altKey &&
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.shiftKey
+                ? (
+                    { ArrowUp: "\x1b[1;3A", ArrowDown: "\x1b[1;3B" } as Record<
+                      string,
+                      string
+                    >
+                  )[event.key]
+                : undefined;
+          if (input) {
+            event.preventDefault();
+            event.stopPropagation();
+            getStreams().pushInput(input);
+          }
+        }}
+      >
         <Terminal
           ref={ref}
           autoResize

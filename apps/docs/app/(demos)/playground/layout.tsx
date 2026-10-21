@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { type ReactNode, Suspense } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "Playground";
-const description =
-  "Experiment with different configurations and settings using the Assistant UI Playground.";
+const { title, description } = subProject("playground");
 
 export const metadata: Metadata = {
   title,
@@ -21,7 +20,7 @@ export default function PlaygroundLayout({
   return (
     <SubProjectLayout
       name="playground"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/playground"
+      githubPath={subProjectGithubUrl("playground")}
       fullHeight
       hideFooter
     >

@@ -73,6 +73,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
@@ -89,6 +90,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: anthropic("claude-sonnet-5"),
     messages: await convertToModelMessages(messages),
   });
@@ -105,6 +107,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: google("gemini-3.8-flash"),
     messages: await convertToModelMessages(messages),
   });

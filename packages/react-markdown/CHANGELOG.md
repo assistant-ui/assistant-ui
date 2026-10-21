@@ -1,5 +1,61 @@
 # @assistant-ui/react-markdown
 
+## 0.14.23
+
+### Patch Changes
+
+- [#9628](https://github.com/assistant-ui/assistant-ui/pull/9628) [`7ec1c32`](https://github.com/assistant-ui/assistant-ui/commit/7ec1c32f33937629aab4ac8dab8199ebc87e3269) - fix: refresh fenced code blocks when `components.pre` or `components.code` changes ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9603](https://github.com/assistant-ui/assistant-ui/pull/9603) [`1dfdbcc`](https://github.com/assistant-ui/assistant-ui/commit/1dfdbccbaeced5885b10c346f638e5546f34182e) - Refresh existing fenced code blocks when their renderer overrides change. ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.14.22
+
+### Patch Changes
+
+- [#9381](https://github.com/assistant-ui/assistant-ui/pull/9381) [`deb2e77`](https://github.com/assistant-ui/assistant-ui/commit/deb2e77488b048f26d299ffda2bf7f8d9203bbc8) - fix(react-markdown): keep multiline display math in nested blockquotes and list items, preserve math after an opener-line `>`, and keep prose after a closing `\]` or `[/math]` inside its quoted list item ([@okisdev](https://github.com/okisdev))
+
+- [#9414](https://github.com/assistant-ui/assistant-ui/pull/9414) [`1e804fc`](https://github.com/assistant-ui/assistant-ui/commit/1e804fc98f9895c855de6360bf008681e96a3d0b) - Keep multiline display math inside same-line nested list items. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9391](https://github.com/assistant-ui/assistant-ui/pull/9391) [`99c5bb2`](https://github.com/assistant-ui/assistant-ui/commit/99c5bb23bb0c4c95eaf4fffb40d5ee69aacb46e9) - fix(react-markdown): preserve repeated list and quote prefixes for display math ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9407](https://github.com/assistant-ui/assistant-ui/pull/9407) [`fb2b1dc`](https://github.com/assistant-ui/assistant-ui/commit/fb2b1dc1cf7b1dc64c774e46693eb47ff0390941) - fix(react-markdown): keep a second display opened on a closer's line inside its quoted list item ([@okisdev](https://github.com/okisdev))
+
+- [#9379](https://github.com/assistant-ui/assistant-ui/pull/9379) [`bebcdf8`](https://github.com/assistant-ui/assistant-ui/commit/bebcdf843283beb01c734572113b68b8a3ff82bb) - perf(react-markdown): keep preprocessing linear for lines with many triple-backtick or tilde runs ([@okisdev](https://github.com/okisdev))
+
+- [#9435](https://github.com/assistant-ui/assistant-ui/pull/9435) [`4a9a803`](https://github.com/assistant-ui/assistant-ui/commit/4a9a803d605516e0707a65b3bdfb08b6aac0ad09) - fix(react-markdown): keep multiline display math inside marker-only list items ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9417](https://github.com/assistant-ui/assistant-ui/pull/9417) [`c7dc306`](https://github.com/assistant-ui/assistant-ui/commit/c7dc3063f614b78d05b53588ee958f1343037dcb) - fix(react-markdown): keep a math tag display opened on a bracket closer's line inside its quoted list item ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9402](https://github.com/assistant-ui/assistant-ui/pull/9402) [`714f554`](https://github.com/assistant-ui/assistant-ui/commit/714f554c16e796edf274fd936fe96481c6d4712f) - fix(react-markdown): avoid quadratic scans on long tilde runs and display bodies ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.14.21
+
+### Patch Changes
+
+- [#9291](https://github.com/assistant-ui/assistant-ui/pull/9291) [`c925241`](https://github.com/assistant-ui/assistant-ui/commit/c92524165066e98986fe08fd865cc553cb6a5209) - fix(react-markdown): `normalizeMathDelimiters` also keeps a `$$` fence opened on a list item's marker line inside that item when a formula line starts with `+` or `-`, when the item sits in a blockquote, and when the body holds a code span ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9267](https://github.com/assistant-ui/assistant-ui/pull/9267) [`55fb0cb`](https://github.com/assistant-ui/assistant-ui/commit/55fb0cbda237605b2af43f934abec00c79493182) - fix(react-markdown): `normalizeMathDelimiters` keeps a `$$` fence opened on a list item's marker line, and the paragraph after it, inside that item instead of letting the body fall out of the list ([@Mohamed3nan](https://github.com/Mohamed3nan))
+
+- [#9351](https://github.com/assistant-ui/assistant-ui/pull/9351) [`b664784`](https://github.com/assistant-ui/assistant-ui/commit/b6647843760d322574aff8cca7d5cc8e1e6e51a0) - perf(react-markdown): stop rescanning to the paragraph end for every inline code span while preprocessing ([@okisdev](https://github.com/okisdev))
+
+- [#9331](https://github.com/assistant-ui/assistant-ui/pull/9331) [`d8251f4`](https://github.com/assistant-ui/assistant-ui/commit/d8251f4934b78a1e9cc0d82b268193b78bd53dd6) - fix(react-markdown): keep display math inside a quoted list item, rewrite a `\[...\]` display whose body holds a code span, and stop reading a list marker line inside an open `$$` block as an opener ([@okisdev](https://github.com/okisdev))
+
+## 0.14.20
+
+### Patch Changes
+
+- [#8920](https://github.com/assistant-ui/assistant-ui/pull/8920) [`9ea0271`](https://github.com/assistant-ui/assistant-ui/commit/9ea02712b3e16a06dcf44e060fc0212fbd113b6a) - fix `escapeCurrencyDollars`, `normalizeMathDelimiters`, `rewriteLatexBracketDelimiters` and `rewriteCustomMathTags` rewriting text inside indented code blocks. ([@akhil9tiet](https://github.com/akhil9tiet))
+
+- [#8771](https://github.com/assistant-ui/assistant-ui/pull/8771) [`c306b56`](https://github.com/assistant-ui/assistant-ui/commit/c306b56a1f2957d201ea9d3e6ce14287849963b3) - avoid serializing unchanged Markdown nodes during streaming comparisons. ([@Arthur031221](https://github.com/Arthur031221))
+
+- [#8875](https://github.com/assistant-ui/assistant-ui/pull/8875) [`3aff80b`](https://github.com/assistant-ui/assistant-ui/commit/3aff80bcd2b0579ba4bc0deee0e8998c96b0c216) - serve the preprocess helpers from one source: `@assistant-ui/react-markdown/preprocess` is a new subpath, and `@assistant-ui/react-streamdown` re-exports the same functions instead of carrying a copy ([@okisdev](https://github.com/okisdev))
+
+- [#8833](https://github.com/assistant-ui/assistant-ui/pull/8833) [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#9089](https://github.com/assistant-ui/assistant-ui/pull/9089) [`ce74db7`](https://github.com/assistant-ui/assistant-ui/commit/ce74db795727b1d68c7cc3b0ccdec40a22f15bd2) - feat(react-markdown): export `memoizeMarkdownComponents` as a stable API, keeping `unstable_memoizeMarkdownComponents` as a deprecated alias ([@okisdev](https://github.com/okisdev))
+
+- [#9025](https://github.com/assistant-ui/assistant-ui/pull/9025) [`c46e1a2`](https://github.com/assistant-ui/assistant-ui/commit/c46e1a2a321f5839403d9045dffc1867d5c7cb81) - fix: a lone backtick no longer pairs with a code span in a later list item, heading or blockquote, so the preprocess helpers leave that code span's `$` and `\(...\)` as written; headings, thematic breaks and HTML blocks inside nested list items are recognized the same way ([@Tunaycel](https://github.com/Tunaycel))
+
 ## 0.14.19
 
 ### Patch Changes

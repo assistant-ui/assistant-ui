@@ -5,7 +5,7 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 import {
   MarkdownTextPrimitive,
   type SyntaxHighlighterProps,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
 import Link from "next/link";
 import { CodeBlock } from "@/components/ui/code-block";
+import { compactMarkdownComponents } from "./compact-markdown-components";
 
 const MarkdownTextImpl = () => {
   return (
@@ -135,66 +136,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
 
 const markdownComponents = memoizeMarkdownComponents({
   SyntaxHighlighter: SyntaxHighlighter,
-  h1: ({ className, ...props }) => (
-    <h1
-      className={cn(
-        "mb-2 text-base font-semibold first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  h2: ({ className, ...props }) => (
-    <h2
-      className={cn(
-        "mt-3 mb-1.5 text-sm font-semibold first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  h3: ({ className, ...props }) => (
-    <h3
-      className={cn(
-        "mt-2.5 mb-1 text-sm font-semibold first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  h4: ({ className, ...props }) => (
-    <h4
-      className={cn(
-        "mt-2 mb-1 text-sm font-medium first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  h5: ({ className, ...props }) => (
-    <h5
-      className={cn(
-        "mt-2 mb-1 text-sm font-medium first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  h6: ({ className, ...props }) => (
-    <h6
-      className={cn(
-        "mt-2 mb-1 text-sm font-medium first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  p: ({ className, ...props }) => (
-    <p
-      className={cn("my-2.5 leading-normal first:mt-0 last:mb-0", className)}
-      {...props}
-    />
-  ),
+  ...compactMarkdownComponents,
   a: ({ className, href, children, title, target, rel }) => {
     const linkClass = cn(
       "text-primary hover:text-primary/80 underline underline-offset-2",
@@ -220,69 +162,6 @@ const markdownComponents = memoizeMarkdownComponents({
       </a>
     );
   },
-  blockquote: ({ className, ...props }) => (
-    <blockquote
-      className={cn(
-        "border-muted-foreground/30 text-muted-foreground my-2.5 border-l-2 pl-3 italic",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  ul: ({ className, ...props }) => (
-    <ul
-      className={cn(
-        "marker:text-muted-foreground my-2 ml-4 list-disc [&>li]:mt-1",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  ol: ({ className, ...props }) => (
-    <ol
-      className={cn(
-        "marker:text-muted-foreground my-2 ml-4 list-decimal [&>li]:mt-1",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  li: ({ className, ...props }) => (
-    <li className={cn("leading-normal", className)} {...props} />
-  ),
-  hr: ({ className, ...props }) => (
-    <hr
-      className={cn("border-muted-foreground/20 my-2", className)}
-      {...props}
-    />
-  ),
-  table: ({ className, ...props }) => (
-    <div className="my-2 overflow-x-auto">
-      <table
-        className={cn("w-full border-collapse text-xs", className)}
-        {...props}
-      />
-    </div>
-  ),
-  th: ({ className, ...props }) => (
-    <th
-      className={cn(
-        "border-muted-foreground/20 bg-muted border px-2 py-1 text-left font-medium",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  td: ({ className, ...props }) => (
-    <td
-      className={cn(
-        "border-muted-foreground/20 border px-2 py-1 text-left",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  tr: (props) => <tr {...props} />,
   pre: ({ className, children, ...props }) => (
     <CollapsibleCode>
       <CodeBlock className="my-2.5">

@@ -88,6 +88,7 @@ beforeEach(() => {
     selector({
       thread: snapshot,
       threadListItem: { id: "thread-1" },
+      optional: { threadListItem: { id: "thread-1" } },
     } as never),
   );
 });
@@ -110,7 +111,7 @@ describe("notification channels", () => {
 
   it.each([
     ["osc9", "\x1b]9;body\x07"],
-    ["osc99", "\x1b]99;i=1:d=0;body\x1b\\"],
+    ["osc99", "\x1b]99;;body\x1b\\"],
     ["osc777", "\x1b]777;notify;title;body\x07"],
   ] as const)("sendOSCNotification writes %s sequence", (variant, expected) => {
     const w = spyStdout();
@@ -121,7 +122,7 @@ describe("notification channels", () => {
 
   it.each([
     ["osc9", "\x1b]9;body\x07"],
-    ["osc99", "\x1b]99;i=1:d=0;body\x1b\\"],
+    ["osc99", "\x1b]99;;body\x1b\\"],
     ["osc777", "\x1b]777;notify;title;body\x07"],
   ] as const)(
     "sendOSCNotification strips ESC and BEL in %s",
@@ -394,6 +395,7 @@ describe("useNotification", () => {
       selector({
         thread: snapshot,
         threadListItem: { id: "thread-A" },
+        optional: { threadListItem: { id: "thread-A" } },
       } as never),
     );
     const w = spyStdout();
@@ -411,6 +413,7 @@ describe("useNotification", () => {
       selector({
         thread: snapshot,
         threadListItem: { id: "thread-B" },
+        optional: { threadListItem: { id: "thread-B" } },
       } as never),
     );
     instance.rerender(<Notifier />);

@@ -53,11 +53,26 @@ export type RemoteThreadListAdapter = {
     custom: Record<string, unknown> | undefined,
   ): Promise<void>;
   archive(remoteId: string): Promise<void>;
-  unarchive(remoteId: string): Promise<void>;
+  /**
+   * Restores an archived thread. Omit it when the backend cannot unarchive:
+   * switching to an archived thread then opens it as archived, and an explicit
+   * unarchive rejects.
+   */
+  unarchive?(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
-  initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
+  /**
+   * Creates a thread with draft metadata passed in `options.custom`. Draft
+   * metadata reaches the backend only through this call, so an adapter that
+   * ignores `options.custom` drops it on the next `list()`.
+   */
+  initialize(
+    threadId: string,
+    options?: { custom?: Record<string, unknown> | undefined },
+  ): Promise<RemoteThreadInitializeResponse>;
   /**
    * Generates a title for the thread and streams it back.
+   *
+   * Called automatically once the first message settles and, if the thread still has no title, again after its first run ends (completion, error, or cancellation). A backend that titles the thread asynchronously may keep the stream open until its title is ready.
    *
    * When the generation persists the title itself, the returned stream must
    * not complete before that write has landed. Concurrent generations are
@@ -71,19 +86,16 @@ export type RemoteThreadListAdapter = {
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
   /**
-   * Optional React component wrapped around each active thread. Use it to
-   * inject per-thread context such as a history or attachments adapter (see
-   * `useCloudThreadListAdapter` for the canonical shape).
+   * Optional React component wrapped around each active thread, an older face of `unstable_useAdapters` for injecting per-thread adapters such as history or attachments. Prefer `unstable_useAdapters`, which `useCloudThreadListAdapter` and `createLocalStorageAdapter` implement.
    *
-   * `useRemoteThreadListRuntime` renders this component when present. If it
-   * is omitted, that host synthesizes a `RuntimeAdapterProvider` from
-   * `unstable_useAdapters`. The `RemoteThreadList` store entry ignores it;
-   * expose `unstable_useAdapters` for that host.
+   * `useRemoteThreadListRuntime` renders this component only when the adapter it mounts with has one; it then renders each later adapter's provider and synthesizes a `RuntimeAdapterProvider` from `unstable_useAdapters` for a later adapter without one. A hook that mounts with an adapter without this component calls `unstable_useAdapters` for every later adapter and ignores this component. The `RemoteThreadList` store entry ignores it; expose `unstable_useAdapters` for that host.
    *
    * The Provider must render `children` on its first commit; deferring them
    * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
+   *
+   * @deprecated Experimental since 2025-01-03. Not scheduled for removal; the API may change in any release.
    */
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 
@@ -92,7 +104,7 @@ export type RemoteThreadListAdapter = {
    * body (the main-thread slot by default; every started thread with
    * `backgroundThreads`), then provides to the `thread` factory. This is not
    * mounted per listed thread. `useRemoteThreadListRuntime` also calls it
-   * when `unstable_Provider` is omitted. Resolve `threadListItem` lazily on
+   * except while it renders `unstable_Provider`. Resolve `threadListItem` lazily on
    * each adapter call; do not capture it at hook mount. The hook must keep a
    * stable hook count across adapter swaps; a different count throws.
    * Memoize the returned object.
@@ -101,6 +113,8 @@ export type RemoteThreadListAdapter = {
    * thread id (`withKey(id, thread(...))`). History loaders such as
    * `useExternalHistory` run once per mount; an unkeyed factory keeps one
    * instance across switches and the next thread's messages never load.
+   *
+   * @deprecated Experimental since 2026-08-18. Not scheduled for removal; the API may change in any release.
    */
   unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };

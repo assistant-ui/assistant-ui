@@ -28,14 +28,27 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
       { id: `${id}-user`, role: "user", content: userText },
     ]);
     setIsRunning(true);
+    const streamStartTime = Date.now();
     try {
       for (let i = 1; i <= REPLY_CHUNKS.length; i++) {
         await new Promise((resolve) => setTimeout(resolve, 40));
-        const content = REPLY_CHUNKS.slice(0, i).join("");
+        const reply: ThreadMessageLike = {
+          id,
+          role: "assistant",
+          content: REPLY_CHUNKS.slice(0, i).join(""),
+          metadata: {
+            timing: {
+              streamStartTime,
+              totalStreamTime: Date.now() - streamStartTime,
+              totalChunks: i,
+              toolCallCount: 0,
+            },
+          },
+        };
         setMessages((current) =>
           current.at(-1)?.id === id
-            ? [...current.slice(0, -1), { id, role: "assistant", content }]
-            : [...current, { id, role: "assistant", content }],
+            ? [...current.slice(0, -1), reply]
+            : [...current, reply],
         );
       }
     } finally {

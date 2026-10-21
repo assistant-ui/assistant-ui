@@ -51,16 +51,16 @@ export function ConversationSearch({
             "flex items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3",
           )}
         >
-          <SearchIcon className="text-foreground/30 size-3.5 shrink-0" />
+          <SearchIcon className="text-muted-foreground size-3.5 shrink-0" />
           <input
             value={query}
             onChange={(event) => onQueryChange?.(event.target.value)}
             placeholder="Find in conversation"
             aria-label="Find in conversation"
-            className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+            className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[13px] outline-none"
           />
           <span
-            className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
+            className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
           >
             {hits.length === 0 ? "0" : `${index + 1}/${hits.length}`}
           </span>
@@ -93,23 +93,25 @@ export function ConversationSearch({
               "fade-in animate-in rounded-xl px-3 py-2 text-xs leading-relaxed duration-200",
             )}
           >
-            <span className="text-foreground/45">{active.before}</span>
+            <span className="text-muted-foreground">{active.before}</span>
             <span className="text-foreground/95 rounded bg-amber-400/35 px-0.5">
               {active.match}
             </span>
-            <span className="text-foreground/45">{active.after}</span>
+            <span className="text-muted-foreground">{active.after}</span>
           </div>
         )}
       </div>
 
-      <div className="bg-foreground/[0.04] relative w-1.5 shrink-0 rounded-full">
+      <div className="bg-foreground/[0.04] inset-ring-border relative w-1.5 shrink-0 rounded-full inset-ring forced-colors:border">
         {hits.map((hit, i) => (
           <span
             key={hit.id}
             aria-hidden
             className={cn(
-              "absolute inset-x-0 h-1 rounded-full transition-colors duration-200",
-              i === index ? "bg-amber-500" : "bg-amber-500/35",
+              "absolute inset-x-0 h-1 rounded-full transition-colors duration-200 forced-color-adjust-none",
+              i === index
+                ? "bg-amber-500 forced-colors:bg-[Highlight]"
+                : "bg-amber-500/35 forced-colors:bg-[CanvasText]",
             )}
             style={{ top: `${hit.position}%` }}
           />

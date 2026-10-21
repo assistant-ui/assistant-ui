@@ -1,20 +1,17 @@
 "use client";
 
-import type {
-  Unstable_DirectiveFormatter,
-  Unstable_TriggerItem,
-} from "@assistant-ui/core";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import type { DirectiveFormatter, TriggerItem } from "@assistant-ui/core";
+import { defaultDirectiveFormatter } from "@assistant-ui/core";
 import { useEffect, useInsertionEffect, useRef, type FC } from "react";
 import { useTriggerBehaviorRegistration } from "./TriggerPopover";
 import type { TriggerBehavior } from "./triggerSelectionResource";
 
 export namespace ComposerPrimitiveTriggerPopoverDirective {
   export type Props = {
-    /** Defaults to `unstable_defaultDirectiveFormatter`. */
-    readonly formatter?: Unstable_DirectiveFormatter | undefined;
+    /** Defaults to `defaultDirectiveFormatter`. */
+    readonly formatter?: DirectiveFormatter | undefined;
     /** Fires after an item has been inserted into the composer. */
-    readonly onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+    readonly onInserted?: ((item: TriggerItem) => void) | undefined;
   };
 }
 
@@ -22,16 +19,16 @@ export namespace ComposerPrimitiveTriggerPopoverDirective {
  * Configures a `<TriggerPopover>` to insert a directive chip when an item is
  * selected. Render exactly one behavior sub-primitive per `<TriggerPopover>`.
  *
- * Exposed as `ComposerPrimitive.Unstable_TriggerPopover.Directive`.
+ * Exposed as `ComposerPrimitive.TriggerPopover.Directive`.
  *
  * @example
  * ```tsx
- * <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
- *   <ComposerPrimitive.Unstable_TriggerPopover.Directive
- *     formatter={unstable_defaultDirectiveFormatter}
+ * <ComposerPrimitive.TriggerPopover char="@" adapter={mentionAdapter}>
+ *   <ComposerPrimitive.TriggerPopover.Directive
+ *     formatter={defaultDirectiveFormatter}
  *     onInserted={(item) => track("mention", item.id)}
  *   />
- * </ComposerPrimitive.Unstable_TriggerPopover>
+ * </ComposerPrimitive.TriggerPopover>
  * ```
  */
 export const ComposerPrimitiveTriggerPopoverDirective: FC<
@@ -46,7 +43,7 @@ export const ComposerPrimitiveTriggerPopoverDirective: FC<
   useEffect(() => {
     const behavior: TriggerBehavior = {
       kind: "directive",
-      formatter: formatter ?? unstable_defaultDirectiveFormatter,
+      formatter: formatter ?? defaultDirectiveFormatter,
       onInserted: (item) => onInsertedRef.current?.(item),
     };
     return register(behavior);

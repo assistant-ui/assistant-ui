@@ -2,14 +2,26 @@
 
 import { act, render } from "@testing-library/react";
 import { createContext, useContext } from "react";
+import type { ReactNode } from "react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ThreadMessageLike } from "@assistant-ui/core";
+import type {
+  ChatModelAdapter,
+  ThreadMessageLike,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
+  ThreadListItemRuntimeProvider,
   useExternalStoreRuntime,
+  useLocalRuntime,
 } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
-import { ThreadPrimitiveMessageByIndex } from "../thread/ThreadMessages";
+import {
+  ThreadPrimitiveMessageByIndex,
+  ThreadPrimitiveMessages,
+} from "../thread/ThreadMessages";
 import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { ThreadPrimitiveViewport } from "../thread/ThreadViewport";
 import { MessagePrimitiveRoot } from "./MessageRoot";
@@ -21,6 +33,14 @@ const messages: ThreadMessageLike[] = [
     content: [{ type: "text", text: "Hello" }],
   },
 ];
+
+const initialMessages: readonly ThreadMessageLike[] = [
+  { role: "user", content: "Hydrated message" },
+];
+
+const chatModel: ChatModelAdapter = {
+  run: async () => ({ content: [] }),
+};
 
 class TestResizeObserver {
   observe() {}
@@ -62,6 +82,64 @@ const Example = ({ visible = true }: { visible?: boolean }) => {
   );
 };
 
+const HydrationMessage = () => (
+  <MessagePrimitiveRoot data-testid="hydration-message" />
+);
+
+const LocalThread = ({
+  onRuntime,
+  turnAnchor,
+}: {
+  onRuntime: (runtime: ReturnType<typeof useLocalRuntime>) => void;
+  turnAnchor: "bottom" | "top";
+}) => {
+  const runtime = useLocalRuntime(chatModel, { initialMessages });
+  onRuntime(runtime);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadPrimitiveRoot>
+        <ThreadPrimitiveViewport
+          scrollToBottomOnInitialize={false}
+          turnAnchor={turnAnchor}
+        >
+          <ThreadPrimitiveMessages components={{ Message: HydrationMessage }} />
+        </ThreadPrimitiveViewport>
+      </ThreadPrimitiveRoot>
+    </AssistantRuntimeProvider>
+  );
+};
+
+const NestedLocalRuntime = ({
+  onRuntime,
+  turnAnchor,
+}: {
+  onRuntime: (runtime: ReturnType<typeof useLocalRuntime>) => void;
+  turnAnchor: "bottom" | "top";
+}) => {
+  const host = useExternalStoreRuntime<ThreadMessage>({
+    messages: [],
+    onNew: async () => {},
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={host}>
+      <ThreadListItemRuntimeProvider runtime={host.threads.mainItem}>
+        <LocalThread onRuntime={onRuntime} turnAnchor={turnAnchor} />
+      </ThreadListItemRuntimeProvider>
+    </AssistantRuntimeProvider>
+  );
+};
+
+const renderOnServer = (node: ReactNode) => {
+  vi.stubGlobal("document", undefined);
+  try {
+    return renderToString(node);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+};
+
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", TestResizeObserver);
 });
@@ -82,6 +160,51 @@ const mockHoveredElement = () => {
 };
 
 describe("MessagePrimitiveRoot", () => {
+  it.each(["bottom", "top"] as const)(
+    "hydrates nested local message ids with %s anchoring",
+    async (turnAnchor) => {
+      let serverRuntime: ReturnType<typeof useLocalRuntime> | undefined;
+      const html = renderOnServer(
+        <NestedLocalRuntime
+          onRuntime={(runtime) => (serverRuntime = runtime)}
+          turnAnchor={turnAnchor}
+        />,
+      );
+      const serverMessageId = serverRuntime!.thread.getState().messages[0]!.id;
+      const container = document.createElement("div");
+      container.innerHTML = html;
+      vi.stubGlobal("ResizeObserver", TestResizeObserver);
+
+      let clientRuntime: ReturnType<typeof useLocalRuntime> | undefined;
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      let root: ReturnType<typeof hydrateRoot> | undefined;
+      await act(async () => {
+        root = hydrateRoot(
+          container,
+          <NestedLocalRuntime
+            onRuntime={(runtime) => (clientRuntime = runtime)}
+            turnAnchor={turnAnchor}
+          />,
+        );
+      });
+
+      const clientMessageId = clientRuntime!.thread.getState().messages[0]!.id;
+      const domMessageId = container
+        .querySelector("[data-testid='hydration-message']")!
+        .getAttribute("data-message-id");
+
+      expect(clientMessageId).toBe(serverMessageId);
+      expect(domMessageId).toBe(clientMessageId);
+      expect(
+        errors.mock.calls.some((args) =>
+          args.some((value) => String(value).includes("data-message-id")),
+        ),
+      ).toBe(false);
+
+      await act(async () => root?.unmount());
+    },
+  );
+
   it("synchronizes hover state while mounted", async () => {
     mockHoveredElement();
 

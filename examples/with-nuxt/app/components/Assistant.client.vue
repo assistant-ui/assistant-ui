@@ -2,6 +2,15 @@
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
 import { Suggestions } from "@assistant-ui/core/store";
 import { AISDKThreads } from "@assistant-ui/ai-sdk";
+import { MenuIcon } from "@lucide/vue";
+import { nextTick, ref } from "vue";
+
+const threadsOpen = ref(false);
+const threadsTrigger = ref<HTMLButtonElement | null>(null);
+const closeThreads = () => {
+  threadsOpen.value = false;
+  void nextTick(() => threadsTrigger.value?.focus());
+};
 
 const config = AuiConfig({
   threads: AISDKThreads(),
@@ -28,9 +37,21 @@ const config = AuiConfig({
 <template>
   <AuiProvider :config="config">
     <RegisterToolUIs>
-      <div class="bg-background flex h-full">
-        <ThreadListSidebar />
-        <Thread class="min-w-0 flex-1 flex-col" />
+      <div class="bg-background relative flex h-full">
+        <ThreadListSidebar :open="threadsOpen" @close="closeThreads" />
+        <button
+          ref="threadsTrigger"
+          type="button"
+          :inert="threadsOpen"
+          class="border-border/60 bg-background hover:bg-muted absolute top-3 left-3 z-10 flex size-9 items-center justify-center rounded-xl border md:hidden"
+          aria-label="Open conversations"
+          aria-controls="thread-list-sidebar"
+          :aria-expanded="threadsOpen"
+          @click="threadsOpen = true"
+        >
+          <MenuIcon class="size-4" />
+        </button>
+        <Thread class="min-w-0 flex-1 flex-col" :inert="threadsOpen" />
       </div>
     </RegisterToolUIs>
   </AuiProvider>

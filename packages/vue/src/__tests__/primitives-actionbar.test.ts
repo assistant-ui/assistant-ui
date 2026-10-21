@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
-import { AuiConfig } from "@assistant-ui/store/client";
+import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type { ExternalStoreAdapter } from "@assistant-ui/core";
 import {
@@ -9,6 +9,7 @@ import {
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
+import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ComposerPrimitiveInput } from "../primitives/ComposerPrimitiveInput";
@@ -25,8 +26,10 @@ import {
   BranchPickerPrimitiveNumber,
   BranchPickerPrimitivePrevious,
 } from "../primitives/branchPicker";
+import { flushEvents } from "./fixtures";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   // vi.restoreAllMocks does not undo hand-installed property descriptors.
   Reflect.deleteProperty(navigator, "clipboard");
@@ -138,7 +141,29 @@ const MessageView = defineComponent({
   },
 });
 
-const mountChat = (runtime: AssistantRuntimeImpl, view?: Component) => {
+const FirstMessage = defineComponent({
+  setup(_, { slots }) {
+    const aui = useAui();
+    const config = AuiConfig({
+      message: Derived({
+        source: "thread",
+        query: { type: "index", index: 0 },
+        get: (aui) => aui.thread.message({ index: 0 }),
+      }),
+      composer: Derived({
+        source: "message",
+        query: {},
+        get: (aui) => aui.message.composer(),
+      }),
+    });
+    return () => h(AuiProvider, { config, extends: aui }, slots);
+  },
+});
+
+const mountChat = (
+  runtime: AssistantRuntimeImpl,
+  messages: Component = ThreadPrimitiveMessages,
+) => {
   const app = createApp(
     defineComponent({
       setup: () => () =>
@@ -147,8 +172,8 @@ const mountChat = (runtime: AssistantRuntimeImpl, view?: Component) => {
           { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
           {
             default: () =>
-              h(ThreadPrimitiveMessages, null, {
-                default: () => h(view ?? MessageView),
+              h(messages, null, {
+                default: () => h(MessageView),
               }),
           },
         ),
@@ -186,12 +211,15 @@ describe("edit flow and branches", () => {
     expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe("");
 
     q(user, "button.edit").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
-        "hello",
-      );
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
+          "hello",
+        );
+      },
+      { interval: 5 },
+    );
     expect(q<HTMLButtonElement>(user, "button.edit").disabled).toBe(true);
 
     const editor = q<HTMLTextAreaElement>(user, "textarea.editor");
@@ -199,10 +227,13 @@ describe("edit flow and branches", () => {
     flushTapSync(() => editor.dispatchEvent(new Event("input")));
     q(user, "button.send").click();
 
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
+      },
+      { interval: 5 },
+    );
     await vi.waitFor(async () => {
       await nextTick();
       expect(q(userItem(el), "span.pos").textContent).toBe("2/2");
@@ -216,17 +247,23 @@ describe("edit flow and branches", () => {
     );
 
     prev.click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q(userItem(el), "span.text").textContent).toBe("hello");
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q(userItem(el), "span.text").textContent).toBe("hello");
+      },
+      { interval: 5 },
+    );
     expect(q(userItem(el), "span.pos").textContent).toBe("1/2");
 
     q<HTMLButtonElement>(userItem(el), "button.next").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
+      },
+      { interval: 5 },
+    );
 
     unmount();
   });
@@ -248,20 +285,26 @@ describe("edit flow and branches", () => {
 
     const user = userItem(el);
     q(user, "button.edit").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
-        "hello",
-      );
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
+          "hello",
+        );
+      },
+      { interval: 5 },
+    );
     const editor = q<HTMLTextAreaElement>(user, "textarea.editor");
     editor.value = "goodbye";
     flushTapSync(() => editor.dispatchEvent(new Event("input")));
     q(user, "button.send").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q(userItem(el), "span.pos").textContent).toBe("2/2");
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q(userItem(el), "span.pos").textContent).toBe("2/2");
+      },
+      { interval: 5 },
+    );
 
     flushTapSync(() => setRunning(true));
     await vi.waitFor(async () => {
@@ -286,18 +329,24 @@ describe("edit flow and branches", () => {
 
     const user = userItem(el);
     q(user, "button.edit").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
-        "hello",
-      );
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
+          "hello",
+        );
+      },
+      { interval: 5 },
+    );
 
     q(user, "button.cancel").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe("");
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe("");
+      },
+      { interval: 5 },
+    );
     expect(q<HTMLButtonElement>(user, "button.edit").disabled).toBe(false);
     expect(q(user, "span.text").textContent).toBe("hello");
 
@@ -326,12 +375,15 @@ describe("edit flow and branches", () => {
     expect(reload.disabled).toBe(false);
 
     reload.click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q(assistantItem(el), "span.text").textContent).toBe(
-        "Echo: hello (again)",
-      );
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q(assistantItem(el), "span.text").textContent).toBe(
+          "Echo: hello (again)",
+        );
+      },
+      { interval: 5 },
+    );
     expect(q(assistantItem(el), "span.pos").textContent).toBe("2/2");
 
     unmount();
@@ -339,29 +391,26 @@ describe("edit flow and branches", () => {
 
   it("drops a late copy completion after the branch under the index changes", async () => {
     let resolveWrite!: () => void;
-    const writeText = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveWrite = resolve;
-        }),
-    );
+    const write = new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    });
+    const writeText = vi.fn(() => write);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
     });
 
     const { runtime, seed } = createEditableRuntime();
-    const { el, unmount } = mountChat(runtime);
-
     flushTapSync(() =>
       seed([
         { id: "u1", role: "user", text: "hello" },
         { id: "a1", role: "assistant", text: "Echo: hello" },
       ]),
     );
+    const { el, unmount } = mountChat(runtime, FirstMessage);
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("li.msg")).toHaveLength(2);
+      expect(el.querySelectorAll("li.msg")).toHaveLength(1);
     });
 
     const user = userItem(el);
@@ -369,27 +418,72 @@ describe("edit flow and branches", () => {
     expect(writeText).toHaveBeenCalledWith("hello");
 
     q(user, "button.edit").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
-        "hello",
-      );
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
+          "hello",
+        );
+      },
+      { interval: 5 },
+    );
     const editor = q<HTMLTextAreaElement>(user, "textarea.editor");
     editor.value = "goodbye";
     flushTapSync(() => editor.dispatchEvent(new Event("input")));
     q(user, "button.send").click();
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
+      },
+      { interval: 5 },
+    );
 
+    expect(userItem(el)).toBe(user);
     resolveWrite();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await write;
+    await nextTick();
     expect(q(userItem(el), "button.copy").hasAttribute("data-copied")).toBe(
       false,
     );
 
+    unmount();
+  });
+
+  it("clears copy feedback after the message moves out of an index scope", async () => {
+    const write = Promise.resolve();
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn(() => write) },
+      configurable: true,
+    });
+    const original: DemoMessage = {
+      id: "a1",
+      role: "assistant",
+      text: "reply",
+    };
+    const { runtime, seed } = createEditableRuntime();
+    flushTapSync(() => seed([original]));
+    const { el, unmount } = mountChat(runtime, FirstMessage);
+    await nextTick();
+    const copy = q<HTMLButtonElement>(assistantItem(el), "button.copy");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    copy.click();
+    await write;
+    await nextTick();
+    expect(copy.hasAttribute("data-copied")).toBe(true);
+
+    flushTapSync(() =>
+      seed([{ id: "older", role: "user", text: "earlier question" }, original]),
+    );
+    await nextTick();
+    expect(q(userItem(el), "button.copy")).toBe(copy);
+    expect(copy.hasAttribute("data-copied")).toBe(false);
+    vi.advanceTimersByTime(300);
+    flushTapSync(() => seed([original]));
+    await nextTick();
+
+    expect(q(assistantItem(el), "button.copy")).toBe(copy);
+    expect(copy.hasAttribute("data-copied")).toBe(false);
     unmount();
   });
 
@@ -415,7 +509,8 @@ describe("edit flow and branches", () => {
     expect(() =>
       q<HTMLButtonElement>(assistantItem(el), "button.copy").click(),
     ).not.toThrow();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await flushEvents();
+    await nextTick();
     expect(
       q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
     ).toBe(false);
@@ -424,7 +519,8 @@ describe("edit flow and branches", () => {
   });
 
   it("copies message text and flags data-copied for the configured window", async () => {
-    const writeText = vi.fn(() => Promise.resolve());
+    const write = Promise.resolve();
+    const writeText = vi.fn(() => write);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
@@ -446,23 +542,24 @@ describe("edit flow and branches", () => {
 
     const copy = q<HTMLButtonElement>(assistantItem(el), "button.copy");
     expect(copy.disabled).toBe(false);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     copy.click();
 
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(writeText).toHaveBeenCalledWith("Echo: hello");
-      expect(q(assistantItem(el), "span.probe").textContent).toBe("true");
-      expect(
-        q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
-      ).toBe(true);
-    });
+    await write;
+    await nextTick();
+    expect(writeText).toHaveBeenCalledWith("Echo: hello");
+    expect(q(assistantItem(el), "span.probe").textContent).toBe("true");
+    expect(copy.hasAttribute("data-copied")).toBe(true);
 
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(
-        q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
-      ).toBe(false);
-    });
+    vi.advanceTimersByTime(299);
+    await nextTick();
+    expect(q(assistantItem(el), "span.probe").textContent).toBe("true");
+    expect(copy.hasAttribute("data-copied")).toBe(true);
+
+    vi.advanceTimersByTime(1);
+    await nextTick();
+    expect(q(assistantItem(el), "span.probe").textContent).toBe("false");
+    expect(copy.hasAttribute("data-copied")).toBe(false);
 
     unmount();
   });

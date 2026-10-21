@@ -1,4 +1,5 @@
 import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
+import type { PartProviderMetadata } from "../../utils/types";
 
 type FinishReason =
   | "stop"
@@ -16,12 +17,34 @@ type Usage = {
 
 export type UIMessageStreamChunk =
   | { type: "start"; messageId: string }
-  | { type: "text-start"; id: string }
-  | { type: "text-delta"; textDelta: string }
-  | { type: "text-end" }
-  | { type: "reasoning-start"; id: string }
-  | { type: "reasoning-delta"; delta: string }
-  | { type: "reasoning-end" }
+  | {
+      type: "text-start";
+      id: string;
+      providerMetadata?: PartProviderMetadata;
+    }
+  | {
+      type: "text-delta";
+      id?: string;
+      textDelta: string;
+      providerMetadata?: PartProviderMetadata;
+    }
+  | { type: "text-end"; id?: string; providerMetadata?: PartProviderMetadata }
+  | {
+      type: "reasoning-start";
+      id: string;
+      providerMetadata?: PartProviderMetadata;
+    }
+  | {
+      type: "reasoning-delta";
+      id?: string;
+      delta: string;
+      providerMetadata?: PartProviderMetadata;
+    }
+  | {
+      type: "reasoning-end";
+      id?: string;
+      providerMetadata?: PartProviderMetadata;
+    }
   | {
       type: "source";
       source: { sourceType: "url"; id: string; url: string; title?: string };

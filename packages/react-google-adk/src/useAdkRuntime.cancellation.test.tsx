@@ -11,6 +11,7 @@ import type {
 import { useAdkRuntime } from "./useAdkRuntime";
 import { useAdkLongRunningToolIds, useAdkSend } from "./hooks";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { AdkEvent, AdkStreamCallback, AdkThreadSnapshot } from "./types";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
@@ -85,9 +86,9 @@ const renderAdkRuntime = async (
     render(<Inner />);
   });
   await waitFor(() => expect(capture.runtime).not.toBeNull());
-  await act(async () => {
-    await capture.runtime!.threads.switchToThread("adk-1");
-  });
+  await settleOutsideAct(() =>
+    capture.runtime!.threads.switchToThread("adk-1"),
+  );
 
   return capture;
 };

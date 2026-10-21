@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, globSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { optionArgs } from "./script-options.mjs";
 
@@ -11,20 +11,67 @@ export function posixPath(file) {
   return file.replaceAll("\\", "/");
 }
 
+export function apiSurfaceFileName(packageName) {
+  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
+}
+
+export function parseWorkspaceGlobs(source) {
+  const globs = [];
+  let inPackages = false;
+  for (const line of source.split("\n")) {
+    if (/^packages:\s*$/.test(line)) {
+      inPackages = true;
+      continue;
+    }
+    if (!inPackages) continue;
+    if (/^\s*(?:#.*)?$/.test(line)) continue;
+    const entry = line.match(
+      /^\s+-\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/,
+    );
+    if (!entry) break;
+    globs.push(entry[1] ?? entry[2] ?? entry[3]);
+  }
+  return globs;
+}
+
+export function readWorkspaceManifestEntries(root) {
+  const source = readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8");
+  const globs = parseWorkspaceGlobs(source);
+  const manifests = globs.flatMap((glob) =>
+    globSync(`${glob}/package.json`, { cwd: root }).map((manifest) => ({
+      manifest,
+      pkg: readJson(path.join(root, manifest)),
+    })),
+  );
+  return { source, globs, manifests };
+}
+
+export function packageDirectories(repoRoot) {
+  const packagesRoot = path.join(repoRoot, "packages");
+  return readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(packagesRoot, entry.name));
+}
+
+export function readPackageDirectories(repoRoot) {
+  return packageDirectories(repoRoot)
+    .map((packageDir) => ({
+      packageDir,
+      manifest: path.join(packageDir, "package.json"),
+    }))
+    .filter(({ manifest }) => existsSync(manifest))
+    .map(({ packageDir, manifest }) => ({
+      packageDir,
+      pkg: readJson(manifest),
+    }));
+}
+
 export function collectPackages(
   repoRoot,
   filteredPackageNames,
   comparePackageNames,
 ) {
-  const packagesRoot = path.join(repoRoot, "packages");
-  return readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
-    .filter(existsSync)
-    .map((packageJsonPath) => ({
-      packageDir: path.dirname(packageJsonPath),
-      pkg: readJson(packageJsonPath),
-    }))
+  return readPackageDirectories(repoRoot)
     .filter(({ pkg }) => !pkg.private)
     .filter(
       ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),

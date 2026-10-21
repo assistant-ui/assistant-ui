@@ -15,8 +15,10 @@ import {
   cloudAuthConfig,
   loginToCloud,
   logoutFromCloud,
+  savedCloudAccessToken,
   validateCloudUrl,
 } from "../lib/cloud-auth";
+import { runCloudCommand } from "../lib/cloud-remote";
 import {
   readCloudProjectConfig,
   mergeCloudEnvironment,
@@ -47,6 +49,7 @@ type SetupOptions = {
   backendUrl: string;
   apiUrl: string;
   accessCode?: string;
+  setupUrl?: string;
   open?: boolean;
   yes?: boolean;
   skipInstall?: boolean;
@@ -307,6 +310,7 @@ export const setupCloud = async (
   const auth = cloudAuthConfig();
   const token = await cloudAccessToken(auth, {
     noOpen: options.open === false,
+    ...(options.setupUrl && { setupUrl: options.setupUrl }),
     print: logger.info,
   });
   const organization = await organizationForSetup(auth.issuer, token, options);
@@ -368,9 +372,24 @@ export const setupCloud = async (
   );
 };
 
+const DEFAULT_CLOUD_URL = "https://cloud.assistant-ui.com";
+
 export const cloud = new Command()
   .name("cloud")
-  .description("sign in and set up a multiplayer Assistant Cloud chat")
+  .description("manage Assistant Cloud (run `assistant-ui cloud help`)")
+  .helpOption(false)
+  .helpCommand(false)
+  .argument("[command...]")
+  .allowUnknownOption()
+  .allowExcessArguments()
+  .action(async (args: string[]) => {
+    process.exitCode = await runCloudCommand(args, {
+      cloudUrl: process.env.ASSISTANT_UI_CLOUD_URL ?? DEFAULT_CLOUD_URL,
+      accessToken: () => savedCloudAccessToken(cloudAuthConfig()),
+      stdout: (text) => process.stdout.write(text),
+      stderr: (text) => process.stderr.write(text),
+    });
+  })
   .addCommand(
     new Command("login")
       .description("sign in to Assistant Cloud using your browser")
@@ -378,9 +397,14 @@ export const cloud = new Command()
         "--no-open",
         "print the device sign-in URL without opening a browser",
       )
-      .action(async (options: { open?: boolean }) => {
+      .option(
+        "--setup-url <url>",
+        "show device sign-in in an active setup wizard",
+      )
+      .action(async (options: { open?: boolean; setupUrl?: string }) => {
         await loginToCloud(cloudAuthConfig(), {
           noOpen: options.open === false,
+          ...(options.setupUrl && { setupUrl: options.setupUrl }),
           print: logger.info,
         });
       }),
@@ -411,7 +435,7 @@ export const cloud = new Command()
       .option(
         "--api-url <url>",
         "Assistant Cloud management URL",
-        process.env.ASSISTANT_UI_CLOUD_URL ?? "https://cloud.assistant-ui.com",
+        process.env.ASSISTANT_UI_CLOUD_URL ?? DEFAULT_CLOUD_URL,
       )
       .option(
         "--access-code <code>",
@@ -420,6 +444,10 @@ export const cloud = new Command()
       .option(
         "--no-open",
         "print the device sign-in URL without opening a browser",
+      )
+      .option(
+        "--setup-url <url>",
+        "show device sign-in in an active setup wizard",
       )
       .option("--yes", "skip prompts; select resources with flags")
       .option("--skip-install", "skip installing scaffold dependencies")

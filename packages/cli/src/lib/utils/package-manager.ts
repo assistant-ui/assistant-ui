@@ -7,6 +7,32 @@ import { runSpawn, SpawnSignalError } from "../run-spawn";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
+export function dlxCommand(pm: PackageManagerName): [string, string[]] {
+  switch (pm) {
+    case "pnpm":
+      return ["pnpm", ["dlx"]];
+    case "yarn":
+      return ["yarn", ["dlx"]];
+    case "bun":
+      return ["bunx", []];
+    case "npm":
+      return ["npx", ["--yes"]];
+  }
+}
+
+export function resolvePackageManager(opts: {
+  useNpm?: boolean;
+  usePnpm?: boolean;
+  useYarn?: boolean;
+  useBun?: boolean;
+}): PackageManagerName | undefined {
+  if (opts.useNpm) return "npm";
+  if (opts.usePnpm) return "pnpm";
+  if (opts.useYarn) return "yarn";
+  if (opts.useBun) return "bun";
+  return undefined;
+}
+
 export function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
     // A stream only reaches EOF once, so a run that already consumed stdin gets

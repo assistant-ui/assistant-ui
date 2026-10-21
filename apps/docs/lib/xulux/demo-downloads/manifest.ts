@@ -54,7 +54,9 @@ const COMMON_EXTRA_SOURCE_FILES = [
 ] as const;
 
 const BASE_EXTRA_SOURCE_FILES = [
+  "packages/ui/src/components/react/assistant-ui/elements/collapsible-root.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/attachment.aui.tsx",
+  "packages/ui/src/components/react/assistant-ui/elements/attachment-state.ts",
   "packages/ui/src/components/react/ui/base/badge.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/composer-trigger-popover.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/directive-text.tsx",
@@ -62,10 +64,12 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/react/ui/base/dot-matrix.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/message-timing.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/model-selector.tsx",
+  "packages/ui/src/components/react/assistant-ui/utils/model-selection.ts",
   "packages/ui/src/components/react/assistant-ui/elements/model-selector.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/quote.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/reasoning.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/reasoning.aui.tsx",
+  "packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
   "packages/ui/src/components/react/ui/base/select.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/thread-list.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/tool-group.aui.tsx",

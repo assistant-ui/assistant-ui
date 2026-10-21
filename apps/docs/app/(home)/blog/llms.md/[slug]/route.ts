@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import type { NextRequest } from "next/server";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { createMarkdownResponse } from "@/lib/markdown-response";
@@ -10,15 +11,11 @@ import { remarkInclude } from "fumadocs-mdx/config";
 
 const processor = remark().use(remarkMdx).use(remarkInclude).use(remarkGfm);
 
-export const revalidate = false;
-
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> },
-) {
-  const { slug } = await params;
+async function getMarkdown(slug: string) {
+  "use cache";
+  cacheLife("max");
   const page = blog.getPage([slug]) as BlogPage | undefined;
-  if (!page) notFound();
+  if (!page) return null;
 
   const processed = await processor.process({
     path: page.path,
@@ -32,7 +29,17 @@ ${AGENT_DOCS_DIRECTIVE_MARKDOWN}
 
 ${processed.value}`;
 
-  return createMarkdownResponse(text);
+  return text;
+}
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await params;
+  const markdown = await getMarkdown(slug);
+  if (markdown === null) notFound();
+  return createMarkdownResponse(markdown);
 }
 
 export function generateStaticParams() {

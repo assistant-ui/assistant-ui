@@ -3,7 +3,20 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "dependsOn": ["^build", "build"]
+      "dependsOn": ["^build", "build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/templates/**/api/chat/route.ts",
+        "$TURBO_ROOT$/templates/vscode/src/openai.ts"
+      ]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build", "build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/templates/**/api/chat/route.ts",
+        "$TURBO_ROOT$/templates/vscode/src/openai.ts"
+      ]
     }
   }
 }

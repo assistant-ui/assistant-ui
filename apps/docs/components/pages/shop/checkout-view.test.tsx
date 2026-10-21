@@ -21,6 +21,7 @@ import {
 } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 import type { CheckoutSession } from "../../../lib/checkout/session-store";
+import { clearCart, replaceCart } from "../../../lib/catalog/cart-store";
 
 const { push, sessions } = vi.hoisted(() => {
   let session: CheckoutSession | null = null;
@@ -102,10 +103,21 @@ const checkout: CheckoutContextValue = {
 
 afterEach(() => {
   cleanup();
+  clearCart();
   sessions.set(null);
 });
 
 describe("CheckoutView", () => {
+  it("offers configuration for a legacy tool selection instead of an inert setup action", () => {
+    replaceCart(["agent-tools"]);
+    render(<CheckoutView />);
+    expect(
+      screen
+        .getByRole("button", { name: "Configure tools" })
+        .getAttribute("href"),
+    ).toBe("/components/cart");
+    expect(screen.queryByRole("button", { name: "Start setup" })).toBeNull();
+  });
   it("keeps the finished setup on screen after Finish while the page is being left", () => {
     sessions.set(session);
     render(<CheckoutView />);

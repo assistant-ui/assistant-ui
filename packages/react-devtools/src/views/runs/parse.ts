@@ -32,6 +32,7 @@ const entryFor = (log: EventLogEntry, offsetMs: number): RunEventEntry => ({
 export const groupRuns = (logs: readonly EventLogEntry[]): RunGrouping => {
   const sorted = [...logs].sort((a, b) => a.time.getTime() - b.time.getTime());
   const builders: RunBuilder[] = [];
+  const legacyOccurrences = new Map<string, number>();
   const openByThread = new Map<string | undefined, RunBuilder>();
   const orphans: RunEventEntry[] = [];
 
@@ -53,8 +54,17 @@ export const groupRuns = (logs: readonly EventLogEntry[]): RunGrouping => {
         stale.endTime = log.time;
         openByThread.delete(tid);
       }
+      let id: string;
+      if (log.id !== undefined) {
+        id = `run-event:${log.id}`;
+      } else {
+        const key = JSON.stringify([log.time.getTime(), tid]);
+        const occurrence = legacyOccurrences.get(key) ?? 0;
+        legacyOccurrences.set(key, occurrence + 1);
+        id = `run-legacy:${key}:${occurrence}`;
+      }
       const builder: RunBuilder = {
-        id: `run-${builders.length}`,
+        id,
         ...(tid !== undefined ? { threadId: tid } : {}),
         index: builders.length,
         startTime: log.time,

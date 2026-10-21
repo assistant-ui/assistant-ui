@@ -10,6 +10,7 @@ import type {
 import { generateId } from "../../utils/generateId";
 import { createToolCallPartRegistry } from "../tool-call-part-registry";
 import { createChunkNormalizer } from "./chunk-normalizer";
+import type { TextStreamController } from "../../modules/text";
 
 export type { UIMessageStreamChunk, UIMessageStreamDataChunk };
 
@@ -20,6 +21,10 @@ export type UIMessageStreamDecoderOptions = {
     data: unknown;
     transient?: boolean;
   }) => void;
+  /** Maximum UTF-16 code units accepted in one SSE line. */
+  maxLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. */
+  maxEventLength?: number | undefined;
 };
 
 const isDataChunk = (
@@ -37,6 +42,18 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
     super((readable) => {
       const toolCallPartRegistry = createToolCallPartRegistry();
       const normalizer = createChunkNormalizer();
+      const textParts = {
+        text: new Map<string, TextStreamController>(),
+        reasoning: new Map<string, TextStreamController>(),
+      };
+      const activeTextIds: Partial<Record<keyof typeof textParts, string>> = {};
+      const closeTextParts = () => {
+        for (const kind of ["text", "reasoning"] as const) {
+          for (const part of textParts[kind].values()) part.close();
+          textParts[kind].clear();
+          delete activeTextIds[kind];
+        }
+      };
       let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
 
@@ -79,18 +96,51 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "text-start":
-            case "text-end":
-            case "reasoning-start":
-            case "reasoning-end":
+            case "reasoning-start": {
+              const kind = type === "text-start" ? "text" : "reasoning";
+              textParts[kind].get(chunk.id)?.close();
+              textParts[kind].set(
+                chunk.id,
+                kind === "text"
+                  ? controller.addTextPart(
+                      chunk.providerMetadata != null
+                        ? { providerMetadata: chunk.providerMetadata }
+                        : undefined,
+                    )
+                  : controller.addReasoningPart(
+                      chunk.providerMetadata != null
+                        ? { providerMetadata: chunk.providerMetadata }
+                        : undefined,
+                    ),
+              );
+              activeTextIds[kind] = chunk.id;
               break;
+            }
 
             case "text-delta":
-              controller.appendText(chunk.textDelta);
+            case "reasoning-delta": {
+              const kind = type === "text-delta" ? "text" : "reasoning";
+              const id = chunk.id ?? activeTextIds[kind];
+              const part =
+                id === undefined ? undefined : textParts[kind].get(id);
+              const delta =
+                type === "text-delta" ? chunk.textDelta : chunk.delta;
+              if (part) part.append(delta, chunk.providerMetadata);
+              else if (kind === "text") controller.appendText(delta);
+              else controller.appendReasoning(delta);
               break;
+            }
 
-            case "reasoning-delta":
-              controller.appendReasoning(chunk.delta);
+            case "text-end":
+            case "reasoning-end": {
+              const kind = type === "text-end" ? "text" : "reasoning";
+              const id = chunk.id ?? activeTextIds[kind];
+              if (id === undefined) break;
+              textParts[kind].get(id)?.close(chunk.providerMetadata);
+              textParts[kind].delete(id);
+              if (activeTextIds[kind] === id) delete activeTextIds[kind];
               break;
+            }
 
             case "source":
               controller.appendSource({
@@ -178,6 +228,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "finish-step":
+              closeTextParts();
               controller.enqueue({
                 type: "step-finish",
                 path: [],
@@ -188,6 +239,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "finish":
+              closeTextParts();
               controller.enqueue({
                 type: "message-finish",
                 path: [],
@@ -210,6 +262,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           }
         },
         flush() {
+          closeTextParts();
           if (activeToolCallId !== undefined) {
             toolCallPartRegistry.closeArgsText(
               toolCallPartRegistry.get(activeToolCallId),
@@ -221,6 +274,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
       return createSSEJsonDecoder<UIMessageStreamChunk>({
         strict: true,
+        maxLineLength: options.maxLineLength,
+        maxEventLength: options.maxEventLength,
         parse(data, controller) {
           let chunk;
           try {

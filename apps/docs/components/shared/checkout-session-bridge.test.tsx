@@ -17,7 +17,10 @@ const wire = vi.hoisted(() => ({
   dismiss: vi.fn().mockResolvedValue(undefined),
 }));
 
-const mocks = vi.hoisted(() => ({ toastError: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  addCheckoutProducts: vi.fn(),
+}));
 
 vi.mock("statewire", async (importOriginal) => ({
   ...(await importOriginal<typeof import("statewire")>()),
@@ -48,6 +51,11 @@ vi.mock("sonner", async (importOriginal) => {
   return { ...sonner, toast: { ...sonner.toast, error: mocks.toastError } };
 });
 
+vi.mock("@vercel/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics")>()),
+  track: vi.fn(),
+}));
+
 vi.mock("./use-wake-reconnect", () => ({ useWakeReconnect: () => {} }));
 
 vi.mock("../../lib/checkout/session-store", async (importOriginal) => ({
@@ -55,6 +63,7 @@ vi.mock("../../lib/checkout/session-store", async (importOriginal) => ({
     typeof import("../../lib/checkout/session-store")
   >()),
   agentLinkUrl: () => "https://checkout.test/link",
+  addCheckoutProducts: mocks.addCheckoutProducts,
 }));
 
 import { useEffect, useState } from "react";
@@ -90,7 +99,17 @@ afterEach(() => {
   wire.addProduct.mockClear();
   wire.dismiss.mockClear();
   mocks.toastError.mockClear();
+  delete window.posthog;
 });
+
+const captureEvents = () => {
+  const capture = vi.fn();
+  window.posthog = { capture };
+  return (event: string) =>
+    capture.mock.calls
+      .filter(([name]) => name === event)
+      .map(([, properties]) => properties);
+};
 
 const proposal = (id: string, product: string): Checkout.Input => ({
   id,
@@ -142,6 +161,31 @@ describe("CheckoutSessionBridge", () => {
     expect(onChange.mock.lastCall?.[0]?.agentPresent).toBe(true);
   });
 
+  it("keeps inferred related work out of the starting product list and cart sync", () => {
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "installing",
+      products: [
+        { slug: "assistant-ui", name: "assistant-ui" },
+        { slug: "cloud", name: "Assistant Cloud" },
+      ],
+      inputs: [],
+      steps: [
+        {
+          id: "s1",
+          title: "Connect related persistence",
+          product: "cloud",
+          status: "active",
+          createdAt: 2,
+        },
+      ],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(mocks.addCheckoutProducts).not.toHaveBeenCalled();
+    expect(wire.addProduct).not.toHaveBeenCalled();
+  });
+
   it("adds a product the agent proposes as soon as it arrives, declines one the catalog lacks, and shows neither as a question", () => {
     const onChange = vi.fn<(value: CheckoutContextValue | null) => void>();
     wire.state = {
@@ -168,6 +212,52 @@ describe("CheckoutSessionBridge", () => {
     setWire({ ...wire.state!, log: [] });
     expect(wire.addProduct).toHaveBeenCalledOnce();
     expect(wire.dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("tracks each proposal once and whether the browser accepted or declined it", async () => {
+    const events = captureEvents();
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p1", "assistant-ui"), proposal("p2", "nope")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    await act(() => Promise.resolve());
+    setWire({ ...wire.state!, log: [] });
+    await act(() => Promise.resolve());
+    expect(events("setup_product_proposed")).toEqual([
+      { product: "assistant-ui", by: "agent" },
+      { product: "unknown", by: "agent" },
+    ]);
+    expect(events("setup_product_accepted")).toEqual([
+      { product: "assistant-ui", by: "agent" },
+    ]);
+    expect(events("setup_product_declined")).toEqual([
+      { product: "unknown", by: "agent", reason: "unknown_product" },
+    ]);
+  });
+
+  it("tracks a proposal once across retries and accepts it when the add lands", async () => {
+    vi.useFakeTimers();
+    const events = captureEvents();
+    wire.addProduct.mockRejectedValueOnce(new Error("refused"));
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p1", "assistant-ui")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    await act(() => Promise.resolve());
+    expect(events("setup_product_accepted")).toEqual([]);
+    act(() => vi.advanceTimersByTime(5000));
+    await act(() => Promise.resolve());
+    expect(wire.addProduct).toHaveBeenCalledTimes(2);
+    expect(events("setup_product_proposed")).toHaveLength(1);
+    expect(events("setup_product_accepted")).toEqual([
+      { product: "assistant-ui", by: "agent" },
+    ]);
   });
 
   it("says once, as the retry starts, that a proposed product could not be added and keeps retrying every tick until it lands", async () => {

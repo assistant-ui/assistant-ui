@@ -3,8 +3,6 @@ import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { LearnRegistryError } from "@/lib/xulux/learn/registry";
 import { resolveStageFiles } from "@/lib/xulux/learn/stage-source";
 
-export const runtime = "nodejs";
-
 export async function GET(request: Request) {
   if (!isAiPlaygroundEnabled) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });

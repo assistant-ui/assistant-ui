@@ -1,14 +1,20 @@
 import type { ReactNode } from "react";
-import { Platform, Pressable, type PressableProps } from "react-native";
+import { Platform, type PressableStateCallbackType } from "react-native";
 import { useActionBarFeedbackPositive } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ActionBarFeedbackPositiveProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children:
     | ReactNode
-    | ((props: { isSubmitted: boolean; disabled: boolean }) => ReactNode);
+    | ((
+        props: PressableStateCallbackType & {
+          isSubmitted: boolean;
+          disabled: boolean;
+        },
+      ) => ReactNode);
 };
 
 export const ActionBarFeedbackPositive = ({
@@ -20,7 +26,7 @@ export const ActionBarFeedbackPositive = ({
   const disabled = disabledProp ?? false;
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={submit}
       disabled={disabledProp}
       accessibilityRole="button"
@@ -30,8 +36,8 @@ export const ActionBarFeedbackPositive = ({
       {...pressableProps}
     >
       {typeof children === "function"
-        ? children({ isSubmitted, disabled })
+        ? (state) => children({ ...state, isSubmitted, disabled })
         : children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

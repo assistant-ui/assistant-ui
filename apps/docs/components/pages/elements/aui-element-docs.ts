@@ -101,10 +101,10 @@ export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
 <File type="file" filename="report.pdf" mimeType="application/pdf" data={data} />`,
   ),
   "directive-text": usageOnly(
-    `import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
+    `import { defaultDirectiveFormatter } from "@assistant-ui/react";
 import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 
-const DirectiveText = createDirectiveText(unstable_defaultDirectiveFormatter);`,
+const DirectiveText = createDirectiveText(defaultDirectiveFormatter);`,
   ),
   "shiki-highlighter": usageOnly(
     `import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
@@ -112,7 +112,7 @@ const DirectiveText = createDirectiveText(unstable_defaultDirectiveFormatter);`,
 <SyntaxHighlighter language="tsx" code={code} />`,
   ),
   "generative-ui": usageOnly(
-    `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+    `import { renderGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 {renderGenerativeUI(spec, styledGenerativeUILibrary, { status: "done" })}`,

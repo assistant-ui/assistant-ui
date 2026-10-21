@@ -2,6 +2,7 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
@@ -16,6 +17,50 @@ afterEach(() => {
 });
 
 describe("useRemoteThreadListRuntime load recovery", () => {
+  it("waits for reload after a failed class-path list when the controlled ID changes", async () => {
+    const error = new Error("offline");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce({ threads: [] });
+    const adapter = Object.assign(makeAdapter({ list }), {
+      unstable_Provider: ({ children }: { children?: ReactNode }) => children,
+    });
+    let runtime: AssistantRuntime | undefined;
+    const useThreadRuntime = () =>
+      useExternalStoreRuntime({
+        messages: EMPTY_MESSAGES,
+        onNew: async () => {},
+      } as never);
+    const App = ({ threadId }: { threadId: string }) => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        threadId,
+        runtimeHook: useThreadRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const { rerender } = render(<App threadId="one" />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().loadError).toBe(error),
+    );
+    expect(list).toHaveBeenCalledTimes(1);
+
+    rerender(<App threadId="two" />);
+    await act(async () => {});
+    expect(list).toHaveBeenCalledTimes(1);
+
+    await act(async () => runtime!.threads.reload());
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(runtime!.threads.getState().loadError).toBeUndefined();
+  });
+
   it("reloads once when the browser comes online after a failed load", async () => {
     const error = new Error("offline");
     vi.spyOn(console, "error").mockImplementation(() => {});

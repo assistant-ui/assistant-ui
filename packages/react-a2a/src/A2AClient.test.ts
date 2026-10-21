@@ -1113,6 +1113,48 @@ describe("A2AClient", () => {
   // --- SSE streaming ---
 
   describe("streamMessage", () => {
+    it.each([
+      ["one initial BOM", ["\uFEFF"], ["working", "completed"]],
+      ["two initial BOMs", ["\uFEFF\uFEFF"], ["completed"]],
+      [
+        "two initial BOMs in separate chunks",
+        ["\uFEFF", "\uFEFF"],
+        ["completed"],
+      ],
+    ] as const)(
+      "strips only one initial BOM: %s",
+      async (_, prefixes, expected) => {
+        const statusUpdate = (state: string) =>
+          JSON.stringify({
+            status_update: {
+              task_id: "t1",
+              context_id: "ctx-1",
+              status: { state },
+            },
+          });
+        const text =
+          `data: ${statusUpdate("TASK_STATE_WORKING")}\n\n` +
+          `data: ${statusUpdate("TASK_STATE_COMPLETED")}\n\n`;
+        const chunks = prefixes.map((prefix, index) =>
+          index === prefixes.length - 1 ? `${prefix}${text}` : prefix,
+        );
+        fetchMock.mockResolvedValue(mockSSETextResponse(chunks));
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(
+          events.map((event) =>
+            event.type === "statusUpdate"
+              ? event.event.status.state
+              : "unexpected",
+          ),
+        ).toEqual(expected);
+      },
+    );
+
     it("parses SSE status update events", async () => {
       const sseData = JSON.stringify({
         status_update: {
@@ -1147,6 +1189,75 @@ describe("A2AClient", () => {
       expect(evt.event.taskId).toBe("t1");
       expect(evt.event.status.state).toBe("working");
       expect(evt.event.status.message?.role).toBe("agent");
+    });
+
+    it("forwards configurable SSE line and event limits", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: {
+            state: "TASK_STATE_WORKING",
+            message: {
+              message_id: "s1",
+              role: "ROLE_AGENT",
+              parts: [{ text: "x".repeat(64) }],
+            },
+          },
+        },
+      });
+      const consume = async (options: {
+        maxStreamLineLength: number;
+        maxStreamEventLength: number;
+      }) => {
+        fetchMock.mockResolvedValueOnce(
+          mockSSEResponse([`data: ${sseData}`, "", ""]),
+        );
+        const limitedClient = new A2AClient({
+          baseUrl: "https://agent.test",
+          ...options,
+        });
+        const events: A2AStreamEvent[] = [];
+        for await (const event of limitedClient.streamMessage(userMessage)) {
+          events.push(event);
+        }
+        return events;
+      };
+
+      await expect(
+        consume({ maxStreamLineLength: 32, maxStreamEventLength: 1_024 }),
+      ).rejects.toThrow("SSE line exceeds maxLineLength");
+      await expect(
+        consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 32 }),
+      ).rejects.toThrow("SSE event exceeds maxEventLength");
+      await expect(
+        consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 1_024 }),
+      ).resolves.toHaveLength(1);
+    });
+
+    it("releases the response reader when decoder limits are invalid", async () => {
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({ cancel });
+      fetchMock.mockResolvedValueOnce(
+        new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+      const limitedClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        maxStreamLineLength: 0,
+      });
+      const consume = async () => {
+        for await (const _event of limitedClient.streamMessage(userMessage)) {
+          void _event;
+        }
+      };
+
+      await expect(consume()).rejects.toThrow(
+        "maxLineLength must be a positive safe integer",
+      );
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(body.locked).toBe(false);
     });
 
     it("drops a wrapped task or message whose ids are not strings", async () => {

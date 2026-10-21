@@ -2,21 +2,22 @@
 
 import {
   createContext,
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 
 export const ANIMATION_DURATION = 200;
 
@@ -57,17 +58,23 @@ export type ReasoningRootProps = Omit<
     onAnimationStart?: () => void;
   };
 
-function ReasoningRoot({
-  className,
-  variant,
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
-  defaultOpen = false,
-  streaming,
-  onAnimationStart,
-  children,
-  ...props
-}: ReasoningRootProps) {
+const ReasoningRoot = forwardRef<
+  HTMLDivElement,
+  Omit<ReasoningRootProps, "ref">
+>(function ReasoningRoot(
+  {
+    className,
+    variant,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+    defaultOpen = false,
+    streaming,
+    onAnimationStart,
+    children,
+    ...props
+  },
+  ref,
+) {
   const [initialOpen] = useState(defaultOpen);
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
@@ -78,7 +85,7 @@ function ReasoningRoot({
   const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (prevStreamingRef.current === streaming) return;
     prevStreamingRef.current = streaming;
     // A streaming transition only animates the panel when the resting state
@@ -101,6 +108,7 @@ function ReasoningRoot({
 
   return (
     <Collapsible
+      ref={ref}
       data-slot="reasoning-root"
       data-variant={variant}
       open={isOpen}
@@ -121,7 +129,7 @@ function ReasoningRoot({
       </ReasoningPreviewContext.Provider>
     </Collapsible>
   );
-}
+});
 
 function ReasoningFade({
   side = "bottom",
@@ -168,7 +176,7 @@ function ReasoningTrigger({
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   active?: boolean;
-  duration?: number;
+  duration?: number | undefined;
 }) {
   const durationText = duration ? ` (${duration}s)` : "";
 

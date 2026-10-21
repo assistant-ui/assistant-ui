@@ -119,6 +119,8 @@ export type AssistantTransportOptions<T> = {
    */
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
+  /** Whether the backend retains a checkpoint for the current thread. Requires resumeApi; clear when that checkpoint expires, finishes, or the thread changes. */
+  canResume?: boolean | undefined;
   /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
@@ -128,6 +130,10 @@ export type AssistantTransportOptions<T> = {
    * Resume runs always decode leniently. Defaults to `true`.
    */
   strict?: boolean;
+  /** Maximum UTF-16 code units accepted in one data-stream or SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one assistant-transport event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
@@ -160,6 +166,11 @@ export type AssistantTransportOptions<T> = {
    *
    * When an error occurs, queued commands are automatically cancelled after `onError` settles.
    * In this case, the `error` parameter contains the error that caused the cancellation.
+   *
+   * A cancel while `onError` is still pending ends the run without waiting for it, so one
+   * failed run can call `onCancel` twice: first without `error`, for the commands queued
+   * since the failure, then with `error`, for the commands queued before it, once `onError`
+   * settles. The second call can arrive after a later run has started.
    */
   onCancel?: (params: {
     commands: AssistantTransportCommand[];

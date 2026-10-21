@@ -65,6 +65,8 @@ Follow the [UI Components guide](/elements/thread) to wire up the Thread, compos
 
 The runtime opens an SSE event stream against the OpenCode server, listens for session and message events, and projects them into the thread. Each OpenCode session corresponds to one thread; the thread list reflects sessions on the server.
 
+Archiving an OpenCode session is one-way: OpenCode has no way to unarchive it, so an archived session still opens but stays archived, and unarchiving it rejects.
+
 ## Default model and agent
 
 Pin a default model or agent when starting new sessions:

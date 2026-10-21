@@ -1,4 +1,4 @@
-import { act, createRef } from "react";
+import { act, createRef, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FlatList, FlatListProps } from "react-native";
@@ -10,13 +10,18 @@ type Msg = { id: string; role: string };
 
 const h = vi.hoisted(() => ({
   state: {
-    thread: { messages: [] as Msg[] },
+    thread: {
+      messages: [] as Msg[],
+      hasEarlier: false,
+      isLoadingEarlier: false,
+    },
     message: { role: "user" as string, composer: { isEditing: false } },
   },
   itemState: { role: "user" } as { role: string; parts?: unknown[] },
   events: {} as Record<string, Set<() => void>>,
   flatListProps: null as Record<string, unknown> | null,
   scrollToOffset: vi.fn(),
+  loadEarlier: vi.fn(async () => {}),
 }));
 
 vi.mock("react-native", async (importOriginal) => {
@@ -76,26 +81,37 @@ vi.mock("react-native", async (importOriginal) => {
   };
 });
 
-vi.mock("@assistant-ui/store", async () => {
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const React = await import("react");
 
+  const aui = {
+    thread: { loadEarlier: h.loadEarlier },
+    optional: { threads: {} },
+    on: (
+      selector: string | { scope: string; event: string },
+      callback: () => void,
+    ) => {
+      const event =
+        typeof selector === "string"
+          ? selector
+          : `${selector.scope}.${selector.event}`;
+      const callbacks = (h.events[event] ??= new Set());
+      callbacks.add(callback);
+      return () => {
+        callbacks.delete(callback);
+      };
+    },
+  };
   return {
+    ...actual,
+    useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
     useAuiEvent: (
       selector: string | { scope: string; event: string },
       callback: () => void,
     ) => {
-      React.useEffect(() => {
-        const event =
-          typeof selector === "string"
-            ? selector
-            : `${selector.scope}.${selector.event}`;
-        const callbacks = (h.events[event] ??= new Set());
-        callbacks.add(callback);
-        return () => {
-          callbacks.delete(callback);
-        };
-      }, [selector, callback]);
+      React.useEffect(() => aui.on(selector, callback), [selector, callback]);
     },
     RenderChildrenWithAccessor: ({
       children,
@@ -327,6 +343,53 @@ describe("ThreadMessages", () => {
     expect(container.querySelector('[data-testid="c-message"]')).toBeNull();
   });
 
+  it.skipIf(version.startsWith("18."))(
+    "runs callback ref cleanup when the list unmounts",
+    async () => {
+      const cleanup = vi.fn();
+      const ref = vi.fn((node: FlatList<ThreadMessage> | null) =>
+        node ? cleanup : undefined,
+      );
+      await mountFlatList({ children: () => null, ref });
+      expect(ref).toHaveBeenCalledOnce();
+      await act(async () => root.render(null));
+      expect(cleanup).toHaveBeenCalledOnce();
+      expect(ref).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.skipIf(version.startsWith("18."))(
+    "cleans up the previous callback ref before attaching its replacement",
+    async () => {
+      const cleanup = vi.fn();
+      const nextCleanup = vi.fn();
+      const ref = vi.fn((node: FlatList<ThreadMessage> | null) =>
+        node ? cleanup : undefined,
+      );
+      const nextRef = vi.fn((node: FlatList<ThreadMessage> | null) => {
+        expect(cleanup).toHaveBeenCalledOnce();
+        return node ? nextCleanup : undefined;
+      });
+      await mountFlatList({ children: () => null, ref });
+      await mountFlatList({ children: () => null, ref: nextRef });
+      expect(ref).toHaveBeenCalledOnce();
+      expect(nextRef).toHaveBeenCalledOnce();
+      await act(async () => root.render(null));
+      expect(nextCleanup).toHaveBeenCalledOnce();
+      expect(nextRef).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("detaches legacy callback refs with null", async () => {
+    const ref = vi.fn((_node: FlatList<ThreadMessage> | null) => {});
+    await mountFlatList({ children: () => null, ref });
+    expect(ref).toHaveBeenCalledOnce();
+    expect(ref.mock.calls[0]![0]).not.toBeNull();
+    await act(async () => root.render(null));
+    expect(ref).toHaveBeenCalledTimes(2);
+    expect(ref).toHaveBeenLastCalledWith(null);
+  });
+
   it("forwards refs to the underlying FlatList", async () => {
     h.state.thread.messages = [{ id: "1", role: "user" }];
     const ref = createRef<FlatList<ThreadMessage>>();
@@ -343,6 +406,8 @@ describe("ThreadMessages", () => {
     });
 
     expect(ref.current).not.toBeNull();
+    await act(async () => root.render(null));
+    expect(ref.current).toBeNull();
   });
 
   it("anchors the visible message while content is inserted above it", async () => {
@@ -400,6 +465,26 @@ describe("ThreadMessages", () => {
   });
 
   describe("MessagesFlatList history", () => {
+    it("pages through the runtime when no history prop is given", async () => {
+      h.state.thread.hasEarlier = true;
+      try {
+        await mountFlatList({ components: messageComponents });
+        getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+        expect(h.loadEarlier).toHaveBeenCalledOnce();
+
+        h.state.thread.isLoadingEarlier = true;
+        await mountFlatList({ components: messageComponents });
+        expect(getFlatListProps().onStartReached).toBeUndefined();
+      } finally {
+        h.state.thread.hasEarlier = false;
+        h.state.thread.isLoadingEarlier = false;
+      }
+
+      await mountFlatList({ components: messageComponents });
+      expect(getFlatListProps().onStartReached).toBeUndefined();
+      expect(getFlatListProps().onStartReachedThreshold).toBeUndefined();
+    });
+
     it("wires loadMore only while history can load more", async () => {
       const loadMore = vi.fn();
 

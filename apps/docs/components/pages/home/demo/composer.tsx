@@ -65,7 +65,7 @@ export function Composer(): ReactNode {
   );
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root className="relative w-full">
         <ComposerTriggerPopover
           char="/"
@@ -171,7 +171,7 @@ export function Composer(): ReactNode {
           </div>
         </ComposerPrimitive.AttachmentDropzone>
       </ComposerPrimitive.Root>
-    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 }
 

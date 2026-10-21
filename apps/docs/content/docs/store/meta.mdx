@@ -3,7 +3,7 @@ title: Meta
 description: Track scope origin with source and query.
 ---
 
-Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved: scope methods cannot use these names.
+Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved: scope methods cannot use these names. The function members `call`, `apply`, and `bind` are also reserved so accessors remain callable when a bundler lowers optional chaining.
 
 ```tsx
 aui.thread.source; // "root" | "parentScope" | null
@@ -65,7 +65,7 @@ This makes the `source` and `query` types precise: TypeScript will enforce that 
 
 ## Unavailable scopes
 
-When a scope hasn't been provided by any `AuiProvider` above the current component, its accessor has `source: null` and `query: null`. `name` still answers; calling the accessor or reading any other property throws:
+When a scope hasn't been provided by any `AuiProvider` above the current component, its accessor has `source: null` and `query: null`. `name` still answers; calling the accessor or reading a client method throws. Invoking it through `call`, `apply`, or `bind` also throws the scope error:
 
 ```tsx
 aui.message.source; // null — no message scope in context

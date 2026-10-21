@@ -332,9 +332,16 @@ export const cliSurface: CliSurfaceSnapshot = {
     },
     {
       "name": "cloud",
-      "description": "sign in and set up a multiplayer Assistant Cloud chat",
-      "usage": "[options] [command]",
-      "arguments": [],
+      "description": "manage Assistant Cloud (run `assistant-ui cloud help`)",
+      "usage": "[command] [command...]",
+      "arguments": [
+        {
+          "syntax": "[command...]",
+          "description": "",
+          "required": false,
+          "variadic": true
+        }
+      ],
       "options": [],
       "commands": [
         {
@@ -346,6 +353,11 @@ export const cliSurface: CliSurfaceSnapshot = {
             {
               "flags": "--no-open",
               "description": "print the device sign-in URL without opening a browser"
+            },
+            {
+              "flags": "--setup-url <url>",
+              "description": "show device sign-in in an active setup wizard",
+              "required": true
             }
           ],
           "commands": []
@@ -421,6 +433,11 @@ export const cliSurface: CliSurfaceSnapshot = {
             {
               "flags": "--no-open",
               "description": "print the device sign-in URL without opening a browser"
+            },
+            {
+              "flags": "--setup-url <url>",
+              "description": "show device sign-in in an active setup wizard",
+              "required": true
             },
             {
               "flags": "--yes",

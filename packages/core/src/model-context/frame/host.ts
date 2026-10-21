@@ -3,6 +3,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { generateId } from "../../utils/id";
+import { getAbortReason } from "../../utils/abortable-promise";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -12,6 +13,7 @@ import {
 import { isFrameMessage } from "./validate";
 
 const getDefaultTargetOrigin = () => window.location.origin;
+const FRAME_LOAD_GRACE_MS = 2000;
 
 const logCancellationFailure = (error: unknown) => {
   console.error(
@@ -52,13 +54,6 @@ const deserializeModelContext = (
   }),
 });
 
-const getAbortReason = (signal: AbortSignal): unknown => {
-  if (signal.reason !== undefined) return signal.reason;
-  const error = new Error("Tool call was aborted");
-  error.name = "AbortError";
-  return error;
-};
-
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
   private _subscribers = new Set<() => void>();
@@ -72,6 +67,12 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _iframeWindow: Window;
   private _targetOrigin: string;
   private _disposed = false;
+  private _providerDisposed = false;
+  private _documentId: string | undefined;
+  private _previousDocumentIds = new Set<string>();
+  private _frameLoadTimeout: ReturnType<typeof setTimeout> | undefined;
+  private _frameLoadRequestId: string | undefined;
+  private _frameLoadDocumentId: string | undefined;
 
   constructor(
     iframeWindow: Window,
@@ -96,9 +97,58 @@ export class AssistantFrameHost implements ModelContextProvider {
     const message = event.data.message;
     if (!isFrameMessage(message)) return;
 
+    const isLoadResponse =
+      this._frameLoadRequestId !== undefined &&
+      message.type === "model-context-update" &&
+      message.requestId === this._frameLoadRequestId;
+    if (isLoadResponse) {
+      if (message.documentId !== undefined)
+        this._previousDocumentIds.delete(message.documentId);
+      this._frameLoadRequestId = undefined;
+    }
+
+    if (
+      message.documentId !== undefined &&
+      this._previousDocumentIds.has(message.documentId)
+    )
+      return;
+
+    if (
+      this._frameLoadTimeout !== undefined &&
+      (isLoadResponse ||
+        (message.documentId !== undefined &&
+          message.documentId !== this._frameLoadDocumentId) ||
+        (message.type === "model-context-update" &&
+          message.documentId === undefined))
+    ) {
+      clearTimeout(this._frameLoadTimeout);
+      this._frameLoadTimeout = undefined;
+    }
+
+    if (message.documentId !== undefined) {
+      if (message.documentId !== this._documentId) {
+        if (this._documentId !== undefined)
+          this._previousDocumentIds.add(this._documentId);
+        this.clearDocument();
+        this._documentId = message.documentId;
+      }
+    }
+
     switch (message.type) {
       case "model-context-update": {
-        this.updateContext(message.context);
+        this._providerDisposed = false;
+        this.updateContext(message.context, message.documentId);
+        break;
+      }
+
+      case "provider-disposed": {
+        this._providerDisposed = true;
+        const error = new Error("AssistantFrameProvider has been disposed");
+        for (const [id, pending] of this._pendingRequests) {
+          this._pendingRequests.delete(id);
+          this.cancelToolCall(id);
+          pending.reject(error);
+        }
         break;
       }
 
@@ -117,7 +167,38 @@ export class AssistantFrameHost implements ModelContextProvider {
     }
   }
 
-  private updateContext(serializedContext: SerializedModelContext) {
+  private clearDocument() {
+    this._context = {};
+    this._providerDisposed = true;
+    this.notifySubscribers();
+    const error = new Error("AssistantFrame document has changed");
+    for (const [id, pending] of this._pendingRequests) {
+      this._pendingRequests.delete(id);
+      pending.reject(error);
+    }
+  }
+
+  /** Request tools after each iframe load; clear the previous document if no provider answers within two seconds. */
+  frameLoaded() {
+    if (this._disposed) return;
+    this._frameLoadRequestId = generateId();
+    this._frameLoadDocumentId = this._documentId;
+    if (this._frameLoadTimeout !== undefined)
+      clearTimeout(this._frameLoadTimeout);
+    this._frameLoadTimeout = setTimeout(() => {
+      this._frameLoadTimeout = undefined;
+      if (this._documentId !== undefined)
+        this._previousDocumentIds.add(this._documentId);
+      this._documentId = undefined;
+      this.clearDocument();
+    }, FRAME_LOAD_GRACE_MS);
+    this.requestContext(this._frameLoadRequestId);
+  }
+
+  private updateContext(
+    serializedContext: SerializedModelContext,
+    documentId: string | undefined,
+  ) {
     const context = deserializeModelContext(serializedContext);
     this._context = {
       ...context,
@@ -129,7 +210,13 @@ export class AssistantFrameHost implements ModelContextProvider {
             {
               ...tool,
               execute: (args: any, context: { abortSignal: AbortSignal }) =>
-                this.callTool(name, args, context.abortSignal),
+                this.callTool(
+                  name,
+                  args,
+                  context.abortSignal,
+                  // A provider that sends no document id predates them; the empty id makes any provider that has one refuse the call.
+                  documentId ?? "",
+                ),
             } as Tool<any, any>,
           ]),
         ),
@@ -141,6 +228,7 @@ export class AssistantFrameHost implements ModelContextProvider {
     toolName: string,
     args: any,
     abortSignal: AbortSignal,
+    documentId: string,
   ): Promise<any> {
     return this.sendRequest(
       {
@@ -148,6 +236,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         id: `tool-${generateId()}`,
         toolName,
         args,
+        documentId,
       },
       30000,
       `Tool call "${toolName}" timed out`,
@@ -164,8 +253,15 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (this._disposed) {
       return Promise.reject(new Error("AssistantFrameHost has been disposed"));
     }
+    if (this._providerDisposed) {
+      return Promise.reject(
+        new Error("AssistantFrameProvider has been disposed"),
+      );
+    }
     if (abortSignal?.aborted) {
-      return Promise.reject(getAbortReason(abortSignal));
+      return Promise.reject(
+        getAbortReason(abortSignal, "Tool call was aborted"),
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -175,7 +271,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
           this.cancelToolCall(message.id);
-          pending.reject(getAbortReason(abortSignal));
+          pending.reject(getAbortReason(abortSignal, "Tool call was aborted"));
           this._pendingRequests.delete(message.id);
         }
       };
@@ -235,12 +331,13 @@ export class AssistantFrameHost implements ModelContextProvider {
     }
   }
 
-  private requestContext() {
+  private requestContext(requestId?: string) {
     this._iframeWindow.postMessage(
       {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "model-context-request",
+          ...(requestId !== undefined && { requestId }),
         } as FrameMessage,
       },
       this._targetOrigin,
@@ -262,6 +359,8 @@ export class AssistantFrameHost implements ModelContextProvider {
 
   dispose() {
     this._disposed = true;
+    if (this._frameLoadTimeout !== undefined)
+      clearTimeout(this._frameLoadTimeout);
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
     const error = new Error("AssistantFrameHost has been disposed");

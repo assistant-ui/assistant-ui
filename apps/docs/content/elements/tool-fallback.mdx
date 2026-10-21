@@ -62,7 +62,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
   <div> {/* ToolFallbackContent */}
     {/* error, only while status is "incomplete" and carries one */}
     {/* args, only when argsText is non-empty */}
-    {/* approval controls while requires-action and unanswered, then a receipt of the decision */}
+    {/* approval controls while requires-action, then a receipt of the decision */}
     {/* result, only when result is defined */}
   </div>
 </div>
@@ -101,9 +101,15 @@ approval: {
 
 Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. In a thread that cannot answer tool calls, where `s.thread.capabilities.answerToolCall` is `false` as in a sub-agent transcript, the block shows only the prompt.
 
+On the web and React Native, changing `approval.id` starts a fresh request in both the default renderer and the composed approval component, clearing the previous request's input, confirmation, error, and submission state.
+
 ### Receipt of a settled request
 
 Once `approval.approved` or `approval.resolution` is set, the controls give way to a receipt, so scrolling back never shows a live button for a decision already made. The receipt keeps the prompt and states what happened in the past tense: "Allowed" or "Denied" for a decision, "Answered" or "Dismissed" for a question, and "Cancelled before a decision" or "Expired before a decision" for a request that closed unanswered. The chosen option's label follows the verb, a typed `text` and a host `reason` follow on their own lines, and `isAutomatic` appends "automatically" when a policy decided instead of the user.
+
+On the web, when the controls are replaced while they hold keyboard focus, focus moves to the receipt without scrolling. A decision that settles after focus moves elsewhere leaves that focus in place; historical receipts do not take focus when they mount.
+
+In the web renderer, an explicit `approval` record keeps the component mounted across run-status updates, including when an external-store adapter updates the run status before the approval. Controls appear only while the request requires action, or while a submitted decision is still running and awaiting its receipt; submitted controls stay locked. If the run ends without settling the approval, the controls disappear. An unanswered approval in a running or finished message does not expose new actions.
 
 ```tsx
 approval: {
@@ -129,6 +135,30 @@ approval: {
 ```
 
 Send submits the text as typed, an empty answer included; a host that cannot record one rejects the response, and the controls come back with its error.
+
+### Several questions at once
+
+A `display: "questions"` request renders each of its `questions` with its options as toggle buttons (several stay pressed when the question allows `multiple`) and a text field where the question accepts a typed answer. One Send stays disabled until every question has an answer, then calls `respondToApproval({ answers })` keyed by question id; Dismiss appears only when the request is `dismissible`. Once settled, the receipt lists each question beside its answer.
+
+```tsx
+approval: {
+  id: "call-3",
+  display: "questions",
+  questions: [
+    {
+      id: "scope",
+      header: "Scope",
+      prompt: "Which folders should change?",
+      options: [
+        { id: "src", label: "src" },
+        { id: "tests", label: "tests" },
+      ],
+      multiple: true,
+    },
+    { id: "note", prompt: "Anything I should avoid?" },
+  ],
+}
+```
 
 ### Restyle a part
 
@@ -174,7 +204,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
-| `approval` | object `\| undefined` | Server-side approval gate: `id`, `prompt?`, `display?`, `allowFreeform?`, `dismissible?`, `options?`, `approved?`, `optionId?`, `text?`, `resolution?`. |
+| `approval` | object `\| undefined` | Server-side approval gate: `id`, `prompt?`, `display?`, `allowFreeform?`, `dismissible?`, `options?`, `questions?`, `approved?`, `optionId?`, `text?`, `answers?`, `resolution?`. |
 
 ### Callbacks
 
@@ -182,7 +212,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 |----------|------|-------------|
 | `addResult` | `(result) => void` | Sets this part's result from the renderer instead of a tool's `execute`. |
 | `resume` | `(payload: unknown) => void` | Resumes a paused frontend tool execution with the requested payload. |
-| `respondToApproval` | `(response: ToolApprovalResponse) => Promise<void>` | Answers an approval gate: `{ approved }`, `{ optionId }`, both, or `{ text }` when the request takes a free-form answer. |
+| `respondToApproval` | `(response: ToolApprovalResponse) => Promise<void>` | Answers an approval gate: `{ approved }`, `{ optionId }`, both, `{ text }` when the request takes a free-form answer, or `{ answers }` for a `display: "questions"` request, a `ToolApprovalAnswer` (`optionIds` and/or `text`) per question id. |
 
 ### Composition
 

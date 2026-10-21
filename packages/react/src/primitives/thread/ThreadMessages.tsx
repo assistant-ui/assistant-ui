@@ -5,4 +5,5 @@ export {
   ThreadPrimitiveMessagesImpl,
   ThreadPrimitiveMessageByIndex,
   ThreadPrimitiveUnstable_MessageById,
+  ThreadPrimitiveRow,
 } from "@assistant-ui/core/react";

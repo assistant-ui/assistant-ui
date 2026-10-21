@@ -969,7 +969,7 @@ function MyComponent() {
   });
 });
 
-describe("condition precedence", () => {
+describe("condition semantics", () => {
   const compileCondition = (jsx: string) => {
     const output = applyTransform(`
 import { MessagePrimitive, ComposerPrimitive } from "@assistant-ui/react";
@@ -981,6 +981,40 @@ const view = ${jsx};
       s: unknown,
     ) => boolean;
   };
+
+  it.each(["hasBranches", "lastOrHover"])(
+    "keeps %s={false} unconditional",
+    (filter) => {
+      const condition = compileCondition(
+        `<MessagePrimitive.If ${filter}={false} />`,
+      );
+
+      for (const branchCount of [1, 2]) {
+        for (const isLast of [false, true]) {
+          for (const isHovering of [false, true]) {
+            expect(
+              condition({ message: { branchCount, isLast, isHovering } }),
+            ).toBe(true);
+          }
+        }
+      }
+    },
+  );
+
+  it.each(["hasBranches", "lastOrHover"])(
+    "keeps the role filter when %s={false}",
+    (filter) => {
+      const condition = compileCondition(
+        `<MessagePrimitive.If ${filter}={false} assistant />`,
+      );
+      const message = { branchCount: 1, isLast: false, isHovering: false };
+
+      expect(condition({ message: { ...message, role: "assistant" } })).toBe(
+        true,
+      );
+      expect(condition({ message: { ...message, role: "user" } })).toBe(false);
+    },
+  );
 
   it.each([
     {
@@ -1013,5 +1047,120 @@ const view = ${jsx};
 
     expect(condition(hidden)).toBe(false);
     expect(condition(visible)).toBe(true);
+  });
+});
+
+describe("conditional import bindings", () => {
+  it("adds AuiIf to the primitive's module when another package is imported later", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive } from "@assistant-ui/react";
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+export const Empty = () => <ThreadPrimitive.If empty><MarkdownTextPrimitive /></ThreadPrimitive.If>;`)!;
+    expect(output).toContain(
+      'import { ThreadPrimitive, AuiIf } from "@assistant-ui/react"',
+    );
+    expect(output).toContain(
+      'import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown"',
+    );
+  });
+
+  it("uses an existing value import's local alias for both tags", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive, AuiIf as If } from "@assistant-ui/react";
+export const Empty = () => <ThreadPrimitive.If empty>Empty</ThreadPrimitive.If>;`)!;
+    expect(output).toContain("<If condition=");
+    expect(output).toContain("</If>");
+    expect(
+      j(output)
+        .find(j.ImportSpecifier, { imported: { name: "AuiIf" } })
+        .size(),
+    ).toBe(1);
+  });
+
+  it.each([
+    'import type { AuiIf } from "@assistant-ui/react";',
+    'import { type AuiIf } from "@assistant-ui/react";',
+    'import { AuiIf } from "./custom-if";',
+    'import { Other as AuiIf } from "@assistant-ui/react";',
+  ])(
+    "keeps a separate value binding when the name is occupied: %s",
+    (declaration) => {
+      const output =
+        applyTransform(`import { ThreadPrimitive } from "@assistant-ui/react";
+${declaration}
+export const Empty = () => <ThreadPrimitive.Empty>Empty</ThreadPrimitive.Empty>;`)!;
+      expect(output).toContain("AuiIf as AuiIf1");
+      expect(output).toContain("<AuiIf1 condition=");
+      expect(output).toContain("</AuiIf1>");
+      expect(output).toContain(declaration);
+    },
+  );
+
+  it("does not append a value component to a later type-only import", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive } from "@assistant-ui/react";
+import type { ThreadMessage } from "@assistant-ui/react";
+export const Empty = () => <ThreadPrimitive.If empty />;`)!;
+    expect(output).toContain(
+      'import { ThreadPrimitive, AuiIf } from "@assistant-ui/react"',
+    );
+    expect(output).toContain(
+      'import type { ThreadMessage } from "@assistant-ui/react"',
+    );
+  });
+
+  it("avoids shadowed aliases and reuses the fresh binding for multiple elements", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive, AuiIf as If } from "@assistant-ui/react";
+export function Empty(If, AuiIf) {
+  return <ThreadPrimitive.If empty><ThreadPrimitive.Empty /></ThreadPrimitive.If>;
+}`)!;
+    expect(output).toContain("AuiIf as AuiIf1");
+    expect(output.match(/<AuiIf1 condition=/g)).toHaveLength(2);
+    expect(output).toContain("</AuiIf1>");
+    expect(
+      j(output)
+        .find(j.ImportSpecifier, { imported: { name: "AuiIf" } })
+        .size(),
+    ).toBe(2);
+    expect(applyTransform(output)).toBeNull();
+  });
+
+  it("keeps namespace imports intact", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive } from "@assistant-ui/react";
+import * as primitives from "@assistant-ui/react";
+export const Empty = () => <ThreadPrimitive.If empty />;`)!;
+    expect(output).toContain(
+      'import { ThreadPrimitive, AuiIf } from "@assistant-ui/react"',
+    );
+    expect(output).toContain(
+      'import * as primitives from "@assistant-ui/react"',
+    );
+    expect(() => j(output)).not.toThrow();
+  });
+
+  it("uses a component name when an existing alias starts with lowercase", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive, AuiIf as conditional } from "@assistant-ui/react";
+export const Empty = () => <ThreadPrimitive.If empty />;`)!;
+    expect(output).toContain("<AuiIf1 condition=");
+    expect(output).toContain("AuiIf as conditional");
+    expect(
+      j(output)
+        .find(j.ImportSpecifier, { local: { name: "AuiIf1" } })
+        .size(),
+    ).toBe(1);
+  });
+
+  it("resolves aliased primitives without migrating their shadowed names", () => {
+    const output =
+      applyTransform(`import { ThreadPrimitive as Thread } from "@assistant-ui/react";
+export const Empty = () => <Thread.If empty />;
+export const Custom = (Thread) => <Thread.If empty />;`)!;
+    expect(output).toContain("export const Empty = () => <AuiIf condition=");
+    expect(output).toContain(
+      "export const Custom = (Thread) => <Thread.If empty />;",
+    );
   });
 });

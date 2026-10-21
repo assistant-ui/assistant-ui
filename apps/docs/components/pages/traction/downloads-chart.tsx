@@ -166,7 +166,7 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
                         <span className="text-muted-foreground">
                           {series?.label ?? rawName}
                         </span>
-                        <span className="text-foreground font-mono font-medium tabular-nums">
+                        <span className="text-foreground font-medium tabular-nums">
                           {formatCompact(value as number)}
                         </span>
                       </div>

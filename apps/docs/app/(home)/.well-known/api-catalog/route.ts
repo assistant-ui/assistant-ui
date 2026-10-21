@@ -1,19 +1,24 @@
+import { cacheLife } from "next/cache";
 import {
   API_CATALOG_CONTENT_TYPE,
   buildApiCatalog,
   createJsonDiscoveryResponse,
 } from "@/lib/agent-discovery";
 
-export const revalidate = false;
+async function getCatalog() {
+  "use cache";
+  cacheLife("max");
+  return buildApiCatalog();
+}
 
-export function GET() {
-  return createJsonDiscoveryResponse(buildApiCatalog(), {
+export async function GET() {
+  return createJsonDiscoveryResponse(await getCatalog(), {
     contentType: API_CATALOG_CONTENT_TYPE,
   });
 }
 
-export function HEAD() {
-  return createJsonDiscoveryResponse(buildApiCatalog(), {
+export async function HEAD() {
+  return createJsonDiscoveryResponse(await getCatalog(), {
     contentType: API_CATALOG_CONTENT_TYPE,
     head: true,
   });

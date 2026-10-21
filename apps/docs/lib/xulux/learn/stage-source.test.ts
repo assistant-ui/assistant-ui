@@ -1,5 +1,8 @@
 import path from "node:path";
-import { createRepoSourceReader } from "@/lib/repo-source";
+import {
+  createRepoSourceReader,
+  snapshotSourceReader,
+} from "@/lib/repo-source";
 import {
   DEFAULT_LEARN_COURSE_ID,
   getLearnCourse,
@@ -9,11 +12,24 @@ import {
 } from "./registry";
 import { listZipEntries } from "../demo-downloads/zip";
 import {
-  createLearnStageZipFromSnapshot,
+  createLearnStageZip,
   getLearnStageArchiveFilename,
   resolveStageFilesFromReader,
-  resolveStageFilesFromSnapshot,
 } from "./stage-source";
+
+const { createReader } = vi.hoisted(() => ({
+  createReader: vi.fn<typeof createRepoSourceReader>(),
+}));
+
+vi.mock("@/lib/repo-source", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/repo-source")>();
+  return {
+    ...original,
+    createRepoSourceReader: createReader.mockImplementation(
+      original.createRepoSourceReader,
+    ),
+  };
+});
 
 const REPO_ROOT = path.resolve(__dirname, "../../../../..");
 
@@ -65,7 +81,11 @@ describe("resolveStageFiles", () => {
     };
 
     await expect(
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", snapshot),
+      resolveStageFilesFromReader(
+        DEFAULT_LEARN_COURSE_ID,
+        "S0",
+        snapshotSourceReader(snapshot),
+      ),
     ).resolves.toEqual({
       ".env.example": "course shared",
       "README.md": "course shared",
@@ -87,10 +107,10 @@ describe("resolveStageFiles", () => {
       [`${stage.sourceRoot}/next.config.ts`]: "stage local",
     };
 
-    const files = await resolveStageFilesFromSnapshot(
+    const files = await resolveStageFilesFromReader(
       DEFAULT_LEARN_COURSE_ID,
       "S0",
-      snapshot,
+      snapshotSourceReader(snapshot),
     );
 
     expect(files["next.config.ts"]).toBe("stage local");
@@ -112,10 +132,10 @@ describe("resolveStageFiles", () => {
       ),
     };
 
-    const files = await resolveStageFilesFromSnapshot(
+    const files = await resolveStageFilesFromReader(
       DEFAULT_LEARN_COURSE_ID,
       "S7",
-      snapshot,
+      snapshotSourceReader(snapshot),
     );
 
     expect(files["stage-S0.txt"]).toBe("S0");
@@ -137,10 +157,10 @@ describe("resolveStageFiles", () => {
         'import { tool } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S0/project/components/tool";',
     };
 
-    const files = await resolveStageFilesFromSnapshot(
+    const files = await resolveStageFilesFromReader(
       DEFAULT_LEARN_COURSE_ID,
       "S1",
-      snapshot,
+      snapshotSourceReader(snapshot),
     );
 
     expect(files["app/page.tsx"]).toBe(
@@ -150,13 +170,17 @@ describe("resolveStageFiles", () => {
 
   it("rejects unregistered IDs before reading the snapshot", async () => {
     await expect(
-      resolveStageFilesFromSnapshot("missing-course", "S0", {}),
+      resolveStageFilesFromReader(
+        "missing-course",
+        "S0",
+        snapshotSourceReader({}),
+      ),
     ).rejects.toThrow(/Unregistered Learn course/);
     await expect(
-      resolveStageFilesFromSnapshot(
+      resolveStageFilesFromReader(
         DEFAULT_LEARN_COURSE_ID,
         "missing-stage",
-        {},
+        snapshotSourceReader({}),
       ),
     ).rejects.toThrow(/Unregistered Learn stage/);
   });
@@ -165,16 +189,24 @@ describe("resolveStageFiles", () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
     await expect(
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", {
-        ...sharedSourceSnapshot(course.sharedFiles, "shared"),
-        ...sharedSourceSnapshot(stage.sharedFiles, "shared"),
-      }),
+      resolveStageFilesFromReader(
+        DEFAULT_LEARN_COURSE_ID,
+        "S0",
+        snapshotSourceReader({
+          ...sharedSourceSnapshot(course.sharedFiles, "shared"),
+          ...sharedSourceSnapshot(stage.sharedFiles, "shared"),
+        }),
+      ),
     ).rejects.toThrow(/No source snapshot files found/);
   });
 
   it("fails when a registered shared source is missing", async () => {
     await expect(
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", {}),
+      resolveStageFilesFromReader(
+        DEFAULT_LEARN_COURSE_ID,
+        "S0",
+        snapshotSourceReader({}),
+      ),
     ).rejects.toThrow(/Missing shared Learn source snapshot file/);
   });
 
@@ -194,16 +226,13 @@ describe("resolveStageFiles", () => {
       ),
       [`${stage.sourceRoot}/app/page.tsx`]: "page",
     };
-    const files = await resolveStageFilesFromSnapshot(
+    const files = await resolveStageFilesFromReader(
       DEFAULT_LEARN_COURSE_ID,
       "S7",
-      snapshot,
+      snapshotSourceReader(snapshot),
     );
-    const zip = await createLearnStageZipFromSnapshot(
-      DEFAULT_LEARN_COURSE_ID,
-      "S7",
-      snapshot,
-    );
+    createReader.mockReturnValueOnce(snapshotSourceReader(snapshot));
+    const zip = await createLearnStageZip(DEFAULT_LEARN_COURSE_ID, "S7");
 
     expect(listZipEntries(zip)).toEqual(Object.keys(files).sort());
     expect(getLearnStageArchiveFilename(DEFAULT_LEARN_COURSE_ID, "S7")).toBe(
@@ -213,11 +242,7 @@ describe("resolveStageFiles", () => {
 
   it("rejects unregistered stage downloads", async () => {
     await expect(
-      createLearnStageZipFromSnapshot(
-        DEFAULT_LEARN_COURSE_ID,
-        "missing-stage",
-        {},
-      ),
+      createLearnStageZip(DEFAULT_LEARN_COURSE_ID, "missing-stage"),
     ).rejects.toThrow(LearnRegistryError);
   });
 });

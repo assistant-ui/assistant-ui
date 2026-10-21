@@ -336,6 +336,24 @@ describe("ImageActions data URI handling", () => {
     }
   });
 
+  it.each([
+    "javascript:document.body.dataset.pwned='yes'",
+    "vbscript:msgbox(document.domain)",
+    "file:///etc/passwd",
+  ])("does not activate unsafe image download URLs", (image) => {
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      renderActions(image);
+      fireEvent.click(screen.getByLabelText("Download image"));
+
+      expect(click).not.toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+    }
+  });
+
   it("passes through a payload with an invalid percent escape instead of throwing", async () => {
     const payload = "<svg><text>100% width</text></svg>";
     renderActions(`data:image/svg+xml,${payload}`);

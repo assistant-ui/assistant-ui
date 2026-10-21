@@ -33,7 +33,11 @@ describe("agent setup banner", () => {
       screen.getByRole("button", { name: "Remove Thread list from setup" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Begin setup" }));
-    expect(mocks.beginSetup).toHaveBeenCalledWith(["elements/thread-list"]);
+    expect(mocks.beginSetup).toHaveBeenCalledWith(
+      ["elements/thread-list"],
+      "",
+      { source: "agent_setup" },
+    );
   });
 
   it("offers only the direct setup for a setup-only product", () => {

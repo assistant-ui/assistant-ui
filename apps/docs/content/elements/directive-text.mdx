@@ -102,12 +102,14 @@ Each chip's icon comes from `iconMap[type]`, falling back to `fallbackIcon` when
 
 ### Assistant-ui's default directive format
 
-With no custom parser, both `DirectiveText` and a `createDirectiveText` call with `unstable_defaultDirectiveFormatter` understand `:type[label]{name=id}`; the `{name=…}` attribute is omitted when `id` equals `label`, so `:tool[Search]` and `:tool[Search]{name=web-search}` both parse, the second with a different `id`.
+With no custom parser, both `DirectiveText` and a `createDirectiveText` call with `defaultDirectiveFormatter` understand `:type[label]{name=id}`; the `{name=…}` attribute is omitted when `id` equals `label`, so `:tool[Search]` and `:tool[Search]{name=web-search}` both parse, the second with a different `id`.
 
 ```tsx
 "Ask :tool[Search]{name=web-search} to look this up."
 // → "Ask ", a chip labeled "Search" (type "tool", id "web-search"), " to look this up."
 ```
+
+For labels containing `]` or IDs containing `}`, the formatter can emit quoted fields: `:file{label="[id].tsx" name="src/pages/[id].tsx"}`. Both renderers decode these fields into the original label and ID. See [Directive Format](/docs/guides/mentions#directive-format) for escaping and compatibility details.
 
 ### Map directive types to icons
 
@@ -116,7 +118,7 @@ With no custom parser, both `DirectiveText` and a `createDirectiveText` call wit
 ```tsx
 import { WrenchIcon, SlashIcon, SparklesIcon } from "lucide-react";
 
-createDirectiveText(unstable_defaultDirectiveFormatter, {
+createDirectiveText(defaultDirectiveFormatter, {
   iconMap: { tool: WrenchIcon, command: SlashIcon },
   fallbackIcon: SparklesIcon,
 });
@@ -163,6 +165,6 @@ Returns a component with a single prop, `text: string`.
 
 | Method | Type | Description |
 |--------|------|-------------|
-| `parse` | `(text: string) => readonly DirectiveTextSegment[]` | The only method the standalone renderer needs; write any syntax you want. `Unstable_DirectiveFormatter` (which also has `serialize`) satisfies this type, so `unstable_defaultDirectiveFormatter` works here too. |
+| `parse` | `(text: string) => readonly DirectiveTextSegment[]` | The only method the standalone renderer needs; write any syntax you want. `DirectiveFormatter` (which also has `serialize`) satisfies this type, so `defaultDirectiveFormatter` works here too. |
 
 </StandaloneMode>

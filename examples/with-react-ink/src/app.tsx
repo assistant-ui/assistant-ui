@@ -7,6 +7,7 @@ import {
   StatusBarPrimitive,
   Tools,
 } from "@assistant-ui/react-ink";
+import { ThreadShell } from "./components/thread-shell.js";
 import { Thread } from "./components/thread.js";
 import { createScriptedAdapter, MODEL_NAME } from "./scripted-adapter.js";
 import toolkit from "./tools.js";
@@ -38,7 +39,11 @@ export const App = () => {
         </Box>
         <StatusBar />
         <Box marginTop={1}>
-          <Thread />
+          <ThreadShell>
+            {({ isComposing, width }) => (
+              <Thread isComposing={isComposing} width={width} />
+            )}
+          </ThreadShell>
         </Box>
       </Box>
     </AssistantRuntimeProvider>

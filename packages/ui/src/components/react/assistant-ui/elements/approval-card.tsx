@@ -4,6 +4,7 @@ import { useId, type ComponentProps, type ReactNode } from "react";
 import { CheckIcon, Loader2Icon, TerminalIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, inkButton, mono, paper } from "./surfaces";
+import { useReceiptFocus } from "./receipt-focus";
 
 export type ApprovalState = "request" | "running" | "done" | "denied";
 
@@ -68,10 +69,12 @@ export function ApprovalCard({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
 
   return (
     <div
       {...props}
+      {...focusHandlers}
       role="group"
       data-variant={variant}
       data-slot="approval-card"
@@ -90,7 +93,7 @@ export function ApprovalCard({
             "flex size-9 shrink-0 items-center justify-center rounded-xl",
             variant === "destructive"
               ? "bg-red-600/10 text-red-600 dark:bg-red-400/10 dark:text-red-400"
-              : "bg-foreground/[0.05] text-foreground/45",
+              : "bg-foreground/[0.05] text-muted-foreground",
           )}
         >
           {icon ?? <TerminalIcon className="size-4" />}
@@ -99,7 +102,7 @@ export function ApprovalCard({
           <p id={titleId} className="text-[13.5px] font-medium">
             {title}
           </p>
-          <p className="text-foreground/45 text-xs">{subtitle}</p>
+          <p className="text-muted-foreground text-xs">{subtitle}</p>
         </div>
       </div>
 
@@ -129,7 +132,9 @@ export function ApprovalCard({
               key={`${detail.label}-${index}`}
               className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 text-xs"
             >
-              <dt className={cn(mono, "text-foreground/40")}>{detail.label}</dt>
+              <dt className={cn(mono, "text-muted-foreground")}>
+                {detail.label}
+              </dt>
               <dd className="text-foreground/80 break-words">{detail.value}</dd>
             </div>
           ))}
@@ -142,6 +147,7 @@ export function ApprovalCard({
             {onDeny && (
               <button
                 type="button"
+                data-slot="approval-card-deny"
                 onClick={onDeny}
                 className={cn(
                   ghostButton,
@@ -154,6 +160,7 @@ export function ApprovalCard({
             {onAlwaysAllow && (
               <button
                 type="button"
+                data-slot="approval-card-always-allow"
                 onClick={onAlwaysAllow}
                 className={cn(
                   ghostButton,
@@ -166,6 +173,7 @@ export function ApprovalCard({
             {onAllowOnce && (
               <button
                 type="button"
+                data-slot="approval-card-allow-once"
                 onClick={onAllowOnce}
                 className={cn(
                   variant === "destructive"
@@ -181,17 +189,19 @@ export function ApprovalCard({
         ) : (
           <div
             key={state}
+            ref={receiptRef}
+            tabIndex={-1}
             role="status"
-            className="fade-in animate-in text-foreground/55 flex items-center gap-2 text-xs duration-300 motion-reduce:animate-none"
+            className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300 motion-reduce:animate-none"
           >
             {state === "running" ? (
               <>
-                <Loader2Icon className="text-foreground/45 size-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2Icon className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-none" />
                 {statusLabel ?? receiptText.running}
               </>
             ) : state === "denied" ? (
               <>
-                <XIcon className="text-foreground/45 size-3.5" />
+                <XIcon className="text-muted-foreground size-3.5" />
                 {statusLabel ?? receiptText.denied}
               </>
             ) : (

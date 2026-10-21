@@ -152,8 +152,8 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
       ),
       execute: async ({ slugOrUrl }) => {
         const { getLLMText } = await import("@/lib/get-llm-text");
-        const { source, examples: examplesSource } =
-          await import("@/lib/source");
+        const { examples: examplesSource } = await import("@/lib/source");
+        const { resolveDocsUrl } = await import("@/lib/docs-pages");
         let normalized: string;
         try {
           normalized = normalizeDocPath(slugOrUrl, routeUrl);
@@ -164,11 +164,11 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
         }
 
         const slugs = normalized.split("/").filter(Boolean);
-        const isExample = slugs[0] === "examples";
-        const docSource = isExample ? examplesSource : source;
-        const docSlugs = isExample ? slugs.slice(1) : slugs;
-
-        const page = docSource.getPage(docSlugs);
+        const path = slugs.join("/");
+        const page =
+          slugs[0] === "examples"
+            ? examplesSource.getPage(slugs.slice(1))
+            : (resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`));
         if (!page) return { error: `Page not found: ${slugOrUrl}` };
         const content = await getLLMText(page);
         return { title: page.data.title, url: page.url, content };

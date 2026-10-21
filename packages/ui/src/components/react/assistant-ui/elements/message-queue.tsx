@@ -39,15 +39,17 @@ export function MessageQueue({
         <span className="text-foreground/90 min-w-0 flex-1 truncate text-[13.5px]">
           {running}
         </span>
-        <span className={cn(mono, "text-foreground/35 shrink-0")}>running</span>
+        <span className={cn(mono, "text-muted-foreground shrink-0")}>
+          running
+        </span>
       </div>
 
       {queued.length > 0 && (
         <div className="flex items-baseline justify-between px-1">
-          <span className={cn(mono, "text-foreground/35")}>
+          <span className={cn(mono, "text-muted-foreground")}>
             {queued.length} queued
           </span>
-          <span className={cn(mono, "text-foreground/35")}>
+          <span className={cn(mono, "text-muted-foreground")}>
             sends when this finishes
           </span>
         </div>
@@ -65,7 +67,7 @@ export function MessageQueue({
             <span
               className={cn(
                 mono,
-                "text-foreground/30 w-3 shrink-0 tabular-nums",
+                "text-muted-foreground w-3 shrink-0 tabular-nums",
               )}
             >
               {index + 1}

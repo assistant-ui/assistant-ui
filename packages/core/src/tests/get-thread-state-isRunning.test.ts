@@ -9,6 +9,7 @@ const baseRuntime = (
   ({
     messages: [],
     isDisabled: false,
+    isSendDisabled: false,
     isLoading: false,
     capabilities: {} as any,
     state: null,
@@ -79,5 +80,13 @@ describe("getThreadState.isRunning", () => {
         baseRuntime({ isRunning: false, messages: [runningAssistant] }),
       ).isRunning,
     ).toBe(false);
+  });
+});
+
+describe("getThreadState.isSendDisabled", () => {
+  it("projects the runtime send policy", () => {
+    expect(
+      getThreadState(baseRuntime({ isSendDisabled: true })),
+    ).toHaveProperty("isSendDisabled", true);
   });
 });

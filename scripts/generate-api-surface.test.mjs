@@ -267,3 +267,27 @@ test("an unfiltered run treats not-regenerated files as stale", () => {
     ["api-surface/b.ts", "api-surface/gone.ts"],
   );
 });
+
+test("a filtered run removes snapshots when a selected package has no declarations", () => {
+  assert.deepEqual(
+    selectStaleSurfaceFiles({
+      files: [
+        "api-surface/generated.ts",
+        "api-surface/no-declarations.ts",
+        "api-surface/unselected.ts",
+      ],
+      generatedFiles: new Set(["api-surface/generated.ts"]),
+      knownFiles: new Set([
+        "api-surface/generated.ts",
+        "api-surface/no-declarations.ts",
+        "api-surface/unselected.ts",
+      ]),
+      selectedFiles: new Set([
+        "api-surface/generated.ts",
+        "api-surface/no-declarations.ts",
+      ]),
+      filtered: true,
+    }),
+    ["api-surface/no-declarations.ts"],
+  );
+});

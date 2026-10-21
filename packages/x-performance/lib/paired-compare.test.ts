@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
   meanRows,
@@ -59,7 +60,7 @@ describe("pairNoise", () => {
 
   it("reports zero noise when every pair agrees", () => {
     const refRuns = [run(row("a", 100)), run(row("a", 200))];
-    const curRuns = [run(row("a", 120)), run(row("a", 240))];
+    const curRuns = [run(row("a", 120)), run(row("a", 220))];
     expect(pairNoise(refRuns, curRuns).get("a")).toBeCloseTo(0);
   });
 
@@ -73,6 +74,19 @@ describe("pairNoise", () => {
       [110, 130, 110, 130].map((m) => run(row("a", m))),
     ).get("a")!;
     expect(four).toBeLessThan(two);
+  });
+
+  it("gives one slow run the same verdict on either side", () => {
+    const steady = [100, 100, 100, 100].map((m) => run(row("a", m)));
+    const slow = [500, 100, 100, 100].map((m) => run(row("a", m)));
+    const verdict = (refRuns: typeof steady, curRuns: typeof steady) =>
+      rowVerdict(
+        meanRows(refRuns).get("a")!,
+        meanRows(curRuns).get("a")!,
+        pairNoise(refRuns, curRuns).get("a"),
+      ).verdict;
+    expect(verdict(steady, slow)).toBe("~same");
+    expect(verdict(slow, steady)).toBe("~same");
   });
 
   it("omits benchmarks without at least two complete pairs", () => {

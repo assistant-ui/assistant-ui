@@ -7,7 +7,7 @@ import { AssistantRuntimeProvider } from "../context";
 import * as MessagePartPrimitive from "../primitives/messagePart";
 import * as MessagePrimitive from "../primitives/message";
 import * as ThreadPrimitive from "../primitives/thread";
-import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import { useLocalRuntime } from "@assistant-ui/core/react";
 import type { ChatModelAdapter, ThreadMessageLike } from "../index";
 
 const noOpAdapter: ChatModelAdapter = {

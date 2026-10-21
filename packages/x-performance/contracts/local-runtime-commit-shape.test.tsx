@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createElement } from "react";
+import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import type { AssistantRuntime, ChatModelAdapter } from "@assistant-ui/core";
@@ -33,6 +33,16 @@ const until = async (predicate: () => boolean) => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   throw new Error("condition not reached within 200 macrotasks");
+};
+
+const settledInAct = async (scope: () => Promise<void>) => {
+  const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  env.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    await act(scope);
+  } finally {
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+  }
 };
 
 describe("local runtime commit shape", () => {
@@ -72,8 +82,13 @@ describe("local runtime commit shape", () => {
     const root = createRoot(document.createElement("div"));
     flushSync(() => root.render(createElement(App)));
 
-    runtime.thread.append("hello");
-    await until(() => gates.length === 1);
+    // Under load the append's commits can trail the first gate, so they settle
+    // in act before the baseline; the tokens keep real scheduling, which
+    // separates commits from different ticks.
+    await settledInAct(async () => {
+      runtime.thread.append("hello");
+      await until(() => gates.length === 1);
+    });
     const beforeTokens = counter.snapshot();
 
     for (let i = 0; i < TOKENS; i++) {

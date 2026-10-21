@@ -59,12 +59,22 @@ describe("useAttachmentSrc", () => {
     expect(created).toHaveLength(0);
   });
 
-  it("creates an object URL for a file preview", () => {
+  it("creates a preview URL with the file contents and media type", async () => {
     mockState.current = {
       attachment: { type: "image", file: makeFile("a.png") },
     };
     const { result } = renderHook(() => useAttachmentSrc());
-    expect(result.current).toBe(created[0]);
+    expect(result.current).toBe("blob:mock-0");
+    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    const blob = vi.mocked(URL.createObjectURL).mock.calls[0]![0] as Blob;
+    const contents = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+    expect(contents).toBe("content");
+    expect(blob.type).toBe("image/png");
     expect(revoked).toHaveLength(0);
   });
 

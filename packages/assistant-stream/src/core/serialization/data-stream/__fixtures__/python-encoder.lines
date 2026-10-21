@@ -1,0 +1,27 @@
+f:{"messageId": "msg_1"}
+aui-reasoning-part-start:{"unstable_summary": "Let me check the weather."}
+g:"Let me check the weather."
+0:"Checking"
+0:" now."
+b:{"toolCallId": "call_1", "toolName": "get_weather"}
+c:{"toolCallId": "call_1", "argsTextDelta": "{\"city\": "}
+c:{"toolCallId": "call_1", "argsTextDelta": "\"NYC\"}"}
+aui-state:[{"type": "set", "path": ["status"], "value": "running"}]
+a:{"toolCallId": "call_1", "result": {"status": "working"}, "isPreliminary": true}
+a:{"toolCallId": "call_1", "result": {"temp": 70}, "messages": [{"role": "assistant", "content": [{"type": "text", "text": "Sunny"}]}]}
+2:[{"progress": 1}]
+8:[{"type": "citation", "id": "a1"}]
+h:{"sourceType": "url", "id": "s1", "url": "https://example.com", "title": "Example"}
+0:"It is sunny."
+k:{"data": "aGVsbG8=", "mimeType": "image/png"}
+aui-reasoning-part-start:{"unstable_summary": "Nested", "parentId": "parent_1"}
+aui-reasoning-delta:{"reasoningDelta": "nested think", "parentId": "parent_1"}
+aui-text-delta:{"textDelta": "child text", "parentId": "parent_1"}
+b:{"toolCallId": "call_2", "toolName": "nested_tool", "parentId": "parent_1"}
+c:{"toolCallId": "call_2", "argsTextDelta": "{}"}
+c:{"toolCallId": "call_2", "argsTextDelta": "", "isFinal": true}
+a:{"toolCallId": "call_2", "result": {"ok": true}}
+h:{"sourceType": "url", "id": "s2", "url": "https://nested.example", "title": "Nested", "parentId": "parent_1"}
+k:{"data": "eQ==", "mimeType": "text/plain", "parentId": "parent_1"}
+e:{"finishReason": "stop", "usage": {"inputTokens": 12, "outputTokens": 34}, "isContinued": false}
+3:{"error": "Forecast delayed", "code": "weather_delay", "severity": "warning"}

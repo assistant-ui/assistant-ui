@@ -104,6 +104,75 @@ describe("InMemoryResumableStreamStore", () => {
     }
   });
 
+  it.each(["default", "per-stream"])(
+    "waits for updates without overflowing native timers with a long %s TTL",
+    async (source) => {
+      const ttlMs = 30 * 24 * 60 * 60 * 1000;
+      const store = createInMemoryResumableStreamStore(
+        source === "default" ? { defaultTtlMs: ttlMs } : {},
+      );
+      const ac = new AbortController();
+      const warnings = vi
+        .spyOn(process, "emitWarning")
+        .mockImplementation(() => {});
+      try {
+        await store.acquire(
+          "long",
+          source === "per-stream" ? { ttlMs } : undefined,
+        );
+        const iterator = store
+          .read("long", "", ac.signal)
+          [Symbol.asyncIterator]();
+        const pending = iterator.next();
+        await store.append("long", bytes("update"));
+        expect(await pending).toEqual({
+          done: false,
+          value: { cursor: "1", chunk: bytes("update") },
+        });
+        const waiting = iterator.next();
+        ac.abort();
+        expect(await waiting).toEqual({ done: true, value: undefined });
+        expect(warnings).not.toHaveBeenCalled();
+      } finally {
+        ac.abort();
+        store.dispose();
+        warnings.mockRestore();
+      }
+    },
+  );
+
+  it("keeps a long TTL past the timer limit and expires at its full deadline", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const ttlMs = 30 * 24 * 60 * 60 * 1000;
+    const store = createInMemoryResumableStreamStore({ defaultTtlMs: ttlMs });
+    const ac = new AbortController();
+    const settled = vi.fn();
+    try {
+      await store.acquire("long");
+      const iterator = store
+        .read("long", "", ac.signal)
+        [Symbol.asyncIterator]();
+      const pending = iterator.next().then(settled, settled);
+      await vi.advanceTimersToNextTimerAsync();
+      expect(Date.now()).toBe(2_147_483_647);
+      expect(settled).not.toHaveBeenCalled();
+      expect(await store.status("long")).toBe("streaming");
+      await vi.advanceTimersToNextTimerAsync();
+      await pending;
+      expect(Date.now()).toBe(ttlMs);
+      expect(settled).toHaveBeenCalledExactlyOnceWith(
+        new Error("Stream expired"),
+      );
+      expect(await store.status("long")).toBe("missing");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      ac.abort();
+      store.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps replay bytes independent of producer and consumer buffers", async () => {
     const store = createInMemoryResumableStreamStore();
     const chunk = Buffer.from("a");
@@ -231,23 +300,6 @@ describe("InMemoryResumableStreamStore", () => {
     ]);
   });
 
-  it("aborting the read signal terminates without throwing", async () => {
-    const store = createInMemoryResumableStreamStore();
-    await store.acquire("a");
-    const ac = new AbortController();
-    const collected: string[] = [];
-    const reading = (async () => {
-      for await (const entry of store.read("a", "", ac.signal)) {
-        collected.push(decode(entry.chunk));
-      }
-    })();
-    await store.append("a", bytes("x"));
-    await new Promise((r) => setTimeout(r, 5));
-    ac.abort();
-    await reading;
-    expect(collected).toEqual(["x"]);
-  });
-
   it("honors abort after the last buffered chunk before a stored error", async () => {
     const store = createInMemoryResumableStreamStore();
     await store.acquire("a");
@@ -264,17 +316,54 @@ describe("InMemoryResumableStreamStore", () => {
     expect(seen).toEqual(["partial"]);
   });
 
-  it("multiple consumers can read concurrently", async () => {
+  it("delivers live updates to every reader and isolates cancellation", async ({
+    onTestFinished,
+  }) => {
     const store = createInMemoryResumableStreamStore();
+    const first = new AbortController();
+    const second = new AbortController();
+    const third = new AbortController();
+    onTestFinished(() => {
+      first.abort();
+      second.abort();
+      third.abort();
+      store.dispose();
+    });
     await store.acquire("a");
-    const ac = new AbortController();
-    const a = drain(store.read("a", "", ac.signal));
-    const b = drain(store.read("a", "", ac.signal));
-    await store.append("a", bytes("x"));
-    await store.append("a", bytes("y"));
+    const a = store.read("a", "", first.signal)[Symbol.asyncIterator]();
+    const b = store.read("a", "", second.signal)[Symbol.asyncIterator]();
+    const c = store.read("a", "", third.signal)[Symbol.asyncIterator]();
+
+    for (const [cursor, text] of [
+      ["1", "x"],
+      ["2", "y"],
+    ] as const) {
+      const pending = Promise.all([a.next(), b.next(), c.next()]);
+      await store.append("a", bytes(text));
+      const entry = { done: false, value: { cursor, chunk: bytes(text) } };
+      expect(await pending).toEqual([entry, entry, entry]);
+    }
+
+    const unpaused = Promise.all([b.next(), c.next()]);
+    await store.append("a", bytes("p"));
+    const paused = { done: false, value: { cursor: "3", chunk: bytes("p") } };
+    expect(await unpaused).toEqual([paused, paused]);
+    expect(await a.next()).toEqual(paused);
+
+    const cancelled = a.next();
+    const continuing = Promise.all([b.next(), c.next()]);
+    first.abort();
+    expect(await cancelled).toEqual({ done: true, value: undefined });
+    await store.append("a", bytes("z"));
+    const entry = { done: false, value: { cursor: "4", chunk: bytes("z") } };
+    expect(await continuing).toEqual([entry, entry]);
+
+    const finished = Promise.all([b.next(), c.next()]);
     await store.finalize("a", "done");
-    expect(await a).toEqual(["x", "y"]);
-    expect(await b).toEqual(["x", "y"]);
+    expect(await finished).toEqual([
+      { done: true, value: undefined },
+      { done: true, value: undefined },
+    ]);
   });
 
   it("delete prevents further reads and ends in-flight reads", async () => {
@@ -382,6 +471,8 @@ describe("InMemoryResumableStreamStore", () => {
       await store.append("a", bytes("hi"));
       now += 200;
       vi.advanceTimersByTime(50);
+      // Resetting the clock prevents status() from performing the eviction.
+      now = 1_000;
       expect(await store.status("a")).toBe("missing");
       store.dispose();
     } finally {

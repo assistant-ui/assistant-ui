@@ -9,6 +9,9 @@ const {
   fetchProjects,
   createProject,
   cloudAccessToken,
+  savedCloudAccessToken,
+  runCloudCommand,
+  loginToCloud,
   provisionCloudHarness,
   scaffold,
   select,
@@ -18,6 +21,9 @@ const {
   fetchProjects: vi.fn(),
   createProject: vi.fn(),
   cloudAccessToken: vi.fn(),
+  savedCloudAccessToken: vi.fn(),
+  runCloudCommand: vi.fn(),
+  loginToCloud: vi.fn(),
   provisionCloudHarness: vi.fn(),
   scaffold: vi.fn(),
   select: vi.fn(),
@@ -33,6 +39,12 @@ vi.mock("aui-auth/accounts", async (importOriginal) => ({
 vi.mock("../lib/cloud-auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/cloud-auth")>()),
   cloudAccessToken,
+  savedCloudAccessToken,
+  loginToCloud,
+}));
+vi.mock("../lib/cloud-remote", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/cloud-remote")>()),
+  runCloudCommand,
 }));
 vi.mock("../lib/cloud-provision", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/cloud-provision")>()),
@@ -234,5 +246,51 @@ describe("cloud setup", () => {
       "logout",
       "setup",
     ]);
+  });
+});
+
+describe("cloud remote forwarding", () => {
+  const forwarded = async (argv: string[]) => {
+    runCloudCommand.mockClear();
+    runCloudCommand.mockResolvedValue(4);
+    await cloud.parseAsync(argv, { from: "user" });
+    return runCloudCommand.mock.calls.map(([args]) => args);
+  };
+
+  it("forwards help, unknown subcommands and their flags verbatim", async () => {
+    for (const argv of [
+      [],
+      ["help"],
+      ["--help"],
+      ["-h"],
+      ["help", "projects"],
+      ["projects", "list", "--org", "acme", "--json"],
+      ["whoami", "--version"],
+      ["--org=acme", "projects"],
+    ]) {
+      await expect(forwarded(argv)).resolves.toEqual([argv]);
+    }
+    expect(process.exitCode).toBe(4);
+    process.exitCode = undefined;
+  });
+
+  it("keeps login local", async () => {
+    loginToCloud.mockResolvedValue(undefined);
+    await expect(forwarded(["login", "--no-open"])).resolves.toEqual([]);
+    expect(loginToCloud).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ noOpen: true }),
+    );
+  });
+
+  it("sends the saved login without starting a new one", async () => {
+    savedCloudAccessToken.mockResolvedValue(null);
+    runCloudCommand.mockImplementationOnce(async (_args, options) => {
+      await expect(options.accessToken()).resolves.toBeNull();
+      return 0;
+    });
+    await cloud.parseAsync(["whoami"], { from: "user" });
+    expect(savedCloudAccessToken).toHaveBeenCalled();
+    expect(cloudAccessToken).not.toHaveBeenCalled();
   });
 });

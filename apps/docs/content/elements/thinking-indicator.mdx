@@ -129,7 +129,7 @@ const label = pending?.type === "tool-call" ? `Running ${pending.toolName}` : "T
 
 ### Restyle the status line
 
-The dot is fixed to `bg-blue-500`; the label uses `ShimmerLabel` and the elapsed badge uses the shared `mono` token from `surfaces.tsx`. `className` merges onto the root, which starts as `text-foreground/55 flex items-center gap-2.5 text-sm`.
+The dot is fixed to `bg-blue-500`; the label uses `ShimmerLabel` and the elapsed badge uses the shared `mono` token from `surfaces.tsx`. `className` merges onto the root, which starts as `text-muted-foreground flex items-center gap-2.5 text-sm`.
 
 ```tsx
 <ThinkingIndicator label={label} elapsed={elapsed} className="gap-1.5 text-xs" />

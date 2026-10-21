@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { OptimisticState } from "../runtimes/remote-thread-list/optimistic-state";
 import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
 
 const archivedThread = (id: string) => ({
@@ -9,6 +10,48 @@ const archivedThread = (id: string) => ({
 });
 
 describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option", () => {
+  it("opens an archived thread when the adapter omits unarchive", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [archivedThread("archived")] })),
+    });
+    delete adapter.unarchive;
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    expect(core.canUnarchive).toBe(false);
+
+    await expect(core.switchToThread("archived")).resolves.toBeUndefined();
+
+    expect(core.mainThreadId).toBe(core.getItemById("archived")?.id);
+    expect(core.getItemById("archived")?.status).toBe("archived");
+    expect(core.archivedThreadIds).toContain("archived");
+  });
+
+  it("rejects explicit unarchive without changing the archived status", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [archivedThread("archived")] })),
+    });
+    delete adapter.unarchive;
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const optimisticUpdate = vi.spyOn(
+      OptimisticState.prototype,
+      "optimisticUpdate",
+    );
+
+    try {
+      await expect(core.unarchive("archived")).rejects.toThrow(
+        "Remote thread list adapter does not support unarchiving",
+      );
+
+      expect(optimisticUpdate).not.toHaveBeenCalled();
+      expect(core.getItemById("archived")?.status).toBe("archived");
+      expect(core.archivedThreadIds).toContain("archived");
+    } finally {
+      optimisticUpdate.mockRestore();
+    }
+  });
+
   it("auto-unarchives by default", async () => {
     const THREAD_ID = "archived-default";
     const adapter = makeAdapter({
@@ -18,6 +61,7 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
     const core = createCore(adapter);
     await core.getLoadThreadsPromise();
 
+    expect(core.canUnarchive).toBe(true);
     expect(core.archivedThreadIds).toContain(THREAD_ID);
     expect(core.threadIds).not.toContain(THREAD_ID);
 
@@ -60,6 +104,27 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
     expect(core.archivedThreadIds).toContain(THREAD_ID);
     expect(core.threadIds).not.toContain(THREAD_ID);
     expect(core.getItemById(THREAD_ID)?.status).toBe("archived");
+    expect(core.mainThreadId).toBe(core.getItemById(THREAD_ID)?.id);
+  });
+
+  it("stays on an archived thread opened with unarchive: false when another thread is archived or deleted", async () => {
+    const THREAD_ID = "archived-opened";
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          archivedThread(THREAD_ID),
+          { status: "regular" as const, remoteId: "b", externalId: "b" },
+          { status: "regular" as const, remoteId: "c", externalId: "c" },
+        ],
+      })),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread(THREAD_ID, { unarchive: false });
+    await core.archive("b");
+    await core.delete("c");
+
     expect(core.mainThreadId).toBe(core.getItemById(THREAD_ID)?.id);
   });
 

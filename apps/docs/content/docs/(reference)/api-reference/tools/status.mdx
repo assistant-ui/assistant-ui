@@ -15,7 +15,9 @@ description: Read tool arguments, execution status, and result state inside assi
 ### useToolArgsStatus
 
 Reads whether each argument field for the current tool-call message part is
-still streaming or complete.
+still streaming or complete. `argsStatus` also accounts for fields that
+have not arrived yet: an empty `propStatus` does not mean the object is done.
+Arguments can be complete while `status` is still `"running"` during execution.
 
 Use inside a tool-call renderer to avoid showing incomplete argument values
 as final.
@@ -46,7 +48,9 @@ milliseconds, ticking once per second while the call runs.
 Reads `part.timing`. Returns `undefined` when the part is not a tool call,
 carries no timing, ended without a recorded completion (the duration is
 unknown), or when no message part scope is available (so kit components
-stay renderable standalone, e.g. in docs previews).
+stay renderable standalone, e.g. in docs previews). A running call also
+returns `undefined` until the component mounts, so a server render never
+reads the clock.
 
 ```tsx
 function ToolDuration() {

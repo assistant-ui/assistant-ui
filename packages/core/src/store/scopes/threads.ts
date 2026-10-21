@@ -4,12 +4,19 @@ import type {
   ThreadListItemState,
 } from "./thread-list-item";
 import type { ThreadMethods, ThreadState } from "./thread";
+import type { ThreadMessage } from "../../types/message";
 
 export type ThreadsState = {
+  /** Whether the thread list supports restoring archived threads. */
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  /** The most recent thread switch that failed: the id it was asked to open and the error it threw. Cleared when a later switch starts or that thread opens. A switch to a controlled `threadId` is retried when the browser comes back online or the tab becomes visible. */
+  readonly switchError:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];
@@ -43,6 +50,33 @@ export type ThreadsMethods = {
    */
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
+  __internal_getRawActions?(): {
+    switchToThread(
+      threadId: string,
+      options?: { unarchive?: boolean },
+      emitThreadIdChange?: boolean,
+    ): Promise<void>;
+    switchToNewThread(emitThreadIdChange?: boolean): Promise<void>;
+    rename(threadId: string, title: string): Promise<void>;
+    archive(threadId: string): Promise<void>;
+    unarchive(threadId: string): Promise<void>;
+    delete(threadId: string): Promise<void>;
+    detach(threadId: string): Promise<void>;
+    generateTitle(
+      threadId: string,
+      messages: readonly ThreadMessage[] | undefined,
+      options?: { automatic?: boolean },
+    ): Promise<void>;
+    initialize(threadId: string): Promise<{
+      remoteId: string;
+      externalId: string | undefined;
+    }>;
+    reload(): Promise<void>;
+    reloadMainThread(): Promise<void>;
+    getLoadThreadsPromise(): Promise<void>;
+    loadMore(): Promise<void>;
+  };
+  __internal_getThreadBody?(threadId: string): ThreadMethods | undefined;
 };
 
 export type ThreadsEvents = {

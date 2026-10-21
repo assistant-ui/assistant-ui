@@ -4,7 +4,7 @@ description: Convert a generative UI tree into Slack Block Kit, post it, and dec
 platforms: ["react"]
 ---
 
-The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/react-generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
+The generative UI tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
 
 The subpath is React-free, so a server action, queue worker, or webhook handler imports it without pulling React into the bundle.
 
@@ -12,7 +12,7 @@ The subpath is React-free, so a server action, queue worker, or webhook handler 
 
 ```ts
 import { WebClient } from "@slack/web-api";
-import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+import { toSlackBlocks } from "@assistant-ui/generative-ui/slack";
 
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
@@ -24,6 +24,8 @@ const { blocks, warnings } = toSlackBlocks({
 
 await slack.chat.postMessage({ channel: "#orders", blocks });
 ```
+
+A spec from [spec mode](/generative-frame/docs/spec-mode) converts with `specToUISpec` from the React-free `@assistant-ui/generative-ui/spec/tree` first, as [Moving to spec mode](/docs/tools/generative-ui-spec-migration#slack-and-teams) describes.
 
 `toSlackBlocks(node, options?)` returns `{ blocks, warnings }` and never throws: an input it cannot convert at all comes back as empty `blocks` plus one warning rather than an exception. Pass `{ surface: "modal" }` to target a modal instead of a message; the surface changes the block budget and unlocks the native `alert` block.
 
@@ -58,6 +60,12 @@ type SlackConversionWarning = {
 | `Alert` | Native `alert` block on a modal; a `context` plus `section` pair on a message | Slack supports `alert` [only in modals](https://docs.slack.dev/reference/block-kit/blocks/alert-block) |
 | `ListView` | One `section` per item, with `divider` blocks between them | Item children collapse into concatenated text; a non-item child that would have rendered is dropped with a warning |
 | `ListViewItem` | `section`, plus an "Open" button accessory when it carries an action | |
+| `Tabs` | A `section` with each bold label, followed by that panel's blocks | Slack has no tabs, so every panel shows in order |
+| `Steps` | One `section` per step, with the bold numbered title and the detail under it | An entry without a title is dropped with a warning |
+| `Timeline` | One `section` per item, with the bold time, then the title and the detail | An entry without a title is dropped with a warning |
+| `Citation` | A `section` with the title, linked to its `url`, and the snippet under it, then a `context` block with the source or the link's domain | Only an `http` or `https` `url` becomes a link |
+| `Diagram` | A `section` with the Mermaid source in a code block, then a `context` block with the title | Slack cannot draw the diagram; a source over the section limit is clamped with a warning |
+| `Map` | One `section` per place, with the label linked to OpenStreetMap and the detail under it | Slack cannot draw a map, so `route` is dropped silently; a place without valid coordinates is dropped with a warning |
 | `Button` | `button` element inside an `actions` block | `primary` and `danger` styles survive; other styles are dropped |
 | `Select` | `static_select` element | An option without a string label and value is dropped with a warning |
 | `RadioGroup` | `radio_buttons` element | An option without a string label and value is dropped with a warning |
@@ -78,7 +86,7 @@ Slack has no undo surface, so a Button with `undoable` fires immediately.
 
 An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
 
-Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: Slack has no client-side form model to submit into, so a submit button and a click button both convert to the same `button` element carrying the node's `$action`, and a card marked `asForm` converts exactly like one that is not.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `CheckboxGroup`'s `progress`; and `Button`'s `block`. Slack has no client-side form model to submit into, so `Button`'s `submit` is dropped: a submit button and a click button both convert to the same `button` element carrying the node's `$action`. A `Card` marked `asForm` also cannot collect its child values into a browser-style form payload, but it keeps child `Input` actions passive so those inputs do not dispatch separately.
 
 ### Date and time pickers
 
@@ -96,11 +104,13 @@ A datetime without an offset, such as `2025-12-15T17:00`, is local wall time. It
 
 Anything else in the card, including a second image, a `Fact`, or a loose `Button`, makes the card fall back to a header plus the children rendered inline plus an actions block, and reports a `fallback` warning. A card carrying none of an image, title, body, or actions is dropped outright.
 
-Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any control do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable. A control here is a `Button`, `Select`, `Slider`, `DatePicker`, `Checkbox`, `RadioGroup`, `CheckboxGroup`, `Input`, or `Form`, plus a `ListViewItem` or a nested `Card` footer that carries an action. An `$action` on a layout node such as `Box`, `Col`, or `Row` does not count, because those render no control on the clean path either.
+On a `Card` marked `asForm`, the confirm button carries the `confirm` footer's `$action`, or the Card's own `$action` when the footer has none. A form card with its own `$action` and no `confirm` footer gets a primary "Submit" button where the confirm button would go, ahead of any cancel button.
+
+Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any control do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable. A control here is a `Button`, `Select`, `Slider`, `DatePicker`, `Checkbox`, `RadioGroup`, `CheckboxGroup`, `Input`, or `Form`, plus a `ListViewItem` or a nested `Card` footer that carries an action, and the "Submit" button a form card gets from its own `$action`. An `$action` on a layout node such as `Box`, `Col`, or `Row` does not count, because those render no control on the clean path either.
 
 ## Limits
 
-The converter clamps to Slack's published budgets rather than letting the API reject the payload. The ones you are most likely to hit:
+The converter clamps to Slack's published budgets rather than letting the API reject the payload. Caps on `mrkdwn` fields count the escaped text, where `&`, `<`, and `>` take five, four, and four characters (`&amp;`, `&lt;`, `&gt;`). The budgets you are most likely to hit:
 
 | Budget | Value | Behavior when exceeded |
 |---|---|---|
@@ -141,10 +151,12 @@ Only buttons carry `value`. `Select`, `Input`, `Slider`, `DatePicker`, `Checkbox
 
 ### Inbound
 
+A single-line `Input` outside a `Form` or `Card` with `asForm`, with a non-empty `$action.type`, enables `block_actions` on its containing input block and configures `on_enter_pressed`, so Slack sends its typed text when the user presses Enter. Inputs inside either form remain passive rather than firing their own action. Multiline inputs also remain passive: Slack's dispatch configuration does not expose the browser vocabulary's Ctrl/Cmd+Enter shortcut. A modal's `view_submission` handler can collect passive input values, including inputs without an actionable type.
+
 Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's state values, then rebuilds the action your tree dispatched. Messages carry these values in `payload.state.values`, while modals and Home tabs carry them in `payload.view.state.values`. A control's runtime selection appears under `$input` when supplied; a button with a JSON-serialized `value` contributes its payload fields directly. `{ "$field": name }` references in the action payload resolve from named controls in that state:
 
 ```ts
-import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
+import { decodeBlockAction } from "@assistant-ui/generative-ui/slack";
 
 const action = decodeBlockAction(payload.actions[0], payload.state?.values ?? payload.view?.state?.values);
 // { type: "approve_order", orderId: "48213" }
@@ -173,7 +185,7 @@ For the two halves of a local datetime, `$input` is the merged `YYYY-MM-DDTHH:mm
 
 `fromSlackBlocks` is the inverse direction, mapping a Block Kit payload into vocabulary nodes and returning `{ nodes, warnings }`. It accepts a bare array or a `{ blocks }` wrapper.
 
-The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning.
+The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning. An input keeps its `action_id` as `$action` only when its block sets `dispatch_action` or the input is multiline, so a passive single-line input, including one from a form, returns without an action and stays passive when converted back.
 
 Native `timepicker` and `datetimepicker` elements return as `DatePicker` nodes with `inputType: "time"` and `inputType: "datetime"`. A native datetime's initial Unix timestamp becomes a `Z` value at seconds precision. Reverse conversion reads each control separately, so a local datetime pair returns as separate date and time nodes.
 

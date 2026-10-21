@@ -17,6 +17,8 @@ PrismAsyncLight.registerLanguage("tsx", tsx);
 PrismAsyncLight.registerLanguage("python", python);
 
 const syntaxHighlighterCustomStyle = {
+  // Unset so the markdown Pre's theme surface shows instead of the Prism theme's own background.
+  background: undefined,
   margin: 0,
   width: "100%",
   padding: "1.5rem 1rem",

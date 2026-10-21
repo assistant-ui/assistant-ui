@@ -13,10 +13,6 @@ import { viewportInjectionKey } from "./viewportContext";
 
 let warnedOutsideViewport = false;
 
-export const clearScrollToBottomWarningForTesting = () => {
-  warnedOutsideViewport = false;
-};
-
 /**
  * A button that scrolls the surrounding {@link ThreadPrimitiveViewport} to
  * the bottom. Disabled while the viewport is already at the bottom, or when

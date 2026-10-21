@@ -25,6 +25,7 @@ export {
   useAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
 export { useClientResource } from "./useClientResource";
+export { unstable_useClientSource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
 export {
   attachTransformScopes,
@@ -70,3 +71,8 @@ export {
   viewportOverflows,
   type ViewportMetrics,
 } from "./utils/viewport-scroll";
+export {
+  createThreadViewportAutoScroll,
+  type ThreadViewportAutoScroll,
+  type ThreadViewportAutoScrollOptions,
+} from "./utils/thread-viewport-auto-scroll";

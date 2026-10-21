@@ -1,15 +1,24 @@
 import type { ReactNode } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableStateCallbackType } from "react-native";
 import {
   useActionBarCopy,
   type UseActionBarCopyOptions,
 } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
-export type ActionBarCopyProps = Omit<PressableProps, "onPress" | "children"> &
+export type ActionBarCopyProps = Omit<
+  PrimitivePressableProps,
+  "onPress" | "children"
+> &
   UseActionBarCopyOptions & {
     children:
       | ReactNode
-      | ((props: { isCopied: boolean; disabled: boolean }) => ReactNode);
+      | ((
+          props: PressableStateCallbackType & {
+            isCopied: boolean;
+            disabled: boolean;
+          },
+        ) => ReactNode);
   };
 
 export const ActionBarCopy = ({
@@ -26,15 +35,15 @@ export const ActionBarCopy = ({
   const isDisabled = disabledProp ?? disabled;
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={copy}
       disabled={isDisabled}
       accessibilityRole="button"
       {...pressableProps}
     >
       {typeof children === "function"
-        ? children({ isCopied, disabled: isDisabled })
+        ? (state) => children({ ...state, isCopied, disabled: isDisabled })
         : children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

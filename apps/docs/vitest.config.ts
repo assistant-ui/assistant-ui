@@ -5,11 +5,39 @@ import { defaultExclude } from "vitest/config";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
+  // Vite rejects Next's string-valued PostCSS plugins; DOM tests do not assert transformed styles.
+  css: { postcss: { plugins: [] } },
   test: {
+    coverage: {
+      include: [
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "hooks/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx,mjs}",
+        "runtimes/**/*.{ts,tsx}",
+        "instrumentation.ts",
+        "instrumentation-client.ts",
+        "proxy.ts",
+        "mdx-components.tsx",
+      ],
+      exclude: [
+        "lib/xulux/learn/courses/*/shared/**",
+        "lib/xulux/learn/courses/*/stages/**",
+      ],
+      thresholds: {
+        lines: 35,
+        functions: 27,
+        branches: 31,
+        statements: 34,
+        autoUpdate: (threshold: number, previous: number) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,
     globals: true,
+    setupFiles: ["./test/setup.ts"],
     env: {
       NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test",
     },
@@ -21,6 +49,7 @@ export default {
   },
   resolve: {
     alias: {
+      "@assistant-ui/ui": resolve(__dirname, "../../packages/ui/src"),
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
@@ -31,6 +60,10 @@ export default {
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",
+      ),
+      "@/hooks/use-attachment-src": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-attachment-src",
       ),
       "@/components/ui": resolve(
         __dirname,
@@ -47,10 +80,6 @@ export default {
       "@/components/icons/discord": resolve(
         __dirname,
         "../../packages/ui/src/components/react/icons/discord",
-      ),
-      "@/components/icons/gemini": resolve(
-        __dirname,
-        "../../packages/ui/src/components/react/icons/gemini",
       ),
       "@/components/icons/github": resolve(
         __dirname,

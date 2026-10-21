@@ -1,0 +1,116 @@
+---
+title: Events
+description: Event names, payloads, and scope selectors for useAuiEvent.
+---
+
+## Subscribe
+
+`useAuiEvent` listens for an event from the nearest `AuiProvider`. Call it during component setup. It subscribes for the lifetime of the current Vue effect scope and unsubscribes when that scope ends. The subscription follows the provider's current client when its structure changes.
+
+```ts
+declare function useAuiEvent<TEvent extends AssistantEventName>(
+  selector: AssistantEventSelector<TEvent>,
+  callback: AssistantEventCallback<TEvent>,
+): void;
+```
+
+`AssistantEventName`, `AssistantEventSelector`, and `AssistantEventCallback` are exported by `@assistant-ui/vue`. The callback receives the selected event's payload. For `event: "*"`, it receives `{ event, payload }` instead.
+
+```vue title="app/components/ThreadEventStatus.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useAuiEvent } from "@assistant-ui/vue";
+
+const selectedThreadId = ref("");
+const lastErrorMessageId = ref("");
+
+useAuiEvent("threads.selectionChanged", ({ threadId }) => {
+  selectedThreadId.value = threadId;
+});
+
+useAuiEvent({ scope: "*", event: "*" }, ({ event, payload }) => {
+  if (event === "message.error") {
+    lastErrorMessageId.value = payload.messageId;
+  }
+});
+</script>
+
+<template>
+  <p v-if="selectedThreadId">Selected thread: {{ selectedThreadId }}</p>
+  <p v-if="lastErrorMessageId">Message error: {{ lastErrorMessageId }}</p>
+</template>
+```
+
+Render the component under an `AuiProvider` with a runtime. See [State and actions](/docs/vue/state) for provider scope placement.
+
+## Selectors
+
+| Selector | Delivery |
+|---|---|
+| `"thread.runEnd"` | Receives this event from the provider's currently bound `thread` scope. A string uses the event name's prefix as its scope. |
+| `{ scope: "threads", event: "thread.runEnd" }` | Receives this event from descendants of the bound `threads` scope. |
+| `{ scope: "*", event: "thread.runEnd" }` | Receives this named event across descendant scopes, including threads other than the selected thread. |
+| `{ scope: "*", event: "*" }` | Receives every event as `{ event, payload }`. Check `event` to narrow the payload type. |
+
+A named scope must be the event's own scope or an ancestor declared by its `meta.source` chain. The available named scopes depend on where the provider is mounted. A missing selected scope warns in development; `useAuiEvent` retries binding after a structural change adds it.
+
+| Event prefix | Valid named scopes |
+|---|---|
+| `threads` | `threads` |
+| `threadListItem` | `threadListItem`, `threads` |
+| `thread` | `thread`, `threads` |
+| `composer` | `composer`, `thread`, `message`, `threads` |
+| `message` | `message`, `thread`, `threads` |
+
+A composer can belong to a thread or a message. Use `message` for a composer event only when listening to an edit composer inside a message scope. `scope: "*"` is valid for every event.
+
+## Events
+
+### Threads
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `threads.selectionChanged` | `{ threadId: string; previousThreadId: string }` | The main thread id changes after mount. The initially selected thread does not fire it. |
+
+### Thread list item
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `threadListItem.switchedTo` | `{ threadId: string }` | This item reports `isMain: true` after its selection state or thread id changes. Deprecated. |
+| `threadListItem.switchedAway` | `{ threadId: string }` | This item reports `isMain: false` after its selection state or thread id changes. Deprecated. |
+
+### Thread
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `thread.historyWriteError` | `{ threadId: string; operation: "append" \| "update" \| "delete"; messageIds: readonly string[]; message: string }` | A history adapter write fails. The raw error is omitted from the store event. |
+| `thread.toolApprovalAnswered` | `{ threadId: string; messageId: string; toolCallId: string; toolName: string; approved: boolean }` | The runtime reports an answered tool approval. |
+| `thread.runStart` | `{ threadId: string }` | The runtime reports a run starting. |
+| `thread.runEnd` | `{ threadId: string }` | The runtime reports a run ending. |
+| `thread.cancelRun` | `{ threadId: string }` | `aui.thread.cancelRun()` is called while the thread is running. |
+| `thread.voiceStarted` | `{ threadId: string }` | `aui.thread.connectVoice()` calls the runtime's voice connection method. |
+| `thread.initialize` | `{ threadId: string }` | The runtime reports the thread initializing. |
+| `thread.modelContextUpdate` | `{ threadId: string }` | The runtime reports a model context update. |
+
+### Composer
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `composer.send` | `{ threadId: string; messageId?: string; chars: number; attachments: number; suggestion?: boolean }` | The composer runtime reports a send, or `aui.thread.append()` appends a user message. `messageId` identifies an edit composer; `suggestion` is present when the sent text matches a suggestion. |
+| `composer.attachmentAdd` | `{ threadId: string; messageId?: string; contentType?: string }` | The composer runtime reports an attachment being added. `messageId` identifies an edit composer. |
+| `composer.attachmentAddError` | `{ threadId: string; messageId?: string; attachmentId?: string; reason: "no-adapter" \| "not-accepted" \| "adapter-error"; message: string; contentType?: string }` | The composer runtime reports an attachment add error. `messageId` identifies an edit composer; the raw error is omitted. |
+| `composer.cancel` | `{ threadId: string }` | `aui.composer.cancel()` is called on a thread composer that can cancel. Edit composer cancellation does not emit this event. |
+
+### Message
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `message.reload` | `{ threadId: string; messageId: string }` | `aui.message.reload()` is called. |
+| `message.branchSwitched` | `{ threadId: string; messageId: string }` | `aui.message.switchToBranch()` is called. |
+| `message.copied` | `{ threadId: string; messageId: string }` | `aui.message.setIsCopied(true)` is called. |
+| `message.speak` | `{ threadId: string; messageId: string }` | `aui.message.speak()` is called. |
+| `message.error` | `{ threadId: string; messageId: string; reason: "error" }` | A mounted message enters an incomplete status with reason `"error"`. |
+
+## Deprecated events
+
+Use `threads.selectionChanged` in place of `threadListItem.switchedTo` and `threadListItem.switchedAway`. Its `threadId` is the newly selected thread and `previousThreadId` is the thread switched away from. Compare either id with the item's id when you need per-item behavior.

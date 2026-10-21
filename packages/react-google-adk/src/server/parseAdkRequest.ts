@@ -1,14 +1,17 @@
 import { isRecord } from "@assistant-ui/core/internal";
 import type { AdkSendMessageConfig } from "../types";
 import { toAdkFunctionResponse } from "../toAdkFunctionResponse";
+import { ADK_MESSAGE_ID_METADATA_KEY } from "../messageIdMetadataKey";
 
 type ParsedAdkRequest =
   | {
       type: "message";
       text: string;
       parts?: Array<Record<string, unknown>> | undefined;
+      sessionId?: string | undefined;
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
+      customMetadata?: Record<string, unknown> | undefined;
     }
   | {
       type: "tool-result";
@@ -16,8 +19,10 @@ type ParsedAdkRequest =
       toolName: string;
       result: unknown;
       isError: boolean;
+      sessionId?: string | undefined;
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
+      customMetadata?: Record<string, unknown> | undefined;
     };
 
 const invalidField = (field: string, expectation: string): Error =>
@@ -114,10 +119,20 @@ const validatePart = (part: Record<string, unknown>, index: number) => {
       field("inlineData.mimeType"),
     );
     validateOptionalPartString(content, "data", field("inlineData.data"));
+    validateOptionalPartString(
+      content,
+      "displayName",
+      field("inlineData.displayName"),
+    );
   });
   validateRecordField("fileData", (content) => {
     validateOptionalPartString(content, "fileUri", field("fileData.fileUri"));
     validateOptionalPartString(content, "mimeType", field("fileData.mimeType"));
+    validateOptionalPartString(
+      content,
+      "displayName",
+      field("fileData.displayName"),
+    );
   });
 };
 
@@ -128,7 +143,7 @@ const validatePart = (part: Record<string, unknown>, index: number) => {
  *
  * 1. User message:
  * ```json
- * { "message": "Hello", "runConfig": {}, "stateDelta": {} }
+ * { "message": "Hello", "messageId": "user-1", "runConfig": {}, "stateDelta": {} }
  * ```
  *
  * 2. Tool result:
@@ -162,6 +177,12 @@ export const parseAdkRequest = async (
   if (body.runConfig !== undefined) config.runConfig = body.runConfig;
   const checkpointId = readOptionalString(body, "checkpointId");
   if (checkpointId !== undefined) config.checkpointId = checkpointId;
+  const sessionId = readOptionalString(body, "sessionId");
+  const messageId = readOptionalString(body, "messageId");
+  const customMetadata =
+    messageId !== undefined
+      ? { [ADK_MESSAGE_ID_METADATA_KEY]: messageId }
+      : undefined;
 
   const stateDelta = body.stateDelta;
   if (stateDelta !== undefined && !isRecord(stateDelta)) {
@@ -181,8 +202,10 @@ export const parseAdkRequest = async (
       toolName: readString(body, "toolName"),
       result: body.result,
       isError: body.isError ?? false,
+      ...(sessionId !== undefined && { sessionId }),
       config,
       ...(stateDelta != null && { stateDelta }),
+      ...(customMetadata !== undefined && { customMetadata }),
     };
   }
 
@@ -213,8 +236,10 @@ export const parseAdkRequest = async (
     type: "message",
     text: text ?? "",
     ...(parts !== undefined && { parts }),
+    ...(sessionId !== undefined && { sessionId }),
     config,
     ...(stateDelta != null && { stateDelta }),
+    ...(customMetadata !== undefined && { customMetadata }),
   };
 };
 
@@ -226,7 +251,8 @@ export const parseAdkRequest = async (
  * ```ts
  * const parsed = await parseAdkRequest(req);
  * const newMessage = toAdkContent(parsed);
- * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta: parsed.stateDelta });
+ * const stateDelta = validateSessionState(parsed.stateDelta);
+ * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta, customMetadata: parsed.customMetadata });
  * return adkEventStream(events);
  * ```
  */

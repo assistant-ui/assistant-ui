@@ -39,6 +39,7 @@ import { reportRunFailure } from "../../utils/report-run-failure";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
+import { toAppendMessage } from "../utils/append-message";
 import type { ModelContext } from "../../model-context/types";
 import type {
   ChatModelRunOptions,
@@ -93,39 +94,6 @@ export type CreateAppendMessage =
       startRun?: boolean | undefined;
     };
 
-const toAppendMessage = (
-  messages: readonly ThreadMessage[],
-  message: CreateAppendMessage,
-): AppendMessage => {
-  if (typeof message === "string") {
-    return {
-      createdAt: new Date(),
-      parentId: messages.at(-1)?.id ?? null,
-      sourceId: null,
-      runConfig: {},
-      role: "user",
-      content: [{ type: "text", text: message }],
-      attachments: [],
-      metadata: { custom: {} },
-    };
-  }
-
-  return {
-    createdAt: message.createdAt ?? new Date(),
-    parentId:
-      message.parentId === undefined
-        ? (messages.at(-1)?.id ?? null)
-        : message.parentId,
-    sourceId: message.sourceId ?? null,
-    role: message.role ?? "user",
-    content: message.content,
-    attachments: message.attachments ?? [],
-    metadata: message.metadata ?? { custom: {} },
-    runConfig: message.runConfig ?? {},
-    startRun: message.startRun,
-  } as AppendMessage;
-};
-
 export type ThreadRuntimeCoreBinding = SubscribableWithState<
   ThreadRuntimeCore,
   ThreadRuntimePath
@@ -140,9 +108,14 @@ export type ThreadListItemRuntimeBinding = SubscribableWithState<
 
 export type ThreadRuntimeState = {
   /**
-   * Whether the thread is disabled. Disabled threads cannot receive new messages.
+   * Whether typing into the composer, adding attachments, sending, and editing messages are disabled for the thread.
    */
   readonly isDisabled: boolean;
+
+  /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
 
   /**
    * Whether the thread is loading its history.
@@ -150,9 +123,21 @@ export type ThreadRuntimeState = {
   readonly isLoading: boolean;
 
   /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
+
+  /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
   readonly isRunning: boolean;
+  /** Whether the adapter can resume the current interrupted run from its checkpoint. */
+  readonly canResume: boolean;
 
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
@@ -167,7 +152,7 @@ export type ThreadRuntimeState = {
   /**
    * The thread state.
    *
-   * @deprecated This feature is experimental
+   * @deprecated Experimental since 2024-04-21. Not scheduled for removal; the API may change in any release.
    */
   readonly state: ReadonlyJSONValue;
 
@@ -182,7 +167,7 @@ export type ThreadRuntimeState = {
   readonly extras: unknown;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   readonly speech: SpeechState | undefined;
 
@@ -214,8 +199,12 @@ export const getThreadState = (
   return Object.freeze({
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
+    isSendDisabled: runtime.isSendDisabled,
     isLoading: runtime.isLoading,
+    hasEarlier: runtime.hasEarlier ?? false,
+    isLoadingEarlier: runtime.isLoadingEarlier ?? false,
     isRunning: getThreadRuntimeCoreIsRunning(runtime),
+    canResume: runtime.canResume ?? false,
     messages: runtime.messages,
     state: runtime.state,
     suggestions: runtime.suggestions,
@@ -292,10 +281,17 @@ export type ThreadRuntime = {
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   /**
+   * Loads the page before the first loaded message; resolves at once when
+   * `hasEarlier` is false. Concurrent calls share one load.
+   */
+  loadEarlier(): Promise<void>;
+  /**
    * Notifies the runtime that the adapter discarded its backing session.
    * Clears session-scoped tool-invocation state without run-cancel side
    * effects such as composer draft restoration. Internal API for
    * external-store adapter authors.
+   *
+   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
    */
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
@@ -314,7 +310,7 @@ export type ThreadRuntime = {
   getMessageById(messageId: string): MessageRuntime;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   stopSpeaking(): void;
 
@@ -325,6 +321,7 @@ export type ThreadRuntime = {
   muteVoice(): void;
   unmuteVoice(): void;
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,
@@ -342,6 +339,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadRuntimeState;
+    threadListItem: ThreadListItemRuntimeBinding;
   };
   private readonly _stateBinding: ShallowMemoizeSubject<
     ThreadRuntimeState,
@@ -367,6 +365,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       path: threadBinding.path,
       getState: () => threadBinding.getState(),
       getStateState: () => stateBinding.getState(),
+      threadListItem: {
+        path: threadListItemBinding.path,
+        getState: () => threadListItemBinding.getState(),
+        subscribe: (callback) => threadListItemBinding.subscribe(callback),
+      },
       outerSubscribe: (callback) => threadBinding.outerSubscribe(callback),
       subscribe: (callback) => threadBinding.subscribe(callback),
     };
@@ -390,6 +393,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.append = this.append.bind(this);
     this.deleteMessage = this.deleteMessage.bind(this);
     this.resumeRun = this.resumeRun.bind(this);
+    this.loadEarlier = this.loadEarlier.bind(this);
     this.importExternalState = this.importExternalState.bind(this);
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
@@ -463,6 +467,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this._threadBinding.getState().cancelRun();
   }
 
+  public loadEarlier() {
+    return this._threadBinding.getState().loadEarlier?.() ?? Promise.resolve();
+  }
+
+  /** @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release. */
   public unstable_notifySessionReset() {
     this._threadBinding.getState().unstable_notifySessionReset();
   }
@@ -588,6 +597,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     EventSubscriptionSubject<ThreadRuntimeEventType>
   >();
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   public unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,

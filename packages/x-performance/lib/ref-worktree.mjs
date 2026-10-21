@@ -38,13 +38,23 @@ export const ensureRefWorktree = (ref, { build = true } = {}) => {
   if (!build) return { wt, sha, marker };
   if (!existsSync(marker)) {
     console.error("installing and building ref packages (one-time per ref)...");
-    execFileSync("pnpm", ["install"], {
-      cwd: wt,
-      stdio: ["ignore", 2, "inherit"],
-      env: { ...process.env, CI: "true" },
-    });
     const filters = Object.keys(REF_PACKAGE_DIRS).map(
       (name) => `--filter=${name}`,
+    );
+    execFileSync(
+      "pnpm",
+      [
+        "install",
+        "--frozen-lockfile",
+        "--filter=.",
+        "--filter=@assistant-ui/react-devtools...",
+        ...filters.map((filter) => `${filter}...`),
+      ],
+      {
+        cwd: wt,
+        stdio: ["ignore", 2, "inherit"],
+        env: { ...process.env, CI: "true" },
+      },
     );
     execFileSync("pnpm", ["turbo", "run", "build", ...filters], {
       cwd: wt,

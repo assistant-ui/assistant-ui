@@ -5,6 +5,28 @@ description: Keep a long thread light by loading older messages above the window
 
 A thread that has run for weeks does not need every message in memory to open. Keep the last page loaded, and let the list ask for the page above it when the reader reaches the top. The runtime treats the loaded window as the whole thread, so nothing else changes: the composer, the message actions and the elements work on what is loaded, and the list keeps the message being read in place while a page lands above it.
 
+## Paging through the runtime
+
+An external store adapter can own the window: `hasEarlier` says whether an older page exists, and `onLoadEarlier` fetches the page before the first loaded message and prepends it. The runtime runs one load at a time and reports it as `thread.isLoadingEarlier`, and the thread element and `ThreadPrimitive.MessagesFlatList` read both when they get no `history` prop:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew,
+  hasEarlier,
+  onLoadEarlier: async () => {
+    const page = await fetchPageBefore(messages[0]!.id);
+    setMessages((current) => [...page.messages, ...current]);
+    setHasEarlier(page.hasMore);
+  },
+});
+
+<Thread />;
+```
+
+A rejected `onLoadEarlier` is logged and ends the load; catch inside it to show a retry control like the one below. The rest of this page builds the same window in app state and hands it to the `history` prop instead, which takes precedence when both are present.
+
 ## The runtime side
 
 `useExternalStoreRuntime` renders whatever `messages` holds, so a window is the last page of the conversation in that array, and loading older messages is prepending the page before it. Three things keep that cheap and correct:
@@ -21,8 +43,6 @@ import {
 } from "@assistant-ui/react-native";
 import { useCallback, useState } from "react";
 import { fetchPageBefore, sendMessage, type StoredMessage } from "./chat-api";
-
-const PAGE_SIZE = 20;
 
 const convertMessage = (message: StoredMessage): ThreadMessageLike => ({
   id: message.id,
@@ -46,9 +66,9 @@ export function useWindowedRuntime(
     setIsLoadingMore(true);
     setPageError(undefined);
     try {
-      const page = await fetchPageBefore(first.id, PAGE_SIZE);
-      setMessages((current) => [...page, ...current]);
-      setHasMore(page.length === PAGE_SIZE);
+      const page = await fetchPageBefore(first.id);
+      setMessages((current) => [...page.messages, ...current]);
+      setHasMore(page.hasMore);
     } catch (error) {
       setPageError(error);
     } finally {
@@ -78,7 +98,7 @@ export function useWindowedRuntime(
 }
 ```
 
-`fetchPageBefore` and `sendMessage` stand for your own API; the runtime never sees them. The window only ever grows at its start (older pages) and its end (new turns), so the array your store hands to the runtime is always the contiguous tail of the conversation. The hook treats its arguments as the first page of one thread; the next section keys the component that calls it by thread id.
+`fetchPageBefore` (the page before a message, and whether older ones remain) and `sendMessage` stand for your own API; the runtime never sees them. The window only ever grows at its start (older pages) and its end (new turns), so the array your store hands to the runtime is always the contiguous tail of the conversation. The hook treats its arguments as the first page of one thread; the next section keys the component that calls it by thread id.
 
 A failed page needs a hand: the list asks once per content length, so after `fetchPageBefore` rejects nothing asks again by itself. Keep `hasMore` true, show `pageError` where the edge was, and call `loadMore` from a retry control or a timer.
 

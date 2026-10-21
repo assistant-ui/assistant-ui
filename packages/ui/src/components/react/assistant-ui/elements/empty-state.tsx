@@ -89,7 +89,7 @@ export function EmptyStateComposer({
       )}
       {...props}
     >
-      <span className="text-foreground/35 text-[15px]">{placeholder}</span>
+      <span className="text-muted-foreground text-[15px]">{placeholder}</span>
       <button
         type="button"
         aria-label="Send"

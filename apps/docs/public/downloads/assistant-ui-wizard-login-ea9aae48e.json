@@ -1,0 +1,117 @@
+{
+  "artifact": "assistant-ui-wizard-login-ea9aae48e.tgz",
+  "sha256": "b2a6f0d5c41013a8f2cfc4b170c8283527f6b8eb9ee68ef7022b1b42d4185982",
+  "integrity": "sha512-1B4JV1uyQ4ZtuZpJ6VapbzDYuspw5AuaoWeF6689wZDBdaz2Nx2vBID8AznH8oxWgJ/2yvl56lRX3/VKq/9LzQ==",
+  "bytes": 650166,
+  "repository": "https://github.com/assistant-ui/assistant-ui",
+  "pull_request": "https://github.com/assistant-ui/assistant-ui/pull/8759",
+  "source_commit": "ea9aae48ecb36a364647e284940a166bd8712de8",
+  "package_version": "0.0.120-wizard-login.1",
+  "staged_manifest_transformations": [
+    {
+      "field": "version",
+      "from": "0.0.120",
+      "to": "0.0.120-wizard-login.1",
+      "reason": "Unpublished immutable wizard preview; source version unchanged."
+    },
+    {
+      "field": "dependencies.@assistant-ui/agent-launcher",
+      "from": "workspace:^ (source0.1.17)",
+      "to": "^0.1.16",
+      "reason": "Registry0.1.16 dist/launch.js matches fresh archived source build byte-for-byte.",
+      "runtime_sha256": "d930da9588d3f246ccc92af4b31bb62e5e9fd8c0cd0a3be029ba50b3625fb3a5"
+    },
+    {
+      "field": "devDependencies.@assistant-ui/x-buildutils",
+      "from": "workspace:*",
+      "to": "^0.0.30",
+      "reason": "Standalone staging resolves workspace development build tool to source package version."
+    }
+  ],
+  "build": {
+    "method": "Committed git archive + prescribed aui-build + template asset copy + npm pack --ignore-scripts in isolated temporary staging",
+    "dependencies": "Existing workspace build dependencies linked read-only; consumer install tested with fresh real registry dependencies.",
+    "node": "v24.17.0"
+  },
+  "runtime_provenance": "templates/cloud-harness/vendor/provenance.json",
+  "bundled_runtime": {
+    "repository": "https://github.com/assistant-ui/harness-sdk",
+    "revision": "3d3a180f0400b84267f62969d42f8b102bed4479",
+    "artifacts": [
+      {
+        "name": "harness-sdk",
+        "version": "0.3.1",
+        "directory": "packages/harness-sdk/core",
+        "normalizations": [
+          "@assistant-ui/tap becomes a required peer ^0.9.6",
+          "statewire becomes a required peer ^0.19.0"
+        ],
+        "filename": "harness-sdk-0.3.1.tgz",
+        "sha256": "41334159edffa2bafbdf669d372c7455fdaed8d1e47699e4ff8cebf0ca85669d"
+      },
+      {
+        "name": "@assistant-ui/react-harness-sdk",
+        "version": "0.0.2",
+        "directory": "packages/harness-sdk/assistant-ui",
+        "normalizations": [
+          "@assistant-ui/core becomes a required peer ^0.3.18",
+          "@assistant-ui/store becomes a required peer ^0.3.3",
+          "@assistant-ui/tap becomes a required peer ^0.9.6",
+          "harness-sdk dependency becomes a required peer ^0.3.1"
+        ],
+        "filename": "assistant-ui-react-harness-sdk-0.0.2.tgz",
+        "sha256": "7aed398d12e126e28ffcc216713b3cfe0200bbf51d1567b28d5b99dadf717307"
+      },
+      {
+        "name": "statewire",
+        "version": "0.19.3",
+        "directory": "packages/statewire/core",
+        "normalizations": ["@assistant-ui/tap becomes a required peer ^0.9.6"],
+        "filename": "statewire-0.19.3.tgz",
+        "sha256": "9dbc65f74427f5f1fdaccbec98baebb7aa207bb1a2d972288b03225afc6cc48f"
+      }
+    ]
+  },
+  "verified": [
+    "Fresh committed-source aui-build and packaged template assets",
+    "Fresh npm --legacy-peer-deps installation supplies declared React19.3.0, Statewire0.19.4, tap0.9.20 and launcher0.1.16",
+    "Installed general/cloud/create help and cloud login/setup --setup-url help pass; default backend and cloud API URLs unchanged",
+    "Installed actual React, Statewire and cloud-setup-login bridge modules import successfully; unsafe bridge URL validation executes",
+    "Node import guard confirms general/create/cloud-login help never loads Statewire, React or tap before wizard bridge is requested",
+    "Installed create cloud-harness --skip-install --use-npm --no-skills generates server credential route, template marker, all three byte-exact official vendor assets",
+    "CLI MIT LICENSE and all three runtime archive licenses/provenance hashes verified",
+    "Packed files exclude saved credentials, .env.local, cloud.json and provision.json",
+    "Original immutable b9d8b56ad hackathon artifact remains unchanged"
+  ],
+  "packaging_proof": "smoke-proof.json",
+  "source_checks_reported_by_implementation_owner": [
+    "565 CLI tests; 2 packaging checks",
+    "51 focused docs tests including artifact integrity"
+  ],
+  "acceptance_reported_by_implementation_owner": [
+    "Accounts PR283 merged and production deployed",
+    "Local real checkout Worker and actual wizard form consent+return fixture verified",
+    "Production accounts.assistant-ui.com registered CLI device metadata verified: expires_in600s",
+    "accounts.aui.dev alias rejected registered CLI with400; alias consent not claimed"
+  ],
+  "accounts_dependency": {
+    "pull_request": "https://github.com/assistant-ui/assistant-internal/pull/283",
+    "source_commit": "debc20d25db25321ce963d1e06ac4cab07393ab5",
+    "status": "Merged and production deployed",
+    "merge_commit": "af0d258cc91dd6b49b33f1a72f1de81a6bc7cdb6",
+    "deployment": "dpl_Hahk6wexAE9YZ2wSudsFr8C8k5kT"
+  },
+  "pending": [
+    "Full real production browser approval/denial, Accounts return and terminal wizard status smoke; native Mac locked."
+  ],
+  "distribution": {
+    "status": "Downloadable prerelease after the matching docs deployment; not published to the npm registry.",
+    "suggested_download_filename": "assistant-ui-wizard-login-ea9aae48e.tgz",
+    "original_npm_pack_filename": "assistant-ui-0.0.120-wizard-login.1.tgz",
+    "url": "https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz"
+  },
+  "limitations": [
+    "Full production browser-return acceptance pending while native Mac locked; local fixture and production device metadata evidence is recorded separately.",
+    "Old b9d8b hosted acceptance is not claimed as production wizard consent/return acceptance."
+  ]
+}

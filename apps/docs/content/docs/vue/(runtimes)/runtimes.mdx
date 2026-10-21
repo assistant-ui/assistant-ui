@@ -1,0 +1,67 @@
+---
+title: Runtimes
+description: "Choose how the Vue primitives get their messages: the AI SDK, assistant-cloud, or your own store."
+---
+
+A runtime fills the `threads` key of `AuiConfig`. The `AuiProvider` makes its messages and actions available to Vue primitives. Choose the runtime by where conversations and messages need to live.
+
+| Runtime | Threads | Messages | Guide |
+|---|---|---|---|
+| `AISDKChat` | One thread | One client-side AI SDK chat | [AI SDK](/docs/vue/ai-sdk#aisdkchat) |
+| `AISDKThreads` | A thread list in memory | One client-side AI SDK chat per thread | [AI SDK](/docs/vue/ai-sdk#aisdkthreads) |
+| `AISDKThreads` with `cloud` | A thread list backed by assistant-cloud | One AI SDK chat per thread, with cloud-backed history | [Cloud](/docs/vue/cloud) |
+| `RuntimeAdapter` | Supplied by your runtime | Your external store | [External store](/docs/vue/external-store) |
+
+## AISDKChat
+
+`AISDKChat` creates one thread. Its default `AssistantChatTransport` sends to `/api/chat`.
+
+```vue title="app/components/ChatAssistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <slot />
+  </AuiProvider>
+</template>
+```
+
+See [AISDKChat](/docs/vue/ai-sdk#aisdkchat) for transport options and the server route.
+
+## AISDKThreads
+
+`AISDKThreads` creates a list with one AI SDK chat per thread. Without `cloud`, the list and chat histories stay in memory for the lifetime of the client.
+
+```vue title="app/components/ThreadsAssistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+
+const config = AuiConfig({
+  threads: AISDKThreads(),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <slot />
+  </AuiProvider>
+</template>
+```
+
+See [AISDKThreads](/docs/vue/ai-sdk#aisdkthreads) for the runtime setup and [Thread list](/docs/vue/thread-list) for the controls that switch between conversations.
+
+## assistant-cloud
+
+Pass an `AssistantCloud` instance as the `cloud` option to `AISDKThreads` for a remote thread list and cloud-backed message history. The [Cloud guide](/docs/vue/cloud) covers setup and persistence.
+
+## External store
+
+Use `RuntimeAdapter` when your own store supplies message state and actions. The [External store guide](/docs/vue/external-store) shows how to connect it to `AuiConfig`.

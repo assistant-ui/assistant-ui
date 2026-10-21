@@ -1,0 +1,103 @@
+---
+title: Chain of thought
+description: Group reasoning and tool-call parts into one collapsible block.
+---
+
+The app provides the `chainOfThought` scope for a message. Vue provides `ChainOfThoughtPrimitiveParts` to iterate that scope and `ChainOfThoughtPrimitiveAccordionTrigger` to toggle it. Render this component inside a message row from `ThreadPrimitiveMessages`.
+
+## Provide the chain-of-thought scope
+
+```vue title="app/components/ChainOfThought.vue"
+<script setup lang="ts">
+import { computed } from "vue";
+import { ChainOfThoughtClient } from "@assistant-ui/core/store";
+import {
+  AuiConfig,
+  AuiIf,
+  AuiProvider,
+  ChainOfThoughtPrimitiveAccordionTrigger,
+  ChainOfThoughtPrimitiveParts,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const aui = useAui();
+const messageParts = useAuiState((s) => s.message.parts);
+const entries = computed(() =>
+  messageParts.value.flatMap((part, index) =>
+    part.type === "reasoning" || part.type === "tool-call"
+      ? [{ part, index }]
+      : [],
+  ),
+);
+const config = computed(() =>
+  AuiConfig({
+    chainOfThought: ChainOfThoughtClient({
+      parts: entries.value.map(({ part }) => part),
+      getMessagePart: ({ index }) => {
+        const entry = entries.value[index];
+        if (!entry) throw new Error("Chain of thought part index is out of bounds.");
+        return aui.message.part({ index: entry.index });
+      },
+    }),
+  }),
+);
+</script>
+
+<template>
+  <AuiProvider v-if="entries.length" :config="config" :extends="aui">
+    <section class="rounded-lg border p-3">
+      <ChainOfThoughtPrimitiveAccordionTrigger class="text-sm font-medium">
+        Thinking
+      </ChainOfThoughtPrimitiveAccordionTrigger>
+      <AuiIf :condition="(s) => !s.chainOfThought.collapsed">
+        <div class="mt-2 space-y-2 text-sm">
+          <ChainOfThoughtPrimitiveParts v-slot="{ part }">
+            <p v-if="part.type === 'reasoning'" class="whitespace-pre-wrap">
+              {{ part.text }}
+            </p>
+            <p v-else-if="part.type === 'tool-call'">Tool: {{ part.toolName }}</p>
+          </ChainOfThoughtPrimitiveParts>
+        </div>
+      </AuiIf>
+    </section>
+  </AuiProvider>
+</template>
+```
+
+This selects reasoning and tool calls from the current message. `entries` retains each part's original index because `getMessagePart` must look up the matching part in `s.message.parts`. Place this block once per message and render other content separately; rendering the same reasoning and tool parts through `MessagePrimitiveParts` would show them twice. A nested `AuiProvider` uses `:extends="aui"` to keep the message scope.
+
+## Render the parts
+
+`ChainOfThoughtPrimitiveParts` calls its default slot with `{ part }` once for each entry in `s.chainOfThought.parts`. The slot receives the part state, so the example reads `text` for reasoning and `toolName` for tool calls. Each iteration also has its own `s.part` scope for part actions.
+
+The iterator renders while the scope is collapsed. Wrap it in `AuiIf` with `!s.chainOfThought.collapsed` when collapsed content should leave the rendered tree.
+
+## Collapse and expand
+
+`ChainOfThoughtPrimitiveAccordionTrigger` renders a button that toggles `aui.chainOfThought.setCollapsed(...)`. The client starts with `collapsed: true`; you can also call `setCollapsed(true)` or `setCollapsed(false)` from a component inside the scope. A caller's click listener runs first and can prevent the toggle with `preventDefault()`. A `disabled` attribute also blocks it.
+
+`s.chainOfThought.status` describes the selected group. `ChainOfThoughtClient` returns `running` if any part is running; otherwise it takes the last part's status. An empty group reports `complete`. A tool call can report `requires-action`, so handle that status if you show a group status label.
+
+## Parts
+
+### ChainOfThoughtPrimitiveParts
+
+Renders no wrapper element. Its default slot receives `{ part }` for each entry in `s.chainOfThought.parts`. It has no props.
+
+### ChainOfThoughtPrimitiveAccordionTrigger
+
+Renders a `<button type="button">` and toggles the collapsed state on click. Its default slot is the button content. Attributes and native listeners pass through to the button; it has no component props.
+
+### ChainOfThoughtClient
+
+Builds the scope supplied to the nested provider.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `parts` | `readonly ChainOfThoughtPart[]` | Required | Reasoning and tool-call part states in the order to render. |
+| `getMessagePart` | `(selector: { index: number }) => PartMethods` | Required | Resolve a group index to the corresponding message part methods. |
+
+## Compared with React
+
+React's `MessagePrimitive.Parts` can group adjacent reasoning and tool-call parts for a `components.ChainOfThought` renderer. React also offers `MessagePrimitive.GroupedParts` for explicit grouping. Vue has no matching grouped message iterator; supply `ChainOfThoughtClient` with the parts and their message indexes yourself. The styled Vue [reasoning component](/docs/vue/reasoning) uses its own disclosure UI instead of these primitives.

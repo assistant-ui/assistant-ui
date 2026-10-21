@@ -2,11 +2,12 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { hasOption, optionArgs, optionValues } from "./lib/script-options.mjs";
+import { hasOption, optionArgs } from "./lib/script-options.mjs";
+import { resolveApiSurfaceFilters } from "./update-api-surface.mjs";
 
 const repoRoot = process.cwd();
 const scriptArgs = process.argv.slice(2);
-const filters = optionValues(scriptArgs, "--filter");
+const filters = resolveApiSurfaceFilters(scriptArgs);
 const skipBuild = hasOption(scriptArgs, "--skip-build");
 
 function run(command, args) {

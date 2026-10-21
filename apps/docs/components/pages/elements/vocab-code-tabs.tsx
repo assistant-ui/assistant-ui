@@ -5,7 +5,7 @@ import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "json", label: "IR JSON" },
+  { key: "json", label: "JSON" },
   { key: "react", label: "React" },
 ] as const;
 

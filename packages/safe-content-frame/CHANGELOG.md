@@ -1,5 +1,17 @@
 # safe-content-frame
 
+## 0.0.34
+
+### Patch Changes
+
+- [#9268](https://github.com/assistant-ui/assistant-ui/pull/9268) [`afb9ad2`](https://github.com/assistant-ui/assistant-ui/commit/afb9ad2d42e4178a51eadf1ef15ad9f25be9df57) - feat: add `unsafeShimDomain` to load the shim from a self-hosted domain, and `opaqueOrigin` in generative-frame to render widgets in a `null`-origin sandbox without a shim ([@Yonom](https://github.com/Yonom))
+
+## 0.0.33
+
+### Patch Changes
+
+- [#7212](https://github.com/assistant-ui/assistant-ui/pull/7212) [`9f40133`](https://github.com/assistant-ui/assistant-ui/commit/9f40133ba1a472c143a3da80ec702a828120ace8) - fix: clean up cancelled and pre-load failed sandbox frame renders ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.32
 
 ### Patch Changes

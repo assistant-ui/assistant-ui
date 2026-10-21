@@ -41,6 +41,10 @@ export class ExternalStoreThreadListRuntimeCore
     return this.adapter.isLoading ?? false;
   }
 
+  public get canUnarchive() {
+    return !!this.adapter.onUnarchive;
+  }
+
   public get newThreadId() {
     return undefined;
   }
@@ -111,6 +115,7 @@ export class ExternalStoreThreadListRuntimeCore
     if (
       !initialLoad &&
       (previousAdapter.isLoading ?? false) === (adapter.isLoading ?? false) &&
+      !!previousAdapter.onUnarchive === !!adapter.onUnarchive &&
       previousThreadId === newThreadId &&
       previousThreads === newThreads &&
       previousArchivedThreads === newArchivedThreads
@@ -123,8 +128,7 @@ export class ExternalStoreThreadListRuntimeCore
       previousArchivedThreads !== newArchivedThreads ||
       previousThreadId !== newThreadId
     ) {
-      this._threadData = nullProtoRecord(
-        DEFAULT_THREAD_DATA,
+      this._threadData = nullProtoRecord<ThreadListItemCoreState>(
         Object.fromEntries(
           adapter.threads?.map((t) => [
             t.id,
@@ -150,7 +154,10 @@ export class ExternalStoreThreadListRuntimeCore
       );
     }
 
-    if (previousThreads !== newThreads) {
+    if (
+      previousThreads !== newThreads ||
+      (this._threads === DEFAULT_THREADS && previousThreadId !== newThreadId)
+    ) {
       this._threads = this.adapter.threads?.map((t) => t.id) ?? EMPTY_ARRAY;
     }
 

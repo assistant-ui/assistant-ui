@@ -3,6 +3,8 @@ import type { SerializedModelContext } from "../types";
 export type { SerializedModelContext } from "../types";
 
 export interface EventLogEntry {
+  /** Stable event identity, unique within the inspected instance even after its log is cleared. */
+  readonly id?: string;
   readonly time: Date;
   readonly event: string;
   readonly data: unknown;

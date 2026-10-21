@@ -146,6 +146,10 @@ export const parseAgUiEvent = (
 
   const getString = (key: string) =>
     isString(payload[key]) ? (payload[key] as string) : undefined;
+  const timestamp =
+    typeof payload.timestamp === "number" && Number.isFinite(payload.timestamp)
+      ? payload.timestamp
+      : undefined;
 
   switch (typeValue) {
     case "RUN_STARTED": {
@@ -219,24 +223,31 @@ export const parseAgUiEvent = (
     case "THINKING_START":
       return withOptional(
         { type: "THINKING_START" as const },
-        { title: getString("title") },
+        { title: getString("title"), timestamp },
       );
     case "THINKING_TEXT_MESSAGE_START":
-      return { type: "THINKING_TEXT_MESSAGE_START" };
+      return withOptional(
+        { type: "THINKING_TEXT_MESSAGE_START" as const },
+        { timestamp },
+      );
     case "THINKING_TEXT_MESSAGE_CONTENT": {
       const delta = getString("delta") ?? "";
       return { type: "THINKING_TEXT_MESSAGE_CONTENT", delta };
     }
     case "THINKING_TEXT_MESSAGE_END":
-      return { type: "THINKING_TEXT_MESSAGE_END" };
+      return withOptional(
+        { type: "THINKING_TEXT_MESSAGE_END" as const },
+        { timestamp },
+      );
     case "THINKING_END":
-      return { type: "THINKING_END" };
+      return withOptional({ type: "THINKING_END" as const }, { timestamp });
     case "REASONING_START":
       return withOptional(
         { type: "REASONING_START" as const },
         {
           messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
+          timestamp,
         },
       );
     case "REASONING_MESSAGE_START":
@@ -245,6 +256,7 @@ export const parseAgUiEvent = (
         {
           messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
+          timestamp,
         },
       );
     case "REASONING_MESSAGE_CONTENT": {
@@ -263,6 +275,7 @@ export const parseAgUiEvent = (
         {
           messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
+          timestamp,
         },
       );
     case "REASONING_ENCRYPTED_VALUE": {
@@ -292,6 +305,7 @@ export const parseAgUiEvent = (
         {
           messageId: getString("messageId"),
           subagentRunId: getString("subagentRunId"),
+          timestamp,
         },
       );
     case "TOOL_CALL_START": {

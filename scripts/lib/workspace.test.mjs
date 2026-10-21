@@ -3,7 +3,28 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { collectPackages, posixPath, readJson } from "./workspace.mjs";
+import {
+  apiSurfaceFileName,
+  collectPackages,
+  packageDirectories,
+  parseWorkspaceGlobs,
+  posixPath,
+  readJson,
+  readPackageDirectories,
+  readWorkspaceManifestEntries,
+} from "./workspace.mjs";
+
+test("API surface filenames match scoped and unscoped package names", () => {
+  assert.equal(
+    apiSurfaceFileName("@assistant-ui/react"),
+    "assistant-ui__react.ts",
+  );
+  assert.equal(apiSurfaceFileName("assistant-ui"), "assistant-ui.ts");
+  assert.equal(
+    apiSurfaceFileName("create-assistant-ui"),
+    "create-assistant-ui.ts",
+  );
+});
 
 const makeRepo = (packages) => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "workspace-test-"));
@@ -61,6 +82,26 @@ test("collectPackages ignores directories without a package.json", () => {
   }
 });
 
+test("package directory helpers retain private and manifestless directories", () => {
+  const repoRoot = makeRepo({
+    alpha: { name: "alpha", private: true },
+    beta: { name: "beta" },
+  });
+  mkdirSync(path.join(repoRoot, "packages", "orphan"));
+  try {
+    assert.deepEqual(
+      packageDirectories(repoRoot).map((dir) => path.basename(dir)),
+      ["alpha", "beta", "orphan"],
+    );
+    assert.deepEqual(
+      readPackageDirectories(repoRoot).map(({ pkg }) => pkg.name),
+      ["alpha", "beta"],
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("posixPath and readJson round-trip", () => {
   assert.equal(posixPath("a\\b\\c.ts"), "a/b/c.ts");
   const repoRoot = makeRepo({ alpha: { name: "alpha" } });
@@ -68,6 +109,30 @@ test("posixPath and readJson round-trip", () => {
     assert.deepEqual(
       readJson(path.join(repoRoot, "packages", "alpha", "package.json")),
       { name: "alpha" },
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("readWorkspaceManifestEntries follows globs and includes private packages", () => {
+  const repoRoot = makeRepo({
+    alpha: { name: "alpha", private: true },
+    beta: { name: "beta" },
+  });
+  const source = "packages:\n  - 'packages/*'\nallowBuilds:\n  example: true\n";
+  writeFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), source);
+  try {
+    const result = readWorkspaceManifestEntries(repoRoot);
+    assert.equal(result.source, source);
+    assert.deepEqual(result.globs, ["packages/*"]);
+    assert.deepEqual(result.manifests.map(({ pkg }) => pkg.name).sort(), [
+      "alpha",
+      "beta",
+    ]);
+    assert.deepEqual(
+      parseWorkspaceGlobs("packages:\n  - packages/*\nother: true\n"),
+      ["packages/*"],
     );
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });

@@ -1,0 +1,104 @@
+---
+title: Architecture
+description: How AuiProvider, the assistant client, its scopes, and the Vue composables fit together.
+---
+
+A Vue chat built with assistant-ui has three layers. A runtime holds the messages and talks to your backend. The assistant client exposes the runtime as named scopes with state, methods, and events. The Vue layer, made of `AuiProvider`, the composables, and the primitives, reads those scopes and calls their methods.
+
+This component, from the `@assistant-ui/vue` README, shows all three:
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import {
+  AuiConfig,
+  AuiProvider,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  MessagePrimitiveParts,
+  ThreadPrimitiveMessages,
+  ThreadPrimitiveViewport,
+} from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+
+const config = AuiConfig({ threads: AISDKChat() });
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <ThreadPrimitiveViewport class="h-dvh overflow-y-auto">
+      <ThreadPrimitiveMessages>
+        <MessagePrimitiveParts />
+      </ThreadPrimitiveMessages>
+    </ThreadPrimitiveViewport>
+    <ComposerPrimitiveInput placeholder="Message..." />
+    <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
+  </AuiProvider>
+</template>
+```
+
+`AISDKChat()` is the runtime, `AuiConfig` and `AuiProvider` create the client, and the primitives render it.
+
+## The runtime
+
+A runtime fills the `threads` key of `AuiConfig`. `AISDKChat` and `AISDKThreads` run AI SDK chats against a streaming route, and `RuntimeAdapter` connects a runtime you build over your own store. The runtime decides where messages live, how a run starts and stops, and which actions are available. [Runtimes](/docs/vue/runtimes) compares them.
+
+The runtimes are the same code that runs `@assistant-ui/react`. Both bindings sit on `@assistant-ui/core`, `@assistant-ui/store`, and `@assistant-ui/tap`, where runtimes are written as tap resources. The AI SDK runtime calls React hooks from `@ai-sdk/react` inside such a resource, and tap runs them without rendering anything. That is why the AI SDK path needs `react` installed in a Vue app.
+
+## The assistant client
+
+`AuiProvider` passes its `config` to `createAssistantClient` and provides the resulting client to its slot. The client is a set of named scopes. Each scope has state, read as `s.<scope>` in a `useAuiState` selector, methods called as `aui.<scope>.<method>()`, and events named `<scope>.<event>`.
+
+| Scope | Holds |
+|---|---|
+| `threads` | The thread list: thread ids, the selected thread, loading state. |
+| `thread` | The selected thread: messages, run state, capabilities. |
+| `threadListItem` | One thread's list entry: title, status, archive and delete. |
+| `composer` | A composer: draft text, attachments, send and cancel. |
+| `message` | One message: role, parts, status, branches. |
+| `part` | One message part: text, reasoning, tool call, or data. |
+| `attachment` | One composer or message attachment. |
+| `suggestions`, `suggestion` | The suggestion list and one suggestion. |
+| `tools`, `dataRenderers`, `modelContext` | Registered tool UIs, data renderers, and the context sent to the model. |
+| `chainOfThought` | A group of reasoning and tool-call parts, when the app provides one. |
+
+[State and methods](/docs/vue/api-reference/state) lists every field and method, and [Events](/docs/vue/api-reference/events) lists every event.
+
+## Scopes follow the component tree
+
+The runtime installs the thread-level scopes. The iterator primitives add item scopes: each row they render is wrapped in a nested provider that binds that row's item. The same component therefore reads a different message, part, or attachment in each row.
+
+```txt
+AuiProvider                     threads, thread, threadListItem, composer, suggestions, tools, modelContext
+└─ ThreadPrimitiveMessages      one row per message: message, and its edit composer as composer
+   └─ MessagePrimitiveParts     one entry per part: part
+      └─ your part component    reads s.part, s.message, and s.thread
+```
+
+A component outside the rows reads the thread composer as `s.composer`; inside a message row, `s.composer` is that message's edit composer. [State and actions](/docs/vue/state) has the full placement table.
+
+## Reading and acting
+
+`useAuiState(selector)` returns a computed ref that updates when the selected value changes. `useAui()` returns a stable client for event handlers. `useAuiEvent(name, callback)` subscribes to events for the life of the component. `AuiIf` renders its slot while a selector returns `true`. The primitives use the same composables internally, so anything a primitive does can also be built from them. See [State and actions](/docs/vue/state).
+
+## A live config
+
+`AuiProvider` watches its `config` prop. A new config object updates each scope's arguments in place, and a scope keeps its state as long as its key stays. Adding a key mounts that scope and removing it unmounts it. Pass a `computed` config to drive it from reactive state; [Assistant client](/docs/vue/api-reference/client#auiconfig) has an example.
+
+A provider rendered inside another one must pass `extends`: the parent's client to inherit the scopes it does not define, or `null` to stay independent. [Components and composables](/docs/vue/api-reference/composables#auiprovider) covers both.
+
+## Lifetime and server rendering
+
+A provider creates its client when it mounts and keeps it while mounted. Remounting the provider, for example with a new `key`, creates a new client. Vue's server renderer never disposes a component's effect scope, so render the provider only in the browser. In Nuxt, put it in a `.client.vue` component; [Server rendering](/docs/vue/ssr) explains the boundary.
+
+## Compared with React
+
+| Concern | React | Vue |
+|---|---|---|
+| Provide a runtime | A runtime from a hook such as `useChatRuntime()`, passed to a provider | `AuiProvider` with `AuiConfig({ threads: AISDKChat() })` |
+| Read state | `useAuiState(selector)` returns the value | `useAuiState(selector)` returns a computed ref |
+| Call actions | `useAui()` | `useAui()` |
+| Primitive names | Namespaces such as `ThreadPrimitive.Viewport` | Named exports such as `ThreadPrimitiveViewport` |
+| Custom elements | `asChild` | Attributes and listeners pass to the rendered element |
+| Per-item rendering | Render functions and `components` props | Default and named slots scoped to each item |
+| Tool UI props | Part fields spread as props | One `tool` prop of type `ToolUIProps` |
+| Styled components | The shadcn registry for React | The shadcn-vue registry items `thread` and `thread-list` |

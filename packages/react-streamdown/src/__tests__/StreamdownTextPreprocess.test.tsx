@@ -21,7 +21,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => {
 });
 
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
-import { normalizeMathDelimiters } from "../preprocess";
+import { normalizeMathDelimiters } from "@assistant-ui/react-markdown/preprocess";
 
 Element.prototype.scrollTo ??= function scrollTo() {};
 

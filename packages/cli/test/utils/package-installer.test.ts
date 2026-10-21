@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as os from "node:os";
 import { installPackageIfNeeded } from "../../src/lib/utils/package-installer";
 import * as packageManager from "../../src/lib/utils/package-manager";
 import * as fileScanner from "../../src/lib/utils/file-scanner";
@@ -10,18 +7,13 @@ vi.mock("../../src/lib/utils/package-manager");
 vi.mock("../../src/lib/utils/file-scanner");
 
 describe("package-installer utilities", () => {
-  let testDir: string;
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    testDir = fs.mkdtempSync(path.join(os.tmpdir(), "cli-test-"));
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true, force: true });
-    }
     consoleLogSpy.mockRestore();
   });
 

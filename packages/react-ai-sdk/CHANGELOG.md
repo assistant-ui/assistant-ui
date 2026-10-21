@@ -1,5 +1,34 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.19
+
+### Patch Changes
+
+- Updated dependencies [[`69bf91a`](https://github.com/assistant-ui/assistant-ui/commit/69bf91a6d5eb3c652ed6f2188dc6fb6934178e9b), [`2dc72a8`](https://github.com/assistant-ui/assistant-ui/commit/2dc72a8699ffe1181ecd7f6636bbb5f770de4916), [`82e1ab6`](https://github.com/assistant-ui/assistant-ui/commit/82e1ab688d41ade47c30a5d8d6e7a5a55fdf99c0)]:
+  - @assistant-ui/ai-sdk@0.0.14
+
+## 1.4.18
+
+### Patch Changes
+
+- [#9775](https://github.com/assistant-ui/assistant-ui/pull/9775) [`6c4e8e2`](https://github.com/assistant-ui/assistant-ui/commit/6c4e8e22af500b3a9d6dd0b047556e2d748cf024) - Add `unstable_enableMessageQueue` to the AI SDK runtimes. Messages sent during a run wait in `composer.queue`; steered messages run first after the current request and its client tools finish. Failed queued sends remain available for retry, and the runtime error hook exposes the failure. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`6c4e8e2`](https://github.com/assistant-ui/assistant-ui/commit/6c4e8e22af500b3a9d6dd0b047556e2d748cf024), [`f0aeadb`](https://github.com/assistant-ui/assistant-ui/commit/f0aeadb9ae90f205ffc187caef3a88ac610b665d), [`dcf82cc`](https://github.com/assistant-ui/assistant-ui/commit/dcf82cc9b9d6a45fb3a1ef3f9729001861163720), [`5d59d2f`](https://github.com/assistant-ui/assistant-ui/commit/5d59d2f15dd67d9132eb2a8283640bfc68262036), [`e2b0050`](https://github.com/assistant-ui/assistant-ui/commit/e2b00501c1f47514adf8dc8720a8d5d3ff143cdf)]:
+  - @assistant-ui/ai-sdk@0.0.13
+
+## 1.4.17
+
+### Patch Changes
+
+- Updated dependencies [[`c04f01c`](https://github.com/assistant-ui/assistant-ui/commit/c04f01c961bce46530743ec99d2c1ace9e5ab1a0), [`20f0e5b`](https://github.com/assistant-ui/assistant-ui/commit/20f0e5bcbef2e5d6108e997356b43dca9b8b762e), [`e83f662`](https://github.com/assistant-ui/assistant-ui/commit/e83f662734b5a01942265793ac6606ebfdc235c8), [`22951f2`](https://github.com/assistant-ui/assistant-ui/commit/22951f2c6f45a7ddc76328f674219913cfde424d), [`d19b547`](https://github.com/assistant-ui/assistant-ui/commit/d19b547df04e485f29b4e7bf881212e971cfbb09), [`592f501`](https://github.com/assistant-ui/assistant-ui/commit/592f5013eabba61bc454eec31719f4a4e12cbc54), [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20), [`f8583af`](https://github.com/assistant-ui/assistant-ui/commit/f8583af7570ba1b7c65644d3a00509cb2ac4a5f8), [`01ac83d`](https://github.com/assistant-ui/assistant-ui/commit/01ac83dff50e16959ebf16556db43464e7a82ea4), [`41e1a05`](https://github.com/assistant-ui/assistant-ui/commit/41e1a05268c4df97d0c913a33baa70094b8c0750), [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5), [`d902360`](https://github.com/assistant-ui/assistant-ui/commit/d9023608ecf036c0ff63d6f06b4126575b75c22f), [`7842639`](https://github.com/assistant-ui/assistant-ui/commit/78426392ef7d5b4bbced8958dabdccc2e617ef1b), [`0bed54e`](https://github.com/assistant-ui/assistant-ui/commit/0bed54e2b8ba986b72b315f7782778fdfd58dc4e), [`41344cb`](https://github.com/assistant-ui/assistant-ui/commit/41344cba68efe187ec81c02006d50fc6bc833abb)]:
+  - @assistant-ui/ai-sdk@0.0.12
+
+## 1.4.16
+
+### Patch Changes
+
+- Updated dependencies [[`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`ddb04de`](https://github.com/assistant-ui/assistant-ui/commit/ddb04deec5c1010042f99befb934c3b895ec3fc8), [`cb58bf9`](https://github.com/assistant-ui/assistant-ui/commit/cb58bf9de1ab789af81efeb8a2b991c99d9c4aa1)]:
+  - @assistant-ui/ai-sdk@0.0.11
+
 ## 1.4.15
 
 ### Patch Changes

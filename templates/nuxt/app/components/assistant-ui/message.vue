@@ -26,6 +26,8 @@ import {
   RefreshCwIcon,
 } from "@lucide/vue";
 import MarkdownText from "./markdown-text.vue";
+import Reasoning from "./reasoning.vue";
+import ToolFallback from "./tool-fallback.vue";
 
 const role = useAuiState((s) => s.message.role);
 const pulsing = useAuiState(
@@ -84,7 +86,7 @@ const error = useAuiState((s) => {
       :class="
         role === 'user'
           ? 'bg-muted text-foreground max-w-[80%] rounded-xl px-4 py-2'
-          : 'text-foreground leading-relaxed'
+          : 'text-foreground w-full leading-relaxed'
       "
     >
       <div
@@ -101,6 +103,12 @@ const error = useAuiState((s) => {
       <MessagePrimitiveParts v-if="role === 'assistant'">
         <template #text>
           <MarkdownText />
+        </template>
+        <template #reasoning>
+          <Reasoning />
+        </template>
+        <template #tool-call>
+          <ToolFallback />
         </template>
       </MessagePrimitiveParts>
       <MessagePrimitiveParts v-else />

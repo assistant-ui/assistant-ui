@@ -1,9 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  clearPartWarningsForTesting();
-  clearScrollToBottomWarningForTesting();
 });
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
@@ -19,17 +17,13 @@ import {
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
+import { flushEvents } from "./fixtures";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
 import { ThreadPrimitiveViewportFooter } from "../primitives/ThreadPrimitiveViewportFooter";
-import {
-  ThreadPrimitiveScrollToBottom,
-  clearScrollToBottomWarningForTesting,
-} from "../primitives/ThreadPrimitiveScrollToBottom";
-import {
-  MessagePrimitiveParts,
-  clearPartWarningsForTesting,
-} from "../primitives/MessagePrimitiveParts";
+import { MessagePrimitiveRoot } from "../primitives/message";
+import { ThreadPrimitiveScrollToBottom } from "../primitives/ThreadPrimitiveScrollToBottom";
+import { MessagePrimitiveParts } from "../primitives/MessagePrimitiveParts";
 import {
   BranchPickerPrimitiveCount,
   BranchPickerPrimitiveNext,
@@ -193,7 +187,7 @@ describe("MessagePrimitiveParts", () => {
 });
 
 describe("MessagePrimitiveParts dev warning", () => {
-  it("warns once in dev for a part type without a slot", async () => {
+  it("warns once per unhandled part type across instances and remounts", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { runtime, append } = createTestRuntime();
     const View = defineComponent({
@@ -202,8 +196,6 @@ describe("MessagePrimitiveParts dev warning", () => {
           default: () => h(MessagePrimitiveParts),
         }),
     });
-    const { unmount } = mountChat(runtime, View);
-
     flushTapSync(() =>
       append({
         role: "assistant",
@@ -214,18 +206,33 @@ describe("MessagePrimitiveParts dev warning", () => {
             toolName: "search",
             args: {},
           },
+          {
+            type: "tool-call",
+            toolCallId: "call-2",
+            toolName: "search",
+            args: {},
+          },
+          { type: "reasoning", text: "thinking" },
+          { type: "text", text: "visible" },
         ],
       }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(warn).toHaveBeenCalledTimes(1);
-    });
-    expect(warn.mock.calls[0]![0]).toContain(
-      'no slot for part type "tool-call"',
-    );
-
-    unmount();
+    for (let mount = 0; mount < 2; mount++) {
+      const { el, unmount } = mountChat(runtime, View);
+      try {
+        await nextTick();
+        expect(el.textContent).toBe("visible");
+        expect(warn).toHaveBeenCalledTimes(2);
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('no slot for part type "tool-call"'),
+        );
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('no slot for part type "reasoning"'),
+        );
+      } finally {
+        unmount();
+      }
+    }
   });
 });
 
@@ -273,6 +280,21 @@ describe("BranchPickerPrimitive", () => {
 });
 
 describe("ThreadPrimitiveViewport", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+    });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  const flushFrame = async () => {
+    await nextTick();
+    await flushEvents();
+    vi.advanceTimersToNextFrame();
+    await nextTick();
+  };
+
   it("mounts as a scroll container and renders its slot", async () => {
     const { runtime, append } = createTestRuntime();
     const View = defineComponent({
@@ -343,10 +365,8 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "user", content: [{ type: "text", text: "one" }] }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(scrollTo).toHaveBeenCalled();
-    });
+    await flushFrame();
+    expect(scrollTo).toHaveBeenCalled();
     div.dispatchEvent(new Event("scroll"));
     const callsWhilePinned = scrollTo.mock.calls.length;
 
@@ -354,12 +374,10 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "assistant", content: [{ type: "text", text: "two" }] }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(scrollTo.mock.calls.length).toBeGreaterThan(callsWhilePinned);
-    });
+    await flushFrame();
+    expect(scrollTo.mock.calls.length).toBeGreaterThan(callsWhilePinned);
     div.dispatchEvent(new Event("scroll"));
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await flushFrame();
 
     div.dispatchEvent(new Event("pointerdown"));
     scrollTop = 50;
@@ -370,10 +388,87 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "user", content: [{ type: "text", text: "three" }] }),
     );
-    await nextTick();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
+    expect(el.querySelectorAll("p")).toHaveLength(3);
     expect(scrollTo.mock.calls.length).toBe(callsAfterUnpin);
 
+    unmount();
+  });
+
+  it("pauses following when a message disclosure expands", async () => {
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          {
+            class: "viewport",
+            scrollToBottomOnInitialize: false,
+          },
+          {
+            default: () =>
+              h(ThreadPrimitiveMessages, null, {
+                default: () =>
+                  h(MessagePrimitiveRoot, null, {
+                    default: () =>
+                      h(
+                        "button",
+                        { class: "disclosure", "aria-expanded": "false" },
+                        "Expand",
+                      ),
+                  }),
+              }),
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    let scrollHeight = 500;
+    let scrollTop = 400;
+    Object.defineProperties(div, {
+      scrollHeight: {
+        get: () => scrollHeight,
+        configurable: true,
+      },
+      clientHeight: { value: 100, configurable: true },
+      scrollTop: {
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+        configurable: true,
+      },
+    });
+    const scrollTo = vi.fn(({ top }: { top: number }) => {
+      scrollTop = Math.max(0, Math.min(top, scrollHeight - 100));
+      div.dispatchEvent(new Event("scroll"));
+    });
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    flushTapSync(() =>
+      append({ role: "assistant", content: [{ type: "text", text: "one" }] }),
+    );
+    await flushFrame();
+    expect(el.querySelector("[data-message-id]")).not.toBeNull();
+    expect(scrollTo).toHaveBeenCalled();
+    scrollTo.mockClear();
+
+    const disclosure =
+      el.querySelector<HTMLButtonElement>("button.disclosure")!;
+    disclosure.addEventListener("click", (event) => {
+      disclosure.setAttribute("aria-expanded", "true");
+      event.stopPropagation();
+    });
+    disclosure.click();
+    scrollHeight = 600;
+    el.querySelector("[data-message-id]")!.append(document.createElement("p"));
+    await flushFrame();
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(400);
     unmount();
   });
 
@@ -417,8 +512,8 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "user", content: [{ type: "text", text: "one" }] }),
     );
-    await nextTick();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
+    expect(el.querySelectorAll("p")).toHaveLength(1);
     expect(scrollTo).not.toHaveBeenCalled();
 
     unmount();
@@ -430,7 +525,11 @@ describe("ThreadPrimitiveViewport", () => {
       setup: () => () =>
         h(
           ThreadPrimitiveViewport,
-          { class: "viewport" },
+          {
+            class: "viewport",
+            autoScroll: false,
+            scrollToBottomOnInitialize: false,
+          },
           { default: () => h("p", "row") },
         ),
     });
@@ -440,9 +539,8 @@ describe("ThreadPrimitiveViewport", () => {
     );
 
     flushTapSync(() => active.setRunning(true));
-    await vi.waitFor(() => {
-      expect(activeScrollTo).toHaveBeenCalled();
-    });
+    await flushFrame();
+    expect(activeScrollTo).toHaveBeenCalledWith({ top: 500, behavior: "auto" });
     mountedActive.unmount();
 
     const disabled = createTestRuntime();
@@ -465,7 +563,7 @@ describe("ThreadPrimitiveViewport", () => {
     );
 
     flushTapSync(() => disabled.setRunning(true));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
     expect(disabledScrollTo).not.toHaveBeenCalled();
 
     mountedDisabled.unmount();
@@ -727,23 +825,32 @@ describe("ThreadPrimitiveViewport", () => {
     }
   });
 
-  it("renders scroll-to-bottom disabled outside a viewport and warns in dev", () => {
+  it("disables scroll-to-bottom outside a viewport and warns once across instances and remounts", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { runtime } = createTestRuntime();
     const View = defineComponent({
       setup: () => () =>
-        h(
-          ThreadPrimitiveScrollToBottom,
-          { class: "jump" },
-          { default: () => "Jump" },
+        [0, 1].map((key) =>
+          h(
+            ThreadPrimitiveScrollToBottom,
+            { key, class: "jump" },
+            { default: () => "Jump" },
+          ),
         ),
     });
-    const { el, unmount } = mountChat(runtime, View);
-    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
-      true,
-    );
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]![0]).toContain("no surrounding");
-    unmount();
+    for (let mount = 0; mount < 2; mount++) {
+      const { el, unmount } = mountChat(runtime, View);
+      try {
+        const buttons = el.querySelectorAll<HTMLButtonElement>("button.jump");
+        expect([...buttons].map((button) => button.disabled)).toEqual([
+          true,
+          true,
+        ]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0]![0]).toContain("no surrounding");
+      } finally {
+        unmount();
+      }
+    }
   });
 });

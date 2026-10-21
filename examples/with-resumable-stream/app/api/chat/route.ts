@@ -67,29 +67,28 @@ async function buildOpenAIBody({
       baseURL: process.env["OPENAI_BASE_URL"],
     }),
   });
+  const aiSDKTools = {
+    ...frontendTools(tools ?? {}),
+    get_current_weather: tool({
+      description: "Get the current weather",
+      inputSchema: zodSchema(z.object({ city: z.string() })),
+      execute: async ({ city }) => `The weather in ${city} is sunny`,
+    }),
+    slow_count: tool({
+      description: "Count slowly to N",
+      inputSchema: zodSchema(z.object({ to: z.number().int().min(1).max(50) })),
+      execute: async ({ to }) => {
+        await new Promise((r) => setTimeout(r, to * 200));
+        return `counted to ${to}`;
+      },
+    }),
+  };
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     ...(system ? { system } : {}),
     stopWhen: stepCountIs(10),
-    tools: {
-      ...frontendTools(tools ?? {}),
-      get_current_weather: tool({
-        description: "Get the current weather",
-        inputSchema: zodSchema(z.object({ city: z.string() })),
-        execute: async ({ city }) => `The weather in ${city} is sunny`,
-      }),
-      slow_count: tool({
-        description: "Count slowly to N",
-        inputSchema: zodSchema(
-          z.object({ to: z.number().int().min(1).max(50) }),
-        ),
-        execute: async ({ to }) => {
-          await new Promise((r) => setTimeout(r, to * 200));
-          return `counted to ${to}`;
-        },
-      }),
-    },
+    tools: aiSDKTools,
   });
 
   const response = result.toUIMessageStreamResponse();

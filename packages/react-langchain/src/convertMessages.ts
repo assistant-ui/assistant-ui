@@ -1,26 +1,79 @@
 "use client";
 
-import type { MessageTiming } from "@assistant-ui/core";
+import { generateId, type MessageTiming } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+} from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   convertLangChainContentBlock,
   getCustomMetadata,
   getMessageModality,
+  normalizeToolCallArgs,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "./converter";
 import type {
   LangChainBaseMessage,
   LangChainContentBlock,
+  LangChainToolCall,
   UIMessage,
 } from "./types";
 
-type LangChainMessageConverterMetadata =
+const uiToolCallIds = new WeakMap<LangChainToolCall, string>();
+
+const getToolCallUIId = (call: LangChainToolCall): string => {
+  if (call.id) return call.id;
+  let id = uiToolCallIds.get(call);
+  if (!id) {
+    id = `tool-${generateId()}`;
+    uiToolCallIds.set(call, id);
+  }
+  return id;
+};
+
+export type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
+    streamingMessage?: LangChainBaseMessage | undefined;
   };
+
+export const createLangChainMetadataKey =
+  (): useExternalMessageConverter.GetMetadataKey<LangChainBaseMessage> =>
+    createExternalMessageMetadataKey<LangChainBaseMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (
+                metadata as LangChainMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message ===
+          (metadata as LangChainMessageConverterMetadata).streamingMessage,
+      },
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (metadata as LangChainMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+    ]);
 
 const warnedMalformedMessages = new Set<string>();
 const warnOnceInDevelopment = (message: string) => {
@@ -56,21 +109,6 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
   return [];
 };
 
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    return {};
-  }
-
-  try {
-    const prototype = Object.getPrototypeOf(args);
-    return prototype === Object.prototype || prototype === null
-      ? (args as ReadonlyJSONObject)
-      : {};
-  } catch {
-    return {};
-  }
-};
-
 const toolCallArgs = (
   value: unknown,
 ): { args: ReadonlyJSONObject; argsText: string } => {
@@ -90,7 +128,14 @@ const contentToParts = (content: unknown) => {
     return [{ type: "text" as const, text: content }];
 
   return contentBlocks(content)
-    .map(convertLangChainContentBlock)
+    .map((block) => {
+      const part = convertLangChainContentBlock(block);
+      if (part === undefined)
+        warnOnceInDevelopment(
+          `Dropped an unrepresentable message part of type: ${block.type}`,
+        );
+      return part;
+    })
     .filter((part) => part !== null && part !== undefined);
 };
 
@@ -146,10 +191,16 @@ export const convertLangChainBaseMessage = (
             const { args, argsText } = toolCallArgs(tc.args);
             return {
               type: "tool-call" as const,
-              toolCallId: tc.id,
+              toolCallId: getToolCallUIId(tc),
               toolName: tc.name,
               args,
               argsText,
+              ...(!tc.id && message !== metadata.streamingMessage
+                ? {
+                    result: "The provider sent this tool call without an id.",
+                    isError: true,
+                  }
+                : {}),
             };
           }) ?? [];
 

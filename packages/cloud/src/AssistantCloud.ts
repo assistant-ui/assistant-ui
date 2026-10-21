@@ -56,6 +56,10 @@ export class AssistantCloud {
     this.projects = new AssistantCloudProjects(api);
     this.auth = {
       tokens: new AssistantCloudAuthTokens(api),
+      invalidate: () => {
+        api.invalidateAuth();
+        clearPendingAssistantCloudEvents(this.events);
+      },
     };
     this.runs = new AssistantCloudRuns(api);
     this.files = new AssistantCloudFiles(api);

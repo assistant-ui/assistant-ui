@@ -11,6 +11,7 @@ export {
   MessagePrimitivePartByIndex as PartByIndex,
 } from "./message/MessageParts";
 export { MessagePrimitiveGroupedParts as GroupedParts } from "@assistant-ui/core/react";
+export { MessagePrimitiveQuote as Quote } from "@assistant-ui/core/react";
 export {
   MessageIf as If,
   type MessageIfProps as IfProps,

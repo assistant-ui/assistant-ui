@@ -1,4 +1,5 @@
 import { createTransformer } from "../utils/createTransformer";
+import { resolveBinding } from "../utils/resolveBinding";
 
 type ConditionFragment = {
   expression: string;
@@ -41,8 +42,8 @@ const messagePropMap: Record<
     expression: `s.message.role ${v === false ? "!==" : "==="} "system"`,
     negated: false,
   }),
-  hasBranches: () => ({
-    expression: "s.message.branchCount >= 2",
+  hasBranches: (v) => ({
+    expression: v === false ? "true" : "s.message.branchCount >= 2",
     negated: false,
   }),
   copied: (v) => ({
@@ -53,8 +54,9 @@ const messagePropMap: Record<
     expression: "s.message.isLast",
     negated: v === false,
   }),
-  lastOrHover: () => ({
-    expression: "s.message.isHovering || s.message.isLast",
+  lastOrHover: (v) => ({
+    expression:
+      v === false ? "true" : "s.message.isHovering || s.message.isLast",
     negated: false,
   }),
   speaking: (v) => ({
@@ -185,37 +187,92 @@ const buildConditionString = (
 
 const migratePrimitiveIfToAuiIf = createTransformer(
   ({ j, root, markAsChanged }) => {
-    let needsAuiIfImport = false;
+    const importedPrimitives = new Map<
+      string,
+      { name: string; declaration: any; binding: any }
+    >();
+    const auiIfImports: { source: string; binding: any }[] = [];
+    const usedNames = new Set<string>();
+    root
+      .find(j.Identifier)
+      .forEach((path: any) => usedNames.add(path.value.name));
+    root
+      .find(j.JSXIdentifier)
+      .forEach((path: any) => usedNames.add(path.value.name));
 
-    // Track which primitive namespaces are imported
-    const importedPrimitives = new Set<string>();
     root.find(j.ImportDeclaration).forEach((path: any) => {
-      const source = path.value.source.value;
-      if (typeof source === "string" && source.startsWith("@assistant-ui/")) {
-        path.value.specifiers?.forEach((specifier: any) => {
-          if (j.ImportSpecifier.check(specifier)) {
-            const name = String(
-              specifier.local?.name ?? specifier.imported.name,
-            );
-            if (primitiveMap[name] || fixedConditionMap[name]) {
-              importedPrimitives.add(name);
-            }
-          }
-        });
-      }
+      const declaration = path.value;
+      const source = declaration.source.value;
+      if (
+        typeof source !== "string" ||
+        !source.startsWith("@assistant-ui/") ||
+        declaration.importKind === "type"
+      )
+        return;
+
+      declaration.specifiers?.forEach((specifier: any) => {
+        if (
+          !j.ImportSpecifier.check(specifier) ||
+          !j.Identifier.check(specifier.imported) ||
+          !j.Identifier.check(specifier.local) ||
+          (specifier as { importKind?: string }).importKind === "type"
+        )
+          return;
+        const name = specifier.imported.name;
+        const binding = specifier.local;
+        if (primitiveMap[name] || fixedConditionMap[name]) {
+          importedPrimitives.set(binding.name, { name, declaration, binding });
+        }
+        if (name === "AuiIf") auiIfImports.push({ source, binding });
+      });
     });
 
     if (importedPrimitives.size === 0) return;
 
+    const getPrimitive = (path: any, localName: string) => {
+      const primitive = importedPrimitives.get(localName);
+      return primitive &&
+        resolveBinding(j, path, localName) === primitive.binding
+        ? primitive
+        : undefined;
+    };
+
+    const getAuiIfName = (path: any, declaration: any) => {
+      const source = declaration.source.value;
+      const existing = auiIfImports.find(
+        (entry) =>
+          entry.source === source &&
+          !/^[a-z]/.test(entry.binding.name) &&
+          resolveBinding(j, path, entry.binding.name) === entry.binding,
+      );
+      if (existing) return existing.binding.name;
+
+      let name = "AuiIf";
+      for (let suffix = 1; usedNames.has(name); suffix++)
+        name = `AuiIf${suffix}`;
+      usedNames.add(name);
+      const binding = j.identifier(name);
+      declaration.specifiers.push(
+        j.importSpecifier(j.identifier("AuiIf"), binding),
+      );
+      auiIfImports.push({ source, binding });
+      return name;
+    };
+
     // Opening and closing tags are rewritten together per element, so a
     // skipped element can never be left with a mismatched closing tag.
-    const convertElementToAuiIf = (elementPath: any, conditionBody: string) => {
+    const convertElementToAuiIf = (
+      elementPath: any,
+      conditionBody: string,
+      declaration: any,
+    ) => {
+      const localName = getAuiIfName(elementPath, declaration);
       const arrowFnAst = j(`(s) => ${conditionBody}`)
         .find(j.ArrowFunctionExpression)
         .paths()[0]!.value;
 
       const opening = elementPath.value.openingElement;
-      opening.name = j.jsxIdentifier("AuiIf");
+      opening.name = j.jsxIdentifier(localName);
       opening.attributes = [
         j.jsxAttribute(
           j.jsxIdentifier("condition"),
@@ -223,10 +280,9 @@ const migratePrimitiveIfToAuiIf = createTransformer(
         ),
       ];
       if (elementPath.value.closingElement) {
-        elementPath.value.closingElement.name = j.jsxIdentifier("AuiIf");
+        elementPath.value.closingElement.name = j.jsxIdentifier(localName);
       }
 
-      needsAuiIfImport = true;
       markAsChanged();
     };
 
@@ -237,17 +293,17 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       if (!j.JSXIdentifier.check(name.object)) return;
       if (!j.JSXIdentifier.check(name.property)) return;
 
-      const primitiveName = name.object.name as string;
+      const primitive = getPrimitive(path, name.object.name);
+      if (!primitive) return;
       const propertyName = name.property.name as string;
-      const conditionBody = fixedConditionMap[primitiveName]?.[propertyName];
+      const conditionBody = fixedConditionMap[primitive.name]?.[propertyName];
       if (!conditionBody) return;
-      if (!importedPrimitives.has(primitiveName)) return;
 
       // Only transform if there are no props (other than children, which are implicit)
       const attrs: any[] = path.value.openingElement.attributes || [];
       if (attrs.length > 0) return;
 
-      convertElementToAuiIf(path, conditionBody);
+      convertElementToAuiIf(path, conditionBody, primitive.declaration);
     });
 
     // Process JSX elements: <ThreadPrimitive.If ...> → <AuiIf condition={...}>
@@ -260,10 +316,10 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       if (!j.JSXIdentifier.check(name.property)) return;
       if (name.property.name !== "If") return;
 
-      const primitiveName = name.object.name;
-      const propMap = primitiveMap[primitiveName];
+      const primitive = getPrimitive(path, name.object.name);
+      if (!primitive) return;
+      const propMap = primitiveMap[primitive.name];
       if (!propMap) return;
-      if (!importedPrimitives.has(primitiveName)) return;
 
       // Extract props
       const attrs: any[] = path.value.openingElement.attributes || [];
@@ -304,37 +360,12 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       // If we couldn't map all props, skip this element
       if (hasUnknownProp || fragments.length === 0) return;
 
-      convertElementToAuiIf(path, buildConditionString(j, fragments));
+      convertElementToAuiIf(
+        path,
+        buildConditionString(j, fragments),
+        primitive.declaration,
+      );
     });
-
-    // Add AuiIf import if needed
-    if (needsAuiIfImport) {
-      let hasAuiIfImport = false;
-      let assistantUiImport: any = null;
-
-      root.find(j.ImportDeclaration).forEach((path: any) => {
-        const source = path.value.source.value;
-        if (typeof source === "string" && source.startsWith("@assistant-ui/")) {
-          assistantUiImport = path;
-          path.value.specifiers?.forEach((specifier: any) => {
-            if (
-              j.ImportSpecifier.check(specifier) &&
-              (specifier.imported.name === "AuiIf" ||
-                specifier.local?.name === "AuiIf")
-            ) {
-              hasAuiIfImport = true;
-            }
-          });
-        }
-      });
-
-      if (!hasAuiIfImport && assistantUiImport) {
-        assistantUiImport.value.specifiers.push(
-          j.importSpecifier(j.identifier("AuiIf")),
-        );
-        markAsChanged();
-      }
-    }
   },
 );
 

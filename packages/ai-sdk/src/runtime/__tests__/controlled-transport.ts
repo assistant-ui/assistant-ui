@@ -40,6 +40,9 @@ export const createCancellableTransport = () => {
   return {
     transport,
     getCancelCount: () => cancelCount,
+    emit: (...chunks: UIMessageChunk[]) => {
+      for (const chunk of chunks) controller.enqueue(chunk);
+    },
     close: () => controller.close(),
   };
 };

@@ -18,7 +18,7 @@ export function DesignGallery(): ReactNode {
           className="border-foreground/10 scroll-mt-24 border-t pt-6"
         >
           <div className="flex items-baseline gap-3">
-            <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+            <span className="text-muted-foreground text-xs tabular-nums">
               {String(sectionIndex + 1).padStart(2, "0")}
             </span>
             <h2 className="text-sm font-medium">{section.label}</h2>

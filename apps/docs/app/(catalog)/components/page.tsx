@@ -5,6 +5,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { DemoCard } from "@/components/pages/elements/demo-card";
 import { getElement } from "@/components/pages/elements/registry";
 import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
+import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
@@ -167,6 +168,7 @@ export default function ShopPage() {
             {section.title}
           </h2>
           <p className={cn("mt-3", typeDeck)}>{section.description}</p>
+          {section.id === "agent-tools" ? <AgentToolPresets /> : null}
           {section.guide ? (
             <Link href={section.guide.href} className={cn("mt-4", navLink)}>
               {section.guide.label}

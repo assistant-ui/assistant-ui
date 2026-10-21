@@ -179,10 +179,10 @@ type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
 } ? S extends ClientNames ? S : never : never;
 
 type PluginConfig = {
-  code?: unknown | false | undefined;
-  math?: unknown | false | undefined;
-  cjk?: unknown | false | undefined;
-  mermaid?: unknown | false | undefined;
+  code?: ResolvedPluginConfig["code"] | false;
+  math?: ResolvedPluginConfig["math"] | false;
+  cjk?: ResolvedPluginConfig["cjk"] | false;
+  mermaid?: ResolvedPluginConfig["mermaid"] | false;
 };
 
 type PreComponent = ComponentType<ComponentPropsWithoutRef<"pre"> & {
@@ -215,7 +215,7 @@ type RemendHandler = {
   priority?: number;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -326,7 +326,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type WildcardPayload = {
   [K in keyof ClientEventMap]: {

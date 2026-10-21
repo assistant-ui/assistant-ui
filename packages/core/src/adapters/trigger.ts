@@ -1,16 +1,16 @@
-import type {
-  Unstable_TriggerCategory,
-  Unstable_TriggerItem,
-} from "../types/trigger";
+import type { TriggerCategory, TriggerItem } from "../types/trigger";
 
 /** Adapter providing synchronous categories and items to a trigger popover. */
-export type Unstable_TriggerAdapter = {
+export type TriggerAdapter = {
   /** Return the top-level categories for the trigger popover. */
-  categories(): readonly Unstable_TriggerCategory[];
+  categories(): readonly TriggerCategory[];
 
   /** Return items within a category. */
-  categoryItems(categoryId: string): readonly Unstable_TriggerItem[];
+  categoryItems(categoryId: string): readonly TriggerItem[];
 
   /** Global search across all categories (optional). */
-  search?(query: string): readonly Unstable_TriggerItem[];
+  search?(query: string): readonly TriggerItem[];
 };
+
+/** @deprecated Use `TriggerAdapter` instead. */
+export type Unstable_TriggerAdapter = TriggerAdapter;

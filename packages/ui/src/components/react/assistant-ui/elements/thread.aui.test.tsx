@@ -12,10 +12,13 @@ import {
   type ChatModelAdapter,
   ExportedMessageRepository,
   type RealtimeVoiceAdapter,
+  type ThreadMessage,
+  type ThreadMessageLike,
   useAui,
+  useExternalStoreRuntime,
   useLocalRuntime,
 } from "@assistant-ui/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Thread, type ThreadProps } from "./thread.aui";
@@ -65,6 +68,28 @@ function TestThread(props: ThreadProps) {
   );
 }
 
+function ResumableTestThread({
+  onResume,
+  onNew,
+}: {
+  onResume: () => Promise<void>;
+  onNew: () => Promise<void>;
+}) {
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
+    messages: [],
+    isRunning: false,
+    canResume: true,
+    onResume,
+    onNew,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
 const userBranch = (text: string) =>
   ExportedMessageRepository.fromArray([
     { role: "user", content: [{ type: "text", text }] },
@@ -101,6 +126,91 @@ function FeedbackTestThread({ submit }: { submit?: () => void }) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function AssistantContentTestThread({
+  content,
+}: {
+  content: Exclude<ThreadMessageLike["content"], string>;
+}) {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content,
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const PNG_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+function ReasoningTestThread() {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            timing: { startedAt: 6_000, completedAt: 13_400 },
+          },
+          { type: "text", text: "Answer" },
+        ],
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const pagedMessages: ThreadMessageLike[] = [
+  { id: "m1", role: "user", content: [{ type: "text", text: "First" }] },
+  { id: "m2", role: "assistant", content: [{ type: "text", text: "Second" }] },
+  { id: "m3", role: "user", content: [{ type: "text", text: "Third" }] },
+];
+
+function PagedTestThread({
+  onLoadEarlier,
+}: {
+  onLoadEarlier: () => Promise<void>;
+}) {
+  const [messages, setMessages] = useState(pagedMessages.slice(2));
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+    hasEarlier: messages.length < pagedMessages.length,
+    onLoadEarlier: async () => {
+      await onLoadEarlier();
+      setMessages(pagedMessages);
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
     </AssistantRuntimeProvider>
   );
 }
@@ -165,6 +275,81 @@ afterEach(async () => {
 });
 
 describe("Thread", () => {
+  it("does not resume when Enter is pressed in an empty composer with a checkpoint", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    await screen.findByRole("button", { name: "Resume generating" });
+    const input = screen.getByRole("textbox");
+    act(() => input.focus());
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    fireEvent.keyUp(input, { key: "Enter", code: "Enter" });
+    await act(async () => {});
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("resumes once when the focused Resume button is activated with Enter", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    const resume = await screen.findByRole("button", {
+      name: "Resume generating",
+    });
+    act(() => resume.focus());
+    expect(document.activeElement).toBe(resume);
+    expect(resume.tagName).toBe("BUTTON");
+    expect(fireEvent.keyDown(resume, { key: "Enter", code: "Enter" })).toBe(
+      true,
+    );
+    fireEvent.click(resume, { detail: 0 });
+    fireEvent.keyUp(resume, { key: "Enter", code: "Enter" });
+    await waitFor(() => expect(onResume).toHaveBeenCalledOnce());
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("resumes an available checkpoint from an empty composer without sending", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+
+    const resume = await screen.findByRole("button", {
+      name: "Resume generating",
+    });
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    await act(async () => {
+      fireEvent.click(resume);
+    });
+
+    expect(onResume).toHaveBeenCalledOnce();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("shows Send for a draft and restores Resume when the draft is cleared", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    await screen.findByRole("button", { name: "Resume generating" });
+    const input = screen.getByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "A new request" } });
+    expect(
+      await screen.findByRole("button", { name: "Send message" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Resume generating" }),
+    ).toBeNull();
+
+    fireEvent.change(input, { target: { value: "" } });
+    expect(
+      await screen.findByRole("button", { name: "Resume generating" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
   it("focuses the composer by default", async () => {
     render(<TestThread />);
 
@@ -181,6 +366,20 @@ describe("Thread", () => {
     render(<TestThread autoFocus={false} />);
 
     expect(document.activeElement).toBe(pageControl);
+  });
+
+  it("renders ComposerExtra in the composer action row", () => {
+    const ModeToggle = () => <button type="button">Mode</button>;
+    render(<TestThread components={{ ComposerExtra: ModeToggle }} />);
+
+    const toggle = screen.getByRole("button", { name: "Mode" });
+    expect(toggle.closest(".aui-composer-action-wrapper")).not.toBeNull();
+  });
+
+  it("leaves the composer action row unchanged without ComposerExtra", () => {
+    const { container } = render(<TestThread />);
+
+    expect(container.querySelector(".aui-composer-action-start")).toBeNull();
   });
 
   it("hides the empty user attachment wrapper", async () => {
@@ -213,6 +412,36 @@ describe("Thread", () => {
     expect(picker.className).not.toMatch(/row-start-/);
   });
 
+  it("previews image file parts and names unnamed files by type", () => {
+    render(
+      <AssistantContentTestThread
+        content={[
+          { type: "file", mimeType: "image/png", data: PNG_DATA_URI },
+          {
+            type: "file",
+            mimeType: "text/plain",
+            data: "data:text/plain;base64,aGk=",
+          },
+        ]}
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(2);
+    expect(
+      files[0]!
+        .querySelector('[data-slot="image-preview"] img')
+        ?.getAttribute("src"),
+    ).toBe(PNG_DATA_URI);
+    expect(files[0]!.querySelector('[data-slot="file-name"]')).toBeNull();
+    expect(
+      files[1]!.querySelector('[data-slot="file-name"]')?.textContent,
+    ).toBe("Text file");
+    expect(screen.queryByText("Unnamed file")).toBeNull();
+  });
+
   it("shows feedback actions only when the runtime supports feedback", () => {
     const { unmount } = render(<FeedbackTestThread />);
 
@@ -238,6 +467,51 @@ describe("Thread", () => {
     expect(submit).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "negative" }),
     );
+  });
+
+  it("labels a settled reasoning group with its span from part timing", async () => {
+    render(<ReasoningTestThread />);
+
+    expect(
+      await screen.findByRole("button", { name: /Reasoning \(12s\)/ }),
+    ).toBeTruthy();
+  });
+
+  it("loads an earlier page from the top of the list while one exists", async () => {
+    let finish!: () => void;
+    const onLoadEarlier = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    render(<PagedTestThread onLoadEarlier={onLoadEarlier} />);
+
+    const loadEarlier = await screen.findByRole("button", {
+      name: "Load earlier messages",
+    });
+    expect(screen.queryByText("First")).toBeNull();
+
+    loadEarlier.focus();
+    fireEvent.click(loadEarlier);
+    const loading = await screen.findByRole("button", {
+      name: "Loading earlier messages",
+    });
+    expect(
+      screen.getByText("Loading earlier messages", {
+        selector: '[role="status"]',
+      }),
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(loading);
+    fireEvent.click(loading);
+    expect(onLoadEarlier).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish());
+    expect(await screen.findByText("First")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /earlier messages/ }),
+    ).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(
+      document.activeElement?.closest('[data-slot="aui_thread-viewport"]'),
+    ).not.toBeNull();
   });
 
   it("groups final voice transcripts into spoken rows", async () => {

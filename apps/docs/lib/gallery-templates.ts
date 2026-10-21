@@ -1,4 +1,4 @@
-import type { UISpec } from "@assistant-ui/react-generative-ui";
+import type { UISpec } from "@assistant-ui/generative-ui";
 
 export type GalleryCategory =
   | "Data"
@@ -1728,58 +1728,3 @@ export const GALLERY_TEMPLATES: GalleryTemplate[] = [
   softwarePurchase,
   chartBars,
 ];
-
-export function getGalleryTemplate(slug: string): GalleryTemplate | undefined {
-  return GALLERY_TEMPLATES.find((template) => template.slug === slug);
-}
-
-export const GALLERY_USAGE_SNIPPET = `import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
-import { defineToolkit } from "@assistant-ui/react";
-
-const generative = new JSONGenerativeUI({
-  library: styledGenerativeUILibrary,
-});
-
-export default defineToolkit({
-  // ...your other tools
-  present: generative.present({ display: "standalone" }),
-});
-`;
-
-export const GALLERY_USAGE_SNIPPET_FULL_STACK = `"use generative";
-
-import {
-  JSONGenerativeUI,
-  defaultGenerativeUILibrary,
-  defineGenerativeComponents,
-} from "@assistant-ui/react-generative-ui";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
-import { defineToolkit } from "@assistant-ui/react";
-
-const markdown = defaultGenerativeUILibrary.Markdown!;
-
-// Schemas resolve through the package's react-server split. Only \`render\`
-// may reference the styled library: the compiler drops \`render\` (and the
-// imports only it uses) from the server build, so this "use client" module
-// never reaches the server graph.
-const generative = new JSONGenerativeUI({
-  library: {
-    ...defaultGenerativeUILibrary,
-    ...defineGenerativeComponents({
-      Markdown: {
-        properties: markdown.properties,
-        streamProperties: markdown.streamProperties,
-        description:
-          "A markdown string, rendered with GitHub-flavored markdown.",
-        render: styledGenerativeUILibrary.Markdown!.render,
-      },
-    }),
-  },
-});
-
-export default defineToolkit({
-  // ...your other tools
-  present: generative.present({ display: "standalone" }),
-});
-`;

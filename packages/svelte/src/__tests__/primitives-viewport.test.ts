@@ -1,15 +1,29 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import { provideAui } from "../provideAui";
+import * as sveltePrimitives from "../index";
 import {
   threadScrollToBottom,
   threadViewport,
 } from "../primitives/threadViewport";
 import Host from "./fixtures/Host.svelte";
-import { createEchoRuntime, type AnyClient } from "./clients";
+import { createEchoRuntime, flushEvents, type AnyClient } from "./clients";
+
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+  });
+});
+
+afterEach(() => vi.useRealTimers());
+
+const flushFrame = async () => {
+  await flushEvents();
+  vi.advanceTimersToNextFrame();
+};
 
 const makeScrollable = (el: HTMLElement) => {
   let scrollTop = 0;
@@ -77,12 +91,28 @@ const mountViewport = (
   return { app, echo, aui, viewport, el, controls, detach };
 };
 
+const mountOverflowingViewport = async () => {
+  const mounted = mountViewport();
+  mounted.controls.grow(1000);
+  await flushFrame();
+  expect(mounted.controls.scrollTo).toHaveBeenCalled();
+  return mounted;
+};
+
+const makeFooter = (height: () => number, marginTop = 0) => {
+  const el = document.createElement("div");
+  el.style.marginTop = `${marginTop}px`;
+  Object.defineProperty(el, "offsetHeight", { get: height });
+  return el;
+};
+
 describe("threadViewport", () => {
   it("auto-scrolls on content growth while pinned to the bottom", async () => {
     const { app, controls } = mountViewport();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     expect(controls.scrollTo).toHaveBeenLastCalledWith({
       top: 1000,
       behavior: "instant",
@@ -95,7 +125,8 @@ describe("threadViewport", () => {
     const { app, viewport, controls } = mountViewport();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     expect(viewport.isAtBottom).toBe(true);
 
     controls.setScrollTop(100);
@@ -104,7 +135,7 @@ describe("threadViewport", () => {
 
     const calls = controls.scrollTo.mock.calls.length;
     controls.grow(1500);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
     expect(controls.scrollTo.mock.calls.length).toBe(calls);
 
     flushSync(() => void unmount(app));
@@ -114,7 +145,8 @@ describe("threadViewport", () => {
     const { app, viewport, controls } = mountViewport();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     controls.setScrollTop(100);
     controls.dispatchScroll();
     expect(viewport.isAtBottom).toBe(false);
@@ -125,9 +157,8 @@ describe("threadViewport", () => {
 
     const calls = controls.scrollTo.mock.calls.length;
     controls.grow(1500);
-    await vi.waitFor(() =>
-      expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls),
-    );
+    await flushFrame();
+    expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls);
 
     flushSync(() => void unmount(app));
   });
@@ -136,12 +167,11 @@ describe("threadViewport", () => {
     const { app, echo, controls } = mountViewport();
 
     flushTapSync(() => echo.setRunning(true));
-    await vi.waitFor(() =>
-      expect(controls.scrollTo).toHaveBeenCalledWith({
-        top: 500,
-        behavior: "auto",
-      }),
-    );
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "auto",
+    });
 
     flushSync(() => void unmount(app));
 
@@ -150,7 +180,7 @@ describe("threadViewport", () => {
       scrollToBottomOnInitialize: false,
     });
     flushTapSync(() => gated.echo.setRunning(true));
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await flushFrame();
     expect(gated.controls.scrollTo).not.toHaveBeenCalled();
     flushSync(() => void unmount(gated.app));
   });
@@ -159,13 +189,13 @@ describe("threadViewport", () => {
     const { app, aui, controls } = mountViewport([
       { id: "u0", role: "user", text: "hi" },
     ]);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     const calls = controls.scrollTo.mock.calls.length;
 
     flushTapSync(() => aui.threads.switchToNewThread());
-    await vi.waitFor(() =>
-      expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls),
-    );
+    await flushFrame();
+    expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls);
     expect(controls.scrollTo).toHaveBeenLastCalledWith({
       top: 500,
       behavior: "instant",
@@ -180,10 +210,10 @@ describe("threadViewport", () => {
     });
 
     flushTapSync(() => echo.setRunning(true));
-    // The run-start event delivers on a microtask; the gesture lands after it
-    await Promise.resolve();
+    await flushEvents();
+    expect(vi.getTimerCount()).toBe(1);
     el.dispatchEvent(new Event("pointerdown"));
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await flushFrame();
     expect(controls.scrollTo).not.toHaveBeenCalled();
 
     flushSync(() => void unmount(app));
@@ -193,10 +223,12 @@ describe("threadViewport", () => {
     const { app, viewport, controls, detach } = mountViewport([
       { id: "u0", role: "user", text: "hi" },
     ]);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(viewport.isAtBottom).toBe(true));
+    await flushFrame();
+    expect(viewport.isAtBottom).toBe(true);
     controls.setScrollTop(100);
     controls.dispatchScroll();
     expect(viewport.isAtBottom).toBe(false);
@@ -206,12 +238,11 @@ describe("threadViewport", () => {
     const nextControls = makeScrollable(next);
     const detachNext = viewport.attach(next);
     expect(viewport.isAtBottom).toBe(true);
-    await vi.waitFor(() =>
-      expect(nextControls.scrollTo).toHaveBeenCalledWith({
-        top: 500,
-        behavior: "instant",
-      }),
-    );
+    await flushFrame();
+    expect(nextControls.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
 
     detachNext();
     flushSync(() => void unmount(app));
@@ -222,12 +253,11 @@ describe("threadViewport", () => {
       { id: "u0", role: "user", text: "hi" },
     ]);
 
-    await vi.waitFor(() =>
-      expect(controls.scrollTo).toHaveBeenCalledWith({
-        top: 500,
-        behavior: "instant",
-      }),
-    );
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
 
     flushSync(() => void unmount(app));
   });
@@ -239,7 +269,8 @@ describe("threadScrollToBottom", () => {
     const button = threadScrollToBottom({ viewport });
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     expect(button.props.disabled).toBe(true);
 
     controls.setScrollTop(100);
@@ -259,5 +290,103 @@ describe("threadScrollToBottom", () => {
     });
 
     flushSync(() => void unmount(app));
+  });
+});
+
+describe("threadViewportFooter", () => {
+  it("registers its height with the viewport", async () => {
+    const { app, viewport, controls } = await mountOverflowingViewport();
+    const footer = sveltePrimitives.threadViewportFooter({ viewport });
+    const detachFooter = footer.attach(makeFooter(() => 45, 5));
+
+    controls.setScrollTop(455);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachFooter();
+    flushSync(() => void unmount(app));
+  });
+
+  it("sums the heights of multiple footers", async () => {
+    const { app, viewport, controls } = await mountOverflowingViewport();
+    const first = sveltePrimitives.threadViewportFooter({ viewport });
+    const second = sveltePrimitives.threadViewportFooter({ viewport });
+    const detachFirst = first.attach(makeFooter(() => 20));
+    const detachSecond = second.attach(makeFooter(() => 30));
+
+    controls.setScrollTop(455);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachSecond();
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+
+    controls.setScrollTop(485);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachFirst();
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+    flushSync(() => void unmount(app));
+  });
+
+  it("removes a footer's inset when its attachment is destroyed", async () => {
+    const { app, viewport, controls } = await mountOverflowingViewport();
+    const footer = sveltePrimitives.threadViewportFooter({ viewport });
+    const detachFooter = footer.attach(makeFooter(() => 50));
+
+    controls.setScrollTop(455);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachFooter();
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+
+    flushSync(() => void unmount(app));
+  });
+
+  it("follows a footer's growth while pinned", async () => {
+    let triggerResize: ((target: Element) => void) | undefined;
+    class FooterResizeObserver {
+      private readonly observedTargets = new Set<Element>();
+
+      constructor(callback: ResizeObserverCallback) {
+        triggerResize = (target) => {
+          if (this.observedTargets.has(target)) {
+            callback([], this as unknown as ResizeObserver);
+          }
+        };
+      }
+      observe(target: Element) {
+        this.observedTargets.add(target);
+      }
+      disconnect() {
+        this.observedTargets.clear();
+      }
+    }
+    vi.stubGlobal("ResizeObserver", FooterResizeObserver);
+    try {
+      const { app, viewport, controls } = await mountOverflowingViewport();
+      let height = 50;
+      const footer = sveltePrimitives.threadViewportFooter({ viewport });
+      const footerElement = makeFooter(() => height);
+      const detachFooter = footer.attach(footerElement);
+
+      controls.scrollTo.mockClear();
+      height = 80;
+      triggerResize?.(footerElement);
+      expect(controls.scrollTo).toHaveBeenCalledWith({
+        top: 1000,
+        behavior: "instant",
+      });
+
+      detachFooter();
+      flushSync(() => void unmount(app));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -34,6 +34,7 @@ const { useAISDKRuntime } = await import("./useAISDKRuntime");
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   renderer!.setRefreshHandler(() => undefined);
   fiberRoots.clear();
 });
@@ -91,6 +92,103 @@ const makeGeneration = () => {
     finish: (value: readonly { prompt: string }[]) => resolve(value),
   };
 };
+
+it("keeps a message createdAt across Fast Refresh", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+  const chat = createChat();
+  let runtime!: ReturnType<typeof useAISDKRuntime>;
+  let rendered = "";
+  const Before = () => {
+    rendered = "before";
+    runtime = useAISDKRuntime(chat as never);
+    return null;
+  };
+  const After = () => {
+    rendered = "after";
+    runtime = useAISDKRuntime(chat as never);
+    return null;
+  };
+  const view = render(<Before />);
+  const createdAt = runtime.thread.getState().messages[0]!.createdAt.getTime();
+
+  vi.setSystemTime(new Date("2026-01-01T00:01:00.000Z"));
+  await refresh(Before, After);
+
+  expect(rendered).toBe("after");
+  expect(runtime.thread.getState().messages[0]!.createdAt.getTime()).toBe(
+    createdAt,
+  );
+  view.unmount();
+});
+
+it("keeps earlier createdAt values when streaming timing changes", async () => {
+  vi.useFakeTimers();
+  const firstSeen = new Date("2026-01-01T00:00:00.000Z");
+  const laterSeen = new Date("2026-01-01T00:01:00.000Z");
+  vi.setSystemTime(firstSeen);
+  const chat = createChat();
+  chat.status = "ready";
+  let runtime!: ReturnType<typeof useAISDKRuntime>;
+  const Host = () => {
+    runtime = useAISDKRuntime(chat as never);
+    return null;
+  };
+  const view = render(<Host />);
+  const firstCreatedAt = runtime.thread
+    .getState()
+    .messages[0]!.createdAt.getTime();
+
+  vi.setSystemTime(laterSeen);
+  chat.status = "streaming";
+  chat.messages = [
+    ...chat.messages,
+    { id: "a1", role: "assistant", parts: [{ type: "text", text: "hello" }] },
+  ];
+  view.rerender(<Host />);
+  const laterCreatedAt = runtime.thread
+    .getState()
+    .messages[1]!.createdAt.getTime();
+
+  vi.setSystemTime(new Date("2026-01-01T00:02:00.000Z"));
+  chat.status = "ready";
+  view.rerender(<Host />);
+
+  expect(firstCreatedAt).toBe(firstSeen.getTime());
+  expect(laterCreatedAt).toBe(laterSeen.getTime());
+  expect(runtime.thread.getState().messages[1]!.metadata.timing).toBeDefined();
+  expect(runtime.thread.getState().messages[0]!.createdAt.getTime()).toBe(
+    firstCreatedAt,
+  );
+  expect(runtime.thread.getState().messages[1]!.createdAt.getTime()).toBe(
+    laterCreatedAt,
+  );
+  view.unmount();
+});
+
+it("stamps a message id afresh when the runtime switches chats", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+  let chat = createChat();
+  let runtime!: ReturnType<typeof useAISDKRuntime>;
+  const Host = () => {
+    runtime = useAISDKRuntime(chat as never);
+    return null;
+  };
+  const view = render(<Host />);
+  const firstChatCreatedAt = runtime.thread
+    .getState()
+    .messages[0]!.createdAt.getTime();
+
+  vi.setSystemTime(new Date("2026-01-01T00:01:00.000Z"));
+  chat = { ...createChat(), id: "chat-2" };
+  view.rerender(<Host />);
+
+  expect(runtime.thread.getState().messages[0]!.createdAt.getTime()).not.toBe(
+    firstChatCreatedAt,
+  );
+  view.unmount();
+});
 
 it("completes AI SDK suggestion generation after Fast Refresh", async () => {
   const chat = createChat();

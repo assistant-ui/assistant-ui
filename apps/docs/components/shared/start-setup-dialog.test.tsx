@@ -51,7 +51,10 @@ describe("start setup dialog", () => {
     const confirm = open();
     fireEvent.click(screen.getByRole("radio", { name: /Coding agent/ }));
     fireEvent.click(confirm);
-    expect(mocks.beginSetup).toHaveBeenCalledWith(["assistant-ui"]);
+    expect(mocks.beginSetup).toHaveBeenCalledWith(["assistant-ui"], "", {
+      source: "start_dialog",
+      location: "hero",
+    });
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
@@ -60,6 +63,52 @@ describe("start setup dialog", () => {
     fireEvent.click(screen.getByRole("radio", { name: /Manual/ }));
     fireEvent.click(confirm);
     expect(mocks.push).toHaveBeenCalledWith("/docs/installation");
+    expect(mocks.beginSetup).not.toHaveBeenCalled();
+  });
+
+  it("checks out the given products with instructions for another project", () => {
+    render(
+      <StartSetupDialog
+        location="footer"
+        name="Generative Frame"
+        products={["assistant-ui", "generative-frame"]}
+        instructions="Use the assistant-ui toolkit."
+        manualHref="/generative-frame/docs/assistant-ui"
+      >
+        Start setup
+      </StartSetupDialog>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Start setup" }));
+    expect(
+      screen.getByRole("heading", {
+        name: "How do you want to set up Generative Frame?",
+      }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(mocks.beginSetup).toHaveBeenCalledWith(
+      ["assistant-ui", "generative-frame"],
+      "Use the assistant-ui toolkit.",
+      { source: "start_dialog", location: "footer" },
+    );
+  });
+
+  it("sends the manual path to the given guide", () => {
+    render(
+      <StartSetupDialog
+        location="footer"
+        name="Generative Frame"
+        products={["generative-frame"]}
+        manualHref="/generative-frame/docs/quickstart"
+      >
+        Start setup
+      </StartSetupDialog>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Start setup" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Manual/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/generative-frame/docs/quickstart",
+    );
     expect(mocks.beginSetup).not.toHaveBeenCalled();
   });
 });

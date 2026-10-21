@@ -142,7 +142,9 @@ Filtering matches `prompts` against `query` by substring on `name` only, case-in
 The chip next to a match, and the chips in the preview, are display only; the element counts and lists `variables` but never substitutes them into `body`.
 
 ```tsx
-{prompt.variables.length > 0 && <span>{prompt.variables.length} vars</span>}
+{prompt.variables.length > 0 && (
+  <span>{`${prompt.variables.length} ${prompt.variables.length === 1 ? "var" : "vars"}`}</span>
+)}
 ```
 
 ### Restyle the list

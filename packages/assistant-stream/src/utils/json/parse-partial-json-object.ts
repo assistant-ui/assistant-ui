@@ -19,6 +19,20 @@ export const getPartialJsonObjectMeta = (
   return obj?.[PARTIAL_JSON_OBJECT_META_SYMBOL] as PartialJsonObjectMeta;
 };
 
+/** Mark an already-finalized JSON object as complete without parsing it again. */
+export const markPartialJsonObjectComplete = <T extends ReadonlyJSONObject>(
+  obj: T,
+): T => {
+  // Object.fromEntries creates own data properties even for `__proto__` and
+  // `constructor`, and avoids mutating an input owned by another runtime.
+  const copy = Object.fromEntries(Object.entries(obj)) as T;
+  Object.defineProperty(copy, PARTIAL_JSON_OBJECT_META_SYMBOL, {
+    value: { state: "complete", partialPath: [] },
+    enumerable: true,
+  });
+  return copy;
+};
+
 export const parsePartialJsonObject = (
   json: string,
 ):

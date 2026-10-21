@@ -194,8 +194,12 @@ const useThreadClient = ({
     return {
       isEmpty: messages.state.length === 0 && !runtimeState.isLoading,
       isDisabled: runtimeState.isDisabled,
+      isSendDisabled: runtimeState.isSendDisabled,
       isLoading: runtimeState.isLoading,
+      hasEarlier: runtimeState.hasEarlier,
+      isLoadingEarlier: runtimeState.isLoadingEarlier,
       isRunning: runtimeState.isRunning,
+      canResume: runtimeState.canResume ?? false,
       capabilities: runtimeState.capabilities,
       state: runtimeState.state,
       suggestions: runtimeState.suggestions,
@@ -246,6 +250,7 @@ const useThreadClient = ({
       if (runtimeState.isRunning) emitThreadEvent("thread.cancelRun");
       runtime.cancelRun();
     },
+    loadEarlier: () => runtime.loadEarlier(),
     getModelContext: runtime.getModelContext,
     export: runtime.export,
     import: runtime.import,

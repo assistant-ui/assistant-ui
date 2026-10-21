@@ -561,3 +561,45 @@ describe("Xulux download proxy rate limits", () => {
     );
   });
 });
+
+describe("docs search limits", () => {
+  const request = () =>
+    new Request(
+      "https://www.assistant-ui.com/api/search/suggest?query=save+history",
+      { headers: { "x-vercel-forwarded-for": "203.0.113.10" } },
+    );
+
+  it("has independent per-IP and global budgets", async () => {
+    const { checkDocsSearchRateLimit } = await import("./rate-limit");
+    expect(await checkDocsSearchRateLimit(request())).toBeNull();
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:docs-search:ip:burst", key: "203.0.113.10" },
+      { prefix: "aui:docs-search:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:docs-search:global:daily", key: "all" },
+    ]);
+  });
+
+  it.each([
+    "aui:docs-search:ip:burst",
+    "aui:docs-search:ip:daily",
+    "aui:docs-search:global:daily",
+  ])("blocks when %s is exhausted", async (prefix) => {
+    const { checkDocsSearchRateLimit } = await import("./rate-limit");
+    mocks.results.set(prefix, false);
+    expect((await checkDocsSearchRateLimit(request()))?.status).toBe(429);
+  });
+
+  it("fails closed if the limiter is unavailable or the IP is missing", async () => {
+    const { checkDocsSearchRateLimit } = await import("./rate-limit");
+    mocks.errors.set("aui:docs-search:ip:burst", new Error("unavailable"));
+    expect((await checkDocsSearchRateLimit(request()))?.status).toBe(503);
+    mocks.errors.clear();
+    expect(
+      (
+        await checkDocsSearchRateLimit(
+          new Request("https://www.assistant-ui.com/api/search/suggest"),
+        )
+      )?.status,
+    ).toBe(503);
+  });
+});

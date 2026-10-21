@@ -21,6 +21,8 @@ type SSEJsonDecoderOptions<T> = {
     controller: TransformStreamDefaultController<T>,
   ) => void;
   done?: SSEJsonDoneOptions<T>;
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
 } & (
   | { strict?: true }
   | {
@@ -52,9 +54,15 @@ export const createSSEJsonDecoder =
   (readable: ReadableStream<Uint8Array<ArrayBuffer>>) => {
     let receivedDone = false;
 
+    // Let the SSE parser consume the single permitted leading BOM.
     return readable
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new SSEEventDecoderStream())
+      .pipeThrough(new TextDecoderStream("utf-8", { ignoreBOM: true }))
+      .pipeThrough(
+        new SSEEventDecoderStream({
+          maxLineLength: options.maxLineLength,
+          maxEventLength: options.maxEventLength,
+        }),
+      )
       .pipeThrough(
         new TransformStream<PipelineSSEEvent, T>({
           transform(event, controller) {

@@ -17,6 +17,6 @@ export const ELEMENT_PRODUCTS: readonly CatalogItem[] = ELEMENT_INDEX.map(
     purchase: "cart",
     glyph: "elements",
     docs: `/elements/${slug}`,
-    agentMinutes: [2, 5],
+    agentMinutes: [2, 3],
   }),
 );

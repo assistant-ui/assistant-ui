@@ -166,6 +166,8 @@ const toolkit = defineToolkit({
 });
 ```
 
+The toolkit key names the creating tool and, unless `name` gives it another, the interactable. To name the creating tool apart, pass `name`: `create_notepad: unstable_interactableTool({ name: "notepad", ... })` gives the model `create_notepad` and `update_notepad`, and the versions stay under `notepad`.
+
 Register the toolkit alongside the `unstable_Interactables` scope:
 
 ```tsx
@@ -202,6 +204,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(injectInteractableContext(messages)), // [!code ++]
   });
@@ -628,6 +631,8 @@ For dynamic setups (an adapter that depends on auth), call `aui.unstable_interac
 
 `save` receives the complete app-scoped snapshot for the current persistence scope: mounted interactables, entries that were loaded but never mounted, and entries whose component has since unmounted. Thread-scoped entries are always excluded. This is a superset of `exportState()`, which returns only currently mounted interactables.
 
+Both leave out an interactable that is still on its `initialState`; it joins the snapshot once it is edited, imported, or loaded. A changed `initialState` therefore reaches users who never edited that interactable. A default that an earlier snapshot already stored stays in storage, because a stored default cannot be told apart from an edit.
+
 ### Sync Status
 
 When a persistence adapter is set, interactable hooks expose sync metadata:
@@ -638,10 +643,12 @@ const [state, { setState, isPending, error, flush }] =
 
 // isPending: true while a save is in-flight
 // error: the error from the last failed load or save, if any
-// flush(): force an immediate save (useful before navigation)
+// flush(): force an immediate save, retrying a failed one (useful before navigation)
 ```
 
 State changes are automatically debounced (500ms) before saving. Once the persistence scope has loaded, unmounting the owning component flushes any pending save immediately. If the load is still pending or has failed, the state remains in memory and joins the next snapshot after a successful load. A failed load keeps queued changes and exposes the error through the sync metadata. The next edit retries the load after the debounce delay, while an explicit `flush()` retries it immediately. If a load is already pending, `flush()` waits up to 5 seconds for it to settle before saving; past that it resolves without saving and the queued changes join the next snapshot after a successful load, so an adapter whose `load` stalls cannot block navigation. Saving starts only after a load succeeds. If the retry started by `flush()` also fails, `flush()` resolves without saving; check `error` and call `flush()` again after the load failure is resolved.
+
+A failed save keeps its value queued for retry and is not retried in the background. The value is sent again with the next save requested after the failure: an edit to any interactable, or an explicit `flush()`, which sends it immediately even when nothing else changed. While a retry is in flight, `isPending` is `true` and `error` still holds the last failure. Every save sends the full snapshot, so `error` clears once any later save succeeds without a newer edit to that interactable, including a save that was already queued when the failed one was rejected. In that case no extra retry is sent. If the retry fails too, `error` holds the new error. A newer edit to the same interactable supersedes the failed value. Replacing the adapter drops failed saves along with the rest of the old scope.
 
 ### Export / Import
 
@@ -951,7 +958,8 @@ const [state, { id, setState, isPending, error, flush }] =
       name: "flush",
       type: "() => Promise<void>",
       required: true,
-      description: "Force an immediate persistence save.",
+      description:
+        "Force an immediate persistence save, including a retry of a failed save.",
     },
   ]}
 />
@@ -994,10 +1002,10 @@ const [state, { setState, isPending, error, flush }] =
 ### `unstable_interactableTool`
 
 ```tsx
-notepad: unstable_interactableTool({ description, stateSchema, render }),
+notepad: unstable_interactableTool({ description, stateSchema, render, name }),
 ```
 
-Returns a complete toolkit tool entry (a frontend tool with standalone display); the entry key is the interactable name, and the tool's arguments are its initial state. The same `render` then appears at every message that creates or updates the instance. `render` receives:
+Returns a complete toolkit tool entry (a frontend tool with standalone display); the entry key is the creating tool's name and, unless `name` gives it another, the interactable's, and the tool's arguments are its initial state. The same `render` then appears at every message that creates or updates the instance. `render` receives:
 
 <PrimitivesTypeTable
   type="unstable_interactableTool-render-props"

@@ -244,17 +244,12 @@ export async function getCommitCoAuthors(
     for (let i = 0; i < rest.length; i += COMMIT_PAGE_CONCURRENCY) {
       const batch = await Promise.all(
         rest.slice(i, i + COMMIT_PAGE_CONCURRENCY).map(async (page) => {
-          try {
-            const res = await ghFetch(
-              `/commits?per_page=100&page=${page}`,
-              revalidate,
-            );
-            return res.ok
-              ? ((await withTimeout(res.json())) as CommitListItem[])
-              : [];
-          } catch {
-            return [];
-          }
+          const res = await ghFetch(
+            `/commits?per_page=100&page=${page}`,
+            revalidate,
+          );
+          if (!res.ok) throw new Error(`Commit page ${page} failed`);
+          return (await withTimeout(res.json())) as CommitListItem[];
         }),
       );
       pages.push(...batch);
@@ -297,36 +292,59 @@ export type GitHubUser = {
   htmlUrl: string;
 };
 
+async function fetchGitHubUserOrThrow(
+  path: string,
+  revalidate: number,
+): Promise<GitHubUser | null> {
+  const res = await withTimeout(
+    fetch(`https://api.github.com/${path}`, {
+      headers: ghHeaders(),
+      ...cacheInit(revalidate),
+    }),
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub user lookup failed: ${res.status}`);
+  const data = await withTimeout(res.json());
+  if (
+    typeof data?.login !== "string" ||
+    typeof data.type !== "string" ||
+    typeof data.avatar_url !== "string" ||
+    typeof data.html_url !== "string"
+  ) {
+    throw new Error("GitHub user lookup returned an invalid account");
+  }
+  return {
+    login: data.login,
+    type: data.type,
+    avatarUrl: data.avatar_url,
+    htmlUrl: data.html_url,
+  };
+}
+
 async function fetchGitHubUser(
   path: string,
   revalidate: number,
 ): Promise<GitHubUser | null> {
   try {
-    const res = await withTimeout(
-      fetch(`https://api.github.com/${path}`, {
-        headers: ghHeaders(),
-        ...cacheInit(revalidate),
-      }),
-    );
-    if (!res.ok) return null;
-    const data = await withTimeout(res.json());
-    if (typeof data?.login !== "string") return null;
-    return {
-      login: data.login,
-      type: data.type,
-      avatarUrl: data.avatar_url,
-      htmlUrl: data.html_url,
-    };
+    return await fetchGitHubUserOrThrow(path, revalidate);
   } catch {
     return null;
   }
 }
 
+export const getCoAuthorUser = (
+  identifier: number | string,
+  revalidate: number = REVALIDATE.COOL,
+) =>
+  fetchGitHubUserOrThrow(
+    typeof identifier === "number"
+      ? `user/${identifier}`
+      : `users/${encodeURIComponent(identifier)}`,
+    revalidate,
+  );
+
 export const getUser = (login: string, revalidate: number = REVALIDATE.COOL) =>
   fetchGitHubUser(`users/${encodeURIComponent(login)}`, revalidate);
-
-export const getUserById = (id: number, revalidate: number = REVALIDATE.COOL) =>
-  fetchGitHubUser(`user/${id}`, revalidate);
 
 export type GitHubContributor = {
   login: string;

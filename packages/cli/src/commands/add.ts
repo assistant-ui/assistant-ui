@@ -6,9 +6,10 @@ import {
   getComponentsJsonStyle,
   resolveRegistryItemUrl,
 } from "../lib/utils/registry";
-import { dlxCommand, resolvePackageManager } from "../lib/create-project";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import {
+  dlxCommand,
+  resolvePackageManager,
   type PackageManagerName,
   resolvePackageManagerForCwd,
 } from "../lib/utils/package-manager";

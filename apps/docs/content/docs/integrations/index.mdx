@@ -10,7 +10,7 @@ import { LangChainIcon } from "@/components/icons/langchain";
 import { McpIcon } from "@/components/icons/mcp";
 import { VercelIcon } from "@/components/icons/vercel";
 
-Integrations are wiring guides for using third-party services with assistant-ui, plus canonical recipes for the adapter slots (persistence, attachments). They are distinct from [runtimes](/docs/runtimes/pick-a-runtime), which are the React adapter packages (`@assistant-ui/ai-sdk`, `@assistant-ui/react-langgraph`, etc.) that connect the UI to a backend. An integration assumes you already have a working runtime and adds something on top.
+Integrations are wiring guides for using third-party services with assistant-ui, plus canonical recipes for the adapter slots (persistence, attachments). They are distinct from [runtimes](/docs/runtimes/pick-a-runtime), which are the React adapter packages (`@assistant-ui/ai-sdk`, `@assistant-ui/react-langgraph`, etc.) that connect the UI to a backend. Most integrations assume you already have a working runtime and add something on top; framework guides also set up the runtime.
 
 ## Where integrations slot in
 
@@ -21,7 +21,7 @@ flowchart LR
     server -->|"observability tools (e.g. Langfuse, LangSmith)"| provider
 ```
 
-Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.
+**Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path. **Voice** connects browser audio to a realtime model through a voice adapter.
 
 ## Frameworks
 
@@ -35,6 +35,16 @@ Framework integrations that pair with assistant-ui at the API-route layer.
     href="/docs/integrations/frameworks/ai-sdk"
   />
   <PlatformOnly platforms={["react"]}>
+    <Card
+      title="OpenAI Agents SDK"
+      description="Run agents on your server and connect their UI message streams through the AI SDK runtime."
+      href="/docs/integrations/frameworks/openai-agents"
+    />
+    <Card
+      title="Pydantic AI"
+      description="Python agents and tools connected through the AG-UI runtime."
+      href="/docs/integrations/frameworks/pydantic-ai"
+    />
     <Card
       icon={<CloudflareIcon width={20} height={20} />}
       title="Cloudflare Agents"
@@ -133,6 +143,20 @@ Store threads and messages outside AssistantCloud.
     href="/docs/integrations/persistence/custom-adapter"
   />
 </Cards>
+
+<PlatformOnly platforms={["react"]}>
+
+## Voice
+
+<Cards>
+  <Card
+    title="OpenAI Realtime"
+    description="Direct browser voice sessions with streamed transcripts, interruptions, mute controls, and typed input."
+    href="/docs/guides/openai-realtime"
+  />
+</Cards>
+
+</PlatformOnly>
 
 ## Attachments
 

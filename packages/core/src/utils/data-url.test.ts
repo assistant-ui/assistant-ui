@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  dataUrlMediaType,
   httpUrlPattern,
   parseDataUrl,
   resolveFilePartSource,
@@ -7,19 +8,50 @@ import {
 
 describe("parseDataUrl", () => {
   it.each([
+    ["aGk%3D", "aGk="],
+    ["%2B%2F8%3D", "+/8="],
+    ["%2b%2f8%3d", "+/8="],
+  ])("extracts percent-encoded base64 bytes from %s", (payload, expected) => {
+    expect(
+      parseDataUrl(`data:application/octet-stream;base64,${payload}`),
+    ).toEqual({
+      mimeType: "application/octet-stream",
+      data: expected,
+    });
+  });
+
+  it("matches the platform's decoded data URL bytes", async () => {
+    const value = "data:text/plain;base64,aGk%3D";
+    const response = await fetch(value);
+    const bytes = Buffer.from(await response.arrayBuffer());
+
+    expect(parseDataUrl(value)?.data).toBe(bytes.toString("base64"));
+  });
+
+  it("percent-decodes once without interpreting a bare plus as a space", () => {
+    expect(parseDataUrl("data:;base64,%253D")?.data).toBe("%3D");
+    expect(parseDataUrl("data:;base64,+/8=")?.data).toBe("+/8=");
+  });
+
+  it("keeps extraction non-throwing for malformed escapes and non-UTF8 bytes", () => {
+    expect(parseDataUrl("data:;base64,aGk%ZZ")?.data).toBe("aGk%ZZ");
+    expect(parseDataUrl("data:;base64,%FF")?.data).toBe("\xff");
+  });
+
+  it.each([
     "data:;base64,aGk=",
     "data:;charset=utf-8;base64,aGk=",
     "DATA:;BASE64,aGk=",
-  ])("defaults an omitted media type to text/plain for %s", (value) => {
+  ])("defaults an omitted base64 media type to binary for %s", (value) => {
     expect(parseDataUrl(value)).toEqual({
-      mimeType: "text/plain",
+      mimeType: "application/octet-stream",
       data: "aGk=",
     });
   });
 
   it("allows an empty payload with an omitted media type", () => {
     expect(parseDataUrl("data:;base64,")).toEqual({
-      mimeType: "text/plain",
+      mimeType: "application/octet-stream",
       data: "",
     });
   });
@@ -46,6 +78,15 @@ describe("parseDataUrl", () => {
     expect(parseDataUrl("data:image/png;base64,")).toEqual({
       mimeType: "image/png",
       data: "",
+    });
+  });
+
+  it("uses a contextual media type when the URL omits one", () => {
+    expect(
+      parseDataUrl("data:;charset=utf-8;base64,SGVsbG8=", "text/markdown"),
+    ).toEqual({
+      mimeType: "text/markdown",
+      data: "SGVsbG8=",
     });
   });
 
@@ -79,6 +120,43 @@ describe("parseDataUrl", () => {
   });
 });
 
+describe("dataUrlMediaType", () => {
+  it.each([
+    "data:,hello",
+    "data:;charset=utf-8,hello",
+    "DATA:,",
+    "data:TEXT/PLAIN;charset=US-ASCII;base64,SGVsbG8=",
+  ])("returns the same bare type for %s", (value) => {
+    expect(dataUrlMediaType(value)).toBe("text/plain");
+  });
+
+  it.each(["data:;base64,SGVsbG8=", "data:;charset=utf-8;base64,SGVsbG8="])(
+    "uses the binary default for media-less base64 %s",
+    (value) => {
+      expect(dataUrlMediaType(value)).toBe("application/octet-stream");
+    },
+  );
+
+  it("uses the text default when base64 is not the final header token", () => {
+    expect(dataUrlMediaType("data:;base64;charset=utf-8,hello")).toBe(
+      "text/plain",
+    );
+  });
+
+  it("preserves an explicit non-text media type without its parameters", () => {
+    expect(
+      dataUrlMediaType("data:IMAGE/SVG+XML;charset=utf-8,%3Csvg/%3E"),
+    ).toBe("image/svg+xml");
+  });
+
+  it.each(["SGVsbG8=", "https://example.com/file", "data:"])(
+    "does not infer a data URL default for %s",
+    (value) => {
+      expect(dataUrlMediaType(value)).toBeUndefined();
+    },
+  );
+});
+
 describe("httpUrlPattern", () => {
   it.each(["http://example.com", "https://example.com", "HTTPS://EXAMPLE.COM"])(
     "matches %s",
@@ -96,6 +174,29 @@ describe("httpUrlPattern", () => {
 });
 
 describe("resolveFilePartSource", () => {
+  it("unwraps percent-encoded base64 without decoding opaque data", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:application/pdf;base64,aGk%3D",
+        mimeType: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "aGk=",
+      mimeType: "application/pdf",
+    });
+    expect(
+      resolveFilePartSource({
+        data: "aGk%3D",
+        mimeType: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "aGk%3D",
+      mimeType: "application/pdf",
+    });
+  });
+
   it.each(["application/octet-stream", "image/png", "audio/wav", "text/plain"])(
     "extracts bytes while retaining the declared %s type when the URL omits it",
     (mimeType) => {
@@ -137,6 +238,32 @@ describe("resolveFilePartSource", () => {
       kind: "data",
       data: "aGVsbG8=",
       mimeType: "image/png",
+    });
+  });
+
+  it("decodes data URLs without a media type using the part media type", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:;base64,SGVsbG8=",
+        mimeType: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "SGVsbG8=",
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("uses the binary data URL default when neither source declares a media type", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:;base64,SGVsbG8=",
+        mimeType: "",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "SGVsbG8=",
+      mimeType: "application/octet-stream",
     });
   });
 

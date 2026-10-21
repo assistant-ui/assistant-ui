@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { forwardRef, useImperativeHandle, useLayoutEffect } from "react";
+import { forwardRef, useImperativeHandle } from "react";
 import type { AssistantClient } from "./types/client";
 import { AuiConfig } from "./AuiConfig";
 import {
@@ -13,6 +13,7 @@ import {
 import { useConfiguredAui } from "./useAui";
 import { DestroySignalContext } from "./utils/destroy-signal-context";
 import { useHostDestroySignal } from "./utils/useHostDestroySignal";
+import { useIsomorphicLayoutEffect } from "./utils/useIsomorphicLayoutEffect";
 import { isDevelopment } from "./utils/env";
 
 const EMPTY_CONFIG = AuiConfig({});
@@ -24,7 +25,7 @@ const MountTapEffects = ({ effects }: { effects: () => void }) => {
   // useLayoutEffect to its normal effect, so the mount phase here is the only
   // control over it. The commit therefore runs before paint.
   // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useLayoutEffect(effects);
+  useIsomorphicLayoutEffect(effects);
   return null;
 };
 

@@ -58,7 +58,7 @@ export function ComputerUse({
           className={cn(
             field,
             mono,
-            "text-foreground/45 min-w-0 flex-1 truncate rounded-full px-2.5 py-1",
+            "text-muted-foreground min-w-0 flex-1 truncate rounded-full px-2.5 py-1",
           )}
         >
           {url}
@@ -92,14 +92,14 @@ export function ComputerUse({
 
       {active && (
         <div className="border-foreground/[0.07] flex items-center gap-2 border-t px-3.5 py-2">
-          <span className={cn(mono, "text-foreground/55 shrink-0")}>
+          <span className={cn(mono, "text-muted-foreground shrink-0")}>
             {active.action}
           </span>
           <span className="text-foreground/80 min-w-0 flex-1 truncate text-[13px]">
             {active.target}
           </span>
           <span
-            className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
+            className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
           >
             {index + 1}/{steps.length}
           </span>

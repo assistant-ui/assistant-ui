@@ -41,17 +41,26 @@ describe("stableStringifyToolArgs", () => {
   it("stabilizes nested objects and array elements independently", () => {
     const cache = new Map<string, Map<string, string[]>>();
     stableStringifyToolArgs(cache, "key", {
-      list: [{ x: 1, y: 2 }],
+      list: [
+        { x: 1, y: 2 },
+        { y: 3, x: 4 },
+      ],
       nested: { p: 1, q: 2 },
     });
     expect(
       stableStringifyToolArgs(cache, "key", {
         nested: { q: 3, p: 4 },
-        list: [{ y: 5, x: 6 }],
+        list: [
+          { y: 5, x: 6 },
+          { x: 7, y: 8 },
+        ],
       }),
     ).toBe(
       JSON.stringify({
-        list: [{ x: 6, y: 5 }],
+        list: [
+          { x: 6, y: 5 },
+          { y: 8, x: 7 },
+        ],
         nested: { p: 4, q: 3 },
       }),
     );

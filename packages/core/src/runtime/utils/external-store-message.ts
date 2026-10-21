@@ -15,7 +15,7 @@ const EMPTY_ARRAY: never[] = [];
  * This is a no-op if the target already has a bound message.
  * Use `getExternalStoreMessages` to retrieve the bound messages later.
  *
- * @deprecated This API is experimental and may change without notice.
+ * @deprecated Experimental since 2026-02-25. Not scheduled for removal; the API may change in any release.
  */
 export const bindExternalStoreMessage = <T>(
   target: object,
@@ -46,3 +46,21 @@ export const getExternalStoreMessages = <T>(
 };
 
 export const FALLBACK_ID_PREFIX = "__external_store_fallback_";
+
+export const dedupeMessagesById = <T extends { readonly id: string }>(
+  messages: readonly T[],
+  onDuplicate: (id: string) => void,
+): readonly T[] => {
+  const seenIds = new Set<string>();
+  const deduped: T[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!;
+    if (seenIds.has(message.id)) {
+      onDuplicate(message.id);
+      continue;
+    }
+    seenIds.add(message.id);
+    deduped.push(message);
+  }
+  return deduped.length === messages.length ? messages : deduped.reverse();
+};

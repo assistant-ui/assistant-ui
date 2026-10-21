@@ -10,15 +10,32 @@ on:
       - "examples/**"
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
+      - "scripts/autofix-install.mjs"
+      - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
       - "scripts/update-api-surface.test.mjs"
+      - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
+      - "scripts/diff-api-surface.mjs"
+      - "scripts/check-public-surface-removals.mjs"
+      - "scripts/check-public-surface-removals.test.mjs"
+      - "scripts/check-standalone-shim-imports.mjs"
+      - "scripts/check-standalone-shim-imports.test.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-distribution-barrels.mjs"
       - "scripts/check-distribution-barrels.test.mjs"
+      - "scripts/check-experimental.mjs"
+      - "scripts/check-experimental.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/check-knip.mjs"
+      - "scripts/check-knip.test.mjs"
+      - "knip.ts"
+      - "knip-baseline.json"
+      - "scripts/check-adapter-architecture.mjs"
+      - "scripts/check-adapter-architecture.test.mjs"
+      - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -30,10 +47,14 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/turbo-redis-env.test.mjs"
+      - "scripts/prepare-ci-base.mjs"
+      - "scripts/prepare-ci-base.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
+      - "scripts/ci-has-tasks.mjs"
+      - "scripts/ci-has-tasks.test.mjs"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -41,42 +62,8 @@ on:
       - ".github/workflows/code-quality.yaml"
   pull_request:
     branches: [main]
-    paths:
-      - "packages/**"
-      - "api-surface/**"
-      - "apps/**"
-      - "examples/**"
-      - "templates/**"
-      - "scripts/generate-api-surface.mjs"
-      - "scripts/update-api-surface.mjs"
-      - "scripts/update-api-surface.test.mjs"
-      - "scripts/check-api-surface.mjs"
-      - "scripts/check-built-declarations.mjs"
-      - "scripts/check-built-declarations.test.mjs"
-      - "scripts/check-distribution-barrels.mjs"
-      - "scripts/check-distribution-barrels.test.mjs"
-      - "scripts/check-workspace-ranges.mjs"
-      - "scripts/check-workspace-ranges.test.mjs"
-      - "scripts/check-skills-commit.mjs"
-      - "scripts/check-skills-commit.test.mjs"
-      - "scripts/deploy-examples-changes.mjs"
-      - "scripts/deploy-examples-changes.test.mjs"
-      - "scripts/api-reference-inputs.mjs"
-      - "scripts/api-reference-inputs.test.mjs"
-      - "scripts/*example-bundle*"
-      - "scripts/app-build-inputs.mjs"
-      - "scripts/app-build-inputs.test.mjs"
-      - "scripts/package-build-inputs.mjs"
-      - "scripts/package-build-inputs.test.mjs"
-      - ".github/workflows/deploy-examples.yaml"
-      - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
-      - "scripts/typecheck.sh"
-      - "turbo.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - ".github/workflows/code-quality.yaml"
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -98,7 +85,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           cache: false
@@ -113,6 +100,33 @@ jobs:
       - name: Check resource memoization (React Compiler)
         run: pnpm check:resource-memo
 
+  review-policy:
+    name: Review Policy Scripts
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prod --filter @assistant-ui/x-buildutils --ignore-scripts
+
+      - name: Test review policy scripts
+        run: node --run review-policy:test
+
+      - name: Check review policy synchronization
+        run: node scripts/sync-review-policy.mjs --check
+
   workspace-ranges:
     name: Workspace Ranges
     runs-on: ubuntu-latest
@@ -124,16 +138,54 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           install: false
+
+      - name: Test the shared script helpers
+        run: node --test scripts/lib/*.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
 
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
+
+      - name: Test the adapter architecture checker
+        run: node --test scripts/check-adapter-architecture.test.mjs
+
+      - name: Verify adapters avoid banned state patterns
+        run: node scripts/check-adapter-architecture.mjs
+
+  knip:
+    name: Knip
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build the vitest plugin the package configs import
+        run: pnpm turbo build --filter=@assistant-ui/vite
+
+      - name: Test the knip baseline checker
+        run: node --test scripts/check-knip.test.mjs
+
+      - name: Verify no unused code or dependencies beyond the baseline
+        run: node scripts/check-knip.mjs
 
   skills-commit:
     name: Skills Commit Pins
@@ -146,7 +198,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           install: false
@@ -168,28 +220,37 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
           persist-credentials: false
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
+
+      - name: Test CI comparison base preparation
+        run: node --test scripts/prepare-ci-base.test.mjs
 
       - name: Detect package build inputs
         id: package_build_inputs
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_BEFORE: ${{ github.event.before }}
+          CI_MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE=HEAD^1
-          else
-            BASE="${{ github.event.before }}"
-          fi
+          BASE=$(node scripts/prepare-ci-base.mjs --resolve)
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
             run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
           else
             run=true
+            BASE=""
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         if: steps.package_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           cache: false
@@ -197,26 +258,25 @@ jobs:
 
       - name: Install dependencies
         if: steps.package_build_inputs.outputs.run == 'true'
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
+          if [ -n "$BASE" ] && git diff --quiet "$BASE" HEAD -- \
             package.json \
             pnpm-lock.yaml \
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
+            plan=$(node scripts/update-api-surface.mjs --base "$BASE" --print-filters)
+            mapfile -t filters < <(jq -r 'if length == 0 then "--filter=./packages/*..." else .[] | "--filter=\(.)..." end' <<< "$plan")
             pnpm install --frozen-lockfile \
               --filter="." \
               --filter="@assistant-ui/api-surface" \
               --filter="@assistant-ui/react-devtools..." \
               --filter="@assistant-ui/x-buildutils..." \
               --filter="@assistant-ui/x-performance" \
-              --filter="...[$BASE]..." \
+              "${filters[@]}" \
               --filter="!./apps/*" \
               --filter="!./examples/*" \
               --filter="!./templates/*"
@@ -227,40 +287,47 @@ jobs:
       - name: Build packages
         if: steps.package_build_inputs.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build packages changed compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          else
-            # Push to main: Build packages changed in last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          fi
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
+        run: pnpm api-surface -- --base="$BASE" --build-only
 
       - name: Check API surface
         if: steps.package_build_inputs.outputs.run == 'true'
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+        run: pnpm run api-surface:check -- --skip-build --base="$BASE"
+
+      - name: Check standalone shim imports
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run standalone-shim-imports:check
+
+      - name: Check public surface removals
+        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.package_build_inputs.outputs.run == 'true'
+        env:
+          BASE_SHA: ${{ steps.package_build_inputs.outputs.base }}
+          HEAD_SHA: ${{ github.sha }}
+        run: pnpm run public-surface-removals:check
+
+      - name: Test standalone shim and public surface checks
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Check API surface for packages changed compared to base branch
-            pnpm run api-surface:check -- --skip-build --filter="...[origin/${{ github.base_ref }}]"
-          else
-            # Push to main: Check API surface for packages changed in last commit
-            pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
-          fi
+          pnpm run standalone-shim-imports:test
+          pnpm run public-surface-removals:test
 
       - name: Check distribution barrels
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:check
 
+      - name: Check experimental API annotations
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run experimental:check
+
       - name: Check built declarations
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
-          else
-            pnpm run declarations:check -- --filter="...[HEAD^1]"
-          fi
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+        run: pnpm run declarations:check -- --filter="...[$BASE]"
 
       - name: Test built declaration checker
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -269,6 +336,10 @@ jobs:
       - name: Test the distribution barrel checker
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:test
+
+      - name: Test the experimental annotation checker
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run experimental:test
 
       - name: Test the deploy examples planner
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -285,15 +356,19 @@ jobs:
       - name: Test package build input detector
         run: node --test scripts/package-build-inputs.test.mjs
 
-      # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
+      - name: Test Redis build cache isolation
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: node --test scripts/turbo-redis-env.test.mjs
+
       - name: Measure bundle sizes against the base
-        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
+        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.package_build_inputs.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
           set -euo pipefail
-          node packages/x-performance/bin/aui-perf.mjs size --ref HEAD^1 --report "$RUNNER_TEMP/size.md"
+          node packages/x-performance/bin/aui-perf.mjs size --ref "$BASE" --report "$RUNNER_TEMP/size.md"
           if [ -f "$RUNNER_TEMP/size.md" ]; then cat "$RUNNER_TEMP/size.md" >> "$GITHUB_STEP_SUMMARY"; fi
 
       - name: Post the size report as a sticky PR comment
@@ -316,36 +391,50 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
+    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
+    needs: build
+    if: ${{ !cancelled() }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
 
       - name: Detect app build inputs
         id: app_build_inputs
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_BEFORE: ${{ github.event.before }}
+          CI_MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE=HEAD^1
-          else
-            BASE="${{ github.event.before }}"
-          fi
+          BASE=$(node scripts/prepare-ci-base.mjs --resolve)
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
             run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/app-build-inputs.mjs)
           else
             run=true
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Test app build input detector
         run: node --test scripts/app-build-inputs.test.mjs
 
+      - name: Test CI task planner
+        run: node --test scripts/ci-has-tasks.test.mjs
+
+      - name: Test source-mapped tsconfig paths
+        run: node --test scripts/source-mapped-tsconfigs.test.mjs
+
       - name: Setup pnpm and node.js
         if: steps.app_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           cache: true
@@ -361,24 +450,18 @@ jobs:
       - name: Build apps
         if: steps.app_build_inputs.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          BASE: ${{ steps.app_build_inputs.outputs.base }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build apps and templates affected by changes compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
-            pnpm turbo build --filter="{./examples/*}[origin/${{ github.base_ref }}]"
-          else
-            # Push to main: Build apps and templates affected by the last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
-            pnpm turbo build --filter="{./examples/*}[HEAD^1]"
-          fi
+          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+          pnpm turbo build --filter="{./examples/*}[$BASE]"
 
       - name: Verify standalone example bundle contracts
         if: steps.app_build_inputs.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: pnpm test:bundles
 
   api-reference-drift:
@@ -389,17 +472,21 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
 
       - name: Detect API reference inputs
         id: api_ref
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_BEFORE: ${{ github.event.before }}
+          CI_MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE="HEAD^1"
-          fi
+          BASE=$(node scripts/prepare-ci-base.mjs --resolve)
           if ! git rev-parse --verify "$BASE" >/dev/null; then
             echo "Unable to resolve API reference diff base: $BASE"
             exit 1
@@ -409,15 +496,15 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.api_ref.outputs.run == 'true'
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs..." --filter="@assistant-ui/eve..."
 
       - name: Generate API reference (strict)
         if: steps.api_ref.outputs.run == 'true'
@@ -435,131 +522,65 @@ jobs:
             exit 1
           fi
 
-  test:
-    name: Test Changed Packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # assistant-stream's resumable store advertises a peer union over ioredis 5
-    # and 6 and node-redis; both legs need a live server or their suites skip.
-    services:
-      redis:
-        image: redis:8-alpine # ratchet:exclude
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-    env:
-      REDIS_URL: redis://127.0.0.1:6379
-    # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
-        with:
-          runtime: node@24
-          cache: false
-          install: false
-
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE=HEAD^1
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
-            package.json \
-            pnpm-lock.yaml \
-            pnpm-workspace.yaml \
-            turbo.json \
-            packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
-          else
-            pnpm install --frozen-lockfile
-          fi
-
-      - name: Build packages
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          else
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          fi
-
-      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner and push tests past vitest's 5s timeout; the builds above keep turbo's default concurrency.
-      - name: Run tests
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Test packages changed compared to base branch
-            pnpm turbo test --concurrency=1 --filter="...[origin/${{ github.base_ref }}]"
-          else
-            # Push to main: Test packages changed in last commit
-            pnpm turbo test --concurrency=1 --filter="...[HEAD^1]"
-          fi
-
-      - name: Run React Compiler tests
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm test:react-compiler
-
   typecheck:
     name: Typecheck Changed Packages
+    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
+    needs: build
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
+
+      - name: Resolve CI comparison base
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_BEFORE: ${{ github.event.before }}
+          CI_MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          BASE=$(node scripts/prepare-ci-base.mjs --resolve)
+          echo "CI_BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           cache: false
           install: false
 
-      - name: Install dependencies
+      - name: Detect typecheck tasks
+        id: tasks
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE=HEAD^1
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
+          run=$(node scripts/ci-has-tasks.mjs "$CI_BASE" typecheck --filter="...[$CI_BASE]")
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.tasks.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$CI_BASE" HEAD -- \
             package.json \
             pnpm-lock.yaml \
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..."
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$CI_BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
 
       - name: Typecheck
+        if: steps.tasks.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            bash scripts/typecheck.sh --continue --filter="...[origin/${{ github.base_ref }}]"
-          else
-            bash scripts/typecheck.sh --continue --filter="...[HEAD^1]"
-          fi
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
+        run: bash scripts/typecheck.sh --continue --filter="...[$CI_BASE]"

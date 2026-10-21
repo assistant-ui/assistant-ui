@@ -1,0 +1,129 @@
+---
+title: Action bar
+description: Add copy, edit, and regenerate buttons to a message.
+---
+
+The action bar primitives act on the message in the current message scope. Render them inside a row of `ThreadPrimitiveMessages`. This row follows the registry kit: Edit appears on user messages, Copy shows its copied state, and Reload appears on assistant messages.
+
+```vue title="app/components/ActionBarMessage.vue"
+<script setup lang="ts">
+import {
+  ActionBarPrimitiveCopy,
+  ActionBarPrimitiveEdit,
+  ActionBarPrimitiveReload,
+  MessagePrimitiveParts,
+  MessagePrimitiveRoot,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const role = useAuiState((s) => s.message.role);
+const copied = useAuiState((s) => s.message.isCopied);
+</script>
+
+<template>
+  <MessagePrimitiveRoot class="group flex flex-col gap-1">
+    <div class="rounded-xl px-4 py-2 text-sm">
+      <MessagePrimitiveParts />
+    </div>
+    <div
+      class="flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+    >
+      <ActionBarPrimitiveEdit
+        v-if="role === 'user'"
+        class="rounded px-2 py-1 text-xs disabled:opacity-40"
+      >
+        Edit
+      </ActionBarPrimitiveEdit>
+      <ActionBarPrimitiveCopy
+        class="rounded px-2 py-1 text-xs disabled:opacity-40"
+        :aria-label="copied ? 'Copied' : 'Copy'"
+      >
+        {{ copied ? "Copied" : "Copy" }}
+      </ActionBarPrimitiveCopy>
+      <ActionBarPrimitiveReload
+        v-if="role === 'assistant'"
+        class="rounded px-2 py-1 text-xs disabled:opacity-40"
+      >
+        Regenerate
+      </ActionBarPrimitiveReload>
+    </div>
+  </MessagePrimitiveRoot>
+</template>
+```
+
+## Show the bar
+
+The example keeps the buttons in the document and reveals them with CSS `group-hover` or `focus-within`. A keyboard user can tab into the bar while it is transparent. `MessagePrimitiveRoot` also tracks pointer hover in `s.message.isHovering` if you need the state in code. Use `s.message.isLast` to keep the bar visible on the last message, for example by applying `opacity-100` when that value is true.
+
+## Copy feedback
+
+After a successful clipboard write, Copy has `data-copied` for `copiedDuration` milliseconds, which defaults to 3000. The same state is available as `s.message.isCopied`; the example uses it to change the label. While the message's edit composer is open, Copy writes the edit text instead of the original message text. Clipboard failures are ignored, so a failed write does not set the copied state.
+
+## When the buttons are disabled
+
+- **Edit** is disabled while the edit composer is open, for a pending message submission, during a voice session, or when the runtime reports that editing is unavailable.
+- **Reload** is disabled while the thread is running or disabled, during a voice session, on a message that is not from the assistant, or when the runtime cannot reload.
+- **Copy** is disabled unless the message has a nonempty text part. It is also disabled while an assistant message is still running.
+
+Each button also respects a `disabled` attribute you set. Their click handlers do nothing when the event was prevented.
+
+## Feedback buttons
+
+Vue has no feedback primitive. When the runtime supports feedback, call `aui.message.submitFeedback({ type })` from a button in the message row. Read the submitted choice from `s.message.metadata.submittedFeedback?.type` to set `aria-pressed`.
+
+```vue title="app/components/MessageFeedback.vue"
+<script setup lang="ts">
+import { useAui, useAuiState } from "@assistant-ui/vue";
+
+const aui = useAui();
+const supported = useAuiState(
+  (s) => s.thread.capabilities.feedback && s.message.role === "assistant",
+);
+const submitted = useAuiState(
+  (s) => s.message.metadata.submittedFeedback?.type,
+);
+</script>
+
+<template>
+  <div v-if="supported" class="flex gap-1" role="group" aria-label="Response feedback">
+    <button
+      type="button"
+      :aria-pressed="submitted === 'positive'"
+      @click="aui.message.submitFeedback({ type: 'positive' })"
+    >
+      Helpful
+    </button>
+    <button
+      type="button"
+      :aria-pressed="submitted === 'negative'"
+      @click="aui.message.submitFeedback({ type: 'negative' })"
+    >
+      Not helpful
+    </button>
+  </div>
+</template>
+```
+
+## Parts
+
+Each part renders a `<button type="button">`, accepts native button attributes and listeners, and uses its default slot as button content.
+
+### ActionBarPrimitiveEdit
+
+Calls `aui.composer.beginEdit()` for the current message. It has no props.
+
+### ActionBarPrimitiveReload
+
+Calls `aui.message.reload()` for the current assistant message. It has no props.
+
+### ActionBarPrimitiveCopy
+
+Writes the current message text to the clipboard and sets `data-copied` after a successful write.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `copiedDuration` | `number` | `3000` | Milliseconds to keep the copied state after a successful copy. |
+
+## Compared with React
+
+React has an action bar Root with automatic hiding and floating, plus Speak, StopSpeaking, feedback, export Markdown, and overflow menu parts. Vue exports the three button parts above; compose their container and any other actions yourself.

@@ -49,7 +49,7 @@ export const assistantUi: CatalogProduct = {
     "Tailwind CSS v3 or v4",
     "A model provider key",
   ],
-  agentMinutes: [5, 15],
+  agentMinutes: [4, 9],
   steps: [
     {
       title: "Scaffold the UI and runtime",

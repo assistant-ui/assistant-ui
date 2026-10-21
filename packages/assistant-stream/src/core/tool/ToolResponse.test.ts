@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NO_RESULT, ToolResponse } from "./ToolResponse";
 
 describe("ToolResponse", () => {
@@ -22,9 +22,17 @@ describe("ToolResponse", () => {
   });
 
   describe("toResponse", () => {
-    it("returns an existing response unchanged", () => {
+    it("returns existing responses unchanged across module instances", async () => {
       const response = new ToolResponse({ result: "ok" });
       expect(ToolResponse.toResponse(response)).toBe(response);
+
+      vi.resetModules();
+      const { ToolResponse: OtherToolResponse } =
+        await import("./ToolResponse");
+      expect(OtherToolResponse).not.toBe(ToolResponse);
+
+      const otherResponse = new OtherToolResponse({ result: "ok" });
+      expect(ToolResponse.toResponse(otherResponse)).toBe(otherResponse);
     });
 
     it("materializes an absent result", () => {

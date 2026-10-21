@@ -32,6 +32,21 @@ const getPublicAssistantRateLimits = async () => {
   const { Ratelimit } = await import("@upstash/ratelimit");
   const redis = Redis.fromEnv();
   return {
+    docsSearchBurst: new Ratelimit({
+      redis,
+      prefix: "aui:docs-search:ip:burst",
+      limiter: Ratelimit.fixedWindow(60, "1m"),
+    }),
+    docsSearchDaily: new Ratelimit({
+      redis,
+      prefix: "aui:docs-search:ip:daily",
+      limiter: Ratelimit.fixedWindow(1_000, "1d"),
+    }),
+    docsSearchGlobal: new Ratelimit({
+      redis,
+      prefix: "aui:docs-search:global:daily",
+      limiter: Ratelimit.fixedWindow(20_000, "1d"),
+    }),
     ipBurst: new Ratelimit({
       redis,
       prefix: "aui:public-assistant:ip:burst",
@@ -335,6 +350,23 @@ export async function checkPublicAssistantRateLimit(
         publicAssistantLimitMessage("Public assistant usage"),
         globalDaily.reset,
       );
+    }
+    return null;
+  });
+}
+
+export async function checkDocsSearchRateLimit(request: Request) {
+  return runRateLimitChecks(request, "docs_search", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "docs_search");
+    for (const [limiter, key] of [
+      [limits.docsSearchBurst, ip],
+      [limits.docsSearchDaily, ip],
+      [limits.docsSearchGlobal, "all"],
+    ] as const) {
+      const result = await limiter.limit(key);
+      if (!result.success)
+        return limitResponse("Search limit exceeded", result.reset);
     }
     return null;
   });

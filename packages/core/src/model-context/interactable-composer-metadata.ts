@@ -1,10 +1,7 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
 import { isJSONValue, isRecord } from "../utils/json/is-json";
 
-/**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Unstable / Experimental (not actually removed).
- */
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_InteractableSnapshotEntry = {
   id: string;
   name: string;
@@ -35,7 +32,7 @@ type SnapshotCarrierMessage = {
  * state to the model (see `unstable_injectInteractableContext` in
  * `@assistant-ui/ai-sdk` for the AI SDK implementation).
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_getInteractableSnapshots(message: {
   metadata?: unknown;
@@ -53,7 +50,7 @@ export function unstable_getInteractableSnapshots(message: {
 /**
  * Canonical model-facing wording for one snapshot entry.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_formatInteractableSnapshot(
   entry: Unstable_InteractableSnapshotEntry,
@@ -249,10 +246,40 @@ const asToolCallPart = (part: unknown): ToolCallLikePart | undefined => {
   return p.type === "tool-call" ? p : undefined;
 };
 
+/** A tool call's result as a record. LangGraph and LangChain send a frontend
+ *  tool's result as JSON text and bring it back as that text. */
+export const toolResultRecord = (
+  result: unknown,
+): Record<string, unknown> | undefined => {
+  if (typeof result === "string" && result.startsWith("{")) {
+    try {
+      result = JSON.parse(result);
+    } catch {
+      return undefined;
+    }
+  }
+  return isRecord(result) ? result : undefined;
+};
+
+/** Whether `p` is the call that created instance `id` of interactable `name`:
+ *  the call is named after the interactable, or its result names it, as
+ *  `unstable_interactableTool` records when `name` sets the two apart. */
+export const isInteractableCreateCall = (
+  p: {
+    toolCallId?: string | undefined;
+    toolName?: string | undefined;
+    result?: unknown;
+  },
+  id: string,
+  name: string,
+): boolean =>
+  p.toolCallId === id &&
+  (p.toolName === name || toolResultRecord(p.result)?.interactable === name);
+
 /** Whether an accepted `update_*` call addressed instance `id`. */
 const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
   if (!p.args || typeof p.args !== "object") return false;
-  const result = isRecord(p.result) ? p.result : undefined;
+  const result = toolResultRecord(p.result);
   if (result?.success === false) return false;
   if (typeof result?.id === "string") return result.id === id;
   const argsId = (p.args as Record<string, unknown>).id;
@@ -260,7 +287,7 @@ const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
 };
 
 const createAddedItemIdFactory = (result: unknown) => {
-  const value = isRecord(result) ? result.addedItemIds : undefined;
+  const value = toolResultRecord(result)?.addedItemIds;
   if (!isRecord(value)) return undefined;
 
   const idsByField = new Map<string, string[]>();
@@ -276,10 +303,7 @@ const createAddedItemIdFactory = (result: unknown) => {
   return (field: string) => idsByField.get(field)?.shift();
 };
 
-/**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Unstable / Experimental (not actually removed).
- */
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_InteractableVersion = {
   /** The full state as of this version. */
   state: unknown;
@@ -309,7 +333,7 @@ const versionsCache = new WeakMap<
  * The last entry is the state the model knows. Partial snapshots and update
  * calls with no baseline to merge into are skipped.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_getInteractableVersions(
   messages: readonly SnapshotCarrierMessage[],
@@ -357,7 +381,7 @@ export function unstable_getInteractableVersions(
     for (const part of msg.content ?? []) {
       const p = asToolCallPart(part);
       if (!p) continue;
-      if (p.toolCallId === id && p.toolName === name) {
+      if (isInteractableCreateCall(p, id, name)) {
         if (p.args && typeof p.args === "object") {
           versions.push({ state: p.args, origin: "create", toolCallId: id });
         }

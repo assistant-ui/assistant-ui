@@ -1,4 +1,5 @@
 import type { ReadonlyJSONValue } from "../utils/json/json-value";
+import type { PartProviderMetadata } from "./utils/types";
 import type { AssistantTransportStateOperation } from "./gorp/types";
 import type { ToolModelContentPart } from "./tool/tool-types";
 
@@ -11,11 +12,14 @@ import type { ToolModelContentPart } from "./tool/tool-types";
 export type PartInit =
   | {
       readonly type: "text";
+      readonly providerMetadata?: PartProviderMetadata;
       readonly parentId?: string;
     }
   | {
       readonly type: "reasoning";
+      /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
       readonly unstable_summary?: string;
+      readonly providerMetadata?: PartProviderMetadata;
       readonly parentId?: string;
     }
   | {
@@ -61,6 +65,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
   | {
       /** Closes the current part at `path`. */
       readonly type: "part-finish";
+      readonly providerMetadata?: PartProviderMetadata;
     }
   | {
       /** Marks streamed tool-call argument text as complete. */
@@ -70,6 +75,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       /** Appends text to a text, reasoning, or tool-call argument part. */
       readonly type: "text-delta";
       readonly textDelta: string;
+      readonly providerMetadata?: PartProviderMetadata;
     }
   | {
       /** Appends provider or application annotations to the current message. */

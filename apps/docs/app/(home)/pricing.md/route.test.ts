@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { GET } from "./route";
 
 describe("GET", () => {
-  it("returns cache validators with pricing markdown", () => {
-    const response = GET();
+  it("returns cache validators with pricing markdown", async () => {
+    const response = await GET();
 
     expect(response.headers.get("Cache-Control")).toBe(
       "no-cache, must-revalidate",

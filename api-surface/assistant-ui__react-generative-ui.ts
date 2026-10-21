@@ -57,6 +57,17 @@ interface A2uiOperationResult {
   readonly warnings: string[];
 }
 
+type A2uiPresentToolCall = {
+  toolCallId: string;
+  toolName: "present";
+  args: ReadonlyJSONObject;
+  argsText: string;
+  result: Record<string, never>;
+  artifact: {
+    a2ui: readonly A2uiSurfaceSnapshotOperation[];
+  };
+};
+
 type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
 
 type A2uiSurfaceSnapshotOperation = {
@@ -372,15 +383,23 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type GenerativeUIAction = Action;
 
+type GenerativeUIBindings<P> = {
+  readonly [K in keyof P]?: (value: P[K]) => void;
+};
+
 type GenerativeUIComponent<P = any> = {
   description: string;
   properties: ZodType<P>;
   streamProperties: boolean | undefined;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
   render: (props: StreamingRenderProps<P>) => ReactNode;
 } | {
   description: string;
   properties: ZodType<P>;
   streamProperties?: false | undefined;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
   render: (props: StaticRenderProps<P>) => ReactNode;
 };
 
@@ -488,13 +507,6 @@ declare class JSONGenerativeUI {
   promptUser(): PromptUserTool;
 }
 
-declare class JSONGenerativeUI$1 {
-  #private;
-  constructor(options: JSONGenerativeUIOptions);
-  present(options?: PresentToolOptions): PresentTool;
-  promptUser(): PromptUserTool;
-}
-
 type JSONGenerativeUIOptions = {
   library: GenerativeUILibrary;
   actions?: ActionRegistry;
@@ -578,6 +590,11 @@ type MessagePartStreamStatus = {
 } | {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
 };
 
 type MessageStatus = {
@@ -664,11 +681,12 @@ type ReasoningMessagePart = {
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -791,6 +809,7 @@ interface SlackInputBlock {
   readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
+  readonly dispatch_action?: boolean;
 }
 
 interface SlackMarkdownBlock {
@@ -816,6 +835,9 @@ interface SlackPlainText {
 interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
+  readonly dispatch_action_config?: {
+    readonly trigger_actions_on?: readonly ("on_character_entered" | "on_enter_pressed")[];
+  };
   readonly multiline?: boolean;
   readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
@@ -891,6 +913,8 @@ type StaticRenderProps<P> = P & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 };
 
 type StreamingRenderProps<P> = (Partial<P> & {
@@ -898,11 +922,15 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "streaming";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 }) | (P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 });
 
 declare const TEXT_SIZES: readonly [
@@ -1103,12 +1131,13 @@ interface TeamsTextBlock {
   readonly type: "TextBlock";
   readonly text: string;
   readonly wrap: true;
+  readonly fontType?: "Monospace";
   readonly size?: TeamsTextSize;
   readonly weight?: "bolder";
   readonly style?: "heading";
   readonly isSubtle?: true;
   readonly separator?: true;
-  readonly spacing?: "large";
+  readonly spacing?: "large" | "none";
 }
 
 type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
@@ -1129,6 +1158,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1201,7 +1231,12 @@ interface ToSlackBlocksOptions {
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -1216,6 +1251,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -1232,6 +1282,9 @@ type ToolApprovalResponse = {
   readonly reason?: string;
 } | {
   readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly reason?: string;
 };
 
@@ -1259,6 +1312,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1283,6 +1337,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -1338,10 +1394,7 @@ type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = str
   complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDefinition<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = WithRender<Tool<TArgs, TResult>, TArgs, TResult>;
 
@@ -1477,7 +1530,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare const WEIGHTS: readonly [
   "normal",
@@ -1512,7 +1565,7 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
 };
 
 declare namespace entry_a2ui_exports {
-  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations };
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiPresentToolCall, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations, surfaceToPresentToolCall };
 }
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
@@ -1555,16 +1608,18 @@ declare global {
   }
 }
 
+declare const hasFieldReference: (value: unknown) => boolean;
+
 declare namespace entry_root_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_root_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_ir_exports {
-  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, normalizeSpec, normalizeUINode };
+  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, hasFieldReference, normalizeSpec, normalizeUINode, resolveFieldReferences };
 }
 
 declare function normalizeSpec(spec: UISpec): {
@@ -1575,11 +1630,18 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
+declare const resolveFieldReferences: (value: unknown, fields: Readonly<Record<string, unknown>>) => unknown;
+
 declare namespace entry_slack_exports {
   export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
+
+declare function surfaceToPresentToolCall(surfaceId: string, surface: A2uiSurfaceState): {
+  toolCall: A2uiPresentToolCall | undefined;
+  warnings: ReturnType<typeof convertSurfaceToUISpec>["warnings"];
+};
 
 declare namespace entry_teams_exports {
   export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputTime, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };

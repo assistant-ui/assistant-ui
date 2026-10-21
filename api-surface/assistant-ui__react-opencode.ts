@@ -59,6 +59,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -76,6 +77,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -84,6 +86,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -433,11 +436,13 @@ type AssistantStreamChunk = {
   readonly part: PartInit;
 } | {
   readonly type: "part-finish";
+  readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
+  readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
@@ -908,7 +913,11 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
+  activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
@@ -1202,6 +1211,11 @@ type MessagePartStreamStatus = {
 } | {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
 };
 
 declare class MessageRepository {
@@ -1633,10 +1647,12 @@ type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
 
 type PartInit = {
   readonly type: "text";
+  readonly providerMetadata?: PartProviderMetadata$1;
   readonly parentId?: string;
 } | {
   readonly type: "reasoning";
   readonly unstable_summary?: string;
+  readonly providerMetadata?: PartProviderMetadata$1;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1663,6 +1679,10 @@ type PartInit = {
 };
 
 type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
+type PartProviderMetadata$1 = {
   readonly [providerName: string]: ReadonlyJSONObject;
 };
 
@@ -1789,6 +1809,7 @@ type ReasoningMessagePart = {
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1797,7 +1818,7 @@ type ReloadConfig = {
   runConfig?: RunConfig;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -1806,6 +1827,7 @@ type RespondToToolApprovalOptions = {
   approved: boolean;
   optionId?: string;
   text?: string;
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -1941,6 +1963,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -2068,12 +2091,17 @@ type ThreadListRuntimeEvent = {
 };
 
 type ThreadListState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
@@ -2091,6 +2119,7 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
+    readonly runId?: string | undefined;
     readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
@@ -2142,6 +2171,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
@@ -2194,8 +2224,12 @@ type ThreadRuntimePath = {
 
 type ThreadRuntimeState = {
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -2257,7 +2291,12 @@ type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePar
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -2272,6 +2311,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -2288,6 +2342,9 @@ type ToolApprovalResponse = {
   readonly reason?: string;
 } | {
   readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly reason?: string;
 };
 
@@ -2310,6 +2367,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -2334,6 +2392,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -2366,10 +2426,7 @@ interface ToolCallResponseReader<TResult> {
   get: () => Promise<ToolResponse<TResult>>;
 }
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDisplay = "inline" | "standalone";
 
@@ -2507,7 +2564,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;

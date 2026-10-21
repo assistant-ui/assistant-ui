@@ -1,28 +1,36 @@
 import { throwAggregated } from "./helpers/throwAggregated";
 import { isDevelopment } from "./helpers/env";
 
-type Task = () => void;
+type ErrorHandler = (error: unknown) => void;
+type Task = { run: () => void; onError: ErrorHandler | undefined };
+type Notify = { run: () => void; onError: ErrorHandler | undefined };
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  tasks: Task[];
+  notifies: Notify[];
   isScheduled: boolean;
 };
 
 const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
   schedulers: new Set(),
+  tasks: [],
+  notifies: [],
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
-const pendingNotifies: (() => void)[] = [];
+let asyncFlushErrors: unknown[] | undefined;
 
 export class UpdateScheduler {
   private _isDirty = false;
 
-  private readonly _task: Task;
+  private readonly _task: () => void;
+  readonly onError: ErrorHandler | undefined;
 
-  constructor(_task: Task) {
-    this._task = _task;
+  constructor(task: () => void, onError?: ErrorHandler) {
+    this._task = task;
+    this.onError = onError;
   }
 
   get isDirty() {
@@ -58,28 +66,38 @@ export class UpdateScheduler {
   }
 }
 
-const scheduledTasks: Task[] = [];
 const taskScheduler = new UpdateScheduler(() => {
-  const tasks = scheduledTasks.splice(0);
+  const tasks = flushState.tasks.splice(0);
   const errors: unknown[] = [];
-  for (const task of tasks) {
+  for (const { run, onError } of tasks) {
     try {
-      task();
+      run();
     } catch (error) {
-      errors.push(error);
+      if (asyncFlushErrors && onError) {
+        try {
+          onError(error);
+        } catch (handlerError) {
+          errors.push(handlerError);
+        }
+      } else {
+        errors.push(error);
+      }
     }
   }
   throwAggregated(errors, "Errors occurred while running scheduled tasks");
 });
 
-export const scheduleTask = (task: Task): void => {
+export const scheduleTask = (run: () => void, onError?: ErrorHandler): void => {
   taskScheduler.markDirty();
-  scheduledTasks.push(task);
+  flushState.tasks.push({ run, onError });
 };
 
-export const scheduleNotify = (notify: () => void): void => {
+export const scheduleNotify = (
+  notify: () => void,
+  onError?: ErrorHandler,
+): void => {
   if (activeDrainRuns !== null) {
-    pendingNotifies.push(notify);
+    flushState.notifies.push({ run: notify, onError });
     return;
   }
   notify();
@@ -91,11 +109,13 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-const flushScheduled = () => {
+const flushScheduled = (isAsync = false) => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
-  activeDrainRuns = new Map();
+  const prevAsyncFlushErrors = asyncFlushErrors;
   const errors: unknown[] = [];
+  activeDrainRuns = new Map();
+  asyncFlushErrors = isAsync ? errors : undefined;
   try {
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
@@ -104,20 +124,39 @@ const flushScheduled = () => {
       try {
         scheduler.runTask();
       } catch (error) {
-        errors.push(error);
+        if (isAsync && scheduler.onError) {
+          try {
+            scheduler.onError(error);
+          } catch (handlerError) {
+            errors.push(handlerError);
+          }
+        } else {
+          errors.push(error);
+        }
       }
     }
   } finally {
     activeDrainRuns = prevDrainRuns;
+    asyncFlushErrors = prevAsyncFlushErrors;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
 
     if (activeDrainRuns === null) {
-      while (pendingNotifies.length > 0) {
+      const notifies = flushState.notifies;
+      while (notifies.length > 0) {
+        const { run, onError } = notifies.shift()!;
         try {
-          pendingNotifies.shift()!();
+          run();
         } catch (error) {
-          errors.push(error);
+          if (isAsync && onError) {
+            try {
+              onError(error);
+            } catch (handlerError) {
+              errors.push(handlerError);
+            }
+          } else {
+            errors.push(error);
+          }
         }
       }
     }
@@ -141,7 +180,7 @@ const scheduleMacrotask = (() => {
         const channel = new MessageChannel();
         channel.port1.onmessage = () => {
           port1?.unref?.();
-          flushScheduled();
+          flushScheduled(true);
         };
         port1 = channel.port1;
         port2 = channel.port2;
@@ -151,7 +190,7 @@ const scheduleMacrotask = (() => {
     };
   }
   // Fallback for environments without MessageChannel
-  return () => setTimeout(flushScheduled, 0);
+  return () => setTimeout(() => flushScheduled(true), 0);
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
@@ -168,6 +207,8 @@ export const flushTapSync = <T>(callback: () => T): T => {
   const prev = flushState;
   flushState = {
     schedulers: new Set(),
+    tasks: [],
+    notifies: [],
     isScheduled: true,
   };
 
@@ -178,12 +219,18 @@ export const flushTapSync = <T>(callback: () => T): T => {
     return value;
   } finally {
     // The notify drain at the end of flushScheduled runs while flushState
-    // still points at the temporary state, so a markDirty from a notify
-    // lands there. Hand that work to the restored state or it is lost.
-    const stranded = flushState.schedulers;
+    // still points at the temporary state, so a markDirty or scheduleTask
+    // from a notify lands there. Hand that work to the restored state or it
+    // is lost.
+    const stranded = flushState;
     flushState = prev;
-    if (stranded.size > 0) {
-      for (const scheduler of stranded) flushState.schedulers.add(scheduler);
+    for (const task of stranded.tasks) flushState.tasks.push(task);
+    // taskScheduler is shared by every flush state, and running it here
+    // cleared the dirty bit the restored state relies on.
+    if (flushState.tasks.length > 0) taskScheduler.markDirty();
+    if (stranded.schedulers.size > 0) {
+      for (const scheduler of stranded.schedulers)
+        flushState.schedulers.add(scheduler);
       scheduleFlush();
     }
   }

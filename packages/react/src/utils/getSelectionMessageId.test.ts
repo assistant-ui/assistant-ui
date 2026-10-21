@@ -30,6 +30,237 @@ afterEach(() => {
 });
 
 describe("getSelectionMessageId", () => {
+  it.each([false, true])(
+    "accepts an end at the next message's first text offset zero (backward: %s)",
+    (backward) => {
+      document.body.innerHTML =
+        '<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p></div><div data-message-id="message-2"><p data-aui-quote-selectable><span id="second">second text</span></p></div>';
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      if (backward) {
+        selection.setBaseAndExtent(second, 0, first, 1);
+      } else {
+        selection.setBaseAndExtent(first, 1, second, 0);
+      }
+      const endpoints = [
+        selection.anchorNode,
+        selection.anchorOffset,
+        selection.focusNode,
+        selection.focusOffset,
+      ];
+      const text = selection.toString();
+
+      expect(getSelectionMessageId(selection)).toBe("message-1");
+      expect(selection.toString()).toBe(text);
+      expect([
+        selection.anchorNode,
+        selection.anchorOffset,
+        selection.focusNode,
+        selection.focusOffset,
+      ]).toEqual(endpoints);
+    },
+  );
+
+  it("accepts an end at the next message element's offset zero", () => {
+    document.body.innerHTML =
+      '<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p></div><div id="second" data-message-id="message-2"><p>second text</p></div>';
+    const selection = selectText(textNode("#first"));
+    const second = document.querySelector("#second");
+    assert(second);
+    selection.getRangeAt(0).setEnd(second, 0);
+
+    expect(getSelectionMessageId(selection)).toBe("message-1");
+  });
+
+  it.each([false, true])(
+    "accepts a zero-offset end inside an excluded next message (backward: %s)",
+    (backward) => {
+      document.body.innerHTML =
+        '<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p></div><div data-message-id="message-2" data-aui-quote-selectable="false"><p><span id="second">second text</span></p></div>';
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      selection.setBaseAndExtent(
+        backward ? second : first,
+        0,
+        backward ? first : second,
+        0,
+      );
+      const endpoints = [
+        selection.anchorNode,
+        selection.anchorOffset,
+        selection.focusNode,
+        selection.focusOffset,
+      ];
+      const text = selection.toString();
+
+      expect(getSelectionMessageId(selection)).toBe("message-1");
+      expect(selection.toString()).toBe(text);
+      expect([
+        selection.anchorNode,
+        selection.anchorOffset,
+        selection.focusNode,
+        selection.focusOffset,
+      ]).toEqual(endpoints);
+    },
+  );
+
+  it.each(["<span></span>", "<span> </span>", "<span>excluded text</span>"])(
+    "rejects selected content inheriting the next message's exclusion: %s",
+    (prefix) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p></div><div data-message-id="message-2" data-aui-quote-selectable="false">${prefix}<p id="second">second text</p></div>`;
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      for (const backward of [false, true]) {
+        selection.setBaseAndExtent(
+          backward ? second : first,
+          0,
+          backward ? first : second,
+          0,
+        );
+        expect(getSelectionMessageId(selection)).toBeNull();
+      }
+    },
+  );
+
+  it.each([
+    { footer: "", separator: "", prefix: "<span></span>" },
+    { footer: "", separator: "\n  ", prefix: "" },
+    {
+      footer: '<div class="footer"><button><svg></svg></button></div>',
+      separator: "",
+      prefix: "",
+    },
+    {
+      footer: "<div><span></span></div>",
+      separator: "\n",
+      prefix: "<span></span>\n",
+    },
+  ])(
+    "skips empty chrome and whitespace at the end: %j",
+    ({ footer, separator, prefix }) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p>${footer}</div>${separator}<div data-message-id="message-2">${prefix}<p id="second">second text</p></div>`;
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      for (const backward of [false, true]) {
+        selection.setBaseAndExtent(
+          backward ? second : first,
+          backward ? 0 : 1,
+          backward ? first : second,
+          backward ? 1 : 0,
+        );
+        const endpoints = [
+          selection.anchorNode,
+          selection.anchorOffset,
+          selection.focusNode,
+          selection.focusOffset,
+        ];
+        const text = selection.toString();
+        expect(getSelectionMessageId(selection)).toBe("message-1");
+        expect(selection.toString()).toBe(text);
+        expect([
+          selection.anchorNode,
+          selection.anchorOffset,
+          selection.focusNode,
+          selection.focusOffset,
+        ]).toEqual(endpoints);
+      }
+    },
+  );
+
+  it.each([
+    { footer: "<footer>footer text</footer>", prefix: "" },
+    { footer: "", prefix: "<header>next message header</header>" },
+    {
+      footer: '<div data-aui-quote-selectable="false"><span></span>\n</div>',
+      prefix: "",
+    },
+    {
+      footer: "",
+      prefix: '<div data-aui-quote-selectable="false"><span></span>\n</div>',
+    },
+  ])(
+    "does not trim selected content or exclusions: %j",
+    ({ footer, prefix }) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p>${footer}</div>\n<div data-message-id="message-2">${prefix}<p id="second">second text</p></div>`;
+      const selection = selectText(textNode("#first"));
+      selection.getRangeAt(0).setEnd(textNode("#second"), 0);
+      expect(getSelectionMessageId(selection)).toBeNull();
+    },
+  );
+
+  it("does not normalize past the selection start", () => {
+    document.body.innerHTML =
+      '<div data-message-id="message-1"><p id="first">first text</p><span></span></div><div data-message-id="message-2"><p id="second">second text</p></div>';
+    const first = textNode("#first");
+    const selection = selectText(first);
+    selection.setBaseAndExtent(first, first.length, textNode("#second"), 0);
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it.each(["<span>\n </span>", "<span></span>"])(
+    "preserves inherited exclusions after a nested opt-in: %s",
+    (suffix) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><div data-aui-quote-selectable="false"><p id="first" data-aui-quote-selectable>first text</p>${suffix}</div></div><div data-message-id="message-2"><p id="second">second text</p></div>`;
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      expect(getSelectionMessageId(selection)).toBe("message-1");
+      for (const backward of [false, true]) {
+        selection.setBaseAndExtent(
+          backward ? second : first,
+          0,
+          backward ? first : second,
+          0,
+        );
+        expect(getSelectionMessageId(selection)).toBeNull();
+      }
+    },
+  );
+
+  it("rejects even one selected character in the next message", () => {
+    document.body.innerHTML =
+      '<div data-message-id="message-1"><p id="first">first text</p></div><div data-message-id="message-2"><p id="second">second text</p></div>';
+    const selection = selectText(textNode("#first"));
+    selection.getRangeAt(0).setEnd(textNode("#second"), 1);
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it.each(["", '<span aria-hidden="true"></span>'])(
+    "rejects an empty excluded subtree before a zero-offset end with suffix %s",
+    (suffix) => {
+      document.body.innerHTML = `<div data-message-id="message-1" data-aui-quote-selectable><p id="first">first text</p><span data-aui-quote-selectable="false"></span>${suffix}</div><div data-message-id="message-2"><p id="second">second text</p></div>`;
+      const selection = selectText(textNode("#first"));
+      selection.getRangeAt(0).setEnd(textNode("#second"), 0);
+
+      expect(getSelectionMessageId(selection)).toBeNull();
+    },
+  );
+
+  it("rejects an excluded subtree preceding the next message's text", () => {
+    document.body.innerHTML =
+      '<div data-message-id="message-1"><p id="first">first text</p></div><div data-message-id="message-2"><span data-aui-quote-selectable="false"></span><p id="second">second text</p></div>';
+    const selection = selectText(textNode("#first"));
+    selection.getRangeAt(0).setEnd(textNode("#second"), 0);
+
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it("still checks thread ownership after adjusting a zero-offset end", () => {
+    document.body.innerHTML =
+      '<div id="first-thread"><div data-message-id="message-1"><p id="first">first text</p></div><div data-message-id="message-2"><p id="second">second text</p></div></div><div id="second-thread"></div>';
+    const selection = selectText(textNode("#first"));
+    selection.getRangeAt(0).setEnd(textNode("#second"), 0);
+    const root = document.querySelector("#second-thread");
+    assert(root);
+
+    expect(getSelectionMessageId(selection, root)).toBeNull();
+  });
+
   it("rejects a message outside the supplied thread root", () => {
     document.body.innerHTML = `
       <div id="first-thread">

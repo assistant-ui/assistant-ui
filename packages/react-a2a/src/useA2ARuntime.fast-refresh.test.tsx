@@ -4,7 +4,7 @@ import { act, Activity, version } from "react";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { A2AClient } from "./A2AClient";
-import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
+import { A2AThreadController } from "./A2AThreadController";
 import type { UseA2ARuntimeOptions } from "./types";
 import { useA2ARuntime } from "./useA2ARuntime";
 
@@ -75,12 +75,12 @@ it("keeps the managed client and core across refresh, then replaces both when op
   vi.spyOn(A2AClient.prototype, "getAgentCard").mockResolvedValue(
     {} as Awaited<ReturnType<A2AClient["getAgentCard"]>>,
   );
-  const attach = vi.spyOn(A2AThreadRuntimeCore.prototype, "attachRuntime");
-  const update = vi.spyOn(A2AThreadRuntimeCore.prototype, "updateOptions");
+  const attach = vi.spyOn(A2AThreadController.prototype, "attachRuntime");
+  const update = vi.spyOn(A2AThreadController.prototype, "updateOptions");
   options = { baseUrl: "https://first.example" };
   const { Before, After } = createProbe();
   const view = render(<Before />);
-  const firstCore = attach.mock.instances[0]! as A2AThreadRuntimeCore;
+  const firstCore = attach.mock.instances[0]! as A2AThreadController;
   const firstClient = update.mock.lastCall![0].client;
 
   await refresh(Before, After);
@@ -115,8 +115,8 @@ const keepsStreamAcrossRefresh = async (
       };
     }),
   } as unknown as A2AClient;
-  const attach = vi.spyOn(A2AThreadRuntimeCore.prototype, "attachRuntime");
-  const detach = vi.spyOn(A2AThreadRuntimeCore.prototype, "detachRuntime");
+  const attach = vi.spyOn(A2AThreadController.prototype, "attachRuntime");
+  const detach = vi.spyOn(A2AThreadController.prototype, "detachRuntime");
   options = { client };
   const { Before, After } = createProbe();
   const Shell = ({ mode }: { mode: "visible" | "hidden" }) => (

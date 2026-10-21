@@ -10,6 +10,10 @@ import {
 import { usePathname } from "next/navigation";
 import { useRef, type ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  resetAnalyticsUser,
+  trackDemoSignInClick,
+} from "@/lib/analytics-identity";
 import { useSession, type SessionUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { menuContentClass, menuItemClass } from "./styles";
@@ -34,6 +38,7 @@ export function SidebarAccount(): ReactNode {
       ) : (
         <a
           href={`/api/auth/login?redirect=${encodeURIComponent(pathname)}`}
+          onClick={() => trackDemoSignInClick("sidebar")}
           className={rowClass}
         >
           <LogInIcon className="size-3.5" />
@@ -86,7 +91,10 @@ function AccountMenu({ user }: { user: SessionUser }): ReactNode {
               </Menu.Item>
               <Menu.Item
                 className={menuItemClass}
-                onClick={() => signOutRef.current?.submit()}
+                onClick={() => {
+                  resetAnalyticsUser();
+                  signOutRef.current?.submit();
+                }}
               >
                 <LogOutIcon className="size-3.5" />
                 Sign out

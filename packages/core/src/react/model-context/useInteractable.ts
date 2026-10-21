@@ -7,6 +7,8 @@ import type { ToolCallMessagePartComponent } from "../types/MessagePartComponent
 import {
   unstable_getInteractableVersions as getInteractableVersions,
   interactableToolName,
+  isInteractableCreateCall,
+  toolResultRecord,
 } from "../../model-context/interactable-composer-metadata";
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 import { useJSONEqual } from "../utils/useJSONEqual";
@@ -16,6 +18,8 @@ import { useJSONSchemaDependency } from "../utils/useJSONSchemaDependency";
  * The state type described by an interactable's `stateSchema`. Resolves the
  * output type of a StandardSchemaV1 schema (e.g. Zod); plain JSON Schema
  * falls back to `unknown`.
+ *
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InferInteractableState<TSchema> = TSchema extends {
   "~standard": { types?: { output: infer TOutput } | undefined };
@@ -27,6 +31,8 @@ export type Unstable_InferInteractableState<TSchema> = TSchema extends {
  * One message's version of an interactable, for components rendered inside
  * tool-call parts. Show `state` to display history; call `restore()` to set
  * the live instance back to it.
+ *
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_InteractableVersionInfo<TState> = {
   /** The interactable's state as it was at this message. */
@@ -37,10 +43,7 @@ export type Unstable_InteractableVersionInfo<TState> = {
   restore: () => void;
 };
 
-/**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Unstable / Experimental (not actually removed).
- */
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_InteractableConfig<
   TSchema extends Unstable_InteractableStateSchema,
 > = {
@@ -101,7 +104,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
   // the result's resolved id (covers id-less calls), or the id argument.
   let inferredId: string | undefined;
   if (part?.toolName === updateToolName) {
-    const result = part.result as Record<string, unknown> | undefined;
+    const result = toolResultRecord(part.result);
     const args = part.args as Record<string, unknown> | undefined;
     if (result?.success !== false) {
       if (typeof result?.id === "string") inferredId = result.id;
@@ -111,7 +114,9 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
 
   const id = config.id ?? inferredId ?? autoId;
   const internalScope =
-    part?.toolName === name || part?.toolName === updateToolName
+    part?.toolName === name ||
+    part?.toolName === updateToolName ||
+    (part !== undefined && isInteractableCreateCall(part, id, name))
       ? "thread"
       : undefined;
 
@@ -202,7 +207,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
  * instance `id` is inferred from the call, so the same component works at the
  * creating call and at update calls.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_useInteractable: <
   TSchema extends Unstable_InteractableStateSchema,

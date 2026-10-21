@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
@@ -267,7 +268,9 @@ export {
 
 export type {
   ModelContext,
+  ModelContextOptions,
   ModelContextProvider,
+  SystemPart,
   LanguageModelConfig,
   LanguageModelV1CallSettings,
 } from "@assistant-ui/core";
@@ -327,6 +330,7 @@ export {
 export type {
   AssistantTransportProtocol,
   EnrichedPartState,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
   GenerativeUIComponentRegistry,
   GenerativeUIMessagePartComponent,
@@ -341,11 +345,17 @@ export type {
 } from "@assistant-ui/core/react";
 export {
   CloudFileAttachmentAdapter,
+  /** @deprecated Experimental since 2025-01-26. Not scheduled for removal; the API may change in any release. */
   convertExternalMessages as unstable_convertExternalMessages,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
   createMessageConverter as unstable_createMessageConverter,
   GenerativeUIRender,
   GenerativeUIRenderError,
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
   groupPartByType,
   ReadonlyThreadProvider,
   useCloudThreadListAdapter,
@@ -420,10 +430,18 @@ export type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
+  ToolApprovalAnswer,
+  ToolApprovalQuestion,
+  ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePartMcpMetadata,
   ToolCallMessagePartStatus,
   ToolExecutionStatus,
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
@@ -438,5 +456,6 @@ export {
   MessageNotSentError,
   pickExternalStoreSharedOptions,
   toolApprovalAcceptsText,
+  defaultDirectiveFormatter,
   unstable_defaultDirectiveFormatter,
 } from "@assistant-ui/core";

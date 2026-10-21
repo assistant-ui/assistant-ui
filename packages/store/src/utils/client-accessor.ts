@@ -19,6 +19,12 @@ type AccessorMeta = {
 
 type AnyRecord = Record<string | symbol, unknown>;
 
+const accessors = new WeakSet<object>();
+
+// Bundlers that lower optional chaining emit `a.b?.()` as `a.b.call(a)`, so
+// these must reach the apply trap instead of the client.
+const FUNCTION_MEMBERS = new Set<string | symbol>(["call", "apply", "bind"]);
+
 export const createClientAccessor = <K extends ClientNames>(
   meta: AccessorMeta,
   read: () => ClientMethods,
@@ -28,7 +34,8 @@ export const createClientAccessor = <K extends ClientNames>(
       read();
       return proxy;
     },
-    get: (_, prop) => {
+    get: (target, prop) => {
+      if (FUNCTION_MEMBERS.has(prop)) return Reflect.get(target, prop);
       if (prop === "source") return meta.source;
       if (prop === "query") return meta.query;
       if (prop === "name") return meta.name;
@@ -52,6 +59,7 @@ export const createClientAccessor = <K extends ClientNames>(
       };
     },
   });
+  accessors.add(proxy);
   return proxy;
 };
 
@@ -62,11 +70,12 @@ export const createErrorClientAccessor = (
   const fail = () => {
     throw new Error(message);
   };
-  return new Proxy(
+  const proxy = new Proxy(
     (() => {}) as unknown as AssistantClientAccessor<ClientNames>,
     {
       apply: fail,
-      get: (_, prop) => {
+      get: (target, prop) => {
+        if (FUNCTION_MEMBERS.has(prop)) return Reflect.get(target, prop);
         if (prop === "source" || prop === "query") return null;
         if (prop === "name") return name;
         if (prop === CLIENT_ID_SYMBOL) return fail();
@@ -83,6 +92,19 @@ export const createErrorClientAccessor = (
       getOwnPropertyDescriptor: () => undefined,
     },
   );
+  accessors.add(proxy);
+  return proxy;
+};
+
+/**
+ * Whether `client` forwards to a client other than itself, and so can switch
+ * its target without rendering. An accessor does not count: it resolves to
+ * the client its owner bound, which changes only with that owner.
+ */
+export const isForwardingClient = (client: object): boolean => {
+  if (accessors.has(client)) return false;
+  const id = (client as AnyRecord)[CLIENT_ID_SYMBOL];
+  return id !== undefined && id !== client;
 };
 
 /**

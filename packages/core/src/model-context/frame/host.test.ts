@@ -474,6 +474,66 @@ describe("AssistantFrameHost", () => {
     expect(postMessage).toHaveBeenCalledOnce();
   });
 
+  it("rejects pending tool calls when the frame provider is disposed", async () => {
+    const { dispatchMessage, execute, getToolCallId, host, postMessage } =
+      createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const toolCallId = getToolCallId();
+
+    dispatchMessage({ type: "provider-disposed" });
+
+    await expect(result).rejects.toThrow(
+      "AssistantFrameProvider has been disposed",
+    );
+    expect(postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "tool-cancel", id: toolCallId },
+      },
+      DEFAULT_ORIGIN,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
+  it("rejects tool calls to a disposed frame provider until it sends context again", async () => {
+    const { dispatchMessage, execute, host, postMessage } = createHost();
+    dispatchMessage({ type: "provider-disposed" });
+    postMessage.mockClear();
+
+    await expect(execute({}, executionContext)).rejects.toThrow(
+      "AssistantFrameProvider has been disposed",
+    );
+    expect(postMessage).not.toHaveBeenCalled();
+
+    dispatchMessage({ type: "model-context-update", context: {} });
+    void execute({}, executionContext).catch(() => undefined);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: expect.objectContaining({ type: "tool-call" }),
+      },
+      DEFAULT_ORIGIN,
+    );
+    host.dispose();
+  });
+
+  it("keeps a pending tool call when the frame withdraws its tool", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+
+    dispatchMessage({ type: "model-context-update", context: {} });
+    dispatchMessage({
+      type: "tool-result",
+      id: getToolCallId(),
+      result: "sunny",
+    });
+
+    await expect(result).resolves.toBe("sunny");
+    host.dispose();
+  });
+
   it("isolates subscriber errors while applying context updates", () => {
     const { dispatchMessage, host } = createHost();
     const error = new Error("subscriber failed");

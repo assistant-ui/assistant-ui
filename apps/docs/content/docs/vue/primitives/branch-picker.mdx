@@ -1,0 +1,72 @@
+---
+title: Branch picker
+description: Show which version of a message is displayed and switch between versions.
+---
+
+Editing a message or regenerating a reply can create another branch. Place the picker inside a row of `ThreadPrimitiveMessages` so its buttons and counts use that message's scope. Render it only when the message has more than one branch.
+
+```vue title="app/components/MessageBranchPicker.vue"
+<script setup lang="ts">
+import {
+  AuiIf,
+  BranchPickerPrimitiveCount,
+  BranchPickerPrimitiveNext,
+  BranchPickerPrimitiveNumber,
+  BranchPickerPrimitivePrevious,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <AuiIf :condition="(s) => s.message.branchCount > 1">
+    <div class="inline-flex items-center gap-1 text-xs" role="group" aria-label="Message versions">
+      <BranchPickerPrimitivePrevious
+        class="rounded px-2 py-1 disabled:opacity-40"
+        aria-label="Previous version"
+      >
+        Previous
+      </BranchPickerPrimitivePrevious>
+      <span class="tabular-nums">
+        <BranchPickerPrimitiveNumber /> / <BranchPickerPrimitiveCount />
+      </span>
+      <BranchPickerPrimitiveNext
+        class="rounded px-2 py-1 disabled:opacity-40"
+        aria-label="Next version"
+      >
+        Next
+      </BranchPickerPrimitiveNext>
+    </div>
+  </AuiIf>
+</template>
+```
+
+`BranchPickerPrimitiveNumber` is one based, so the first branch displays `1`. `BranchPickerPrimitiveCount` displays the total for this message.
+
+## When the buttons are disabled
+
+Previous is disabled on the first branch, and Next is disabled on the last. Both are disabled when the runtime cannot switch branches, or while the thread is running unless it supports switching during a run. A `disabled` attribute also disables either button.
+
+## Switch from code
+
+Call `aui.message.switchToBranch({ position: "previous" })` or `aui.message.switchToBranch({ position: "next" })` to move relative to the displayed branch. Pass `{ branchId: "..." }` to select a known branch by id. The buttons call the same method with a position.
+
+## Parts
+
+### BranchPickerPrimitivePrevious
+
+A `<button type="button">` that selects the previous branch. It accepts native button attributes and listeners and has no props.
+
+### BranchPickerPrimitiveNext
+
+A `<button type="button">` that selects the next branch. It accepts native button attributes and listeners and has no props.
+
+### BranchPickerPrimitiveNumber
+
+Renders the displayed branch's one based number as text, with no element of its own.
+
+### BranchPickerPrimitiveCount
+
+Renders the message's branch count as text, with no element of its own.
+
+## Compared with React
+
+React has a `BranchPickerPrimitive.Root` with `hideWhenSingleBranch`. Vue has no Root; use `AuiIf` to hide the picker as in the example. See [Branching](/docs/vue/branching) for how edits and regenerated replies create branches.

@@ -144,11 +144,26 @@ function EndSetupDialog({
   trigger: RefObject<HTMLButtonElement | null>;
 }) {
   const fromCart = checkout.session.fromCart === true;
+  const dropped = useRef<() => void>(undefined);
+  useEffect(() => {
+    if (checkout.degraded) dropped.current?.();
+  }, [checkout.degraded]);
   const end = async () => {
     analytics.setup.cancelled();
-    try {
-      await checkout.commands["checkout/cancel"]();
-    } catch {
+    const reached = checkout.commands["checkout/cancel"]({
+      id: checkout.session.id,
+    }).then(
+      () => true,
+      () => false,
+    );
+    // The client holds a command until it reconnects; a brief reconnect still delivers it, but once a drop outlasts the grace the page ends locally.
+    const lost = new Promise<false>((resolve) => {
+      dropped.current = () => resolve(false);
+    });
+    const delivered =
+      !checkout.degraded && (await Promise.race([reached, lost]));
+    dropped.current = undefined;
+    if (!delivered) {
       toast.warning(
         "Could not reach the session. Your agent may keep working until it times out.",
       );
@@ -545,6 +560,11 @@ function InstallSteps({
     };
   }, [activeId]);
   useEffect(center, [activeId, activeLast]);
+  const labelled =
+    new Set([
+      ...state.products.map((entry) => entry.slug),
+      ...state.steps.flatMap((step) => step.product ?? []),
+    ]).size > 1;
   let lastProduct: string | undefined;
   return (
     <ol
@@ -559,12 +579,19 @@ function InstallSteps({
         );
         const status: EntryStatus =
           !closed && inputs.length > 0 ? "attention" : step.status;
-        const product =
+        const slug =
           step.product !== undefined && step.product !== lastProduct
-            ? state.products.find((entry) => entry.slug === step.product)
+            ? step.product
             : undefined;
         lastProduct = step.product ?? lastProduct;
-        const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
+        const item = slug !== undefined ? getCatalogItem(slug) : undefined;
+        const productName =
+          slug !== undefined
+            ? (state.products.find((entry) => entry.slug === slug)?.name ??
+              item?.name ??
+              slug)
+            : undefined;
+        const glyph = item?.glyph;
         const activity = stepActivity(state, step.id);
         return (
           <TimelineEntry
@@ -574,10 +601,10 @@ function InstallSteps({
             title={step.title}
             detail={step.note ?? step.detail}
             eyebrow={
-              product && state.products.length > 1 ? (
+              productName !== undefined && labelled ? (
                 <p className="text-muted-foreground mb-1 flex items-center gap-2 text-xs">
                   {glyph ? <NavGlyph kind={glyph} size="sm" /> : null}
-                  {product.name}
+                  {productName}
                 </p>
               ) : undefined
             }
@@ -672,9 +699,18 @@ export function SetupWizard({
   const index = viewingIndex === -1 ? liveIndex : viewingIndex;
   const page: WizardPage = trail[index]!;
   const step = page.id;
+  const lastView = useRef<{ key: string; at: number } | undefined>(undefined);
   useEffect(() => {
-    analytics.setup.stepViewed(step);
-  }, [shownKey, step]);
+    const previous = lastView.current;
+    if (previous?.key === shownKey) return;
+    const at = Date.now();
+    lastView.current = { key: shownKey, at };
+    analytics.setup.stepViewed({
+      step,
+      step_index: index,
+      ...(previous !== undefined && { ms_on_previous_step: at - previous.at }),
+    });
+  }, [shownKey, step, index]);
   const previousPhase = useRef(phase);
   useEffect(() => {
     const previous = previousPhase.current;
@@ -685,6 +721,22 @@ export function SetupWizard({
     )
       analytics.setup.agentConnected();
   }, [phase]);
+  const disconnected =
+    phase === "quiet" && page.id !== "connect" && !checkout.degraded;
+  const wasDegraded = useRef(false);
+  useEffect(() => {
+    const was = wasDegraded.current;
+    wasDegraded.current = checkout.degraded;
+    if (checkout.degraded && !was)
+      analytics.setup.error({ reason: "connection_lost", step });
+  }, [checkout.degraded, step]);
+  const wasDisconnected = useRef(false);
+  useEffect(() => {
+    const was = wasDisconnected.current;
+    wasDisconnected.current = disconnected;
+    if (disconnected && !was)
+      analytics.setup.error({ reason: "agent_disconnected", step });
+  }, [disconnected, step]);
   const reviewing = index !== liveIndex;
   const fromCart = checkout.session.fromCart === true;
   const products = state?.products.length
@@ -740,11 +792,9 @@ export function SetupWizard({
       case "welcome":
         return {
           title: titleNamesProducts
-            ? `Welcome to the setup wizard for ${productList}`
-            : "Welcome to the setup wizard",
-          subtitle: titleNamesProducts
-            ? undefined
-            : `Setting up ${productList}.`,
+            ? `You are installing ${productList}`
+            : "You are installing",
+          subtitle: titleNamesProducts ? undefined : `${productList}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":
@@ -922,9 +972,7 @@ export function SetupWizard({
           <DisconnectedDialog
             checkout={checkout}
             name={name}
-            open={
-              phase === "quiet" && page.id !== "connect" && !checkout.degraded
-            }
+            open={disconnected}
             onLeave={leaveSetup}
             onEnd={() => exit(false)}
           />

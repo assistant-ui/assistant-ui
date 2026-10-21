@@ -1,5 +1,57 @@
 # assistant-ui
 
+## 0.0.125
+
+### Patch Changes
+
+- [#9840](https://github.com/assistant-ui/assistant-ui/pull/9840) [`49a0d2b`](https://github.com/assistant-ui/assistant-ui/commit/49a0d2b48f6c73537c8de51d0f49748a14a4db98) - fix: preserve disabled message branch and hover filters when upgrading to AuiIf ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9785](https://github.com/assistant-ui/assistant-ui/pull/9785) [`51e7052`](https://github.com/assistant-ui/assistant-ui/commit/51e7052f132b19b30f537effb1cd47f524cd33d7) - feat(cli): report `tw-shimmer`, `safe-content-frame`, `tailwindcss` and the provider SDKs installed adapters peer on in `assistant-ui info` ([@bnb](https://github.com/bnb))
+
+- [#9801](https://github.com/assistant-ui/assistant-ui/pull/9801) [`4b5d044`](https://github.com/assistant-ui/assistant-ui/commit/4b5d044517e53d7fb440ae9b43e03d997f10894a) - feat: run every `assistant-ui cloud` subcommand other than `login`, `logout` and `setup` on Assistant Cloud. The CLI sends the command line with the saved login to the cloud management server and prints its answer, so `cloud help`, `cloud whoami` and `cloud projects list` come from the server and new commands need no CLI release. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.124
+
+### Patch Changes
+
+- [#9591](https://github.com/assistant-ui/assistant-ui/pull/9591) [`bd0b31b`](https://github.com/assistant-ui/assistant-ui/commit/bd0b31b1047e65056a4a72c158a5ae138c3e1933) - fix: preserve local bindings and type imports when migrating legacy AI SDK imports ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9596](https://github.com/assistant-ui/assistant-ui/pull/9596) [`87f7c36`](https://github.com/assistant-ui/assistant-ui/commit/87f7c36ada5bd7509dfce26ef92776a7a4dc1e83) - fix: preserve unrelated strings such as `constructor` and `toString` when migrating event names during upgrades. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9623](https://github.com/assistant-ui/assistant-ui/pull/9623) [`a08acc9`](https://github.com/assistant-ui/assistant-ui/commit/a08acc987406753b80ceca081319ea9d0fa36f6b) - fix(cli): preserve import aliases and type kinds during the v0.8 UI package split ([@okisdev](https://github.com/okisdev))
+
+- [#9589](https://github.com/assistant-ui/assistant-ui/pull/9589) [`616663b`](https://github.com/assistant-ui/assistant-ui/commit/616663baa568388c6a5af02395e8e4fbbc37c6c1) - fix: fail upgrades when a required dependency installation fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9722](https://github.com/assistant-ui/assistant-ui/pull/9722) [`c6c1199`](https://github.com/assistant-ui/assistant-ui/commit/c6c11991cf4811d72eee7f337e72d8b028c05f5d) - fix: preserve runtime import bindings when migrating conditional primitives to AuiIf ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9725](https://github.com/assistant-ui/assistant-ui/pull/9725) [`471b88d`](https://github.com/assistant-ui/assistant-ui/commit/471b88d0d3d003485bcc09a9cd0ff8a1133f425b) - fix: preserve unrelated bindings when migrating ContentPart imports and MessagePrimitive.Content ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.123
+
+### Patch Changes
+
+- [#9274](https://github.com/assistant-ui/assistant-ui/pull/9274) [`36691cc`](https://github.com/assistant-ui/assistant-ui/commit/36691cc0f089368d1145acdb5e3a086e5290f83d) - the agent skill the CLI installs now comes from the skills commit that teaches `@assistant-ui/generative-ui` and the `_type`, `_key` and `_action` keys `present` models write ([@okisdev](https://github.com/okisdev))
+
+## 0.0.122
+
+### Patch Changes
+
+- [#9132](https://github.com/assistant-ui/assistant-ui/pull/9132) [`97b053b`](https://github.com/assistant-ui/assistant-ui/commit/97b053b93c025e48c2e2458b83cd7a870cd95592) - fix(cli): write only the assistant-ui server into Cursor, Windsurf and Claude Desktop MCP configs ([@okisdev](https://github.com/okisdev))
+
+- [#8896](https://github.com/assistant-ui/assistant-ui/pull/8896) [`bddc100`](https://github.com/assistant-ui/assistant-ui/commit/bddc1003a0a67440142119672fd93204ed41f1e7) - give the CLI's download, package manager, and file discovery helpers one home each ([@okisdev](https://github.com/okisdev))
+
+- [#7255](https://github.com/assistant-ui/assistant-ui/pull/7255) [`025505a`](https://github.com/assistant-ui/assistant-ui/commit/025505a948664137e47a5e6a753ddb8911c14e53) - fix(cli): accept comments and trailing commas in VS Code and Zed MCP configuration while preserving unrelated settings. ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.121
+
+### Patch Changes
+
+- [#8758](https://github.com/assistant-ui/assistant-ui/pull/8758) [`cae68a4`](https://github.com/assistant-ui/assistant-ui/commit/cae68a45bf24b528151d182e657979053910bec5) - the agent skill the CLI installs now comes from the skills commit that routes cloud persistence to the `cloud` option of `useChatRuntime` instead of the removed cloud-ai-sdk hooks ([@okisdev](https://github.com/okisdev))
+
+- [#8754](https://github.com/assistant-ui/assistant-ui/pull/8754) [`880d66a`](https://github.com/assistant-ui/assistant-ui/commit/880d66af8cdb171cd5eee1b1159e35df5b0d9919) - add browser sign-in and cloud setup commands that provision a shared multiplayer chat with hackathon access-code support. ([@Yonom](https://github.com/Yonom))
+
+- [#8759](https://github.com/assistant-ui/assistant-ui/pull/8759) [`a73237b`](https://github.com/assistant-ui/assistant-ui/commit/a73237b277793c9b9e56cd638357fc57005c07e1) - add --setup-url to cloud login and setup so an active setup wizard can show device authorization while the CLI polls Accounts and keeps its credentials locally. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.120
 
 ### Patch Changes

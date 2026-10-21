@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
@@ -123,6 +123,74 @@ const deferred = <T>() => {
 };
 
 describe("RemoteThreadList backgroundThreads", () => {
+  it.each([false, true])(
+    "gates run-end titles on backgroundThreads=%s even without an assistant message",
+    async (backgroundThreads) => {
+      let isRunning = false;
+      const listeners = new Set<() => void>();
+      const messages = [
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+      ];
+      const useRunningThread = () => {
+        const running = useSyncExternalStore(
+          (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
+          () => isRunning,
+        );
+        return {
+          getState: () => ({ isRunning: running, messages }),
+          composer: () => stubComposer,
+          suggestions: () => stubSuggestions,
+        };
+      };
+      const RunningThread = resource(useRunningThread);
+      const adapter = makeAdapter();
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            backgroundThreads,
+            thread: () => RunningThread() as never,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      try {
+        const aui = handle.getClient();
+        await aui.threads.getLoadThreadsPromise();
+        await aui.threads.item("main").initialize();
+        flushTapSync(() => {});
+        if (backgroundThreads)
+          await vi.waitFor(() =>
+            expect(adapter.generateTitle).toHaveBeenCalledTimes(1),
+          );
+        for (const running of [true, false, true, false]) {
+          flushTapSync(() => {
+            isRunning = running;
+            for (const listener of listeners) listener();
+          });
+          await vi.waitFor(() =>
+            expect(aui.thread.getState().isRunning).toBe(running),
+          );
+        }
+        await vi.waitFor(() =>
+          expect(adapter.generateTitle).toHaveBeenCalledTimes(
+            backgroundThreads ? 2 : 0,
+          ),
+        );
+        if (backgroundThreads)
+          expect(adapter.generateTitle).toHaveBeenLastCalledWith(
+            aui.threads.item("main").getState().remoteId,
+            messages,
+          );
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
   it("keeps background emissions global while filtering thread scope to main", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -491,6 +559,194 @@ describe("RemoteThreadList backgroundThreads", () => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
     expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    handle.destroy();
+  });
+
+  it("titles a new thread once when its body remounts during initialization", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      initialize: vi.fn(() => initialization.promise),
+    });
+    let messages: readonly { status: { type: string } }[] = [];
+    const listeners = new Set<() => void>();
+    const mounts: string[] = [];
+    const alive = new Set<string>();
+    const useMessageThread = ({ threadId }: { threadId: string }) => {
+      useState(() => {
+        mounts.push(threadId);
+        return true;
+      });
+      useEffect(() => {
+        alive.add(threadId);
+        return () => {
+          alive.delete(threadId);
+        };
+      }, [threadId]);
+      const currentMessages = useSyncExternalStore(
+        (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        () => messages,
+      );
+      return {
+        getState: () => ({ isRunning: false, messages: currentMessages }),
+        composer: () => stubComposer,
+        suggestions: () => stubSuggestions,
+      };
+    };
+    const MessageThread = resource(useMessageThread);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (id) => withKey(id, MessageThread({ threadId: id }) as never),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const newThreadId = aui.threads.getState().mainThreadId;
+    const initializePromise = aui.threads.item("main").initialize();
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    flushTapSync(() => aui.threads.item({ id: newThreadId }).detach());
+    await vi.waitFor(() => {
+      expect(alive.has(newThreadId)).toBe(false);
+    });
+    flushTapSync(() => aui.threads.switchToThread(newThreadId));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe(newThreadId);
+      expect(alive.has(newThreadId)).toBe(true);
+      expect(mounts.filter((id) => id === newThreadId).length).toBeGreaterThan(
+        1,
+      );
+    });
+
+    initialization.resolve({
+      remoteId: `remote-${newThreadId}`,
+      externalId: undefined,
+    });
+    await initializePromise;
+    messages = [{ status: { type: "complete" } }];
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().messages).toEqual(messages);
+    });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledExactlyOnceWith(
+        `remote-${newThreadId}`,
+        messages,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(adapter.generateTitle).toHaveBeenCalledTimes(1);
+    handle.destroy();
+  });
+
+  it("retains a settled title source when an empty body replaces it before initialization", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      initialize: vi.fn(() => initialization.promise),
+    });
+    let messages: readonly { role: "user" }[] = [];
+    const listeners = new Set<() => void>();
+    const mounts: string[] = [];
+    const useMessageThread = ({ threadId }: { threadId: string }) => {
+      useState(() => {
+        mounts.push(threadId);
+        return true;
+      });
+      const currentMessages = useSyncExternalStore(
+        (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        () => messages,
+      );
+      return {
+        getState: () => ({ isRunning: false, messages: currentMessages }),
+        composer: () => stubComposer,
+        suggestions: () => stubSuggestions,
+      };
+    };
+    const MessageThread = resource(useMessageThread);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (id) => withKey(id, MessageThread({ threadId: id }) as never),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const newThreadId = aui.threads.getState().mainThreadId;
+    const initializePromise = aui.threads.item("main").initialize();
+
+    const settledMessages = [{ role: "user" as const }];
+    messages = settledMessages;
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().messages).toEqual(settledMessages);
+    });
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    flushTapSync(() => aui.threads.item({ id: newThreadId }).detach());
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    messages = [];
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    flushTapSync(() => aui.threads.switchToThread(newThreadId));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe(newThreadId);
+      expect(aui.thread.getState().messages).toEqual([]);
+      expect(mounts.filter((id) => id === newThreadId).length).toBeGreaterThan(
+        1,
+      );
+    });
+
+    initialization.resolve({
+      remoteId: `remote-${newThreadId}`,
+      externalId: undefined,
+    });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledExactlyOnceWith(
+        `remote-${newThreadId}`,
+        settledMessages,
+      );
+    });
     handle.destroy();
   });
 

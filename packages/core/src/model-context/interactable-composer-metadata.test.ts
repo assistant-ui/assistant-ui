@@ -348,6 +348,35 @@ describe("findModelKnownState", () => {
     });
   });
 
+  it.each([
+    ["an object", { success: true, interactable: "note" }],
+    ["a JSON string", JSON.stringify({ success: true, interactable: "note" })],
+  ])(
+    "seeds the baseline from a creating call whose result names the interactable as %s",
+    (_form, result) => {
+      const history = [
+        assistantToolCall("create_note", { v: 1, title: "draft" }, result, "a"),
+        assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
+      ];
+      expect(findModelKnownState(history, "a", "note")?.state).toEqual({
+        v: 2,
+        title: "draft",
+      });
+    },
+  );
+
+  it("does not seed the baseline from another tool's call that shares the instance id", () => {
+    const history = [
+      assistantToolCall(
+        "generate_report",
+        { topic: "sales" },
+        { success: true },
+        "a",
+      ),
+    ];
+    expect(findModelKnownState(history, "a", "report")).toBeUndefined();
+  });
+
   it("ignores calls targeting another instance id", () => {
     const history = [
       userMsg([entry("a", { v: 1 }, "note")]),
@@ -380,23 +409,31 @@ describe("findModelKnownState", () => {
     expect(findModelKnownState(history, "a", "note")?.state).toEqual({ v: 2 });
   });
 
-  it("replays assigned ids from array add update results", () => {
-    const history = [
-      userMsg([entry("board", { tasks: [] }, "taskBoard")]),
-      assistantToolCall(
-        "update_taskBoard",
-        { id: "board", tasks: { add: [{ title: "Write tests" }] } },
+  it.each([
+    ["an object", (result: object) => result],
+    ["JSON text", (result: object) => JSON.stringify(result)],
+  ])(
+    "replays assigned ids from array add update results given as %s",
+    (_, encode) => {
+      const history = [
+        userMsg([entry("board", { tasks: [] }, "taskBoard")]),
+        assistantToolCall(
+          "update_taskBoard",
+          { id: "board", tasks: { add: [{ title: "Write tests" }] } },
+          encode({
+            success: true,
+            id: "board",
+            addedItemIds: { tasks: ["task-1"] },
+          }),
+        ),
+      ];
+      expect(findModelKnownState(history, "board", "taskBoard")?.state).toEqual(
         {
-          success: true,
-          id: "board",
-          addedItemIds: { tasks: ["task-1"] },
+          tasks: [{ title: "Write tests", id: "task-1" }],
         },
-      ),
-    ];
-    expect(findModelKnownState(history, "board", "taskBoard")?.state).toEqual({
-      tasks: [{ title: "Write tests", id: "task-1" }],
-    });
-  });
+      );
+    },
+  );
 });
 
 describe("unstable_getInteractableVersions", () => {
@@ -460,19 +497,35 @@ describe("unstable_getInteractableVersions", () => {
     ]);
   });
 
-  it("excludes an id-less update resolved to another instance", () => {
+  it.each([
+    ["an object", { success: true, id: "b" }],
+    ["JSON text", JSON.stringify({ success: true, id: "b" })],
+  ])(
+    "excludes an id-less update resolved to another instance, given as %s",
+    (_, result) => {
+      const history = [
+        assistantCreateCall("a", { v: 1 }),
+        assistantToolCall("update_note", { v: 2 }, result, "call-2"),
+      ];
+      expect(
+        unstable_getInteractableVersions(history, "a", "note"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("skips an update whose JSON text result rejected it", () => {
     const history = [
       assistantCreateCall("a", { v: 1 }),
       assistantToolCall(
         "update_note",
-        { v: 2 },
-        { success: true, id: "b" },
+        { id: "a", v: 2 },
+        JSON.stringify({ success: false, error: "invalid" }),
         "call-2",
       ),
     ];
-    expect(unstable_getInteractableVersions(history, "a", "note")).toHaveLength(
-      1,
-    );
+    expect(unstable_getInteractableVersions(history, "a", "note")).toEqual([
+      { state: { v: 1 }, origin: "create", toolCallId: "a" },
+    ]);
   });
 
   it("skips rejected update calls", () => {

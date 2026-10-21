@@ -7,11 +7,12 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAui,
-  useLocalRuntime,
   type ChatModelAdapter,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { SampleScope } from "./sample-scope";
+import { useSampleRuntime } from "./use-sample-runtime";
 
 const responses = [
   "assistant-ui is a set of React components for building AI chat interfaces. It provides unstyled primitives that handle state management, streaming, and accessibility; you bring the design.",
@@ -24,13 +25,23 @@ const adapter: ChatModelAdapter = {
   },
 };
 
+const CREATED_AT = new Date("2026-09-26T12:00:00Z");
+
 const initialMessages: ThreadMessageLike[] = [
-  { role: "user", content: "What is assistant-ui?" },
-  { role: "assistant", content: responses[0]! },
+  { role: "user", content: "What is assistant-ui?", createdAt: CREATED_AT },
+  { role: "assistant", content: responses[0]!, createdAt: CREATED_AT },
 ];
 
 export function BranchPickerPrimitiveSample() {
-  const runtime = useLocalRuntime(adapter, { initialMessages });
+  return (
+    <SampleScope>
+      <BranchPickerThread />
+    </SampleScope>
+  );
+}
+
+function BranchPickerThread() {
+  const runtime = useSampleRuntime(adapter, { initialMessages });
 
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-6">

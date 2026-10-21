@@ -5,9 +5,10 @@ import type { ChatModelRunResult } from "@assistant-ui/core";
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
 import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
+import { parseAgUiEvent } from "../src/runtime/event-parser";
 import type { AgUiEvent } from "../src/runtime/types";
 
 const makeLogger = () => ({
@@ -656,6 +657,81 @@ describe("RunAggregator", () => {
     const reasoningPart = results.at(-1)?.content?.[0];
     expect(reasoningPart?.type).toBe("reasoning");
     expect((reasoningPart as any).text).toBe("Reasoning...");
+  });
+
+  it("projects reasoning event timestamps when the start supplies one", () => {
+    const aggregator = createAggregator(true);
+    const handle = (raw: unknown) => {
+      const event = parseAgUiEvent(raw);
+      expect(event).not.toBeNull();
+      if (event) aggregator.handle(event);
+    };
+
+    handle({ type: "RUN_STARTED", runId: "r1" });
+    handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "settled",
+      timestamp: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "settled",
+      delta: "Done",
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "settled",
+      timestamp: 1_700_000_002_000,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+      completedAt: 1_700_000_002_000,
+    });
+
+    handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "settled",
+      timestamp: 1_700_000_002_500,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "settled",
+      timestamp: 1_700_000_002_800,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+      completedAt: 1_700_000_002_800,
+    });
+
+    handle({
+      type: "THINKING_TEXT_MESSAGE_START",
+      timestamp: 1_700_000_003_000,
+    });
+    handle({
+      type: "THINKING_TEXT_MESSAGE_CONTENT",
+      delta: "Running",
+    });
+    expect(getLastResult(results).content[1]).toHaveProperty("timing", {
+      startedAt: 1_700_000_003_000,
+    });
+
+    handle({ type: "THINKING_TEXT_MESSAGE_END" });
+    handle({ type: "REASONING_START" });
+    handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      delta: "Untimed",
+    });
+    handle({
+      type: "REASONING_END",
+      timestamp: 1_700_000_005_000,
+    });
+    expect(getLastResult(results).content[2]).not.toHaveProperty("timing");
   });
 
   it("ignores reasoning events when disabled", () => {

@@ -1,5 +1,25 @@
 # @assistant-ui/react-lexical
 
+## 0.2.19
+
+### Patch Changes
+
+- [#9789](https://github.com/assistant-ui/assistant-ui/pull/9789) [`479d267`](https://github.com/assistant-ui/assistant-ui/commit/479d267ad32d7ac5945a25b5503c4530225db9f2) - fix: call a directive trigger's `onInserted` under the Lexical composer once the directive is in the composer text; `onDirectiveSelect` now fires at the same point ([@bnb](https://github.com/bnb))
+
+## 0.2.18
+
+### Patch Changes
+
+- [#9593](https://github.com/assistant-ui/assistant-ui/pull/9593) [`bae7070`](https://github.com/assistant-ui/assistant-ui/commit/bae7070af8d2463f07ceec39c7edff7c86507565) - Reset Lexical undo and redo history when the active composer changes threads. ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.2.17
+
+### Patch Changes
+
+- [#8336](https://github.com/assistant-ui/assistant-ui/pull/8336) [`1616a61`](https://github.com/assistant-ui/assistant-ui/commit/1616a61ec371bfff9a07fcfee0337edc9d710e85) - Prevent Safari's IME confirmation Enter from sending messages in Lexical and Vue composers. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8898](https://github.com/assistant-ui/assistant-ui/pull/8898) [`9354adc`](https://github.com/assistant-ui/assistant-ui/commit/9354adc9555c51aa199074c8793f8e7c6a44a246) - reuse the parsed composer text across the Lexical SyncPlugin's checks instead of reparsing it for each one ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.16
 
 ### Patch Changes

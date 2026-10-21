@@ -96,7 +96,7 @@ const context = (
   planPending: planNeedsReview(state),
   progress: stepProgress(state),
   attentionKey: "",
-  connection: {} as CheckoutContextValue["connection"],
+  connection: { status: "connected", degraded: false, reconnect: () => {} },
   commands,
 });
 
@@ -177,7 +177,7 @@ describe("SetupWizard", () => {
   it("starts with the introduction, with Back disabled and Next continuing", () => {
     render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Welcome to the setup wizard for assistant-ui",
+      "You are installing assistant-ui",
     );
     expect(footer().getByRole("button", { name: "Back" })).toHaveProperty(
       "disabled",
@@ -202,12 +202,11 @@ describe("SetupWizard", () => {
       />,
     );
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Welcome to the setup wizard",
+      "You are installing",
     );
     expect(
-      screen.getByText(
-        "Setting up assistant-ui, Assistant Cloud, and Agent tools.",
-      ).className,
+      screen.getByText("assistant-ui, Assistant Cloud, and Agent Tool.")
+        .className,
     ).toContain("text-muted-foreground");
   });
 
@@ -231,14 +230,15 @@ describe("SetupWizard", () => {
     };
     try {
       expect(intro(1)).toBe(
-        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+        "You are installing assistant-ui and Assistant Cloud",
       );
-      expect(screen.queryByText(/^Setting up/)).toBeNull();
-      cleanup();
-      expect(intro(2)).toBe("Welcome to the setup wizard");
       expect(
-        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
-          .className,
+        screen.queryByText(/^assistant-ui and Assistant Cloud\./),
+      ).toBeNull();
+      cleanup();
+      expect(intro(2)).toBe("You are installing");
+      expect(
+        screen.getByText("assistant-ui and Assistant Cloud.").className,
       ).toContain("text-muted-foreground");
     } finally {
       lines.mockRestore();
@@ -278,18 +278,17 @@ describe("SetupWizard", () => {
       );
       const heading = screen.getByRole("heading", { level: 1 });
       expect(heading.textContent).toBe(
-        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+        "You are installing assistant-ui and Assistant Cloud",
       );
       const resized = observed.get(heading);
       expect(resized).toBeDefined();
       lines.mockReturnValue(rects(2));
       act(() => resized!());
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "Welcome to the setup wizard",
+        "You are installing",
       );
       expect(
-        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
-          .className,
+        screen.getByText("assistant-ui and Assistant Cloud.").className,
       ).toContain("text-muted-foreground");
     } finally {
       lines.mockRestore();
@@ -371,6 +370,42 @@ describe("SetupWizard", () => {
     expect(
       within(list).getByRole("listitem", { current: "step" }).textContent,
     ).toContain("Step 3");
+  });
+
+  it("labels a step for a product the agent discovered, from the catalog or by its identifier", () => {
+    const step = (id: string, product: string): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      product,
+      status: "pending",
+      createdAt: 0,
+    });
+    render(
+      <SetupWizard
+        checkout={context(
+          connected({
+            status: "installing",
+            products: [{ slug: "assistant-ui", name: "assistant-ui" }],
+            steps: [
+              step("s1", "assistant-ui"),
+              step("s2", "cloud"),
+              step("s3", "convex"),
+            ],
+          }),
+        )}
+      />,
+    );
+    const eyebrows = within(
+      screen.getByRole("list", { name: "Installation steps" }),
+    )
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("p.mb-1")?.textContent);
+    expect(eyebrows).toEqual([
+      "assistant-ui",
+      "Assistant Cloud",
+      "convex",
+      undefined,
+    ]);
   });
 
   it("shows the list being planned and written until a step starts, then the progress", () => {
@@ -1055,7 +1090,9 @@ describe("SetupWizard", () => {
     });
     expect(commands["checkout/cancel"]).not.toHaveBeenCalled();
     fireEvent.click(within(confirm).getByRole("button", { name: "End setup" }));
-    await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(commands["checkout/cancel"]).toHaveBeenCalledWith({ id: "test" }),
+    );
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
   });
 
@@ -1187,6 +1224,77 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
     expect(finishCheckout).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/components/cart");
+  });
+
+  it("ends the setup without waiting on the session while the page has lost the connection to it", async () => {
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    cancel.mockClear();
+    abandonCheckout.mockClear();
+    push.mockClear();
+    cancel.mockReturnValueOnce(new Promise<never>(() => {}));
+    const onExit = vi.fn();
+    render(
+      <SetupWizard
+        checkout={{
+          ...context(connected({ status: "planning" }), true, true),
+          degraded: true,
+          connection: {
+            status: "retrying",
+            degraded: true,
+            attempt: 3,
+            reconnect: () => {},
+          },
+        }}
+        onExit={onExit}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+    expect(cancel).toHaveBeenCalled();
+    expect(onExit).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/components/cart");
+  });
+
+  it("waits for the cancel through a brief reconnect that has not outlasted the grace", async () => {
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    let deliver = () => {};
+    cancel.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        deliver = resolve;
+      }),
+    );
+    render(
+      <SetupWizard
+        checkout={{
+          ...context(connected({ status: "planning" }), true, true),
+          connection: {
+            status: "connecting",
+            degraded: false,
+            reconnect: () => {},
+          },
+        }}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(cancel).toHaveBeenCalled());
+    expect(abandonCheckout).not.toHaveBeenCalled();
+    deliver();
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+  });
+
+  it("ends the setup locally when the connection drops while the cancel is pending", async () => {
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    cancel.mockReturnValueOnce(new Promise<never>(() => {}));
+    const checkout = context(connected({ status: "planning" }), true, true);
+    const { rerender } = render(<SetupWizard checkout={checkout} />);
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(cancel).toHaveBeenCalled());
+    expect(abandonCheckout).not.toHaveBeenCalled();
+    rerender(<SetupWizard checkout={{ ...checkout, degraded: true }} />);
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
   });
 
   it("asks before ending the setup on Escape, unless the key was pressed inside a dialog", async () => {
@@ -1344,7 +1452,7 @@ describe("SetupWizard", () => {
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Claude Code is connected");
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
-    expect(heading()).toBe("Welcome to the setup wizard for assistant-ui");
+    expect(heading()).toBe("You are installing assistant-ui");
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
@@ -1372,6 +1480,70 @@ describe("SetupWizard", () => {
       />,
     );
     expect(heading()).toBe("Which port?");
+  });
+
+  it("retains the selected entry point after a persisted snapshot and back navigation", () => {
+    const chosen: Checkout.Input = {
+      id: "entry",
+      kind: "entry-point",
+      phase: "planning",
+      prompt: "Where should report help open?",
+      options: [
+        {
+          id: "report-sidebar",
+          label: "Beside the report",
+          description: "Keep report charts visible",
+          entryPoint: {
+            formFactor: "sidebar",
+            placement: "Report workspace",
+            trigger: "Ask in toolbar",
+          },
+        },
+      ],
+      status: "answered",
+      optional: false,
+      answer: "report-sidebar",
+      createdAt: 1,
+      answeredAt: 2,
+    };
+    const state = connected({
+      status: "planning",
+      inputs: [
+        chosen,
+        {
+          id: "next",
+          kind: "text",
+          phase: "planning",
+          prompt: "Which route?",
+          optional: false,
+          status: "open",
+          createdAt: 3,
+        },
+      ],
+    });
+    const { unmount } = render(<SetupWizard checkout={context(state)} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Which route?",
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(
+      screen.getByText("Beside the report · Report workspace · Ask in toolbar"),
+    ).toBeDefined();
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Which route?",
+    );
+    unmount();
+    render(
+      <SetupWizard
+        checkout={context(JSON.parse(JSON.stringify(state)) as Checkout.State)}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(
+      screen.getByText("Beside the report · Report workspace · Ask in toolbar"),
+    ).toBeDefined();
+    expect(commands["checkout/answer"]).not.toHaveBeenCalled();
   });
 
   it("steps back from a question to the answers already given", () => {
@@ -1697,14 +1869,17 @@ describe("SetupWizard messages", () => {
 });
 
 describe("SetupWizard analytics", () => {
-  it("tracks each step once as the live page moves on", () => {
+  it("tracks each step once as the live page moves on, with its place and the time spent on the one before", () => {
     const events = captureEvents();
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
     const { rerender } = render(
       <SetupWizard checkout={context(initialCheckoutState(), false)} />,
     );
-    expect(events("setup_step_viewed")).toEqual([{ step: "welcome" }]);
+    const welcome = { step: "welcome", step_index: 0 };
+    expect(events("setup_step_viewed")).toEqual([welcome]);
     rerender(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
-    expect(events("setup_step_viewed")).toEqual([{ step: "welcome" }]);
+    expect(events("setup_step_viewed")).toEqual([welcome]);
+    now.mockReturnValue(4_500);
     rerender(
       <SetupWizard
         checkout={context(
@@ -1716,8 +1891,48 @@ describe("SetupWizard analytics", () => {
       />,
     );
     expect(events("setup_step_viewed")).toEqual([
-      { step: "welcome" },
-      { step: "connect" },
+      welcome,
+      { step: "connect", step_index: 1, ms_on_previous_step: 3_500 },
+    ]);
+    now.mockRestore();
+  });
+
+  it("tracks the connection dropping once per drop, with the step it happened on", () => {
+    const events = captureEvents();
+    const state = connected({ status: "planning" });
+    const { rerender } = render(<SetupWizard checkout={context(state)} />);
+    expect(events("setup_error")).toEqual([]);
+    const degraded = {
+      ...context(state),
+      degraded: true,
+      connection: {
+        status: "retrying",
+        attempt: 1,
+        reconnect: () => {},
+      } as unknown as CheckoutContextValue["connection"],
+    };
+    rerender(<SetupWizard checkout={degraded} />);
+    rerender(<SetupWizard checkout={degraded} />);
+    expect(events("setup_error")).toEqual([
+      { reason: "connection_lost", step: "working" },
+    ]);
+  });
+
+  it("tracks the agent going quiet mid-setup as an error", () => {
+    const events = captureEvents();
+    const live = connected({ status: "planning" });
+    const { rerender } = render(<SetupWizard checkout={context(live)} />);
+    const quiet = connected({
+      status: "planning",
+      agent: {
+        ...live.agent,
+        connected: false,
+        lastSeenAt: 1,
+      },
+    });
+    rerender(<SetupWizard checkout={context(quiet, false)} />);
+    expect(events("setup_error")).toEqual([
+      { reason: "agent_disconnected", step: "working" },
     ]);
   });
 

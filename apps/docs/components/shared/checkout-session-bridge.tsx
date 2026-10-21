@@ -11,6 +11,7 @@ import {
 import { StatewireWebsocket, useStatewire } from "statewire";
 import { toast } from "sonner";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { analytics } from "@/lib/analytics";
 import { getCatalogItem, isProductSlug, resolveProducts } from "@/lib/catalog";
 import { installGuideUrl } from "@/lib/catalog/install-guide";
 import {
@@ -102,7 +103,17 @@ function CheckoutSessionBridge({
     if (products.length === 0) endCheckout();
   }, [products]);
 
-  const joined = state?.products.map((product) => product.slug).join(",");
+  const joined = state?.products
+    .filter((product) =>
+      state.inputs.some(
+        (input) =>
+          input.kind === "product" &&
+          input.status === "answered" &&
+          input.product === product.slug,
+      ),
+    )
+    .map((product) => product.slug)
+    .join(",");
   useEffect(() => {
     if (joined) addCheckoutProducts(joined.split(",").filter(isProductSlug));
   }, [joined]);
@@ -155,6 +166,11 @@ function CheckoutSessionBridge({
       if (settling.current.has(input.id)) continue;
       settling.current.add(input.id);
       const product = getCatalogItem(input.product ?? "");
+      // A product outside the catalog is named by the agent, so it is reported
+      // as unknown rather than in the agent's words.
+      const slug = product?.slug ?? "unknown";
+      if (!rejected.current.has(input.id))
+        analytics.setup.productProposed(slug);
       // Another tab on the same session may have won the add, so only a proposal still open at the next tick was refused.
       if (rejected.current.has(input.id) && !warned.current.has(input.id)) {
         warned.current.add(input.id);
@@ -174,10 +190,16 @@ function CheckoutSessionBridge({
             },
           })
         : commands["checkout/dismiss"]({ inputId: input.id });
-      settled.catch(() => {
-        settling.current.delete(input.id);
-        rejected.current.add(input.id);
-      });
+      settled.then(
+        () =>
+          product
+            ? analytics.setup.productAccepted(slug)
+            : analytics.setup.productDeclined(slug),
+        () => {
+          settling.current.delete(input.id);
+          rejected.current.add(input.id);
+        },
+      );
     }
   }, [proposals, commands, tick]);
   const planPending = state ? planNeedsReview(state) : false;

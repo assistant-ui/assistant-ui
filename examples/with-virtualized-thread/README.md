@@ -1,6 +1,6 @@
 # Virtualized thread example
 
-Renders a 500-message thread with `@tanstack/react-virtual` so only the turns near the viewport are mounted. The runtime is a self-contained external store with a fake streaming reply, so the example runs fully offline with no environment variables.
+Renders a 500-message thread with `@tanstack/react-virtual` one row at a time (a user message, an assistant part or a turn end), so an agent turn with dozens of tool calls never becomes one large cell. The runtime is a self-contained external store with a fake streaming reply, so the example runs fully offline with no environment variables.
 
 ## Quick start
 
@@ -13,8 +13,8 @@ pnpm --filter with-virtualized-thread dev
 
 | Concern | File |
 | --- | --- |
-| Virtualizer over user turns, padding spacers, `measureElement` | `app/VirtualizedThread.tsx` |
-| Id-keyed per-message rendering through `ThreadPrimitive.Unstable_MessageById` | `app/VirtualizedThread.tsx` |
+| Virtualizer over thread rows, padding spacers, `measureElement` | `app/VirtualizedThread.tsx` |
+| Rows from `createThreadRowsSelector`, rendered through `ThreadPrimitive.Row`, with a "Worked for" turn footer | `app/VirtualizedThread.tsx` |
 | Sticky-bottom auto-follow with a user-scroll disarm guard | `app/VirtualizedThread.tsx` |
 | External store runtime with seeded messages and a streaming tail | `app/MyRuntimeProvider.tsx` |
 | Deterministic synthetic thread content | `app/seed-messages.ts` |

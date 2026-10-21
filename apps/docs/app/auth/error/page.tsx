@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { typeSection } from "@/components/shared/type";
 
+export const instant = false;
+
 const REASONS: Record<string, string> = {
   access_denied: "That account is not allowed to sign in here.",
   accounts_unavailable: "The accounts service did not respond. Try again.",

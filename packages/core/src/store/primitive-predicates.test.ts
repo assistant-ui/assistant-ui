@@ -3,10 +3,12 @@ import {
   actionBarCopyDisabled,
   actionBarEditDisabled,
   actionBarReloadDisabled,
+  actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,
   composerCancelDisabled,
   composerInputDisabled,
+  composerResumeDisabled,
   composerSendDisabled,
   suggestionSendMode,
   suggestionTriggerDisabled,
@@ -15,6 +17,52 @@ import {
 const state = (partial: Record<string, unknown>) => partial as never;
 
 describe("primitive predicates", () => {
+  describe("composerResumeDisabled", () => {
+    const base = {
+      thread: {
+        isDisabled: false,
+        isRunning: false,
+        voice: undefined,
+        canResume: true,
+      },
+      composer: { type: "thread", isEmpty: true },
+    };
+
+    it("enables resume when every gate is clear", () => {
+      expect(composerResumeDisabled(state(base))).toBe(false);
+    });
+
+    it.each([
+      ["a disabled thread", { isDisabled: true }],
+      ["a running thread", { isRunning: true }],
+      ["a connected voice session", { voice: {} }],
+      ["an unavailable checkpoint", { canResume: false }],
+      ["undefined checkpoint availability", { canResume: undefined }],
+    ])("disables resume for %s alone", (_name, thread) => {
+      expect(
+        composerResumeDisabled(
+          state({ ...base, thread: { ...base.thread, ...thread } }),
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["an edit composer", { type: "edit" }],
+      ["a nonempty composer", { isEmpty: false }],
+    ])("disables resume for %s alone", (_name, composer) => {
+      expect(
+        composerResumeDisabled(
+          state({ ...base, composer: { ...base.composer, ...composer } }),
+        ),
+      ).toBe(true);
+    });
+
+    it("disables resume when a custom thread omits canResume", () => {
+      const { canResume: _canResume, ...thread } = base.thread;
+      expect(composerResumeDisabled(state({ ...base, thread }))).toBe(true);
+    });
+  });
+
   it("composerSendDisabled requires canSend and either an idle thread or a queue", () => {
     const composer = { canSend: true };
     expect(
@@ -46,6 +94,37 @@ describe("primitive predicates", () => {
         state({
           composer: { canSend: false },
           thread: { isRunning: false, capabilities: { queue: false } },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("composerSendDisabled blocks a disabled thread", () => {
+    expect(
+      composerSendDisabled(
+        state({
+          composer: { canSend: true },
+          thread: {
+            isDisabled: true,
+            isRunning: false,
+            capabilities: { queue: false },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("actionBarEditDisabled blocks edits on a disabled thread", () => {
+    const base = {
+      composer: { isEditing: false },
+      optional: { thread: { capabilities: { edit: true } } },
+    };
+    expect(actionBarEditDisabled(state(base))).toBe(false);
+    expect(
+      actionBarEditDisabled(
+        state({
+          ...base,
+          optional: { thread: { ...base.optional.thread, isDisabled: true } },
         }),
       ),
     ).toBe(true);
@@ -147,6 +226,35 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
+  it("actionBarSpeakDisabled also requires speech support", () => {
+    const message = {
+      role: "assistant",
+      status: { type: "complete" },
+      parts: [{ type: "text", text: "hi" }],
+    };
+    expect(
+      actionBarSpeakDisabled(
+        state({
+          optional: { thread: { capabilities: { speech: true } } },
+          message,
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      actionBarSpeakDisabled(
+        state({
+          optional: { thread: { capabilities: { speech: false } } },
+          message,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarSpeakDisabled(
+        state({ optional: { thread: undefined }, message }),
+      ),
+    ).toBe(true);
+  });
+
   it("branch picker predicates respect bounds and run capabilities", () => {
     const thread = {
       isRunning: false,
@@ -184,9 +292,10 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
-  it("suggestionTriggerDisabled gates on send only for queueless runs", () => {
+  it("suggestionTriggerDisabled honors queue support and the runtime send policy", () => {
     const thread = {
       isDisabled: false,
+      isSendDisabled: false,
       isRunning: true,
       capabilities: { queue: false },
     };
@@ -198,11 +307,58 @@ describe("primitive predicates", () => {
         true,
       ),
     ).toBe(false);
+    expect(
+      suggestionTriggerDisabled(
+        state({
+          thread: {
+            ...thread,
+            isSendDisabled: true,
+            capabilities: { queue: true },
+          },
+        }),
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it("suggestionTriggerDisabled respects the runtime send policy only for sends", () => {
+    const thread = {
+      isDisabled: false,
+      isSendDisabled: true,
+      isRunning: false,
+      capabilities: { queue: false },
+    };
+    expect(suggestionTriggerDisabled(state({ thread }), true)).toBe(true);
+    expect(suggestionTriggerDisabled(state({ thread }), false)).toBe(false);
+    expect(
+      suggestionTriggerDisabled(
+        state({ thread: { ...thread, isSendDisabled: false } }),
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it("does not require the current composer draft to be sendable", () => {
+    expect(
+      suggestionTriggerDisabled(
+        state({
+          composer: { canSend: false },
+          thread: {
+            isDisabled: false,
+            isSendDisabled: false,
+            isRunning: false,
+            capabilities: { queue: false },
+          },
+        }),
+        true,
+      ),
+    ).toBe(false);
   });
 
   it("suggestionTriggerDisabled follows canSendText instead of the run while a voice session is connected", () => {
     const thread = {
       isDisabled: false,
+      isSendDisabled: false,
       isRunning: true,
       capabilities: { queue: false },
     };
@@ -219,6 +375,18 @@ describe("primitive predicates", () => {
             ...thread,
             isRunning: false,
             voice: { canSendText: false },
+          },
+        }),
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      suggestionTriggerDisabled(
+        state({
+          thread: {
+            ...thread,
+            isSendDisabled: true,
+            voice: { canSendText: true },
           },
         }),
         true,
@@ -258,6 +426,14 @@ describe("primitive predicates", () => {
           isRunning: false,
           capabilities: { queue: true },
           voice: { canSendText: false },
+        }),
+      ),
+    ).toBe("blocked");
+    expect(
+      suggestionSendMode(
+        state({
+          ...idle,
+          isSendDisabled: true,
         }),
       ),
     ).toBe("blocked");

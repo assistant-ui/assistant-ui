@@ -399,10 +399,12 @@ const stream = createAssistantStream(async (controller) => {
   // Add parts with parentId
   const researchController = controller.withParentId("research-123");
 
-  await researchController.addToolCallPart({
+  researchController.addToolCallPart({
     toolName: "search",
     args: { query: "climate data" },
+    response: { result: "climate data results" },
   });
+  researchController.appendText("Key findings from the research:");
 
   // Add a data part with custom values
   controller.appendData({
@@ -469,6 +471,7 @@ type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
   readonly counts: GroupCounts;
   readonly indices: readonly number[];
+  readonly timing?: MessagePartTiming;
 };
 
 type GroupCounts = {
@@ -478,6 +481,8 @@ type GroupCounts = {
   readonly requiresAction: number;
 };
 ```
+
+`timing` spans the group's timed parts (reasoning and tool calls that carry `timing`): the earliest `startedAt`, plus the latest `completedAt` once every timed part has finished. It is absent when no part in the group carries timing.
 
 ## Best Practices
 

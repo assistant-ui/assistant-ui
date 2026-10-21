@@ -10,14 +10,17 @@ export {
   actionBarCopyDisabled,
   actionBarEditDisabled,
   actionBarReloadDisabled,
+  actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,
   composerCancelDisabled,
   composerInputDisabled,
+  composerResumeDisabled,
   composerSendDisabled,
   messageErrorText,
   suggestionSendMode,
   suggestionTriggerDisabled,
+  threadListItemUnarchiveDisabled,
   threadListLoadMoreDisabled,
 } from "./primitive-predicates";
 export { isDevelopment } from "./env";

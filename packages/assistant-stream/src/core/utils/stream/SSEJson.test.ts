@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSSEJsonDecoder, createSSEJsonEncoder } from "./SSEJson";
+import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
   const reader = stream.getReader();
@@ -67,14 +68,64 @@ describe("createSSEJsonEncoder", () => {
 });
 
 describe("createSSEJsonDecoder", () => {
-  it("parses message events and terminates on the done marker", async () => {
+  it.each(["", "\uFEFF"])(
+    "decodes a stream with %j as its BOM prefix",
+    async (prefix) => {
+      const chunks = await collectChunks(
+        createSSEJsonDecoder({ parse: jsonParse })(
+          fromSSEText(`${prefix}data: {"a":1}\n\n`),
+        ),
+      );
+      expect(chunks).toEqual([{ a: 1 }]);
+    },
+  );
+
+  it.each([0, 1, 2, 3, 4, 5, 6])(
+    "ignores a field prefixed by a second BOM when bytes split at %i",
+    async (split) => {
+      const bytes = new TextEncoder().encode(
+        '\uFEFF\uFEFFdata: {"ignored":true}\ndata: {"a":1}\n\n',
+      );
+      const chunks = await collectChunks(
+        createSSEJsonDecoder({ parse: jsonParse })(
+          fromValues([bytes.slice(0, split), bytes.slice(split)]),
+        ),
+      );
+      expect(chunks).toEqual([{ a: 1 }]);
+    },
+  );
+
+  it("preserves a BOM inside a JSON string", async () => {
+    const chunks = await collectChunks(
+      createSSEJsonDecoder({ parse: jsonParse })(
+        fromSSEText('data: {"text":"\uFEFFkept"}\n\n'),
+      ),
+    );
+    expect(chunks).toEqual([{ text: "\uFEFFkept" }]);
+  });
+
+  it("terminates and cancels an open input on the done marker", async () => {
+    const cancelled = promiseWithResolvers<void>();
+    const input = new ReadableStream<Uint8Array<ArrayBuffer>>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"a":1}\n\ndata: [DONE]\n\ndata: {"b":2}\n\n',
+          ),
+        );
+      },
+      cancel() {
+        cancelled.resolve();
+      },
+    });
     const chunks = await collectChunks(
       createSSEJsonDecoder({
         parse: jsonParse,
         done: { marker: "[DONE]" },
-      })(fromSSEText('data: {"a":1}\n\ndata: [DONE]\n\ndata: {"b":2}\n\n')),
+      })(input),
     );
     expect(chunks).toEqual([{ a: 1 }]);
+    await cancelled.promise;
   });
 
   it("invokes the done callback when the marker arrives", async () => {

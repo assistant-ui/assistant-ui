@@ -1,14 +1,13 @@
 "use client";
 
 import { WrenchIcon } from "lucide-react";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
+import { defaultDirectiveFormatter } from "@assistant-ui/react";
 import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
-const SampleDirectiveText = createDirectiveText(
-  unstable_defaultDirectiveFormatter,
-  { iconMap: { tool: WrenchIcon } },
-);
+const SampleDirectiveText = createDirectiveText(defaultDirectiveFormatter, {
+  iconMap: { tool: WrenchIcon },
+});
 
 const COMPLETE_STATUS = { type: "complete" } as const;
 

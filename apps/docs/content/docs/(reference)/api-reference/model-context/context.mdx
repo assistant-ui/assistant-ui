@@ -17,19 +17,19 @@ import { ModelContextProvider, useAssistantContext, useAssistantInstructions, us
 ### makeAssistantVisible
 
 ```ts
-const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: { clickable?: boolean | undefined; editable?: boolean | undefined; }) => T;
+const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: { clickable?: boolean | undefined; editable?: boolean | undefined; settleDelayMs?: number | undefined; }) => T;
 ```
 
 ### mergeModelContexts
 
 ```ts
-const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext;
+const mergeModelContexts: (configSet: Set<ModelContextProvider>, options?: ModelContextOptions) => ModelContext;
 ```
 
 ### ModelContextClient
 
 ```ts
-const ModelContextClient: Resource<ClientOutput<"modelContext">, []>;
+const ModelContextClient: Resource<ClientOutput<"modelContext">, [options?: ModelContextOptions | undefined]>;
 ```
 
 ### ModelContextProvider

@@ -28,6 +28,8 @@ const RESOLVED_PROMISE = Promise.resolve();
 const NOOP_UNSUBSCRIBE = () => {};
 
 export type ThreadListState = {
+  /** Whether the thread list supports restoring archived threads. */
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
@@ -35,6 +37,10 @@ export type ThreadListState = {
   readonly isLoading: boolean;
   /** The error thrown by the most recent thread list load that failed, cleared when a later load starts. */
   readonly loadError: unknown;
+  /** The most recent thread switch that failed: the id it was asked to open and the error it threw. Cleared when a later switch starts or that thread opens. A switch to a controlled `threadId` is retried when the browser comes back online or the tab becomes visible. */
+  readonly switchError:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<
@@ -69,6 +75,8 @@ export type ThreadListRuntime = {
    * event that fires while its thread is not selected stays observable. Thread
    * lists that mount only the main thread never emit; their main thread's
    * runtime is observed directly.
+   *
+   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,
@@ -95,12 +103,14 @@ const getThreadListState = (
   threadList: ThreadListRuntimeCore,
 ): ThreadListState => {
   return {
+    canUnarchive: threadList.canUnarchive ?? true,
     mainThreadId: threadList.mainThreadId,
     newThreadId: threadList.newThreadId,
     threadIds: threadList.threadIds,
     archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
     loadError: threadList.loadError,
+    switchError: threadList.switchError,
     isLoadingMore: threadList.isLoadingMore ?? false,
     hasMore: threadList.hasMore ?? false,
     threadItems: threadList.threadItems,
@@ -214,6 +224,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     return this._core.switchToNewThread();
   }
 
+  /** @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release. */
   public unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,
   ): Unsubscribe {

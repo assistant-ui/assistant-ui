@@ -9,6 +9,11 @@ import { isWebMcpEnabled } from "./lib/feature-flags";
 import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
 import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
+  DOCS_SITE_REDIRECTS,
+  docsSiteMarkdownAcceptRewrites,
+  docsSiteMarkdownFileRewrites,
+} from "./lib/docs-sites";
+import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
 } from "./lib/markdown-rewrites";
@@ -83,6 +88,9 @@ const csp = (frameAncestors: string) =>
 `.replace(/\n/g, "");
 
 const config: NextConfig = {
+  cacheComponents: true,
+  // A prerender cannot read the clock, so the copyright year is fixed at build time.
+  env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
   agentRules: false,
@@ -158,6 +166,12 @@ const config: NextConfig = {
   ],
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
+    ...DOCS_SITE_REDIRECTS,
+    {
+      source: "/hack",
+      destination: "/hackathon",
+      permanent: false,
+    },
     {
       source: "/tap",
       destination: "/docs/tap",
@@ -466,6 +480,7 @@ const config: NextConfig = {
         destination: "/api/mcp",
       },
       ...docsMarkdownFileRewrites(),
+      ...docsSiteMarkdownFileRewrites(),
       {
         source: "/examples.md",
         destination: "/llms.mdx/examples",
@@ -527,6 +542,7 @@ const config: NextConfig = {
         destination: "/pricing.md",
       },
       ...docsMarkdownAcceptRewrites(),
+      ...docsSiteMarkdownAcceptRewrites(),
       {
         source: "/examples/:path*",
         has: [

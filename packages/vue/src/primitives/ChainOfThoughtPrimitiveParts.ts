@@ -7,11 +7,13 @@ import {
   type VNodeChild,
 } from "vue";
 import type { PartMethods, PartState } from "@assistant-ui/core/store";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
+import { useStableKeys } from "./stableKeys";
 
 type ChainOfThoughtPartsSlots = {
   default?: (props: { part: PartState }) => VNodeChild[];
@@ -93,12 +95,13 @@ export const ChainOfThoughtPrimitiveParts = defineComponent({
   name: "ChainOfThoughtPrimitiveParts",
   slots: Object as SlotsType<ChainOfThoughtPartsSlots>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.chainOfThought.parts.length);
+    const parts = useAuiState((s) => s.chainOfThought.parts);
+    const partKeys = useStableKeys(() => getMessagePartKeys(parts.value));
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      partKeys.value.map((key, index) =>
         h(
           ChainOfThoughtPartByIndexProvider,
-          { index, key: index },
+          { index, key },
           {
             default: () =>
               h(ChainOfThoughtPartView, null, { default: slots.default }),

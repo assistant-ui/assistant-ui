@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import { abortableIterable, openAbortableIterable } from "./abortable-iterable";
 
@@ -313,16 +314,17 @@ describe("abortableIterable", () => {
   it("releases its abort listener after each chunk", async () => {
     const controller = new AbortController();
     const added = vi.spyOn(controller.signal, "addEventListener");
-    const removed = vi.spyOn(controller.signal, "removeEventListener");
     async function* source() {
       yield 1;
       yield 2;
       yield 3;
     }
 
-    await collect(abortableIterable(source(), controller.signal));
+    for await (const _ of abortableIterable(source(), controller.signal)) {
+      expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
+    }
 
-    expect(added).toHaveBeenCalledTimes(removed.mock.calls.length);
+    expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
     expect(added.mock.calls.length).toBeGreaterThan(0);
   });
 });

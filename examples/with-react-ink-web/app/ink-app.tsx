@@ -10,6 +10,7 @@ import {
 } from "@assistant-ui/react-ink";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { ThreadShell } from "../../with-react-ink/src/components/thread-shell";
 import { Thread } from "./thread";
 
 const CHAT_API =
@@ -99,7 +100,11 @@ export const InkApp = () => {
           </Text>
         </StatusBarPrimitive.Root>
         <Box marginTop={1}>
-          <Thread />
+          <ThreadShell>
+            {({ isComposing, width }) => (
+              <Thread isComposing={isComposing} width={width} />
+            )}
+          </ThreadShell>
         </Box>
       </Box>
     </AssistantRuntimeProvider>

@@ -134,13 +134,9 @@ describe("ThreadPrimitiveMessages id-keyed iteration", () => {
 
   it("keeps sibling row instances when a middle message is deleted", async () => {
     const { runtime, setMessages } = createTestRuntime();
-    const instances = new Map<string, number>();
-    let nextInstance = 0;
     const Row = defineComponent({
       setup() {
-        const instance = nextInstance++;
         const id = useAuiState((s) => s.message.id);
-        if (!instances.has(id.value)) instances.set(id.value, instance);
         return () => h("li", { class: "row", "data-id": id.value });
       },
     });
@@ -161,7 +157,8 @@ describe("ThreadPrimitiveMessages id-keyed iteration", () => {
       await nextTick();
       expect(el.querySelectorAll("li.row")).toHaveLength(3);
     });
-    const firstInstanceOfC = instances.get("c");
+    const firstRowOfC = el.querySelector('li[data-id="c"]');
+    expect(firstRowOfC).not.toBeNull();
 
     flushTapSync(() =>
       setMessages([message("a", "first"), message("c", "third")]),
@@ -171,7 +168,7 @@ describe("ThreadPrimitiveMessages id-keyed iteration", () => {
       expect(el.querySelectorAll("li.row")).toHaveLength(2);
     });
     expect(el.querySelector('li[data-id="b"]')).toBeNull();
-    expect(instances.get("c")).toBe(firstInstanceOfC);
+    expect(el.querySelector('li[data-id="c"]')).toBe(firstRowOfC);
 
     unmount();
   });

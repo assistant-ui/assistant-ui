@@ -34,6 +34,8 @@ const COLUMNS = [
   },
 ] as const satisfies readonly DataTableColumn[];
 
+const REFERENCE_TIME = Date.parse("2026-09-26T12:00:00Z");
+
 const MODELS = [
   {
     name: "Sonnet 4.5",
@@ -60,6 +62,7 @@ export function DataTableDemo() {
       rowKey="name"
       defaultSort={{ key: "context", direction: "desc" }}
       caption="Model comparison"
+      relativeTo={REFERENCE_TIME}
     />
   );
 }

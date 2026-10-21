@@ -3,6 +3,7 @@
 import {
   isMcpAppUri,
   type ChatModelRunResult,
+  type MessagePartTiming,
   type MessageStatus,
   type MessageTiming,
   type ThreadAssistantMessagePart,
@@ -10,20 +11,26 @@ import {
   type ToolCallMessagePart,
   type ToolModelContentPart,
 } from "@assistant-ui/core";
+import type { JoinStrategy } from "@assistant-ui/core/react";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import { readMcpAppResourceUri } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
-import type { AgUiEvent, AgUiInterrupt } from "../types";
+import {
+  AG_UI_METADATA_NAMESPACE,
+  A2UI_SURFACE_ACTIVITY_TYPE,
+  MCP_APPS_ACTIVITY_TYPE,
+  type AgUiCustomMetadata,
+  type AgUiEvent,
+  type AgUiInterrupt,
+  type AgUiOpaqueReasoning,
+} from "../types";
 import type { Logger } from "../logger";
-
-export const AG_UI_METADATA_NAMESPACE = "agui";
 
 const ROOT_SCOPE = "";
 
@@ -67,20 +74,6 @@ type BuildContext = {
     opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[];
     lastMaterializedIndex: number;
   };
-};
-
-export type AgUiOpaqueReasoning = {
-  id: string;
-  encryptedValue: string;
-  after?: boolean;
-};
-
-export type AgUiCustomMetadata = {
-  /** Wire role restored on export for messages the internal model cannot
-   * represent (a developer record rides as a system message). */
-  role?: "developer";
-  interrupts?: AgUiInterrupt[];
-  opaqueReasoning?: AgUiOpaqueReasoning[];
 };
 
 type Emit = (update: ChatModelRunResult) => void;
@@ -177,10 +170,6 @@ const scanJSONContainerDelta = (
   return completed && scanner.state === "complete";
 };
 
-export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
-
-export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
-
 export const isPlainObject = (
   value: unknown,
 ): value is Record<string, unknown> =>
@@ -188,6 +177,7 @@ export const isPlainObject = (
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
+  joinStrategy?: JoinStrategy | undefined;
   logger: Logger;
   emit: Emit;
   onServerMessageId?: (messageId: string) => void;
@@ -207,6 +197,7 @@ export type RunAggregatorOptions = {
 export class RunAggregator {
   private readonly emitUpdate: Emit;
   private readonly showThinking: boolean;
+  private readonly joinStrategy: JoinStrategy | undefined;
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
   private readonly onTextMessageStart:
@@ -217,7 +208,10 @@ export class RunAggregator {
   private interrupts: AgUiInterrupt[] | undefined;
   private readonly textParts = new Map<string, { buffer: string }>();
   private readonly activeTextMessageIdByScope = new Map<string, string>();
-  private readonly reasoningParts = new Map<string, string>(); // key → buffer
+  private readonly reasoningParts = new Map<
+    string,
+    { buffer: string; timing?: MessagePartTiming }
+  >();
   private readonly reasoningSignatures = new Map<string, string>();
   private readonly reasoningSignatureIds = new Map<string, string>();
   // Signatures captured while thinking is hidden have no block to live on;
@@ -255,6 +249,7 @@ export class RunAggregator {
   >();
   private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
   private readonly partOrder: PartOrderEntry[] = [];
+  private lastReasoningBeforeToolCall: PartOrderEntry | undefined;
   private textPartCounter = 0;
   private serverMessageIdReported = false;
   private reportedServerMessageId: string | undefined;
@@ -267,6 +262,7 @@ export class RunAggregator {
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
     this.showThinking = options.showThinking;
+    this.joinStrategy = options.joinStrategy;
     this.logger = options.logger;
     this.onServerMessageId = options.onServerMessageId;
     this.onTextMessageStart = options.onTextMessageStart;
@@ -327,8 +323,14 @@ export class RunAggregator {
       }
       case "RUN_CANCELLED": {
         // A cancel can land after RUN_FINISHED while the response is still
-        // closing, and the answer it finished is already persisted as complete.
-        if (this.status?.type === "complete") break;
+        // closing: the finished answer stays complete, and an interrupt the run
+        // already delivered stays answerable.
+        if (
+          this.status?.type === "complete" ||
+          (this.status?.type === "requires-action" &&
+            this.status.reason === "interrupt")
+        )
+          break;
         this.status = { type: "incomplete", reason: "cancelled" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
@@ -396,6 +398,7 @@ export class RunAggregator {
           this.scopeOf("subagentRunId" in event ? event : {}),
           "messageId" in event ? event.messageId : undefined,
           event.type === "REASONING_MESSAGE_START",
+          event.timestamp,
         );
         break;
       case "REASONING_ENCRYPTED_VALUE":
@@ -454,11 +457,11 @@ export class RunAggregator {
         break;
       case "THINKING_TEXT_MESSAGE_END":
       case "THINKING_END":
-        this.handleReasoningEnd(ROOT_SCOPE);
+        this.handleReasoningEnd(ROOT_SCOPE, event.timestamp);
         break;
       case "REASONING_MESSAGE_END":
       case "REASONING_END":
-        this.handleReasoningEnd(this.scopeOf(event));
+        this.handleReasoningEnd(this.scopeOf(event), event.timestamp);
         break;
 
       case "TOOL_CALL_START": {
@@ -743,23 +746,27 @@ export class RunAggregator {
 
     const activeToolCallIds = new Set<string>();
     for (const [surfaceId, surface] of surfaces) {
-      const toolCallId = `a2ui:${surfaceId}`;
-      const { spec, warnings } = convertSurfaceToUISpec(surface);
+      const { toolCall, warnings } = surfaceToPresentToolCall(
+        surfaceId,
+        surface,
+      );
       for (const warning of warnings) {
         this.logger.debug("[agui] a2ui surface conversion warning", warning);
       }
-      if (!spec) continue;
+      if (!toolCall) continue;
+
+      const { toolCallId } = toolCall;
 
       activeToolCallIds.add(toolCallId);
 
       const entry: ToolCallState = {
-        toolCallId,
-        toolCallName: "present",
-        argsText: JSON.stringify(spec),
-        parsedArgs: spec,
-        result: {},
+        toolCallId: toolCall.toolCallId,
+        toolCallName: toolCall.toolName,
+        argsText: toolCall.argsText,
+        parsedArgs: toolCall.args,
+        result: toolCall.result,
         isError: undefined,
-        artifact: { a2ui: surfaceToOperations(surface) },
+        artifact: toolCall.artifact,
         snapshotResultApplied: false,
       };
       if (!this.toolCalls.has(toolCallId)) {
@@ -821,6 +828,7 @@ export class RunAggregator {
     this.activityParts.clear();
     this.lastResolvedToolCallIdByScope.clear();
     this.partOrder.length = 0;
+    this.lastReasoningBeforeToolCall = undefined;
     this.textPartCounter = 0;
     this.activeTextMessageIdByScope.clear();
     this.reportedServerMessageId = undefined;
@@ -847,6 +855,7 @@ export class RunAggregator {
 
   private beginDistinctTextMessage(messageId: string | undefined): void {
     if (
+      this.joinStrategy === "concat-content" ||
       !messageId ||
       this.lastTextMessageId === undefined ||
       this.lastTextMessageId === messageId ||
@@ -854,8 +863,103 @@ export class RunAggregator {
     ) {
       return;
     }
+    const carried = this.takeTrailingReasoning();
+    if (carried.parts.length > 0 || carried.hiddenSignatures.length > 0) {
+      this.emit();
+    }
+    const reasoningPartCounter = this.reasoningPartCounter;
     this.resetMessageParts();
     this.onTextMessageStart(messageId);
+    this.reasoningPartCounter = reasoningPartCounter;
+    this.restoreReasoning(carried);
+  }
+
+  private takeTrailingReasoning() {
+    const parts: {
+      key: string;
+      entry: { buffer: string; timing?: MessagePartTiming };
+      signature: string | undefined;
+      signatureId: string | undefined;
+      reasoningId: string | undefined;
+      anonymous: boolean;
+    }[] = [];
+    let last = this.partOrder.at(-1);
+    while (
+      last?.kind === "reasoning" &&
+      last.subagentRunId === undefined &&
+      last !== this.lastReasoningBeforeToolCall
+    ) {
+      this.partOrder.pop();
+      parts.unshift({
+        key: last.key,
+        entry: this.reasoningParts.get(last.key) ?? { buffer: "" },
+        signature: this.reasoningSignatures.get(last.key),
+        signatureId: this.reasoningSignatureIds.get(last.key),
+        reasoningId: this.reasoningMessageIds.get(last.key),
+        anonymous: this.anonymousReasoningKeys.has(last.key),
+      });
+      last = this.partOrder.at(-1);
+    }
+    const cut = this.partOrder.length;
+    const hiddenSignatures = Array.from(this.hiddenSignatures).filter(
+      ([id]) => this.hiddenSignatureAnchors.get(id)! >= cut,
+    );
+    for (const [id] of hiddenSignatures) {
+      this.hiddenSignatures.delete(id);
+      this.hiddenSignatureAnchors.delete(id);
+    }
+    const hiddenBlockIds = Array.from(this.hiddenBlockAnchors)
+      .filter(([, anchor]) => anchor >= cut)
+      .map(([id]) => id);
+    const hiddenAnonymous =
+      this.hiddenAnonymousAnchor !== undefined &&
+      this.hiddenAnonymousAnchor >= cut;
+    const activeCarried =
+      (this.hiddenActiveReasoning === "identified" &&
+        hiddenBlockIds.length > 0) ||
+      (this.hiddenActiveReasoning === "anonymous" && hiddenAnonymous);
+    return {
+      parts,
+      activeKey: this.activeReasoningKeyByScope.get(ROOT_SCOPE),
+      hiddenSignatures,
+      hiddenBlockIds,
+      hiddenAnonymous,
+      hiddenActiveReasoning: activeCarried
+        ? this.hiddenActiveReasoning
+        : ("none" as const),
+    };
+  }
+
+  private restoreReasoning(
+    carried: ReturnType<RunAggregator["takeTrailingReasoning"]>,
+  ): void {
+    for (const part of carried.parts) {
+      this.partOrder.push({ kind: "reasoning", key: part.key });
+      this.reasoningParts.set(part.key, part.entry);
+      if (part.signature !== undefined)
+        this.reasoningSignatures.set(part.key, part.signature);
+      if (part.signatureId !== undefined)
+        this.reasoningSignatureIds.set(part.key, part.signatureId);
+      if (part.reasoningId !== undefined)
+        this.reasoningMessageIds.set(part.key, part.reasoningId);
+      if (part.anonymous) this.anonymousReasoningKeys.add(part.key);
+    }
+    if (
+      carried.activeKey !== undefined &&
+      this.reasoningParts.has(carried.activeKey)
+    ) {
+      this.activeReasoningKeyByScope.set(ROOT_SCOPE, carried.activeKey);
+    }
+    for (const [id, encryptedValue] of carried.hiddenSignatures) {
+      this.hiddenSignatures.set(id, encryptedValue);
+      this.hiddenSignatureAnchors.set(id, 0);
+    }
+    for (const id of carried.hiddenBlockIds) {
+      this.hiddenReasoningIds.add(id);
+      this.hiddenBlockAnchors.set(id, 0);
+    }
+    if (carried.hiddenAnonymous) this.hiddenAnonymousAnchor = 0;
+    this.hiddenActiveReasoning = carried.hiddenActiveReasoning;
   }
 
   private generateTextKey(): string {
@@ -927,6 +1031,13 @@ export class RunAggregator {
         (part) => part.kind === "tool-call" && part.toolCallId === id,
       )
     ) {
+      // Tool insertion can precede existing reasoning in display order.
+      if (scope === ROOT_SCOPE) {
+        this.lastReasoningBeforeToolCall = this.partOrder.findLast(
+          (part) =>
+            part.kind === "reasoning" && part.subagentRunId === undefined,
+        );
+      }
       this.insertToolPart(scope, id, parentMessageId);
     }
     const state: ToolCallState = {
@@ -1222,7 +1333,8 @@ export class RunAggregator {
 
       if (part.kind === "reasoning") {
         if (this.showThinking) {
-          const buffer = this.reasoningParts.get(part.key) ?? "";
+          const entry = this.reasoningParts.get(part.key);
+          const buffer = entry?.buffer ?? "";
           const isActive =
             this.activeReasoningKeyByScope.get(rawScope) === part.key;
           if (buffer.length > 0 || isActive) {
@@ -1235,6 +1347,7 @@ export class RunAggregator {
             snapshot.push({
               type: "reasoning",
               text: buffer,
+              ...(entry?.timing ? { timing: entry.timing } : {}),
               ...(Object.keys(meta).length > 0
                 ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
                 : {}),
@@ -1441,6 +1554,7 @@ export class RunAggregator {
     scope: string,
     messageId?: string,
     isMessageId = false,
+    timestamp?: number,
   ): void {
     if (!this.showThinking) {
       // Hidden-reasoning bookkeeping stays root-only for this task — a
@@ -1473,12 +1587,22 @@ export class RunAggregator {
       this.reasoningMessageIds.set(key, messageId);
     }
     if (!this.reasoningParts.has(key)) {
-      this.reasoningParts.set(key, "");
+      this.reasoningParts.set(key, { buffer: "" });
       this.partOrder.push(
         scope === ROOT_SCOPE
           ? { kind: "reasoning", key }
           : { kind: "reasoning", key, subagentRunId: scope },
       );
+    }
+    const entry = this.reasoningParts.get(key);
+    if (entry?.timing) {
+      entry.timing = { startedAt: entry.timing.startedAt };
+    } else if (
+      entry &&
+      typeof timestamp === "number" &&
+      Number.isFinite(timestamp)
+    ) {
+      entry.timing = { startedAt: timestamp };
     }
     this.activeReasoningKeyByScope.set(scope, key);
     this.emit();
@@ -1506,14 +1630,24 @@ export class RunAggregator {
     }
     const key = this.activeReasoningKeyByScope.get(scope);
     if (!key) return;
-    this.reasoningParts.set(key, (this.reasoningParts.get(key) ?? "") + delta);
+    const entry = this.reasoningParts.get(key);
+    if (entry) entry.buffer += delta;
     this.emit();
   }
 
-  private handleReasoningEnd(scope: string): void {
+  private handleReasoningEnd(scope: string, timestamp?: number): void {
     if (!this.showThinking) {
       if (scope === ROOT_SCOPE) this.hiddenActiveReasoning = "none";
       return;
+    }
+    const key = this.activeReasoningKeyByScope.get(scope);
+    const entry = key ? this.reasoningParts.get(key) : undefined;
+    if (
+      entry?.timing &&
+      typeof timestamp === "number" &&
+      Number.isFinite(timestamp)
+    ) {
+      entry.timing = { ...entry.timing, completedAt: timestamp };
     }
     this.activeReasoningKeyByScope.delete(scope);
     this.emit();

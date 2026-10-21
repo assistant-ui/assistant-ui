@@ -71,11 +71,14 @@ import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
+import { analytics } from "@/lib/analytics";
 import {
   isOptionIcon,
+  parseModelAnswer,
   type Checkout,
   type OptionIcon,
 } from "@/lib/checkout/protocol";
+import { getModelProvider } from "@/lib/checkout/providers";
 import { cn } from "@/lib/utils";
 
 /** The pack an agent picks an option's icon from, drawn in the helper text colour so brand marks stay the only full-colour ones. */
@@ -203,25 +206,43 @@ export const useInputActions = (
   checkout: CheckoutContextValue,
 ) => {
   const [busy, setBusy] = useState(false);
+  /** Resolves whether the action landed; a failure is already reported. */
   const run = async (action: () => Promise<void>, failure: string) => {
     setBusy(true);
     try {
       await action();
+      return true;
     } catch {
       toast.error(failure);
+      analytics.setup.error({ reason: "answer_failed", step: "question" });
+      return false;
     } finally {
       setBusy(false);
     }
   };
-  const send = (answer: string, note: string) =>
-    checkout.commands["checkout/answer"]({
+  const send = async (answer: string, note: string) => {
+    await checkout.commands["checkout/answer"]({
       inputId: input.id,
       answer,
       ...withNote(note),
     });
-  const deposit = async (secret: string) => {
+    const parsed =
+      input.kind === "model" ? parseModelAnswer(answer) : undefined;
+    // The agent writes the provider ids it offers, so only one this site knows
+    // is reported.
+    const provider =
+      parsed && getModelProvider(parsed.provider) ? parsed.provider : undefined;
+    analytics.setup.inputAnswered({
+      kind: input.kind,
+      skipped: false,
+      ...(provider !== undefined && { model_provider: provider }),
+    });
+  };
+  const deposit = async (secret: string, answer: string) => {
+    const setupId = checkout.state?.id;
+    if (!setupId) throw new Error("setup not created");
     const response = await fetch(
-      `${checkout.url}/secret/${encodeURIComponent(input.id)}`,
+      `${checkout.url}/secret/${encodeURIComponent(input.id)}?setup=${encodeURIComponent(setupId)}&answer=${encodeURIComponent(answer)}`,
       { method: "PUT", body: secret },
     );
     if (!response.ok) throw new Error(`secret rejected: ${response.status}`);
@@ -233,14 +254,14 @@ export const useInputActions = (
     /** Deposits a secret with the checkout for the agent to take, then answers. */
     answerWithSecret: (answer: string, secret: string, note = "") =>
       run(async () => {
-        await deposit(secret);
+        await deposit(secret, answer);
         await send(answer, note);
       }, "Could not send the answer"),
     dismiss: () =>
-      run(
-        () => checkout.commands["checkout/dismiss"]({ inputId: input.id }),
-        "Could not skip the question",
-      ),
+      run(async () => {
+        await checkout.commands["checkout/dismiss"]({ inputId: input.id });
+        analytics.setup.inputAnswered({ kind: input.kind, skipped: true });
+      }, "Could not skip the question"),
   };
 };
 
@@ -279,6 +300,7 @@ export const submitOnModifiedEnter = (
   if (
     event.key !== "Enter" ||
     event.nativeEvent.isComposing ||
+    event.keyCode === 229 ||
     !(event.shiftKey || event.metaKey || event.ctrlKey)
   )
     return;

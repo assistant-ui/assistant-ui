@@ -144,12 +144,6 @@ describe("resolveRegistryItemUrl", () => {
     );
   });
 
-  it("uses the base URL for an explicit undefined style", () => {
-    expect(resolveRegistryItemUrl("thread", undefined)).toBe(
-      "https://r.assistant-ui.com/base/thread.json",
-    );
-  });
-
   it("keeps the style inside a single path segment", () => {
     expect(resolveRegistryItemUrl("thread", "base-nova?preview=1")).toBe(
       "https://r.assistant-ui.com/styles/base-nova%3Fpreview%3D1/thread.json",

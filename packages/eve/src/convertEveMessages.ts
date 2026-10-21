@@ -19,7 +19,10 @@ import {
 } from "@assistant-ui/core";
 import {
   httpUrlPattern,
+  resolveFileMediaType,
   resolveFilePartSource,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   EveAuthorizationOutcome,
@@ -286,7 +289,7 @@ const convertDynamicToolPart = (
     toolCallId: part.toolCallId,
     toolName: part.toolName,
     args: toJsonObject(part.input),
-    argsText: stringifyArgs(part.input),
+    argsText: part.state === "input-streaming" ? "" : stringifyArgs(part.input),
     ...(approval && { approval }),
     ...(providerMetadata && { providerMetadata }),
   };
@@ -373,7 +376,7 @@ const convertFilePart = (
   return {
     type: "file",
     data: part.url,
-    mimeType: part.mediaType ?? "unknown/unknown",
+    mimeType: resolveFileMediaType(part.url, part.mediaType),
     ...(part.filename && { filename: part.filename }),
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
@@ -429,9 +432,6 @@ const convertUserPart = (
     case "text":
       return { type: "text", text: part.text };
 
-    case "file":
-      return convertFilePart(part);
-
     default:
       return null;
   }
@@ -439,9 +439,12 @@ const convertUserPart = (
 
 const toUserContent = (
   parts: readonly EveMessagePart[],
+  attachments: readonly CompleteAttachment[],
 ): readonly ThreadUserMessagePart[] => {
   const content = parts.map(convertUserPart).filter((part) => part !== null);
-  return content.length > 0 ? content : [{ type: "text", text: "" }];
+  return content.length > 0 || attachments.length > 0
+    ? content
+    : [{ type: "text", text: "" }];
 };
 
 const toUserAttachments = (
@@ -505,14 +508,16 @@ const convertEveMessageWithInterruptions = (
     },
   };
 
+  const attachments =
+    message.role === "user" ? toUserAttachments(message.parts) : [];
   const like: ThreadMessageLike =
     message.role === "user"
       ? {
           role: "user",
           id: message.id,
           createdAt,
-          content: toUserContent(message.parts),
-          attachments: toUserAttachments(message.parts),
+          content: toUserContent(message.parts, attachments),
+          attachments,
           metadata,
         }
       : {
@@ -621,6 +626,10 @@ export type EveMessageContent =
         }
     )[];
 
+type OutboundPart = AppendMessage["content"][number] & {
+  readonly contentType?: string | undefined;
+};
+
 /**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
@@ -628,9 +637,14 @@ export type EveMessageContent =
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
-  const content = [
+  const content: OutboundPart[] = [
     ...message.content,
-    ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
+    ...(message.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        ...part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
 
   const parts = content.flatMap((part) => {
@@ -639,21 +653,31 @@ export const getEveMessageContent = (
       case "text":
         return { type: "text" as const, text: part.text };
 
-      case "file":
+      case "file": {
+        const mediaType = resolveFileMediaType(
+          part.data,
+          part.mimeType || part.contentType,
+        );
         return {
           type: "file" as const,
-          data: part.data,
-          mediaType: part.mimeType,
+          data:
+            part.sourceType === "id"
+              ? part.data
+              : toMediaWireUrl(part.data, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
-      case "image":
+      case "image": {
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file" as const,
-          data: part.image,
-          mediaType: "image/*",
+          data: toMediaWireUrl(part.image, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the

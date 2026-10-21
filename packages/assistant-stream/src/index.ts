@@ -5,6 +5,7 @@ export {
 export { createAssistantStreamResponse } from "./core/modules/assistant-stream-response";
 export {
   AssistantMessageAccumulator,
+  /** @deprecated Experimental since 2025-09-14. Not scheduled for removal; the API may change in any release. */
   createInitialMessage as unstable_createInitialMessage,
 } from "./core/accumulators/assistant-message-accumulator";
 export { AssistantStream } from "./core/AssistantStream";
@@ -13,6 +14,7 @@ export type { AssistantStreamChunk } from "./core/AssistantStreamChunk";
 export {
   DataStreamDecoder,
   DataStreamEncoder,
+  type DataStreamOptions,
 } from "./core/serialization/data-stream/DataStream";
 export {
   PlainTextDecoder,
@@ -33,6 +35,7 @@ export type {
   AssistantMessage,
   AssistantMessageTiming,
   DataPart,
+  MessagePartTiming,
   ToolCallTiming,
 } from "./core/utils/types";
 
@@ -47,6 +50,7 @@ export { ToolResponse, type ToolResponseLike } from "./core/tool/ToolResponse";
 export { ToolExecutionStream } from "./core/tool/ToolExecutionStream";
 export type { ProviderOptions, ToolCallReader } from "./core/tool/tool-types";
 export {
+  /** @deprecated Experimental since 2025-04-11. Not scheduled for removal; the API may change in any release. */
   toolResultStream as unstable_toolResultStream,
   unstable_runPendingTools,
   type ToolResultStreamOptions,

@@ -10,6 +10,7 @@ export {
   MessagePrimitiveParts as Parts,
   MessagePrimitivePartByIndex as PartByIndex,
 } from "./message/MessageParts";
+export { MessagePrimitiveQuote as Quote } from "@assistant-ui/core/react";
 export {
   MessageIf as If,
   type MessageIfProps as IfProps,

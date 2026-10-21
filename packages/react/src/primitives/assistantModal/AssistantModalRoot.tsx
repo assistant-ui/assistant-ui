@@ -7,6 +7,7 @@ import { useAuiEvent } from "@assistant-ui/store";
 
 export namespace AssistantModalPrimitiveRoot {
   export type Props = PopoverPrimitive.PopoverProps & {
+    /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
     unstable_openOnRunStart?: boolean | undefined;
   };
 }

@@ -1,9 +1,19 @@
+import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 import { isPlatform } from "@/lib/docs-platform";
 import { getDocsMarkdown } from "@/lib/docs-markdown";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-export const dynamic = "force-static";
+async function getMarkdown(
+  slug: string[] | undefined,
+  platform: LLMRenderContext["platform"],
+  flavor: LLMRenderContext["flavor"],
+) {
+  "use cache";
+  cacheLife("max");
+  return getDocsMarkdown(slug, { platform, flavor });
+}
 
 export async function GET(
   _req: Request,
@@ -25,10 +35,5 @@ export async function GET(
     notFound();
   }
 
-  return createMarkdownResponse(
-    await getDocsMarkdown(slug, {
-      platform,
-      flavor,
-    }),
-  );
+  return createMarkdownResponse(await getMarkdown(slug, platform, flavor));
 }

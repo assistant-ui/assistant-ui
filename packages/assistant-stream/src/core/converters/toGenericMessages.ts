@@ -5,6 +5,7 @@
  */
 
 import { NO_RESULT } from "../tool/ToolResponse";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 export type GenericTextPart = {
   type: "text";
@@ -30,6 +31,8 @@ export type GenericToolResultPart = {
   toolCallId: string;
   toolName: string;
   result: unknown;
+  /** Explicit model-visible content for a settled tool result. */
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 
@@ -45,7 +48,7 @@ export type GenericUserMessage = {
 
 export type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 export type GenericToolMessage = {
@@ -63,6 +66,10 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  audio?: {
+    data?: string;
+    format?: "mp3" | "wav";
+  };
   data?: string;
   mimeType?: string;
   filename?: string;
@@ -71,6 +78,7 @@ type MessagePartLike = {
   args?: Record<string, unknown>;
   state?: string;
   result?: unknown;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
   isPreliminary?: boolean;
   approval?: {
@@ -82,6 +90,7 @@ type MessagePartLike = {
 };
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -112,7 +121,13 @@ function getDataUrlMediaType(value: string): string | undefined {
   return value.match(/^data:([^;,]+)(?:[;,])/i)?.[1]?.toLowerCase();
 }
 
-function inferImageMediaType(url: string): string {
+function inferImageMediaType(url: string, contentType?: string): string {
+  // Providers reject image/* as a URL media type.
+  const declared = contentType?.toLowerCase();
+  if (declared?.startsWith("image/") && !declared.includes("*")) {
+    return declared;
+  }
+
   // Handle data URLs: data:[<mediatype>][;base64],<data>
   if (/^data:/i.test(url)) {
     const match = url.match(/^data:([^;,]+)/i);
@@ -133,8 +148,53 @@ function toUrlOrString(value: string): string | URL {
   }
 }
 
+function toGenericFilePart(
+  part: MessagePartLike,
+  contentType?: string,
+): GenericFilePart | undefined {
+  if (
+    part.type === "audio" &&
+    typeof part.audio?.data === "string" &&
+    part.audio.format !== undefined
+  ) {
+    const mediaType = `audio/${part.audio.format}`;
+    const base64DataUrl = part.audio.data.match(
+      /^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i,
+    );
+    return {
+      type: "file",
+      data: toUrlOrString(
+        base64DataUrl
+          ? `data:${mediaType};base64,${base64DataUrl[1]}`
+          : part.audio.data,
+      ),
+      mediaType,
+    };
+  }
+  if (part.type === "image" && part.image) {
+    return {
+      type: "file",
+      data: toUrlOrString(part.image),
+      mediaType: inferImageMediaType(part.image, contentType),
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  if (part.type === "file" && typeof part.data === "string") {
+    return {
+      type: "file",
+      data: toUrlOrString(part.data),
+      mediaType:
+        (typeof part.mimeType === "string" && part.mimeType) ||
+        getDataUrlMediaType(part.data) ||
+        "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  return undefined;
+}
+
 type ToolCallAccumulator = {
-  textParts: (GenericTextPart | GenericToolCallPart)[];
+  textParts: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
 };
 
@@ -176,6 +236,9 @@ function processToolCall(
       : part.result === undefined
         ? NO_RESULT
         : part.result,
+    ...(settled && part.modelContent !== undefined
+      ? { modelContent: part.modelContent }
+      : {}),
   };
   if (!settled || part.isError) {
     toolResult.isError = true;
@@ -214,33 +277,27 @@ function convertUserMessage(
 ): void {
   const attachments = message.attachments ?? [];
   const allContent = [
-    ...(message.content ?? []),
-    ...attachments.flatMap((a) => a?.content ?? []),
+    ...(message.content ?? []).map((part) => ({
+      part,
+      contentType: undefined,
+    })),
+    ...attachments.flatMap((attachment) =>
+      (attachment?.content ?? []).map((part) => ({
+        part,
+        contentType: attachment.contentType,
+      })),
+    ),
   ];
 
   const content: (GenericTextPart | GenericFilePart)[] = [];
 
-  for (const part of allContent) {
+  for (const { part, contentType } of allContent) {
     if (!part) continue;
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
-    } else if (part.type === "image" && part.image) {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
-        ...(part.filename && { filename: part.filename }),
-      });
-    } else if (part.type === "file" && typeof part.data === "string") {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.data),
-        mediaType:
-          (typeof part.mimeType === "string" && part.mimeType) ||
-          getDataUrlMediaType(part.data) ||
-          "application/octet-stream",
-        ...(part.filename && { filename: part.filename }),
-      });
+    } else {
+      const filePart = toGenericFilePart(part, contentType);
+      if (filePart) content.push(filePart);
     }
   }
 
@@ -276,6 +333,15 @@ function convertAssistantMessage(
     } else if (part.type === "tool-call") {
       if (processToolCall(part, accumulator, inFlight)) {
         hasPendingToolResults = true;
+      }
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) {
+        if (hasPendingToolResults) {
+          flushAccumulator(accumulator, result);
+          hasPendingToolResults = false;
+        }
+        accumulator.textParts.push(filePart);
       }
     }
   }

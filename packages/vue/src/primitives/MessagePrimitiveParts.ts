@@ -6,6 +6,7 @@ import {
   type VNodeChild,
 } from "vue";
 import { isMcpAppUri } from "@assistant-ui/core";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import {
   resolveToolCallText,
   type PartMethods,
@@ -15,10 +16,9 @@ import type { AssistantState } from "@assistant-ui/store/client";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
+import { useStableKeys } from "./stableKeys";
 
 const warnedTypes = new Set<string>();
-
-export const clearPartWarningsForTesting = () => warnedTypes.clear();
 
 /**
  * The value of the single `tool` prop passed to a tool UI registered in the
@@ -39,6 +39,7 @@ export type ToolUIProps = {
   addResult: PartMethods["addToolResult"];
   resume: PartMethods["resumeToolCall"];
   respondToApproval: PartMethods["respondToToolApproval"];
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_recordInteraction?: PartMethods["unstable_recordInteraction"];
 };
 
@@ -64,7 +65,8 @@ export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
   slots: Object as SlotsType<Record<string, (() => VNodeChild[]) | undefined>>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.message.parts.length);
+    const parts = useAuiState((s) => s.message.parts);
+    const partKeys = useStableKeys(() => getMessagePartKeys(parts.value));
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
@@ -156,12 +158,8 @@ export const MessagePrimitiveParts = defineComponent({
       },
     });
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
-        h(
-          PartByIndexProvider,
-          { index, key: index },
-          { default: () => h(PartView) },
-        ),
+      partKeys.value.map((key, index) =>
+        h(PartByIndexProvider, { index, key }, { default: () => h(PartView) }),
       );
   },
 });

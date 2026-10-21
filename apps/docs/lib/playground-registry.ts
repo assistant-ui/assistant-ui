@@ -1,6 +1,7 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
 import {
   FONT_SIZE_CLASS,
+  MESSAGE_GAP_CLASS,
   generateThemeClasses,
   generateThemeCssVars,
   generateThreadStyleVars,
@@ -25,6 +26,14 @@ export function determineRegistryDependencies(config: BuilderConfig): string[] {
 
   if (components.attachments) {
     deps.push(`${REGISTRY_BASE_URL}/base/attachment.json`);
+  }
+
+  if (components.reasoning) {
+    deps.push(`${REGISTRY_BASE_URL}/base/reasoning.json`);
+  }
+
+  if (components.sources) {
+    deps.push(`${REGISTRY_BASE_URL}/base/sources.json`);
   }
 
   return deps;
@@ -68,6 +77,10 @@ function generateThreadCode(config: BuilderConfig): string {
     components.branchPicker ? `  BranchPickerPrimitive,` : null,
     `  ComposerPrimitive,`,
     `  ErrorPrimitive,`,
+    components.reasoning || components.sources ? `  groupPartByType,` : null,
+    components.reasoning || components.sources
+      ? `  MessagePartPrimitive,`
+      : null,
     `  MessagePrimitive,`,
     `  ThreadPrimitive,`,
     `  useAuiState,`,
@@ -95,6 +108,12 @@ function generateThreadCode(config: BuilderConfig): string {
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";`
       : null,
+    components.reasoning
+      ? `import { Reasoning, ReasoningRoot, ReasoningTrigger, ReasoningContent, ReasoningText } from "@/components/assistant-ui/elements/reasoning.aui";`
+      : null,
+    components.sources
+      ? `import { Sources } from "@/components/assistant-ui/elements/sources.aui";`
+      : null,
     `import { cn } from "@/lib/utils";`,
   ]
     .filter(Boolean)
@@ -107,10 +126,10 @@ ${externalImports}
 ${internalImports}`;
 
   const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
-  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+  const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing] ?? "gap-y-6";
   const theme = generateThemeClasses(styles);
   const styleVars = Object.entries(generateThreadStyleVars(styles))
-    .map(([name, value]) => `\n        "${name}": "${value}",`)
+    .map(([name, value]) => `\n        ["${name}" as string]: "${value}",`)
     .join("");
 
   const threadComponent = `
@@ -141,7 +160,7 @@ export function Thread() {
               : ""
           }
 
-          <div className="mb-14 flex flex-col gap-y-6 empty:hidden">
+          <div className="mb-14 flex flex-col ${messageGapClass} empty:hidden">
             <ThreadPrimitive.Messages
               components={{
                 UserMessage,${components.editMessage ? `\n                EditComposer,` : ""}
@@ -173,13 +192,13 @@ export function Thread() {
 }`;
 
   const additionalComponents = [
-    components.threadWelcome ? generateWelcomeComponent() : "",
+    components.threadWelcome ? generateWelcomeComponent(styles.animations) : "",
     components.suggestions ? generateSuggestionsComponent(theme) : "",
     generateComposerComponent(config, theme),
     components.scrollToBottom ? generateScrollToBottomComponent() : "",
-    generateUserMessageComponent(config, messageSpacingClass, theme),
+    generateUserMessageComponent(config, theme),
     components.editMessage ? generateEditComposerComponent(theme) : "",
-    generateAssistantMessageComponent(config, messageSpacingClass, theme),
+    generateAssistantMessageComponent(config, theme),
     generateActionBarComponent(config),
     components.branchPicker ? generateBranchPickerComponent() : "",
   ]
@@ -204,27 +223,16 @@ function generateIconImports(config: BuilderConfig): string {
     icons.push("ThumbsUpIcon", "ThumbsDownIcon");
   if (components.avatar) icons.push("BotIcon", "UserIcon");
   if (components.loadingIndicator !== "none") icons.push("LoaderIcon");
-  if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
 
-function getMessageSpacingClass(spacing: string): string {
-  return (
-    {
-      compact: "py-2",
-      comfortable: "py-4",
-      spacious: "py-6",
-    }[spacing] || "py-4"
-  );
-}
-
-function generateWelcomeComponent(): string {
+function generateWelcomeComponent(animations: boolean): string {
   return `
 function ThreadWelcome() {
   return (
     <div className="mb-6 flex flex-col px-2">
-      <h1 className="text-2xl font-medium tracking-tight">How can I help you today?</h1>
+      <p className="text-2xl font-medium tracking-tight${animations ? " fade-in slide-in-from-bottom-1 animate-in fill-mode-both duration-200" : ""}">How can I help you today?</p>
     </div>
   );
 }`;
@@ -351,7 +359,6 @@ function ThreadScrollToBottom() {
 
 function generateUserMessageComponent(
   config: BuilderConfig,
-  messageSpacingClass: string,
   theme: ThemeClasses,
 ): string {
   const { components, styles } = config;
@@ -368,7 +375,7 @@ function generateUserMessageComponent(
 function UserMessage() {
   return (
     <MessagePrimitive.Root
-      className="mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2 ${messageSpacingClass}${animationClass}"
+      className="mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2${animationClass}"
       data-role="user"
     >
       ${
@@ -403,7 +410,7 @@ function UserMessage() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root
-      className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 ${messageSpacingClass}${animationClass}"
+      className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2${animationClass}"
       data-role="user"
     >
       ${attachments}
@@ -466,8 +473,8 @@ function generateEditComposerComponent(theme: ThemeClasses): string {
   return `
 function EditComposer() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="${theme.editComposerBorder} ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2">
+      <ComposerPrimitive.Root className="${theme.editComposerBorder} ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
         <ComposerPrimitive.Input
           className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus
@@ -488,26 +495,11 @@ function EditComposer() {
 
 function generateAssistantMessageComponent(
   config: BuilderConfig,
-  messageSpacingClass: string,
   theme: ThemeClasses,
 ): string {
   const { components, styles } = config;
   const animationClass = styles.animations
     ? " fade-in slide-in-from-bottom-1 animate-in duration-150"
-    : "";
-
-  const reasoningSection = components.reasoning
-    ? `
-        <div className="mb-3 overflow-hidden rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
-          <details className="group">
-            <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
-              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
-              <span className="font-medium">Thinking...</span>
-            </summary>
-            <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm italic text-muted-foreground">
-            </div>
-          </details>
-        </div>`
     : "";
 
   const contentClass = [
@@ -518,13 +510,76 @@ function generateAssistantMessageComponent(
     .filter(Boolean)
     .join(" ");
 
-  const body = `<div className="${contentClass}">${reasoningSection}
-        <MessagePrimitive.Parts
-          components={{
-            ${components.markdown ? `Text: MarkdownText,` : ""}
-            ${components.markdown ? `tools: { Fallback: ToolFallback },` : ""}
+  const partComponents = [
+    components.markdown ? "Text: MarkdownText" : "",
+    components.markdown ? "tools: { Fallback: ToolFallback }" : "",
+  ].filter(Boolean);
+
+  const parts =
+    components.reasoning || components.sources
+      ? `<MessagePrimitive.GroupedParts
+          groupBy={groupPartByType({${components.reasoning ? '\n            reasoning: ["group-reasoning"],' : ""}${components.sources ? '\n            source: ["group-source"],' : ""}
+          })}
+        >
+          {({ part, children }) => {
+            switch (part.type) {${
+              components.reasoning
+                ? `
+              case "group-reasoning": {
+                const running = part.status.type === "running";
+                return (
+                  <ReasoningRoot variant="muted" className="mb-0" streaming={running}>
+                    <ReasoningTrigger active={running} />
+                    <ReasoningContent aria-busy={running}>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
+              }
+              case "reasoning":
+                return <Reasoning {...part} />;`
+                : ""
+            }${
+              components.sources
+                ? `
+              case "group-source":
+                return <div className="mt-2 flex flex-wrap gap-1.5">{children}</div>;
+              case "source":
+                return <Sources {...part} />;`
+                : ""
+            }
+              case "text":
+                return ${
+                  components.markdown
+                    ? "<MarkdownText />"
+                    : `<p style={{ whiteSpace: "pre-line" }}>
+                  <MessagePartPrimitive.Text />
+                  <MessagePartPrimitive.InProgress>
+                    <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>
+                  </MessagePartPrimitive.InProgress>
+                </p>`
+                };
+              case "image":
+                return <MessagePartPrimitive.Image />;
+              case "tool-call":
+                return part.toolUI${components.markdown ? " ?? <ToolFallback {...part} />" : ""};
+              case "data":
+                return part.dataRendererUI;${
+                  components.typingIndicator === "dot"
+                    ? `
+              case "indicator":
+                return <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>;`
+                    : ""
+                }
+              default:
+                return null;
+            }
           }}
-        />
+        </MessagePrimitive.GroupedParts>`
+      : `<MessagePrimitive.Parts${partComponents.length ? ` components={{ ${partComponents.join(", ")} }}` : ""} />`;
+
+  const body = `<div className="${contentClass}">
+        ${parts}
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
@@ -572,7 +627,7 @@ function generateAssistantMessageComponent(
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root
-      className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-2 ${messageSpacingClass}${animationClass}"
+      className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-2${animationClass}"
       data-role="assistant"
     >
       ${

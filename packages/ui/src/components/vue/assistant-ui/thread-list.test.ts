@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, nextTick } from "vue";
+import { createApp, createSSRApp, defineComponent, h, nextTick } from "vue";
+import { renderToString } from "vue/server-renderer";
 import { resource } from "@assistant-ui/tap";
-import { AuiConfig } from "@assistant-ui/store/client";
+import { AuiConfig, useClientResource } from "@assistant-ui/store/client";
 import { RemoteThreadList } from "@assistant-ui/core/store";
 import type {
   RemoteThreadListAdapter,
@@ -122,6 +123,132 @@ afterEach(() => {
 });
 
 describe("vue thread list", () => {
+  it("server renders dated threads in runtime order without reading the clock", async () => {
+    const datedItems = [
+      {
+        id: "older",
+        remoteId: "older",
+        externalId: undefined,
+        title: "Older thread",
+        lastMessageAt: new Date("2026-08-29T12:00:00Z"),
+        status: "regular" as const,
+        isRunning: false,
+      },
+      {
+        id: "newer",
+        remoteId: "newer",
+        externalId: undefined,
+        title: "Newer thread",
+        lastMessageAt: new Date("2026-08-31T12:00:00Z"),
+        status: "regular" as const,
+        isRunning: false,
+      },
+    ];
+    const state = {
+      mainThreadId: "older",
+      newThreadId: null,
+      isLoading: false,
+      loadError: undefined,
+      isLoadingMore: false,
+      hasMore: false,
+      threadIds: datedItems.map((item) => item.id),
+      archivedThreadIds: [],
+      threadItems: datedItems,
+      main: STUB_THREAD_STATE,
+    };
+    const useStaticItem = ({ index }: { index: number }) => ({
+      getState: () => datedItems[index]!,
+    });
+    const StaticItem = resource(useStaticItem);
+    const useStaticThreads = () => {
+      const older = useClientResource(StaticItem({ index: 0 }));
+      const newer = useClientResource(StaticItem({ index: 1 }));
+      const items = [older.methods, newer.methods];
+      return {
+        getState: () => state,
+        item: ({ index }: { index: number }) => items[index],
+        switchToNewThread: () => {},
+      };
+    };
+    const StaticThreads = resource(useStaticThreads);
+    const app = createSSRApp(
+      defineComponent({
+        setup: () => () =>
+          h(
+            AuiProvider,
+            { config: AuiConfig({ threads: StaticThreads() as never }) },
+            { default: () => h(ThreadList) },
+          ),
+      }),
+    );
+    const clock = vi.spyOn(globalThis, "Date");
+    const now = vi.spyOn(Date, "now");
+    try {
+      const html = await renderToString(app);
+      expect(html).toContain("Older thread");
+      expect(html).toContain("Newer thread");
+      expect(html.indexOf("Older thread")).toBeLessThan(
+        html.indexOf("Newer thread"),
+      );
+      expect(html).not.toContain('data-slot="aui_thread-list-group-label"');
+      expect(clock).not.toHaveBeenCalledWith();
+      expect(now).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+      clock.mockRestore();
+    }
+  });
+
+  it("regroups threads when the local date changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 58));
+    const { el, unmount } = mountThreadList(
+      makeAdapter([
+        {
+          remoteId: "t0",
+          title: "Late today",
+          lastMessageAt: new Date(2026, 7, 31, 12),
+        },
+      ]),
+    );
+
+    await settle(() => expect(texts(el, "group-label")).toEqual(["Today"]));
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    await nextTick();
+    expect(texts(el, "group-label")).toEqual(["Yesterday"]);
+    unmount();
+  });
+
+  it("groups threads by calendar day across a daylight saving transition", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 2, 9, 12));
+    const { el, unmount } = mountThreadList(
+      makeAdapter([
+        {
+          remoteId: "before-yesterday",
+          title: "Before yesterday",
+          lastMessageAt: new Date(2026, 2, 7, 23, 30),
+        },
+        {
+          remoteId: "yesterday",
+          title: "Yesterday",
+          lastMessageAt: new Date(2026, 2, 8, 0, 30),
+        },
+      ]),
+    );
+
+    await settle(() => {
+      expect(texts(el, "group-label")).toEqual(["Yesterday", "Earlier"]);
+      expect(texts(el, "item-title")).toEqual([
+        "Yesterday",
+        "Before yesterday",
+      ]);
+    });
+
+    unmount();
+  });
+
   it("renders one row per thread and no group labels when no thread has a date", async () => {
     const { el, unmount } = mountThreadList(
       makeAdapter(withTitles("First thread", "Second thread")),
@@ -212,10 +339,14 @@ describe("vue thread list", () => {
 
     await settle(() => expect(slots(el, "skeleton-wrapper")).toHaveLength(5));
     expect(
+      el.querySelectorAll('[role="status"][aria-label="Loading threads"]'),
+    ).toHaveLength(1);
+    expect(
       slots(el, "skeleton-wrapper").every(
         (row) =>
-          row.getAttribute("role") === "status" &&
-          row.getAttribute("aria-label") === "Loading threads",
+          row.getAttribute("aria-hidden") === "true" &&
+          !row.hasAttribute("role") &&
+          !row.hasAttribute("aria-label"),
       ),
     ).toBe(true);
     expect(slots(el, "item")).toHaveLength(0);
@@ -228,6 +359,9 @@ describe("vue thread list", () => {
       expect(texts(el, "item-title")).toEqual(["Loaded thread"]),
     );
     expect(slots(el, "skeleton-wrapper")).toHaveLength(0);
+    expect(
+      el.querySelectorAll('[role="status"][aria-label="Loading threads"]'),
+    ).toHaveLength(0);
 
     unmount();
   });
@@ -259,7 +393,13 @@ describe("vue thread list", () => {
       ]),
     );
 
-    await settle(() => expect(slots(el, "item-title")).toHaveLength(4));
+    await settle(() =>
+      expect(texts(el, "group-label")).toEqual([
+        "Today",
+        "Yesterday",
+        "Earlier",
+      ]),
+    );
     expect(texts(el, "group-label")).toEqual(["Today", "Yesterday", "Earlier"]);
     expect(texts(el, "item-title")).toEqual([
       "Just now",
@@ -284,7 +424,9 @@ describe("vue thread list", () => {
       ]),
     );
 
-    await settle(() => expect(slots(el, "item-title")).toHaveLength(2));
+    await settle(() =>
+      expect(texts(el, "group-label")).toEqual(["Today", "Earlier"]),
+    );
     expect(texts(el, "group-label")).toEqual(["Today", "Earlier"]);
     expect(texts(el, "item-title")).toEqual(["No date", "Last week"]);
 

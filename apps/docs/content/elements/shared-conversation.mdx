@@ -64,7 +64,7 @@ function ContinueButton({ messages }: { messages: readonly ThreadMessage[] }) {
 }
 ```
 
-Placed above the `ReadonlyThreadProvider`, `useAui()` there still resolves to your app's real client, not the readonly one.
+Placed above the `ReadonlyThreadProvider`, `useAui()` there still resolves to your app's real client, not the readonly one. The runtime has to accept imports: an external-store runtime needs an `onImport` handler, or `thread.import()` throws.
 
   </Step>
 </Steps>

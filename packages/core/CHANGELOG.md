@@ -1,5 +1,391 @@
 # @assistant-ui/core
 
+## 0.3.30
+
+### Patch Changes
+
+- [#9811](https://github.com/assistant-ui/assistant-ui/pull/9811) [`69bf91a`](https://github.com/assistant-ui/assistant-ui/commit/69bf91a6d5eb3c652ed6f2188dc6fb6934178e9b) - fix: preserve AI SDK history messages listed before their parents by sharing core's parent-first ordering helper. Keep the selected head and sibling branches while continuing to skip malformed messages and orphaned descendants. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9108](https://github.com/assistant-ui/assistant-ui/pull/9108) [`ed0d969`](https://github.com/assistant-ui/assistant-ui/commit/ed0d969c1d73347da217272e5ec42d10092a3473) - Track selectors that read through a forwarding client when its target changes. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9862](https://github.com/assistant-ui/assistant-ui/pull/9862) [`1a3359e`](https://github.com/assistant-ui/assistant-ui/commit/1a3359e400c204d8ab12baa680799ec77bbd4128) - Add a Resume control for interrupted runs. `useComposerResume` from `@assistant-ui/core/react` and `ComposerPrimitive.Resume` resume a run whose adapter reports `canResume`; the control is disabled while the draft is not empty or the thread is busy. ([@okisdev](https://github.com/okisdev))
+
+- [#9861](https://github.com/assistant-ui/assistant-ui/pull/9861) [`2dc72a8`](https://github.com/assistant-ui/assistant-ui/commit/2dc72a8699ffe1181ecd7f6636bbb5f770de4916) - Add an opt-in `canResume` flag for interrupted runs. An adapter that keeps an exact checkpoint sets `canResume`, and `resumeRun` resumes it; concurrent resumes share one attempt. `canResume` is optional on thread state, so existing custom thread clients remain compatible. The AI SDK runtime offers it only while resumable storage holds a pending stream, and the server must replay the interrupted message with its original ID. ([@okisdev](https://github.com/okisdev))
+
+- [#9815](https://github.com/assistant-ui/assistant-ui/pull/9815) [`32869e0`](https://github.com/assistant-ui/assistant-ui/commit/32869e0bbc6815908a57833f2abc107df89a9b0a) - fix: preserve mention labels and IDs containing directive delimiters without changing existing bracket-form directives. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9851](https://github.com/assistant-ui/assistant-ui/pull/9851) [`118dedb`](https://github.com/assistant-ui/assistant-ui/commit/118dedb0c830c09c43d683a61b0a6295937f88ca) - fix: isolate adapter hooks so swapping thread list adapters preserves the hosted runtime's hook order ([@okisdev](https://github.com/okisdev))
+
+- [#9538](https://github.com/assistant-ui/assistant-ui/pull/9538) [`79e10db`](https://github.com/assistant-ui/assistant-ui/commit/79e10dbf107d2364a968b03d99c1a8c165b6e8fd) - fix: restore unsent drafts using the latest attachment cleanup state. ([@okisdev](https://github.com/okisdev))
+
+- [#9776](https://github.com/assistant-ui/assistant-ui/pull/9776) [`32a1b79`](https://github.com/assistant-ui/assistant-ui/commit/32a1b79108ae40a87947905529fbf1f14726e395) - `useAuiState` and `aui.composer.getState()` now see composer text as soon as `setText` returns, so an input that keeps its own state, such as react-mentions, no longer moves the caret to the end. ([@okisdev](https://github.com/okisdev))
+
+- [#9804](https://github.com/assistant-ui/assistant-ui/pull/9804) [`d7fb0ee`](https://github.com/assistant-ui/assistant-ui/commit/d7fb0eeb78abf66c0923fd514cc3c4db3f913089) - refactor: `createLocalStorageAdapter` (and so `createFileStorageAdapter` in `@assistant-ui/react-ink`) no longer sets `unstable_Provider`, which only wrapped the adapters its `unstable_useAdapters` already returns, so `useRemoteThreadListRuntime` runs it on the `RemoteThreadList` store client like the cloud adapter. a `useRemoteThreadListRuntime` that mounts with it now ignores `unstable_Provider` on any later adapter, so give that adapter `unstable_useAdapters` to keep its per-thread history ([@okisdev](https://github.com/okisdev))
+
+- [#9891](https://github.com/assistant-ui/assistant-ui/pull/9891) [`545836d`](https://github.com/assistant-ui/assistant-ui/commit/545836d13a0312edbdb368c7f46bf0d55cdf7e12) - feat: `ModelContext()` takes `maxSystemLength` to cap the merged system prompt, trimming the lowest-priority parts first, or `mergeSystem` to combine the prioritized `SystemPart`s yourself ([@Yonom](https://github.com/Yonom))
+
+- [#9449](https://github.com/assistant-ui/assistant-ui/pull/9449) [`e21ce83`](https://github.com/assistant-ui/assistant-ui/commit/e21ce830298890aafa4f15b5b3e5a372bfe18a09) - adapters may omit unarchive; archived threads then open without unarchiving and explicit unarchive rejects. the OpenCode adapter omits it because OpenCode cannot unarchive a session. ([@okisdev](https://github.com/okisdev))
+
+- [#9652](https://github.com/assistant-ui/assistant-ui/pull/9652) [`ca0a1be`](https://github.com/assistant-ui/assistant-ui/commit/ca0a1be2b65d26b7454ee0ec89b323ede1aa5651) - feat: add the internal thread list runtime core that runs on a `RemoteThreadList` client, and let `RemoteThreadListHookInstanceManager` publish hosted thread runtimes during commit ([@okisdev](https://github.com/okisdev))
+
+- [#9649](https://github.com/assistant-ui/assistant-ui/pull/9649) [`d420f42`](https://github.com/assistant-ui/assistant-ui/commit/d420f4248753f44352f102f498ce2d542945af55) - feat: add the internal `RemoteThreadList` seams that `useRemoteThreadListRuntime` needs to run on the store client. a plain `RemoteThreadList` now aborts a thread's pending send when that thread is deleted, detached or dropped by an adapter-replacing reload, as `InMemoryThreadList` and `useRemoteThreadListRuntime` already do, and logs a failed automatic title the way `useRemoteThreadListRuntime` does ([@okisdev](https://github.com/okisdev))
+
+- [#9650](https://github.com/assistant-ui/assistant-ui/pull/9650) [`9f673a3`](https://github.com/assistant-ui/assistant-ui/commit/9f673a3f6812b77613514948a9946b88bc23df77) - feat: run `useRemoteThreadListRuntime` on the `RemoteThreadList` store client unless the adapter it mounts with sets `unstable_Provider`, so both thread list paths share one implementation. a runtime that mounts without `unstable_Provider` serves later adapters through `unstable_useAdapters` and warns in development when one only has `unstable_Provider`. The thread list still lives as long as the returned runtime. After a failed first load, a controlled `threadId` change no longer reloads the list; call `reload()` to retry. `RemoteThreadListThreadListRuntimeCore` is deprecated for direct use. ([@okisdev](https://github.com/okisdev))
+
+- [#9653](https://github.com/assistant-ui/assistant-ui/pull/9653) [`ab3454d`](https://github.com/assistant-ui/assistant-ui/commit/ab3454dbee73ef652ea81db6d0b71189ad2e0e78) - refactor: add the internal per-thread hosts that run a `useRemoteThreadListRuntime` runtime hook inside a `RemoteThreadList` client ([@okisdev](https://github.com/okisdev))
+
+- [#9766](https://github.com/assistant-ui/assistant-ui/pull/9766) [`506aba9`](https://github.com/assistant-ui/assistant-ui/commit/506aba9062358cdc34d13056db2fe5cd0d8e3292) - Pass draft thread custom metadata to remote thread initialization. ([@okisdev](https://github.com/okisdev))
+
+- [#9764](https://github.com/assistant-ui/assistant-ui/pull/9764) [`2d17e77`](https://github.com/assistant-ui/assistant-ui/commit/2d17e774db4bf4017b36167ecc18ba9101a0fb8b) - fix: keep a controlled new-thread request selected when the previous draft initializes during the switch ([@okisdev](https://github.com/okisdev))
+
+- [#9767](https://github.com/assistant-ui/assistant-ui/pull/9767) [`45e3d22`](https://github.com/assistant-ui/assistant-ui/commit/45e3d22853bfeffc2e6c8be33468351323f50318) - fix: send mutations for each remote thread to its adapter in call order ([@okisdev](https://github.com/okisdev))
+
+- [#9765](https://github.com/assistant-ui/assistant-ui/pull/9765) [`a587b28`](https://github.com/assistant-ui/assistant-ui/commit/a587b2838f2d644549d216098d54cfbeedfac522) - Wait for a replacement thread runtime to attach before a thread switch settles. A switch still pending when the thread list is destroyed now rejects with a silent `ThreadListDestroyedError`, and a switch whose replacement runtime fails to mount rejects with the mount error. ([@okisdev](https://github.com/okisdev))
+
+- [#9864](https://github.com/assistant-ui/assistant-ui/pull/9864) [`50fb79b`](https://github.com/assistant-ui/assistant-ui/commit/50fb79b8eeebf12132bb65e625c81a35aa545c0a) - retry automatic title generation after a thread's first run ends if it still has no title, including threads created outside the runtime. ([@okisdev](https://github.com/okisdev))
+
+- [#9552](https://github.com/assistant-ui/assistant-ui/pull/9552) [`e6cace0`](https://github.com/assistant-ui/assistant-ui/commit/e6cace0b598a52df5a835e477dd682709c23a1fa) - fix(core): re-read the server title after a failed title write-back instead of leaving the list on a title the server never received ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`6966821`](https://github.com/assistant-ui/assistant-ui/commit/69668210c9476323380067307284509f707b507a), [`e99250f`](https://github.com/assistant-ui/assistant-ui/commit/e99250fb58a4d31431e27dd5c6820ca3a813034a), [`54e2e9b`](https://github.com/assistant-ui/assistant-ui/commit/54e2e9b9611f32b669e5e874a515671175645307), [`be30245`](https://github.com/assistant-ui/assistant-ui/commit/be302451ba4243f14d612fe7530c63dfe9275f6d)]:
+  - assistant-stream@0.3.53
+
+## 0.3.29
+
+### Patch Changes
+
+- [#9670](https://github.com/assistant-ui/assistant-ui/pull/9670) [`b78a043`](https://github.com/assistant-ui/assistant-ui/commit/b78a0436faf8361323cd2fbb23362aee65867e09) - fix: keep copy feedback when unrelated assistant scopes change ([@okisdev](https://github.com/okisdev))
+
+- [#9750](https://github.com/assistant-ui/assistant-ui/pull/9750) [`fe13206`](https://github.com/assistant-ui/assistant-ui/commit/fe132065dd8a887abe5984941aa59bd6b3449fc5) - `assistant-cloud` is a dependency of `@assistant-ui/core` instead of an optional peer, so `@assistant-ui/core/react` loads in Node and Vitest without installing it separately. ([@okisdev](https://github.com/okisdev))
+
+- [#9738](https://github.com/assistant-ui/assistant-ui/pull/9738) [`8289dd1`](https://github.com/assistant-ui/assistant-ui/commit/8289dd1947a74cf883f7dc9c0cc42d0ef94c3b85) - Project legacy audio parts as file parts with an `audio/<format>` media type when building a queued message's item, instead of dropping them. ([@tunglambk](https://github.com/tunglambk))
+
+- [#9615](https://github.com/assistant-ui/assistant-ui/pull/9615) [`5588bfb`](https://github.com/assistant-ui/assistant-ui/commit/5588bfb975dca65f0304fe9af5f77f11837ad89e) - fix: prevent dictation from starting on a disabled thread ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9754](https://github.com/assistant-ui/assistant-ui/pull/9754) [`d6e8a0c`](https://github.com/assistant-ui/assistant-ui/commit/d6e8a0c0753d3d8cef24a0c8e6657b7325b842ef) - A message an external-store host drops from the middle of its `messages` array is removed from the thread, with its feedback, instead of staying behind as a sibling branch. ([@okisdev](https://github.com/okisdev))
+
+- [#9763](https://github.com/assistant-ui/assistant-ui/pull/9763) [`fe7179d`](https://github.com/assistant-ui/assistant-ui/commit/fe7179d24df32f94c11d9b2b16a6946c33f327d5) - Discard late client tool calls from cancelled external-store runs using host-provided run ids. ([@okisdev](https://github.com/okisdev))
+
+- [#9768](https://github.com/assistant-ui/assistant-ui/pull/9768) [`c71326f`](https://github.com/assistant-ui/assistant-ui/commit/c71326ff9c91fdf7c852a3094c24169b76f27cba) - Clear frame tools and pending calls when the iframe document changes or reloads. ([@okisdev](https://github.com/okisdev))
+
+- [#9702](https://github.com/assistant-ui/assistant-ui/pull/9702) [`55d065c`](https://github.com/assistant-ui/assistant-ui/commit/55d065c8036c948b56c328cf1f780ce2f81180b8) - Keep external-store history copies up to date when an existing user message's attachments are added, removed, or changed. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9537](https://github.com/assistant-ui/assistant-ui/pull/9537) [`61aaccf`](https://github.com/assistant-ui/assistant-ui/commit/61aaccfe1d21aa1d5f939802713aff469c8818e6) - fix: settle pending deletes after reloads, branch switches, and edits ([@okisdev](https://github.com/okisdev))
+
+- [#9555](https://github.com/assistant-ui/assistant-ui/pull/9555) [`43c9c7c`](https://github.com/assistant-ui/assistant-ui/commit/43c9c7cc2fdbbc0f99a9fd479ed9fb24d77947f2) - Percent-decode base64 data URL payloads before forwarding them to model adapters, so escaped padding and alphabet characters are sent as bare base64. ([@Jun516](https://github.com/Jun516))
+
+- [#9745](https://github.com/assistant-ui/assistant-ui/pull/9745) [`75abfbe`](https://github.com/assistant-ui/assistant-ui/commit/75abfbe3c2b16a5b372751d40c3665402bde7172) - Selecting the thread that is already displayed no longer cancels an in-flight controlled switch in the `RemoteThreadList` client. ([@okisdev](https://github.com/okisdev))
+
+- [#9744](https://github.com/assistant-ui/assistant-ui/pull/9744) [`12dfc85`](https://github.com/assistant-ui/assistant-ui/commit/12dfc85bf0dd991c1b023c5b4b549b7494dc646f) - Selecting the thread that is already displayed no longer cancels a pending thread switch in `useRemoteThreadListRuntime`. ([@okisdev](https://github.com/okisdev))
+
+- [#9639](https://github.com/assistant-ui/assistant-ui/pull/9639) [`1091bbc`](https://github.com/assistant-ui/assistant-ui/commit/1091bbc273c2c7d453a3f959a56209a11c43e341) - fix: report a still-initializing thread through `onThreadIdChange` once its remote id settles, instead of as `undefined` ([@okisdev](https://github.com/okisdev))
+
+- [#9642](https://github.com/assistant-ui/assistant-ui/pull/9642) [`6537c5f`](https://github.com/assistant-ui/assistant-ui/commit/6537c5f02691650d8d360f92b7e5b41f55f060de) - feat: report a failed thread switch, such as a URL-controlled `threadId` whose `fetch()` rejects, as `switchError` on the threads state, and retry a controlled switch when the browser comes back online or the tab becomes visible ([@okisdev](https://github.com/okisdev))
+
+- [#9551](https://github.com/assistant-ui/assistant-ui/pull/9551) [`2217804`](https://github.com/assistant-ui/assistant-ui/commit/2217804cce3bd143689047af8ea7bee4099e9a54) - fix(core): make an automatic title wait for an explicit title generation in flight and run only if that produced no title, so the thread list and the server end on the same title ([@okisdev](https://github.com/okisdev))
+
+- [#9556](https://github.com/assistant-ui/assistant-ui/pull/9556) [`7ba7c54`](https://github.com/assistant-ui/assistant-ui/commit/7ba7c54e66cfa58ae13a6b891b5b7a78ceacb93e) - fix(core): show the automatic title the server already saved when an explicit title generation fails or returns no title, and settle overlapping automatic titles on the newest one ([@okisdev](https://github.com/okisdev))
+
+- [#9769](https://github.com/assistant-ui/assistant-ui/pull/9769) [`cd5fd6c`](https://github.com/assistant-ui/assistant-ui/commit/cd5fd6c30447fde8c8efc4b86bd2d7fb66614b9d) - A tool-call part carries `responseDeliveryStatus: "queued"` while the runtime holds its reply and has not sent it. The ADK runtime sets it on interrupt replies and tool answers held for the next turn, and LangGraph sets it on buffered tool replies, so the tool UI no longer shows them as sent. ([@okisdev](https://github.com/okisdev))
+
+- [#9575](https://github.com/assistant-ui/assistant-ui/pull/9575) [`5197671`](https://github.com/assistant-ui/assistant-ui/commit/5197671ee14b965a8dd81da7f0365c31e3c4566c) - fix: keep text sending available when voice setup ends synchronously ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9751](https://github.com/assistant-ui/assistant-ui/pull/9751) [`04c5d36`](https://github.com/assistant-ui/assistant-ui/commit/04c5d36ec58f1bb5a82c414e6e7048edef88bd10) - A base64 data URL whose payload is percent-encoded is sent to providers with the decoded payload, even when its media type already matches. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`e09563a`](https://github.com/assistant-ui/assistant-ui/commit/e09563a7fb7877b496478342d143c1c2820ee69e), [`b88d62d`](https://github.com/assistant-ui/assistant-ui/commit/b88d62d6d944efff99134508696ef51c922dc2ff), [`01225b9`](https://github.com/assistant-ui/assistant-ui/commit/01225b99661556557ca4d79f2d9c43c5db3588e5)]:
+  - assistant-stream@0.3.52
+
+## 0.3.28
+
+### Patch Changes
+
+- [#9503](https://github.com/assistant-ui/assistant-ui/pull/9503) [`1f77925`](https://github.com/assistant-ui/assistant-ui/commit/1f779252a3316df218c089e413d94548a23500bb) - fix(core): leave an interactable that is still on its `initialState` out of persistence saves and `exportState()`, so a changed `initialState` reaches users who never edited it ([@okisdev](https://github.com/okisdev))
+
+- [#9338](https://github.com/assistant-ui/assistant-ui/pull/9338) [`a12da09`](https://github.com/assistant-ui/assistant-ui/commit/a12da099497ce433823b7f7d7e4824ed720ee302) - fix: run layout effects through `useIsomorphicLayoutEffect` so React 18 server renders stop warning, while Ink keeps its layout phase ([@okisdev](https://github.com/okisdev))
+
+- [#9532](https://github.com/assistant-ui/assistant-ui/pull/9532) [`dbfdd0a`](https://github.com/assistant-ui/assistant-ui/commit/dbfdd0a8a38098a179770e00932e68a7d6f0781e) - Preserve imported descendants through messages-array synchronization. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9508](https://github.com/assistant-ui/assistant-ui/pull/9508) [`140988a`](https://github.com/assistant-ui/assistant-ui/commit/140988ac67450c07a9ede61978d329b6205694b5) - fix(core): skip a client tool whose call first appears after its turn was cancelled ([@okisdev](https://github.com/okisdev))
+
+- [#9518](https://github.com/assistant-ui/assistant-ui/pull/9518) [`f2963d3`](https://github.com/assistant-ui/assistant-ui/commit/f2963d3c121a6b2d52646b490930671eb606cb05) - fix(core): preserve runtime routing when a queued item is edited ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9509](https://github.com/assistant-ui/assistant-ui/pull/9509) [`7745f91`](https://github.com/assistant-ui/assistant-ui/commit/7745f91bbd9e902d6a05431e064a66230ac51f0f) - fix: cancelling an idle external-store thread no longer takes its last user message back into the composer, and a message sent right after a stop that took the unanswered message back is no longer lost; if a host re-adds the stopped message from a captured snapshot, its draft is removed from the composer ([@okisdev](https://github.com/okisdev))
+
+- [#9440](https://github.com/assistant-ui/assistant-ui/pull/9440) [`2bf54c5`](https://github.com/assistant-ui/assistant-ui/commit/2bf54c5a0b3c0c72eb391aa4eb9fcb90e219d1a8) - fix(core): hand running tool executions to a runtime remounted over the same message repository ([@okisdev](https://github.com/okisdev))
+
+- [#9506](https://github.com/assistant-ui/assistant-ui/pull/9506) [`1fb6eb0`](https://github.com/assistant-ui/assistant-ui/commit/1fb6eb0a3651066919d29c67498928d3482a6604) - fix(core): keep the messages below an imported head instead of deleting them ([@okisdev](https://github.com/okisdev))
+
+- [#9504](https://github.com/assistant-ui/assistant-ui/pull/9504) [`8cb0b97`](https://github.com/assistant-ui/assistant-ui/commit/8cb0b97c36b596bacab615e373dc1c4a25aed0ea) - fix(core): a message deleted through an external store's `onDelete` while an earlier reply regenerates stays deleted when the old reply's branch is restored ([@okisdev](https://github.com/okisdev))
+
+- [#9438](https://github.com/assistant-ui/assistant-ui/pull/9438) [`6c7c7b2`](https://github.com/assistant-ui/assistant-ui/commit/6c7c7b203f63e22c36c20f62cdb0cc49e800191c) - fix(core): keep a thread created in the page when a replacement adapter lists it ([@okisdev](https://github.com/okisdev))
+
+- [#9516](https://github.com/assistant-ui/assistant-ui/pull/9516) [`de2f5a9`](https://github.com/assistant-ui/assistant-ui/commit/de2f5a9a2753c8174e4f5aa9723bf397fa7d22e5) - Keep a local runtime thread running, with Stop available, while its run streams on a branch you switched away from. ([@okisdev](https://github.com/okisdev))
+
+- [#9400](https://github.com/assistant-ui/assistant-ui/pull/9400) [`c31385e`](https://github.com/assistant-ui/assistant-ui/commit/c31385ee05068eaa539d10e3f7e5d4b8b5c396ef) - fix(core): keep a rating on an off-branch message after switching branches in an external-store runtime ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9502](https://github.com/assistant-ui/assistant-ui/pull/9502) [`d02fac2`](https://github.com/assistant-ui/assistant-ui/commit/d02fac23b0c846a35f867739b1a95fb4134c6eed) - fix(core): a queued external store message is dispatched under the thread tail and metadata of the runtime that queued it when several runtimes share one message queue ([@okisdev](https://github.com/okisdev))
+
+- [#9396](https://github.com/assistant-ui/assistant-ui/pull/9396) [`2627294`](https://github.com/assistant-ui/assistant-ui/commit/26272942320a4d99c070010ba8eaa46c75d3e99f) - Keep retained tool actions bound to their original message and tool call. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9510](https://github.com/assistant-ui/assistant-ui/pull/9510) [`fdbf0a2`](https://github.com/assistant-ui/assistant-ui/commit/fdbf0a2cdaa11dcfd330db525366f2f44330060e) - fix(core): retry the cleanup of a file removed from a sending message when its removal fails and the message still goes out ([@okisdev](https://github.com/okisdev))
+
+- [#9340](https://github.com/assistant-ui/assistant-ui/pull/9340) [`7139acd`](https://github.com/assistant-ui/assistant-ui/commit/7139acd83b9c4f6b1a05b2e845bdc24e09b8cbb4) - Keep tool interaction recorders bound to the thread, message, and tool call that created them. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9536](https://github.com/assistant-ui/assistant-ui/pull/9536) [`2091bcf`](https://github.com/assistant-ui/assistant-ui/commit/2091bcf2222a5ea4aff9edb40ef329aaae7180b6) - fix: keep a stopped user message in the host when its run restarts ([@okisdev](https://github.com/okisdev))
+
+- [#9370](https://github.com/assistant-ui/assistant-ui/pull/9370) [`7f3d804`](https://github.com/assistant-ui/assistant-ui/commit/7f3d804db84f09c7f8309ef012d8aeaa59fb3505) - fix(core): keep a submitted rating visible when the host refreshes its messages ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`05462a5`](https://github.com/assistant-ui/assistant-ui/commit/05462a5b9d10955f4520619f192e2378a81bfcb5), [`7bff761`](https://github.com/assistant-ui/assistant-ui/commit/7bff761a8d2837f05ce41ca54ef8c471af03be6c)]:
+  - assistant-stream@0.3.51
+
+## 0.3.27
+
+### Patch Changes
+
+- [#9284](https://github.com/assistant-ui/assistant-ui/pull/9284) [`c157aee`](https://github.com/assistant-ui/assistant-ui/commit/c157aeeaa29af0d50dd80e48c89342caf69967ae) - A thread created while a replacement thread list loads now gets its automatic title once the list lands. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9312](https://github.com/assistant-ui/assistant-ui/pull/9312) [`2c1963a`](https://github.com/assistant-ui/assistant-ui/commit/2c1963a31cbb01285bd0e59bdeef1e04e28c6a9d) - fix(core): clear the adapter-change gate before a failed replacement thread list load reports `isLoading: false`, so a thread action started from that notification is not rejected ([@okisdev](https://github.com/okisdev))
+
+- [#9306](https://github.com/assistant-ui/assistant-ui/pull/9306) [`efbf028`](https://github.com/assistant-ui/assistant-ui/commit/efbf028597dd0652bc88d0bca806a63837fb9cd6) - fix(core): keep `unstable_useInteractableState` readers updating once the React Compiler optimizes the interactables resource ([@okisdev](https://github.com/okisdev))
+
+- [#9337](https://github.com/assistant-ui/assistant-ui/pull/9337) [`4e86339`](https://github.com/assistant-ui/assistant-ui/commit/4e8633954af2fa5941d43ccf8d6d3bab5de2bfef) - fix(core): drop the previous adapter's threads when a replacement thread list response cannot be applied, keeping threads created under the replacement ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43)]:
+  - assistant-stream@0.3.50
+
+## 0.3.26
+
+### Patch Changes
+
+- [#9209](https://github.com/assistant-ui/assistant-ui/pull/9209) [`16afd50`](https://github.com/assistant-ui/assistant-ui/commit/16afd50322cce829ab83a32797b5c6aa21fa80c0) - fix(core): preserve initial messages after an empty history load and persist them before the first new message ([@okisdev](https://github.com/okisdev))
+
+- [#9166](https://github.com/assistant-ui/assistant-ui/pull/9166) [`b86d6cd`](https://github.com/assistant-ui/assistant-ui/commit/b86d6cd08f06686efab8133ba1915824c638606c) - Block typing, attachments, sends, and message editing while a thread is disabled. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9224](https://github.com/assistant-ui/assistant-ui/pull/9224) [`2b3e0d3`](https://github.com/assistant-ui/assistant-ui/commit/2b3e0d36b62d21c2ffd280cfc96f4e2a127365da) - fix(core): treat each attachment add as a single attachment ([@okisdev](https://github.com/okisdev))
+
+## 0.3.25
+
+### Patch Changes
+
+- [#9026](https://github.com/assistant-ui/assistant-ui/pull/9026) [`fc73a27`](https://github.com/assistant-ui/assistant-ui/commit/fc73a27c08a7826000bd30950df9dc664a9b5d59) - fix(core): retry a failed interactable save on the next requested save or `flush()` and clear its error once any later snapshot saves it ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#9021](https://github.com/assistant-ui/assistant-ui/pull/9021) [`5a67c85`](https://github.com/assistant-ui/assistant-ui/commit/5a67c85eea29c83321f6c38e80015be75bb6ef83) - fix(core): wait for in-flight saves to an interactables persistence adapter before loading it again ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8262](https://github.com/assistant-ui/assistant-ui/pull/8262) [`e45b97b`](https://github.com/assistant-ui/assistant-ui/commit/e45b97bd542c7b32a036dc2d1814fafe6f615010) - fix(core): retry the current controlled thread after a failed delete restores it ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8264](https://github.com/assistant-ui/assistant-ui/pull/8264) [`c2b93b1`](https://github.com/assistant-ui/assistant-ui/commit/c2b93b16138168fac7e9887fda19e917928cf10c) - fix(core): retire thread runtimes when the runtime hook changes ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9046](https://github.com/assistant-ui/assistant-ui/pull/9046) [`9201447`](https://github.com/assistant-ui/assistant-ui/commit/9201447608271c64a8a9ca66c69e81d27a1d9fab) - fix(core): stop applying an assistant transport run's snapshots once it is cancelled, even when its response body had fully arrived ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#9014](https://github.com/assistant-ui/assistant-ui/pull/9014) [`7e78ca4`](https://github.com/assistant-ui/assistant-ui/commit/7e78ca4e54d6cd506501a891f6401975069be3ff) - ignore the deferred cancel resync once the thread is reset ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9031](https://github.com/assistant-ui/assistant-ui/pull/9031) [`2e5432f`](https://github.com/assistant-ui/assistant-ui/commit/2e5432ff8c642619fe466a305be1ec7d505cd86c) - fix(core): retain interactable edits when persistence saves fail or time out ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9036](https://github.com/assistant-ui/assistant-ui/pull/9036) [`840ac3a`](https://github.com/assistant-ui/assistant-ui/commit/840ac3aab6ea4cb5a2fede34361fa5c1fe2b26b3) - `thread.import()` on an external store without an `onImport` handler now throws instead of changing the runtime repository without updating the store. To load a branch tree, pass it as `messageRepository` or implement `onImport` to write imported messages back to your store. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8955](https://github.com/assistant-ui/assistant-ui/pull/8955) [`20f0e5b`](https://github.com/assistant-ui/assistant-ui/commit/20f0e5bcbef2e5d6108e997356b43dca9b8b762e) - Reload Cloud threads when AISDKThreads changes Cloud client or workspace scope. Preserve a new controlled thread selection requested with the replacement adapter without overriding a later manual switch. Unchanged selections from the previous scope still reset. ([@jz-krono](https://github.com/jz-krono))
+
+- [#8879](https://github.com/assistant-ui/assistant-ui/pull/8879) [`14ceafa`](https://github.com/assistant-ui/assistant-ui/commit/14ceafa2991c3a06fa3d4bfb1598dffbfad326ee) - assistant transport hooks used outside `useAssistantTransportRuntime` now throw the shared wrong-runtime error ("The current thread is not backed by the useAssistantTransportRuntime runtime.") instead of their own message, as the adapter runtimes do ([@okisdev](https://github.com/okisdev))
+
+- [#9053](https://github.com/assistant-ui/assistant-ui/pull/9053) [`3baba6f`](https://github.com/assistant-ui/assistant-ui/commit/3baba6ff90e817b465e654459fc6554af5ad9e78) - fix: restore and pause queued messages when an asynchronous dispatch fails before its run starts. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8926](https://github.com/assistant-ui/assistant-ui/pull/8926) [`7855706`](https://github.com/assistant-ui/assistant-ui/commit/78557063f8b70c540ca0b1e07eca5cc4fe0216d7) - fix: retain a new thread's first title source through runtime restarts and retry automatic title generation after a detach ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8988](https://github.com/assistant-ui/assistant-ui/pull/8988) [`d40092c`](https://github.com/assistant-ui/assistant-ui/commit/d40092ccf71c189573833a4e6d83a15e643b8c08) - keep completed thread-list updates, such as a deletion, applied when a reload starts from their final state notification ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8930](https://github.com/assistant-ui/assistant-ui/pull/8930) [`1002313`](https://github.com/assistant-ui/assistant-ui/commit/1002313491c5d76e6d4d867da3d6d3b016e57edf) - fix: ignore attempts to switch an in-memory thread list to an unknown thread id ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7275](https://github.com/assistant-ui/assistant-ui/pull/7275) [`d19b547`](https://github.com/assistant-ui/assistant-ui/commit/d19b547df04e485f29b4e7bf881212e971cfbb09) - fix: isolate Cloud attachment URLs and message mappings by account or workspace scope. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9143](https://github.com/assistant-ui/assistant-ui/pull/9143) [`3926f8f`](https://github.com/assistant-ui/assistant-ui/commit/3926f8fdb9367ad27240c9990e89089eb5b5eee9) - refactor(core): move cloud run telemetry decoding out of the thread history adapter ([@okisdev](https://github.com/okisdev))
+
+- [#8115](https://github.com/assistant-ui/assistant-ui/pull/8115) [`4fbf441`](https://github.com/assistant-ui/assistant-ui/commit/4fbf441aa96591c1d2c20dd8a404b9aa7cef93a0) - fix(core): keep uploading the attachments of a message being sent when the composer's draft attachments are cleared ([@samdickson22](https://github.com/samdickson22))
+
+- [#8330](https://github.com/assistant-ui/assistant-ui/pull/8330) [`dc72a0e`](https://github.com/assistant-ui/assistant-ui/commit/dc72a0ea9d9bce0cfb694ce8addc2815408b1b7f) - fix(core): keep an attachment removed while its message was being sent out of the composer when the send fails, and keep one whose removal failed in the composer with the reason ([@samdickson22](https://github.com/samdickson22))
+
+- [#8152](https://github.com/assistant-ui/assistant-ui/pull/8152) [`be19872`](https://github.com/assistant-ui/assistant-ui/commit/be198727883f9dc04dd58027451c82c0fb5128cb) - fix: keep external-store messages with missing fields from crashing the thread or showing "undefined" reasoning text ([@samdickson22](https://github.com/samdickson22))
+
+- [#9173](https://github.com/assistant-ui/assistant-ui/pull/9173) [`40da737`](https://github.com/assistant-ui/assistant-ui/commit/40da737346c8cf1bd444aebfddcb6364f18129ac) - refactor: fence late run work with one RunLeases primitive instead of per-adapter counters ([@okisdev](https://github.com/okisdev))
+
+- [#8928](https://github.com/assistant-ui/assistant-ui/pull/8928) [`987ffe1`](https://github.com/assistant-ui/assistant-ui/commit/987ffe1997d46ad458e86f496bc55892078dff6d) - fix: avoid starting suggestion requests after a local runtime detaches while preserving cancelled answer persistence. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9147](https://github.com/assistant-ui/assistant-ui/pull/9147) [`3ffa474`](https://github.com/assistant-ui/assistant-ui/commit/3ffa474aab1ac2e9d331921bbb6a27deb0a67f46) - refactor(core): move the dictation session out of BaseComposerRuntimeCore into its own controller ([@okisdev](https://github.com/okisdev))
+
+- [#8125](https://github.com/assistant-ui/assistant-ui/pull/8125) [`5bb65a3`](https://github.com/assistant-ui/assistant-ui/commit/5bb65a3efe68fafb0d3ae4a97255bc7b8f235cf6) - fix(core): stop dictation and speech when a thread runtime is disposed or superseded, as a realtime voice session already is ([@samdickson22](https://github.com/samdickson22))
+
+- [#8944](https://github.com/assistant-ui/assistant-ui/pull/8944) [`836432d`](https://github.com/assistant-ui/assistant-ui/commit/836432d3d7182a9f05a506f1c5a88f8ed318f2b0) - fix: editing a message that carries a quote keeps the quote, so the edited message still shows it and still sends it to the model ([@Tunaycel](https://github.com/Tunaycel))
+
+- [#7273](https://github.com/assistant-ui/assistant-ui/pull/7273) [`93d04cb`](https://github.com/assistant-ui/assistant-ui/commit/93d04cb3b45f42038dafc3dcf950660a43cae73d) - fix: fetch and encode URL-based image attachments before sending them to Pi; inaccessible or invalid URLs now fail the send ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9082](https://github.com/assistant-ui/assistant-ui/pull/9082) [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20) - feat: mark every experimental API `@deprecated Experimental since <date>`, so editors strike it through as experimental rather than scheduled for removal; `@typescript-eslint/no-deprecated` reports these APIs too ([@okisdev](https://github.com/okisdev))
+
+- [#8116](https://github.com/assistant-ui/assistant-ui/pull/8116) [`59d42c1`](https://github.com/assistant-ui/assistant-ui/commit/59d42c1839b114013e4b06365176b0b2536767d1) - fix(core): when a stop does not move the last user message back into the composer, the external store runtime's cancel resync no longer overwrites a host update it has not received yet (a message sent right after stopping); it also no longer writes back a stopped message the composer already holds, and it keeps the running placeholder of a run that started before the resync ([@samdickson22](https://github.com/samdickson22))
+
+- [#8327](https://github.com/assistant-ui/assistant-ui/pull/8327) [`ca4ec1f`](https://github.com/assistant-ui/assistant-ui/commit/ca4ec1f5a48671e32db08edc5e2855542bac0080) - fix: stop a message deleted through `onDelete` from coming back as a branch when a frontend tool finishes before the host's next render ([@samdickson22](https://github.com/samdickson22))
+
+- [#9111](https://github.com/assistant-ui/assistant-ui/pull/9111) [`184b083`](https://github.com/assistant-ui/assistant-ui/commit/184b0838d6465fc5802fd2fb90636b6acde66978) - fix(core): stop an external store reload from dispatching when Stop lands while client tool executions abort ([@okisdev](https://github.com/okisdev))
+
+- [#8095](https://github.com/assistant-ui/assistant-ui/pull/8095) [`8a21038`](https://github.com/assistant-ui/assistant-ui/commit/8a210385ff0dfe05632e897a0c408786b0ba76ea) - fix(core): an external store runtime recomputes its messages when client tools stop running, so no reply stays marked running after `unstable_notifySessionReset` or a conversation swap during a tool call ([@samdickson22](https://github.com/samdickson22))
+
+- [#8107](https://github.com/assistant-ui/assistant-ui/pull/8107) [`7321036`](https://github.com/assistant-ui/assistant-ui/commit/73210363d24da98eb851c622cd85adbc801ea4cd) - fix(core): an external store send that waited for thread initialization is delivered when the host drops or replaces its message queue in the meantime, instead of being lost ([@samdickson22](https://github.com/samdickson22))
+
+- [#8113](https://github.com/assistant-ui/assistant-ui/pull/8113) [`bf65f81`](https://github.com/assistant-ui/assistant-ui/commit/bf65f81c17f76acfd2ab4cb6be3a1a28653602d0) - fix(core): a queued external store send is dispatched after its own thread's last message when another runtime shares the queue, as React StrictMode's second runtime instance does in development ([@samdickson22](https://github.com/samdickson22))
+
+- [#9038](https://github.com/assistant-ui/assistant-ui/pull/9038) [`4d5070d`](https://github.com/assistant-ui/assistant-ui/commit/4d5070de6646c8a64a20060097e2088dee860dbe) - fix(core): drop the phantom default thread item from the external-store thread list ([@cpruijsen](https://github.com/cpruijsen))
+
+- [#8949](https://github.com/assistant-ui/assistant-ui/pull/8949) [`3ef6e7c`](https://github.com/assistant-ui/assistant-ui/commit/3ef6e7cf474865197c0c0a7ced894ff714b8ddbc) - fix: editing a message in `ExternalThread` keeps its image, file and other non-text parts, as the default edit composer already does, instead of sending only the text ([@Tunaycel](https://github.com/Tunaycel))
+
+- [#8869](https://github.com/assistant-ui/assistant-ui/pull/8869) [`9125e30`](https://github.com/assistant-ui/assistant-ui/commit/9125e302f47c2cd62e4f39752f913e6bc0287abf) - Forward `ExternalThread` model-context changes through `thread.modelContextUpdate`. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8865](https://github.com/assistant-ui/assistant-ui/pull/8865) [`4ac25b9`](https://github.com/assistant-ui/assistant-ui/commit/4ac25b9a8cff8857b8b74667e8ff488e9faed00d) - return the registered model context from `ExternalThread`'s `getModelContext` instead of an empty one ([@okisdev](https://github.com/okisdev))
+
+- [#8924](https://github.com/assistant-ui/assistant-ui/pull/8924) [`23a4677`](https://github.com/assistant-ui/assistant-ui/commit/23a46773dded58605188a61779011a79eb36842e) - fix: `AssistantFrameProvider.dispose()` now tells the parent it is gone, so `AssistantFrameHost` rejects tool calls still waiting on the frame right away instead of after the 30 s timeout ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8922](https://github.com/assistant-ui/assistant-ui/pull/8922) [`7aa5bdd`](https://github.com/assistant-ui/assistant-ui/commit/7aa5bdd2a6b5588f2d5610e4ddd397f975f02235) - fix: send the update that withdraws a frame's last cross-origin provider to the parent's origin, so the parent drops its tools instead of waiting out the 30 s call timeout ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8380](https://github.com/assistant-ui/assistant-ui/pull/8380) [`afe32c6`](https://github.com/assistant-ui/assistant-ui/commit/afe32c68cb9ab0e3e4360f6ff40b523ccca431ee) - fix: isolate LocalRuntime thread state across history scope changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9005](https://github.com/assistant-ui/assistant-ui/pull/9005) [`30c2480`](https://github.com/assistant-ui/assistant-ui/commit/30c2480c3ccf3771bbcd04f89c1cc518b2794409) - Preserve the no-argument mutation methods on InMemoryThreadListAdapter while retaining thread metadata updates when arguments are provided. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8261](https://github.com/assistant-ui/assistant-ui/pull/8261) [`ef5a1e2`](https://github.com/assistant-ui/assistant-ui/commit/ef5a1e2d8ea46e21c73d804eaa244447e6ba2ef2) - fix: show a pending save, and its failure, on an interactable that unmounts and mounts again while the save is in flight ([@samdickson22](https://github.com/samdickson22))
+
+- [#8121](https://github.com/assistant-ui/assistant-ui/pull/8121) [`5a09ea3`](https://github.com/assistant-ui/assistant-ui/commit/5a09ea34f77fc68a390bdfb00f5e45ea9f306fa9) - fix(core): let a persistence load replace the detached state of an interactable that unmounted before the load resolved without a local edit ([@samdickson22](https://github.com/samdickson22))
+
+- [#8119](https://github.com/assistant-ui/assistant-ui/pull/8119) [`b578c02`](https://github.com/assistant-ui/assistant-ui/commit/b578c02b71bf4a003472fd4f9e5facd92d8e9deb) - fix(core): keep a tool-created interactable's unsent edit with the thread it was made in when switching threads ([@samdickson22](https://github.com/samdickson22))
+
+- [#9157](https://github.com/assistant-ui/assistant-ui/pull/9157) [`4709edf`](https://github.com/assistant-ui/assistant-ui/commit/4709edf67949cb8fbb7b6ca04b976625bc91b58c) - fix(core): let a mounted thread keep initializing after a reload unlists it in useRemoteThreadListRuntime ([@okisdev](https://github.com/okisdev))
+
+- [#8100](https://github.com/assistant-ui/assistant-ui/pull/8100) [`820ab5f`](https://github.com/assistant-ui/assistant-ui/commit/820ab5f9e043e3b7dd80eb8b8ee06382eb3ad08f) - fix(core): keep the local message queue to one send at a time when a regenerate, a cancel or a follow-up run overlaps a queued send, or the queue is turned on during a run or while a message waits to be sent, and keep it sending after a cancel while a queued send waits to start. Once a regenerate replaces a cancelled run whose model adapter ignores the abort, the queue now moves on when the regenerate ends instead of waiting for the cancelled run as well. ([@samdickson22](https://github.com/samdickson22))
+
+- [#8604](https://github.com/assistant-ui/assistant-ui/pull/8604) [`63df0e4`](https://github.com/assistant-ui/assistant-ui/commit/63df0e4633c8025856f23fb75bff18bdbaab5432) - fix: support `withFormat` in the local storage history adapter so `useChatRuntime` persists AI SDK messages with `createLocalStorageAdapter` ([@bnb](https://github.com/bnb))
+
+- [#8938](https://github.com/assistant-ui/assistant-ui/pull/8938) [`2307752`](https://github.com/assistant-ui/assistant-ui/commit/230775219ecd59fdee3fe93932c2c7411c57ebee) - fix: retry local storage thread deletion across adapter reloads ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8142](https://github.com/assistant-ui/assistant-ui/pull/8142) [`5bd5de3`](https://github.com/assistant-ui/assistant-ui/commit/5bd5de312f96c0f9340e5389276af94df7e59da5) - fix(core): keep every saved branch when a thread is exported while a placeholder message is its head ([@samdickson22](https://github.com/samdickson22))
+
+- [#8351](https://github.com/assistant-ui/assistant-ui/pull/8351) [`b03f90e`](https://github.com/assistant-ui/assistant-ui/commit/b03f90e03db52d3b3cf6a4124cb92f9892c548f7) - fix: a send with no text no longer adds an empty user message when its only attachment is removed while the attachment is being prepared ([@samdickson22](https://github.com/samdickson22))
+
+- [#8833](https://github.com/assistant-ui/assistant-ui/pull/8833) [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7673](https://github.com/assistant-ui/assistant-ui/pull/7673) [`f6d1489`](https://github.com/assistant-ui/assistant-ui/commit/f6d1489746f63fb20e19940a01194a524776e1a6) - fix: let cancellation interrupt asynchronous request preparation, keep later resolver failures out of `onError`, and reuse the shared abort-race behavior in the A2A and Google ADK adapters ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8981](https://github.com/assistant-ui/assistant-ui/pull/8981) [`b4b56fe`](https://github.com/assistant-ui/assistant-ui/commit/b4b56fecbb8b0466bcb547fb38df3978282d11ac) - chore: maintenance update with no changes to runtime behavior. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7221](https://github.com/assistant-ui/assistant-ui/pull/7221) [`a6ca3f9`](https://github.com/assistant-ui/assistant-ui/commit/a6ca3f94389e4f60eaae4faf59af0fb289553297) - fix: parse base64 data URLs without a media type across core converters, Google ADK, A2A, and AG-UI, defaulting them to `application/octet-stream` and keeping `text/plain` for media-less percent-encoded data URLs. Outgoing base64 URL envelopes without a type are stamped with the same default so downstream adapters do not receive an empty media type. Media-less image URLs continue to use image sniffing before reaching AG-UI. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8990](https://github.com/assistant-ui/assistant-ui/pull/8990) [`7f7d512`](https://github.com/assistant-ui/assistant-ui/commit/7f7d512fa2ac14dcdaf97184d706b0ac7351894e) - Keep deleted local drafts hidden during remote thread-list adapter replacement. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9001](https://github.com/assistant-ui/assistant-ui/pull/9001) [`0d74a05`](https://github.com/assistant-ui/assistant-ui/commit/0d74a05458a9e484e5bcb8feae78b7d11f8279ce) - keep a stale draft initialization from promoting after a replacement adapter list lands ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8941](https://github.com/assistant-ui/assistant-ui/pull/8941) [`1cabbbd`](https://github.com/assistant-ui/assistant-ui/commit/1cabbbdc49a32a7c148f1593a6a5183836bb0ce3) - Respect the runtime send policy for send-enabled suggestion triggers. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8640](https://github.com/assistant-ui/assistant-ui/pull/8640) [`9121416`](https://github.com/assistant-ui/assistant-ui/commit/9121416f70e5fed68eaf7f8922a726e289e98aa5) - fix: preserve behavior on the advertised React 18 peer range ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8878](https://github.com/assistant-ui/assistant-ui/pull/8878) [`429a26d`](https://github.com/assistant-ui/assistant-ui/commit/429a26dd165a3a32d98d1fb017cc3a6e6840b7e1) - share the remote thread list's page merge between the store client and the legacy runtime core ([@okisdev](https://github.com/okisdev))
+
+- [#8361](https://github.com/assistant-ui/assistant-ui/pull/8361) [`2356e80`](https://github.com/assistant-ui/assistant-ui/commit/2356e80a69a16ccb86ea6b78ca317a73e7533894) - fix(core): call `adapter.remove` once for a composer attachment whose removal is still pending. Removing it again does nothing, and `reset()` and `clearAttachments()` skip it. If that removal then fails, only the `removeAttachment()` caller sees the rejection ([@samdickson22](https://github.com/samdickson22))
+
+- [#8971](https://github.com/assistant-ui/assistant-ui/pull/8971) [`194c0e2`](https://github.com/assistant-ui/assistant-ui/commit/194c0e2ceb703f6ca6d74d4e9868aea3e8235dcb) - chore: maintenance update with no changes to runtime behavior. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8972](https://github.com/assistant-ui/assistant-ui/pull/8972) [`fae89b1`](https://github.com/assistant-ui/assistant-ui/commit/fae89b10a6266afc195e94d502ef102d3fb69bce) - chore: maintenance update with no changes to runtime behavior. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8962](https://github.com/assistant-ui/assistant-ui/pull/8962) [`708bf2c`](https://github.com/assistant-ui/assistant-ui/commit/708bf2c026bdce17b4586f8e675c2a653cbab7dd) - preserve later thread switches when a replacement list load settles ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7910](https://github.com/assistant-ui/assistant-ui/pull/7910) [`4b44723`](https://github.com/assistant-ui/assistant-ui/commit/4b447235d0662bdfb44896c086dc7a06edd020c2) - Clear tool invocation state when restarting a failed stream pipeline. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9153](https://github.com/assistant-ui/assistant-ui/pull/9153) [`92e7ab1`](https://github.com/assistant-ui/assistant-ui/commit/92e7ab1d0a22e6a60eec8a742eec64b79107a8f6) - fix(core): keep a thread seeded with `initialMessages` local until its first send or run, so a remote thread list no longer creates an empty remote thread and requests its title on mount ([@okisdev](https://github.com/okisdev))
+
+- [#8904](https://github.com/assistant-ui/assistant-ui/pull/8904) [`a1caaa8`](https://github.com/assistant-ui/assistant-ui/commit/a1caaa8e0675b37b543ab8201ceecae31100b868) - keep the stored order of sibling branches when a thread session loads a message stored before its parent ([@okisdev](https://github.com/okisdev))
+
+- [#8305](https://github.com/assistant-ui/assistant-ui/pull/8305) [`7842639`](https://github.com/assistant-ui/assistant-ui/commit/78426392ef7d5b4bbced8958dabdccc2e617ef1b) - fix: follow generated suggestion adapter replacements without restarting inline adapters ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9110](https://github.com/assistant-ui/assistant-ui/pull/9110) [`399621e`](https://github.com/assistant-ui/assistant-ui/commit/399621ec993a85cf41e07970895d7305740d6394) - fix(core): keep a new thread's automatic title in the store client's thread list when its body remounts during the first initialize ([@okisdev](https://github.com/okisdev))
+
+- [#9109](https://github.com/assistant-ui/assistant-ui/pull/9109) [`79867bd`](https://github.com/assistant-ui/assistant-ui/commit/79867bdfe08cb4cf7af43167b806ad1f1a2f474b) - fix(core): reject item actions on a thread the store client's thread list no longer shows, matching useRemoteThreadListRuntime ([@okisdev](https://github.com/okisdev))
+
+- [#8737](https://github.com/assistant-ui/assistant-ui/pull/8737) [`081a239`](https://github.com/assistant-ui/assistant-ui/commit/081a23960a018742e6b48a0742728518a49050a5) - fix: bound retained input in shared line and SSE decoders, with configurable line and event limits across streaming clients ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8328](https://github.com/assistant-ui/assistant-ui/pull/8328) [`0967886`](https://github.com/assistant-ui/assistant-ui/commit/0967886430543d461bf34d0a226d7913229ddcef) - fix: stop a delete, archive, unarchive, rename or custom metadata update still running on the previous thread list adapter from changing the new adapter's thread with the same id ([@samdickson22](https://github.com/samdickson22))
+
+- [#8076](https://github.com/assistant-ui/assistant-ui/pull/8076) [`e7534a2`](https://github.com/assistant-ui/assistant-ui/commit/e7534a21f8b1437790c9d17e07ffc4434cce7079) - fix: keep a thread created and deleted in this session deleted when a thread list response served before the deletion arrives afterwards ([@samdickson22](https://github.com/samdickson22))
+
+- [#8101](https://github.com/assistant-ui/assistant-ui/pull/8101) [`361d590`](https://github.com/assistant-ui/assistant-ui/commit/361d5903914034edd4639490557bc00afd846250) - fix: keep a thread off the main slot when `detach`, `archive` or `delete` is called in the tick a switch to it lands, instead of stopping, archiving or deleting the thread the user is now in ([@samdickson22](https://github.com/samdickson22))
+
+- [#8075](https://github.com/assistant-ui/assistant-ui/pull/8075) [`c04f09d`](https://github.com/assistant-ui/assistant-ui/commit/c04f09d7cd369464f648330f5e7c20883d0ab635) - fix: merge a deep-linked thread's fetched metadata as an optimistic update, so an archive or delete that fails afterwards rolls back, a thread that initialized or was archived or deleted while the fetch was in flight keeps its current state as long as its slot id still resolves, and one remote thread never gets two slots ([@samdickson22](https://github.com/samdickson22))
+
+- [#8145](https://github.com/assistant-ui/assistant-ui/pull/8145) [`efb83eb`](https://github.com/assistant-ui/assistant-ui/commit/efb83eb7775770072ece4a3e72f6bf0760a994a0) - fix(core): stop `useRemoteThreadListRuntime` listing threads a reload no longer returns: they leave `threadItems` and list item actions reject them, as in the `RemoteThreadList` client, while a hidden thread whose runtime is still mounted stays readable through `getItemById` ([@samdickson22](https://github.com/samdickson22))
+
+- [#8077](https://github.com/assistant-ui/assistant-ui/pull/8077) [`1cd8911`](https://github.com/assistant-ui/assistant-ui/commit/1cd8911f5d0ff647b04330d5d75f6b3c1ce70fc1) - fix: switch away from the main thread when an archive or delete aimed at its listed duplicate lands on it once `initialize()` merges the two, instead of leaving the runtime on a deleted or archived thread ([@samdickson22](https://github.com/samdickson22))
+
+- [#8103](https://github.com/assistant-ui/assistant-ui/pull/8103) [`79e9a5a`](https://github.com/assistant-ui/assistant-ui/commit/79e9a5a91970117e7130300729b71296cead63df) - fix: start the main thread's runtime when a switch or `initialize()` selects a thread that was detached while it was in flight, instead of leaving the main thread with no runtime ([@samdickson22](https://github.com/samdickson22))
+
+- [#8105](https://github.com/assistant-ui/assistant-ui/pull/8105) [`9aff121`](https://github.com/assistant-ui/assistant-ui/commit/9aff121ab1581f9213fdbb7cb87f97a2369d5e5c) - fix: open the controlled `threadId` once the thread list loads it when its first switch failed, instead of staying on a new thread while the prop names another ([@samdickson22](https://github.com/samdickson22))
+
+- [#8263](https://github.com/assistant-ui/assistant-ui/pull/8263) [`01b5e06`](https://github.com/assistant-ui/assistant-ui/commit/01b5e0692ccfc20200a775dcab31fd5b8efb208e) - Keep in-memory thread list entries available across reloads. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8934](https://github.com/assistant-ui/assistant-ui/pull/8934) [`06c3fef`](https://github.com/assistant-ui/assistant-ui/commit/06c3fef03d5c1cbcc5c175c7ef2b6e5752e927c5) - Keep local-storage thread deletion successful once metadata is removed even if history cleanup fails, preventing the client from restoring a thread whose later messages cannot be saved. Log cleanup failures and retry stale-history cleanup before reinitializing the same thread ID. ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8950](https://github.com/assistant-ui/assistant-ui/pull/8950) [`41344cb`](https://github.com/assistant-ui/assistant-ui/commit/41344cba68efe187ec81c02006d50fc6bc833abb) - Expose `argsStatus` from `useToolArgsStatus` to distinguish incomplete argument objects from completed arguments while a tool is still running. ([@okisdev](https://github.com/okisdev))
+  
+  Mark settled AI SDK tool input as complete while execution continues. This also lets `propStatus` report received fields as complete, rather than streaming, once the input is final.
+  
+  Settled AI SDK `args` are shallow copies of `part.input` with enumerable completion metadata: the top-level object identity changes, while nested values retain their identity. Prototype-named JSON fields remain intact without changing safe parser policy.
+
+- [#8256](https://github.com/assistant-ui/assistant-ui/pull/8256) [`cebaed5`](https://github.com/assistant-ui/assistant-ui/commit/cebaed504eee8dbddb1da185af15ebc05f772a0f) - fix: stop thread title generation from calling the adapter for a thread whose deletion already completed ([@samdickson22](https://github.com/samdickson22))
+
+- [#8255](https://github.com/assistant-ui/assistant-ui/pull/8255) [`2a1a788`](https://github.com/assistant-ui/assistant-ui/commit/2a1a7888876a89b483732544da6cf235299183ad) - fix: keep a successful rename as the thread title when an overlapping later rename fails during title generation ([@samdickson22](https://github.com/samdickson22))
+
+- [#8123](https://github.com/assistant-ui/assistant-ui/pull/8123) [`b9a5d38`](https://github.com/assistant-ui/assistant-ui/commit/b9a5d38e6e8b675e60b57a99f7095dafa48e8f5e) - fix(core): do not run a frontend tool whose turn is cancelled, reloaded or replaced in the same tick its run settles ([@samdickson22](https://github.com/samdickson22))
+
+- [#7901](https://github.com/assistant-ui/assistant-ui/pull/7901) [`cb20f13`](https://github.com/assistant-ui/assistant-ui/commit/cb20f136ab7b4af55ac90ac86f09cca566a67b36) - fix: render MCP Apps through ToolUIDisplay on Parts, grouped, native, and ink ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8129](https://github.com/assistant-ui/assistant-ui/pull/8129) [`1d550c0`](https://github.com/assistant-ui/assistant-ui/commit/1d550c0b1c396222890958eb005302fe28f6dadd) - fix(core): a message appended right before a `sendCommand` call reaches the assistant transport server ahead of that command when no client tool is executing ([@samdickson22](https://github.com/samdickson22))
+
+- [#8132](https://github.com/assistant-ui/assistant-ui/pull/8132) [`9dfd037`](https://github.com/assistant-ui/assistant-ui/commit/9dfd03721d9643cb532d29fba69b3b24d8a464f0) - fix(core): `cancelRun()` ends an assistant transport run that failed while its `onError` callback is still pending, instead of leaving the run active until that callback settles, and reports the commands queued meanwhile to `onCancel` ([@samdickson22](https://github.com/samdickson22))
+
+- [#8147](https://github.com/assistant-ui/assistant-ui/pull/8147) [`ef87d70`](https://github.com/assistant-ui/assistant-ui/commit/ef87d704fa7372c22eacb1e78fba9f742d5af8fe) - fix(core): `cancelRun()` ends a resumed assistant transport run whose replay is waiting for a render that has not committed (for example while the UI around the runtime is suspended), instead of leaving the run active until that render commits ([@samdickson22](https://github.com/samdickson22))
+
+- [#8127](https://github.com/assistant-ui/assistant-ui/pull/8127) [`4f2ad45`](https://github.com/assistant-ui/assistant-ui/commit/4f2ad45fb5cc48cd4158f6041edf7967664a19c0) - fix(core): an assistant transport command sent right after `cancelRun()` is sent in a follow-up run instead of being reported to `onCancel`; `onCancel` reports only the work pending when the cancel happened, including for a run cancelled before it started or while its `onError` callback was running ([@samdickson22](https://github.com/samdickson22))
+
+- [#8330](https://github.com/assistant-ui/assistant-ui/pull/8330) [`dc72a0e`](https://github.com/assistant-ui/assistant-ui/commit/dc72a0ea9d9bce0cfb694ce8addc2815408b1b7f) - fix(core): keep a file whose removal failed while it was still uploading in the composer when the send fails. A still-uploading file removed from the message being sent now stays in `composer.submission.attachments`, with its last status, until `adapter.remove` answers, instead of disappearing once the uploads settle. A file in the message being sent is removed at most once while its removal is pending: removing it again does nothing, and `reset()` skips it. If that removal then fails, only the `removeAttachment()` caller sees the rejection. A removal that has already failed is still retried ([@samdickson22](https://github.com/samdickson22))
+
+- [#8124](https://github.com/assistant-ui/assistant-ui/pull/8124) [`2d37f82`](https://github.com/assistant-ui/assistant-ui/commit/2d37f82a1c7efaef5fef55e0897de9580fdf81e3) - fix(core): keep one live voice session when a thread subscriber or an external store's `onVoiceTranscript` reconnects voice mid-transition, and leave a user transcript or typed message from the replaced session out of the new one ([@samdickson22](https://github.com/samdickson22))
+
+- [#9148](https://github.com/assistant-ui/assistant-ui/pull/9148) [`2bc6e49`](https://github.com/assistant-ui/assistant-ui/commit/2bc6e4927f494c8023daa782d979124990a65f66) - refactor(core): move the voice session lifecycle out of BaseThreadRuntimeCore into its own controller ([@okisdev](https://github.com/okisdev))
+
+- [#8931](https://github.com/assistant-ui/assistant-ui/pull/8931) [`b257f49`](https://github.com/assistant-ui/assistant-ui/commit/b257f49e051a381031218325d9203c84b215e1ff) - fix: reset voice volume when a realtime session ends on its own ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`606bc2d`](https://github.com/assistant-ui/assistant-ui/commit/606bc2d5027ed16b1108bdee6d0908a34ff0d4cd), [`c5a635a`](https://github.com/assistant-ui/assistant-ui/commit/c5a635a92f5d8335888714e245b09641cbeae0bd), [`2252059`](https://github.com/assistant-ui/assistant-ui/commit/2252059cee96c0af37934c0e16867f2de56b327c), [`2abd1e0`](https://github.com/assistant-ui/assistant-ui/commit/2abd1e03ce2a328f16422e866b97d2ce395aa129), [`2ed2043`](https://github.com/assistant-ui/assistant-ui/commit/2ed20432b5b1a13a7a8671eddc86f4d8ebfd0f68), [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20), [`01ac83d`](https://github.com/assistant-ui/assistant-ui/commit/01ac83dff50e16959ebf16556db43464e7a82ea4), [`8c32dea`](https://github.com/assistant-ui/assistant-ui/commit/8c32deae521d9e518146a04fea3a03f8d0c7f349), [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5), [`ee517fb`](https://github.com/assistant-ui/assistant-ui/commit/ee517fbcef3e9b37f4653ef50825e519f4faee4c), [`081a239`](https://github.com/assistant-ui/assistant-ui/commit/081a23960a018742e6b48a0742728518a49050a5), [`542d871`](https://github.com/assistant-ui/assistant-ui/commit/542d8710c360676d6ba6d96bac5474386a46e6a2), [`e79cdd4`](https://github.com/assistant-ui/assistant-ui/commit/e79cdd4490ebd3909d5ce90ab08b156e05f9f722), [`41344cb`](https://github.com/assistant-ui/assistant-ui/commit/41344cba68efe187ec81c02006d50fc6bc833abb), [`e8620c1`](https://github.com/assistant-ui/assistant-ui/commit/e8620c1e8af8d8de20e9fa9919e64995559d9450), [`3b7b337`](https://github.com/assistant-ui/assistant-ui/commit/3b7b3379441cc883dbf15e6caa71adfdbd498472)]:
+  - assistant-stream@0.3.49
+
+## 0.3.24
+
+### Patch Changes
+
+- [#8260](https://github.com/assistant-ui/assistant-ui/pull/8260) [`c883dc0`](https://github.com/assistant-ui/assistant-ui/commit/c883dc0a7283e9c97e2887eb49178d5d8714c10b) - fix(core): release realtime voice listeners when a session ends on its own ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8796](https://github.com/assistant-ui/assistant-ui/pull/8796) [`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22) - a tool approval can ask several questions at once, or let one question take several answers: `display: "questions"` with `approval.questions`, answered through `respondToApproval({ answers })` keyed by question id, validated before it reaches `onRespondToToolApproval` and recorded on `approval.answers`; the AI SDK converter reads `questions` and `answers` from the approval descriptor when a response handler is set, and the cloud format keeps them ([@okisdev](https://github.com/okisdev))
+
+- [#8749](https://github.com/assistant-ui/assistant-ui/pull/8749) [`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f) - name local runtime initial messages from React's useId during a server render, so a Next.js cacheComponents prerender no longer reads Math.random; the browser keeps random ids ([@okisdev](https://github.com/okisdev))
+
+- [#8840](https://github.com/assistant-ui/assistant-ui/pull/8840) [`ed84b12`](https://github.com/assistant-ui/assistant-ui/commit/ed84b12cdb12cbe3c265ecf64def460f8f7fb6fe) - getSuggestionKeys moved to @assistant-ui/core/internal so React and Vue key suggestions the same way. ([@okisdev](https://github.com/okisdev))
+
+- [#7099](https://github.com/assistant-ui/assistant-ui/pull/7099) [`2bc1edb`](https://github.com/assistant-ui/assistant-ui/commit/2bc1edb8c84c56d8dbe296c7161ca3dcb5a972b7) - fix: traverse deeply nested tool-call messages without overflowing the stack ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7155](https://github.com/assistant-ui/assistant-ui/pull/7155) [`5484ca4`](https://github.com/assistant-ui/assistant-ui/commit/5484ca42d6bb6a0202997de98da61b59b4888975) - feat: support message-scoped converter metadata invalidation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8798](https://github.com/assistant-ui/assistant-ui/pull/8798) [`ec48da2`](https://github.com/assistant-ui/assistant-ui/commit/ec48da206fc4d9e7c991a06d91f7c224aa1e3089) - a thread can open on its latest page and load older messages on demand: the external store adapter takes `hasEarlier` and `onLoadEarlier`, the runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()` with one load in flight at a time, `ThreadPrimitive.LoadEarlier` loads the next page, `ThreadPrimitive.Viewport` keeps the visible messages in place when it lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` pages through the runtime when it gets no `history` prop ([@okisdev](https://github.com/okisdev))
+
+- [#8110](https://github.com/assistant-ui/assistant-ui/pull/8110) [`46133cd`](https://github.com/assistant-ui/assistant-ui/commit/46133cdbc759c711b0d217a1aa70e65224c78386) - fix(core): keep the selected branch when a local run continues an existing answer ([@samdickson22](https://github.com/samdickson22))
+
+- [#7622](https://github.com/assistant-ui/assistant-ui/pull/7622) [`3effee5`](https://github.com/assistant-ui/assistant-ui/commit/3effee567af36c5aaac45c4fb4373da3f2516811) - fix: disable message speech actions when no speech adapter is configured ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8794](https://github.com/assistant-ui/assistant-ui/pull/8794) [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e) - reasoning parts carry an optional `timing` with their start and end times, typed as the new `MessagePartTiming` that `ToolCallTiming` now aliases, so a host can show how long its agent thought; the assistant-stream accumulator stamps it while reasoning streams, joined reasoning parts and the cloud format keep it, and a `MessagePrimitive.GroupedParts` group reports the span of its timed parts as `timing` ([@okisdev](https://github.com/okisdev))
+
+- [#7801](https://github.com/assistant-ui/assistant-ui/pull/7801) [`16439da`](https://github.com/assistant-ui/assistant-ui/commit/16439da6329f765f62e9977da5a3b105a7a3c0ac) - fix: preserve OpenCode interactions with prototype-named identifiers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8795](https://github.com/assistant-ui/assistant-ui/pull/8795) [`1f77d04`](https://github.com/assistant-ui/assistant-ui/commit/1f77d04435f71476172a6d1ffca871da1a0c933a) - the composer trigger popover primitives and their adapter, item, category and directive formatter types get stable names; the `Unstable_` names stay as deprecated aliases, and the trigger popover hooks stay unstable ([@okisdev](https://github.com/okisdev))
+
+- [#8799](https://github.com/assistant-ui/assistant-ui/pull/8799) [`aecb5eb`](https://github.com/assistant-ui/assistant-ui/commit/aecb5eb749e915920682bdcffddc54668f911aab) - a long thread can be virtualized per part instead of per message: `createThreadRowsSelector` flattens the thread for `useAuiState` into stable rows (a user message, each top-level part group of an assistant message, a turn end) that keep their identity while tokens stream, and `ThreadPrimitive.Row` renders one row with only the scopes it needs; a turn-end row carries the turn's start time and, once the turn completes, the latest end its messages record, so a turn footer can show how long the agent worked ([@okisdev](https://github.com/okisdev))
+
+- [#8755](https://github.com/assistant-ui/assistant-ui/pull/8755) [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956) - a server rendered local runtime now names id-less initial messages and tool calls the same way while the browser hydrates, so data-message-id and selection quotes match the client's messages ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e)]:
+  - assistant-stream@0.3.48
+
 ## 0.3.23
 
 ### Patch Changes

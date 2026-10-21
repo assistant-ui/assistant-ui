@@ -1,5 +1,5 @@
 import { auth, type OAuthDiscoveryState } from "@modelcontextprotocol/client";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPPersistedAuthState } from "./types";
 import {
@@ -113,6 +113,10 @@ const rejectFetch = async () => {
   throw new Error("Unexpected OAuth request");
 };
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("createOAuthProvider callback state", () => {
   it("persists the generated state with the PKCE verifier", async () => {
     const { storage, getState } = createStorage();
@@ -127,6 +131,31 @@ describe("createOAuthProvider callback state", () => {
       codeVerifier: "pkce-verifier",
       state,
     });
+  });
+
+  it("uses secure random bytes when randomUUID is unavailable", async () => {
+    const getRandomValues = vi.fn((bytes: Uint8Array) => {
+      bytes.fill(0xab);
+      return bytes;
+    });
+    vi.stubGlobal("crypto", { getRandomValues });
+    const { storage } = createStorage();
+    const provider = createStaticProvider(storage);
+
+    expect(provider.state?.()).toBe(
+      "aui-mcp:ZG9jcw.q6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6s",
+    );
+    expect(getRandomValues).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed when secure randomness is unavailable", () => {
+    vi.stubGlobal("crypto", undefined);
+    const { storage } = createStorage();
+    const provider = createStaticProvider(storage);
+
+    expect(() => provider.state?.()).toThrow(
+      "Web Crypto is required to start MCP OAuth",
+    );
   });
 
   it("consumes callback state when tokens are saved", async () => {

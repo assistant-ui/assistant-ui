@@ -5,6 +5,7 @@ import {
 } from "../core/ResourceFiber";
 import { scheduleNotify, UpdateScheduler } from "../core/scheduler";
 import { isDevelopment } from "../core/helpers/env";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 import {
   commitRoot,
   createResourceFiberRoot,
@@ -72,14 +73,15 @@ const createInstance = <R>(
   render: () => R,
   devStrictMode: "root" | "child" | null,
   forceHostRender: (update: (count: number) => number) => void,
+  onError?: (error: unknown) => void,
 ): Instance<R> => {
-  const scheduler = new UpdateScheduler(() => inst.handleUpdate());
+  const scheduler = new UpdateScheduler(() => inst.handleUpdate(), onError);
   const queue: Instance<R>["queue"] = [];
   const root = createResourceFiberRoot((evaluate, apply) => {
     if (queue.length === 0 && !evaluate()) return;
     queue.push(apply);
     scheduler.markDirty();
-  });
+  }, onError);
   const fiber = createResourceFiber(
     useHostRoot<R>,
     root,
@@ -119,7 +121,7 @@ const createInstance = <R>(
       )
         return;
       inst.value = output;
-      scheduleNotify(() => notifySubscribers(inst.subscribers));
+      scheduleNotify(() => notifySubscribers(inst.subscribers), onError);
     },
 
     finishFlush: (output, version, drained) => {
@@ -174,6 +176,8 @@ const createInstance = <R>(
 };
 
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
+  const isReactHost = peekResourceFiber() === null;
+  const onError = peekResourceFiber()?.root.onError;
   const [, forceHostRender] = useState(0);
   const getDevStrictMode = useDevStrictMode();
 
@@ -182,6 +186,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     render,
     getDevStrictMode(),
     forceHostRender,
+    onError,
   ));
 
   const context = cloneCurrentTapContext();
@@ -222,6 +227,9 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   useHostLifecycle(inst.fiber);
 
   useEffect(() => {
+    if (isDevelopment && isReactHost) {
+      inst.fiber.devStrictMode ??= getDevStrictMode();
+    }
     if (renderState.processed) {
       if (!inst.fiber.isMounted) {
         commitResourceFiber(inst.fiber);

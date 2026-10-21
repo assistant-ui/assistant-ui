@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ToolCallReaderImpl } from "./ToolCallReader";
 
-const arrayLengthReads = vi.hoisted(() => vi.fn());
+const fieldStateReads = vi.hoisted(() => vi.fn());
 
 vi.mock(
   "../../utils/json/parse-partial-json-object",
@@ -12,22 +12,11 @@ vi.mock(
       >();
     return {
       ...original,
-      parsePartialJsonObject: (
-        ...args: Parameters<typeof original.parsePartialJsonObject>
+      getPartialJsonObjectFieldState: (
+        ...args: Parameters<typeof original.getPartialJsonObjectFieldState>
       ) => {
-        const parsed = original.parsePartialJsonObject(...args);
-        if (parsed && Array.isArray(parsed.items)) {
-          return {
-            ...parsed,
-            items: new Proxy(parsed.items, {
-              get(target, key, receiver) {
-                if (key === "length") arrayLengthReads();
-                return Reflect.get(target, key, receiver);
-              },
-            }),
-          };
-        }
-        return parsed;
+        fieldStateReads();
+        return original.getPartialJsonObjectFieldState(...args);
       },
     };
   },
@@ -53,8 +42,8 @@ describe("ToolCallArgsReader.forEach", () => {
       }
       await reader.finishArgsText();
 
-      // One bound check for the empty array, then one to enter and one to exit per completed item.
-      expect(arrayLengthReads).toHaveBeenCalledTimes(2 * count + 1);
+      // One array-state check for the empty array, then one item and one array check per completed item.
+      expect(fieldStateReads).toHaveBeenCalledTimes(2 * count + 1);
       expect(await collect(values)).toEqual(
         Array.from({ length: count }, (_, index) => index),
       );

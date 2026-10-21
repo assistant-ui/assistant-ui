@@ -166,6 +166,7 @@ A registered provider reaches your backend the same way a manual `ModelSelector`
 export async function POST(req: Request) {
   const { messages, config, system, callSettings } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openai(config?.modelName ?? "gpt-5.6-luna"),
     providerOptions: { openai: { reasoningEffort: "none" } },
     temperature: callSettings?.temperature,

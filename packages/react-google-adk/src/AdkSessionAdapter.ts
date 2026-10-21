@@ -5,12 +5,12 @@ import type {
   RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { normalizeAdkPart } from "./normalizeAdkPart";
 import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
-import { raceWithAbortSignal } from "./raceWithAbortSignal";
 
 export type AdkSessionAdapterOptions = {
   /**
@@ -44,7 +44,8 @@ export type AdkArtifactData = {
 };
 
 type AdkSessionAdapterResult = {
-  adapter: RemoteThreadListAdapter;
+  adapter: RemoteThreadListAdapter &
+    Pick<Required<RemoteThreadListAdapter>, "unarchive">;
   load: (
     sessionId: string,
     options?: { signal?: AbortSignal | undefined },
@@ -241,7 +242,7 @@ export function createAdkSessionAdapter(
     return options.headers;
   };
 
-  const adapter: RemoteThreadListAdapter = {
+  const adapter: AdkSessionAdapterResult["adapter"] = {
     async list(): Promise<RemoteThreadListResponse> {
       const headers = await getHeaders();
       const res = await fetch(baseUrl, { headers });

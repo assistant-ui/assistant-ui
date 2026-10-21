@@ -6,7 +6,7 @@ import { DropdownMenu, Popover, Slot } from "radix-ui";
 
 import { Primitive } from "radix-ui/internal";
 
-import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
+import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, MouseEvent, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
 
 import { TextareaAutosizeProps } from "react-textarea-autosize";
 
@@ -64,7 +64,7 @@ declare namespace ActionBarPrimitiveCopy {
 }
 
 declare const ActionBarPrimitiveCopy: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
@@ -77,7 +77,7 @@ declare namespace ActionBarPrimitiveEdit {
 }
 
 declare const ActionBarPrimitiveEdit: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -88,7 +88,7 @@ declare namespace ActionBarPrimitiveExportMarkdown {
 }
 
 declare const ActionBarPrimitiveExportMarkdown: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
@@ -102,7 +102,7 @@ declare namespace ActionBarPrimitiveFeedbackNegative {
 }
 
 declare const ActionBarPrimitiveFeedbackNegative: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -113,7 +113,7 @@ declare namespace ActionBarPrimitiveFeedbackPositive {
 }
 
 declare const ActionBarPrimitiveFeedbackPositive: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -124,7 +124,7 @@ declare namespace ActionBarPrimitiveReload {
 }
 
 declare const ActionBarPrimitiveReload: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -139,7 +139,7 @@ declare namespace ActionBarPrimitiveRoot {
 }
 
 declare const ActionBarPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
@@ -154,7 +154,7 @@ declare namespace ActionBarPrimitiveSpeak {
 }
 
 declare const ActionBarPrimitiveSpeak: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -165,7 +165,7 @@ declare namespace ActionBarPrimitiveStopSpeaking {
 }
 
 declare const ActionBarPrimitiveStopSpeaking: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -252,6 +252,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -269,6 +270,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -277,6 +279,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -621,6 +624,7 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
 declare class AssistantFrameHost implements ModelContextProvider {
   #private;
   constructor(iframeWindow: Window, targetOrigin?: string);
+  frameLoaded(): void;
   getModelContext(): ModelContext$1;
   subscribe(callback: () => void): Unsubscribe;
   dispose(): void;
@@ -747,11 +751,13 @@ type AssistantStreamChunk = {
   readonly part: PartInit;
 } | {
   readonly type: "part-finish";
+  readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
+  readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
@@ -855,9 +861,12 @@ type AssistantTransportOptions$1<T> = {
   api: string;
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
+  canResume?: boolean | undefined;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
   converter: AssistantTransportStateConverter$1<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
@@ -940,7 +949,7 @@ declare namespace AttachmentPrimitiveRemove {
 }
 
 declare const AttachmentPrimitiveRemove: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -951,7 +960,7 @@ declare namespace AttachmentPrimitiveRoot {
 }
 
 declare const AttachmentPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -962,7 +971,7 @@ declare namespace AttachmentPrimitiveThumb {
 }
 
 declare const AttachmentPrimitiveThumb: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -1128,6 +1137,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
   get isEmpty(): boolean;
+  protected get sendableAttachments(): Attachment[];
   get text(): string;
   get role(): "assistant" | "system" | "user";
   get runConfig(): RunConfig;
@@ -1165,6 +1175,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;
+  protected get cleanupOwner(): BaseComposerRuntimeCore;
   get dictation(): DictationState | undefined;
   startDictation(): void;
   stopDictation(): void;
@@ -1227,7 +1238,7 @@ declare namespace BranchPickerPrimitiveNext {
 }
 
 declare const BranchPickerPrimitiveNext: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1244,7 +1255,7 @@ declare namespace BranchPickerPrimitivePrevious {
 }
 
 declare const BranchPickerPrimitivePrevious: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1257,7 +1268,7 @@ declare namespace BranchPickerPrimitiveRoot {
 }
 
 declare const BranchPickerPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
@@ -1302,7 +1313,7 @@ declare namespace ChainOfThoughtPrimitiveAccordionTrigger {
 }
 
 declare const ChainOfThoughtPrimitiveAccordionTrigger: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1327,7 +1338,7 @@ declare namespace ChainOfThoughtPrimitiveRoot {
 }
 
 declare const ChainOfThoughtPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -1456,6 +1467,7 @@ type CloudThread = {
 
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
+  scopeId?: string | undefined;
   runtimeHook: () => AssistantRuntime;
   create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
@@ -1463,6 +1475,7 @@ type CloudThreadListAdapter = {
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
@@ -1529,7 +1542,7 @@ declare namespace ComposerPrimitiveAddAttachment {
 }
 
 declare const ComposerPrimitiveAddAttachment: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
@@ -1580,7 +1593,7 @@ declare namespace ComposerPrimitiveCancel {
 }
 
 declare const ComposerPrimitiveCancel: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1591,7 +1604,7 @@ declare namespace ComposerPrimitiveDictate {
 }
 
 declare const ComposerPrimitiveDictate: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1602,7 +1615,7 @@ declare namespace ComposerPrimitiveDictationTranscript {
 }
 
 declare const ComposerPrimitiveDictationTranscript: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
@@ -1658,7 +1671,7 @@ declare namespace ComposerPrimitiveQuote {
 }
 
 declare const ComposerPrimitiveQuote: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -1669,7 +1682,7 @@ declare namespace ComposerPrimitiveQuoteDismiss {
 }
 
 declare const ComposerPrimitiveQuoteDismiss: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1680,10 +1693,21 @@ declare namespace ComposerPrimitiveQuoteText {
 }
 
 declare const ComposerPrimitiveQuoteText: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
+
+declare namespace ComposerPrimitiveResume {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useComposerResume>;
+}
+
+declare const ComposerPrimitiveResume: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean | undefined;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveRoot {
   type Element = ComponentRef<typeof Primitive$1.form>;
@@ -1693,7 +1717,7 @@ declare namespace ComposerPrimitiveRoot {
 }
 
 declare const ComposerPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLFormElement> & import("react").FormHTMLAttributes<HTMLFormElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLFormElement>, "ref"> & {
@@ -1706,7 +1730,7 @@ declare namespace ComposerPrimitiveSend {
 }
 
 declare const ComposerPrimitiveSend: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1717,19 +1741,19 @@ declare namespace ComposerPrimitiveStopDictation {
 }
 
 declare const ComposerPrimitiveStopDictation: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare const ComposerPrimitiveTriggerPopover: import("react").ForwardRefExoticComponent<Omit<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref">, "onSelect"> & {
   readonly char: string;
   readonly matcher?: TriggerMatcher | undefined;
-  readonly adapter?: Unstable_TriggerAdapter | undefined;
+  readonly adapter?: TriggerAdapter | undefined;
   readonly isLoading?: boolean | undefined;
 } & import("react").RefAttributes<HTMLDivElement>> & {
   Directive: import("react").FC<ComposerPrimitiveTriggerPopoverDirective.Props>;
@@ -1738,8 +1762,8 @@ declare const ComposerPrimitiveTriggerPopover: import("react").ForwardRefExoticC
 
 declare namespace ComposerPrimitiveTriggerPopoverAction {
   type Props = {
-    readonly formatter?: Unstable_DirectiveFormatter | undefined;
-    readonly onExecute: (item: Unstable_TriggerItem) => void;
+    readonly formatter?: DirectiveFormatter | undefined;
+    readonly onExecute: (item: TriggerItem) => void;
     readonly removeOnExecute?: boolean | undefined;
   };
 }
@@ -1752,7 +1776,7 @@ declare namespace ComposerPrimitiveTriggerPopoverBack {
 }
 
 declare const ComposerPrimitiveTriggerPopoverBack: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -1760,16 +1784,16 @@ declare const ComposerPrimitiveTriggerPopoverBack: import("react").ForwardRefExo
 declare namespace ComposerPrimitiveTriggerPopoverCategories {
   type Element = ComponentRef<typeof Primitive$1.div>;
   type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.div>, "children"> & {
-    children: (categories: readonly Unstable_TriggerCategory[]) => ReactNode;
+    children: (categories: readonly TriggerCategory[]) => ReactNode;
   };
 }
 
 declare const ComposerPrimitiveTriggerPopoverCategories: import("react").ForwardRefExoticComponent<Omit<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref">, "children"> & {
-  children: (categories: readonly Unstable_TriggerCategory[]) => ReactNode;
+  children: (categories: readonly TriggerCategory[]) => ReactNode;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverCategoryItem {
@@ -1780,7 +1804,7 @@ declare namespace ComposerPrimitiveTriggerPopoverCategoryItem {
 }
 
 declare const ComposerPrimitiveTriggerPopoverCategoryItem: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
@@ -1789,8 +1813,8 @@ declare const ComposerPrimitiveTriggerPopoverCategoryItem: import("react").Forwa
 
 declare namespace ComposerPrimitiveTriggerPopoverDirective {
   type Props = {
-    readonly formatter?: Unstable_DirectiveFormatter | undefined;
-    readonly onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+    readonly formatter?: DirectiveFormatter | undefined;
+    readonly onInserted?: ((item: TriggerItem) => void) | undefined;
   };
 }
 
@@ -1799,33 +1823,33 @@ declare const ComposerPrimitiveTriggerPopoverDirective: FC<ComposerPrimitiveTrig
 declare namespace ComposerPrimitiveTriggerPopoverItem {
   type Element = ComponentRef<typeof Primitive$1.button>;
   type Props = ComponentPropsWithoutRef<typeof Primitive$1.button> & {
-    item: Unstable_TriggerItem;
+    item: TriggerItem;
     index?: number | undefined;
   };
 }
 
 declare const ComposerPrimitiveTriggerPopoverItem: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
-  item: Unstable_TriggerItem;
+  item: TriggerItem;
   index?: number | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverItems {
   type Element = ComponentRef<typeof Primitive$1.div>;
   type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.div>, "children"> & {
-    children: (items: readonly Unstable_TriggerItem[]) => ReactNode;
+    children: (items: readonly TriggerItem[]) => ReactNode;
   };
 }
 
 declare const ComposerPrimitiveTriggerPopoverItems: import("react").ForwardRefExoticComponent<Omit<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref">, "children"> & {
-  children: (items: readonly Unstable_TriggerItem[]) => ReactNode;
+  children: (items: readonly TriggerItem[]) => ReactNode;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverRoot {
@@ -1991,6 +2015,7 @@ declare class CompositeAttachmentAdapter implements AttachmentAdapter {
 
 declare class CompositeContextProvider implements ModelContextProvider {
   #private;
+  constructor(getMergeOptions?: () => ModelContextOptions);
   getModelContext(): ModelContext$1;
   registerModelContextProvider(provider: ModelContextProvider): () => void;
   notifySubscribers(): void;
@@ -2028,6 +2053,7 @@ type CreateStartRunConfig = {
 };
 
 type CreateSuggestionAdapterOptions = {
+  key?: string | number | symbol | undefined;
   complete: (options: {
     prompt: string;
     signal?: AbortSignal;
@@ -2067,6 +2093,8 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   #private;
   get canCancel(): boolean;
   get canSend(): boolean;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
+  startDictation(): void;
   cancel(): void;
   protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
@@ -2140,6 +2168,21 @@ type DictationState = {
   readonly status: DictationAdapter.Status;
   readonly transcript?: string;
   readonly inputDisabled?: boolean;
+};
+
+type DirectiveFormatter = {
+  serialize(item: TriggerItem): string;
+  parse(text: string): readonly DirectiveSegment[];
+};
+
+type DirectiveSegment = {
+  readonly kind: "text";
+  readonly text: string;
+} | {
+  readonly kind: "mention";
+  readonly type: string;
+  readonly label: string;
+  readonly id: string;
 };
 
 declare class EditComposerAttachmentRuntimeImpl extends ComposerAttachmentRuntime<"edit-composer"> {
@@ -2220,7 +2263,7 @@ declare namespace ErrorPrimitiveMessage {
 }
 
 declare const ErrorPrimitiveMessage: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
@@ -2231,7 +2274,7 @@ declare namespace ErrorPrimitiveRoot {
 }
 
 declare const ErrorPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -2303,7 +2346,11 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
+  activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
@@ -2401,6 +2448,8 @@ type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   isSendDisabled?: boolean;
@@ -2409,7 +2458,8 @@ type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
-  onResume?: (() => void) | undefined;
+  onResume?: ((config: CreateResumeRunConfig) => void | Promise<void>) | undefined;
+  canResume?: boolean | undefined;
   onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -2462,11 +2512,13 @@ type FileMessagePartComponent = ComponentType<FileMessagePartProps>;
 
 type FileMessagePartProps = MessagePartState & FileMessagePart;
 
-type FrameMessage = {
+type FrameMessage = ({
   type: "model-context-request";
+  requestId?: string;
 } | {
   type: "model-context-update";
   context: SerializedModelContext;
+  requestId?: string;
 } | {
   type: "tool-call";
   id: string;
@@ -2480,9 +2532,13 @@ type FrameMessage = {
   id: string;
   result?: unknown;
   error?: string;
+} | {
+  type: "provider-disposed";
+}) & {
+  documentId?: string;
 };
 
-type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-cancel" | "tool-result";
+type FrameMessageType = "model-context-request" | "model-context-update" | "provider-disposed" | "tool-call" | "tool-cancel" | "tool-result";
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
@@ -2613,13 +2669,21 @@ declare const InMemoryThreadList: Resource<ClientOutput<"threads">, [
 ]>;
 
 declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
+  #private;
   list(): Promise<RemoteThreadListResponse>;
   rename(): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom(): Promise<void>;
+  updateCustom(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(): Promise<void>;
+  archive(remoteId: string): Promise<void>;
   unarchive(): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
   delete(): Promise<void>;
-  initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
+  delete(remoteId: string): Promise<void>;
+  initialize(threadId: string, options?: {
+    custom?: Record<string, unknown> | undefined;
+  }): Promise<RemoteThreadInitializeResponse>;
   generateTitle(): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 }
@@ -2661,6 +2725,7 @@ type LanguageModelV1CallSettings = {
 
 type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -2718,7 +2783,7 @@ type McpAppBridgeHandlers = {
     width?: number;
     height?: number;
   }) => void;
-  onInitialized?: () => void;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestTeardown?: (params: unknown) => void;
   onLog?: (params: unknown) => void;
   onError?: (error: Error) => void;
@@ -2736,6 +2801,19 @@ type McpAppHostContext = {
 type McpAppHostInfo = {
   name: string;
   version: string;
+};
+
+type McpAppInitializeParams = {
+  appInfo?: {
+    name: string;
+    version: string;
+    [k: string]: unknown;
+  };
+  appCapabilities?: {
+    availableDisplayModes?: McpAppDisplayMode[];
+    [k: string]: unknown;
+  };
+  protocolVersion?: string;
 };
 
 type McpAppMetadata = {
@@ -2778,6 +2856,7 @@ type McpAppResourceCSP = {
   connectDomains?: string[];
   resourceDomains?: string[];
   frameDomains?: string[];
+  baseUriDomains?: string[];
   [k: string]: unknown;
 };
 
@@ -2942,7 +3021,7 @@ declare namespace MessagePartPrimitiveImage {
 }
 
 declare const MessagePartPrimitiveImage: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLImageElement> & import("react").ImgHTMLAttributes<HTMLImageElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLImageElement>, "ref"> & import("react").RefAttributes<HTMLImageElement>>;
@@ -2962,7 +3041,7 @@ declare namespace MessagePartPrimitiveText {
 }
 
 declare const MessagePartPrimitiveText: import("react").ForwardRefExoticComponent<Omit<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref">, "asChild" | "children"> & {
@@ -3028,6 +3107,11 @@ type MessagePartStreamStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
 declare namespace MessagePrimitiveAttachmentByIndex {
   type Props = {
     index: number;
@@ -3078,6 +3162,7 @@ declare namespace MessagePrimitiveGroupedParts {
     readonly status: MessagePartStatus | ToolCallMessagePartStatus;
     readonly counts: GroupCounts;
     readonly indices: readonly number[];
+    readonly timing?: MessagePartTiming;
   };
   type IndicatorPart = {
     readonly type: "indicator";
@@ -3195,7 +3280,7 @@ declare namespace MessagePrimitiveRoot {
 }
 
 declare const MessagePrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -3428,6 +3513,7 @@ type MessagesComponentConfig = {
 };
 
 declare const ModelContext: Resource<ClientOutput<"modelContext">, [
+  options?: ModelContextOptions | undefined
 ]>;
 
 type ModelContext$1 = {
@@ -3437,6 +3523,11 @@ type ModelContext$1 = {
   callSettings?: LanguageModelV1CallSettings | undefined;
   config?: LanguageModelConfig | undefined;
   unstable_composerMetadata?: Record<string, unknown> | undefined;
+};
+
+type ModelContextOptions = {
+  maxSystemLength?: number | undefined;
+  mergeSystem?: ((parts: readonly SystemPart[]) => string) | undefined;
 };
 
 type ModelContextProvider = {
@@ -3472,6 +3563,20 @@ type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+declare class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
+  #private;
+  constructor(options: OpenAIRealtimeVoiceAdapterOptions);
+  connect(options: {
+    abortSignal?: AbortSignal;
+  }): RealtimeVoiceAdapter.Session;
+}
+
+type OpenAIRealtimeVoiceAdapterOptions = {
+  exchangeSdp: (sdp: string, options: {
+    signal: AbortSignal;
+  }) => Promise<string>;
+};
+
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
   [K in TKey]?: undefined;
 } : {
@@ -3496,10 +3601,12 @@ declare const PartByIndexProvider: FC<PropsWithChildren<{
 
 type PartInit = {
   readonly type: "text";
+  readonly providerMetadata?: PartProviderMetadata$1;
   readonly parentId?: string;
 } | {
   readonly type: "reasoning";
   readonly unstable_summary?: string;
+  readonly providerMetadata?: PartProviderMetadata$1;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -3552,6 +3659,10 @@ type PartProviderMetadata = {
   readonly [providerName: string]: ReadonlyJSONObject;
 };
 
+type PartProviderMetadata$1 = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 };
@@ -3587,87 +3698,87 @@ type PendingAttachmentStatus = {
 
 declare const Primitive$1: {
   a: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLAnchorElement> & import("react").AnchorHTMLAttributes<HTMLAnchorElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLAnchorElement>>;
   button: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLButtonElement>>;
   div: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLDivElement>>;
   form: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLFormElement> & import("react").FormHTMLAttributes<HTMLFormElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLFormElement>>;
   h2: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLHeadingElement> & import("react").HTMLAttributes<HTMLHeadingElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLHeadingElement>>;
   h3: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLHeadingElement> & import("react").HTMLAttributes<HTMLHeadingElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLHeadingElement>>;
   img: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLImageElement> & import("react").ImgHTMLAttributes<HTMLImageElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLImageElement>>;
   input: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLInputElement> & import("react").InputHTMLAttributes<HTMLInputElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLInputElement>>;
   label: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLLabelElement> & import("react").LabelHTMLAttributes<HTMLLabelElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLLabelElement>>;
   li: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLLIElement> & import("react").LiHTMLAttributes<HTMLLIElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLLIElement>>;
   nav: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLElement> & import("react").HTMLAttributes<HTMLElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLElement>>;
   ol: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLOListElement> & import("react").OlHTMLAttributes<HTMLOListElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLOListElement>>;
   p: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLParagraphElement> & import("react").HTMLAttributes<HTMLParagraphElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLParagraphElement>>;
   select: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSelectElement> & import("react").SelectHTMLAttributes<HTMLSelectElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLSelectElement>>;
   span: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLSpanElement>>;
   svg: ForwardRefExoticComponent<Omit<import("react").SVGProps<SVGSVGElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<SVGSVGElement>>;
   ul: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLUListElement> & import("react").HTMLAttributes<HTMLUListElement> & {
-    asChild?: boolean;
+    asChild?: boolean | undefined;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLUListElement>>;
@@ -3724,7 +3835,7 @@ declare namespace QueueItemPrimitiveRemove {
 }
 
 declare const QueueItemPrimitiveRemove: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -3735,7 +3846,7 @@ declare namespace QueueItemPrimitiveSteer {
 }
 
 declare const QueueItemPrimitiveSteer: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -3746,7 +3857,7 @@ declare namespace QueueItemPrimitiveText {
 }
 
 declare const QueueItemPrimitiveText: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
@@ -3839,6 +3950,7 @@ type ReasoningMessagePart = {
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -3872,9 +3984,11 @@ type RemoteThreadListAdapter = {
   rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom?(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(remoteId: string): Promise<void>;
-  unarchive(remoteId: string): Promise<void>;
+  unarchive?(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
-  initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
+  initialize(threadId: string, options?: {
+    custom?: Record<string, unknown> | undefined;
+  }): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
@@ -3903,6 +4017,11 @@ type RemoteThreadListProps = {
   onSwitchToNewThread?: (() => void) | undefined;
   onDelete?: ((threadId: string) => void) | undefined;
   backgroundThreads?: boolean | undefined;
+  __internal_initialThreadIdSeed?: string | undefined;
+  __internal_ensureThread?: ((item: ThreadListItemCoreState) => Promise<void>) | undefined;
+  __internal_isThreadAttached?: ((threadId: string) => boolean) | undefined;
+  __internal_preserveDraftOnAdapterChange?: boolean | undefined;
+  __internal_reopenControlledThreadOnAdapterChange?: boolean | undefined;
 };
 
 type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
@@ -3933,7 +4052,7 @@ type RequireAtLeastOne$1<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<ke
   [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
 }[Keys];
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -3951,6 +4070,7 @@ type RespondToToolApprovalOptions = {
   approved: boolean;
   optionId?: string;
   text?: string;
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -4038,7 +4158,7 @@ type SdkIdentity = {
   version: string;
 };
 
-type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
+type SelectItemOverride = (item: Unstable_TriggerItem, onInserted: () => void) => boolean;
 
 declare namespace SelectionToolbarPrimitiveQuote {
   type Element = ComponentRef<typeof Primitive$1.button>;
@@ -4046,7 +4166,7 @@ declare namespace SelectionToolbarPrimitiveQuote {
 }
 
 declare const SelectionToolbarPrimitiveQuote: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4057,7 +4177,7 @@ declare namespace SelectionToolbarPrimitiveRoot {
 }
 
 declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -4255,6 +4375,7 @@ type SubscribableWithState<TState, TPath> = Subscribable & {
 };
 
 type SuggestionAdapter = {
+  key?: string | number | symbol | undefined;
   generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
 };
 
@@ -4281,7 +4402,7 @@ declare namespace SuggestionPrimitiveDescription {
 }
 
 declare const SuggestionPrimitiveDescription: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
@@ -4292,7 +4413,7 @@ declare namespace SuggestionPrimitiveTitle {
 }
 
 declare const SuggestionPrimitiveTitle: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
@@ -4303,7 +4424,7 @@ declare namespace SuggestionPrimitiveTrigger {
 }
 
 declare const SuggestionPrimitiveTrigger: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
@@ -4323,6 +4444,11 @@ declare const Suggestions: Resource<ClientOutput<"suggestions">, [
 
 type SuggestionsComponentConfig = {
   Suggestion: ComponentType;
+};
+
+type SystemPart = {
+  system: string;
+  priority: number;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
@@ -4373,6 +4499,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -4439,6 +4566,7 @@ type ThreadData$1 = {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
@@ -4540,7 +4668,7 @@ declare namespace ThreadListItemPrimitiveArchive {
 }
 
 declare const ThreadListItemPrimitiveArchive: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4551,7 +4679,7 @@ declare namespace ThreadListItemPrimitiveDelete {
 }
 
 declare const ThreadListItemPrimitiveDelete: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4562,7 +4690,7 @@ declare namespace ThreadListItemPrimitiveRoot {
 }
 
 declare const ThreadListItemPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -4581,7 +4709,7 @@ declare namespace ThreadListItemPrimitiveTrigger {
 }
 
 declare const ThreadListItemPrimitiveTrigger: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4592,7 +4720,7 @@ declare namespace ThreadListItemPrimitiveUnarchive {
 }
 
 declare const ThreadListItemPrimitiveUnarchive: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4729,7 +4857,7 @@ declare namespace ThreadListPrimitiveLoadMore {
 }
 
 declare const ThreadListPrimitiveLoadMore: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4740,7 +4868,7 @@ declare namespace ThreadListPrimitiveNew {
 }
 
 declare const ThreadListPrimitiveNew: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4751,7 +4879,7 @@ declare namespace ThreadListPrimitiveRoot {
 }
 
 declare const ThreadListPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
@@ -4777,8 +4905,13 @@ type ThreadListRuntime = {
 };
 
 type ThreadListRuntimeCore = {
+  readonly canUnarchive?: boolean;
   readonly isLoading: boolean;
   readonly loadError?: unknown;
+  readonly switchError?: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
@@ -4846,12 +4979,17 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
 }
 
 type ThreadListState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
@@ -4878,6 +5016,7 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
+    readonly runId?: string | undefined;
     readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
@@ -4929,6 +5068,17 @@ declare namespace ThreadPrimitiveIf {
 
 declare const ThreadPrimitiveIf: FC<ThreadPrimitiveIf.Props>;
 
+declare namespace ThreadPrimitiveLoadEarlier {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useThreadLoadEarlier>;
+}
+
+declare const ThreadPrimitiveLoadEarlier: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean | undefined;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
 declare namespace ThreadPrimitiveMessageByIndex {
   type Props = {
     index: number;
@@ -4958,10 +5108,39 @@ declare namespace ThreadPrimitiveRoot {
 }
 
 declare const ThreadPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+
+declare namespace ThreadPrimitiveRow {
+  type RenderInfo = {
+    readonly type: "message";
+    readonly row: Extract<ThreadRow, {
+      type: "message";
+    }>;
+    readonly message: MessageState;
+  } | {
+    readonly type: "part";
+    readonly row: Extract<ThreadRow, {
+      type: "part";
+    }>;
+    readonly part: MessagePrimitiveGroupedParts.GroupPart | EnrichedPartState;
+    readonly children: ReactNode;
+  } | {
+    readonly type: "turn-end";
+    readonly row: Extract<ThreadRow, {
+      type: "turn-end";
+    }>;
+    readonly message: MessageState;
+  };
+  type Props = {
+    readonly row: ThreadRow;
+    readonly children: (info: RenderInfo) => ReactNode;
+  };
+}
+
+declare const ThreadPrimitiveRow: import("react").NamedExoticComponent<ThreadPrimitiveRow.Props>;
 
 declare namespace ThreadPrimitiveScrollToBottom {
   type Element = ActionButtonElement;
@@ -4969,7 +5148,7 @@ declare namespace ThreadPrimitiveScrollToBottom {
 }
 
 declare const ThreadPrimitiveScrollToBottom: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & useThreadScrollToBottom.Options & import("react").RefAttributes<HTMLButtonElement>>;
@@ -4980,7 +5159,7 @@ declare namespace ThreadPrimitiveSuggestion {
 }
 
 declare const ThreadPrimitiveSuggestion: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
@@ -5039,7 +5218,7 @@ declare namespace ThreadPrimitiveViewport {
 }
 
 declare const ThreadPrimitiveViewport: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
@@ -5060,12 +5239,37 @@ declare namespace ThreadPrimitiveViewportFooter {
 }
 
 declare const ThreadPrimitiveViewportFooter: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare const ThreadPrimitiveViewportProvider: FC<ThreadViewportProviderProps>;
+
+type ThreadRow = {
+  readonly type: "message";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+} | {
+  readonly type: "part";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+  readonly indices: readonly number[];
+  readonly group?: `group-${string}`;
+} | {
+  readonly type: "turn-end";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
+type ThreadRowsOptions = {
+  readonly groupBy?: ((part: PartState, context: GroupByContext) => readonly `group-${string}`[] | null) | undefined;
+};
 
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
@@ -5079,6 +5283,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
@@ -5124,6 +5329,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5135,7 +5341,11 @@ type ThreadRuntimeCore = Readonly<{
   isDisabled: boolean;
   isSendDisabled: boolean;
   isLoading: boolean;
+  hasEarlier?: boolean;
+  isLoadingEarlier?: boolean;
+  loadEarlier?(): Promise<void>;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
@@ -5243,6 +5453,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5254,7 +5465,11 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isDisabled: boolean;
       isSendDisabled: boolean;
       isLoading: boolean;
+      hasEarlier?: boolean;
+      isLoadingEarlier?: boolean;
+      loadEarlier?(): Promise<void>;
       isRunning?: boolean | undefined;
+      canResume?: boolean | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion[];
@@ -5274,6 +5489,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
     outerSubscribe(callback: () => void): Unsubscribe;
   } & {
     getStateState(): ThreadRuntimeState;
+    threadListItem: ThreadListItemRuntimeBinding;
   };
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
@@ -5288,6 +5504,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   stopSpeaking(): void;
   connectVoice(): void;
@@ -5316,8 +5533,12 @@ type ThreadRuntimePath = {
 
 type ThreadRuntimeState = {
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -5330,8 +5551,12 @@ type ThreadRuntimeState = {
 type ThreadState = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume?: boolean | undefined;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly tasks: readonly TaskState[];
@@ -5450,10 +5675,15 @@ type ThreadViewportStoreOptions = {
 };
 
 type ThreadsState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];
@@ -5468,7 +5698,12 @@ type TitleGenerationAdapter = {
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -5483,6 +5718,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -5500,10 +5750,14 @@ type ToolApprovalResponse = {
 } | {
   readonly text: string;
   readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
+  readonly reason?: string;
 };
 
 type ToolArgsStatus<TArgs extends Record<string, unknown> = Record<string, unknown>> = {
   status: "complete" | "incomplete" | "requires-action" | "running";
+  argsStatus: PropFieldStatus;
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
@@ -5531,6 +5785,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -5555,6 +5810,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -5610,10 +5867,7 @@ type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = str
   complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendToolDeclaration<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -5733,6 +5987,12 @@ type ToolsState = {
   mcpApp?: McpAppResourceOutput | undefined;
 };
 
+type TriggerAdapter = {
+  categories(): readonly TriggerCategory[];
+  categoryItems(categoryId: string): readonly TriggerItem[];
+  search?(query: string): readonly TriggerItem[];
+};
+
 type TriggerBehavior = {
   readonly kind: "directive";
   readonly formatter: Unstable_DirectiveFormatter;
@@ -5742,6 +6002,19 @@ type TriggerBehavior = {
   readonly formatter: Unstable_DirectiveFormatter;
   readonly onExecute: (item: Unstable_TriggerItem) => void;
   readonly removeOnExecute?: boolean;
+};
+
+type TriggerCategory = {
+  readonly id: string;
+  readonly label: string;
+};
+
+type TriggerItem = {
+  readonly id: string;
+  readonly type: string;
+  readonly label: string;
+  readonly description?: string | undefined;
+  readonly metadata?: ReadonlyJSONObject | undefined;
 };
 
 type TriggerMatch = {
@@ -5853,20 +6126,9 @@ type Unstable_ComposerInputHistory = {
   onKeyDown: KeyboardEventHandler<HTMLTextAreaElement>;
 };
 
-type Unstable_DirectiveFormatter = {
-  serialize(item: Unstable_TriggerItem): string;
-  parse(text: string): readonly Unstable_DirectiveSegment[];
-};
+type Unstable_DirectiveFormatter = DirectiveFormatter;
 
-type Unstable_DirectiveSegment = {
-  readonly kind: "text";
-  readonly text: string;
-} | {
-  readonly kind: "mention";
-  readonly type: string;
-  readonly label: string;
-  readonly id: string;
-};
+type Unstable_DirectiveSegment = DirectiveSegment;
 
 type Unstable_IconComponent = FC<{
   className?: string;
@@ -5934,6 +6196,7 @@ type Unstable_InteractableStateSchema = NonNullable<Extract<Tool, {
 }>["parameters"]>;
 
 type Unstable_InteractableToolConfig<TSchema extends Unstable_InteractableStateSchema> = {
+  name?: string | undefined;
   description: string;
   stateSchema: TSchema;
   render: (props: Unstable_InteractableToolRenderProps<Unstable_InferInteractableState<TSchema>>) => ReactNode;
@@ -6059,24 +6322,19 @@ type Unstable_ToolInteractionLog = {
   readonly omitted?: number;
 };
 
-type Unstable_TriggerAdapter = {
-  categories(): readonly Unstable_TriggerCategory[];
-  categoryItems(categoryId: string): readonly Unstable_TriggerItem[];
-  search?(query: string): readonly Unstable_TriggerItem[];
-};
+type Unstable_TriggerAdapter = TriggerAdapter;
 
-type Unstable_TriggerCategory = {
-  readonly id: string;
-  readonly label: string;
-};
+type Unstable_TriggerCategory = TriggerCategory;
 
-type Unstable_TriggerItem = {
-  readonly id: string;
-  readonly type: string;
-  readonly label: string;
-  readonly description?: string | undefined;
-  readonly metadata?: ReadonlyJSONObject | undefined;
-};
+type Unstable_TriggerItem = TriggerItem;
+
+type Unstable_TriggerMatch = TriggerMatch;
+
+type Unstable_TriggerMatch$1 = TriggerMatch;
+
+type Unstable_TriggerMatcher = TriggerMatcher;
+
+type Unstable_TriggerMatcher$1 = TriggerMatcher;
 
 type Unstable_TriggerPopoverAriaProps = TriggerPopoverAriaProps;
 
@@ -6155,7 +6413,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionControls = {
   disconnect: () => void;
@@ -6251,7 +6509,7 @@ declare namespace chainOfThought_d_exports {
 }
 
 declare namespace composer_d_exports {
-  export { ComposerPrimitiveAddAttachment as AddAttachment, ComposerPrimitiveAttachmentByIndex as AttachmentByIndex, ComposerPrimitiveAttachmentDropzone as AttachmentDropzone, ComposerPrimitiveAttachments as Attachments, ComposerPrimitiveCancel as Cancel, ComposerPrimitiveDictate as Dictate, ComposerPrimitiveDictationTranscript as DictationTranscript, ComposerPrimitiveIf as If, ComposerPrimitiveInput as Input, ComposerPrimitiveQueue as Queue, ComposerPrimitiveQuote as Quote, ComposerPrimitiveQuoteDismiss as QuoteDismiss, ComposerPrimitiveQuoteText as QuoteText, ComposerPrimitiveRoot as Root, ComposerPrimitiveSend as Send, ComposerPrimitiveStopDictation as StopDictation, RegisteredTrigger as Unstable_RegisteredTrigger, TriggerMatcher as Unstable_TriggerMatcher, ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover, ComposerPrimitiveTriggerPopoverBack as Unstable_TriggerPopoverBack, ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories, ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem, ComposerPrimitiveTriggerPopoverItem as Unstable_TriggerPopoverItem, ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems, ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional };
+  export { ComposerPrimitiveAddAttachment as AddAttachment, ComposerPrimitiveAttachmentByIndex as AttachmentByIndex, ComposerPrimitiveAttachmentDropzone as AttachmentDropzone, ComposerPrimitiveAttachments as Attachments, ComposerPrimitiveCancel as Cancel, ComposerPrimitiveDictate as Dictate, ComposerPrimitiveDictationTranscript as DictationTranscript, ComposerPrimitiveIf as If, ComposerPrimitiveInput as Input, ComposerPrimitiveQueue as Queue, ComposerPrimitiveQuote as Quote, ComposerPrimitiveQuoteDismiss as QuoteDismiss, ComposerPrimitiveQuoteText as QuoteText, ComposerPrimitiveResume as Resume, ComposerPrimitiveRoot as Root, ComposerPrimitiveSend as Send, ComposerPrimitiveStopDictation as StopDictation, TriggerMatch, TriggerMatcher, ComposerPrimitiveTriggerPopover as TriggerPopover, ComposerPrimitiveTriggerPopoverBack as TriggerPopoverBack, ComposerPrimitiveTriggerPopoverCategories as TriggerPopoverCategories, ComposerPrimitiveTriggerPopoverCategoryItem as TriggerPopoverCategoryItem, ComposerPrimitiveTriggerPopoverItem as TriggerPopoverItem, ComposerPrimitiveTriggerPopoverItems as TriggerPopoverItems, ComposerPrimitiveTriggerPopoverRoot as TriggerPopoverRoot, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_TriggerMatch$1 as Unstable_TriggerMatch, Unstable_TriggerMatcher$1 as Unstable_TriggerMatcher, ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover, ComposerPrimitiveTriggerPopoverBack as Unstable_TriggerPopoverBack, ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories, ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem, ComposerPrimitiveTriggerPopoverItem as Unstable_TriggerPopoverItem, ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems, ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional };
 }
 
 declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata, cache?: ExternalMessageConversionCache) => ThreadMessage[];
@@ -6278,9 +6536,13 @@ declare const createSimpleTitleAdapter: () => TitleGenerationAdapter;
 
 declare const createSuggestionAdapter: (options: CreateSuggestionAdapterOptions) => SuggestionAdapter;
 
+declare const createThreadRowsSelector: (options?: ThreadRowsOptions) => (state: AssistantState) => readonly ThreadRow[];
+
 declare function createVoiceSession(options: {
   abortSignal?: AbortSignal;
 }, setup: (helpers: VoiceSessionHelpers) => Promise<VoiceSessionControls>): RealtimeVoiceAdapter.Session;
+
+declare const defaultDirectiveFormatter: DirectiveFormatter;
 
 declare const defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
 
@@ -6340,7 +6602,7 @@ declare const hitlTool: typeof humanTool;
 declare function humanTool(): never;
 
 declare namespace entry_root_exports {
-  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentRuntimeState, AttachmentState, AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CloudRendererHost, CloudRendererHostProps, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerRuntimeState, ComposerSendOptions, ComposerState, ComposerSubmission, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppBridgeHandlers, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppPartOptions, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimeState, MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, ShimLoadError, ShimLoadErrorCode, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TaskMethods, TaskState, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemRuntimeState, ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, TriggerMatch as Unstable_TriggerMatch, TriggerMatcher as Unstable_TriggerMatcher, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unstable_WebMcpProviderOptions, Unstable_WebMcpProviderResult, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createVoiceSession, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, readAnonymousRefreshToken, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, defaultWebMcpFilter as unstable_defaultWebMcpFilter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, unstable_useWebMcpProvider, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
+  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentRuntimeState, AttachmentState, AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CloudRendererHost, CloudRendererHostProps, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerRuntimeState, ComposerSendOptions, ComposerState, ComposerSubmission, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, DirectiveFormatter, DirectiveSegment, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppBridgeHandlers, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppInitializeParams, McpAppMetadata, McpAppPartOptions, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, MessagePartTiming, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimeState, MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextOptions, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, OpenAIRealtimeVoiceAdapter, OpenAIRealtimeVoiceAdapterOptions, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, ShimLoadError, ShimLoadErrorCode, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, SystemPart, TaskMethods, TaskState, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemRuntimeState, ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRow, ThreadRowsOptions, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalAnswer, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalQuestion, ToolApprovalQuestionOption, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, TriggerAdapter, TriggerCategory, TriggerItem, TriggerMatch, TriggerMatcher, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, Unstable_TriggerMatch, Unstable_TriggerMatcher, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unstable_WebMcpProviderOptions, Unstable_WebMcpProviderResult, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createThreadRowsSelector, createVoiceSession, defaultDirectiveFormatter, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, readAnonymousRefreshToken, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, defaultWebMcpFilter as unstable_defaultWebMcpFilter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, unstable_useWebMcpProvider, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
 }
 
 declare namespace internal_d_exports {
@@ -6358,9 +6620,10 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: {
   clickable?: boolean | undefined;
   editable?: boolean | undefined;
+  settleDelayMs?: number | undefined;
 }) => T;
 
-declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
+declare const mergeModelContexts: (configSet: Set<ModelContextProvider>, options?: ModelContextOptions) => ModelContext$1;
 
 declare namespace messagePart_d_exports {
   export { MessagePartPrimitiveImage as Image, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveText as Text };
@@ -6387,6 +6650,7 @@ declare namespace selectionToolbar_d_exports {
 declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options: T) => {
   localRuntimeOptions: {
     cloud: AssistantCloud | undefined;
+    scopeId: string | undefined;
     initialMessages: readonly ThreadMessageLike[] | undefined;
     maxSteps: number | undefined;
     adapters: Omit<{
@@ -6404,7 +6668,7 @@ declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options:
     unstable_queueClearOnRewind: boolean | undefined;
     unstable_queueClearOnCancel: boolean | undefined;
   };
-  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
+  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "scopeId" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
 };
 
 declare function stubTool(): never;
@@ -6426,7 +6690,7 @@ declare namespace threadList_d_exports {
 }
 
 declare namespace thread_d_exports {
-  export { ThreadPrimitiveEmpty as Empty, ThreadPrimitiveIf as If, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadPrimitiveMessages as Messages, ThreadPrimitiveRoot as Root, ThreadPrimitiveScrollToBottom as ScrollToBottom, ThreadPrimitiveSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById, ThreadPrimitiveViewport as Viewport, ThreadPrimitiveViewportFooter as ViewportFooter, ThreadPrimitiveViewportProvider as ViewportProvider };
+  export { ThreadPrimitiveEmpty as Empty, ThreadPrimitiveIf as If, ThreadPrimitiveLoadEarlier as LoadEarlier, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadPrimitiveMessages as Messages, ThreadPrimitiveRoot as Root, ThreadPrimitiveRow as Row, ThreadPrimitiveScrollToBottom as ScrollToBottom, ThreadPrimitiveSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById, ThreadPrimitiveViewport as Viewport, ThreadPrimitiveViewportFooter as ViewportFooter, ThreadPrimitiveViewportProvider as ViewportProvider };
 }
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
@@ -6444,7 +6708,7 @@ declare const unstable_Interactables: Resource<ClientOutput<"unstable_interactab
   (Unstable_InteractablesConfig | undefined)?
 ]>;
 
-declare const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+declare const unstable_defaultDirectiveFormatter: DirectiveFormatter;
 
 declare function unstable_formatInteractableSnapshot(entry: Unstable_InteractableSnapshotEntry): string;
 
@@ -6456,6 +6720,7 @@ declare function unstable_getInteractableVersions(messages: readonly SnapshotCar
 
 declare const unstable_interactableTool: <TSchema extends Unstable_InteractableStateSchema>(config: Unstable_InteractableToolConfig<TSchema>) => ToolDefinition<Record<string, unknown>, {
   success: true;
+  interactable?: string | undefined;
 }>;
 
 declare function unstable_useComposerInput(options?: Unstable_UseComposerInputOptions): Unstable_ComposerInput;
@@ -6581,7 +6846,7 @@ declare const useBranchPickerPrevious: () => (() => void) | null;
 
 declare const useChainOfThoughtAccordionTrigger: () => () => void;
 
-declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
+declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare function useCloudThreadListRuntime(_param13: CloudThreadListAdapter): AssistantRuntime;
 
@@ -6589,11 +6854,13 @@ declare const useComposerAddAttachment: (_param14?: {
   multiple?: boolean | undefined;
 }) => (() => void) | null;
 
-declare const useComposerCancel: () => (() => void) | null;
+declare const useComposerCancel: () => ((event: MouseEvent<HTMLButtonElement>) => void) | null;
 
 declare const useComposerDictate: () => (() => void) | null;
 
 declare const useComposerInputPluginRegistryOptional: () => ComposerInputPluginRegistry | null;
+
+declare const useComposerResume: () => (() => void) | null;
 
 declare const useComposerSend: () => (() => void) | null;
 
@@ -6603,6 +6870,7 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param15: {
@@ -6611,6 +6879,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param15: {
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 declare const useExternalStoreRuntime: <T>(store: ExternalStoreAdapter<T>) => AssistantRuntime;
@@ -6810,9 +7079,11 @@ declare const useThreadListItemDelete: () => () => void;
 
 declare const useThreadListItemTrigger: () => () => void;
 
-declare const useThreadListItemUnarchive: () => () => void;
+declare const useThreadListItemUnarchive: () => (() => void) | null;
 
 declare const useThreadListLoadMore: () => (() => void) | null;
+
+declare const useThreadLoadEarlier: () => (() => void) | null;
 
 declare namespace useThreadScrollToBottom {
   type Options = {

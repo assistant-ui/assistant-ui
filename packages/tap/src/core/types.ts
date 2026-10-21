@@ -101,6 +101,7 @@ export interface ResourceContextValue {
 }
 
 export interface TapRoot {
+  readonly onError: ((error: unknown) => void) | undefined;
   version: number;
   committedVersion: number;
   readonly changelog: ChangelogRecord[];
@@ -118,7 +119,7 @@ export interface ResourceFiber<R> {
   readonly root: TapRoot;
   readonly hook: (...args: any[]) => R;
   readonly markDirty: (() => void) | undefined;
-  readonly devStrictMode: "root" | "child" | null;
+  devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
   effectCells: EffectCell[];
