@@ -4856,6 +4856,11 @@ describe("AGUIThreadRuntimeCore", () => {
       callInB?: boolean;
       resultAfterSplit?: boolean;
       error?: boolean;
+      thirdMessage?: boolean;
+      interrupt?: boolean;
+      beforeSplit?: () => void;
+      afterBStart?: () => void;
+      beforeFinish?: () => void;
     } = {},
   ) => {
     const inputs: any[] = [];
@@ -4872,6 +4877,7 @@ describe("AGUIThreadRuntimeCore", () => {
         });
         notifyToolCallStarted(subscriber, "call-1", "lookup");
         notifyToolCallEnded(subscriber, "call-1", "lookup");
+        options.beforeSplit?.();
         subscriber.onTextMessageStartEvent?.({
           event: {
             type: EventType.TEXT_MESSAGE_START,
@@ -4889,6 +4895,26 @@ describe("AGUIThreadRuntimeCore", () => {
           textMessageBuffer: "Second",
           ...createAgentSubscriberParams(),
         });
+        options.afterBStart?.();
+        if (options.thirdMessage) {
+          subscriber.onTextMessageStartEvent?.({
+            event: {
+              type: EventType.TEXT_MESSAGE_START,
+              messageId: "c",
+              role: "assistant",
+            },
+            ...createAgentSubscriberParams(),
+          });
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: EventType.TEXT_MESSAGE_CONTENT,
+              messageId: "c",
+              delta: "Third",
+            },
+            textMessageBuffer: "Third",
+            ...createAgentSubscriberParams(),
+          });
+        }
         if (options.callInB) {
           notifyToolCallStarted(subscriber, "call-2", "lookup");
           notifyToolCallEnded(subscriber, "call-2", "lookup");
@@ -4912,18 +4938,25 @@ describe("AGUIThreadRuntimeCore", () => {
           });
           return;
         }
+        options.beforeFinish?.();
       }
       subscriber.onRunFinishedEvent?.({
         event: {
           type: EventType.RUN_FINISHED,
           threadId: "thread",
           runId: input.runId,
-          outcome: {
-            type: "success",
-            ...(inputs.length === 1 && options.pendingToolCallIds
-              ? { pendingToolCallIds: options.pendingToolCallIds }
-              : {}),
-          },
+          outcome:
+            inputs.length === 1 && options.interrupt
+              ? {
+                  type: "interrupt",
+                  interrupts: [{ id: "int-1", reason: "tool_call" }],
+                }
+              : {
+                  type: "success",
+                  ...(inputs.length === 1 && options.pendingToolCallIds
+                    ? { pendingToolCallIds: options.pendingToolCallIds }
+                    : {}),
+                },
         },
         outcome: "success",
         pendingToolCallIds: options.pendingToolCallIds ?? [],
@@ -4933,6 +4966,89 @@ describe("AGUIThreadRuntimeCore", () => {
     });
     return { inputs, runAgent };
   };
+
+  it.each([
+    ["before the split", "beforeSplit"],
+    ["while b streams", "afterBStart"],
+  ] as const)(
+    "resumes from b when the frontend answers a held call %s",
+    async (_label, timing) => {
+      let core: ReturnType<typeof createCore>;
+      const answer = () =>
+        core.addToolResult({
+          messageId: "a",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          result: "done",
+          isError: false,
+        });
+      const { runAgent } = createSplitPendingAgent({ [timing]: answer });
+      core = createCore({ runAgent } as unknown as HttpAgent);
+      await core.append(createAppendMessage());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(
+        core.getMessages().find((message) => message.id === "a")?.status,
+      ).toMatchObject({ type: "complete" });
+      const continuation = core
+        .getMessageRepository()
+        .messages.find(
+          ({ message }) =>
+            message.role === "assistant" &&
+            message.id !== "a" &&
+            message.id !== "b",
+        );
+      expect(continuation?.parentId).toBe("b");
+    },
+  );
+
+  it("keeps an earlier open call running across later splits until RUN_FINISHED", async () => {
+    let core: ReturnType<typeof createCore>;
+    const { runAgent } = createSplitPendingAgent({
+      thirdMessage: true,
+      beforeFinish: () => {
+        expect(
+          core.getMessages().find((message) => message.id === "a")?.status,
+        ).toMatchObject({ type: "running" });
+        expect(core.getPendingToolCalls()).toBeNull();
+      },
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    expect(
+      core.getMessages().find((message) => message.id === "a")?.status,
+    ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+  });
+
+  it("waits for an interrupt response after answering an earlier held call", async () => {
+    const { runAgent } = createSplitPendingAgent({ interrupt: true });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    expect(core.getPendingInterrupts()?.messageId).toBe("b");
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      core.getMessages().find((message) => message.id === "a")?.status,
+    ).toMatchObject({ type: "complete" });
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved" },
+    ]);
+    expect(runAgent).toHaveBeenCalledTimes(2);
+  });
 
   it("resumes a split assistant turn from its last message after an earlier tool result", async () => {
     const { inputs, runAgent } = createSplitPendingAgent();

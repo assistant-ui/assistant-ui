@@ -113,7 +113,7 @@ describe("RunAggregator", () => {
   const createAggregator = (
     showThinking: boolean,
     onServerMessageId?: (id: string) => void,
-    onTextMessageStart?: (id: string) => void,
+    onTextMessageStart?: (id: string, openToolCallIds: string[]) => void,
   ) =>
     new RunAggregator({
       showThinking,
@@ -2472,7 +2472,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
 
     expect(onTextMessageStart).toHaveBeenCalledTimes(1);
-    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2", ["call-1"]);
     const last = results.at(-1);
     expect(last?.content).toEqual([{ type: "text", text: "Beijing: 26C" }]);
   });
@@ -2492,7 +2492,7 @@ describe("RunAggregator", () => {
       delta: "follow-up",
     } as AgUiEvent);
 
-    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2", []);
     const last = results.at(-1);
     expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
   });
@@ -2519,7 +2519,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
 
     expect(onTextMessageStart).toHaveBeenCalledTimes(1);
-    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2", ["call-1"]);
     const last = results.at(-1);
     expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
   });

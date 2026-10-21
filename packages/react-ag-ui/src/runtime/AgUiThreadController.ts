@@ -1182,6 +1182,7 @@ export class AgUiThreadController {
   // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    if (this.getPendingInterrupts()) return;
     const turn = this.getTrailingAssistantTurn();
     if (!turn.some((message) => message.id === messageId)) return;
     if (this.getPendingToolCalls()) return;
@@ -1414,8 +1415,9 @@ export class AgUiThreadController {
     // resurrecting for custom-event data would leave a trailing data-only
     // duplicate.
     let assistantCollided = false;
-    const heldMessageIds: string[] = [];
+    const heldMessages = new Map<string, Set<string>>();
     let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
+    let settlingRun = false;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -1457,21 +1459,18 @@ export class AgUiThreadController {
         assistantMessageId = resolved;
       }
       const terminalStatus = update.status;
-      if (terminalStatus && terminalStatus.type !== "running") {
-        for (const messageId of heldMessageIds) {
+      if (settlingRun && terminalStatus && terminalStatus.type !== "running") {
+        const pendingMessages: string[] = [];
+        for (const [messageId, openToolCallIds] of heldMessages) {
+          let requiresToolResult = false;
           const updated = this.session.updateMessage(messageId, (message) => {
             if (message.role !== "assistant") return message;
             const assistant = message as ThreadAssistantMessage;
-            const pendingToolCallIds = Array.from(
-              iterateToolCallParts(assistant.content),
-            )
-              .filter(
-                (part) =>
-                  !isResolvedToolCall(part) &&
-                  (!restrictedPendingToolCallIds ||
-                    restrictedPendingToolCallIds.has(part.toolCallId)),
-              )
-              .map((part) => part.toolCallId);
+            const pendingToolCallIds = Array.from(openToolCallIds).filter(
+              (id) =>
+                !restrictedPendingToolCallIds ||
+                restrictedPendingToolCallIds.has(id),
+            );
             const canWaitForTools =
               terminalStatus.type === "complete" ||
               terminalStatus.type === "requires-action";
@@ -1480,6 +1479,7 @@ export class AgUiThreadController {
                 ? { type: "requires-action", reason: "tool-calls" }
                 : { type: "complete", reason: "unknown" }
               : terminalStatus;
+            requiresToolResult = status.type === "requires-action";
             const metadata = withoutPendingToolCallIds(assistant.metadata);
             return {
               ...assistant,
@@ -1505,7 +1505,14 @@ export class AgUiThreadController {
           if (updated) {
             this.publishUpdate();
             this.persistAssistantHistory(messageId);
+            if (requiresToolResult) {
+              pendingMessages.push(messageId);
+            }
           }
+        }
+        heldMessages.clear();
+        for (const messageId of pendingMessages) {
+          this.maybeResumeAfterToolResults(messageId);
         }
       }
     };
@@ -1513,17 +1520,11 @@ export class AgUiThreadController {
     const adoptServerMessageId = (
       serverId: string,
       startNewMessage: boolean,
+      openToolCallIds: string[] = [],
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
-        const previous =
-          this.session.tryGetMessage(assistantMessageId)?.message;
-        const hasUnresolvedToolCalls =
-          previous?.role === "assistant" &&
-          Array.from(iterateToolCallParts(previous.content)).some(
-            (part) => !isResolvedToolCall(part),
-          );
-        if (hasUnresolvedToolCalls) {
-          heldMessageIds.push(assistantMessageId);
+        if (openToolCallIds.length > 0) {
+          heldMessages.set(assistantMessageId, new Set(openToolCallIds));
         } else {
           applyUpdate({ status: { type: "complete", reason: "unknown" } });
         }
@@ -1568,7 +1569,8 @@ export class AgUiThreadController {
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
       },
-      onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
+      onTextMessageStart: (serverId, openToolCallIds) =>
+        adoptServerMessageId(serverId, true, openToolCallIds),
     });
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
@@ -1581,16 +1583,29 @@ export class AgUiThreadController {
             : undefined;
         restrictedPendingToolCallIds = ids?.length ? new Set(ids) : undefined;
       }
-      const nextAssistantMessageId = this.handleEvent(
-        aggregator,
-        event,
-        assistantMessageId,
-        joinStrategy,
-        runStartMessageIds,
-        hasRunUserBoundary,
-      );
-      if (event.type === "MESSAGES_SNAPSHOT") {
-        assistantMessageId = nextAssistantMessageId;
+      if (event.type === "TOOL_CALL_RESULT") {
+        for (const openToolCallIds of heldMessages.values()) {
+          openToolCallIds.delete(event.toolCallId);
+        }
+      }
+      settlingRun =
+        event.type === "RUN_FINISHED" ||
+        event.type === "RUN_ERROR" ||
+        event.type === "RUN_CANCELLED";
+      try {
+        const nextAssistantMessageId = this.handleEvent(
+          aggregator,
+          event,
+          assistantMessageId,
+          joinStrategy,
+          runStartMessageIds,
+          hasRunUserBoundary,
+        );
+        if (event.type === "MESSAGES_SNAPSHOT") {
+          assistantMessageId = nextAssistantMessageId;
+        }
+      } finally {
+        settlingRun = false;
       }
     };
 
