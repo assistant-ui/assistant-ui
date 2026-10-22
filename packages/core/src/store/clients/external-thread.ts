@@ -57,6 +57,7 @@ import { SingleThreadList } from "./single-thread-list";
 import {
   AttachmentResource,
   ComposerClientResource,
+  getEventThreadId,
   type CleanupOwner,
 } from "./external-composer";
 
@@ -571,9 +572,9 @@ const useExternalThread = ({
       if (!modelContext || modelContext.source == null) return;
 
       return modelContext().subscribe?.(() => {
-        const threadId =
-          clientRef?.current?.threads?.().getState().mainThreadId || "unknown";
-        emit("thread.modelContextUpdate", { threadId });
+        emit("thread.modelContextUpdate", {
+          threadId: getEventThreadId(clientRef?.current),
+        });
       });
     },
     [clientRef, emit],
