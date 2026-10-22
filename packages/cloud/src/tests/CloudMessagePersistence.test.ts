@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudMessagePersistence } from "../CloudMessagePersistence";
 import type { AssistantCloud } from "../AssistantCloud";
+import { CloudAPIError } from "../AssistantCloudAPI";
 
 function createMockCloud() {
   return {
@@ -9,6 +10,7 @@ function createMockCloud() {
         create: vi.fn(),
         list: vi.fn(),
         update: vi.fn(),
+        delete: vi.fn().mockResolvedValue(undefined),
       },
     },
   } as unknown as AssistantCloud;
@@ -34,6 +36,95 @@ describe("CloudMessagePersistence", () => {
     vi.restoreAllMocks();
     cloud = createMockCloud();
     persistence = new CloudMessagePersistence(cloud);
+  });
+
+  it("waits for a pending append before deleting its remote ID", async () => {
+    let resolveAppend!: (value: { message_id: string }) => void;
+    vi.mocked(cloud.threads.messages.create).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveAppend = resolve;
+        }),
+    );
+    const append = persistence.append(
+      "thread-1",
+      "local-1",
+      null,
+      "aui/v0",
+      {},
+    );
+    const deletion = persistence.delete("thread-1", ["local-1"]);
+    expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
+
+    resolveAppend({ message_id: "msg_1" });
+    await append;
+    await deletion;
+    expect(cloud.threads.messages.delete).toHaveBeenCalledWith("thread-1", [
+      "msg_1",
+    ]);
+    expect(persistence.isPersisted("local-1")).toBe(false);
+  });
+
+  it("skips unmapped IDs and failed appends without a delete request", async () => {
+    await persistence.delete("thread-1", ["missing"]);
+    let rejectAppend!: (error: Error) => void;
+    vi.mocked(cloud.threads.messages.create).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectAppend = reject;
+        }),
+    );
+    const append = persistence.append(
+      "thread-1",
+      "local-1",
+      null,
+      "aui/v0",
+      {},
+    );
+    const rejected = expect(append).rejects.toThrow("append failed");
+    const deletion = persistence.delete("thread-1", ["local-1"]);
+    rejectAppend(new Error("append failed"));
+    await rejected;
+    await deletion;
+    expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
+  });
+
+  it("keeps a replacement mapping made during deletion", async () => {
+    persistence.record("local-1", "msg_1");
+    let resolveDelete!: () => void;
+    vi.mocked(cloud.threads.messages.delete).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const deletion = persistence.delete("thread-1", ["local-1"]);
+    await vi.waitFor(() =>
+      expect(cloud.threads.messages.delete).toHaveBeenCalledOnce(),
+    );
+    persistence.record("local-1", "msg_2");
+    resolveDelete();
+    await deletion;
+    expect(await persistence.getRemoteId("local-1")).toBe("msg_2");
+  });
+
+  it("treats a 404 as already deleted and clears the mapping", async () => {
+    persistence.record("local-1", "msg_1");
+    vi.mocked(cloud.threads.messages.delete).mockRejectedValueOnce(
+      new CloudAPIError("Messages not found", 404),
+    );
+    await persistence.delete("thread-1", ["local-1"]);
+    expect(persistence.isPersisted("local-1")).toBe(false);
+  });
+
+  it("propagates a server error and retains the mapping", async () => {
+    persistence.record("local-1", "msg_1");
+    const failure = new CloudAPIError("failed", 500);
+    vi.mocked(cloud.threads.messages.delete).mockRejectedValueOnce(failure);
+    await expect(persistence.delete("thread-1", ["local-1"])).rejects.toBe(
+      failure,
+    );
+    expect(persistence.isPersisted("local-1")).toBe(true);
   });
 
   it("appends a message and maps local ID to remote ID", async () => {

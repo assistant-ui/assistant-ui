@@ -384,10 +384,14 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           localMessageId,
         );
       },
-      async delete() {
-        throw new Error(
-          "Assistant Cloud does not support deleting thread messages yet.",
-        );
+      async delete(items: MessageFormatItem<TMessage>[]) {
+        const pinned = resolvePinned();
+        if (!pinned || !pinned.getState().remoteId) return;
+        const context = adapter.captureScope(pinned);
+        const remoteId = await adapter.resolveExistingRemoteId(pinned);
+        adapter.assertCurrentScope(context);
+        if (!remoteId) return;
+        await getTargetFormatted(context).delete?.(remoteId, items);
       },
       reportTelemetry(
         items: MessageFormatItem<TMessage>[],
@@ -701,9 +705,16 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     if (writeError) throw writeError.error;
   }
 
-  async delete() {
-    throw new Error(
-      "Assistant Cloud does not support deleting thread messages yet.",
+  async delete(items: ExportedMessageRepositoryItem[]) {
+    const threadListItem = this.aui.threadListItem;
+    if (!threadListItem.getState().remoteId) return;
+    const context = this.captureScope(threadListItem);
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
+    if (!remoteId) return;
+    await context.persistence.delete(
+      remoteId,
+      items.map((item) => item.message.id),
     );
   }
 
