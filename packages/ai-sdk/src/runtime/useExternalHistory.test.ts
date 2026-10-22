@@ -906,10 +906,11 @@ describe("useExternalHistory persistence", () => {
         stored.headId = item.message.id;
       },
     );
+    const reportTelemetry = vi.fn();
     const adapter: ThreadHistoryAdapter = {
       load: vi.fn(),
       append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({ load, append }),
+      withFormat: vi.fn().mockReturnValue({ load, append, reportTelemetry }),
     };
     const toMessages = (messages: InnerMessage[]) =>
       messages.map((message) =>
@@ -994,6 +995,7 @@ describe("useExternalHistory persistence", () => {
     };
     return {
       append,
+      reportTelemetry,
       first,
       mount,
       settleBeforeLoad,
@@ -1467,6 +1469,31 @@ describe("useExternalHistory persistence", () => {
       ).toHaveLength(1);
     },
   );
+
+  it("reports a run stopped while history is still loading", async () => {
+    const { first, reportTelemetry, resolveEmptyLoad } =
+      createSlowLoadHarness(false);
+
+    await first.step({
+      isRunning: true,
+      messages: [createUserMessage(stoppedPrompt)],
+    });
+    await first.step({ isRunning: false, messages: [] });
+    await act(async () => {
+      resolveEmptyLoad();
+    });
+
+    await waitFor(() =>
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          message: expect.objectContaining({
+            status: { type: "incomplete", reason: "cancelled" },
+          }),
+        }),
+      ),
+    );
+  });
 
   it("reports only the reply of a run that answered its prompt", async () => {
     const { load, reportTelemetry, runCycle, flush } =

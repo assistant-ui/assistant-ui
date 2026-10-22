@@ -331,6 +331,7 @@ export const useExternalHistory = <TMessage>(
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
   const queuedPromptIdRef = useRef<string | null>(null);
+  const runPromptIdRef = useRef<string | null>(null);
   const settledPromptIdRef = useRef<string | null>(null);
 
   const releaseRemovedMessages = useCallback(
@@ -469,6 +470,10 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
+        const prompt = threadState.messages.findLast(
+          (message) => message.role === "user",
+        );
+        if (prompt) runPromptIdRef.current = prompt.id;
         if (historyReadyRef.current) persistRunPrompt(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
@@ -479,7 +484,8 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (wasRunning) {
-        settledPromptIdRef.current = queuedPromptIdRef.current;
+        settledPromptIdRef.current = runPromptIdRef.current;
+        runPromptIdRef.current = null;
         queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
@@ -689,7 +695,8 @@ export const useExternalHistory = <TMessage>(
 
     persistWhenReadyRef.current = () => {
       const state = runtimeRef.current.thread.getState();
-      if (state.messages.length === 0) return;
+      if (state.messages.length === 0 && settledPromptIdRef.current === null)
+        return;
       if (state.isRunning) {
         persistRunPrompt(state.messages);
         return;
