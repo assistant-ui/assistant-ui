@@ -91,7 +91,9 @@ describe("core: cached external message conversion, one streaming delta", () => 
     [5_000, 20],
   ] as const) {
     test(`${count} messages, ${parts}-part replies`, async ({ bench }) => {
-      const history = Array.from({ length: count }, (_, index) => ({
+      // The history ends on a user turn so the streaming reply forms its own
+      // chunk instead of joining the last finished reply.
+      const history = Array.from({ length: count - 1 }, (_, index) => ({
         outputs: [makeFinishedMessage(index, parts)],
       }));
       const callback = (input: { outputs: Message[] }) => input.outputs;
