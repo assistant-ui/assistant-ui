@@ -403,9 +403,12 @@ export class AdkEventAccumulator {
     if (!event.partial && this.currentMessageId) {
       const current = this.messagesMap.get(this.currentMessageId);
       if (current?.type === "ai") {
-        const repeatedTypes = new Set(
-          parts.map((part) => toContentPart(part)?.type),
-        );
+        const repeatedTypes = new Set<AdkMessageContentPart["type"]>();
+        for (const part of parts) {
+          if (part.functionResponse) break;
+          const contentPart = toContentPart(part);
+          if (contentPart) repeatedTypes.add(contentPart.type);
+        }
         // A final response repeats its streamed parts, but tool-only and non-progressive media events can omit earlier text.
         this.messagesMap.set(current.id, {
           ...current,

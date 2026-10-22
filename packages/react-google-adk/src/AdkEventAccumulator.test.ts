@@ -2492,4 +2492,47 @@ describe("AdkEventAccumulator - streamed content order", () => {
       { type: "image", mimeType: "image/png", data: imageData },
     ]);
   });
+
+  it.each([
+    { prefix: [], expected: "Before" },
+    { prefix: [{ text: "Before completed" }], expected: "Before completed" },
+  ])(
+    "keeps $expected on the assistant preceding a tool response",
+    ({ prefix, expected }) => {
+      const acc = new AdkEventAccumulator();
+      acc.processEvent(event([{ text: "Before" }], true));
+      const streamedId = acc.getMessages()[0]!.id;
+      const messages = acc.processEvent(
+        event(
+          [
+            ...prefix,
+            {
+              functionResponse: {
+                id: "call-1",
+                name: "lookup",
+                response: { result: "found" },
+              },
+            },
+            { text: "After" },
+          ],
+          false,
+        ),
+      );
+
+      expect(messages).toMatchObject([
+        {
+          id: streamedId,
+          type: "ai",
+          content: [{ type: "text", text: expected }],
+        },
+        {
+          type: "tool",
+          tool_call_id: "call-1",
+          content: '{"result":"found"}',
+          status: "success",
+        },
+        { type: "ai", content: [{ type: "text", text: "After" }] },
+      ]);
+    },
+  );
 });
