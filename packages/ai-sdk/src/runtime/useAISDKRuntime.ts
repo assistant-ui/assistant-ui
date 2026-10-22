@@ -17,6 +17,7 @@ import type {
 } from "@ai-sdk/react";
 import { isToolUIPart, generateId, getToolName } from "ai";
 import {
+  useExternalMessageConverter,
   useExternalStoreRuntime,
   useRuntimeAdapters,
   type JoinStrategy,
@@ -59,6 +60,8 @@ import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../utils/getVercelAIMessages";
 import {
   AISDKMessageConverter,
+  convertAISDKMessage,
+  createAISDKMetadataKey,
   type AISDKMessageConverterMetadata,
 } from "../converters/convertMessage";
 import { wrapModelContentEnvelope } from "assistant-stream/internal";
@@ -786,7 +789,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     retractCancellation,
   ]);
 
-  const messages = AISDKMessageConverter.useThreadMessages({
+  const [getConverterMetadataKey] = useState(createAISDKMetadataKey);
+  const messages = useExternalMessageConverter({
+    callback: convertAISDKMessage,
     isRunning,
     messages: chatHelpers.messages,
     joinStrategy,
@@ -826,6 +831,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolInteractions,
       ],
     ),
+    getMetadataKey: getConverterMetadataKey,
   });
 
   const exportedMessageRepository = useMemo(() => {
