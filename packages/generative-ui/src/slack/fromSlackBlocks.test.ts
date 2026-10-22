@@ -1077,6 +1077,11 @@ describe("fromSlackBlocks", () => {
         expected: [{ $type: "Caption", value: escapedText }],
       },
       {
+        name: "Text with broadcast mentions",
+        tree: { $type: "Text", value: "Ping @here and @channel" },
+        expected: [{ $type: "Text", value: "Ping @here and @channel" }],
+      },
+      {
         name: "plain text keeps entity spelling",
         tree: { $type: "Header", text: "&amp; &lt; &gt;" },
         expected: [{ $type: "Header", text: "&amp; &lt; &gt;" }],

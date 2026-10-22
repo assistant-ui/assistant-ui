@@ -7,7 +7,6 @@ import type {
   SlackDataTableBlock,
   SlackDataTableCell,
   SlackImageBlock,
-  SlackMrkdwnText,
   SlackSectionBlock,
   SlackTextObject,
 } from "./types";
@@ -112,6 +111,9 @@ export const TABLE_CAPTION = "Table";
 /** The cumulative character limit for native markdown blocks. */
 export const MARKDOWN_TEXT_BUDGET = 12000;
 
+/** The word joiner placed after the `@` of a plain `@here`, `@channel`, or `@everyone` in mrkdwn, which Slack would otherwise turn into a mention. */
+export const MENTION_JOINER = String.fromCharCode(0x2060);
+
 const ALERT_FALLBACK_EMOJI = {
   info: "ℹ️",
   success: "✅",
@@ -123,11 +125,6 @@ export const ALERT_FALLBACK_TITLE_MARKUP_LENGTH = Math.max(
   ...Object.values(ALERT_FALLBACK_EMOJI).map((emoji) => `${emoji} **`.length),
 );
 
-/** Builds a mrkdwn text object that Slack shows verbatim, so a plain `@here` or `@channel` in model text never notifies a channel. */
-export function buildMrkdwnText(text: string): SlackMrkdwnText {
-  return { type: "mrkdwn", text, verbatim: true };
-}
-
 /** Builds the message-surface fallback for an alert. */
 export function buildAlertFallback(
   title: string,
@@ -138,9 +135,11 @@ export function buildAlertFallback(
   return [
     {
       type: "context",
-      elements: [buildMrkdwnText(title ? `${emoji} *${title}*` : emoji)],
+      elements: [
+        { type: "mrkdwn", text: title ? `${emoji} *${title}*` : emoji },
+      ],
     },
-    { type: "section", text: buildMrkdwnText(description) },
+    { type: "section", text: { type: "mrkdwn", text: description } },
   ];
 }
 
@@ -150,7 +149,7 @@ export function buildAlertBlock(
   tone: "info" | "success" | "warning" | "danger",
 ): SlackAlertBlock {
   const level = tone === "danger" ? "error" : tone;
-  return { type: "alert", text: buildMrkdwnText(text), level };
+  return { type: "alert", text: { type: "mrkdwn", text }, level };
 }
 
 type CardBlockFields = {
@@ -195,9 +194,10 @@ export function buildBlockBudgetNote(omitted: number): SlackContextBlock {
   return {
     type: "context",
     elements: [
-      buildMrkdwnText(
-        `${omitted} ${omitted === 1 ? "block was" : "blocks were"} omitted.`,
-      ),
+      {
+        type: "mrkdwn",
+        text: `${omitted} ${omitted === 1 ? "block was" : "blocks were"} omitted.`,
+      },
     ],
   };
 }

@@ -49,7 +49,7 @@ type SlackConversionWarning = {
 |---|---|---|
 | `Header` | `header` block | Only `text` survives; `size` is dropped silently, since Slack's `header` block has no size |
 | `Text` | `section` block with `mrkdwn` text | Only `value` survives; `size`, `weight`, and `color` are dropped silently |
-| `Markdown` | `markdown` block | Downgrades to a `section` once the payload's markdown budget is spent |
+| `Markdown` | `markdown` block | Downgrades to a `section` once the payload's markdown budget is spent; outside code, the `<` of Slack mention and labeled link syntax (`<!here>`, `<@U…>`, `<#C…>`, `<url\|label>`) is written as `&lt;` so it shows as text |
 | `Caption`, `Badge` | `context` block with one element | The two become identical output and cannot be told apart coming back |
 | `Image` | `image` block | Only `src` and `alt` survive; `size` and `round` are dropped silently |
 | `Divider` | `divider` block | `flush` is dropped silently |
@@ -110,7 +110,7 @@ Inside a `Carousel` that fallback is unavailable, so an over-full card is reshap
 
 ## Limits
 
-The converter clamps to Slack's published budgets rather than letting the API reject the payload. Caps on `mrkdwn` fields count the escaped text, where `&`, `<`, and `>` take five, four, and four characters (`&amp;`, `&lt;`, `&gt;`). The budgets you are most likely to hit:
+The converter clamps to Slack's published budgets rather than letting the API reject the payload. Caps on `mrkdwn` fields count the escaped text, where `&`, `<`, and `>` take five, four, and four characters (`&amp;`, `&lt;`, `&gt;`), and a plain `@here`, `@channel`, or `@everyone` gains an invisible word joiner after its `@` so Slack shows it as text instead of notifying the channel. Markdown blocks count their escaped text against the markdown budget the same way. The budgets you are most likely to hit:
 
 | Budget | Value | Behavior when exceeded |
 |---|---|---|

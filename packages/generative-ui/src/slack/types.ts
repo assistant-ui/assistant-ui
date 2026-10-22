@@ -20,7 +20,6 @@ export interface SlackPlainText {
 export interface SlackMrkdwnText {
   readonly type: "mrkdwn";
   readonly text: string;
-  readonly verbatim?: boolean;
 }
 
 /** A text composition object accepted by card and alert text fields. */
