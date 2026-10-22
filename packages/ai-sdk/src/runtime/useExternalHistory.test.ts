@@ -3643,33 +3643,84 @@ describe("useExternalHistory persistence", () => {
     expect(deleteItems.mock.contexts[0]).toBe(formattedAdapter);
   });
 
-  it("reports telemetry after retrying a failed append", async () => {
+  it("reports a failed append as a persistence error once", async () => {
     const { append, reportTelemetry, runCycle, flush } =
       createPersistenceHarness(false);
-    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+    const failure = new Error("temporary storage failure");
+    append.mockRejectedValueOnce(failure);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
     const message = createAssistantMessage(
       { type: "complete", reason: "stop" },
       [{ id: "inner-a", parts: ["answer"] }],
     );
 
-    try {
-      await runCycle([message]);
-      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
-      await flush();
-      expect(reportTelemetry).not.toHaveBeenCalled();
+    await runCycle([message]);
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [{ parentId: null, message: { id: "inner-a", parts: ["answer"] } }],
+      expect.objectContaining({ message, persistenceError: failure }),
+    );
 
-      await runCycle([message]);
-      await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
-      await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await flush();
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+  });
 
-      expect(reportTelemetry).toHaveBeenCalledWith(
-        [{ parentId: null, message: { id: "inner-a", parts: ["answer"] } }],
-        expect.any(Object),
-      );
-    } finally {
-      errorSpy.mockRestore();
-    }
+  it("reports messages after a failed append without storing them", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    const failure = new Error("temporary storage failure");
+    append.mockRejectedValueOnce(failure);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
+    const first = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const second = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+
+    await runCycle([first, second]);
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(2));
+    await flush();
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry.mock.calls.map(([, options]) => options)).toEqual([
+      expect.objectContaining({ message: first, persistenceError: failure }),
+      expect.objectContaining({ message: second, persistenceError: failure }),
+    ]);
+  });
+
+  it("reports a failed update of a settled message as a persistence error", async () => {
+    const { update, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(true);
+    const failure = new Error("temporary storage failure");
+    update.mockRejectedValueOnce(failure);
+    const pending = createAssistantMessage(
+      { type: "requires-action", reason: "tool-calls" },
+      [{ id: "inner-a", parts: ["pending"] }],
+    );
+    const settled = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["pending", "final"] }],
+    );
+
+    await runCycle([pending]);
+    await flush();
+    await runCycle([settled]);
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ message: settled, persistenceError: failure }),
+    );
   });
 
   it("does not reappend a stored inner message whose outer message was filtered", async () => {

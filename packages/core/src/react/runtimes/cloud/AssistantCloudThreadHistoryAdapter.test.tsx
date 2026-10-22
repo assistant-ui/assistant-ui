@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor } from "@testing-library/react";
-import type { AssistantCloud } from "assistant-cloud";
+import { type AssistantCloud, CloudAPIError } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import {
@@ -1566,6 +1566,60 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(report.outcome_type).toBe(
       "outcome_type" in expected ? expected.outcome_type : undefined,
     );
+  });
+
+  it.each([
+    [
+      "a completed run whose history failed to store",
+      { type: "complete", reason: "stop" },
+      {
+        status: "error",
+        outcome_type: "persistence_error",
+        error: "Message too large",
+        error_code: "payload_too_large",
+      },
+    ],
+    [
+      "a stopped run whose history failed to store",
+      { type: "incomplete", reason: "cancelled" },
+      { status: "incomplete", outcome_type: "aborted" },
+    ],
+  ] as const)("reports %s", async (_, status, expected) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    assertDefined(result.current.withFormat);
+    const formatted = result.current.withFormat({
+      format: "aui/v0",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as TelemetryMessage,
+      }),
+      getId: (message: TelemetryMessage) => message.id,
+    });
+    const message = {
+      id: "message-1",
+      role: "assistant",
+      content: [{ type: "text", text: "done" }],
+      status,
+    };
+
+    assertDefined(formatted.reportTelemetry);
+    formatted.reportTelemetry([{ parentId: null, message }], {
+      persistenceError: new CloudAPIError(
+        "Message too large",
+        413,
+        "payload_too_large",
+      ),
+    });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).toEqual(expect.objectContaining(expected));
+    expect(report.error).toBe("error" in expected ? expected.error : undefined);
   });
 
   it("reports the model ID carried by aui/v0 step metadata", async () => {

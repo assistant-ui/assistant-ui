@@ -23,7 +23,8 @@ export type RunReportOutcome =
   | "content_filter"
   | "rate_limited"
   | "validation_failed"
-  | "server_error";
+  | "server_error"
+  | "persistence_error";
 
 /**
  * Maps a finish event to the report status and outcome. `fallbackStatus`

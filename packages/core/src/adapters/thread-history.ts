@@ -55,6 +55,8 @@ export type GenericThreadHistoryAdapter<TMessage> = {
       stepTimestamps?: { start_ms: number; end_ms: number }[];
       /** The thread message the items were persisted from; its status and timing complete a report the stored format cannot carry. */
       message?: ThreadMessage;
+      /** The error that kept the items, or a message before them, from being stored. */
+      persistenceError?: unknown;
     },
   ): void;
 };

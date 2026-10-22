@@ -21,6 +21,7 @@ import {
   CloudMessagePersistence,
   CloudRunReporter,
   createFormattedPersistence,
+  describeRunError,
   type RunMessageTelemetry,
 } from "assistant-cloud";
 import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
@@ -394,6 +395,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
           message?: ThreadMessage;
+          persistenceError?: unknown;
         },
       ) {
         const encodedRunMessages = items.map((item) =>
@@ -732,9 +734,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     options?: {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
+      persistenceError?: unknown;
     },
     threadListItem?: CloudThreadListItem,
-    messageInfo?: RunMessageInfo,
+    observedInfo?: RunMessageInfo,
   ) {
     const item = threadListItem ?? this.aui.threadListItem;
     const context = this.captureScope(item);
@@ -742,10 +745,26 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
     const extracted =
       extractRunTelemetry(format, runMessages) ??
-      (messageInfo?.status !== undefined
+      (observedInfo?.status !== undefined
         ? { status: "incomplete" as const }
         : undefined);
     if (!extracted) return;
+
+    let messageInfo = observedInfo;
+    if (
+      options?.persistenceError !== undefined &&
+      (observedInfo?.status ?? extracted.status) === "completed"
+    ) {
+      const { outcome: _, ...failure } = describeRunError(
+        options.persistenceError,
+      );
+      messageInfo = {
+        ...observedInfo,
+        ...failure,
+        status: "error",
+        outcomeType: "persistence_error",
+      };
+    }
 
     void this.resolveExistingRemoteId(item)
       .then((remoteId) => {
