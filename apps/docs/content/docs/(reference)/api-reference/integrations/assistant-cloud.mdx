@@ -138,8 +138,9 @@ applies when the event carries neither a finish reason nor a failure flag.
 
 ### describeRunError
 
-Reads the message and code the runs endpoint stores for a failed run. The
-code is the error's `code` when it has one, else its class name.
+Reads the message, code and outcome the runs endpoint stores for a failed
+run. The code is the error's HTTP `statusCode` when it carries one, else its
+`code`, else its class name. The outcome comes from the HTTP status.
 
 <ParametersTable {...assistantCloud_describeRunError} />
 

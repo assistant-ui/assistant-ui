@@ -474,6 +474,7 @@ type AssistantDataUIProps<T = any> = {
 type AssistantError = {
   readonly code: AssistantErrorCode;
   readonly message: string;
+  readonly statusCode?: number;
   readonly severity?: ErrorSeverity;
   readonly display?: ErrorDisplay;
 };

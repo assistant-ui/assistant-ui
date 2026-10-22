@@ -20,7 +20,10 @@ export type RunReportOutcome =
   | "aborted"
   | "disconnected"
   | "length"
-  | "content_filter";
+  | "content_filter"
+  | "rate_limited"
+  | "validation_failed"
+  | "server_error";
 
 /**
  * Maps a finish event to the report status and outcome. `fallbackStatus`
@@ -64,12 +67,14 @@ const MAX_RUN_ERROR_CODE_LENGTH = 64;
 const MAX_RUN_ERROR_LENGTH = 2048;
 
 /**
- * Reads the message and code the runs endpoint stores for a failed run. The
- * code is the error's `code` when it has one, else its class name.
+ * Reads the message, code and outcome the runs endpoint stores for a failed
+ * run. The code is the error's HTTP `statusCode` when it carries one, else its
+ * `code`, else its class name. The outcome comes from the HTTP status.
  */
 export function describeRunError(error: unknown): {
   error?: string;
   errorCode?: string;
+  outcome?: RunReportOutcome;
 } {
   if (error == null) return {};
   const record =
@@ -80,12 +85,21 @@ export function describeRunError(error: unknown): {
       : typeof record?.message === "string"
         ? record.message
         : undefined;
+  const statusCode =
+    typeof record?.statusCode === "number" &&
+    Number.isInteger(record.statusCode)
+      ? record.statusCode
+      : undefined;
   const code =
-    typeof record?.code === "string"
-      ? record.code
-      : typeof record?.name === "string" && record.name !== "Error"
-        ? record.name
-        : undefined;
+    statusCode !== undefined
+      ? String(statusCode)
+      : typeof record?.code === "string"
+        ? record.code
+        : typeof record?.name === "string" && record.name !== "Error"
+          ? record.name
+          : undefined;
+  const outcome =
+    statusCode !== undefined ? outcomeForStatusCode(statusCode) : undefined;
   return {
     ...(message
       ? { error: message.slice(0, MAX_RUN_ERROR_LENGTH) }
@@ -93,8 +107,18 @@ export function describeRunError(error: unknown): {
     ...(code
       ? { errorCode: code.slice(0, MAX_RUN_ERROR_CODE_LENGTH) }
       : undefined),
+    ...(outcome ? { outcome } : undefined),
   };
 }
+
+const outcomeForStatusCode = (
+  statusCode: number,
+): RunReportOutcome | undefined => {
+  if (statusCode === 429) return "rate_limited";
+  if (statusCode === 400 || statusCode === 422) return "validation_failed";
+  if (statusCode >= 500 && statusCode < 600) return "server_error";
+  return undefined;
+};
 
 /**
  * Clamps a string to the size the runs endpoint accepts for a single span

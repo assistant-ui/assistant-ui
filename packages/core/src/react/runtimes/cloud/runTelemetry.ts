@@ -114,7 +114,10 @@ export function extractRunMessageInfo(
         : undefined;
   const failed = status?.type === "incomplete" && status.reason === "error";
   const outcome = deriveRunOutcome({ finishReason, isError: failed });
-  const outcomeType = outcome.outcome;
+  const { outcome: failureOutcome, ...failure } = describeRunError(
+    failed ? status.error : undefined,
+  );
+  const outcomeType = outcome.outcome ?? failureOutcome;
   const runStatus =
     outcome.status === "error"
       ? "error"
@@ -123,7 +126,6 @@ export function extractRunMessageInfo(
         : finishReason !== undefined
           ? outcome.status
           : undefined;
-  const failure = failed ? describeRunError(status.error) : {};
   const messageId =
     localMessageId ?? (typeof message.id === "string" ? message.id : undefined);
   const traceId =

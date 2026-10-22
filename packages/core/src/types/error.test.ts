@@ -119,4 +119,13 @@ describe("isAssistantError", () => {
       }),
     ).toBe(false);
   });
+
+  it("accepts a numeric statusCode and rejects any other", () => {
+    expect(
+      isAssistantError({ code: "unknown", message: "x", statusCode: 429 }),
+    ).toBe(true);
+    expect(
+      isAssistantError({ code: "unknown", message: "x", statusCode: "429" }),
+    ).toBe(false);
+  });
 });

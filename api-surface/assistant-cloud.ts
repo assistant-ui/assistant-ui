@@ -730,7 +730,7 @@ type RunReportInit = {
   };
 };
 
-type RunReportOutcome = "aborted" | "content_filter" | "disconnected" | "length";
+type RunReportOutcome = "aborted" | "content_filter" | "disconnected" | "length" | "rate_limited" | "server_error" | "validation_failed";
 
 type RunReportStepInit = {
   usage?: RunTelemetryUsageInit | undefined;
@@ -853,6 +853,7 @@ declare function deriveRunOutcome(input: {
 declare function describeRunError(error: unknown): {
   error?: string;
   errorCode?: string;
+  outcome?: RunReportOutcome;
 };
 
 declare function extractAISDKRunTelemetry(messages: readonly AISDKMessageLike[]): RunMessageTelemetry | null;
