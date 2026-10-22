@@ -16,13 +16,20 @@ permissions:
 jobs:
   autofix:
     runs-on: ubuntu-latest
-    env:
-      BASE: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || format('origin/{0}', github.base_ref) }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Resolve comparison base
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          BASE=$(node scripts/prepare-ci-base.mjs --resolve)
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
