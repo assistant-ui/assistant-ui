@@ -413,6 +413,7 @@ const useMcpServerResourceInstance = (
           pendingTransportRef.current = null;
           await closeQueuedTransports([transport]);
         }
+        if (!isCurrentConnection(generation)) return;
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
@@ -502,6 +503,8 @@ const useMcpServerResourceInstance = (
         throw createInterruptedAuthError(error);
 
       await closeTransports();
+      if (!isCurrentConnection(generation))
+        throw createInterruptedAuthError(error);
       setLastError({
         message: error.message,
       });
