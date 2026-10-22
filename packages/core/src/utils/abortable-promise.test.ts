@@ -52,6 +52,18 @@ describe("raceWithAbortSignal", () => {
     expect(removeEventListener).toHaveBeenCalledWith("abort", abortListener);
   });
 
+  it("keeps cancellation triggered by the operation ahead of its returned value", async () => {
+    const controller = new AbortController();
+    const reason = new Error("cancelled");
+    const result = raceWithAbortSignal(controller.signal, () => {
+      controller.abort(reason);
+      return "done";
+    });
+
+    await expect(result).rejects.toBe(reason);
+    expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
+  });
+
   it("observes a late rejection after cancellation wins", async () => {
     const controller = new AbortController();
     const reason = new Error("cancelled");
