@@ -288,6 +288,64 @@ it("reports a late attachment add under the thread it started on", async () => {
   });
 });
 
+it("returns a failed send to the draft under the thread it started on", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  let rejectSend!: (reason: unknown) => void;
+  const attachmentAdapter: AttachmentAdapter = {
+    accept: "*",
+    add: async ({ file }) => ({
+      id: "attachment-1",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    }),
+    remove: async () => {},
+    send: () =>
+      new Promise((_, reject) => {
+        rejectSend = reject;
+      }),
+  };
+  const App: FC = () => {
+    const client = useAui({
+      threads: InMemoryThreadList({
+        thread: () => ExternalThread({ messages: [], attachmentAdapter }),
+      }),
+    });
+    return (
+      <AuiProvider value={client}>
+        <Capture />
+      </AuiProvider>
+    );
+  };
+  render(<App />);
+  const startedOn = aui.threads.getState().mainThreadId;
+
+  await act(async () => {
+    await aui
+      .composer()
+      .addAttachment(new File(["notes"], "notes.txt", { type: "text/plain" }));
+    aui.composer().setText("with file");
+    aui.composer().send();
+  });
+  await act(async () => {
+    aui.threads.switchToNewThread();
+  });
+  expect(aui.threads.getState().mainThreadId).not.toBe(startedOn);
+  onAnyTextChange.mockClear();
+
+  await act(async () => {
+    rejectSend(new Error("upload failed"));
+  });
+
+  expect(onAnyTextChange).toHaveBeenCalledExactlyOnceWith({
+    threadId: startedOn,
+    text: "with file",
+    origin: "return",
+  });
+});
+
 it("reports an unknown thread when no thread list is in scope", async () => {
   const StandaloneThread = resource(function useStandaloneThread() {
     return useResource(ExternalThread({ messages: [], onNew }));

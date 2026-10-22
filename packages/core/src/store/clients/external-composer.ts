@@ -25,6 +25,7 @@ import type {
   AttachmentAddErrorReason,
   ComposerSetTextOptions,
   ComposerSubmission,
+  ComposerTextOrigin,
 } from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { QueueItemState } from "../scopes/queue-item";
@@ -223,17 +224,22 @@ const useComposerClientResource = ({
     }),
     [clientRef, messageId, type],
   );
-  const setText = useCallback(
-    (next: string, options?: ComposerSetTextOptions) => {
+  const writeText = useCallback(
+    (
+      next: string,
+      origin: ComposerTextOrigin,
+      eventContext: ComposerEventContext,
+    ) => {
       if (next === textRef.current) return;
       setTextState(next);
-      emit("composer.textChange", {
-        ...getEventContext(),
-        text: next,
-        origin: options?.origin ?? "external",
-      });
+      emit("composer.textChange", { ...eventContext, text: next, origin });
     },
-    [emit, getEventContext, setTextState, textRef],
+    [emit, setTextState, textRef],
+  );
+  const setText = useCallback(
+    (next: string, options?: ComposerSetTextOptions) =>
+      writeText(next, options?.origin ?? "external", getEventContext()),
+    [getEventContext, writeText],
   );
   const emitAttachmentAdd = (
     eventContext: ComposerEventContext,
@@ -560,7 +566,10 @@ const useComposerClientResource = ({
   // since. An edit composer kept its draft, so it only takes back the state
   // the attachments came back in, such as the reason one failed, and leaves
   // an attachment being removed to its removal.
-  const returnToDraft = (content: ComposerSubmission) => {
+  const returnToDraft = (
+    content: ComposerSubmission,
+    eventContext: ComposerEventContext = getEventContext(),
+  ) => {
     if (type !== "thread") {
       const returned = new Map(
         content.attachments.flatMap((attachment) => {
@@ -581,9 +590,11 @@ const useComposerClientResource = ({
       return restored ? [restored] : [];
     });
     setAttachments((prev) => [...returned, ...prev]);
-    setText([content.text, textRef.current].filter(Boolean).join("\n"), {
-      origin: "return",
-    });
+    writeText(
+      [content.text, textRef.current].filter(Boolean).join("\n"),
+      "return",
+      eventContext,
+    );
     setQuote((prev) => prev ?? content.quote);
   };
 
@@ -618,13 +629,14 @@ const useComposerClientResource = ({
   ) => {
     const current = submissionRef.current;
     if (!current) return;
+    const eventContext = submissionSend.current?.eventContext;
     const attachments = attachmentSends.reconcileFailures(
       current.attachments,
       sent,
       settled,
     );
     endSubmission();
-    returnToDraft({ ...current, attachments });
+    returnToDraft({ ...current, attachments }, eventContext);
     console.error("Failed to send attachments", reason);
   };
 
@@ -710,7 +722,7 @@ const useComposerClientResource = ({
       console.error("[assistant-ui] Failed to send the message", failure.error);
       if (entry)
         setInTransit((prev) => prev.filter((candidate) => candidate !== entry));
-      returnToDraft(returned);
+      returnToDraft(returned, context.eventContext);
       return;
     }
     emit("composer.send", {
@@ -783,7 +795,7 @@ const useComposerClientResource = ({
     const submitted = submissionRef.current ?? current;
     if (!submitted.text.trim() && finalAttachments.length === 0) {
       endSubmission();
-      returnToDraft(submitted);
+      returnToDraft(submitted, context.eventContext);
       return;
     }
     dispatchMessage(submitted, finalAttachments, context, true);
