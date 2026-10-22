@@ -1,5 +1,60 @@
 # @assistant-ui/core
 
+## 0.3.31
+
+### Patch Changes
+
+- [#9998](https://github.com/assistant-ui/assistant-ui/pull/9998) [`be34094`](https://github.com/assistant-ui/assistant-ui/commit/be3409456350451ce46ce3988e47fc50f5a7811c) - fix: preserve earlier answers' streaming timing when a later run ends without new output. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10018](https://github.com/assistant-ui/assistant-ui/pull/10018) [`e553142`](https://github.com/assistant-ui/assistant-ui/commit/e55314209965381f6f9621418340425ff55a643f) - report failed and stopped turns with an outcome: an HTTP failure becomes `rate_limited`, `validation_failed`, or `server_error` with its status as `error_code`, a run stopped before its first token reports `aborted`, and a run that ends without output reports `incomplete` ([@okisdev](https://github.com/okisdev))
+
+- [#10022](https://github.com/assistant-ui/assistant-ui/pull/10022) [`770a07f`](https://github.com/assistant-ui/assistant-ui/commit/770a07f355641e8dbf7f75a9d3427b457258d188) - report a completed turn whose thread history failed to store as a `persistence_error` run ([@okisdev](https://github.com/okisdev))
+
+- [#9990](https://github.com/assistant-ui/assistant-ui/pull/9990) [`dd1acfc`](https://github.com/assistant-ui/assistant-ui/commit/dd1acfc394dcf97befc52530d105e8344344564a) - feat: report every composer text write as a `textChange` event (`composer.textChange` in the store) with the text it left and its origin, so a user clearing the draft can be told apart from a send, a returned send, a reset, or input history recall; `setText` accepts `{ origin }` ([@okisdev](https://github.com/okisdev))
+
+- [#10012](https://github.com/assistant-ui/assistant-ui/pull/10012) [`986fb1f`](https://github.com/assistant-ui/assistant-ui/commit/986fb1fff9c694e904b19d5d1dae6e77358c1fbe) - perf(core): a streaming token through `useExternalMessageConverter`, or through `convertExternalMessages` with a conversion cache, no longer rejoins every finished message in the thread ([@samdickson22](https://github.com/samdickson22))
+
+- [#9907](https://github.com/assistant-ui/assistant-ui/pull/9907) [`5c27b22`](https://github.com/assistant-ui/assistant-ui/commit/5c27b2220dff039b2a74152ab62ab588265c6424) - refactor(core): remove the unused `src/adapters/index.ts` barrel; the package exports are unchanged ([@okisdev](https://github.com/okisdev))
+
+- [#9915](https://github.com/assistant-ui/assistant-ui/pull/9915) [`1ebb427`](https://github.com/assistant-ui/assistant-ui/commit/1ebb427a7dfe8cb83cc53eb7363ea675b771546a) - refactor(core): split cloud engagement events and the local storage thread codec into their own modules; the package exports are unchanged ([@okisdev](https://github.com/okisdev))
+
+- [#9914](https://github.com/assistant-ui/assistant-ui/pull/9914) [`50ef493`](https://github.com/assistant-ui/assistant-ui/commit/50ef493dec29cad91853eba68d29250a04abb018) - refactor(core): move the external composer resource into its own module; the package exports are unchanged ([@okisdev](https://github.com/okisdev))
+
+- [#9911](https://github.com/assistant-ui/assistant-ui/pull/9911) [`4b231eb`](https://github.com/assistant-ui/assistant-ui/commit/4b231ebbaade388f049bbd174d792f992e32894b) - fix(core): mark `useLocalRuntime`, `useRemoteThreadListRuntime`, `useCloudThreadListAdapter` and `CloudFileAttachmentAdapter` as client modules, like `useExternalStoreRuntime` and `useCloudThreadListRuntime` ([@okisdev](https://github.com/okisdev))
+
+- [#9925](https://github.com/assistant-ui/assistant-ui/pull/9925) [`957d4f6`](https://github.com/assistant-ui/assistant-ui/commit/957d4f62e9058c8f514aef264ca53153c1a68d4d) - refactor(core): share six runtime algorithms between the legacy runtime and the store client; behavior and exports are unchanged ([@okisdev](https://github.com/okisdev))
+
+- [#10004](https://github.com/assistant-ui/assistant-ui/pull/10004) [`5d4eb88`](https://github.com/assistant-ui/assistant-ui/commit/5d4eb88b840017476e76ad36d6d556cb17d1785f) - deprecate `RemoteThreadListAdapter.unstable_Provider` for removal in a future minor release; `useRemoteThreadListRuntime` now warns in development when an adapter with it keeps the runtime on the class core. return the same adapters from `unstable_useAdapters` instead. ([@okisdev](https://github.com/okisdev))
+
+- [#10005](https://github.com/assistant-ui/assistant-ui/pull/10005) [`94d25fa`](https://github.com/assistant-ui/assistant-ui/commit/94d25fa1362cb685c688dbc1553f47dfd20b07bc) - fix: forward composer store events from ExternalThread ([@okisdev](https://github.com/okisdev))
+
+- [#9967](https://github.com/assistant-ui/assistant-ui/pull/9967) [`a107296`](https://github.com/assistant-ui/assistant-ui/commit/a107296e7fdfe4dd353e77eee86412ef291fbb48) - fix: read interactable update results that LangGraph and LangChain return as JSON text, so id-less updates stay attributed to the instance they resolved to ([@okisdev](https://github.com/okisdev))
+
+- [#9938](https://github.com/assistant-ui/assistant-ui/pull/9938) [`847f621`](https://github.com/assistant-ui/assistant-ui/commit/847f6213f9a07f7ecc1c19924a049b6a05ff784b) - feat(core): `unstable_interactableTool` takes an optional `name` for its interactable, so the creating tool can be named apart from it (`create_notepad` beside `update_notepad`) ([@Mohamed3nan](https://github.com/Mohamed3nan))
+
+- [#9982](https://github.com/assistant-ui/assistant-ui/pull/9982) [`a3654c6`](https://github.com/assistant-ui/assistant-ui/commit/a3654c639b51ab4384422f28ecb72c387eb2ff19) - document that `createLocalStorageAdapter` and `createFileStorageAdapter` support one writer per storage at a time ([@okisdev](https://github.com/okisdev))
+
+- [#10002](https://github.com/assistant-ui/assistant-ui/pull/10002) [`b6c3132`](https://github.com/assistant-ui/assistant-ui/commit/b6c313280a215a5e770c23ff0bf219969ddee2e7) - docs: clarify voice adapter text acceptance ordering and interrupted reply delivery ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10001](https://github.com/assistant-ui/assistant-ui/pull/10001) [`a2252d0`](https://github.com/assistant-ui/assistant-ui/commit/a2252d06ddc1eaa20a9bcf961edf821aeeccc65c) - fix: keep replacement ExternalThread speech stoppable when an old utterance callback arrives after cleanup ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10011](https://github.com/assistant-ui/assistant-ui/pull/10011) [`e47249d`](https://github.com/assistant-ui/assistant-ui/commit/e47249d40720e61b87eed59ae72b6bda7d1dba63) - fix(core): supersede a speak started from inside the replaced utterance's cancel ([@okisdev](https://github.com/okisdev))
+
+- [#9969](https://github.com/assistant-ui/assistant-ui/pull/9969) [`9835bd9`](https://github.com/assistant-ui/assistant-ui/commit/9835bd983ea917ef37c0b21496ee0ce7abd81da3) - skip unchanged remote thread resources when the thread list host re-renders ([@okisdev](https://github.com/okisdev))
+
+- [#9927](https://github.com/assistant-ui/assistant-ui/pull/9927) [`1b62b6b`](https://github.com/assistant-ui/assistant-ui/commit/1b62b6b894e9ff73032848598f0acb99f8748c37) - share the history write chain between the ag-ui and a2a runtimes ([@okisdev](https://github.com/okisdev))
+
+- [#10007](https://github.com/assistant-ui/assistant-ui/pull/10007) [`1de233d`](https://github.com/assistant-ui/assistant-ui/commit/1de233d61b09f25f7f14df8a9211edb347559902) - fix(core): clear ExternalThread speech state when an adapter's cancel throws ([@okisdev](https://github.com/okisdev))
+
+- [#9974](https://github.com/assistant-ui/assistant-ui/pull/9974) [`90c6405`](https://github.com/assistant-ui/assistant-ui/commit/90c640525422396297bb8312bc459898ab282ebb) - Keep generated external message timestamps stable across conversion cache invalidations. ([@rajnish-verma-22172](https://github.com/rajnish-verma-22172))
+
+- [#9975](https://github.com/assistant-ui/assistant-ui/pull/9975) [`38d43ff`](https://github.com/assistant-ui/assistant-ui/commit/38d43fff71a444ba935cc46577c72550a35573d2) - keep convertMessage timestamps stable in the external store runtime ([@okisdev](https://github.com/okisdev))
+
+- [#9867](https://github.com/assistant-ui/assistant-ui/pull/9867) [`0ba19fd`](https://github.com/assistant-ui/assistant-ui/commit/0ba19fdcb989979bf892676ab0a56a087ac24036) - Expose thread-list unarchive support and disable unarchive controls when the adapter cannot restore archived threads. ([@dhanushkumarsivaji](https://github.com/dhanushkumarsivaji))
+- Updated dependencies [[`e553142`](https://github.com/assistant-ui/assistant-ui/commit/e55314209965381f6f9621418340425ff55a643f), [`770a07f`](https://github.com/assistant-ui/assistant-ui/commit/770a07f355641e8dbf7f75a9d3427b457258d188), [`0a6d4cb`](https://github.com/assistant-ui/assistant-ui/commit/0a6d4cb49bd7749e7e708448708e325c88752531)]:
+  - assistant-cloud@0.2.8
+  - assistant-stream@0.3.54
+
 ## 0.3.30
 
 ### Patch Changes

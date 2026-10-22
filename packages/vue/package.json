@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/vue",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Vue bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.30",
+    "@assistant-ui/core": "^0.3.31",
     "@assistant-ui/store": "^0.3.22",
     "@assistant-ui/tap": "^0.9.24"
   },
