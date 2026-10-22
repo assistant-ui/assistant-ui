@@ -81,7 +81,7 @@ The thread history adapter reports a terminal assistant message after persistenc
 | AI SDK runtime with `ai-sdk/v6` | The same message state and first token time, client duration and step timing, text across assistant messages, steps, tool calls, sampling calls, and usage. Static tools are `frontend`, dynamic tools are `mcp`, and a step that calls a tool is marked `tool-calls`. | The provider finish reason for each step. It only observes the stored message. |
 | LangGraph, LangChain, and Google ADK | The cloud thread list, titles, a copy of settled messages, feedback, and engagement when configured with a cloud client. | Run reports, because the model work happens on the server. Send [traces](/docs/cloud/traces) for it. |
 
-For both message formats, report construction reads only assistant messages. A message waiting for tool approval is not reported, so a paused run is not counted as completed or reported twice.
+For both message formats, report construction reads only assistant messages. A message waiting for tool approval is not reported, so a paused run is not counted as completed or reported twice. The AI SDK runtime also reports a run that ends without an assistant message: a request that fails before streaming reports its error, a run stopped before its first token reports `aborted`, and a run that ends without any output reports `incomplete` with no outcome type. None of these reports carries a `message_id`, because no assistant message was stored.
 
 ### `messageMetadata` values
 
@@ -134,13 +134,14 @@ The SDK derives a status before it creates the report. The first matching input 
 
 | Input or `outcome_type` | Resulting status | Produced today |
 |---|---|---|
-| `isError: true`, or `finishReason: "error"` | `error`, with no outcome type | The SDK when the persisted message is incomplete for `error`. |
+| `isError: true`, or `finishReason: "error"` | `error`, with the outcome type of the error's HTTP status, if any | The SDK when the persisted message is incomplete for `error`. |
 | `isAbort: true`, `finishReason: "cancelled"`, or `aborted` | `incomplete` | The SDK. |
 | `isDisconnect: true` or `disconnected` | `incomplete` | No shipped integration produces it today. The core runtimes do not observe the live connection. |
 | `length` | `incomplete` | The SDK from a message finish reason, and server spans. |
 | `content_filter` | `incomplete` | The SDK from `content-filter` or `content_filter`, and server spans. |
-| `timeout`, `rate_limited`, `provider_error`, or `server_error` | `error` | Only runs executed by an Assistant Cloud assistant. |
-| `validation_failed`, `budget_denied`, or `persistence_error` | `error` | No integration produces these values today. They remain valid filter vocabulary. |
+| `rate_limited`, `validation_failed`, or `server_error` | `error` | The SDK from the failed request's HTTP status, which also becomes `error_code`: `429` gives `rate_limited`, `400` or `422` gives `validation_failed`, and `5xx` gives `server_error`. Runs executed by an Assistant Cloud assistant also produce `rate_limited` and `server_error`. |
+| `timeout` or `provider_error` | `error` | Only runs executed by an Assistant Cloud assistant. |
+| `budget_denied` or `persistence_error` | `error` | No integration produces these values today. They remain valid filter vocabulary. |
 
 The Overview outcome chart groups values differently from the report vocabulary: `completed`, `stopped` for `aborted`, `disconnected`, `truncated` for `length` or `content_filter`, `failed` for every other outcome type, and `unknown` when there is no outcome type.
 

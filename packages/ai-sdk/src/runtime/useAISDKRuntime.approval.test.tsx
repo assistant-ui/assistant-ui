@@ -40,6 +40,7 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: mocks.persistToolApprovalResponses,
     })),
@@ -59,6 +60,7 @@ describe("useAISDKRuntime tool approvals", () => {
       .mockImplementation(() => ({
         isLoading: false,
         deleteMessage: vi.fn().mockResolvedValue(undefined),
+        markRunCancelled: vi.fn(),
         persistToolInteractions: vi.fn().mockResolvedValue(undefined),
         persistToolApprovalResponses: mocks.persistToolApprovalResponses,
       }));

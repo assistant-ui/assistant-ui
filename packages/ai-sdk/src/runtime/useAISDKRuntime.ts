@@ -516,7 +516,10 @@ const findRawToolMessageIndex = <UI_MESSAGE extends UIMessage>(
 };
 
 const toChatError = (error: Error): AssistantError => {
-  const code = (error as { code?: unknown }).code;
+  const { code, statusCode } = error as {
+    code?: unknown;
+    statusCode?: unknown;
+  };
   return {
     code:
       typeof code === "string"
@@ -525,6 +528,7 @@ const toChatError = (error: Error): AssistantError => {
           ? error.name
           : "unknown",
     message: error.message,
+    ...(typeof statusCode === "number" && { statusCode }),
   };
 };
 
@@ -858,6 +862,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const {
     isLoading,
     deleteMessage: deleteHistoryMessage,
+    markRunCancelled,
     persistToolInteractions,
     persistToolApprovalResponses,
   } = useExternalHistory(
@@ -1060,6 +1065,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   };
 
   const cancelRun = async () => {
+    markRunCancelled();
     for (const toolCallId of Object.keys(toolStatuses)) {
       cancelledToolCallIds.add(toolCallId);
     }

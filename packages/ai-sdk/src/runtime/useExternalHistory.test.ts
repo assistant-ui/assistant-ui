@@ -862,6 +862,12 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
+  const stoppedPrompt: InnerMessage = {
+    id: "user-1",
+    role: "user",
+    parts: ["prompt"],
+  };
+
   const createSlowLoadHarness = (resolveOnUnmount = true) => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -900,10 +906,11 @@ describe("useExternalHistory persistence", () => {
         stored.headId = item.message.id;
       },
     );
+    const reportTelemetry = vi.fn();
     const adapter: ThreadHistoryAdapter = {
       load: vi.fn(),
       append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({ load, append }),
+      withFormat: vi.fn().mockReturnValue({ load, append, reportTelemetry }),
     };
     const toMessages = (messages: InnerMessage[]) =>
       messages.map((message) =>
@@ -988,6 +995,7 @@ describe("useExternalHistory persistence", () => {
     };
     return {
       append,
+      reportTelemetry,
       first,
       mount,
       settleBeforeLoad,
@@ -1276,6 +1284,7 @@ describe("useExternalHistory persistence", () => {
       formattedAdapter,
       importMessages,
       deleteMessage: result.current.deleteMessage,
+      markRunCancelled: () => result.current.markRunCancelled(),
       reportTelemetry,
       load,
       persistToolInteractions: result.current.persistToolInteractions,
@@ -1419,6 +1428,107 @@ describe("useExternalHistory persistence", () => {
       ),
     );
     expect(innerMessage.metadata).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "a stopped run whose prompt core moved to the composer",
+      true,
+      [],
+      "cancelled",
+    ],
+    [
+      "a stopped run whose prompt the composer could not take back",
+      true,
+      [createUserMessage(stoppedPrompt)],
+      "cancelled",
+    ],
+    [
+      "a run that settled without output",
+      false,
+      [createUserMessage(stoppedPrompt)],
+      "other",
+    ],
+  ] as const)(
+    "reports %s",
+    async (_, cancelled, settledMessages: readonly ThreadMessage[], reason) => {
+      const { append, load, markRunCancelled, reportTelemetry, step, flush } =
+        createPersistenceHarness(false);
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+      await step({
+        isRunning: true,
+        messages: [createUserMessage(stoppedPrompt)],
+      });
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+      if (cancelled) markRunCancelled();
+      await step({ isRunning: false, messages: [...settledMessages] });
+      await flush();
+
+      await waitFor(() =>
+        expect(reportTelemetry).toHaveBeenCalledWith(
+          [],
+          expect.objectContaining({
+            message: expect.objectContaining({
+              role: "assistant",
+              status: { type: "incomplete", reason },
+            }),
+          }),
+        ),
+      );
+      expect(
+        reportTelemetry.mock.calls.filter(
+          ([, options]) => options?.message?.role === "assistant",
+        ),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("reports a run stopped while history is still loading", async () => {
+    const { first, reportTelemetry, resolveEmptyLoad } =
+      createSlowLoadHarness(false);
+
+    await first.step({
+      isRunning: true,
+      messages: [createUserMessage(stoppedPrompt)],
+    });
+    first.result.current.markRunCancelled();
+    await first.step({ isRunning: false, messages: [] });
+    await act(async () => {
+      resolveEmptyLoad();
+    });
+
+    await waitFor(() =>
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          message: expect.objectContaining({
+            status: { type: "incomplete", reason: "cancelled" },
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("reports only the reply of a run that answered its prompt", async () => {
+    const { load, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    const reply = createAssistantMessage({ type: "complete", reason: "stop" }, [
+      { id: "assistant-1", role: "assistant", parts: ["hi"] },
+    ]);
+
+    await runCycle([createUserMessage(stoppedPrompt), reply]);
+    await flush();
+
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalled());
+    expect(
+      reportTelemetry.mock.calls.filter(
+        ([, options]) => options?.message?.role === "assistant",
+      ),
+    ).toEqual([
+      [expect.any(Array), expect.objectContaining({ message: reply })],
+    ]);
   });
 
   it("keeps tool artifacts out of run telemetry", async () => {

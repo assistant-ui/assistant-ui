@@ -2,6 +2,7 @@
 
 import type {
   AssistantRuntime,
+  ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
   MessageFormatAdapter,
@@ -79,6 +80,37 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
   (message.status.reason === "tool-calls" ||
     (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
+
+// A run that settles without an assistant message after its prompt leaves nothing to report on its own.
+const isUnansweredRun = (
+  messages: readonly ThreadMessage[],
+  promptId: string,
+) => {
+  const promptIndex = messages.findIndex((message) => message.id === promptId);
+  return (
+    promptIndex === -1 ||
+    !messages
+      .slice(promptIndex + 1)
+      .some((message) => message.role === "assistant")
+  );
+};
+
+const createUnansweredRunMessage = (
+  reason: "cancelled" | "other",
+): ThreadAssistantMessage => ({
+  id: "unanswered-run",
+  role: "assistant",
+  content: [],
+  status: { type: "incomplete", reason },
+  createdAt: new Date(),
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
 
 const isTerminalMessage = (message: ThreadMessage) =>
   message.status === undefined ||
@@ -299,6 +331,14 @@ export const useExternalHistory = <TMessage>(
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
   const queuedPromptIdRef = useRef<string | null>(null);
+  const runPromptIdRef = useRef<string | null>(null);
+  const settledPromptIdRef = useRef<string | null>(null);
+  const runCancelledRef = useRef(false);
+  const settledRunCancelledRef = useRef(false);
+
+  const markRunCancelled = useCallback(() => {
+    if (wasRunningRef.current) runCancelledRef.current = true;
+  }, []);
 
   const releaseRemovedMessages = useCallback(
     (messages: readonly ThreadMessage[]) => {
@@ -436,6 +476,10 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
+        const prompt = threadState.messages.findLast(
+          (message) => message.role === "user",
+        );
+        if (prompt) runPromptIdRef.current = prompt.id;
         if (historyReadyRef.current) persistRunPrompt(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
@@ -446,6 +490,10 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (wasRunning) {
+        settledPromptIdRef.current = runPromptIdRef.current;
+        settledRunCancelledRef.current = runCancelledRef.current;
+        runPromptIdRef.current = null;
+        runCancelledRef.current = false;
         queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
@@ -525,6 +573,10 @@ export const useExternalHistory = <TMessage>(
 
       runStartRef.current = null;
       stepBoundariesRef.current = [];
+      const promptId = settledPromptIdRef.current;
+      const runCancelled = settledRunCancelledRef.current;
+      settledPromptIdRef.current = null;
+      settledRunCancelledRef.current = false;
 
       const telemetryOptions = {
         ...(durationMs != null ? { durationMs } : undefined),
@@ -634,6 +686,15 @@ export const useExternalHistory = <TMessage>(
               );
             }
           }
+
+          if (promptId !== null && isUnansweredRun(messages, promptId)) {
+            adapter.reportTelemetry?.([], {
+              ...telemetryOptions,
+              message: createUnansweredRunMessage(
+                runCancelled ? "cancelled" : "other",
+              ),
+            });
+          }
         })
         .catch((error) => {
           console.error("Failed to persist message history:", error);
@@ -642,7 +703,8 @@ export const useExternalHistory = <TMessage>(
 
     persistWhenReadyRef.current = () => {
       const state = runtimeRef.current.thread.getState();
-      if (state.messages.length === 0) return;
+      if (state.messages.length === 0 && settledPromptIdRef.current === null)
+        return;
       if (state.isRunning) {
         persistRunPrompt(state.messages);
         return;
@@ -780,6 +842,7 @@ export const useExternalHistory = <TMessage>(
   return {
     isLoading,
     deleteMessage,
+    markRunCancelled,
     persistToolInteractions,
     persistToolApprovalResponses: persistToolInteractions,
   };

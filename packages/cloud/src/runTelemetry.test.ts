@@ -75,6 +75,37 @@ describe("describeRunError", () => {
     expect(describeRunError(42)).toEqual({});
   });
 
+  it.each([
+    [429, "rate_limited"],
+    [400, "validation_failed"],
+    [422, "validation_failed"],
+    [500, "server_error"],
+    [503, "server_error"],
+  ] as const)(
+    "reads HTTP status %i as code and outcome %s",
+    (statusCode, outcome) => {
+      const error = Object.assign(new Error("Too many requests"), {
+        name: "AI_APICallError",
+        statusCode,
+      });
+      expect(describeRunError(error)).toEqual({
+        error: "Too many requests",
+        errorCode: String(statusCode),
+        outcome,
+      });
+    },
+  );
+
+  it("keeps an HTTP status it cannot classify as the code alone", () => {
+    expect(
+      describeRunError({
+        code: "AI_APICallError",
+        message: "no",
+        statusCode: 401,
+      }),
+    ).toEqual({ error: "no", errorCode: "401" });
+  });
+
   it("clamps the message and code to what the runs endpoint accepts", () => {
     const error = new Error("m".repeat(3000));
     error.name = "c".repeat(100);

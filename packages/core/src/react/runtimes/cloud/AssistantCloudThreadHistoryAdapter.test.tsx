@@ -1507,6 +1507,67 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it.each([
+    [
+      "a rate-limited run",
+      {
+        type: "incomplete",
+        reason: "error",
+        error: {
+          code: "AI_APICallError",
+          message: "Too many requests",
+          statusCode: 429,
+        },
+      },
+      {
+        status: "error",
+        outcome_type: "rate_limited",
+        error_code: "429",
+        error: "Too many requests",
+      },
+    ],
+    [
+      "a run stopped before any assistant message was stored",
+      { type: "incomplete", reason: "cancelled" },
+      { status: "incomplete", outcome_type: "aborted" },
+    ],
+    [
+      "a run that settled without output",
+      { type: "incomplete", reason: "other" },
+      { status: "incomplete" },
+    ],
+  ] as const)("reports %s", async (_, status, expected) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    assertDefined(result.current.withFormat);
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as TelemetryMessage,
+      }),
+      getId: (message: TelemetryMessage) => message.id,
+    });
+
+    assertDefined(formatted.reportTelemetry);
+    formatted.reportTelemetry([], {
+      message: { ...makeAssistantMessage("assistant-1"), content: [], status },
+    });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).toEqual(
+      expect.objectContaining({ thread_id: "thread-1", ...expected }),
+    );
+    expect(report.outcome_type).toBe(
+      "outcome_type" in expected ? expected.outcome_type : undefined,
+    );
+  });
+
   it("reports the model ID carried by aui/v0 step metadata", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
