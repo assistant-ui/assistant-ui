@@ -277,6 +277,37 @@ describe("ExternalThread speech", () => {
     });
   });
 
+  it("supersedes a speak started from inside the replaced utterance's cancel", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    await act(async () => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+
+    expect(utterances.map((utterance) => utterance.text)).toEqual([
+      "hello there",
+      "hi",
+    ]);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+    expect(utterances[1]!.cancel).toHaveBeenCalledOnce();
+    expect(aui().thread.getState().speech).toBeUndefined();
+  });
+
   it("message stopSpeaking throws unless that message is being spoken", async () => {
     const { adapter, utterances } = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: adapter });

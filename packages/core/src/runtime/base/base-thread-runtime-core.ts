@@ -344,6 +344,7 @@ export abstract class BaseThreadRuntimeCore
   }
 
   private _stopSpeaking: Unsubscribe | undefined;
+  private _replacingSpeech = false;
   public speech: SpeechState | undefined;
 
   public speak(messageId: string) {
@@ -354,10 +355,18 @@ export abstract class BaseThreadRuntimeCore
     if (!entry) throw new Error(`Message not found: ${messageId}`);
     const { message } = entry;
 
+    // A speak from inside the replaced utterance's cancel is superseded by
+    // this one, which would otherwise leave it playing untracked.
+    if (this._replacingSpeech) return;
     const previousStop = this._stopSpeaking;
     let utterance: SpeechSynthesisAdapter.Utterance;
     try {
-      previousStop?.();
+      this._replacingSpeech = true;
+      try {
+        previousStop?.();
+      } finally {
+        this._replacingSpeech = false;
+      }
       utterance = adapter.speak(getThreadMessageText(message));
     } catch (error) {
       if (previousStop && !this._stopSpeaking) {
