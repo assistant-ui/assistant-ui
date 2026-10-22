@@ -164,12 +164,14 @@ const clampText = (
 const BROADCAST_MENTION =
   /(^|[^A-Za-z0-9/])@(here|channel|everyone)(?![A-Za-z0-9])/gi;
 
+const escapeMrkdwnEntities = (value: string): string =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 const escapeMrkdwn = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(BROADCAST_MENTION, `$1@${MENTION_JOINER}$2`);
+  escapeMrkdwnEntities(value).replace(
+    BROADCAST_MENTION,
+    `$1@${MENTION_JOINER}$2`,
+  );
 
 const SLACK_TOKEN_START = /<(?=[!@#]|[^<>\n]*\|[^<>\n]*>)/g;
 
@@ -2032,7 +2034,7 @@ const convertElement = (
       const target =
         href === undefined
           ? undefined
-          : escapeMrkdwn(href).replace(/\|/g, "%7C");
+          : escapeMrkdwnEntities(href).replace(/\|/g, "%7C");
       const linked =
         target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
       const title = clampEscapedMrkdwn(
@@ -2147,7 +2149,7 @@ const convertElement = (
         );
       return places.map((place) =>
         escapedSection(
-          `<${escapeMrkdwn(placeHref(place))}|${clampEscapedMrkdwn(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampEscapedMrkdwn(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
+          `<${escapeMrkdwnEntities(placeHref(place))}|${clampEscapedMrkdwn(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampEscapedMrkdwn(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
           "Map",
           context,
         ),

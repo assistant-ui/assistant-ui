@@ -4315,6 +4315,22 @@ describe("Slack mrkdwn escaping", () => {
     });
   });
 
+  it("leaves a Citation link target unjoined while joining its label", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Citation",
+      title: "@here",
+      url: "https://x.com/search?q=@here",
+    });
+
+    expect(blocks[0]).toMatchObject({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `<https://x.com/search?q=@here|@${MENTION_JOINER}here>`,
+      },
+    });
+  });
+
   it("escapes Slack tokens after a code fence that never closes", () => {
     const { blocks } = toSlackBlocks({
       $type: "Markdown",
