@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { act, useEffect } from "react";
+import { act, useEffect, useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -25,6 +25,7 @@ import {
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRenderCounter } from "@assistant-ui/x-performance";
+import { getClientId, type AssistantClientAccessor } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import {
   $createDirectiveNode,
@@ -38,57 +39,95 @@ const mocks = vi.hoisted(() => ({
   threadId: undefined as string | undefined,
 }));
 
+const testClientId = vi.hoisted(() => Symbol("testClientId"));
+
+type MockAssistantState = {
+  composer: { text: string };
+  optional: { threads?: { mainThreadId: string } };
+};
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
+    getClientId: (client: object) =>
+      ((client as Record<symbol, unknown>)[testClientId] ??
+        actual.getClientId(client)) as ReturnType<typeof actual.getClientId>,
     useAui: () => mocks.aui,
-    useAuiState: <T,>(
-      selector: (s: { optional: { threads?: { mainThreadId: string } } }) => T,
-    ) =>
-      selector({
-        optional:
-          mocks.threadId === undefined
-            ? {}
-            : { threads: { mainThreadId: mocks.threadId } },
-      }),
+    useAuiState: <T,>(selector: (s: MockAssistantState) => T) => {
+      const subscribe = (listener: () => void) =>
+        mocks.aui.subscribeState?.(listener) ?? (() => {});
+      const getSnapshot = () =>
+        selector({
+          composer: mocks.aui.composer.getState(),
+          optional:
+            mocks.threadId === undefined
+              ? {}
+              : { threads: { mainThreadId: mocks.threadId } },
+        });
+      return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    },
   };
 });
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
+const createComposerAccessor = <
+  T extends {
+    getState: () => { text: string };
+    setText: (text: string) => void;
+  },
+>(
+  client: T,
+) =>
+  ({
+    getState: () => client.getState(),
+    setText: client.setText,
+    [testClientId]: client,
+  }) as unknown as AssistantClientAccessor<"composer"> & Pick<T, "setText">;
+
 const createAui = (text: string) => {
   let current = text;
-  const runtime = {
+  const sourceListeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of [...sourceListeners]) listener();
+  };
+  const composerClient = {
     getState: () => ({ text: current }),
-    subscribe: () => () => {},
+    setText: vi.fn((next: string) => {
+      current = next;
+      notify();
+    }),
   };
 
   return {
     optional: {},
-    composer: {
-      __internal_getRuntime: () => runtime,
-      setText: vi.fn((next: string) => {
-        current = next;
-      }),
-    },
+    composer: createComposerAccessor(composerClient),
+    subscribe: () => () => {},
+    subscribeState: (listener: () => void) =>
+      subscribeTo(sourceListeners, listener),
   };
 };
 
-// One client and one composer runtime across a thread switch: the runtime
-// notifies while the threads state still names the old thread, and the new id
-// commits afterwards.
+const subscribeTo = (listeners: Set<() => void>, listener: () => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
 const createSwitchableAui = (text: string, threadId: string) => {
   const state = { text, threadId };
-  const listeners = new Set<() => void>();
-  const runtime = {
+  const sourceListeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of [...sourceListeners]) listener();
+  };
+  const composerClient = {
     getState: () => ({ text: state.text }),
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    setText: vi.fn((next: string) => {
+      state.text = next;
+      notify();
+    }),
   };
   mocks.threadId = threadId;
   return {
@@ -96,17 +135,15 @@ const createSwitchableAui = (text: string, threadId: string) => {
       optional: {
         threads: { getState: () => ({ mainThreadId: state.threadId }) },
       },
-      composer: {
-        __internal_getRuntime: () => runtime,
-        setText: vi.fn((next: string) => {
-          state.text = next;
-        }),
-      },
+      composer: createComposerAccessor(composerClient),
+      subscribe: () => () => {},
+      subscribeState: (listener: () => void) =>
+        subscribeTo(sourceListeners, listener),
     },
     getText: () => state.text,
     notifyText(next: string) {
       state.text = next;
-      for (const listener of [...listeners]) listener();
+      notify();
     },
     commitThread(next: string) {
       state.threadId = next;
@@ -269,9 +306,7 @@ describe("SyncPlugin", () => {
     });
 
     expect(readEditorText(editor)).toBe("thread B populated draft");
-    expect(nextAui.composer.__internal_getRuntime!().getState().text).toBe(
-      "thread B populated draft",
-    );
+    expect(nextAui.composer.getState().text).toBe("thread B populated draft");
   });
 
   it("resets history when switched composers have equal text", async () => {
@@ -321,9 +356,7 @@ describe("SyncPlugin", () => {
     });
 
     expect(readEditorText(editor)).toBe("shared draft");
-    expect(nextAui.composer.__internal_getRuntime!().getState().text).toBe(
-      "shared draft",
-    );
+    expect(nextAui.composer.getState().text).toBe("shared draft");
   });
 
   describe("when the thread id commits after the composer notified", () => {
@@ -388,7 +421,7 @@ describe("SyncPlugin", () => {
       expect(switchable.getText()).toBe("thread B draft");
     });
 
-    it("keeps the new thread's own history across a later runtime notification", async () => {
+    it("keeps the new thread's own history across a later store notification", async () => {
       const switchable = await mountSwitchable("sync-thread-commit-history");
       await act(async () => {
         typeDraft("thread B first");
@@ -1071,5 +1104,69 @@ describe("SyncPlugin", () => {
     expect(aui.composer.setText).toHaveBeenLastCalledWith("\n\nx!", {
       origin: "user",
     });
+  });
+
+  it("preserves undo history when the store recreates an accessor for the same composer", async () => {
+    let text = "hello";
+    const composerClient = {
+      getState: () => ({ text }),
+      setText: vi.fn((next: string) => {
+        text = next;
+      }),
+    };
+    const createStoreAui = () => ({
+      optional: {},
+      composer: createComposerAccessor(composerClient),
+      subscribe: () => () => {},
+    });
+    const extension = defineExtension({
+      name: "sync-accessor-identity",
+      namespace: "sync-accessor-identity",
+      dependencies: [HistoryExtension],
+    });
+    const render = () =>
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin />
+          <EditorProbe
+            capture={(value) => {
+              editor = value;
+            }}
+          />
+        </LexicalExtensionComposer>,
+      );
+
+    const firstAui = createStoreAui();
+    mocks.aui = firstAui as unknown as ReturnType<typeof createAui>;
+    await act(async () => render());
+    await act(async () => {
+      editor.update(
+        () => {
+          const textNode = $getParagraph().getFirstChild();
+          if (!$isTextNode(textNode)) throw new Error("Expected text");
+          textNode.setTextContent("hello!");
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+
+    const secondAui = createStoreAui();
+    expect(secondAui.composer).not.toBe(firstAui.composer);
+    expect(getClientId(secondAui.composer)).toBe(
+      getClientId(firstAui.composer),
+    );
+    expect(secondAui.composer.getState().text).toBe(
+      firstAui.composer.getState().text,
+    );
+    expect(secondAui.composer.setText).toBe(firstAui.composer.setText);
+    mocks.aui = secondAui as unknown as ReturnType<typeof createAui>;
+    await act(async () => render());
+
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+
+    expect(readEditorText(editor)).toBe("hello");
   });
 });
