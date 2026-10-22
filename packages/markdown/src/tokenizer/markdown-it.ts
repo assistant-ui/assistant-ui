@@ -27,7 +27,7 @@ type Context = {
   extensions: boolean;
 };
 
-const TASK_MARKER = /^\[([ xX])\](?:[ \t]+|$)/;
+const TASK_MARKER = /^\[([ xX])\](?:[ \t]+|(?=\n|$))/;
 const URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;
 const WWW_PREFIX = /^www\./i;
 const TEXT_ALIGN = /text-align:\s*(left|center|right)/;
@@ -159,29 +159,22 @@ const convertInline = (tokens: Token[]): InlineNode[] => {
 
 const convertListItem = (
   token: Token,
-  children: BlockNode[],
-  { extensions }: Context,
+  tokens: Token[],
+  context: Context,
 ): ListItemNode => {
+  const children = convertBlocks(tokens, context);
   const item: ListItemNode = {
     type: "listItem",
     children,
     lines: linesOf(token),
   };
   const first = children[0];
-  if (!extensions || first?.type !== "paragraph") return item;
+  if (!context.extensions || first?.type !== "paragraph") return item;
   const text = first.children[0];
   if (text?.type !== "text") return item;
-  const marker = TASK_MARKER.exec(text.value);
+  const marker = TASK_MARKER.exec(tokens[1]?.content ?? "");
   const next = first.children[1];
-  if (
-    !marker ||
-    (marker[0].length === 3 &&
-      next !== undefined &&
-      next.type !== "softBreak" &&
-      next.type !== "hardBreak")
-  ) {
-    return item;
-  }
+  if (!marker) return item;
 
   item.checked = marker[1] !== " ";
   text.value = text.value.slice(marker[0].length);
@@ -218,9 +211,7 @@ const convertList = (
     ) {
       tight = false;
     }
-    children.push(
-      convertListItem(itemToken, convertBlocks(inner, context), context),
-    );
+    children.push(convertListItem(itemToken, inner, context));
     index = itemClose + 1;
   }
 
