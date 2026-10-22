@@ -470,10 +470,14 @@ const createSpeechController = (
   let session: { messageId: string; cancel: () => void } | undefined;
 
   const clear = () => {
-    if (!session) return;
-    session.cancel();
+    const current = session;
+    if (!current) return;
     session = undefined;
-    notify(undefined);
+    try {
+      current.cancel();
+    } finally {
+      if (!session) notify(undefined);
+    }
   };
 
   return {

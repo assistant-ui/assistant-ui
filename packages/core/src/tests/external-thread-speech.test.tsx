@@ -221,6 +221,62 @@ describe("ExternalThread speech", () => {
     );
   });
 
+  it("clears speech state when the adapter's cancel throws", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      throw new Error("cancel failed");
+    });
+    await act(async () => {
+      expect(() => aui().thread.stopSpeaking()).toThrow("cancel failed");
+    });
+
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toBeUndefined();
+    });
+    expect(() => aui().thread.stopSpeaking()).toThrow(
+      "No message is being spoken",
+    );
+
+    await act(async () => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+    expect(utterances[0]!.cancel).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+  });
+
+  it("keeps a replacement started from inside the adapter's cancel", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+
+    expect(utterances).toHaveLength(2);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+  });
+
   it("message stopSpeaking throws unless that message is being spoken", async () => {
     const { adapter, utterances } = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: adapter });
