@@ -204,7 +204,6 @@
     "packages/variants/src/ui.ts": ["ICONS", "stableLabel"],
     "packages/x-performance/lib/size.mjs": ["SIZE_IGNORE"],
     "packages/x-performance/lib/trace-lane.mjs": ["stageFixture"],
-    "packages/x-performance/lib/trace.mjs": ["captureTrace"],
     "packages/x-react18/src/declaration-errors.mjs": ["diagnosticKey"],
     "scripts/lib/experimental-annotations.mjs": ["EXPERIMENTAL_NOTICE"],
     "scripts/lib/review-policy.mjs": ["REVIEW_POLICY_PATH"]
