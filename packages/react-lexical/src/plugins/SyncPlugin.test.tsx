@@ -27,7 +27,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRenderCounter } from "@assistant-ui/x-performance";
 import { getClientId, type AssistantClientAccessor } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
-import { createClientAccessor } from "../../../store/dist/utils/client-accessor.js";
 import {
   $createDirectiveNode,
   $isDirectiveNode,
@@ -40,6 +39,8 @@ const mocks = vi.hoisted(() => ({
   threadId: undefined as string | undefined,
 }));
 
+const testClientId = vi.hoisted(() => Symbol("testClientId"));
+
 type MockAssistantState = {
   composer: { text: string };
   optional: { threads?: { mainThreadId: string } };
@@ -49,6 +50,9 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
+    getClientId: (client: object) =>
+      ((client as Record<symbol, unknown>)[testClientId] ??
+        actual.getClientId(client)) as ReturnType<typeof actual.getClientId>,
     useAui: () => mocks.aui,
     useAuiState: <T,>(selector: (s: MockAssistantState) => T) => {
       const subscribe = (listener: () => void) =>
@@ -68,12 +72,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-const composerMeta = {
-  name: "composer",
-  source: "root",
-  query: {},
-} as const;
-
 const createComposerAccessor = <
   T extends {
     getState: () => { text: string };
@@ -82,10 +80,11 @@ const createComposerAccessor = <
 >(
   client: T,
 ) =>
-  createClientAccessor(
-    composerMeta,
-    () => client as never,
-  ) as AssistantClientAccessor<"composer"> & Pick<T, "setText">;
+  ({
+    getState: () => client.getState(),
+    setText: client.setText,
+    [testClientId]: client,
+  }) as unknown as AssistantClientAccessor<"composer"> & Pick<T, "setText">;
 
 const createAui = (text: string) => {
   let current = text;
