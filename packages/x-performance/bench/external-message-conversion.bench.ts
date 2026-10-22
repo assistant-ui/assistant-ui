@@ -1,5 +1,6 @@
 import {
   convertExternalMessages,
+  createExternalMessageConversionCache,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
 import { describe, inject, test } from "vitest";
@@ -62,3 +63,59 @@ const benchmarkScenario = (
 benchmarkScenario("unique tool calls", (count) => [makeToolCallMessage(count)]);
 benchmarkScenario("tool results", makeToolResults);
 benchmarkScenario("reasoning continuations", makeReasoningContinuations);
+
+const makeFinishedMessage = (index: number, parts: number): Message =>
+  index % 2 === 0
+    ? { id: `m${index}`, role: "user", content: `question ${index}` }
+    : {
+        id: `m${index}`,
+        role: "assistant",
+        content: Array.from({ length: parts }, (_, part) =>
+          part % 2 === 0
+            ? { type: "text" as const, text: `answer ${index}.${part}` }
+            : {
+                type: "tool-call" as const,
+                toolCallId: `call-${index}-${part}`,
+                toolName: "search",
+                args: { query: `query-${index}-${part}` },
+                result: { part },
+              },
+        ),
+      };
+
+// Every sample converts a fresh streaming message behind a cached history, as
+// a token delta does through useExternalMessageConverter.
+describe("core: cached external message conversion, one streaming delta", () => {
+  for (const [count, parts] of [
+    [1_000, 6],
+    [5_000, 20],
+  ] as const) {
+    test(`${count} messages, ${parts}-part replies`, async ({ bench }) => {
+      const history = Array.from({ length: count }, (_, index) => ({
+        outputs: [makeFinishedMessage(index, parts)],
+      }));
+      const callback = (input: { outputs: Message[] }) => input.outputs;
+      const metadata = {};
+      const cache = createExternalMessageConversionCache();
+      let tokens = 0;
+      const delta = () => {
+        tokens += 1;
+        const sources = history.slice();
+        sources.push({
+          outputs: [
+            {
+              id: "streaming",
+              role: "assistant",
+              content: `token ${tokens}`,
+            },
+          ],
+        });
+        convertExternalMessages(sources, callback, true, metadata, cache);
+      };
+      delta();
+      await bench(`${count} messages, ${parts}-part replies`, delta).run(
+        inject("benchSampling"),
+      );
+    });
+  }
+});
