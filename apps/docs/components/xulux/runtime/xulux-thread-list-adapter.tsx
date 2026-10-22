@@ -1,10 +1,9 @@
 "use client";
 
 import { createAssistantStream } from "assistant-stream";
-import { type FC, type PropsWithChildren, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import {
   type AssistantCloud,
-  RuntimeAdapterProvider,
   type RemoteThreadListAdapter,
   type ThreadMessage,
 } from "@assistant-ui/react";
@@ -37,19 +36,11 @@ function titleFromMessages(messages: readonly ThreadMessage[]): string {
   return text.length > 44 ? `${text.slice(0, 41)}...` : text;
 }
 
-function createXuluxCloudHistoryProvider(
-  cloud: AssistantCloud,
-): FC<PropsWithChildren> {
-  return function XuluxCloudHistoryProvider({ children }) {
+function createXuluxCloudHistoryAdapters(cloud: AssistantCloud) {
+  return function useXuluxCloudHistoryAdapters() {
     const cloudRef = useRef(cloud);
-    cloudRef.current = cloud;
     const history = useAssistantCloudThreadHistoryAdapter(cloudRef);
-    const adapters = useMemo(() => ({ history }), [history]);
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
+    return useMemo(() => ({ history }), [history]);
   };
 }
 
@@ -65,7 +56,6 @@ export function createXuluxLocalThreadListAdapter({
   getCurrentSessionId: () => string;
   cloud: AssistantCloud;
 }): RemoteThreadListAdapter {
-  const Provider = createXuluxCloudHistoryProvider(cloud);
   const initializeTasks = new Map<string, Promise<InitializeResult>>();
 
   const upsertThread = (
@@ -168,7 +158,7 @@ export function createXuluxLocalThreadListAdapter({
   };
 
   return {
-    unstable_Provider: Provider,
+    unstable_useAdapters: createXuluxCloudHistoryAdapters(cloud),
     async list() {
       const threads = readXuluxThreads();
       return {
