@@ -71,6 +71,31 @@ describe("useChatRuntime run telemetry", () => {
     },
   );
 
+  it("reports the HTTP status of a request that failed before streaming", async () => {
+    const { harness, assistantReports } = mountWithHistory(
+      new DefaultChatTransport({
+        api: "http://localhost/api/chat",
+        fetch: async () => new Response("rate limited", { status: 429 }),
+      }),
+    );
+    await waitFor(() => expect(harness.client()).toBeDefined());
+
+    harness.send();
+
+    await waitFor(() =>
+      expect(assistantReports()).toEqual([
+        {
+          type: "incomplete",
+          reason: "error",
+          error: expect.objectContaining({
+            message: "rate limited",
+            statusCode: 429,
+          }),
+        },
+      ]),
+    );
+  });
+
   it("reports a run that ends without output as incomplete", async () => {
     let respond!: () => void;
     const responded = new Promise<void>((resolve) => {
