@@ -51,6 +51,7 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
+  MENTION_JOINER,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
   PLACEHOLDER_TEXT_CAP,
@@ -63,7 +64,6 @@ import {
   buildCardBlock,
   buildCarouselBlock,
   buildDataTableBlock,
-  buildMrkdwnText,
 } from "./constants";
 import type {
   FieldMapping,
@@ -160,8 +160,103 @@ const clampText = (
   return value.slice(0, cap);
 };
 
+// Slack resolves these even inside code spans, so every occurrence is joined, except after a word character or `/`, where an email or URL path would break.
+const BROADCAST_MENTION = /(^|[^\w/])@(here|channel|everyone)\b/gi;
+
 const escapeMrkdwn = (value: string): string =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(BROADCAST_MENTION, `$1@${MENTION_JOINER}$2`);
+
+const SLACK_TOKEN_START = /<(?=[!@#]|[^<>\n]*\|[^<>\n]*>)/g;
+
+const escapeSlackTokens = (text: string): string =>
+  text.replace(SLACK_TOKEN_START, "&lt;");
+
+const closingBacktickRun = (
+  line: string,
+  from: number,
+  length: number,
+): number => {
+  let index = from;
+  while (index < line.length) {
+    if (line.charAt(index) !== "`") {
+      index += 1;
+      continue;
+    }
+    let end = index;
+    while (line.charAt(end) === "`") end += 1;
+    if (end - index === length) return index;
+    index = end;
+  }
+  return -1;
+};
+
+const escapeMarkdownLine = (line: string): string => {
+  let result = "";
+  let text = "";
+  let index = 0;
+  while (index < line.length) {
+    const char = line.charAt(index);
+    if (char === "\\") {
+      text += line.slice(index, index + 2);
+      index += 2;
+      continue;
+    }
+    if (char !== "`") {
+      text += char;
+      index += 1;
+      continue;
+    }
+    let runEnd = index;
+    while (line.charAt(runEnd) === "`") runEnd += 1;
+    const length = runEnd - index;
+    const close = closingBacktickRun(line, runEnd, length);
+    if (close === -1) {
+      text += line.slice(index, runEnd);
+      index = runEnd;
+      continue;
+    }
+    result += escapeSlackTokens(text) + line.slice(index, close + length);
+    text = "";
+    index = close + length;
+  }
+  return result + escapeSlackTokens(text);
+};
+
+const OPENING_FENCE = /^ {0,3}(`{3,})[^`]*$/;
+const CLOSING_FENCE = /^ {0,3}(`{3,})\s*$/;
+
+const closingFenceLine = (
+  lines: readonly string[],
+  from: number,
+  length: number,
+): number =>
+  lines.findIndex(
+    (line, index) =>
+      index >= from && (CLOSING_FENCE.exec(line)?.[1]?.length ?? 0) >= length,
+  );
+
+// A native markdown block resolves `<!here>`, `<@U…>`, `<#C…>`, and `<url|label>` outside code, while code shows an entity literally, so only text outside a closed code fence or a single-line code span is escaped.
+const escapeMarkdown = (value: string): string => {
+  const lines = value.split("\n");
+  const escaped: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const opening = OPENING_FENCE.exec(line)?.[1]?.length;
+    const closing =
+      opening === undefined ? -1 : closingFenceLine(lines, index + 1, opening);
+    if (closing === -1) {
+      escaped.push(escapeMarkdownLine(line));
+      continue;
+    }
+    escaped.push(...lines.slice(index, closing + 1));
+    index = closing;
+  }
+  return escaped.join("\n");
+};
 
 const clampEscapedMrkdwn = (
   value: string,
@@ -217,9 +312,16 @@ const escapedSection = (
   context: ConversionContext,
 ): SlackBlock => ({
   type: "section",
-  text: buildMrkdwnText(
-    clampEscapedMrkdwn(text, SECTION_TEXT_CAP, component, "text", context),
-  ),
+  text: {
+    type: "mrkdwn",
+    text: clampEscapedMrkdwn(
+      text,
+      SECTION_TEXT_CAP,
+      component,
+      "text",
+      context,
+    ),
+  },
 });
 
 const serializeFieldBlockId = (
@@ -701,15 +803,16 @@ const convertFacts = (
             formatFactDelta(delta, factTrend(delta, fact.props["trend"])),
           )
         : undefined;
-    return buildMrkdwnText(
-      clampEscapedMrkdwn(
+    return {
+      type: "mrkdwn" as const,
+      text: clampEscapedMrkdwn(
         `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
         "field",
         context,
       ),
-    );
+    };
   });
   const blocks: SlackBlock[] = [];
   for (let index = 0; index < fields.length; index += FACT_FIELD_CAP) {
@@ -977,21 +1080,29 @@ const assembleCleanCard = (
 ): SlackCardBlock => {
   const body: SlackTextObject | undefined =
     fields.bodyRaw !== undefined
-      ? buildMrkdwnText(
-          clampMrkdwn(fields.bodyRaw, CARD_BODY_CAP, "Card", "body", context),
-        )
+      ? {
+          type: "mrkdwn",
+          text: clampMrkdwn(
+            fields.bodyRaw,
+            CARD_BODY_CAP,
+            "Card",
+            "body",
+            context,
+          ),
+        }
       : undefined;
   const subtext: SlackTextObject | undefined =
     fields.subtextRaw !== undefined
-      ? buildMrkdwnText(
-          clampMrkdwn(
+      ? {
+          type: "mrkdwn",
+          text: clampMrkdwn(
             fields.subtextRaw,
             CARD_SUBTEXT_CAP,
             "Card",
             "subtext",
             context,
           ),
-        )
+        }
       : undefined;
   const { items: boundedButtons, truncated } = copyBounded(
     buttons,
@@ -1009,9 +1120,16 @@ const assembleCleanCard = (
     ...(fields.heroImage !== undefined ? { heroImage: fields.heroImage } : {}),
     ...(titleText !== undefined
       ? {
-          title: buildMrkdwnText(
-            clampMrkdwn(titleText, CARD_TITLE_CAP, "Card", "title", context),
-          ),
+          title: {
+            type: "mrkdwn",
+            text: clampMrkdwn(
+              titleText,
+              CARD_TITLE_CAP,
+              "Card",
+              "title",
+              context,
+            ),
+          },
         }
       : {}),
     ...(body !== undefined ? { body } : {}),
@@ -1185,8 +1303,8 @@ const degradeCard = (
     );
   }
   return buildCardBlock({
-    ...(titleText ? { title: buildMrkdwnText(titleText) } : {}),
-    ...(bodyText ? { body: buildMrkdwnText(bodyText) } : {}),
+    ...(titleText ? { title: { type: "mrkdwn", text: titleText } } : {}),
+    ...(bodyText ? { body: { type: "mrkdwn", text: bodyText } } : {}),
   });
 };
 
@@ -1246,17 +1364,16 @@ const contextRow = (
   return [
     {
       type: "context",
-      elements: boundedChildren.map((child) =>
-        buildMrkdwnText(
-          clampMrkdwn(
-            asTextValue(child.props["value"]),
-            CONTEXT_TEXT_CAP,
-            child.type,
-            "value",
-            context,
-          ),
+      elements: boundedChildren.map((child) => ({
+        type: "mrkdwn",
+        text: clampMrkdwn(
+          asTextValue(child.props["value"]),
+          CONTEXT_TEXT_CAP,
+          child.type,
+          "value",
+          context,
         ),
-      ),
+      })),
     },
   ];
 };
@@ -1278,7 +1395,7 @@ const convertListItem = (
     : undefined;
   return {
     type: "section",
-    text: buildMrkdwnText(text),
+    text: { type: "mrkdwn", text },
     ...(accessory !== undefined ? { accessory } : {}),
   };
 };
@@ -1544,15 +1661,16 @@ const convertElement = (
       return [
         {
           type: "section",
-          text: buildMrkdwnText(
-            clampMrkdwn(
+          text: {
+            type: "mrkdwn",
+            text: clampMrkdwn(
               asTextValue(props["value"]),
               SECTION_TEXT_CAP,
               "Text",
               "value",
               context,
             ),
-          ),
+          },
         },
       ];
     case "Caption":
@@ -1561,15 +1679,16 @@ const convertElement = (
         {
           type: "context",
           elements: [
-            buildMrkdwnText(
-              clampMrkdwn(
+            {
+              type: "mrkdwn",
+              text: clampMrkdwn(
                 asTextValue(props["value"]),
                 CONTEXT_TEXT_CAP,
                 element.type,
                 "value",
                 context,
               ),
-            ),
+            },
           ],
         },
       ];
@@ -1645,7 +1764,9 @@ const convertElement = (
         return [
           {
             type: "context",
-            elements: [buildMrkdwnText("Password input omitted on Slack.")],
+            elements: [
+              { type: "mrkdwn", text: "Password input omitted on Slack." },
+            ],
           },
         ];
       }
@@ -1768,12 +1889,13 @@ const convertElement = (
       return convertTable(element, context);
     case "Markdown": {
       const value = asString(props["value"]);
+      const escaped = escapeMarkdown(value);
       if (
         !context.markdownExhausted &&
-        context.markdownCharacters + value.length <= MARKDOWN_TEXT_BUDGET
+        context.markdownCharacters + escaped.length <= MARKDOWN_TEXT_BUDGET
       ) {
-        context.markdownCharacters += value.length;
-        return [{ type: "markdown", text: value }];
+        context.markdownCharacters += escaped.length;
+        return [{ type: "markdown", text: escaped }];
       }
       context.markdownExhausted = true;
       warn(
@@ -1785,15 +1907,16 @@ const convertElement = (
       return [
         {
           type: "section",
-          text: buildMrkdwnText(
-            clampMrkdwn(
+          text: {
+            type: "mrkdwn",
+            text: clampMrkdwn(
               value,
               SECTION_TEXT_CAP,
               "Markdown",
               "fallback text",
               context,
             ),
-          ),
+          },
         },
       ];
     }
@@ -1807,7 +1930,7 @@ const convertElement = (
       return [
         {
           type: "context",
-          elements: [buildMrkdwnText("Chart omitted on Slack.")],
+          elements: [{ type: "mrkdwn", text: "Chart omitted on Slack." }],
         },
       ];
     case "ListView":
@@ -1944,15 +2067,16 @@ const convertElement = (
               {
                 type: "context" as const,
                 elements: [
-                  buildMrkdwnText(
-                    clampEscapedMrkdwn(
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampEscapedMrkdwn(
                       escapeMrkdwn(source),
                       CONTEXT_TEXT_CAP,
                       "Citation",
                       "source",
                       context,
                     ),
-                  ),
+                  },
                 ],
               },
             ]
@@ -1979,15 +2103,16 @@ const convertElement = (
               {
                 type: "context" as const,
                 elements: [
-                  buildMrkdwnText(
-                    clampEscapedMrkdwn(
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampEscapedMrkdwn(
                       escapeMrkdwn(title),
                       CONTEXT_TEXT_CAP,
                       "Diagram",
                       "title",
                       context,
                     ),
-                  ),
+                  },
                 ],
               },
             ]
@@ -2081,15 +2206,16 @@ function convertSequence(
     if (typeof current === "string" || typeof current === "number") {
       blocks.push({
         type: "section",
-        text: buildMrkdwnText(
-          clampMrkdwn(
+        text: {
+          type: "mrkdwn",
+          text: clampMrkdwn(
             String(current),
             SECTION_TEXT_CAP,
             "Text",
             "value",
             context,
           ),
-        ),
+        },
       });
     } else if (Array.isArray(current)) {
       blocks.push(...convertSequence(current, context, depth + 1));

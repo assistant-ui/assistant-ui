@@ -11,6 +11,7 @@ import {
   DATA_TABLE_ROW_CAP,
   FACT_FIELD_CAP,
   INBOUND_BLOCK_CAP,
+  MENTION_JOINER,
   RADIO_OPTION_CAP,
   SELECT_OPTION_CAP,
 } from "./constants";
@@ -28,6 +29,7 @@ const textOf = (value: unknown): string =>
   isRecord(value) && typeof value["text"] === "string"
     ? value["type"] === "mrkdwn"
       ? value["text"]
+          .replaceAll(`@${MENTION_JOINER}`, "@")
           .replace(/&lt;/g, "<")
           .replace(/&gt;/g, ">")
           .replace(/&amp;/g, "&")
