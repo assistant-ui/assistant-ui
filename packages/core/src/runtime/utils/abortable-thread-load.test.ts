@@ -34,9 +34,11 @@ describe("createAbortableThreadLoad", () => {
     await Promise.all([initial, reload]);
   });
 
-  it("aborts a superseded load and swallows its failure", async () => {
+  it("keeps the replacement abortable after a superseded load fails", async () => {
     let rejectFirst!: (error: Error) => void;
     let firstSignal!: AbortSignal;
+    let secondSignal!: AbortSignal;
+    let resolveSecond!: () => void;
     const controller = createAbortableThreadLoad();
     const first = controller.run({
       purpose: "reload",
@@ -51,13 +53,22 @@ describe("createAbortableThreadLoad", () => {
 
     const second = controller.run({
       purpose: "initial",
-      load: () => Promise.resolve(),
+      load: (signal) => {
+        secondSignal = signal;
+        return new Promise<void>((resolve) => {
+          resolveSecond = resolve;
+        });
+      },
       ...callbacks(),
     });
     rejectFirst(new Error("aborted"));
 
     expect(firstSignal.aborted).toBe(true);
     await expect(first).resolves.toBeUndefined();
+    expect(secondSignal.aborted).toBe(false);
+    controller.abort();
+    expect(secondSignal.aborted).toBe(true);
+    resolveSecond();
     await second;
   });
 
