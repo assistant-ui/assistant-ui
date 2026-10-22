@@ -63,6 +63,7 @@ import {
   buildCardBlock,
   buildCarouselBlock,
   buildDataTableBlock,
+  buildMrkdwnText,
 } from "./constants";
 import type {
   FieldMapping,
@@ -216,16 +217,9 @@ const escapedSection = (
   context: ConversionContext,
 ): SlackBlock => ({
   type: "section",
-  text: {
-    type: "mrkdwn",
-    text: clampEscapedMrkdwn(
-      text,
-      SECTION_TEXT_CAP,
-      component,
-      "text",
-      context,
-    ),
-  },
+  text: buildMrkdwnText(
+    clampEscapedMrkdwn(text, SECTION_TEXT_CAP, component, "text", context),
+  ),
 });
 
 const serializeFieldBlockId = (
@@ -707,16 +701,15 @@ const convertFacts = (
             formatFactDelta(delta, factTrend(delta, fact.props["trend"])),
           )
         : undefined;
-    return {
-      type: "mrkdwn" as const,
-      text: clampEscapedMrkdwn(
+    return buildMrkdwnText(
+      clampEscapedMrkdwn(
         `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
         "field",
         context,
       ),
-    };
+    );
   });
   const blocks: SlackBlock[] = [];
   for (let index = 0; index < fields.length; index += FACT_FIELD_CAP) {
@@ -984,29 +977,21 @@ const assembleCleanCard = (
 ): SlackCardBlock => {
   const body: SlackTextObject | undefined =
     fields.bodyRaw !== undefined
-      ? {
-          type: "mrkdwn",
-          text: clampMrkdwn(
-            fields.bodyRaw,
-            CARD_BODY_CAP,
-            "Card",
-            "body",
-            context,
-          ),
-        }
+      ? buildMrkdwnText(
+          clampMrkdwn(fields.bodyRaw, CARD_BODY_CAP, "Card", "body", context),
+        )
       : undefined;
   const subtext: SlackTextObject | undefined =
     fields.subtextRaw !== undefined
-      ? {
-          type: "mrkdwn",
-          text: clampMrkdwn(
+      ? buildMrkdwnText(
+          clampMrkdwn(
             fields.subtextRaw,
             CARD_SUBTEXT_CAP,
             "Card",
             "subtext",
             context,
           ),
-        }
+        )
       : undefined;
   const { items: boundedButtons, truncated } = copyBounded(
     buttons,
@@ -1024,16 +1009,9 @@ const assembleCleanCard = (
     ...(fields.heroImage !== undefined ? { heroImage: fields.heroImage } : {}),
     ...(titleText !== undefined
       ? {
-          title: {
-            type: "mrkdwn",
-            text: clampMrkdwn(
-              titleText,
-              CARD_TITLE_CAP,
-              "Card",
-              "title",
-              context,
-            ),
-          },
+          title: buildMrkdwnText(
+            clampMrkdwn(titleText, CARD_TITLE_CAP, "Card", "title", context),
+          ),
         }
       : {}),
     ...(body !== undefined ? { body } : {}),
@@ -1207,8 +1185,8 @@ const degradeCard = (
     );
   }
   return buildCardBlock({
-    ...(titleText ? { title: { type: "mrkdwn", text: titleText } } : {}),
-    ...(bodyText ? { body: { type: "mrkdwn", text: bodyText } } : {}),
+    ...(titleText ? { title: buildMrkdwnText(titleText) } : {}),
+    ...(bodyText ? { body: buildMrkdwnText(bodyText) } : {}),
   });
 };
 
@@ -1268,16 +1246,17 @@ const contextRow = (
   return [
     {
       type: "context",
-      elements: boundedChildren.map((child) => ({
-        type: "mrkdwn",
-        text: clampMrkdwn(
-          asTextValue(child.props["value"]),
-          CONTEXT_TEXT_CAP,
-          child.type,
-          "value",
-          context,
+      elements: boundedChildren.map((child) =>
+        buildMrkdwnText(
+          clampMrkdwn(
+            asTextValue(child.props["value"]),
+            CONTEXT_TEXT_CAP,
+            child.type,
+            "value",
+            context,
+          ),
         ),
-      })),
+      ),
     },
   ];
 };
@@ -1299,7 +1278,7 @@ const convertListItem = (
     : undefined;
   return {
     type: "section",
-    text: { type: "mrkdwn", text },
+    text: buildMrkdwnText(text),
     ...(accessory !== undefined ? { accessory } : {}),
   };
 };
@@ -1565,16 +1544,15 @@ const convertElement = (
       return [
         {
           type: "section",
-          text: {
-            type: "mrkdwn",
-            text: clampMrkdwn(
+          text: buildMrkdwnText(
+            clampMrkdwn(
               asTextValue(props["value"]),
               SECTION_TEXT_CAP,
               "Text",
               "value",
               context,
             ),
-          },
+          ),
         },
       ];
     case "Caption":
@@ -1583,16 +1561,15 @@ const convertElement = (
         {
           type: "context",
           elements: [
-            {
-              type: "mrkdwn",
-              text: clampMrkdwn(
+            buildMrkdwnText(
+              clampMrkdwn(
                 asTextValue(props["value"]),
                 CONTEXT_TEXT_CAP,
                 element.type,
                 "value",
                 context,
               ),
-            },
+            ),
           ],
         },
       ];
@@ -1668,9 +1645,7 @@ const convertElement = (
         return [
           {
             type: "context",
-            elements: [
-              { type: "mrkdwn", text: "Password input omitted on Slack." },
-            ],
+            elements: [buildMrkdwnText("Password input omitted on Slack.")],
           },
         ];
       }
@@ -1810,16 +1785,15 @@ const convertElement = (
       return [
         {
           type: "section",
-          text: {
-            type: "mrkdwn",
-            text: clampMrkdwn(
+          text: buildMrkdwnText(
+            clampMrkdwn(
               value,
               SECTION_TEXT_CAP,
               "Markdown",
               "fallback text",
               context,
             ),
-          },
+          ),
         },
       ];
     }
@@ -1833,7 +1807,7 @@ const convertElement = (
       return [
         {
           type: "context",
-          elements: [{ type: "mrkdwn", text: "Chart omitted on Slack." }],
+          elements: [buildMrkdwnText("Chart omitted on Slack.")],
         },
       ];
     case "ListView":
@@ -1970,16 +1944,15 @@ const convertElement = (
               {
                 type: "context" as const,
                 elements: [
-                  {
-                    type: "mrkdwn" as const,
-                    text: clampEscapedMrkdwn(
+                  buildMrkdwnText(
+                    clampEscapedMrkdwn(
                       escapeMrkdwn(source),
                       CONTEXT_TEXT_CAP,
                       "Citation",
                       "source",
                       context,
                     ),
-                  },
+                  ),
                 ],
               },
             ]
@@ -2006,16 +1979,15 @@ const convertElement = (
               {
                 type: "context" as const,
                 elements: [
-                  {
-                    type: "mrkdwn" as const,
-                    text: clampEscapedMrkdwn(
+                  buildMrkdwnText(
+                    clampEscapedMrkdwn(
                       escapeMrkdwn(title),
                       CONTEXT_TEXT_CAP,
                       "Diagram",
                       "title",
                       context,
                     ),
-                  },
+                  ),
                 ],
               },
             ]
@@ -2109,16 +2081,15 @@ function convertSequence(
     if (typeof current === "string" || typeof current === "number") {
       blocks.push({
         type: "section",
-        text: {
-          type: "mrkdwn",
-          text: clampMrkdwn(
+        text: buildMrkdwnText(
+          clampMrkdwn(
             String(current),
             SECTION_TEXT_CAP,
             "Text",
             "value",
             context,
           ),
-        },
+        ),
       });
     } else if (Array.isArray(current)) {
       blocks.push(...convertSequence(current, context, depth + 1));

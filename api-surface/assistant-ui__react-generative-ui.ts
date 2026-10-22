@@ -820,6 +820,7 @@ interface SlackMarkdownBlock {
 interface SlackMrkdwnText {
   readonly type: "mrkdwn";
   readonly text: string;
+  readonly verbatim?: boolean;
 }
 
 interface SlackOption {

@@ -140,9 +140,16 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          text: { type: "mrkdwn", text: "<https://example.com|0>\n34" },
+          text: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "<https://example.com|0>\n34",
+          },
         },
-        { type: "context", elements: [{ type: "mrkdwn", text: "12" }] },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", verbatim: true, text: "12" }],
+        },
       ]);
       expect(warnings).toEqual([]);
     });
@@ -157,7 +164,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          text: { type: "mrkdwn", text: "<https://example.com|Reference>" },
+          text: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "<https://example.com|Reference>",
+          },
         },
       ]);
     });
@@ -174,11 +185,24 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          text: { type: "mrkdwn", text: "*First &amp; &lt;one&gt;*" },
+          text: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "*First &amp; &lt;one&gt;*",
+          },
         },
-        { type: "section", text: { type: "mrkdwn", text: "one" } },
-        { type: "section", text: { type: "mrkdwn", text: "*2*" } },
-        { type: "section", text: { type: "mrkdwn", text: "two" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "one" },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "*2*" },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "two" },
+        },
       ]);
       expect(warnings).toEqual([]);
     });
@@ -190,9 +214,18 @@ describe("toSlackBlocks", () => {
         children: [{ $type: "Text", value: "First panel" }],
       });
       expect(blocks).toEqual([
-        { type: "section", text: { type: "mrkdwn", text: "*One*" } },
-        { type: "section", text: { type: "mrkdwn", text: "First panel" } },
-        { type: "section", text: { type: "mrkdwn", text: "*Two*" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "*One*" },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "First panel" },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "*Two*" },
+        },
       ]);
     });
 
@@ -211,10 +244,14 @@ describe("toSlackBlocks", () => {
           type: "section",
           text: {
             type: "mrkdwn",
+            verbatim: true,
             text: "*1. Open &lt;box&gt;*\nTake &amp; keep",
           },
         },
-        { type: "section", text: { type: "mrkdwn", text: "*2. Finish*" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "*2. Finish*" },
+        },
       ]);
       expect(warnings).toEqual([
         {
@@ -237,9 +274,16 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          text: { type: "mrkdwn", text: "*Day 1*\nArrive\nAt noon" },
+          text: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "*Day 1*\nArrive\nAt noon",
+          },
         },
-        { type: "section", text: { type: "mrkdwn", text: "Leave" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Leave" },
+        },
       ]);
       expect(warnings).toEqual([
         {
@@ -307,15 +351,22 @@ describe("toSlackBlocks", () => {
           type: "section",
           text: {
             type: "mrkdwn",
+            verbatim: true,
             text: "<https://www.example.com/a?x=1&amp;y=2|A &amp; B>\nQuote &lt;here&gt;",
           },
         },
         {
           type: "context",
-          elements: [{ type: "mrkdwn", text: "example.com" }],
+          elements: [{ type: "mrkdwn", verbatim: true, text: "example.com" }],
         },
-        { type: "section", text: { type: "mrkdwn", text: "Local\nRead me" } },
-        { type: "context", elements: [{ type: "mrkdwn", text: "Notes" }] },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Local\nRead me" },
+        },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", verbatim: true, text: "Notes" }],
+        },
       ]);
     });
 
@@ -325,8 +376,14 @@ describe("toSlackBlocks", () => {
         { $type: "Tabs", tabs: ["Missing"], children: [{ $type: "Unknown" }] },
       ]);
       expect(blocks).toEqual([
-        { type: "section", text: { type: "mrkdwn", text: "Unlinked" } },
-        { type: "section", text: { type: "mrkdwn", text: "*Missing*" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Unlinked" },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "*Missing*" },
+        },
       ]);
       expect(warnings).toContainEqual({
         code: "dropped",
@@ -357,13 +414,18 @@ describe("toSlackBlocks", () => {
           type: "section",
           text: {
             type: "mrkdwn",
+            verbatim: true,
             text: "```\nflowchart LR\nA[You &amp; me] --&gt; B[&lt;Done&gt;]\n```",
           },
         },
         {
           type: "context",
           elements: [
-            { type: "mrkdwn", text: "Plan &lt;today&gt; &amp; tomorrow" },
+            {
+              type: "mrkdwn",
+              verbatim: true,
+              text: "Plan &lt;today&gt; &amp; tomorrow",
+            },
           ],
         },
       ]);
@@ -376,7 +438,7 @@ describe("toSlackBlocks", () => {
           .blocks[1];
       expect(caption(2024)).toEqual({
         type: "context",
-        elements: [{ type: "mrkdwn", text: "2024" }],
+        elements: [{ type: "mrkdwn", verbatim: true, text: "2024" }],
       });
       expect(caption("")).toBeUndefined();
     });
@@ -391,6 +453,7 @@ describe("toSlackBlocks", () => {
           type: "section",
           text: {
             type: "mrkdwn",
+            verbatim: true,
             text: `\`\`\`\n${"x".repeat(SECTION_TEXT_CAP - 8)}\n\`\`\``,
           },
         },
@@ -462,6 +525,7 @@ describe("toSlackBlocks", () => {
           type: "section",
           text: {
             type: "mrkdwn",
+            verbatim: true,
             text: "<https://www.openstreetmap.org/?mlat=25&amp;mlon=121#map=14/25/121|A &amp; &lt;B&gt;>\nMeet &gt; here",
           },
         },
@@ -469,6 +533,7 @@ describe("toSlackBlocks", () => {
           type: "section",
           text: {
             type: "mrkdwn",
+            verbatim: true,
             text: "<https://www.openstreetmap.org/?mlat=-3&amp;mlon=4#map=14/-3/4|Second>",
           },
         },
@@ -620,7 +685,10 @@ describe("toSlackBlocks", () => {
     it("renders a section with mrkdwn text", () => {
       const { blocks } = toSlackBlocks({ $type: "Text", value: "Hello" });
       expect(blocks).toEqual([
-        { type: "section", text: { type: "mrkdwn", text: "Hello" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Hello" },
+        },
       ]);
     });
 
@@ -652,7 +720,10 @@ describe("toSlackBlocks", () => {
         value: "Fine print",
       });
       expect(blocks).toEqual([
-        { type: "context", elements: [{ type: "mrkdwn", text: "Fine print" }] },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", verbatim: true, text: "Fine print" }],
+        },
       ]);
     });
 
@@ -666,7 +737,10 @@ describe("toSlackBlocks", () => {
     it("renders standalone as a context block", () => {
       const { blocks } = toSlackBlocks({ $type: "Badge", value: "New" });
       expect(blocks).toEqual([
-        { type: "context", elements: [{ type: "mrkdwn", text: "New" }] },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", verbatim: true, text: "New" }],
+        },
       ]);
     });
 
@@ -686,7 +760,9 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          fields: [{ type: "mrkdwn", text: "*Status*\nActive" }],
+          fields: [
+            { type: "mrkdwn", verbatim: true, text: "*Status*\nActive" },
+          ],
         },
       ]);
     });
@@ -742,6 +818,7 @@ describe("toSlackBlocks", () => {
       expect((blocks[0] as SlackSectionBlock).fields).toHaveLength(2);
       expect((blocks[1] as SlackSectionBlock).text).toEqual({
         type: "mrkdwn",
+        verbatim: true,
         text: "between",
       });
       expect((blocks[2] as SlackSectionBlock).fields).toHaveLength(1);
@@ -1260,7 +1337,11 @@ describe("toSlackBlocks", () => {
       expect(blocks[1]).toEqual({
         type: "context",
         elements: [
-          { type: "mrkdwn", text: "Password input omitted on Slack." },
+          {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "Password input omitted on Slack.",
+          },
         ],
       });
       expect(blocks.filter((block) => block.type === "input")).toHaveLength(1);
@@ -1911,11 +1992,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "context",
-          elements: [{ type: "mrkdwn", text: "ℹ️ *Heads up*" }],
+          elements: [{ type: "mrkdwn", verbatim: true, text: "ℹ️ *Heads up*" }],
         },
         {
           type: "section",
-          text: { type: "mrkdwn", text: "Something happened." },
+          text: { type: "mrkdwn", verbatim: true, text: "Something happened." },
         },
       ]);
       expect(warnings).toEqual([
@@ -1935,7 +2016,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "context",
-        elements: [{ type: "mrkdwn", text: "✅ *Done*" }],
+        elements: [{ type: "mrkdwn", verbatim: true, text: "✅ *Done*" }],
       });
     });
 
@@ -1947,7 +2028,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "context",
-        elements: [{ type: "mrkdwn", text: "⚠️ *Careful*" }],
+        elements: [{ type: "mrkdwn", verbatim: true, text: "⚠️ *Careful*" }],
       });
     });
 
@@ -1959,7 +2040,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "context",
-        elements: [{ type: "mrkdwn", text: "🛑 *Stop*" }],
+        elements: [{ type: "mrkdwn", verbatim: true, text: "🛑 *Stop*" }],
       });
     });
 
@@ -1970,7 +2051,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "context",
-        elements: [{ type: "mrkdwn", text: "ℹ️" }],
+        elements: [{ type: "mrkdwn", verbatim: true, text: "ℹ️" }],
       });
     });
 
@@ -1986,7 +2067,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "alert",
-          text: { type: "mrkdwn", text: "Heads up\nSomething happened." },
+          text: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "Heads up\nSomething happened.",
+          },
           level: "info",
         },
       ]);
@@ -2001,7 +2086,7 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "alert",
-          text: { type: "mrkdwn", text: "Stop" },
+          text: { type: "mrkdwn", verbatim: true, text: "Stop" },
           level: "error",
         },
       ]);
@@ -2049,11 +2134,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "context",
-          elements: [{ type: "mrkdwn", text: "ℹ️ *Heads up*" }],
+          elements: [{ type: "mrkdwn", verbatim: true, text: "ℹ️ *Heads up*" }],
         },
         {
           type: "section",
-          text: { type: "mrkdwn", text: "Something happened." },
+          text: { type: "mrkdwn", verbatim: true, text: "Something happened." },
         },
       ]);
       expect(warnings).toEqual([
@@ -2166,7 +2251,7 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          fields: [{ type: "mrkdwn", text: "*Status*\nReady" }],
+          fields: [{ type: "mrkdwn", verbatim: true, text: "*Status*\nReady" }],
         },
         {
           type: "actions",
@@ -2257,9 +2342,9 @@ describe("toSlackBlocks", () => {
             image_url: "https://x/y.png",
             alt_text: "Package",
           },
-          title: { type: "mrkdwn", text: "Order #42" },
-          body: { type: "mrkdwn", text: "Shipped" },
-          subtext: { type: "mrkdwn", text: "Updated just now" },
+          title: { type: "mrkdwn", verbatim: true, text: "Order #42" },
+          body: { type: "mrkdwn", verbatim: true, text: "Shipped" },
+          subtext: { type: "mrkdwn", verbatim: true, text: "Updated just now" },
           actions: [
             {
               type: "button",
@@ -2335,10 +2420,13 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks).toEqual([
         { type: "header", text: { type: "plain_text", text: "Order #42" } },
-        { type: "section", text: { type: "mrkdwn", text: "Shipped" } },
         {
           type: "section",
-          fields: [{ type: "mrkdwn", text: "*Carrier*\nUPS" }],
+          text: { type: "mrkdwn", verbatim: true, text: "Shipped" },
+        },
+        {
+          type: "section",
+          fields: [{ type: "mrkdwn", verbatim: true, text: "*Carrier*\nUPS" }],
         },
       ]);
       expect(warnings).toEqual([
@@ -2402,7 +2490,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "card",
-          title: { type: "mrkdwn", text: "c".repeat(CARD_TITLE_CAP) },
+          title: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "c".repeat(CARD_TITLE_CAP),
+          },
         },
       ]);
       expect(warnings).toContainEqual({
@@ -2478,13 +2570,13 @@ describe("toSlackBlocks", () => {
           elements: [
             {
               type: "card",
-              title: { type: "mrkdwn", text: "One" },
-              body: { type: "mrkdwn", text: "First" },
+              title: { type: "mrkdwn", verbatim: true, text: "One" },
+              body: { type: "mrkdwn", verbatim: true, text: "First" },
             },
             {
               type: "card",
-              title: { type: "mrkdwn", text: "Two" },
-              body: { type: "mrkdwn", text: "Second" },
+              title: { type: "mrkdwn", verbatim: true, text: "Two" },
+              body: { type: "mrkdwn", verbatim: true, text: "Second" },
             },
           ],
         },
@@ -2542,7 +2634,10 @@ describe("toSlackBlocks", () => {
         ],
       });
       expect((blocks[0] as SlackCarouselBlock).elements).toEqual([
-        { type: "card", title: { type: "mrkdwn", text: "Kept" } },
+        {
+          type: "card",
+          title: { type: "mrkdwn", verbatim: true, text: "Kept" },
+        },
       ]);
       expect(warnings).toContainEqual({
         code: "dropped",
@@ -2571,8 +2666,12 @@ describe("toSlackBlocks", () => {
           elements: [
             {
               type: "card",
-              title: { type: "mrkdwn", text: "Order #1" },
-              body: { type: "mrkdwn", text: "Shipped\nUPS\nCarrier" },
+              title: { type: "mrkdwn", verbatim: true, text: "Order #1" },
+              body: {
+                type: "mrkdwn",
+                verbatim: true,
+                text: "Shipped\nUPS\nCarrier",
+              },
             },
           ],
         },
@@ -2603,7 +2702,11 @@ describe("toSlackBlocks", () => {
         ],
       });
       const card = (blocks[0] as SlackCarouselBlock).elements[0];
-      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(card?.body).toEqual({
+        type: "mrkdwn",
+        verbatim: true,
+        text: "body\nfine print",
+      });
       expect(warnings.some((warning) => warning.code === "dropped")).toBe(
         false,
       );
@@ -2629,7 +2732,11 @@ describe("toSlackBlocks", () => {
       const card = (blocks[0] as SlackCarouselBlock).elements[0];
       expect(card?.hero_image).toBeUndefined();
       expect(card?.actions).toBeUndefined();
-      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(card?.body).toEqual({
+        type: "mrkdwn",
+        verbatim: true,
+        text: "body\nfine print",
+      });
       expect(warnings).toContainEqual({
         code: "fallback",
         component: "Card",
@@ -2805,8 +2912,12 @@ describe("toSlackBlocks", () => {
       const carousel = blocks[0] as SlackCarouselBlock;
       expect(carousel.elements[0]).toEqual({
         type: "card",
-        title: { type: "mrkdwn", text: "UPS" },
-        body: { type: "mrkdwn", text: "Carrier\nDelivered\nStatus" },
+        title: { type: "mrkdwn", verbatim: true, text: "UPS" },
+        body: {
+          type: "mrkdwn",
+          verbatim: true,
+          text: "Carrier\nDelivered\nStatus",
+        },
       });
     });
 
@@ -2854,7 +2965,10 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks).toEqual([
         { type: "header", text: { type: "plain_text", text: "Hi" } },
-        { type: "section", text: { type: "mrkdwn", text: "There" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "There" },
+        },
       ]);
     });
 
@@ -2893,7 +3007,10 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks).toEqual([
         { type: "header", text: { type: "plain_text", text: "Hi" } },
-        { type: "section", text: { type: "mrkdwn", text: "There" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "There" },
+        },
       ]);
     });
 
@@ -2909,8 +3026,8 @@ describe("toSlackBlocks", () => {
         {
           type: "context",
           elements: [
-            { type: "mrkdwn", text: "New" },
-            { type: "mrkdwn", text: "since today" },
+            { type: "mrkdwn", verbatim: true, text: "New" },
+            { type: "mrkdwn", verbatim: true, text: "since today" },
           ],
         },
       ]);
@@ -2922,8 +3039,14 @@ describe("toSlackBlocks", () => {
         children: [{ $type: "Badge", value: "New" }, "plain text"],
       });
       expect(blocks).toEqual([
-        { type: "context", elements: [{ type: "mrkdwn", text: "New" }] },
-        { type: "section", text: { type: "mrkdwn", text: "plain text" } },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", verbatim: true, text: "New" }],
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "plain text" },
+        },
       ]);
     });
 
@@ -3002,7 +3125,10 @@ describe("toSlackBlocks", () => {
         ],
       });
       expect(blocks).toEqual([
-        { type: "section", text: { type: "mrkdwn", text: "kept" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "kept" },
+        },
       ]);
       expect(warnings).toEqual([]);
     });
@@ -3292,11 +3418,11 @@ describe("toSlackBlocks", () => {
       expect(blocks[0]).toEqual({ type: "markdown", text: first });
       expect(blocks[1]).toEqual({
         type: "section",
-        text: { type: "mrkdwn", text: second },
+        text: { type: "mrkdwn", verbatim: true, text: second },
       });
       expect(blocks[2]).toEqual({
         type: "section",
-        text: { type: "mrkdwn", text: third },
+        text: { type: "mrkdwn", verbatim: true, text: third },
       });
       expect(warnings.filter((w) => w.component === "Markdown")).toHaveLength(
         2,
@@ -3319,7 +3445,9 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "context",
-          elements: [{ type: "mrkdwn", text: "Chart omitted on Slack." }],
+          elements: [
+            { type: "mrkdwn", verbatim: true, text: "Chart omitted on Slack." },
+          ],
         },
       ]);
       expect(warnings).toEqual([
@@ -3466,9 +3594,15 @@ describe("toSlackBlocks", () => {
         ],
       });
       expect(blocks).toEqual([
-        { type: "section", text: { type: "mrkdwn", text: "Row 1" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Row 1" },
+        },
         { type: "divider" },
-        { type: "section", text: { type: "mrkdwn", text: "Row 2" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Row 2" },
+        },
       ]);
     });
 
@@ -3486,7 +3620,7 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "section",
-          text: { type: "mrkdwn", text: "Clickable" },
+          text: { type: "mrkdwn", verbatim: true, text: "Clickable" },
           accessory: {
             type: "button",
             text: { type: "plain_text", text: "Open" },
@@ -3666,7 +3800,10 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         { type: "header", text: { type: "plain_text", text: "Title" } },
         { type: "divider" },
-        { type: "section", text: { type: "mrkdwn", text: "Body" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "Body" },
+        },
       ]);
     });
 
@@ -3681,7 +3818,13 @@ describe("toSlackBlocks", () => {
       const omitted = count - (MESSAGE_BLOCK_CAP - 1);
       expect(blocks[blocks.length - 1]).toEqual({
         type: "context",
-        elements: [{ type: "mrkdwn", text: `${omitted} blocks were omitted.` }],
+        elements: [
+          {
+            type: "mrkdwn",
+            verbatim: true,
+            text: `${omitted} blocks were omitted.`,
+          },
+        ],
       });
       expect(warnings).toContainEqual({
         code: "clamped",
@@ -3716,8 +3859,14 @@ describe("toSlackBlocks", () => {
         children: ["hello", 42],
       });
       expect(blocks).toEqual([
-        { type: "section", text: { type: "mrkdwn", text: "hello" } },
-        { type: "section", text: { type: "mrkdwn", text: "42" } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "hello" },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", verbatim: true, text: "42" },
+        },
       ]);
     });
   });
@@ -4011,6 +4160,62 @@ it("resolves a Slider field reference from numeric Slack state", () => {
 });
 
 describe("Slack mrkdwn escaping", () => {
+  it("marks every mrkdwn text object verbatim so a plain @here stays text", () => {
+    const tree = [
+      { $type: "Text", value: "@here" },
+      { $type: "Caption", value: "@channel" },
+      { $type: "Alert", title: "@here", description: "@channel" },
+      { $type: "Fact", label: "@here", value: "@channel" },
+      {
+        $type: "Card",
+        title: "@here",
+        children: [{ $type: "Text", value: "@channel" }],
+      },
+      {
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "@here",
+            children: [{ $type: "Text", value: "@channel" }],
+          },
+          {
+            $type: "Card",
+            title: "@here",
+            children: [
+              { $type: "Text", value: "@channel" },
+              { $type: "Image", src: "https://example.com/a.png" },
+            ],
+          },
+        ],
+      },
+      { $type: "ListViewItem", children: [{ $type: "Text", value: "@here" }] },
+      { $type: "Steps", steps: [{ title: "@here" }] },
+      { $type: "Chart" },
+      "@everyone",
+      ...Array.from({ length: MESSAGE_BLOCK_CAP }, () => "@here"),
+    ];
+    const mrkdwnObjects = (value: unknown): unknown[] =>
+      Array.isArray(value)
+        ? value.flatMap(mrkdwnObjects)
+        : typeof value === "object" && value !== null
+          ? [
+              ...((value as { type?: unknown }).type === "mrkdwn"
+                ? [value]
+                : []),
+              ...Object.values(value).flatMap(mrkdwnObjects),
+            ]
+          : [];
+
+    for (const surface of ["message", "modal"] as const) {
+      const found = mrkdwnObjects(toSlackBlocks(tree, { surface }).blocks);
+      expect(found.length).toBeGreaterThan(10);
+      for (const object of found) {
+        expect(object).toMatchObject({ verbatim: true });
+      }
+    }
+  });
+
   it("escapes structured component fields once after adding Slack formatting", () => {
     const { blocks } = toSlackBlocks([
       {
@@ -4038,30 +4243,45 @@ describe("Slack mrkdwn escaping", () => {
     expect(blocks).toEqual([
       {
         type: "section",
-        text: { type: "mrkdwn", text: "*A &amp; &lt;@U1&gt;*" },
+        text: { type: "mrkdwn", verbatim: true, text: "*A &amp; &lt;@U1&gt;*" },
       },
-      { type: "section", text: { type: "mrkdwn", text: "&lt;@U2&gt; &amp;" } },
+      {
+        type: "section",
+        text: { type: "mrkdwn", verbatim: true, text: "&lt;@U2&gt; &amp;" },
+      },
       {
         type: "section",
         text: {
           type: "mrkdwn",
+          verbatim: true,
           text: "*1. &lt;@U3&gt; &amp;*\n&lt;!here&gt; &gt;",
         },
       },
       {
         type: "section",
-        text: { type: "mrkdwn", text: "*A &amp; B*\n&lt;@U4&gt;\nx &gt; y" },
+        text: {
+          type: "mrkdwn",
+          verbatim: true,
+          text: "*A &amp; B*\n&lt;@U4&gt;\nx &gt; y",
+        },
       },
       {
         type: "section",
         text: {
           type: "mrkdwn",
+          verbatim: true,
           text: "<https://example.com/?a=1&amp;b=2|A &amp; &lt;@U5&gt;>\nSee &lt;!channel&gt; &amp; more",
         },
       },
       {
         type: "context",
-        elements: [{ type: "mrkdwn", text: "From &lt;@U6&gt; &amp; docs" }],
+        elements: [
+          {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "From &lt;@U6&gt; &amp; docs",
+          },
+        ],
       },
     ]);
     expect(JSON.stringify(blocks)).not.toContain("&amp;amp;");
@@ -4106,7 +4326,7 @@ describe("Slack mrkdwn escaping", () => {
 
     expect(blocks[0]).toMatchObject({
       type: "section",
-      text: { type: "mrkdwn", text: "2\n3\nA &amp; B" },
+      text: { type: "mrkdwn", verbatim: true, text: "2\n3\nA &amp; B" },
     });
   });
 
@@ -4121,12 +4341,13 @@ describe("Slack mrkdwn escaping", () => {
         type: "section",
         text: {
           type: "mrkdwn",
+          verbatim: true,
           text: "Fees &lt; $5 &amp; &gt; $1 &lt;!channel&gt; &lt;@U123&gt;",
         },
       },
       {
         type: "section",
-        text: { type: "mrkdwn", text: "&lt;!here&gt;" },
+        text: { type: "mrkdwn", verbatim: true, text: "&lt;!here&gt;" },
       },
     ]);
   });
@@ -4146,6 +4367,7 @@ describe("Slack mrkdwn escaping", () => {
         fields: [
           {
             type: "mrkdwn",
+            verbatim: true,
             text: "*Price &lt; $5 &amp; &lt;@U123&gt;*\nFees &lt; $5 &amp; &gt; $1 (↓ &lt;1% &amp;)",
           },
         ],
@@ -4172,14 +4394,15 @@ describe("Slack mrkdwn escaping", () => {
     expect(row.blocks[0]).toMatchObject({
       type: "context",
       elements: [
-        { type: "mrkdwn", text: "From &lt;@U123&gt;" },
-        { type: "mrkdwn", text: "Fees &lt; $5 &amp; &gt; $1" },
+        { type: "mrkdwn", verbatim: true, text: "From &lt;@U123&gt;" },
+        { type: "mrkdwn", verbatim: true, text: "Fees &lt; $5 &amp; &gt; $1" },
       ],
     });
     expect(item.blocks[0]).toMatchObject({
       type: "section",
       text: {
         type: "mrkdwn",
+        verbatim: true,
         text: "Notify &lt;!channel&gt;\n$5 &gt; $1\nPrice &lt; $5",
       },
     });
@@ -4216,17 +4439,21 @@ describe("Slack mrkdwn escaping", () => {
 
     expect(clean.blocks[0]).toMatchObject({
       type: "card",
-      title: { type: "mrkdwn", text: "&lt;@U123&gt;" },
-      body: { type: "mrkdwn", text: "Fees &lt; $5" },
-      subtext: { type: "mrkdwn", text: "&lt;!here&gt;" },
+      title: { type: "mrkdwn", verbatim: true, text: "&lt;@U123&gt;" },
+      body: { type: "mrkdwn", verbatim: true, text: "Fees &lt; $5" },
+      subtext: { type: "mrkdwn", verbatim: true, text: "&lt;!here&gt;" },
     });
     expect(reshaped.blocks[0]).toMatchObject({
       type: "carousel",
       elements: [
         {
           type: "card",
-          title: { type: "mrkdwn", text: "&lt;card&gt;" },
-          body: { type: "mrkdwn", text: "&lt;@U123&gt;\nPrice &lt; $5" },
+          title: { type: "mrkdwn", verbatim: true, text: "&lt;card&gt;" },
+          body: {
+            type: "mrkdwn",
+            verbatim: true,
+            text: "&lt;@U123&gt;\nPrice &lt; $5",
+          },
         },
       ],
     });
@@ -4252,10 +4479,15 @@ describe("Slack mrkdwn escaping", () => {
     );
 
     expect(message.blocks).toMatchObject([
-      { elements: [{ type: "mrkdwn", text: "ℹ️ *&lt;@U123&gt;*" }] },
+      {
+        elements: [
+          { type: "mrkdwn", verbatim: true, text: "ℹ️ *&lt;@U123&gt;*" },
+        ],
+      },
       {
         text: {
           type: "mrkdwn",
+          verbatim: true,
           text: "Fees &lt; $5 &amp; &lt;!channel&gt;",
         },
       },
@@ -4264,6 +4496,7 @@ describe("Slack mrkdwn escaping", () => {
       type: "alert",
       text: {
         type: "mrkdwn",
+        verbatim: true,
         text: "&lt;@U123&gt;\nFees &lt; $5 &amp; &lt;!channel&gt;",
       },
     });
@@ -4290,7 +4523,7 @@ describe("Slack mrkdwn escaping", () => {
     expect(markdown.blocks).toEqual([{ type: "markdown", text: "<@U123>" }]);
     expect(overflow.blocks[1]).toMatchObject({
       type: "section",
-      text: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+      text: { type: "mrkdwn", verbatim: true, text: "&lt;@U123&gt;" },
     });
   });
 
