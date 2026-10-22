@@ -28,7 +28,7 @@ export namespace RealtimeVoiceAdapter {
     mute: () => void;
     unmute: () => void;
     /**
-     * Delivers typed text into the connected session. The runtime records the typed turn in the thread itself, so the session must not echo it through `onTranscript`. A session without it takes audio only.
+     * Delivers typed text into the connected session. Resolve when the provider accepts the turn, before forwarding its reply transcripts; do not wait for the reply to finish. Transcripts from an interrupted reply can continue while acceptance is pending and any remaining updates for that reply must arrive before resolution. Deliver the new reply in later events after the call completes, so the runtime can record the typed turn first. The session must not echo the typed text through `onTranscript`. A session without it takes audio only.
      */
     sendText?: ((text: string) => void | Promise<void>) | undefined;
 
@@ -52,7 +52,7 @@ export type VoiceSessionControls = {
   mute: () => void;
   unmute: () => void;
   /**
-   * Delivers typed text to the provider. The session exposes `sendText` once these controls resolve and repeats its running status when they land after it, so status listeners can re-read the session; the runtime records the typed turn itself.
+   * Delivers typed text to the provider with the same acceptance ordering as `RealtimeVoiceAdapter.Session.sendText`: deliver any remaining updates for an interrupted reply, resolve when the new turn is accepted, then forward its reply transcripts in later events. The session exposes `sendText` once these controls resolve and repeats its running status when they land after it, so status listeners can re-read the session; the runtime records the typed turn itself.
    */
   sendText?: ((text: string) => void | Promise<void>) | undefined;
 };

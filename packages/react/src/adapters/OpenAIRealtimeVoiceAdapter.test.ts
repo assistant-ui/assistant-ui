@@ -435,6 +435,11 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     const accepted = vi.fn();
     session.onTranscript(onTranscript);
     channel.emit({ type: "response.created" });
+    channel.emit({
+      type: "response.output_audio_transcript.delta",
+      item_id: "old-reply",
+      delta: "Previous reply",
+    });
     channel.emit({ type: "output_audio_buffer.started" });
     const sent = Promise.resolve(session.sendText!("Change the topic"));
     void sent.then(accepted);
@@ -448,6 +453,11 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
       role: "user",
       content: [{ type: "input_text", text: "Change the topic" }],
     });
+    channel.emit({ type: "response.done", response: { status: "cancelled" } });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "assistant", text: "Previous reply", isFinal: false },
+      { role: "assistant", text: "Previous reply", isFinal: true },
+    ]);
     expect(accepted).not.toHaveBeenCalled();
     channel.emit({
       type: "conversation.item.added",
@@ -475,7 +485,10 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
       response: { metadata: response.response.metadata },
     });
     await sent;
-    expect(onTranscript).not.toHaveBeenCalled();
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "assistant", text: "Previous reply", isFinal: false },
+      { role: "assistant", text: "Previous reply", isFinal: true },
+    ]);
   });
 
   it("rejects a typed send whose response request fails after the item was accepted", async () => {
