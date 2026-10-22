@@ -165,7 +165,8 @@ describe("stepStreamingTiming", () => {
   });
 
   it("resets tracking when the assistant message id changes mid-stream", () => {
-    const now = makeClock();
+    let time = 100;
+    const now = () => time;
     const r1 = stepStreamingTiming(
       null,
       [msg("m1", "hi")],
@@ -174,6 +175,7 @@ describe("stepStreamingTiming", () => {
       undefined,
       now,
     );
+    time = 200;
     const r2 = stepStreamingTiming(
       r1.state,
       [msg("m1", "hi"), msg("m2", "")],
@@ -185,6 +187,25 @@ describe("stepStreamingTiming", () => {
     expect(r2.state?.messageId).toBe("m2");
     expect(r2.state?.totalChunks).toBe(0);
     expect(r2.state?.lastContentLength).toBe(0);
+
+    time = 250;
+    const r3 = stepStreamingTiming(
+      r2.state,
+      [msg("m1", "hi"), msg("m2", "next")],
+      false,
+      accessors,
+      undefined,
+      now,
+    );
+    expect(r3.timings["m2"]).toEqual({
+      streamStartTime: 200,
+      totalStreamTime: 50,
+      firstTokenTime: 50,
+      totalChunks: 1,
+      tokenCount: 1,
+      toolCallCount: 0,
+      tokensPerSecond: 20,
+    });
   });
 
   it.each([0, 10])("preserves first-token timing of %i ms", (delay) => {
