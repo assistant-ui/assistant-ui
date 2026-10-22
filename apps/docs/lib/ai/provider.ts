@@ -1,4 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import { fetchOpenAI } from "./openai-fetch";
 import {
   REASONING_EFFORTS,
   isReasoningEffort,
@@ -13,6 +14,7 @@ const MAX_PUBLIC_EFFORT_INDEX = REASONING_EFFORTS.indexOf("medium");
 export const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
   baseURL: process.env.OPENAI_BASE_URL!,
+  fetch: fetchOpenAI,
 });
 
 function resolveRequestedModelId(modelId?: string) {
