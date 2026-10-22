@@ -205,9 +205,16 @@ export const captureTrace = async (
     return chunks;
   } finally {
     cdp?.ws.close();
-    proc.kill();
-    await withTimeout(closed, 10_000, "Chrome to exit");
-    rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
+    try {
+      proc.kill();
+      await withTimeout(closed, 10_000, "Chrome to exit").catch(async () => {
+        proc.kill("SIGKILL");
+        await withTimeout(closed, 10_000, "Chrome to exit after SIGKILL");
+      });
+      rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
+    } catch (error) {
+      console.error(`Chrome cleanup failed (${profile}): ${error.message}`);
+    }
   }
 };
 

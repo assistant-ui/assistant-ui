@@ -90,10 +90,10 @@ it.each(["", "42"])(
   },
 );
 
-it("waits for Chrome to close before removing its profile after a failed connection", async () => {
+const failedCapture = () => {
   vi.useFakeTimers();
   const child = new ChildProcess();
-  vi.spyOn(child, "kill").mockReturnValue(true);
+  const kill = vi.spyOn(child, "kill").mockReturnValue(true);
   let profile = "";
   mocks.existsSync.mockImplementation((path: unknown) =>
     path === "/usr/bin/google-chrome" ? true : undefined,
@@ -114,6 +114,11 @@ it("waits for Chrome to close before removing its profile after a failed connect
   const result = captureTrace("unused.html", 0).catch(
     (error: unknown) => error,
   );
+  return { child, kill, profile, failure, result };
+};
+
+it("waits for Chrome to close before removing its profile after a failed connection", async () => {
+  const { child, profile, failure, result } = failedCapture();
 
   try {
     await vi.advanceTimersByTimeAsync(1000);
@@ -124,4 +129,35 @@ it("waits for Chrome to close before removing its profile after a failed connect
   }
   await expect(result).resolves.toBe(failure);
   expect(existsSync(profile)).toBe(false);
+});
+
+it("force closes Chrome after a shutdown timeout without hiding the connection error", async () => {
+  const { child, kill, profile, failure, result } = failedCapture();
+  try {
+    await vi.advanceTimersByTimeAsync(10_001);
+    expect(kill).toHaveBeenLastCalledWith("SIGKILL");
+    expect(existsSync(profile)).toBe(true);
+  } finally {
+    child.emit("close", 0, null);
+    await result;
+  }
+  await expect(result).resolves.toBe(failure);
+  expect(existsSync(profile)).toBe(false);
+});
+
+it("reports a failed forced shutdown without hiding the connection error or deleting an active profile", async () => {
+  const { child, profile, failure, result } = failedCapture();
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await vi.advanceTimersByTimeAsync(20_001);
+    await expect(result).resolves.toBe(failure);
+    expect(existsSync(profile)).toBe(true);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining(`Chrome cleanup failed (${profile})`),
+    );
+  } finally {
+    child.emit("close", 0, null);
+    await result;
+    error.mockRestore();
+  }
 });
