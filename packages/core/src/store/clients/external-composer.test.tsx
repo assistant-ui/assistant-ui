@@ -13,6 +13,8 @@ import {
 } from "@assistant-ui/store";
 import type { AssistantClient } from "@assistant-ui/store";
 import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { PendingAttachment } from "../../types/attachment";
+import { InMemoryThreadList } from "../../react/client/InMemoryThreadList";
 import type {
   ExternalThreadMessage,
   ExternalThreadProps,
@@ -29,6 +31,7 @@ const onAttachmentAddError = vi.fn();
 const onTextChange = vi.fn();
 const onAnyTextChange = vi.fn();
 const onComposerCancel = vi.fn();
+const onAnyAttachmentAdd = vi.fn();
 
 const Capture: FC = () => {
   aui = useAui();
@@ -39,6 +42,10 @@ const Capture: FC = () => {
   useAuiEvent("composer.textChange", onTextChange);
   useAuiEvent({ scope: "*", event: "composer.textChange" }, onAnyTextChange);
   useAuiEvent("composer.cancel", onComposerCancel);
+  useAuiEvent(
+    { scope: "*", event: "composer.attachmentAdd" },
+    onAnyAttachmentAdd,
+  );
   return null;
 };
 
@@ -78,6 +85,7 @@ afterEach(() => {
   onTextChange.mockClear();
   onAnyTextChange.mockClear();
   onComposerCancel.mockClear();
+  onAnyAttachmentAdd.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -183,6 +191,101 @@ it("forwards cancel only while the thread composer can cancel", async () => {
   });
 
   expect(onComposerCancel).not.toHaveBeenCalled();
+});
+
+it("forwards cancel for a send still being prepared", async () => {
+  const attachmentAdapter: AttachmentAdapter = {
+    accept: "*",
+    add: async ({ file }) => ({
+      id: "attachment-1",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    }),
+    remove: async () => {},
+    send: () => new Promise(() => {}),
+  };
+  const getAui = renderThread({ attachmentAdapter });
+  const composer = getAui().thread.composer();
+
+  await act(async () => {
+    await composer.addAttachment(
+      new File(["notes"], "notes.txt", { type: "text/plain" }),
+    );
+    composer.setText("with file");
+    composer.send();
+  });
+  expect(getAui().thread.composer().getState().canCancel).toBe(true);
+
+  await act(async () => {
+    getAui().thread.composer().cancel();
+  });
+
+  expect(onComposerCancel).toHaveBeenCalledExactlyOnceWith({
+    threadId: "default",
+  });
+  expect(getAui().thread.composer().getState().canCancel).toBe(false);
+  expect(onNew).not.toHaveBeenCalled();
+});
+
+it("reports a late attachment add under the thread it started on", async () => {
+  let resolveAdd!: (attachment: PendingAttachment) => void;
+  const attachmentAdapter: AttachmentAdapter = {
+    accept: "*",
+    add: () =>
+      new Promise<PendingAttachment>((resolve) => {
+        resolveAdd = resolve;
+      }),
+    remove: async () => {},
+    send: async (attachment) => ({
+      ...attachment,
+      status: { type: "complete" },
+      content: [],
+    }),
+  };
+  const App: FC = () => {
+    const client = useAui({
+      threads: InMemoryThreadList({
+        thread: () => ExternalThread({ messages: [], attachmentAdapter }),
+      }),
+    });
+    return (
+      <AuiProvider value={client}>
+        <Capture />
+      </AuiProvider>
+    );
+  };
+  render(<App />);
+  const startedOn = aui.threads.getState().mainThreadId;
+  const file = new File(["notes"], "notes.txt", { type: "text/plain" });
+
+  let adding!: Promise<void>;
+  await act(async () => {
+    adding = aui.composer().addAttachment(file);
+  });
+  await act(async () => {
+    aui.threads.switchToNewThread();
+  });
+  expect(aui.threads.getState().mainThreadId).not.toBe(startedOn);
+
+  await act(async () => {
+    resolveAdd({
+      id: "attachment-1",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    });
+    await adding;
+  });
+
+  expect(onAnyAttachmentAdd).toHaveBeenCalledExactlyOnceWith({
+    threadId: startedOn,
+    contentType: "text/plain",
+  });
 });
 
 it("reports an unknown thread when no thread list is in scope", async () => {

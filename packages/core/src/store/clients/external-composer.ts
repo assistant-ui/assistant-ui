@@ -45,6 +45,11 @@ import { QueueItemClient } from "./queue-item-client";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 
+type ComposerEventContext = {
+  readonly threadId: string;
+  readonly messageId?: string;
+};
+
 export const getEventThreadId = (
   client: AssistantClient | null | undefined,
 ) => {
@@ -198,6 +203,7 @@ const useComposerClientResource = ({
     | {
         readonly options: ComposerSendOptions | undefined;
         readonly runConfig: Record<string, unknown>;
+        readonly eventContext: ComposerEventContext;
         readonly controller: AbortController;
       }
     | undefined
@@ -209,7 +215,7 @@ const useComposerClientResource = ({
   const cleanupEpoch = useRef(0);
   const messageId = message?.id;
   const getEventContext = useCallback(
-    () => ({
+    (): ComposerEventContext => ({
       threadId: getEventThreadId(clientRef?.current),
       ...(type === "edit" && messageId !== undefined
         ? { messageId }
@@ -229,20 +235,24 @@ const useComposerClientResource = ({
     },
     [emit, getEventContext, setTextState, textRef],
   );
-  const emitAttachmentAdd = (contentType?: string) => {
+  const emitAttachmentAdd = (
+    eventContext: ComposerEventContext,
+    contentType?: string,
+  ) => {
     emit("composer.attachmentAdd", {
-      ...getEventContext(),
+      ...eventContext,
       ...(contentType ? { contentType } : undefined),
     });
   };
   const emitAttachmentAddError = (
+    eventContext: ComposerEventContext,
     reason: AttachmentAddErrorReason,
     message: string,
     attachmentId?: string,
     contentType?: string,
   ) => {
     emit("composer.attachmentAddError", {
-      ...getEventContext(),
+      ...eventContext,
       ...(attachmentId !== undefined ? { attachmentId } : undefined),
       reason,
       message,
@@ -624,6 +634,7 @@ const useComposerClientResource = ({
     context: {
       readonly options: ComposerSendOptions | undefined;
       readonly runConfig: Record<string, unknown>;
+      readonly eventContext: ComposerEventContext;
     },
     isSubmission: boolean,
   ) => {
@@ -703,7 +714,7 @@ const useComposerClientResource = ({
       return;
     }
     emit("composer.send", {
-      ...getEventContext(),
+      ...context.eventContext,
       chars: current.text.length,
       attachments: attachments.length,
     });
@@ -784,6 +795,7 @@ const useComposerClientResource = ({
     setRole,
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
+      const eventContext = getEventContext();
       if (attachmentAdapter) {
         const file = isCreateAttachment(fileOrAttachment)
           ? {
@@ -793,7 +805,13 @@ const useComposerClientResource = ({
           : { name: fileOrAttachment.name, type: fileOrAttachment.type };
         if (!fileMatchesAccept(file, attachmentAdapter.accept)) {
           const message = `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`;
-          emitAttachmentAddError("not-accepted", message, undefined, file.type);
+          emitAttachmentAddError(
+            eventContext,
+            "not-accepted",
+            message,
+            undefined,
+            file.type,
+          );
           throw new Error(message);
         }
       }
@@ -816,6 +834,7 @@ const useComposerClientResource = ({
           attachmentAddOperations.finish(operation);
           if (attachmentAddOperations.isCancelled(operation)) return;
           emitAttachmentAddError(
+            eventContext,
             "adapter-error",
             error instanceof Error ? error.message : String(error),
             lastAttachment?.id,
@@ -829,6 +848,7 @@ const useComposerClientResource = ({
           lastAttachment.status.reason === "error"
         ) {
           emitAttachmentAddError(
+            eventContext,
             "adapter-error",
             lastAttachment.status.message ??
               "Attachment upload did not complete successfully.",
@@ -837,6 +857,7 @@ const useComposerClientResource = ({
           );
         } else {
           emitAttachmentAdd(
+            eventContext,
             lastAttachment?.contentType || fileOrAttachment.type,
           );
         }
@@ -851,7 +872,7 @@ const useComposerClientResource = ({
           content: [],
         };
         setAttachments((prev) => [...prev, newAttachment]);
-        emitAttachmentAdd(newAttachment.contentType);
+        emitAttachmentAdd(eventContext, newAttachment.contentType);
       } else {
         const newAttachment: Attachment = {
           id: fileOrAttachment.id ?? generateId(),
@@ -862,7 +883,7 @@ const useComposerClientResource = ({
           status: { type: "complete" },
         };
         setAttachments((prev) => [...prev, newAttachment]);
-        emitAttachmentAdd(newAttachment.contentType);
+        emitAttachmentAdd(eventContext, newAttachment.contentType);
       }
     },
     clearAttachments: async () => {
@@ -936,7 +957,11 @@ const useComposerClientResource = ({
         quote: quoteRef.current,
         attachments: currentAttachments,
       };
-      const context = { options: opts, runConfig: runConfigRef.current };
+      const context = {
+        options: opts,
+        runConfig: runConfigRef.current,
+        eventContext: getEventContext(),
+      };
       // Only a send whose attachments still need the adapter becomes a
       // submission; one with nothing left to prepare goes out right away, as
       // it always has, and never shows up as a row of its own.
