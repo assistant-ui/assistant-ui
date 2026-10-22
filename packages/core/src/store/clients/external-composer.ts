@@ -964,6 +964,11 @@ const useComposerClientResource = ({
       void prepareSubmission(generation).finally(release);
     },
     cancel: () => {
+      if (type === "thread" && (canCancel || submissionRef.current)) {
+        emit("composer.cancel", {
+          threadId: getEventThreadId(clientRef?.current),
+        });
+      }
       // Stopping takes a send still being prepared back into the draft and
       // still stops a run that is going, so the one control never loses either.
       if (type === "thread" && submissionRef.current) {

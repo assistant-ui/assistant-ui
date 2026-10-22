@@ -28,6 +28,7 @@ const onAttachmentAdd = vi.fn();
 const onAttachmentAddError = vi.fn();
 const onTextChange = vi.fn();
 const onAnyTextChange = vi.fn();
+const onComposerCancel = vi.fn();
 
 const Capture: FC = () => {
   aui = useAui();
@@ -37,6 +38,7 @@ const Capture: FC = () => {
   useAuiEvent("composer.attachmentAddError", onAttachmentAddError);
   useAuiEvent("composer.textChange", onTextChange);
   useAuiEvent({ scope: "*", event: "composer.textChange" }, onAnyTextChange);
+  useAuiEvent("composer.cancel", onComposerCancel);
   return null;
 };
 
@@ -75,6 +77,7 @@ afterEach(() => {
   onAttachmentAddError.mockClear();
   onTextChange.mockClear();
   onAnyTextChange.mockClear();
+  onComposerCancel.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -157,6 +160,29 @@ it("tags reset, returned-send, and edit-seed text writes with their origins", as
     chars: 7,
     attachments: 0,
   });
+});
+
+it("forwards cancel only while the thread composer can cancel", async () => {
+  const onCancel = vi.fn();
+  const getAui = renderThread({ isRunning: true, onCancel });
+
+  await act(async () => {
+    getAui().thread.composer().cancel();
+  });
+
+  expect(onComposerCancel).toHaveBeenCalledExactlyOnceWith({
+    threadId: "default",
+  });
+  expect(onCancel).toHaveBeenCalledOnce();
+
+  cleanup();
+  onComposerCancel.mockClear();
+  const getIdle = renderThread({ onCancel });
+  await act(async () => {
+    getIdle().thread.composer().cancel();
+  });
+
+  expect(onComposerCancel).not.toHaveBeenCalled();
 });
 
 it("reports an unknown thread when no thread list is in scope", async () => {
