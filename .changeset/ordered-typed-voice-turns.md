@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: keep early voice replies after their typed questions without splitting the reply when text delivery is asynchronous
+docs: clarify voice adapter text acceptance ordering and interrupted reply delivery

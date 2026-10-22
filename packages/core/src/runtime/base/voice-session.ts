@@ -34,14 +34,6 @@ type VoiceSessionHost = {
   stopSpeakingForVoiceMessage(): Unsubscribe | undefined;
 };
 
-type PendingVoiceText = {
-  transcripts: RealtimeVoiceAdapter.TranscriptItem[];
-  generation: AbortSignal;
-  done: Promise<void>;
-  release(): void;
-  flushing: boolean;
-};
-
 export class VoiceSessionController {
   public voiceMessages: ThreadMessage[] = [];
   public voiceGeneration = 0;
@@ -107,7 +99,6 @@ export class VoiceSessionController {
 
   private _voiceSession: RealtimeVoiceAdapter.Session | undefined;
   private _voiceUnsubs: Array<() => void> = [];
-  private _pendingVoiceText: PendingVoiceText | undefined;
   public voice: VoiceSessionState | undefined;
 
   private _voiceVolume = 0;
@@ -242,8 +233,6 @@ export class VoiceSessionController {
         session.onStatusChange((status) => {
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
-            this._flushPendingVoiceText();
-            if (finishDetachedSetup()) return;
             this._voiceSession = undefined;
             this.voice = undefined;
             this._voiceVolume = 0;
@@ -305,9 +294,7 @@ export class VoiceSessionController {
       unsubs.push(
         session.onTranscript((transcript) => {
           if (this._voiceSession !== session) return;
-          if (this._pendingVoiceText)
-            this._pendingVoiceText.transcripts.push(transcript);
-          else this._handleVoiceTranscript(transcript);
+          this._handleVoiceTranscript(transcript);
         }),
       );
       if (!finishDetachedSetup()) this.host.onConnected();
@@ -417,37 +404,8 @@ export class VoiceSessionController {
     }
   }
 
-  private _flushPendingVoiceText(pending = this._pendingVoiceText) {
-    if (!pending || this._pendingVoiceText !== pending) return;
-    if (pending.flushing) {
-      this._pendingVoiceText = undefined;
-      pending.release();
-      return;
-    }
-    const session = this._voiceSession;
-    const unsubs = this._voiceUnsubs;
-    pending.flushing = true;
-    try {
-      for (const transcript of pending.transcripts) {
-        if (
-          pending.generation.aborted ||
-          this._voiceSession !== session ||
-          this._voiceUnsubs !== unsubs
-        )
-          break;
-        this._handleVoiceTranscript(transcript);
-      }
-    } finally {
-      pending.transcripts.length = 0;
-      if (this._pendingVoiceText === pending)
-        this._pendingVoiceText = undefined;
-      pending.release();
-    }
-  }
-
   public async appendToVoiceSession(message: AppendMessage) {
     const session = this._voiceSession;
-    const unsubs = this._voiceUnsubs;
     if (!this.voice?.canSendText || !session?.sendText)
       throw new Error(
         "Cannot send a text message while a voice session is connected",
@@ -473,59 +431,33 @@ export class VoiceSessionController {
     const enriched = this.host.enrichAppendMetadata(message);
     this.host.ensureInitialized();
     const generation = this.host.captureGeneration();
-    const assertSession = () => {
-      if (this._voiceSession !== session || this._voiceUnsubs !== unsubs)
-        throw new MessageNotSentError(
-          "The voice session ended before the typed message was recorded",
-        );
-    };
-    while (this._pendingVoiceText) {
-      await this._pendingVoiceText.done;
+    try {
+      await session.sendText(getThreadMessageText(message));
+    } catch (error) {
       if (generation.aborted) return;
-      assertSession();
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
     }
     if (generation.aborted) return;
-    assertSession();
-    let release!: () => void;
-    const done = new Promise<void>((resolve) => {
-      release = resolve;
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
+    this._finishVoiceAssistantMessage(false);
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
+    this._currentAssistantMsg = null;
+    await this._commitVoiceUserMessage({
+      id: generateId(),
+      role: "user",
+      content,
+      metadata: { custom: { ...enriched.metadata?.custom } },
+      createdAt: message.createdAt,
+      attachments: [],
     });
-    const pending: PendingVoiceText = {
-      transcripts: [],
-      generation,
-      done,
-      release,
-      flushing: false,
-    };
-    this._pendingVoiceText = pending;
-    let commit: void | Promise<void>;
-    try {
-      try {
-        await session.sendText(getThreadMessageText(message));
-      } catch (error) {
-        if (generation.aborted) return;
-        const notSent = new MessageNotSentError();
-        notSent.cause = error;
-        throw notSent;
-      }
-      if (generation.aborted) return;
-      assertSession();
-      this._finishVoiceAssistantMessage(false);
-      if (generation.aborted) return;
-      assertSession();
-      this._currentAssistantMsg = null;
-      commit = this._commitVoiceUserMessage({
-        id: generateId(),
-        role: "user",
-        content,
-        metadata: { custom: { ...enriched.metadata?.custom } },
-        createdAt: message.createdAt,
-        attachments: [],
-      });
-    } finally {
-      this._flushPendingVoiceText(pending);
-    }
-    await commit;
   }
 
   private _finishVoiceAssistantMessage(notify = true) {
@@ -536,10 +468,10 @@ export class VoiceSessionController {
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
-      this._currentAssistantMsg = null;
       this._observeVoiceCommit(() =>
         this.host.commitVoiceMessage(this.voiceMessages[idx]!),
       );
+      this._currentAssistantMsg = null;
       this.host.markVoiceMessagesDirty();
       if (notify) this.host.notify();
     }
@@ -550,9 +482,6 @@ export class VoiceSessionController {
   }
 
   private _disconnectVoice(fireHook: boolean) {
-    const owner = this._voiceUnsubs;
-    this._flushPendingVoiceText();
-    if (this._voiceUnsubs !== owner) return;
     this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     // Drain the shared list in place so reentrant setup cannot release the same handles again.
