@@ -707,7 +707,6 @@ export const useExternalHistory = <TMessage>(
               message: createUnansweredRunMessage(
                 runCancelled ? "cancelled" : "other",
               ),
-              ...(writeFailure && { persistenceError: writeFailure.error }),
             });
           }
         })

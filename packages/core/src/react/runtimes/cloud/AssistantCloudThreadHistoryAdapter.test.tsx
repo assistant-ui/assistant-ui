@@ -1126,6 +1126,39 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports a settled message whose write failed as a persistence error once", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const failure = new CloudAPIError(
+      "Message too large",
+      413,
+      "payload_too_large",
+    );
+    vi.mocked(cloud.threads.messages.create).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("local-message-1"),
+    };
+
+    await expect(result.current.append(item)).rejects.toBe(failure);
+    await result.current.append(item);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+    expect(cloud.runs.report).toHaveBeenCalledTimes(1);
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thread_id: "thread-1",
+        status: "error",
+        outcome_type: "persistence_error",
+        error: "Message too large",
+        error_code: "payload_too_large",
+      }),
+    );
+  });
+
   it("reports the error message and code of a failed run", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
