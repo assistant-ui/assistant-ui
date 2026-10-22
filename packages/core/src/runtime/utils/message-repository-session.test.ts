@@ -83,20 +83,27 @@ describe("createMessageRepositorySession", () => {
         session.addOrUpdateMessage(null, message("root"));
         return { session, mutate: () => session.clear() };
       },
-      () => {
-        const session = createMessageRepositorySession();
-        session.addOrUpdateMessage(null, message("root"));
+      ...["root", "child"].map((id) => () => {
+        const session = withRootAndChild();
         return {
           session,
-          mutate: () =>
+          mutate: () => {
             expect(
-              session.updateMessage("root", (current) => ({
+              session.updateMessage(id, (current) => ({
                 ...current,
                 content: [{ type: "text", text: "updated" }],
               })),
-            ).toBe(true),
+            ).toBe(true);
+            expect(session.getMessages().map((item) => item.id)).toEqual([
+              "root",
+              "child",
+            ]);
+            expect(
+              session.getMessages().find((item) => item.id === id)?.content,
+            ).toEqual([{ type: "text", text: "updated" }]);
+          },
         };
-      },
+      }),
       () => {
         const session = createMessageRepositorySession();
         session.addOrUpdateMessage(null, message("previous"));
