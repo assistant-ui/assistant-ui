@@ -36,6 +36,31 @@ const convertLangChainMessages = (
     ) => ConvertResult
   )(message, metadata);
 
+describe("convertLangChainMessages Python text arrays", () => {
+  it.each([
+    ["human", "user"],
+    ["ai", "assistant"],
+    ["system", "system"],
+  ] as const)("preserves strings in %s content", (type, role) => {
+    const message = JSON.parse(
+      '{"id":"m1","content":["Before ",{"type":"image_url","image_url":{"url":"https://example.com/cat.png"}},{"type":"text","text":"after"},"!"]}',
+    );
+
+    expect(convertLangChainMessages({ ...message, type })).toMatchObject({
+      role,
+      content:
+        role === "system"
+          ? [{ type: "text", text: "Before after!" }]
+          : [
+              { type: "text", text: "Before " },
+              { type: "image", image: "https://example.com/cat.png" },
+              { type: "text", text: "after" },
+              { type: "text", text: "!" },
+            ],
+    });
+  });
+});
+
 describe("createLangGraphMetadataKey", () => {
   const assistant = (id: string): LangChainMessage => ({
     id,

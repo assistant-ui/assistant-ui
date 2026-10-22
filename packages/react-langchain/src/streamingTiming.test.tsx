@@ -11,6 +11,23 @@ afterEach(() => {
 });
 
 describe("useLangChainStreamingTiming", () => {
+  it("counts string entries alongside text blocks in the displayed answer", () => {
+    const messages: LangChainBaseMessage[] = [
+      {
+        id: "a1",
+        _getType: () => "ai",
+        content: ["Hello ", { type: "text", text: "world" }],
+      },
+    ];
+    const { result, rerender } = renderHook(
+      ({ running }) => useLangChainStreamingTiming(messages, running),
+      { initialProps: { running: true } },
+    );
+    rerender({ running: false });
+
+    expect(result.current.a1?.tokenCount).toBe(3);
+  });
+
   it("keeps the previous answer's timing when the next run ends before producing an answer", () => {
     vi.useFakeTimers();
     const user: LangChainBaseMessage = {

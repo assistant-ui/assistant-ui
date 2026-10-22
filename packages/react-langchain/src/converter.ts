@@ -418,7 +418,11 @@ export const createLangChainStreamingTimingAccessors = <
     if (typeof content === "string") return content.length;
     if (!Array.isArray(content)) return 0;
     let len = 0;
-    for (const part of content as readonly LangChainContentBlock[]) {
+    for (const part of content as readonly (string | LangChainContentBlock)[]) {
+      if (typeof part === "string") {
+        len += part.length;
+        continue;
+      }
       if (typeof part !== "object" || part === null) continue;
       switch (part.type) {
         case "text":
