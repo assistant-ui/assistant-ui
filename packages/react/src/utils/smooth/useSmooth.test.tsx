@@ -182,6 +182,43 @@ describe("useSmooth", () => {
     expect(result.current.status.type).toBe("complete");
   });
 
+  it("starts a new part from its own cursor when enabling smoothing in the same update", () => {
+    let now = 1000;
+    let queued: FrameRequestCallback | undefined;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      queued = cb;
+      return 1;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {
+      queued = undefined;
+    });
+    const { result, rerender } = renderHook(
+      ({ state, smooth }) => useSmooth(state, smooth),
+      {
+        initialProps: {
+          state: runningState("Hello"),
+          smooth: false as boolean | SmoothOptions,
+        },
+      },
+    );
+    expect(result.current.text).toBe("Hello");
+
+    aui.part = {};
+    rerender({
+      state: runningState("Hello world"),
+      smooth: { maxCharsPerFrame: 1 },
+    });
+    expect(result.current.text).toBe("");
+    act(() => {
+      now += 16;
+      const callback = queued;
+      queued = undefined;
+      callback?.(now);
+    });
+    expect(result.current.text).toBe("H");
+  });
+
   it.each([false, true])(
     "animates only new text after reduced motion is disabled, with a part switch: %s",
     (switchPart) => {
