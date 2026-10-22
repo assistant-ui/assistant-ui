@@ -484,9 +484,12 @@ const createSpeechController = (
       clear();
 
       const utterance = adapter.speak(getThreadMessageText(message));
+      let active = true;
       let unsub: (() => void) | undefined;
       unsub = utterance.subscribe(() => {
+        if (!active) return;
         if (utterance.status.type === "ended") {
+          active = false;
           unsub?.();
           session = undefined;
           notify(undefined);
@@ -496,6 +499,7 @@ const createSpeechController = (
       });
 
       if (utterance.status.type === "ended") {
+        active = false;
         unsub();
         notify(undefined);
         return;
@@ -504,6 +508,7 @@ const createSpeechController = (
       session = {
         messageId: message.id,
         cancel: () => {
+          active = false;
           unsub!();
           utterance.cancel();
         },
