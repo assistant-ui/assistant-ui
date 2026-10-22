@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { parseAdkEventValue } from "./parseAdkEvent";
-import type { AdkEvent, AdkMessage, AdkMessageContentPart } from "./types";
+import type {
+  AdkEvent,
+  AdkEventPart,
+  AdkMessage,
+  AdkMessageContentPart,
+} from "./types";
 
 const makeEvent = (overrides: Partial<AdkEvent> = {}): AdkEvent => ({
   id: "evt-1",
@@ -2392,6 +2397,99 @@ describe("AdkEventAccumulator - multiple parts in one event", () => {
     expect(msgs[0]?.content).toEqual([
       { type: "text", text: "Hello" },
       { type: "text", text: "Again" },
+    ]);
+  });
+});
+
+describe("AdkEventAccumulator - streamed content order", () => {
+  const imageData =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6XcAAAAASUVORK5CYII=";
+  const image = {
+    inlineData: { mimeType: "image/png", data: imageData },
+  } satisfies AdkEventPart;
+  const event = (parts: AdkEventPart[], partial: boolean): AdkEvent =>
+    makeEvent({
+      invocationId: "streamed-answer",
+      author: "agent",
+      partial,
+      content: { role: "model", parts },
+    });
+
+  it("replaces streamed media and code with the final aggregate, keeping intentional repeats", () => {
+    const acc = new AdkEventAccumulator();
+    const parts: AdkEventPart[] = [
+      { text: "Before" },
+      image,
+      image,
+      {
+        fileData: {
+          fileUri: "https://example.com/report.pdf",
+          mimeType: "application/pdf",
+        },
+      },
+      { executableCode: { code: "print(1)", language: "python" } },
+      { codeExecutionResult: { output: "1", outcome: "OUTCOME_OK" } },
+      { text: "After" },
+    ];
+    for (const part of parts) acc.processEvent(event([part], true));
+    const streamedId = acc.getMessages()[0]!.id;
+    const final = event(parts, false);
+    const messages = acc.processEvent(final);
+    expect(messages).toMatchObject([
+      {
+        id: streamedId,
+        type: "ai",
+        status: { type: "complete", reason: "stop" },
+        content: [
+          { type: "text", text: "Before" },
+          { type: "image", mimeType: "image/png", data: imageData },
+          { type: "image", mimeType: "image/png", data: imageData },
+          {
+            type: "file_url",
+            url: "https://example.com/report.pdf",
+            mimeType: "application/pdf",
+          },
+          { type: "code", code: "print(1)", language: "python" },
+          { type: "code_result", output: "1", outcome: "OUTCOME_OK" },
+          { type: "text", text: "After" },
+        ],
+      },
+    ]);
+    expect(messages).toEqual(new AdkEventAccumulator().processEvent(final));
+  });
+
+  it("joins adjacent text deltas without crossing media or reasoning boundaries", () => {
+    const acc = new AdkEventAccumulator();
+    const parts: AdkEventPart[] = [
+      { text: "Be" },
+      { text: "fore" },
+      image,
+      { text: "Af" },
+      { text: "ter" },
+      { text: "Think", thought: true },
+      { text: "ing", thought: true },
+      { text: "Answer" },
+      { text: "Checking", thought: true },
+    ];
+    for (const part of parts) acc.processEvent(event([part], true));
+    const messages = acc.getMessages();
+    expect(messages[0]?.content).toEqual([
+      { type: "text", text: "Before" },
+      { type: "image", mimeType: "image/png", data: imageData },
+      { type: "text", text: "After" },
+      { type: "reasoning", text: "Thinking" },
+      { type: "text", text: "Answer" },
+      { type: "reasoning", text: "Checking" },
+    ]);
+  });
+
+  it("preserves streamed text when a non-progressive media event does not repeat it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(event([{ text: "Description" }], true));
+    const messages = acc.processEvent(event([image], false));
+    expect(messages[0]?.content).toEqual([
+      { type: "text", text: "Description" },
+      { type: "image", mimeType: "image/png", data: imageData },
     ]);
   });
 });
