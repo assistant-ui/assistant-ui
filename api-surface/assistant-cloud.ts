@@ -730,7 +730,7 @@ type RunReportInit = {
   };
 };
 
-type RunReportOutcome = "aborted" | "content_filter" | "disconnected" | "length" | "rate_limited" | "server_error" | "validation_failed";
+type RunReportOutcome = "aborted" | "content_filter" | "disconnected" | "length" | "persistence_error" | "rate_limited" | "server_error" | "validation_failed";
 
 type RunReportStepInit = {
   usage?: RunTelemetryUsageInit | undefined;

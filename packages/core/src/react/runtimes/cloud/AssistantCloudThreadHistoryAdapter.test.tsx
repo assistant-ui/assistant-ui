@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor } from "@testing-library/react";
-import type { AssistantCloud } from "assistant-cloud";
+import { type AssistantCloud, CloudAPIError } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import {
@@ -1126,6 +1126,39 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports a settled message whose write failed as a persistence error once", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const failure = new CloudAPIError(
+      "Message too large",
+      413,
+      "payload_too_large",
+    );
+    vi.mocked(cloud.threads.messages.create).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("local-message-1"),
+    };
+
+    await expect(result.current.append(item)).rejects.toBe(failure);
+    await result.current.append(item);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+    expect(cloud.runs.report).toHaveBeenCalledTimes(1);
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thread_id: "thread-1",
+        status: "error",
+        outcome_type: "persistence_error",
+        error: "Message too large",
+        error_code: "payload_too_large",
+      }),
+    );
+  });
+
   it("reports the error message and code of a failed run", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
@@ -1566,6 +1599,69 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(report.outcome_type).toBe(
       "outcome_type" in expected ? expected.outcome_type : undefined,
     );
+  });
+
+  const tooLarge = new CloudAPIError(
+    "Message too large",
+    413,
+    "payload_too_large",
+  );
+  it.each([
+    [
+      "a completed run whose history failed to store",
+      { type: "complete", reason: "stop" },
+      tooLarge,
+      {
+        status: "error",
+        outcome_type: "persistence_error",
+        error: "Message too large",
+        error_code: "payload_too_large",
+      },
+    ],
+    [
+      "a stopped run whose history failed to store",
+      { type: "incomplete", reason: "cancelled" },
+      tooLarge,
+      { status: "incomplete", outcome_type: "aborted" },
+    ],
+    [
+      "a completed run whose history write rejected without a reason",
+      { type: "complete", reason: "stop" },
+      undefined,
+      { status: "error", outcome_type: "persistence_error" },
+    ],
+  ] as const)("reports %s", async (_, status, persistenceError, expected) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    assertDefined(result.current.withFormat);
+    const formatted = result.current.withFormat({
+      format: "aui/v0",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as TelemetryMessage,
+      }),
+      getId: (message: TelemetryMessage) => message.id,
+    });
+    const message = {
+      id: "message-1",
+      role: "assistant",
+      content: [{ type: "text", text: "done" }],
+      status,
+    };
+
+    assertDefined(formatted.reportTelemetry);
+    formatted.reportTelemetry([{ parentId: null, message }], {
+      persistenceError,
+    });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).toEqual(expect.objectContaining(expected));
+    expect(report.error).toBe("error" in expected ? expected.error : undefined);
   });
 
   it("reports the model ID carried by aui/v0 step metadata", async () => {

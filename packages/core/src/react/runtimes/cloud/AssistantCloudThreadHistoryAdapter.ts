@@ -34,6 +34,7 @@ import {
   extractTelemetry,
   mergeRunMessageInfo,
   mergeStepTimestamps,
+  withPersistenceFailure,
 } from "./runTelemetry";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import {
@@ -394,6 +395,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
           message?: ThreadMessage;
+          persistenceError?: unknown;
         },
       ) {
         const encodedRunMessages = items.map((item) =>
@@ -668,23 +670,35 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const firstSettle =
       isSettledMessage(message) && !ledger.settled.has(message.id);
     this.assertCurrentScope(context);
-    await write(encoded);
-    if (!firstSettle) return;
-    ledger.settled.add(message.id);
-    if (ledger.reported.has(message.id)) return;
-
-    if (!context.cloud.telemetry.enabled) return;
-    const extracted = extractTelemetry("aui/v0", encoded);
-    if (!extracted) return;
-    ledger.reported.add(message.id);
-    this._sendReport(
-      remoteId,
-      extracted,
-      undefined,
-      undefined,
-      extractRunMessageInfo(message, "aui/v0"),
-      context,
-    );
+    let writeError: { error: unknown } | undefined;
+    try {
+      await write(encoded);
+    } catch (error) {
+      writeError = { error };
+    }
+    if (!firstSettle) {
+      if (writeError) throw writeError.error;
+      return;
+    }
+    if (!writeError) ledger.settled.add(message.id);
+    if (!ledger.reported.has(message.id) && context.cloud.telemetry.enabled) {
+      const extracted = extractTelemetry("aui/v0", encoded);
+      if (extracted) {
+        ledger.reported.add(message.id);
+        const info = extractRunMessageInfo(message, "aui/v0");
+        this._sendReport(
+          remoteId,
+          extracted,
+          undefined,
+          undefined,
+          writeError
+            ? withPersistenceFailure(info, extracted.status, writeError.error)
+            : info,
+          context,
+        );
+      }
+    }
+    if (writeError) throw writeError.error;
   }
 
   async delete() {
@@ -732,9 +746,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     options?: {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
+      persistenceError?: unknown;
     },
     threadListItem?: CloudThreadListItem,
-    messageInfo?: RunMessageInfo,
+    observedInfo?: RunMessageInfo,
   ) {
     const item = threadListItem ?? this.aui.threadListItem;
     const context = this.captureScope(item);
@@ -742,10 +757,19 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
     const extracted =
       extractRunTelemetry(format, runMessages) ??
-      (messageInfo?.status !== undefined
+      (observedInfo?.status !== undefined
         ? { status: "incomplete" as const }
         : undefined);
     if (!extracted) return;
+
+    const messageInfo =
+      options && "persistenceError" in options
+        ? withPersistenceFailure(
+            observedInfo,
+            extracted.status,
+            options.persistenceError,
+          )
+        : observedInfo;
 
     void this.resolveExistingRemoteId(item)
       .then((remoteId) => {

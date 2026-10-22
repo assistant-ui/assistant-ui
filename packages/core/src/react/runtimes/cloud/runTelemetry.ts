@@ -88,6 +88,21 @@ export function mergeRunMessageInfo(
   return { ...stored, ...outcome };
 }
 
+export function withPersistenceFailure(
+  info: RunMessageInfo | undefined,
+  status: RunMessageInfo["status"],
+  persistenceError: unknown,
+): RunMessageInfo | undefined {
+  if ((info?.status ?? status) !== "completed") return info;
+  const { outcome: _, ...failure } = describeRunError(persistenceError);
+  return {
+    ...info,
+    ...failure,
+    status: "error",
+    outcomeType: "persistence_error",
+  };
+}
+
 export function extractRunMessageInfo(
   message: unknown,
   format: string,

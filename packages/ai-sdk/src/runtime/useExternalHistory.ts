@@ -587,6 +587,7 @@ export const useExternalHistory = <TMessage>(
         .then(async () => {
           const { messages } = latest;
           let lastInnerMessageId: string | null = null;
+          let writeFailure: { error: unknown } | undefined;
 
           const getLastInnerId = (msgs: TMessage[]): string | null =>
             msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
@@ -642,11 +643,20 @@ export const useExternalHistory = <TMessage>(
               collectToolInteractions(message, getToolInteractions?.()),
               collectToolApprovalResponses(message, toolApprovalResponses),
             );
+            let messageWriteFailure = writeFailure;
             for (const item of batchItems) {
+              // Rows are stored parent first, so nothing after a failed append can be stored in this pass.
+              if (writeFailure) break;
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);
               if (!persisted) {
-                await appendIfUnpersisted(item);
+                try {
+                  await appendIfUnpersisted(item);
+                } catch (error) {
+                  console.error("Failed to persist message history:", error);
+                  writeFailure = { error };
+                  messageWriteFailure = writeFailure;
+                }
               } else if (
                 persisted.source !== item.message &&
                 durationMs !== undefined &&
@@ -662,8 +672,9 @@ export const useExternalHistory = <TMessage>(
                       source: item.message,
                       content,
                     });
-                  } catch {
+                  } catch (error) {
                     // A failed update leaves the stale baseline behind so the next run stop retries it.
+                    messageWriteFailure ??= { error };
                   }
                 }
               }
@@ -682,6 +693,9 @@ export const useExternalHistory = <TMessage>(
                 {
                   ...telemetryOptions,
                   message,
+                  ...(messageWriteFailure && {
+                    persistenceError: messageWriteFailure.error,
+                  }),
                 },
               );
             }
