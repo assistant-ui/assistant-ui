@@ -332,7 +332,9 @@ export const useExternalHistory = <TMessage>(
   const toolCallCountRef = useRef(0);
   const queuedPromptIdRef = useRef<string | null>(null);
   const runPromptIdRef = useRef<string | null>(null);
+  const runPromptMessagesRef = useRef<TMessage[]>([]);
   const settledPromptIdRef = useRef<string | null>(null);
+  const settledPromptMessagesRef = useRef<TMessage[]>([]);
   const runCancelledRef = useRef(false);
   const settledRunCancelledRef = useRef(false);
 
@@ -355,6 +357,21 @@ export const useExternalHistory = <TMessage>(
       }
     },
     [],
+  );
+
+  const clearDeletedMessage = useCallback(
+    (messageId: string, items: MessageFormatItem<TMessage>[]) => {
+      historyIds.current.delete(messageId);
+      deferredTelemetryIds.current.delete(messageId);
+      deletedMessageIds.current.set(messageId, false);
+      releaseRemovedMessages(runtimeRef.current.thread.getState().messages);
+      for (const item of items) {
+        persistedInnerMessages.current.delete(
+          storageFormatAdapter.getId(item.message),
+        );
+      }
+    },
+    [releaseRemovedMessages, runtimeRef, storageFormatAdapter],
   );
 
   const persistToolInteractions = useCallback(
@@ -479,7 +496,11 @@ export const useExternalHistory = <TMessage>(
         const prompt = threadState.messages.findLast(
           (message) => message.role === "user",
         );
-        if (prompt) runPromptIdRef.current = prompt.id;
+        if (prompt) {
+          runPromptIdRef.current = prompt.id;
+          runPromptMessagesRef.current =
+            getExternalStoreMessages<TMessage>(prompt);
+        }
         if (historyReadyRef.current) persistRunPrompt(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
@@ -491,8 +512,10 @@ export const useExternalHistory = <TMessage>(
 
       if (wasRunning) {
         settledPromptIdRef.current = runPromptIdRef.current;
+        settledPromptMessagesRef.current = runPromptMessagesRef.current;
         settledRunCancelledRef.current = runCancelledRef.current;
         runPromptIdRef.current = null;
+        runPromptMessagesRef.current = [];
         runCancelledRef.current = false;
         queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
@@ -574,8 +597,10 @@ export const useExternalHistory = <TMessage>(
       runStartRef.current = null;
       stepBoundariesRef.current = [];
       const promptId = settledPromptIdRef.current;
+      const promptMessages = settledPromptMessagesRef.current;
       const runCancelled = settledRunCancelledRef.current;
       settledPromptIdRef.current = null;
+      settledPromptMessagesRef.current = [];
       settledRunCancelledRef.current = false;
 
       const telemetryOptions = {
@@ -708,6 +733,22 @@ export const useExternalHistory = <TMessage>(
                 runCancelled ? "cancelled" : "other",
               ),
             });
+            if (
+              runCancelled &&
+              !messages.some((message) => message.id === promptId) &&
+              adapter.delete
+            ) {
+              const items = promptMessages.map((message) => ({
+                parentId: null,
+                message,
+              }));
+              try {
+                await adapter.delete(items);
+                clearDeletedMessage(promptId, items);
+              } catch (error) {
+                console.error("Failed to delete message history:", error);
+              }
+            }
           }
         })
         .catch((error) => {
@@ -808,6 +849,7 @@ export const useExternalHistory = <TMessage>(
     getToolInteractions,
     toolApprovalResponses,
     releaseRemovedMessages,
+    clearDeletedMessage,
   ]);
 
   const deleteMessage = useCallback(
@@ -835,22 +877,13 @@ export const useExternalHistory = <TMessage>(
 
       const deletion = persistInFlightRef.current.then(async () => {
         await deleteMessages(itemsToDelete);
-
-        historyIds.current.delete(messageId);
-        deferredTelemetryIds.current.delete(messageId);
-        deletedMessageIds.current.set(messageId, false);
-        releaseRemovedMessages(runtimeRef.current.thread.getState().messages);
-        for (const item of itemsToDelete) {
-          persistedInnerMessages.current.delete(
-            storageFormatAdapter.getId(item.message),
-          );
-        }
+        clearDeletedMessage(messageId, itemsToDelete);
       });
 
       persistInFlightRef.current = deletion.catch(() => {});
       await deletion;
     },
-    [formatAdapter, runtimeRef, storageFormatAdapter, releaseRemovedMessages],
+    [formatAdapter, runtimeRef, storageFormatAdapter, clearDeletedMessage],
   );
 
   return {
