@@ -469,6 +469,7 @@ const createSpeechController = (
   notify: (speech: SpeechState | undefined) => void,
 ) => {
   let session: { messageId: string; cancel: () => void } | undefined;
+  let replacing = false;
 
   const clear = () => {
     const current = session;
@@ -486,7 +487,15 @@ const createSpeechController = (
       adapter: SpeechSynthesisAdapter,
       message: ExternalThreadMessage,
     ) => {
-      clear();
+      // A speak from inside the replaced utterance's cancel is superseded by
+      // this one, which would otherwise leave it playing untracked.
+      if (replacing) return;
+      replacing = true;
+      try {
+        clear();
+      } finally {
+        replacing = false;
+      }
 
       const utterance = adapter.speak(getThreadMessageText(message));
       let active = true;

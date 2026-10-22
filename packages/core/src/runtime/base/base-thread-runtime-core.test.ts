@@ -281,6 +281,29 @@ describe("BaseThreadRuntimeCore speech lifecycle", () => {
     expect(second.unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it("supersedes a speak started from inside the replaced utterance's cancel", () => {
+    const first = createUtterance();
+    const second = createUtterance();
+    const speak = vi
+      .fn()
+      .mockReturnValueOnce(first.utterance)
+      .mockReturnValueOnce(second.utterance);
+    const thread = createThread({ speak });
+    thread.speak("first");
+    first.utterance.cancel = vi.fn(() => thread.speak("first"));
+
+    thread.speak("second");
+
+    expect(speak).toHaveBeenCalledTimes(2);
+    expect(thread.speech).toEqual({
+      messageId: "second",
+      status: { type: "running" },
+    });
+    thread.stopSpeaking();
+    expect(second.utterance.cancel).toHaveBeenCalledOnce();
+    expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
+  });
+
   it("clears state before synchronous cancellation callbacks", () => {
     const { utterance, unsubscribe, notify } = createUtterance();
     utterance.cancel = vi.fn(() => {
