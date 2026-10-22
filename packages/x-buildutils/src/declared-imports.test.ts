@@ -53,8 +53,17 @@ test("@cloudflare/workers-types admits the cloudflare: modules workerd provides"
     name: "fixture",
     peerDependencies: { "@cloudflare/workers-types": ">=4" },
   });
-  assert.ok(allowed.includes("cloudflare:workers"));
-  assert.ok(allowed.includes("cloudflare:sockets"));
+  for (const name of [
+    "cloudflare:durable-objects",
+    "cloudflare:email",
+    "cloudflare:node",
+    "cloudflare:pipelines",
+    "cloudflare:sockets",
+    "cloudflare:workers",
+    "cloudflare:workflows",
+  ]) {
+    assert.ok(allowed.includes(name), name);
+  }
   assert.ok(
     !declaredImports({ name: "fixture" }).includes("cloudflare:workers"),
   );
