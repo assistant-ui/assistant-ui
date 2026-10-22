@@ -862,6 +862,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const {
     isLoading,
     deleteMessage: deleteHistoryMessage,
+    markRunCancelled,
     persistToolInteractions,
     persistToolApprovalResponses,
   } = useExternalHistory(
@@ -1064,6 +1065,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   };
 
   const cancelRun = async () => {
+    markRunCancelled();
     for (const toolCallId of Object.keys(toolStatuses)) {
       cancelledToolCallIds.add(toolCallId);
     }

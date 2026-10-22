@@ -1284,6 +1284,7 @@ describe("useExternalHistory persistence", () => {
       formattedAdapter,
       importMessages,
       deleteMessage: result.current.deleteMessage,
+      markRunCancelled: () => result.current.markRunCancelled(),
       reportTelemetry,
       load,
       persistToolInteractions: result.current.persistToolInteractions,
@@ -1430,16 +1431,28 @@ describe("useExternalHistory persistence", () => {
   });
 
   it.each([
-    ["a stopped run whose prompt core moved to the composer", [], "cancelled"],
+    [
+      "a stopped run whose prompt core moved to the composer",
+      true,
+      [],
+      "cancelled",
+    ],
+    [
+      "a stopped run whose prompt the composer could not take back",
+      true,
+      [createUserMessage(stoppedPrompt)],
+      "cancelled",
+    ],
     [
       "a run that settled without output",
+      false,
       [createUserMessage(stoppedPrompt)],
       "other",
     ],
   ] as const)(
     "reports %s",
-    async (_, settledMessages: readonly ThreadMessage[], reason) => {
-      const { append, load, reportTelemetry, step, flush } =
+    async (_, cancelled, settledMessages: readonly ThreadMessage[], reason) => {
+      const { append, load, markRunCancelled, reportTelemetry, step, flush } =
         createPersistenceHarness(false);
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
@@ -1448,6 +1461,7 @@ describe("useExternalHistory persistence", () => {
         messages: [createUserMessage(stoppedPrompt)],
       });
       await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+      if (cancelled) markRunCancelled();
       await step({ isRunning: false, messages: [...settledMessages] });
       await flush();
 
@@ -1478,6 +1492,7 @@ describe("useExternalHistory persistence", () => {
       isRunning: true,
       messages: [createUserMessage(stoppedPrompt)],
     });
+    first.result.current.markRunCancelled();
     await first.step({ isRunning: false, messages: [] });
     await act(async () => {
       resolveEmptyLoad();

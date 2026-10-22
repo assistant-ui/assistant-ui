@@ -81,18 +81,18 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   (message.status.reason === "tool-calls" ||
     (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
 
-// A run that settles without an assistant message leaves nothing to report. Core takes the prompt out of the thread only when the user stopped the run before its first token; a prompt left without a reply is a run that produced no output.
-const getUnansweredRunReason = (
+// A run that settles without an assistant message after its prompt leaves nothing to report on its own.
+const isUnansweredRun = (
   messages: readonly ThreadMessage[],
   promptId: string,
-): "cancelled" | "other" | undefined => {
+) => {
   const promptIndex = messages.findIndex((message) => message.id === promptId);
-  if (promptIndex === -1) return "cancelled";
-  return messages
-    .slice(promptIndex + 1)
-    .some((message) => message.role === "assistant")
-    ? undefined
-    : "other";
+  return (
+    promptIndex === -1 ||
+    !messages
+      .slice(promptIndex + 1)
+      .some((message) => message.role === "assistant")
+  );
 };
 
 const createUnansweredRunMessage = (
@@ -333,6 +333,12 @@ export const useExternalHistory = <TMessage>(
   const queuedPromptIdRef = useRef<string | null>(null);
   const runPromptIdRef = useRef<string | null>(null);
   const settledPromptIdRef = useRef<string | null>(null);
+  const runCancelledRef = useRef(false);
+  const settledRunCancelledRef = useRef(false);
+
+  const markRunCancelled = useCallback(() => {
+    if (wasRunningRef.current) runCancelledRef.current = true;
+  }, []);
 
   const releaseRemovedMessages = useCallback(
     (messages: readonly ThreadMessage[]) => {
@@ -485,7 +491,9 @@ export const useExternalHistory = <TMessage>(
 
       if (wasRunning) {
         settledPromptIdRef.current = runPromptIdRef.current;
+        settledRunCancelledRef.current = runCancelledRef.current;
         runPromptIdRef.current = null;
+        runCancelledRef.current = false;
         queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
@@ -566,7 +574,9 @@ export const useExternalHistory = <TMessage>(
       runStartRef.current = null;
       stepBoundariesRef.current = [];
       const promptId = settledPromptIdRef.current;
+      const runCancelled = settledRunCancelledRef.current;
       settledPromptIdRef.current = null;
+      settledRunCancelledRef.current = false;
 
       const telemetryOptions = {
         ...(durationMs != null ? { durationMs } : undefined),
@@ -677,14 +687,12 @@ export const useExternalHistory = <TMessage>(
             }
           }
 
-          const unansweredReason =
-            promptId !== null
-              ? getUnansweredRunReason(messages, promptId)
-              : undefined;
-          if (unansweredReason) {
+          if (promptId !== null && isUnansweredRun(messages, promptId)) {
             adapter.reportTelemetry?.([], {
               ...telemetryOptions,
-              message: createUnansweredRunMessage(unansweredReason),
+              message: createUnansweredRunMessage(
+                runCancelled ? "cancelled" : "other",
+              ),
             });
           }
         })
@@ -834,6 +842,7 @@ export const useExternalHistory = <TMessage>(
   return {
     isLoading,
     deleteMessage,
+    markRunCancelled,
     persistToolInteractions,
     persistToolApprovalResponses: persistToolInteractions,
   };
