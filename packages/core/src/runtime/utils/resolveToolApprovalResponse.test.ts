@@ -65,12 +65,14 @@ describe("resolveToolApprovalResponse", () => {
   });
 
   it("accepts an explicit approved alongside the optionId for custom kinds", () => {
-    expect(
-      resolveToolApprovalResponse(approval, {
-        optionId: "edit",
-        approved: true,
-      }),
-    ).toEqual({ approvalId: "a1", approved: true, optionId: "edit" });
+    for (const approved of [true, false]) {
+      expect(
+        resolveToolApprovalResponse(approval, {
+          optionId: "edit",
+          approved,
+        }),
+      ).toEqual({ approvalId: "a1", approved, optionId: "edit" });
+    }
   });
 
   it("does not resolve kinds named after Object.prototype members", () => {
