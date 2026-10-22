@@ -8,12 +8,14 @@ import type {
   TextMessagePart,
 } from "@assistant-ui/core";
 
-const part = {};
-vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({ part }),
+const aui = vi.hoisted(() => ({ part: {} }));
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  useAui: () => aui,
   useAuiState: (selector: () => unknown) => selector(),
 }));
-vi.mock("./SmoothContext", () => ({
+vi.mock("./SmoothContext", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./SmoothContext")>()),
   useSmoothStatusStore: () => null,
 }));
 
@@ -162,6 +164,76 @@ describe("useSmooth", () => {
     expect(result.current.text).toBe("");
     expect(result.current.status.type).toBe("running");
   });
+
+  it("keeps completed text visible when smoothing is enabled", () => {
+    vi.spyOn(performance, "now").mockReturnValue(1000);
+    vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    const { result, rerender } = renderHook(
+      ({ state, smooth }) => useSmooth(state, smooth),
+      { initialProps: { state: textState("Hello"), smooth: false } },
+    );
+    rerender({ state: runningState("Hello world"), smooth: false });
+    rerender({ state: textState("Hello world"), smooth: false });
+    expect(result.current.text).toBe("Hello world");
+
+    rerender({ state: textState("Hello world"), smooth: true });
+    expect(result.current.text).toBe("Hello world");
+    expect(result.current.status.type).toBe("complete");
+  });
+
+  it.each([false, true])(
+    "animates only new text after reduced motion is disabled, with a part switch: %s",
+    (switchPart) => {
+      let now = 1000;
+      let queued: FrameRequestCallback | undefined;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+        queued = cb;
+        return 1;
+      });
+      vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {
+        queued = undefined;
+      });
+      const listeners = new Set<() => void>();
+      const media = {
+        matches: true,
+        addEventListener: (_event: string, listener: () => void) =>
+          listeners.add(listener),
+        removeEventListener: (_event: string, listener: () => void) =>
+          listeners.delete(listener),
+      };
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: () => media,
+      });
+      const { result, rerender } = renderHook(
+        (state) => useSmooth(state, { maxCharsPerFrame: 1 }),
+        { initialProps: runningState("Hello") },
+      );
+      if (switchPart) aui.part = {};
+      rerender(runningState("Hello world"));
+      expect(result.current.text).toBe("Hello world");
+
+      act(() => {
+        media.matches = false;
+        for (const listener of listeners) listener();
+      });
+      expect(result.current.text).toBe("Hello world");
+
+      rerender(runningState("Hello world!"));
+      expect(result.current.text).toBe("Hello world");
+      act(() => {
+        now += 16;
+        const callback = queued;
+        queued = undefined;
+        callback?.(now);
+      });
+      expect(result.current.text).toBe("Hello world!");
+      rerender(textState("Hello world!"));
+      expect(result.current.status.type).toBe("complete");
+    },
+  );
 
   it.each([
     { name: "negative drain time", options: { drainMs: -1 } },
