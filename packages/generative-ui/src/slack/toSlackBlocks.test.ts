@@ -4349,11 +4349,11 @@ describe("Slack mrkdwn escaping", () => {
     expect(blocks[1]).toMatchObject({ type: "section" });
   });
 
-  it("joins plain broadcast mentions in mrkdwn, including code, but not emails, URL paths, or user handles", () => {
+  it("joins plain broadcast mentions in mrkdwn, including code, but not emails or user handles", () => {
     const { blocks } = toSlackBlocks({
       $type: "Text",
       value:
-        "@here (@Channel) `@everyone` ops@channel.io https://youtube.com/@here @Harry @heretic _@here_ x_@channel",
+        "@here (@Channel) `@everyone` ops@channel.io see/@here @Harry @heretic _@here_ x_@channel",
     });
 
     expect(blocks).toEqual([
@@ -4361,7 +4361,7 @@ describe("Slack mrkdwn escaping", () => {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `@${MENTION_JOINER}here (@${MENTION_JOINER}Channel) \`@${MENTION_JOINER}everyone\` ops@channel.io https://youtube.com/@here @Harry @heretic _@${MENTION_JOINER}here_ x_@${MENTION_JOINER}channel`,
+          text: `@${MENTION_JOINER}here (@${MENTION_JOINER}Channel) \`@${MENTION_JOINER}everyone\` ops@channel.io see/@${MENTION_JOINER}here @Harry @heretic _@${MENTION_JOINER}here_ x_@${MENTION_JOINER}channel`,
         },
       },
     ]);

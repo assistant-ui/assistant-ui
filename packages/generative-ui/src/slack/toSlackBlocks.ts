@@ -160,9 +160,9 @@ const clampText = (
   return value.slice(0, cap);
 };
 
-// Slack resolves these in raw text, even inside code spans and next to `_` italics, so every occurrence is joined except after a letter, digit, or `/`, where an email or URL path would break.
+// Slack resolves these in raw text, even inside code spans and after punctuation, so every occurrence is joined except after a letter or digit, where an email address would break.
 const BROADCAST_MENTION =
-  /(^|[^A-Za-z0-9/])@(here|channel|everyone)(?![A-Za-z0-9])/gi;
+  /(^|[^A-Za-z0-9])@(here|channel|everyone)(?![A-Za-z0-9])/gi;
 
 const escapeMrkdwnEntities = (value: string): string =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
