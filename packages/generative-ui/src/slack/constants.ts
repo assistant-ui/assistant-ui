@@ -7,6 +7,7 @@ import type {
   SlackDataTableBlock,
   SlackDataTableCell,
   SlackImageBlock,
+  SlackMrkdwnText,
   SlackSectionBlock,
   SlackTextObject,
 } from "./types";
@@ -122,6 +123,11 @@ export const ALERT_FALLBACK_TITLE_MARKUP_LENGTH = Math.max(
   ...Object.values(ALERT_FALLBACK_EMOJI).map((emoji) => `${emoji} **`.length),
 );
 
+/** Builds a mrkdwn text object that Slack shows verbatim, so a plain `@here` or `@channel` in model text never notifies a channel. */
+export function buildMrkdwnText(text: string): SlackMrkdwnText {
+  return { type: "mrkdwn", text, verbatim: true };
+}
+
 /** Builds the message-surface fallback for an alert. */
 export function buildAlertFallback(
   title: string,
@@ -132,11 +138,9 @@ export function buildAlertFallback(
   return [
     {
       type: "context",
-      elements: [
-        { type: "mrkdwn", text: title ? `${emoji} *${title}*` : emoji },
-      ],
+      elements: [buildMrkdwnText(title ? `${emoji} *${title}*` : emoji)],
     },
-    { type: "section", text: { type: "mrkdwn", text: description } },
+    { type: "section", text: buildMrkdwnText(description) },
   ];
 }
 
@@ -146,7 +150,7 @@ export function buildAlertBlock(
   tone: "info" | "success" | "warning" | "danger",
 ): SlackAlertBlock {
   const level = tone === "danger" ? "error" : tone;
-  return { type: "alert", text: { type: "mrkdwn", text }, level };
+  return { type: "alert", text: buildMrkdwnText(text), level };
 }
 
 type CardBlockFields = {
@@ -191,10 +195,9 @@ export function buildBlockBudgetNote(omitted: number): SlackContextBlock {
   return {
     type: "context",
     elements: [
-      {
-        type: "mrkdwn",
-        text: `${omitted} ${omitted === 1 ? "block was" : "blocks were"} omitted.`,
-      },
+      buildMrkdwnText(
+        `${omitted} ${omitted === 1 ? "block was" : "blocks were"} omitted.`,
+      ),
     ],
   };
 }
