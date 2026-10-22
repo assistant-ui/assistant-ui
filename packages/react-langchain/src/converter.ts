@@ -395,6 +395,7 @@ export const createLangChainStreamingTimingAccessors = <
     id?: string | undefined;
     content?: unknown;
     tool_calls?: readonly unknown[] | undefined;
+    additional_kwargs?: unknown;
   },
 >(
   getType: (message: TMessage) => string,
@@ -454,6 +455,15 @@ export const createLangChainStreamingTimingAccessors = <
     getAssistantMessageId,
     getTextLength,
     getToolCallCount,
+    getMessageContent: (messages, id) => {
+      const message = findAiMessage(messages, id);
+      if (message === undefined) return undefined;
+      return {
+        content: message.content,
+        tool_calls: message.tool_calls,
+        additional_kwargs: message.additional_kwargs,
+      };
+    },
   };
 };
 

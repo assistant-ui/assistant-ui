@@ -1760,6 +1760,7 @@ type StreamingTimingAccessors<TMessage> = {
   readonly getAssistantMessageId: (messages: readonly TMessage[]) => string | undefined;
   readonly getTextLength: (messages: readonly TMessage[], messageId: string) => number;
   readonly getToolCallCount: (messages: readonly TMessage[], messageId: string) => number;
+  readonly getMessageContent?: (messages: readonly TMessage[], messageId: string) => unknown;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
@@ -2420,6 +2421,7 @@ declare const createLangChainStreamingTimingAccessors: <TMessage extends {
   id?: string | undefined;
   content?: unknown;
   tool_calls?: readonly unknown[] | undefined;
+  additional_kwargs?: unknown;
 }>(getType: (message: TMessage) => string) => StreamingTimingAccessors<TMessage>;
 
 declare const getCustomMetadata: (additionalKwargs: Record<string, unknown> | undefined) => Record<string, unknown>;
