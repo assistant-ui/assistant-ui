@@ -33,6 +33,7 @@ type FakeUtterance = {
   text: string;
   cancel: ReturnType<typeof vi.fn>;
   emit: (status: SpeechSynthesisAdapter.Status) => void;
+  queueNotification: () => () => void;
 };
 
 const createFakeAdapter = () => {
@@ -60,6 +61,12 @@ const createFakeAdapter = () => {
         emit: (status) => {
           utterance.status = status;
           for (const subscriber of subscribers) subscriber();
+        },
+        queueNotification: () => {
+          const queued = [...subscribers];
+          return () => {
+            for (const subscriber of queued) subscriber();
+          };
         },
       });
       return utterance;
@@ -158,13 +165,14 @@ describe("ExternalThread speech", () => {
     });
   });
 
-  it("cancels the previous utterance when a new speak starts", async () => {
+  it("keeps the new utterance stoppable when a queued callback from the previous one arrives", async () => {
     const { adapter, utterances } = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: adapter });
 
     await act(async () => {
       aui().thread.message({ id: "a1" }).speak();
     });
+    const notifyPrevious = utterances[0]!.queueNotification();
     await act(async () => {
       aui().thread.message({ id: "u1" }).speak();
     });
@@ -179,12 +187,18 @@ describe("ExternalThread speech", () => {
     });
 
     await act(async () => {
-      utterances[0]!.emit({ type: "ended", reason: "cancelled" });
+      notifyPrevious();
     });
     expect(aui().thread.getState().speech).toEqual({
       messageId: "u1",
       status: { type: "starting" },
     });
+
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+    expect(utterances[1]!.cancel).toHaveBeenCalledOnce();
+    expect(aui().thread.getState().speech).toBeUndefined();
   });
 
   it("stopSpeaking cancels the utterance and clears state", async () => {
