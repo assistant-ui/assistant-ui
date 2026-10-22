@@ -14,6 +14,7 @@ import type {
   TableRowNode,
 } from "../ast";
 import { plainText } from "../plain-text";
+import { concatText, createText, sliceText } from "../text-node";
 import { mathPlugin } from "./math";
 import type { Tokenizer } from "./types";
 
@@ -47,11 +48,18 @@ const closeIndexOf = (tokens: Token[], open: number): number => {
   return tokens.length - 1;
 };
 
-const appendText = (siblings: InlineNode[], value: string) => {
-  if (!value) return;
+const appendText = (siblings: InlineNode[], token: Token) => {
+  if (!token.content) return;
+  const node = createText(
+    token.content,
+    token.type === "text_special"
+      ? "\0".repeat(token.content.length)
+      : token.content,
+  );
   const last = siblings.at(-1);
-  if (last?.type === "text") last.value += value;
-  else siblings.push({ type: "text", value });
+  if (last?.type === "text")
+    siblings[siblings.length - 1] = concatText(last, node);
+  else siblings.push(node);
 };
 
 const withTitle = <T extends LinkNode | ImageNode>(
@@ -84,7 +92,7 @@ const convertInline = (tokens: Token[]): InlineNode[] => {
     switch (token.type) {
       case "text":
       case "text_special":
-        appendText(siblings, token.content);
+        appendText(siblings, token);
         break;
       case "softbreak":
         siblings.push({ type: "softBreak" });
@@ -184,8 +192,9 @@ const convertListItem = (
   }
 
   item.checked = marker[1] !== " ";
-  text.value = text.value.slice(marker[0].length);
-  if (!text.value) {
+  const remaining = sliceText(text, marker[0].length);
+  first.children[0] = remaining;
+  if (!remaining.value) {
     first.children.shift();
     if (next?.type === "softBreak" || next?.type === "hardBreak") {
       first.children.shift();
@@ -343,6 +352,8 @@ export const createMarkdownItTokenizer = ({
   extensions,
 }: MarkdownItTokenizerOptions): Tokenizer => {
   const md = markdownIt("commonmark");
+  // Conversion joins text after recording the literal text_special tokens.
+  md.core.ruler.disable("text_join");
   if (extensions) {
     md.set({ linkify: true });
     md.linkify.set({ fuzzyLink: true });

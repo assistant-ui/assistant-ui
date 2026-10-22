@@ -1,5 +1,6 @@
-import type { BlockNode, InlineNode, TableCellNode } from "./ast";
+import type { BlockNode, InlineNode, TableCellNode, TextNode } from "./ast";
 import { plainText } from "./plain-text";
+import { concatText, sliceText, syntaxOf } from "./text-node";
 
 type Wrapper = "strong" | "emphasis" | "strikethrough";
 
@@ -22,17 +23,16 @@ const isWordChar = (char: string | undefined) =>
 const isSpace = (char: string | undefined) =>
   char === undefined || /\s/.test(char);
 
-const text = (value: string): InlineNode[] =>
-  value ? [{ type: "text", value }] : [];
+const text = (node: TextNode, start: number, end?: number): InlineNode[] => {
+  const sliced = sliceText(node, start, end);
+  return sliced.value ? [sliced] : [];
+};
 
 const mergeText = (nodes: InlineNode[]): InlineNode[] =>
   nodes.reduce<InlineNode[]>((merged, node) => {
     const last = merged.at(-1);
     if (last?.type === "text" && node.type === "text") {
-      merged[merged.length - 1] = {
-        type: "text",
-        value: last.value + node.value,
-      };
+      merged[merged.length - 1] = concatText(last, node);
     } else {
       merged.push(node);
     }
@@ -48,19 +48,21 @@ const canOpen = (previous: string | undefined, next: string | undefined) =>
 
 // The parser already paired every delimiter it could, so a run left in a text
 // node on the final line opens something the stream has not closed yet.
-const findOpener = (value: string): Opener | undefined => {
+const findOpener = (node: TextNode): Opener | undefined => {
+  const { value } = node;
+  const syntax = syntaxOf(node);
   for (let index = 0; index < value.length; index++) {
-    const char = value[index];
+    const char = syntax[index];
     if (char === "`") {
       let end = index;
-      while (value[end] === "`") end++;
+      while (syntax[end] === "`") end++;
       if (end === value.length || !isSpace(value[end])) {
         return { index, run: value.slice(index, end), wrappers: "code" };
       }
       index = end - 1;
       continue;
     }
-    const opener = OPENERS.find(([run]) => value.startsWith(run, index));
+    const opener = OPENERS.find(([run]) => syntax.startsWith(run, index));
     if (!opener) continue;
     const [run, wrappers] = opener;
     index += run.length - 1;
@@ -86,7 +88,7 @@ const closeIncompleteLink = (nodes: InlineNode[]): InlineNode[] | undefined => {
       tail = plainText([node]) + tail;
       continue;
     }
-    const marker = node.value.lastIndexOf("](");
+    const marker = syntaxOf(node).lastIndexOf("](");
     const destination =
       (marker === -1 ? node.value : node.value.slice(marker + 2)) + tail;
     if (/[\s)]/.test(destination)) return undefined;
@@ -99,20 +101,21 @@ const closeIncompleteLink = (nodes: InlineNode[]): InlineNode[] | undefined => {
       const candidate = nodes[start]!;
       if (candidate.type !== "text") continue;
       const end = start === position ? marker : candidate.value.length;
-      const open = candidate.value.lastIndexOf("[", end - 1);
+      const candidateSyntax = syntaxOf(candidate);
+      const open = candidateSyntax.lastIndexOf("[", end - 1);
       if (open === -1) continue;
-      const image = candidate.value[open - 1] === "!";
+      const image = candidateSyntax[open - 1] === "!";
       const label =
         start === position
-          ? text(candidate.value.slice(open + 1, marker))
+          ? text(candidate, open + 1, marker)
           : [
-              ...text(candidate.value.slice(open + 1)),
+              ...text(candidate, open + 1),
               ...nodes.slice(start + 1, position),
-              ...text(node.value.slice(0, marker)),
+              ...text(node, 0, marker),
             ];
       return mergeText([
         ...nodes.slice(0, start),
-        ...text(candidate.value.slice(0, image ? open - 1 : open)),
+        ...text(candidate, 0, image ? open - 1 : open),
         ...(image ? [] : label),
       ]);
     }
@@ -134,15 +137,14 @@ const closeOpenInlines = (nodes: InlineNode[], depth = 0): InlineNode[] => {
   for (let position = lineStart; position < nodes.length; position++) {
     const node = nodes[position]!;
     if (node.type !== "text") continue;
-    const opener = findOpener(node.value);
+    const opener = findOpener(node);
     if (!opener) continue;
 
-    const before = node.value.slice(0, opener.index);
     const rest = [
-      ...text(node.value.slice(opener.index + opener.run.length)),
+      ...text(node, opener.index + opener.run.length),
       ...nodes.slice(position + 1),
     ];
-    const head = [...nodes.slice(0, position), ...text(before)];
+    const head = [...nodes.slice(0, position), ...text(node, 0, opener.index)];
     if (rest.length === 0) return head;
     if (opener.wrappers === "code") {
       return [...head, { type: "codeSpan", value: plainText(rest) }];

@@ -89,6 +89,106 @@ test.each<[string, InlineNode[]]>([
   expect(inlines(streamed(source))).toEqual(expected);
 });
 
+test.each<[string, string]>([
+  [String.raw`Use \*literal`, "Use *literal"],
+  ["Use &#42;literal", "Use *literal"],
+  [String.raw`Use \_literal`, "Use _literal"],
+  [String.raw`Use \~\~literal`, "Use ~~literal"],
+  ["Use \\`literal", "Use `literal"],
+  [String.raw`Use \[label](/docs`, "Use [label](/docs"],
+  [String.raw`Use [label\](/docs`, "Use [label](/docs"],
+  ["Use [label]&#40;/docs", "Use [label](/docs"],
+])("%j preserves literal punctuation while streaming", (source, value) => {
+  const session = createMarkdownSession();
+  expect(inlines(session.update(source))).toEqual([{ type: "text", value }]);
+  expect(inlines(session.update(source, { final: true }))).toEqual([
+    { type: "text", value },
+  ]);
+});
+
+test.each<[string, InlineNode[]]>([
+  [
+    String.raw`Use \*literal *emphasis`,
+    [
+      { type: "text", value: "Use *literal " },
+      { type: "emphasis", children: [{ type: "text", value: "emphasis" }] },
+    ],
+  ],
+  [
+    String.raw`Use *emphasis \*literal`,
+    [
+      { type: "text", value: "Use " },
+      {
+        type: "emphasis",
+        children: [{ type: "text", value: "emphasis *literal" }],
+      },
+    ],
+  ],
+  [
+    String.raw`Use &#42;literal *emphasis`,
+    [
+      { type: "text", value: "Use *literal " },
+      { type: "emphasis", children: [{ type: "text", value: "emphasis" }] },
+    ],
+  ],
+  [
+    String.raw`Use \\*emphasis`,
+    [
+      { type: "text", value: "Use \\" },
+      { type: "emphasis", children: [{ type: "text", value: "emphasis" }] },
+    ],
+  ],
+  [
+    String.raw`See [\*literal](/docs`,
+    [{ type: "text", value: "See *literal" }],
+  ],
+  [
+    String.raw`See [**docs** \*literal](/docs`,
+    [
+      { type: "text", value: "See " },
+      { type: "strong", children: [{ type: "text", value: "docs" }] },
+      { type: "text", value: " *literal" },
+    ],
+  ],
+  [String.raw`See \![docs](/docs`, [{ type: "text", value: "See !docs" }]],
+])("%j completes only the unescaped syntax", (source, expected) => {
+  expect(inlines(streamed(source))).toEqual(expected);
+});
+
+test("literal escapes stay literal as a stream completes its formatting", () => {
+  const session = createMarkdownSession();
+  expect(inlines(session.update(String.raw`Use \*literal *em`))).toEqual([
+    { type: "text", value: "Use *literal " },
+    { type: "emphasis", children: [{ type: "text", value: "em" }] },
+  ]);
+  const source = String.raw`Use \*literal *emphasis*`;
+  const expected: InlineNode[] = [
+    { type: "text", value: "Use *literal " },
+    { type: "emphasis", children: [{ type: "text", value: "emphasis" }] },
+  ];
+  expect(inlines(session.update(source))).toEqual(expected);
+  expect(inlines(session.update(source, { final: true }))).toEqual(expected);
+});
+
+test("task-label completion preserves literal punctuation after removing the marker", () => {
+  const list = streamed(String.raw`- [x] \*literal *emphasis`).children[0];
+  expect(list?.type === "list" && list.children[0]).toEqual({
+    type: "listItem",
+    checked: true,
+    lines: { start: 0, end: 1 },
+    children: [
+      {
+        type: "paragraph",
+        lines: { start: 0, end: 1 },
+        children: [
+          { type: "text", value: "*literal " },
+          { type: "emphasis", children: [{ type: "text", value: "emphasis" }] },
+        ],
+      },
+    ],
+  });
+});
+
 test.each([
   "2 * 3",
   "snake_case_name",
