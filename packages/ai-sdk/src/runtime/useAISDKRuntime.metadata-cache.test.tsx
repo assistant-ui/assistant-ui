@@ -126,9 +126,9 @@ const cases: Record<string, Step[]> = {
   ],
   "a run starts and ends": [
     [({ rerender }) => rerender({ status: "streaming" }), [LAST_ID]],
-    // The run end clears the optimistic flag, then the finalized timing lands
-    // in a second render.
-    [({ rerender }) => rerender({ status: "ready" }), [LAST_ID, LAST_ID]],
+    // The run end clears the optimistic flag. This run produces no output, so
+    // its timing stays as it was and nothing else re-converts.
+    [({ rerender }) => rerender({ status: "ready" }), [LAST_ID]],
   ],
   "the chat errors": [
     [
