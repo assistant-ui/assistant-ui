@@ -160,8 +160,9 @@ const clampText = (
   return value.slice(0, cap);
 };
 
-// Slack resolves these even inside code spans, so every occurrence is joined, except after a word character or `/`, where an email or URL path would break.
-const BROADCAST_MENTION = /(^|[^\w/])@(here|channel|everyone)\b/gi;
+// Slack resolves these in raw text, even inside code spans and next to `_` italics, so every occurrence is joined except after a letter, digit, or `/`, where an email or URL path would break.
+const BROADCAST_MENTION =
+  /(^|[^A-Za-z0-9/])@(here|channel|everyone)(?![A-Za-z0-9])/gi;
 
 const escapeMrkdwn = (value: string): string =>
   value
@@ -1889,9 +1890,13 @@ const convertElement = (
       return convertTable(element, context);
     case "Markdown": {
       const value = asString(props["value"]);
-      const escaped = escapeMarkdown(value);
-      if (
+      const escaped =
         !context.markdownExhausted &&
+        context.markdownCharacters + value.length <= MARKDOWN_TEXT_BUDGET
+          ? escapeMarkdown(value)
+          : undefined;
+      if (
+        escaped !== undefined &&
         context.markdownCharacters + escaped.length <= MARKDOWN_TEXT_BUDGET
       ) {
         context.markdownCharacters += escaped.length;
