@@ -31,7 +31,11 @@ const { setCursorPosition, registry, aui } = vi.hoisted(() => {
       getPlugins: () => [{ setCursorPosition, handleKeyDown: () => false }],
       registerInput: () => () => {},
     },
-    aui: { composer: { setText: () => {} }, on: () => () => {} },
+    aui: {
+      composer: { setText: () => {}, getState: () => ({ text: "" }) },
+      on: () => () => {},
+      subscribe: () => () => {},
+    },
   };
 });
 

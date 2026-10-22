@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LexicalComposerInput } from "./LexicalComposerInput";
 
 const { aui } = vi.hoisted(() => ({
-  aui: { composer: { setText: () => {} }, on: () => () => {} },
+  aui: {
+    composer: { setText: () => {}, getState: () => ({ text: "" }) },
+    on: () => () => {},
+    subscribe: () => () => {},
+  },
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
