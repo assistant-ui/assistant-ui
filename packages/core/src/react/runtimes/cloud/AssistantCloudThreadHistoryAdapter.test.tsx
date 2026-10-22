@@ -1601,10 +1601,16 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  const tooLarge = new CloudAPIError(
+    "Message too large",
+    413,
+    "payload_too_large",
+  );
   it.each([
     [
       "a completed run whose history failed to store",
       { type: "complete", reason: "stop" },
+      tooLarge,
       {
         status: "error",
         outcome_type: "persistence_error",
@@ -1615,9 +1621,16 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     [
       "a stopped run whose history failed to store",
       { type: "incomplete", reason: "cancelled" },
+      tooLarge,
       { status: "incomplete", outcome_type: "aborted" },
     ],
-  ] as const)("reports %s", async (_, status, expected) => {
+    [
+      "a completed run whose history write rejected without a reason",
+      { type: "complete", reason: "stop" },
+      undefined,
+      { status: "error", outcome_type: "persistence_error" },
+    ],
+  ] as const)("reports %s", async (_, status, persistenceError, expected) => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
     const { result } = renderHook(() =>
@@ -1642,11 +1655,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
 
     assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([{ parentId: null, message }], {
-      persistenceError: new CloudAPIError(
-        "Message too large",
-        413,
-        "payload_too_large",
-      ),
+      persistenceError,
     });
     await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
 

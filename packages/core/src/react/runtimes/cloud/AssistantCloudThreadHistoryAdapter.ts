@@ -763,7 +763,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     if (!extracted) return;
 
     const messageInfo =
-      options?.persistenceError !== undefined
+      options && "persistenceError" in options
         ? withPersistenceFailure(
             observedInfo,
             extracted.status,
