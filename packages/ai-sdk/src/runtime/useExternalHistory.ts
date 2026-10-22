@@ -81,22 +81,27 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   (message.status.reason === "tool-calls" ||
     (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
 
-const hasReply = (messages: readonly ThreadMessage[], promptId: string) => {
+// A run that settles without an assistant message leaves nothing to report. Core takes the prompt out of the thread only when the user stopped the run before its first token; a prompt left without a reply is a run that produced no output.
+const getUnansweredRunReason = (
+  messages: readonly ThreadMessage[],
+  promptId: string,
+): "cancelled" | "other" | undefined => {
   const promptIndex = messages.findIndex((message) => message.id === promptId);
-  return (
-    promptIndex !== -1 &&
-    messages
-      .slice(promptIndex + 1)
-      .some((message) => message.role === "assistant")
-  );
+  if (promptIndex === -1) return "cancelled";
+  return messages
+    .slice(promptIndex + 1)
+    .some((message) => message.role === "assistant")
+    ? undefined
+    : "other";
 };
 
-// A run stopped before its first token leaves no assistant message to report, and core may have moved the prompt back into the composer.
-const createStoppedRunMessage = (): ThreadAssistantMessage => ({
-  id: "stopped-run",
+const createUnansweredRunMessage = (
+  reason: "cancelled" | "other",
+): ThreadAssistantMessage => ({
+  id: "unanswered-run",
   role: "assistant",
   content: [],
-  status: { type: "incomplete", reason: "cancelled" },
+  status: { type: "incomplete", reason },
   createdAt: new Date(),
   metadata: {
     unstable_state: null,
@@ -666,10 +671,14 @@ export const useExternalHistory = <TMessage>(
             }
           }
 
-          if (promptId !== null && !hasReply(messages, promptId)) {
+          const unansweredReason =
+            promptId !== null
+              ? getUnansweredRunReason(messages, promptId)
+              : undefined;
+          if (unansweredReason) {
             adapter.reportTelemetry?.([], {
               ...telemetryOptions,
-              message: createStoppedRunMessage(),
+              message: createUnansweredRunMessage(unansweredReason),
             });
           }
         })

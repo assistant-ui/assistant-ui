@@ -1531,6 +1531,11 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       { type: "incomplete", reason: "cancelled" },
       { status: "incomplete", outcome_type: "aborted" },
     ],
+    [
+      "a run that settled without output",
+      { type: "incomplete", reason: "other" },
+      { status: "incomplete" },
+    ],
   ] as const)("reports %s", async (_, status, expected) => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
@@ -1554,8 +1559,12 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
     await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
 
-    expect(cloud.runs.report).toHaveBeenCalledWith(
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).toEqual(
       expect.objectContaining({ thread_id: "thread-1", ...expected }),
+    );
+    expect(report.outcome_type).toBe(
+      "outcome_type" in expected ? expected.outcome_type : undefined,
     );
   });
 

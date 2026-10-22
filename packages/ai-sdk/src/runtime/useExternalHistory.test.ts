@@ -1428,11 +1428,15 @@ describe("useExternalHistory persistence", () => {
   });
 
   it.each([
-    ["moves the prompt back into the composer", []],
-    ["keeps the unanswered prompt", [createUserMessage(stoppedPrompt)]],
-  ])(
-    "reports a run stopped before any reply when core %s",
-    async (_, settledMessages: ThreadMessage[]) => {
+    ["a stopped run whose prompt core moved to the composer", [], "cancelled"],
+    [
+      "a run that settled without output",
+      [createUserMessage(stoppedPrompt)],
+      "other",
+    ],
+  ] as const)(
+    "reports %s",
+    async (_, settledMessages: readonly ThreadMessage[], reason) => {
       const { append, load, reportTelemetry, step, flush } =
         createPersistenceHarness(false);
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
@@ -1442,7 +1446,7 @@ describe("useExternalHistory persistence", () => {
         messages: [createUserMessage(stoppedPrompt)],
       });
       await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
-      await step({ isRunning: false, messages: settledMessages });
+      await step({ isRunning: false, messages: [...settledMessages] });
       await flush();
 
       await waitFor(() =>
@@ -1451,7 +1455,7 @@ describe("useExternalHistory persistence", () => {
           expect.objectContaining({
             message: expect.objectContaining({
               role: "assistant",
-              status: { type: "incomplete", reason: "cancelled" },
+              status: { type: "incomplete", reason },
             }),
           }),
         ),
