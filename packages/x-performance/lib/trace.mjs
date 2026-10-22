@@ -140,13 +140,19 @@ export const captureTrace = async (
     ],
     { stdio: "ignore" },
   );
+  const closed = new Promise((resolve) => proc.once("close", resolve));
   try {
     const portFile = join(profile, "DevToolsActivePort");
-    for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
-    if (!existsSync(portFile)) {
+    let port;
+    for (let i = 0; i < 100 && !port; i++) {
+      if (existsSync(portFile)) {
+        port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
+      }
+      if (!port) await sleep(100);
+    }
+    if (!port) {
       throw new Error(`Chrome failed to start within 10s (${chrome})`);
     }
-    const port = readFileSync(portFile, "utf8").split("\n")[0];
     const version = await fetch(`http://127.0.0.1:${port}/json/version`).then(
       (r) => r.json(),
     );
@@ -200,8 +206,8 @@ export const captureTrace = async (
   } finally {
     cdp?.ws.close();
     proc.kill();
-    await sleep(200);
-    rmSync(profile, { recursive: true, force: true });
+    await withTimeout(closed, 10_000, "Chrome to exit");
+    rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
   }
 };
 
