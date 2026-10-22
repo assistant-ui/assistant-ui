@@ -1,5 +1,15 @@
 # assistant-cloud
 
+## 0.2.8
+
+### Patch Changes
+
+- [#10018](https://github.com/assistant-ui/assistant-ui/pull/10018) [`e553142`](https://github.com/assistant-ui/assistant-ui/commit/e55314209965381f6f9621418340425ff55a643f) - report failed and stopped turns with an outcome: an HTTP failure becomes `rate_limited`, `validation_failed`, or `server_error` with its status as `error_code`, a run stopped before its first token reports `aborted`, and a run that ends without output reports `incomplete` ([@okisdev](https://github.com/okisdev))
+
+- [#10022](https://github.com/assistant-ui/assistant-ui/pull/10022) [`770a07f`](https://github.com/assistant-ui/assistant-ui/commit/770a07f355641e8dbf7f75a9d3427b457258d188) - report a completed turn whose thread history failed to store as a `persistence_error` run ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`0a6d4cb`](https://github.com/assistant-ui/assistant-ui/commit/0a6d4cb49bd7749e7e708448708e325c88752531)]:
+  - assistant-stream@0.3.54
+
 ## 0.2.7
 
 ### Patch Changes

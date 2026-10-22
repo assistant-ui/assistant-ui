@@ -60,7 +60,7 @@
     "@assistant-ui/store": "^0.3.22",
     "@standard-schema/spec": "^1.1.0",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.53"
+    "assistant-stream": "^0.3.54"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.22",

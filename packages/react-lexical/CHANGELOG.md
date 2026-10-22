@@ -1,5 +1,15 @@
 # @assistant-ui/react-lexical
 
+## 0.2.20
+
+### Patch Changes
+
+- [#9990](https://github.com/assistant-ui/assistant-ui/pull/9990) [`dd1acfc`](https://github.com/assistant-ui/assistant-ui/commit/dd1acfc394dcf97befc52530d105e8344344564a) - feat: report every composer text write as a `textChange` event (`composer.textChange` in the store) with the text it left and its origin, so a user clearing the draft can be told apart from a send, a returned send, a reset, or input history recall; `setText` accepts `{ origin }` ([@okisdev](https://github.com/okisdev))
+
+- [#10015](https://github.com/assistant-ui/assistant-ui/pull/10015) [`f6c3f0c`](https://github.com/assistant-ui/assistant-ui/commit/f6c3f0cd71e0da8b13827011e258de4328c0226f) - Preserve Lexical undo history when the composer accessor is recreated for the same client. ([@okisdev](https://github.com/okisdev))
+
+- [#9993](https://github.com/assistant-ui/assistant-ui/pull/9993) [`0dd293a`](https://github.com/assistant-ui/assistant-ui/commit/0dd293a8ed894f84bdd32097f841bea5dd52ae71) - fix: synchronize the Lexical composer with ExternalThread so programmatic drafts appear in the editor and submitted text clears after sending. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.2.19
 
 ### Patch Changes

@@ -1,5 +1,29 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.0
+
+### Minor Changes
+
+- [#9978](https://github.com/assistant-ui/assistant-ui/pull/9978) [`14c9a38`](https://github.com/assistant-ui/assistant-ui/commit/14c9a382e68bb180bebd9da170041d5d55336628) - <!-- caret-break: intended --> ([@okisdev](https://github.com/okisdev))
+  
+  run on `@ag-ui/client` 1.0 and drop the legacy event paths it upgrades itself (`THINKING_*`, `TEXT_MESSAGE_CHUNK`, `TOOL_CALL_CHUNK`, untyped events). a `cancelled` run outcome ends the run as cancelled, `pendingToolCallIds` decides which tool calls keep the run waiting, an expired interrupt can still be cancelled, tool results keep content parts, and file source parts survive a history round trip. apps on `@ag-ui/client` 0.0.x stay on `@assistant-ui/react-ag-ui` 0.0.x.
+
+### Patch Changes
+
+- [#9988](https://github.com/assistant-ui/assistant-ui/pull/9988) [`523be71`](https://github.com/assistant-ui/assistant-ui/commit/523be71253dccecefc686c86abd6899e2a1c2cea) - keep an assistant message that a run splits off with an unanswered tool call waiting for its result, so the call can still be answered and the run resumes from the turn's last message ([@okisdev](https://github.com/okisdev))
+
+- [#9937](https://github.com/assistant-ui/assistant-ui/pull/9937) [`42a7c08`](https://github.com/assistant-ui/assistant-ui/commit/42a7c084724488e917e26abd9ba7b27145815af1) - rename the ag-ui thread runtime core to AgUiThreadController ([@okisdev](https://github.com/okisdev))
+
+- [#9932](https://github.com/assistant-ui/assistant-ui/pull/9932) [`135ea67`](https://github.com/assistant-ui/assistant-ui/commit/135ea67dc5299d05af907087ebefc08330c69628) - extract ag-ui thread state into a reducer ([@okisdev](https://github.com/okisdev))
+
+- [#9987](https://github.com/assistant-ui/assistant-ui/pull/9987) [`f46724b`](https://github.com/assistant-ui/assistant-ui/commit/f46724bb0b7aafe88c00c60d6c9209569c52b6d7) - keep the wire order of user text and media parts through a history round trip instead of merging the text and moving media after it ([@okisdev](https://github.com/okisdev))
+
+- [#9927](https://github.com/assistant-ui/assistant-ui/pull/9927) [`1b62b6b`](https://github.com/assistant-ui/assistant-ui/commit/1b62b6b894e9ff73032848598f0acb99f8748c37) - share the history write chain between the ag-ui and a2a runtimes ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`be34094`](https://github.com/assistant-ui/assistant-ui/commit/be3409456350451ce46ce3988e47fc50f5a7811c), [`e553142`](https://github.com/assistant-ui/assistant-ui/commit/e55314209965381f6f9621418340425ff55a643f), [`770a07f`](https://github.com/assistant-ui/assistant-ui/commit/770a07f355641e8dbf7f75a9d3427b457258d188), [`dd1acfc`](https://github.com/assistant-ui/assistant-ui/commit/dd1acfc394dcf97befc52530d105e8344344564a), [`986fb1f`](https://github.com/assistant-ui/assistant-ui/commit/986fb1fff9c694e904b19d5d1dae6e77358c1fbe), [`5c27b22`](https://github.com/assistant-ui/assistant-ui/commit/5c27b2220dff039b2a74152ab62ab588265c6424), [`1ebb427`](https://github.com/assistant-ui/assistant-ui/commit/1ebb427a7dfe8cb83cc53eb7363ea675b771546a), [`50ef493`](https://github.com/assistant-ui/assistant-ui/commit/50ef493dec29cad91853eba68d29250a04abb018), [`4b231eb`](https://github.com/assistant-ui/assistant-ui/commit/4b231ebbaade388f049bbd174d792f992e32894b), [`957d4f6`](https://github.com/assistant-ui/assistant-ui/commit/957d4f62e9058c8f514aef264ca53153c1a68d4d), [`5d4eb88`](https://github.com/assistant-ui/assistant-ui/commit/5d4eb88b840017476e76ad36d6d556cb17d1785f), [`94d25fa`](https://github.com/assistant-ui/assistant-ui/commit/94d25fa1362cb685c688dbc1553f47dfd20b07bc), [`0a6d4cb`](https://github.com/assistant-ui/assistant-ui/commit/0a6d4cb49bd7749e7e708448708e325c88752531), [`a107296`](https://github.com/assistant-ui/assistant-ui/commit/a107296e7fdfe4dd353e77eee86412ef291fbb48), [`847f621`](https://github.com/assistant-ui/assistant-ui/commit/847f6213f9a07f7ecc1c19924a049b6a05ff784b), [`a3654c6`](https://github.com/assistant-ui/assistant-ui/commit/a3654c639b51ab4384422f28ecb72c387eb2ff19), [`b6c3132`](https://github.com/assistant-ui/assistant-ui/commit/b6c313280a215a5e770c23ff0bf219969ddee2e7), [`a2252d0`](https://github.com/assistant-ui/assistant-ui/commit/a2252d06ddc1eaa20a9bcf961edf821aeeccc65c), [`e47249d`](https://github.com/assistant-ui/assistant-ui/commit/e47249d40720e61b87eed59ae72b6bda7d1dba63), [`9835bd9`](https://github.com/assistant-ui/assistant-ui/commit/9835bd983ea917ef37c0b21496ee0ce7abd81da3), [`1b62b6b`](https://github.com/assistant-ui/assistant-ui/commit/1b62b6b894e9ff73032848598f0acb99f8748c37), [`6ceb72f`](https://github.com/assistant-ui/assistant-ui/commit/6ceb72f9f7bf9f2d847708a89b632985312fd60e), [`1de233d`](https://github.com/assistant-ui/assistant-ui/commit/1de233d61b09f25f7f14df8a9211edb347559902), [`90c6405`](https://github.com/assistant-ui/assistant-ui/commit/90c640525422396297bb8312bc459898ab282ebb), [`38d43ff`](https://github.com/assistant-ui/assistant-ui/commit/38d43fff71a444ba935cc46577c72550a35573d2), [`0ba19fd`](https://github.com/assistant-ui/assistant-ui/commit/0ba19fdcb989979bf892676ab0a56a087ac24036)]:
+  - @assistant-ui/core@0.3.31
+  - assistant-stream@0.3.54
+  - @assistant-ui/generative-ui@0.0.7
+
 ## 0.0.71
 
 ### Patch Changes
