@@ -48,6 +48,27 @@ test("a @types package also admits the module it types", () => {
   assert.ok(allowed.includes("@babel/core"));
 });
 
+test("@cloudflare/workers-types admits the cloudflare: modules workerd provides", () => {
+  const allowed = declaredImports({
+    name: "fixture",
+    peerDependencies: { "@cloudflare/workers-types": ">=4" },
+  });
+  for (const name of [
+    "cloudflare:durable-objects",
+    "cloudflare:email",
+    "cloudflare:node",
+    "cloudflare:pipelines",
+    "cloudflare:sockets",
+    "cloudflare:workers",
+    "cloudflare:workflows",
+  ]) {
+    assert.ok(allowed.includes(name), name);
+  }
+  assert.ok(
+    !declaredImports({ name: "fixture" }).includes("cloudflare:workers"),
+  );
+});
+
 test("imports map keys are admitted by their specifier name", () => {
   const allowed = declaredImports({
     name: "fixture",
