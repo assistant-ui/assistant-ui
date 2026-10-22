@@ -338,6 +338,36 @@ it.each(["local", "external"] as const)(
   },
 );
 
+it.each(["local", "external"] as const)(
+  "preserves a buffered reply when persisting the previous turn disconnects %s",
+  async (kind) => {
+    const { thread, sendText, record, voice } = await createThread(kind);
+    const acceptance = deferred();
+    sendText.mockReturnValueOnce(acceptance.promise);
+    record.mockImplementation((message) => {
+      if (getThreadMessageText(message) === "Previous reply")
+        thread.disconnectVoice();
+    });
+    voice.emitTranscript({ role: "assistant", text: "Previous reply" });
+    const sending = thread.append(typedMessage(thread));
+    const rejected =
+      expect(sending).rejects.toBeInstanceOf(MessageNotSentError);
+    voice.emitTranscript({
+      role: "assistant",
+      text: "Received reply",
+      isFinal: true,
+    });
+    acceptance.resolve();
+    await rejected;
+
+    expect(contents(record.mock.calls.map(([message]) => message))).toEqual([
+      ["assistant", "Previous reply"],
+      ["assistant", "Received reply"],
+    ]);
+    expect(thread.voice).toBeUndefined();
+  },
+);
+
 it("streams an early reply while the typed message is still being persisted", async () => {
   const persistence = deferred();
   const { thread, sendText, voice, record } = await createThread(

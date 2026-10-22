@@ -536,10 +536,10 @@ export class VoiceSessionController {
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
+      this._currentAssistantMsg = null;
       this._observeVoiceCommit(() =>
         this.host.commitVoiceMessage(this.voiceMessages[idx]!),
       );
-      this._currentAssistantMsg = null;
       this.host.markVoiceMessagesDirty();
       if (notify) this.host.notify();
     }
