@@ -2,6 +2,7 @@
 
 import type {
   AssistantRuntime,
+  ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
   MessageFormatAdapter,
@@ -79,6 +80,32 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
   (message.status.reason === "tool-calls" ||
     (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
+
+const hasReply = (messages: readonly ThreadMessage[], promptId: string) => {
+  const promptIndex = messages.findIndex((message) => message.id === promptId);
+  return (
+    promptIndex !== -1 &&
+    messages
+      .slice(promptIndex + 1)
+      .some((message) => message.role === "assistant")
+  );
+};
+
+// A run stopped before its first token leaves no assistant message to report, and core may have moved the prompt back into the composer.
+const createStoppedRunMessage = (): ThreadAssistantMessage => ({
+  id: "stopped-run",
+  role: "assistant",
+  content: [],
+  status: { type: "incomplete", reason: "cancelled" },
+  createdAt: new Date(),
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
 
 const isTerminalMessage = (message: ThreadMessage) =>
   message.status === undefined ||
@@ -299,6 +326,7 @@ export const useExternalHistory = <TMessage>(
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
   const queuedPromptIdRef = useRef<string | null>(null);
+  const settledPromptIdRef = useRef<string | null>(null);
 
   const releaseRemovedMessages = useCallback(
     (messages: readonly ThreadMessage[]) => {
@@ -446,6 +474,7 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (wasRunning) {
+        settledPromptIdRef.current = queuedPromptIdRef.current;
         queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
@@ -525,6 +554,8 @@ export const useExternalHistory = <TMessage>(
 
       runStartRef.current = null;
       stepBoundariesRef.current = [];
+      const promptId = settledPromptIdRef.current;
+      settledPromptIdRef.current = null;
 
       const telemetryOptions = {
         ...(durationMs != null ? { durationMs } : undefined),
@@ -633,6 +664,13 @@ export const useExternalHistory = <TMessage>(
                 },
               );
             }
+          }
+
+          if (promptId !== null && !hasReply(messages, promptId)) {
+            adapter.reportTelemetry?.([], {
+              ...telemetryOptions,
+              message: createStoppedRunMessage(),
+            });
           }
         })
         .catch((error) => {
