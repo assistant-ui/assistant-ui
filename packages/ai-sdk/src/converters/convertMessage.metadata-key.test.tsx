@@ -106,7 +106,7 @@ const fieldChanges: {
     ["a7"],
   ],
   optimisticMessageId: ["a7", ["a7"]],
-  supportsRichToolApprovalResponses: [true, ALL_IDS],
+  supportsRichToolApprovalResponses: [true, ["a5"]],
   createdAtCache: [new Map(), ALL_IDS],
   toolLastInputCache: [new Map(), ALL_IDS],
   toolArgsKeyOrderCache: [new Map(), ALL_IDS],

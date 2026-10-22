@@ -851,11 +851,13 @@ const getToolCallMetadata = (
   for (const part of message.parts ?? []) {
     if (typeof part?.type !== "string" || !isToolUIPart(part)) continue;
     const { toolCallId } = part;
-    const approvalId = (part as { approval?: { id?: unknown } }).approval?.id;
+    const approval = (part as { approval?: { id?: unknown } }).approval;
+    const approvalId = approval?.id;
     values.push(
       metadata.toolStatuses?.[toolCallId],
       metadata.toolArtifacts?.get(toolCallId),
       metadata.toolInteractions?.get(toolCallId),
+      approval ? metadata.supportsRichToolApprovalResponses === true : false,
       typeof approvalId === "string"
         ? metadata.toolApprovalResponses?.get(approvalId)
         : undefined,
@@ -878,10 +880,6 @@ export const createAISDKMetadataKey =
       { select: (_, metadata) => readMetadata(metadata).toolArgsTextCache },
       { select: (_, metadata) => readMetadata(metadata).toolLastInputCache },
       { select: (_, metadata) => readMetadata(metadata).mcpAppMetadataCache },
-      {
-        select: (_, metadata) =>
-          readMetadata(metadata).supportsRichToolApprovalResponses,
-      },
       {
         select: (message, metadata) =>
           readMetadata(metadata).messageTiming?.[message.id],
