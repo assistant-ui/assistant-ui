@@ -254,6 +254,29 @@ describe("ExternalThread speech", () => {
     });
   });
 
+  it("keeps a replacement started from inside the adapter's cancel", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+
+    expect(utterances).toHaveLength(2);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+  });
+
   it("message stopSpeaking throws unless that message is being spoken", async () => {
     const { adapter, utterances } = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: adapter });

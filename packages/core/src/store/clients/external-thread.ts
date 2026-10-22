@@ -476,7 +476,7 @@ const createSpeechController = (
     try {
       current.cancel();
     } finally {
-      notify(undefined);
+      if (!session) notify(undefined);
     }
   };
 
