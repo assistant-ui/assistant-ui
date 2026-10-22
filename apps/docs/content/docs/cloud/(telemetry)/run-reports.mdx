@@ -141,7 +141,8 @@ The SDK derives a status before it creates the report. The first matching input 
 | `content_filter` | `incomplete` | The SDK from `content-filter` or `content_filter`, and server spans. |
 | `rate_limited`, `validation_failed`, or `server_error` | `error` | The SDK from the failed request's HTTP status, which also becomes `error_code`: `429` gives `rate_limited`, `400` or `422` gives `validation_failed`, and `5xx` gives `server_error`. Runs executed by an Assistant Cloud assistant also produce `rate_limited` and `server_error`. |
 | `timeout` or `provider_error` | `error` | Only runs executed by an Assistant Cloud assistant. |
-| `budget_denied` or `persistence_error` | `error` | No integration produces these values today. They remain valid filter vocabulary. |
+| `persistence_error` | `error` | The SDK when storing a completed turn in thread history fails. The failed write's message becomes `error` and its code becomes `error_code`. A stopped or failed turn keeps its own outcome. |
+| `budget_denied` | `error` | No integration produces this value today. It remains valid filter vocabulary. |
 
 The Overview outcome chart groups values differently from the report vocabulary: `completed`, `stopped` for `aborted`, `disconnected`, `truncated` for `length` or `content_filter`, `failed` for every other outcome type, and `unknown` when there is no outcome type.
 
