@@ -198,7 +198,13 @@ describe("getAutoStatus", () => {
   );
 
   it.each([
-    ["a result", { ...pendingToolCall(), result: {} }],
+    [
+      "a result and a running nested message",
+      {
+        ...pendingToolCall([nestedAssistantMessage({ type: "running" })]),
+        result: {},
+      },
+    ],
     ["no nested messages", pendingToolCall()],
     [
       "only a user nested message",
