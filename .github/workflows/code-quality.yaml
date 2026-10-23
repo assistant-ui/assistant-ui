@@ -37,6 +37,8 @@ on:
       - "scripts/check-adapter-architecture.test.mjs"
       - "scripts/check-packed-release.mjs"
       - "scripts/check-packed-release.test.mjs"
+      - "scripts/check-version-patch.mjs"
+      - "scripts/check-version-patch.test.mjs"
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
@@ -156,6 +158,9 @@ jobs:
 
       - name: Test the packed release checker
         run: node --test scripts/check-packed-release.test.mjs
+
+      - name: Test the version patch checker
+        run: node --test scripts/check-version-patch.test.mjs
 
       - name: Test the adapter architecture checker
         run: node --test scripts/check-adapter-architecture.test.mjs
