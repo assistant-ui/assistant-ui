@@ -15,6 +15,7 @@ import {
   AuiProvider,
   AuiConfig,
   Suggestions,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 
 const SetFormFieldTool = () => {
@@ -25,7 +26,28 @@ const SetFormFieldTool = () => {
   );
 };
 
-const SubmitFormTool = () => {
+const SubmitFormTool = ({ interrupt, resume }: ToolCallMessagePartProps) => {
+  if (interrupt) {
+    return (
+      <div className="border-border bg-muted/50 flex items-center gap-3 rounded-lg border p-3 text-sm">
+        <span>Submit this form?</span>
+        <button
+          type="button"
+          onClick={() => resume({ approved: true })}
+          className="bg-primary text-primary-foreground rounded-md px-3 py-1"
+        >
+          Allow
+        </button>
+        <button
+          type="button"
+          onClick={() => resume({ approved: false })}
+          className="border-border rounded-md border px-3 py-1"
+        >
+          Deny
+        </button>
+      </div>
+    );
+  }
   return (
     <p className="text-center font-mono text-sm font-bold text-blue-500">
       submit_form(...)

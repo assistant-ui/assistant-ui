@@ -23,7 +23,7 @@ This example shows an AI assistant sidebar that fills out a form for the user. T
 
 ## Integration
 
-The example uses `useAssistantForm` from `@assistant-ui/react-hook-form` to connect the AI with form state. This hook replaces the standard `useForm` and automatically registers `set_form_field` and `submit_form` tools with the assistant.
+The example uses `useAssistantForm` from `@assistant-ui/react-hook-form` to connect the AI with form state. This hook replaces the standard `useForm` and automatically registers `set_form_field`, `submit_form`, and `reset_form` tools with the assistant. Submitting and resetting ask the user for approval by default. Set `assistant.tools.submit_form.requireApproval` or `assistant.tools.reset_form.requireApproval` to `false` to run that tool without asking. The model's form state excludes password inputs and fields with `current-password`, `new-password`, `one-time-code`, or `cc-` autocomplete values.
 
 ### Runtime Provider
 
@@ -95,6 +95,7 @@ import {
   AuiConfig,
   AuiProvider,
   Suggestions,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 
 const SetFormFieldTool = () => {
@@ -105,7 +106,28 @@ const SetFormFieldTool = () => {
   );
 };
 
-const SubmitFormTool = () => {
+const SubmitFormTool = ({ interrupt, resume }: ToolCallMessagePartProps) => {
+  if (interrupt) {
+    return (
+      <div className="border-border bg-muted/50 flex items-center gap-3 rounded-lg border p-3 text-sm">
+        <span>Submit this form?</span>
+        <button
+          type="button"
+          onClick={() => resume({ approved: true })}
+          className="bg-primary text-primary-foreground rounded-md px-3 py-1"
+        >
+          Allow
+        </button>
+        <button
+          type="button"
+          onClick={() => resume({ approved: false })}
+          className="border-border rounded-md border px-3 py-1"
+        >
+          Deny
+        </button>
+      </div>
+    );
+  }
   return (
     <p className="text-center font-bold font-mono text-blue-500 text-sm">
       submit_form(...)
@@ -192,10 +214,10 @@ export default function Home() {
 
 ### How It Works
 
-1. `useAssistantForm` wraps React Hook Form's `useForm` and automatically exposes `set_form_field` and `submit_form` as frontend tools
+1. `useAssistantForm` wraps React Hook Form's `useForm` and automatically exposes `set_form_field`, `submit_form`, and `reset_form` as frontend tools
 2. The backend receives these tool definitions via `frontendTools()` and passes them to the model
 3. When the AI calls `set_form_field`, the form field is updated directly via React Hook Form
-4. Custom `render` components display a visual indicator in the chat while the tool executes
+4. The custom `SubmitFormTool` render displays Allow and Deny controls when the tool asks for approval
 5. `AuiProvider` with a `Suggestions` config adds pre-built prompt suggestions to the assistant UI
 
 ## Source

@@ -10,12 +10,12 @@ export const formTools = {
     }),
   },
   submit_form: {
-    description: "Submits the form. Confirm with user before submitting.",
+    description: "Submits the form. Requests user approval by default.",
     parameters: z.object({}),
   },
   reset_form: {
     description:
-      "Resets all form fields to their initial values. Confirm with user before resetting.",
+      "Resets all form fields to their initial values. Requests user approval by default.",
     parameters: z.object({}),
   },
 };
