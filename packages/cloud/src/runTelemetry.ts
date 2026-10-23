@@ -328,6 +328,7 @@ export type RunReportInit = {
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
+  userMessageId?: string | undefined;
   traceId?: string | undefined;
   rootSpanId?: string | undefined;
   modelId?: string | undefined;
@@ -470,6 +471,8 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   if (init.errorCode !== undefined) report.error_code = init.errorCode;
   if (init.error !== undefined) report.error = init.error;
   if (init.messageId !== undefined) report.message_id = init.messageId;
+  if (init.userMessageId !== undefined)
+    report.user_message_id = init.userMessageId;
   if (init.modelId !== undefined) report.model_id = init.modelId;
   if (init.provider !== undefined) {
     report.provider = init.provider;

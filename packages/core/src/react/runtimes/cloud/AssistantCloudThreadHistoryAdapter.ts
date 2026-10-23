@@ -399,6 +399,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
           message?: ThreadMessage;
+          userMessageId?: string;
           persistenceError?: unknown;
         },
       ) {
@@ -757,6 +758,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     options?: {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
+      userMessageId?: string;
       persistenceError?: unknown;
     },
     threadListItem?: CloudThreadListItem,
@@ -783,8 +785,15 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         : observedInfo;
 
     void this.resolveExistingRemoteId(item)
-      .then((remoteId) => {
+      .then(async (remoteId) => {
         if (!remoteId) return;
+        this.assertCurrentScope(context);
+        const userMessageId =
+          options?.userMessageId !== undefined
+            ? await context.persistence
+                .getRemoteId(options.userMessageId)
+                .catch(() => undefined)
+            : undefined;
         this.assertCurrentScope(context);
         this._sendReport(
           remoteId,
@@ -793,6 +802,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           options?.stepTimestamps,
           messageInfo,
           context,
+          userMessageId,
         );
       })
       .catch(() => {});
@@ -805,6 +815,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     stepTimestamps?: StepTimestamp[],
     messageInfo?: RunMessageInfo,
     context = this.captureScope(),
+    userMessageId?: string,
   ) {
     if (!this.isCurrentScope(context)) return;
     const current = this.runReporterContext;
@@ -830,6 +841,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       error: messageInfo?.error,
       errorCode: messageInfo?.errorCode,
       messageId,
+      userMessageId,
       traceId: messageInfo?.traceId,
       modelId: data.modelId,
       provider: messageInfo?.provider,

@@ -612,6 +612,7 @@ export const useExternalHistory = <TMessage>(
         .then(async () => {
           const { messages } = latest;
           let lastInnerMessageId: string | null = null;
+          let lastUserMessageId: string | undefined;
           let writeFailure: { error: unknown } | undefined;
 
           const getLastInnerId = (msgs: TMessage[]): string | null =>
@@ -642,6 +643,7 @@ export const useExternalHistory = <TMessage>(
 
           for (const message of messages) {
             if (deletedMessageIds.current.has(message.id)) continue;
+            if (message.role === "user") lastUserMessageId = message.id;
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
             const isTerminal = isTerminalMessage(message);
@@ -717,6 +719,9 @@ export const useExternalHistory = <TMessage>(
                 })),
                 {
                   ...telemetryOptions,
+                  ...(lastUserMessageId !== undefined
+                    ? { userMessageId: lastUserMessageId }
+                    : undefined),
                   message,
                   ...(messageWriteFailure && {
                     persistenceError: messageWriteFailure.error,
@@ -727,17 +732,19 @@ export const useExternalHistory = <TMessage>(
           }
 
           if (promptId !== null && isUnansweredRun(messages, promptId)) {
+            const shouldDeletePrompt =
+              runCancelled &&
+              !messages.some((message) => message.id === promptId);
             adapter.reportTelemetry?.([], {
               ...telemetryOptions,
+              ...(!(shouldDeletePrompt && adapter.delete)
+                ? { userMessageId: promptId }
+                : undefined),
               message: createUnansweredRunMessage(
                 runCancelled ? "cancelled" : "other",
               ),
             });
-            if (
-              runCancelled &&
-              !messages.some((message) => message.id === promptId) &&
-              adapter.delete
-            ) {
+            if (shouldDeletePrompt && adapter.delete) {
               const items = promptMessages.map((message) => ({
                 parentId: null,
                 message,

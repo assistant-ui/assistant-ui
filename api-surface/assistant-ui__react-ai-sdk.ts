@@ -236,6 +236,7 @@ type AssistantCloudRunReport = {
   status: "completed" | "error" | "incomplete";
   outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
+  user_message_id?: string;
   first_token_ms?: number;
   release?: string;
   environment?: string;
@@ -1133,6 +1134,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       end_ms: number;
     }[];
     message?: ThreadMessage;
+    userMessageId?: string;
     persistenceError?: unknown;
   }): void;
 };
