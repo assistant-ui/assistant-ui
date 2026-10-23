@@ -60,7 +60,7 @@ afterEach(() => {
 
 it.each(["", "42"])(
   "captures a real browser trace after an incomplete port read %j",
-  { skip: !hasChrome },
+  { skip: !hasChrome, timeout: 60_000 },
   async (prefix) => {
     const dir = mkdtempSync(join(tmpdir(), "aui-trace-port-"));
     dirs.push(dir);
@@ -90,7 +90,7 @@ it.each(["", "42"])(
   },
 );
 
-const failedCapture = () => {
+const failedCapture = (portDelay = 0) => {
   vi.useFakeTimers();
   const child = new ChildProcess();
   const kill = vi.spyOn(child, "kill").mockReturnValue(true);
@@ -103,10 +103,13 @@ const failedCapture = () => {
       .find((arg) => arg.startsWith("--user-data-dir="))!
       .slice("--user-data-dir=".length);
     dirs.push(profile);
-    writeFileSync(
-      join(profile, "DevToolsActivePort"),
-      "12345\n/devtools/browser/test\n",
-    );
+    const writePort = () =>
+      writeFileSync(
+        join(profile, "DevToolsActivePort"),
+        "12345\n/devtools/browser/test\n",
+      );
+    if (portDelay) setTimeout(writePort, portDelay);
+    else writePort();
     return child;
   });
   const failure = new Error("DevTools connection failed");
@@ -129,6 +132,18 @@ it("waits for Chrome to close before removing its profile after a failed connect
   }
   await expect(result).resolves.toBe(failure);
   expect(existsSync(profile)).toBe(false);
+});
+
+it("waits through a slow Chrome start for the DevTools port", async () => {
+  const { child, failure, result } = failedCapture(15_000);
+
+  try {
+    await vi.advanceTimersByTimeAsync(15_100);
+  } finally {
+    child.emit("close", 0, null);
+    await result;
+  }
+  await expect(result).resolves.toBe(failure);
 });
 
 it("force closes Chrome after a shutdown timeout without hiding the connection error", async () => {

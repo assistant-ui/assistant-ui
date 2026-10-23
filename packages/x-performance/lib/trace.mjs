@@ -144,14 +144,14 @@ export const captureTrace = async (
   try {
     const portFile = join(profile, "DevToolsActivePort");
     let port;
-    for (let i = 0; i < 100 && !port; i++) {
+    for (let i = 0; i < 300 && !port; i++) {
       if (existsSync(portFile)) {
         port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
       }
       if (!port) await sleep(100);
     }
     if (!port) {
-      throw new Error(`Chrome failed to start within 10s (${chrome})`);
+      throw new Error(`Chrome failed to start within 30s (${chrome})`);
     }
     const version = await fetch(`http://127.0.0.1:${port}/json/version`).then(
       (r) => r.json(),
