@@ -110,8 +110,6 @@ jobs:
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-        with:
-          fetch-depth: ${{ github.event_name == 'merge_group' && '0' || '2' }}
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -161,6 +159,7 @@ jobs:
             packages/*/coverage/
             apps/*/coverage/
             examples/*/coverage/
+            templates/*/coverage/
           if-no-files-found: ignore
           retention-days: 14
 

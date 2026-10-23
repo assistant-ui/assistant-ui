@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { coverageShards } from "./coverage-shards.mjs";
 
 function workspace(t, packages) {
@@ -66,19 +67,19 @@ test("installed dependency tests do not affect shard assignment", (t) => {
 });
 
 test("the CLI emits the selected shard filters and rejects invalid shard indexes", () => {
-  const script = new URL("./coverage-shards.mjs", import.meta.url);
+  const script = fileURLToPath(
+    new URL("./coverage-shards.mjs", import.meta.url),
+  );
   for (const index of [0, 1]) {
-    const output = execFileSync(
-      process.execPath,
-      [script.pathname, String(index)],
-      { encoding: "utf8" },
-    );
+    const output = execFileSync(process.execPath, [script, String(index)], {
+      encoding: "utf8",
+    });
     assert.deepEqual(
       output.trim().split("\n"),
       coverageShards()[index].map((name) => `--filter=${name}`),
     );
   }
   assert.throws(() =>
-    execFileSync(process.execPath, [script.pathname, "2"], { stdio: "pipe" }),
+    execFileSync(process.execPath, [script, "2"], { stdio: "pipe" }),
   );
 });
