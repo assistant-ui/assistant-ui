@@ -10,13 +10,16 @@ import { isExecutedAsMain } from "./lib/main.mjs";
 // moved on. The workflow disables the action's own tag/release creation and
 // reconciles both here instead, at RELEASE_SHA.
 //
-// Reconciliation runs off npm registry truth so a partial publish (the action
-// throws after some packages reached npm) and a rerun after a release-creation
-// failure (the publish job resolves no targets and skips) still converge.
-// Versions published before the release commit are historical releases whose
-// tags belong to an earlier commit; they are never (re)created at RELEASE_SHA.
-
-const HISTORICAL_TOLERANCE_MS = 60 * 60 * 1000;
+// A version is only tagged/released here when its association with RELEASE_SHA
+// is proven, never inferred from timestamps:
+//  1. The publish step's `published-packages` output (set even when the step
+//     fails partway through) names exactly the versions this run published
+//     from the RELEASE_SHA checkout.
+//  2. On reruns where the publish job skips (everything already on npm), the
+//     package's SLSA provenance attestation on the npm registry names the
+//     commit its publishing run ran against; it must equal RELEASE_SHA.
+// Anything else is ambiguous and skipped with a warning naming the manual
+// recovery path, instead of risking a tag pointed at the wrong commit.
 
 // Port of getChangelogEntry from changesets/action@v2.1.2 (src/utils.ts), so
 // release bodies keep the changelog entry the action would have used.
@@ -78,9 +81,7 @@ const fetchNpmMetadata = async (packageName) => {
     );
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw new Error(
-        `npm registry HTTP ${response.status} for ${packageName}`,
-      );
+      throw new Error(`npm registry HTTP ${response.status} for ${packageName}`);
     }
     return await response.json();
   } finally {
@@ -88,25 +89,61 @@ const fetchNpmMetadata = async (packageName) => {
   }
 };
 
-const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+// Reads the SLSA provenance attestation npm stores for trusted publishing and
+// returns the git commit the publishing workflow run ran against, or null when
+// there is no usable attestation.
+const fetchPublishCommit = async (repository, packageName, version) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(
+      `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(packageName)}@${encodeURIComponent(version)}`,
+      { signal: controller.signal },
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new Error(
+        `npm attestations HTTP ${response.status} for ${packageName}@${version}`,
+      );
+    }
+    const data = await response.json();
+    const attestation = (data.attestations ?? []).find(
+      (entry) => entry.predicateType === "https://slsa.dev/provenance/v1",
+    );
+    const payload = attestation?.bundle?.dsseEnvelope?.payload;
+    if (!payload) return null;
+    const statement = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+    const dependency = (
+      statement?.predicate?.buildDefinition?.resolvedDependencies ?? []
+    ).find((dep) =>
+      (dep.uri ?? "").startsWith(`git+https://github.com/${repository}@`),
+    );
+    return dependency?.digest?.gitCommit ?? null;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const git = (...args) =>
+  execFileSync("git", args, { encoding: "utf8" }).trim();
 
 const isNotFound = (error) => error && error.status === 404;
 
+// publishedPackages: the publish step's output when the publish job ran (the
+// provable association for this run), or null when it skipped (rerun of an
+// already-published release; the attestation binding applies instead).
 // github: { getRef(ref), createRef(ref, sha), getReleaseByTag(tag), createRelease(release) }
 // where getters reject with a { status: 404 } error when missing.
 export const createReleaseTags = async ({
   packages,
   releaseSha,
-  releaseCommittedAt,
+  publishedPackages,
   github,
   getNpmMetadata = fetchNpmMetadata,
+  getPublishCommit = null,
   log = console.log,
 }) => {
   const problems = [];
-  const releaseCommitTime = Date.parse(releaseCommittedAt);
-  if (!Number.isFinite(releaseCommitTime)) {
-    throw new Error(`Invalid release commit time: ${releaseCommittedAt}`);
-  }
 
   for (const pkg of packages) {
     const tag = `${pkg.name}@${pkg.version}`;
@@ -117,17 +154,30 @@ export const createReleaseTags = async ({
       continue;
     }
 
-    const publishedAt = Date.parse(metadata?.time?.[pkg.version] ?? "");
-    if (
-      !Number.isFinite(publishedAt) ||
-      publishedAt < releaseCommitTime - HISTORICAL_TOLERANCE_MS
-    ) {
-      // Published before the release commit: a historical version whose tag
-      // belongs to the commit that released it. Never point that at RELEASE_SHA.
-      log(
-        `::warning::${tag} was published before the release commit; leaving its tag and release untouched`,
+    if (publishedPackages) {
+      const publishedHere = publishedPackages.some(
+        (entry) => entry.name === pkg.name && entry.version === pkg.version,
       );
-      continue;
+      if (!publishedHere) {
+        log(`${tag} was not published by this run; skipping`);
+        continue;
+      }
+    } else {
+      let publishCommit = null;
+      try {
+        publishCommit = await getPublishCommit(pkg.name, pkg.version);
+      } catch (error) {
+        problems.push(
+          `Could not read the provenance attestation for ${tag}: ${error.message}`,
+        );
+        continue;
+      }
+      if (publishCommit !== releaseSha) {
+        log(
+          `::warning::${tag} is on npm but its provenance does not name the release commit; leaving its tag and release untouched. Recover by re-running the failed jobs of the original publish run, or create the tag and release manually at the commit that published it.`,
+        );
+        continue;
+      }
     }
 
     let tagExists = true;
@@ -234,15 +284,20 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
     process.exitCode = 1;
   } else {
     const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "").split("/");
+    const publishedPackages = process.env.PUBLISHED_PACKAGES
+      ? JSON.parse(process.env.PUBLISHED_PACKAGES)
+      : null;
     const result = await createReleaseTags({
       packages: readPublishablePackages(path.resolve("packages")),
       releaseSha,
-      releaseCommittedAt: git("show", "-s", "--format=%cI", releaseSha),
+      publishedPackages,
       github: githubClient({
         token: process.env.GITHUB_TOKEN ?? "",
         owner,
         repo,
       }),
+      getPublishCommit: (name, version) =>
+        fetchPublishCommit(`${owner}/${repo}`, name, version),
     });
     if (result.problems.length > 0) {
       for (const problem of result.problems) console.log(`::error::${problem}`);
