@@ -148,7 +148,7 @@ const persistence = createFormattedPersistence(
 | Id map | A successful append maps the local id to the remote message id. A failed append removes its mapping. Loaded rows receive identity mappings so they are not appended again. |
 | `load` | Fetches message pages of 200, follows the `after` cursor, and stops on a short or repeated page. Formatted persistence keeps only the requested format and returns messages in chronological order. |
 | `update` | Writes through the mapped remote id. An unmapped id is skipped with a console warning. |
-| `delete` | Awaits a pending append, then deletes the mapped remote ids in one request and removes their mappings. Unmapped ids and ids whose append failed send nothing, and a `404` counts as already deleted. |
+| `delete` | Awaits a pending append, then deletes the mapped remote ids in one request and removes their mappings. Unmapped ids and ids whose append failed send nothing, and a `404` counts as already deleted. A message whose stored children remain cannot be deleted yet, and the request fails. |
 | `reset` | Replaces the id map. In-flight work can settle, but cannot write into the new map. |
 
 ## Troubleshooting

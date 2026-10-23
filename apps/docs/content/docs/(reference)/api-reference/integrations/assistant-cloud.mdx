@@ -18,7 +18,7 @@ import { assistantCloud_AssistantCloud, assistantCloud_AssistantCloudEvents, ass
 | Member | Calls |
 |---|---|
 | `threads` | `list({ is_archived?, limit?, after? })`, `get(id)`, `create({ last_message_at, title?, metadata?, external_id? })`, `update(id, { title?, last_message_at?, metadata?, is_archived? })`, `delete(id)`, `claim({ refresh_token })` |
-| `threads.messages` | `list(threadId, { format?, limit?, after? })`, `create(threadId, { parent_id, format, content })`, `update(threadId, messageId, { content })`, `feedback(threadId, messageId, { type })` |
+| `threads.messages` | `list(threadId, { format?, limit?, after? })`, `create(threadId, { parent_id, format, content })`, `update(threadId, messageId, { content })`, `delete(threadId, messageIds)`, `feedback(threadId, messageId, { type })` |
 | `runs` | `report(report)`, `stream({ thread_id, assistant_id, messages })` |
 | `events` | `track({ kind, thread_id?, message_id?, run_id?, value?, props? })`; events are batched and flushed after two seconds of quiet, at twenty waiting and when the page hides |
 | `scores` | `create({ name, data_type, value?, string_value?, comment?, thread_id?, message_id?, run_id? })` |
