@@ -404,14 +404,14 @@ export const MicroSvg = forwardRef<
             ? {
                 display: "block",
                 width: "100%",
-                height: `${em}em`,
+                height: height === undefined ? `${em}em` : `${height}px`,
                 fontFamily: FONT,
                 ...style,
               }
             : px === undefined
               ? {
                   display: "inline-block",
-                  height: `${em}em`,
+                  height: height === undefined ? `${em}em` : `${height}px`,
                   width: "auto",
                   verticalAlign: "-0.125em",
                   fontFamily: FONT,
