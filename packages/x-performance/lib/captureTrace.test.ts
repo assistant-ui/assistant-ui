@@ -60,7 +60,7 @@ afterEach(() => {
 
 it.each(["", "42"])(
   "captures a real browser trace after an incomplete port read %j",
-  { skip: !hasChrome },
+  { skip: !hasChrome, timeout: 90_000 },
   async (prefix) => {
     const dir = mkdtempSync(join(tmpdir(), "aui-trace-port-"));
     dirs.push(dir);
@@ -90,7 +90,7 @@ it.each(["", "42"])(
   },
 );
 
-const failedCapture = () => {
+const failedCapture = (portAfter: number | null = 0) => {
   vi.useFakeTimers();
   const child = new ChildProcess();
   const kill = vi.spyOn(child, "kill").mockReturnValue(true);
@@ -103,10 +103,13 @@ const failedCapture = () => {
       .find((arg) => arg.startsWith("--user-data-dir="))!
       .slice("--user-data-dir=".length);
     dirs.push(profile);
-    writeFileSync(
-      join(profile, "DevToolsActivePort"),
-      "12345\n/devtools/browser/test\n",
-    );
+    const writePort = () =>
+      writeFileSync(
+        join(profile, "DevToolsActivePort"),
+        "12345\n/devtools/browser/test\n",
+      );
+    if (portAfter === 0) writePort();
+    else if (portAfter !== null) setTimeout(writePort, portAfter);
     return child;
   });
   const failure = new Error("DevTools connection failed");
@@ -116,6 +119,27 @@ const failedCapture = () => {
   );
   return { child, kill, profile, failure, result };
 };
+
+it("waits past a slow cold start for Chrome's port", async () => {
+  const { child, failure, result } = failedCapture(15_000);
+  try {
+    await vi.advanceTimersByTimeAsync(15_100);
+    expect(fetch).toHaveBeenCalledWith("http://127.0.0.1:12345/json/version");
+  } finally {
+    child.emit("close", 0, null);
+    await result;
+  }
+  await expect(result).resolves.toBe(failure);
+});
+
+it("fails as soon as Chrome exits before it starts", async () => {
+  const { child, result } = failedCapture(null);
+  child.emit("close", 1, null);
+  await vi.advanceTimersByTimeAsync(200);
+  await expect(result).resolves.toMatchObject({
+    message: expect.stringMatching(/^Chrome exited with 1 before it started/),
+  });
+});
 
 it("waits for Chrome to close before removing its profile after a failed connection", async () => {
   const { child, profile, failure, result } = failedCapture();
