@@ -52,21 +52,7 @@ export const examples: DemoExample[] = [
             { at: 40, label: "40" },
           ]}
           guides={[{ at: 40, label: "evening peak" }]}
-          labels={[
-            "00",
-            "",
-            "",
-            "06",
-            "",
-            "",
-            "12",
-            "",
-            "",
-            "18",
-            "",
-            "",
-            "24",
-          ]}
+          labels={HOURS.map((hour, i) => (i % 6 === 0 ? hour : ""))}
           series={[
             { name: "gas", data: GAS },
             { name: "nuclear", data: NUCLEAR },

@@ -41,9 +41,9 @@ export const examples: DemoExample[] = [
   {
     title: "Tokens per 1k weekly actives",
     setup:
-      "A rate on real country outlines. Raw volume would paint China and the United States dark and hide the dense small markets. Unshaded is unmeasured, not zero.",
-    read: "Singapore and Estonia outrun the giants per person. The United States is mid-table. India and Indonesia are pale because the product is still shallow there, not because the countries are small.",
-    source: "Billed tokens / weekly actives × 1,000. Week of 11 Aug 2025.",
+      "A rate on mapped regions. Unshaded areas have no entry in this illustrative sample.",
+    read: "The two darkest mapped areas have rates of 86 and 74. The next two are 68 and 61. Most shaded areas have rates below 40.",
+    source: "Illustrative billed tokens per 1,000 weekly actives.",
     chart: (
       <FigTooltip
         entries={Object.fromEntries(

@@ -14,7 +14,7 @@ export const examples: DemoExample[] = [
     title: "Ship, this quarter",
     setup:
       "One goal, one ring. A card next to the changelog asks only whether the release still closes.",
-    read: "41 of 50 committed issues are closed, six weeks left. That is a finish, not a hope. A second ring would be a second question.",
+    read: "The ring shows 41 of 50 committed issues closed, or 82%. Nine remain open.",
     source: "Closed issues over committed scope.",
     chart: (
       <div className="mx-auto w-40">

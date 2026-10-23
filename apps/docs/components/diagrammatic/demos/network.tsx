@@ -43,10 +43,10 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "The gateway sits in the middle on purpose",
+    title: "Checkout service connections",
     setup:
-      "Ten services on the checkout path. The layout pulls the highest-degree node to the center. That node is the gateway. Find it before the incident review starts.",
-    read: "Gateway has four edges. Checkout has four more behind it. A page on gateway is a page on the store. The risk service is the only box both checkout and payments touch, which is why it showed up in two timelines.",
+      "Ten services on the checkout path. Gateway and checkout each have four links, the highest degree in this graph.",
+    read: "Gateway connects to checkout, auth, cart, and flags. Checkout connects to payments, inventory, pricing, and risk. Risk is the only service linked to both checkout and payments.",
     source: "Service graph from the checkout trace sample, 14 Aug.",
     chart: (
       <FigTooltip

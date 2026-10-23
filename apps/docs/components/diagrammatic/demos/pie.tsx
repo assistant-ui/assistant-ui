@@ -23,7 +23,7 @@ export const examples: DemoExample[] = [
     title: "FY25 cloud bill",
     setup:
       "Five slices, one dominant. The pie exists for a share you can point at, not a ranking of vendors.",
-    read: "The hole says $6.74m. Compute is 62% of it. Storage plus egress is still smaller than that one slice. The meeting is about idle GPU, not the observability line.",
+    read: "The center shows $6.74m. Compute is 62% of that total. Storage and egress together add to $1.86m, still less than half of compute's $4.18m.",
     source: "Cloud invoice rollup, FY25. Total $6.74m.",
     chart: (
       <FigTooltip

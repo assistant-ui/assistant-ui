@@ -67,7 +67,7 @@ export const examples: DemoExample[] = [
     title: "FY25 opex, three branches",
     setup:
       "A treemap with four tiles is a pie. This one is the annual opex tree: engineering, go-to-market, and G&A, then the teams inside them.",
-    read: "Engineering is half the page. Platform alone is larger than all of G&A. Sales is the only GTM tile that competes with a product team. The small legal and facilities cells are why this is a treemap and not five columns.",
+    read: "Engineering holds 44.1m of the 84m total, slightly more than half. Platform's 14.2m is smaller than G&A's 14.8m combined. Sales at 12.4m exceeds the product team's 11.6m. Legal and facilities are among the smallest leaves at 2.4m and 2.1m.",
     source: "FY25 operating expense, $84.0m. Leaves are teams.",
     chart: (
       <FigTooltip

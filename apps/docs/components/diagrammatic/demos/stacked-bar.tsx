@@ -16,7 +16,7 @@ export const glyph = (
 
 const DAYS = [
   ...Array.from({ length: 31 }, (_, i) => `Jul ${i + 1}`),
-  ...Array.from({ length: 18 }, (_, i) => `Aug ${i + 1}`),
+  ...Array.from({ length: 19 }, (_, i) => `Aug ${i + 1}`),
 ];
 
 const USAGE: Record<string, number[]> = {
@@ -50,11 +50,11 @@ const USAGE: Record<string, number[]> = {
 
 export const examples: DemoExample[] = [
   {
-    title: "Daily tokens by model, seven weeks",
+    title: "Daily tokens by model, 50 days",
     setup:
-      "The public usage page: daily token volume stacked by model, forty-nine thin bars. Totals first, mix second. Hover any day for the ledger.",
-    read: "pico's bottom band doubles in the last three weeks while atlas-0 thins in mirror. That is a migration, not a traffic spike. Only one day touches the 70B cap, and the week before climbs straight at it. swift appears from nothing in late July and is already a visible slice by mid-August.",
-    source: "Billed tokens per day, 1 Jul to 18 Aug.",
+      "The public usage page: daily token volume stacked by model, 50 thin bars. Totals first, mix second. Hover any day for the ledger.",
+    read: "pico's band rises from 9B on July 1 to 31B on August 19, while atlas-0 falls from 11B to 4B. The total exceeds the 70B guide once, reaching 71B on August 16. swift first appears in late July and reaches 5B on the last day.",
+    source: "Illustrative billed tokens per day, 1 Jul to 19 Aug.",
     chart: (
       <FigTooltip labels={DAYS} series={USAGE} unit="B" total>
         <StackedBar

@@ -26,8 +26,8 @@ export const examples: DemoExample[] = [
     title: "Closed offer bands, last two quarters",
     setup:
       "Compensation review. Each row is the p25 to p75 cash band of a closed role, the tick is the median we actually paid. The question is where the ladder overlaps.",
-    read: "Staff's floor sits inside senior's ceiling. An EM offer can land below staff. Director starts where principal's median is. The overlaps are the calibration meeting, not the medians.",
-    source: "Closed US cash offers, Oct 2024 to Mar 2025. n = 214.",
+    read: "Staff's 158k floor sits inside senior's band, which ends at 168k. The EM band begins below staff's floor. Director begins at 196k, below principal's 208k median.",
+    source: "Illustrative cash offer bands, Oct 2024 to Mar 2025.",
     chart: (
       <FigTooltip
         labels={BANDS.map((row) => row.label)}
@@ -46,18 +46,18 @@ export const examples: DemoExample[] = [
             { at: 125_000, label: "125k" },
             { at: 200_000, label: "200k" },
           ]}
-          guides={[{ at: 150_000, label: "staff floor" }]}
+          guides={[{ at: 150_000, label: "150k" }]}
           format={(v) => `$${formatCompact(v)}`}
         />
       </FigTooltip>
     ),
   },
   {
-    title: "Hazard ratio, eight trials",
+    title: "Hazard ratio, seven trials and a pooled estimate",
     setup:
-      "A forest of published estimates. Each row is a trial's hazard ratio with a 95% interval. The tick is the point estimate. The guide is no effect.",
-    read: "Six of eight sit left of 1. The pooled row at the bottom is 0.72, and its interval still clears the null. Trial D is the one that would flip a naive vote.",
-    source: "Investigator-assessed PFS, random-effects pool.",
+      "Seven trial estimates and one pooled estimate. Each row shows a hazard ratio with a 95% interval. The tick is the point estimate. The guide marks no effect.",
+    read: "Seven of eight point estimates are below 1, while five intervals stay wholly below it. The pooled estimate is 0.72 with an interval from 0.58 to 0.89. Trial D is the only point estimate above 1.",
+    source: "Illustrative hazard ratios with 95% intervals.",
     chart: (
       <RangeBar
         aspect={1.35}

@@ -22,8 +22,8 @@ export const examples: DemoExample[] = [
   {
     title: "Trauma arrivals by hour, one year",
     setup:
-      "A Nightingale rose for a city hospital: twenty-four hours around the clock, radius as volume. The form exists for a cycle, not a ranking.",
-    read: "The afternoon swell from 15h to 17h is the road. The 03h dent is the quiet the night shift actually gets. Area grows with the square of radius, so 61 at 16h looks larger than the 18-to-61 ratio; the tooltip keeps the count honest.",
+      "A Nightingale rose for a city hospital: twenty-four hours around the clock, sector area as volume. The form shows a daily cycle.",
+    read: "Arrivals reach 52 at 15h and peak at 61 at 16h, then fall to 48 at 17h. The lowest count is 8 at 04h. The tooltip gives the count behind each sector's area.",
     source: "ED trauma desk, 2024. n = 639 arrivals.",
     chart: (
       <FigTooltip
@@ -41,8 +41,8 @@ export const examples: DemoExample[] = [
   {
     title: "Wind rose, one harbour year",
     setup:
-      "Sixteen compass sectors. Radius is hours the wind sat in that sector. This is the same PolarArea as the trauma clock, pointed at a compass.",
-    read: "The south-west arm is the prevailing weather. The north-east notch is the headland. A ranking bar would hide that this is a direction, not a league table.",
+      "Sixteen compass sectors. Sector area represents measured hours of wind from each direction. This is the same PolarArea as the trauma clock, pointed at a compass.",
+    read: "SW is the largest sector at 980 hours, followed by SSW at 890. NE is the smallest at 140 hours. Adjacent sectors show the broad south-west concentration.",
     source: "Harbour anemometer, 2024. Hours per 22.5° sector.",
     chart: (
       <PolarArea

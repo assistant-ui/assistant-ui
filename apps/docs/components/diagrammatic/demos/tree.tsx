@@ -46,10 +46,10 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Engineering after the July reorg",
+    title: "Engineering team structure",
     setup: "Who reports to whom. No sizes. The tree is the org, not a metric.",
-    read: "Product and platform now match at three teams. Mobile is still a pair. Infra is two names that used to be one on-call. The missing design branch is the other memo.",
-    source: "People directory, 1 Aug 2025.",
+    read: "Product and platform each have three teams. Mobile and infra each have two. The engineering root therefore has four branches and ten leaf teams.",
+    source: "Illustrative engineering team directory.",
     chart: <Tree aspect={1.35} title="Engineering" depth={2} root={ROOT} />,
   },
 ];

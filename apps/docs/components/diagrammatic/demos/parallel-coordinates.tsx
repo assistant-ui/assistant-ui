@@ -28,8 +28,8 @@ export const examples: DemoExample[] = [
   {
     title: "Ten on-call weeks, five axes",
     setup:
-      "Each thread is one week. Axes are pages, minutes to ack, hours to resolve, SEV-1 count, and share of pages after hours. Crossings are the bad weeks announcing themselves.",
-    read: "W25 and W26 jump together on every axis; that is the checkout outage, not a mood. W32 is the quiet week after the inventory index. MTTA and after-hours move as one line, which is the staffing gap, not the software.",
+      "Each thread is one week. Axes are pages, minutes to ack, hours to resolve, SEV-1 count, and share of pages after hours. Crossings show where weeks change rank between axes.",
+    read: "W25 and W26 are elevated on all five axes compared with W24 and W27. W32 has the fewest pages, the shortest resolution time, and the lowest after-hours share. Weeks with longer acknowledgement times also tend to have more after-hours pages.",
     source: "On-call weekly rollup, W23 to W32 2025.",
     chart: (
       <FigTooltip

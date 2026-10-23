@@ -33,10 +33,10 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Rovers, first eighteen league matches",
+    title: "Two seasons, first eighteen league matches",
     setup:
       "A club page compresses each result into a tick above or below the line. No scores. Streaks are what the eye keeps.",
-    read: "24/25 opens with a title-charge run. 25/26 opens 1-4 and only finds the same rhythm after matchweek 8. Same club; the sack conversation lived in those first seven ticks.",
+    read: "The 24/25 season opens with two wins before its first loss. The 25/26 season starts with two wins and three losses in five matches, then wins three straight in matchweeks 8 to 10.",
     source: "Illustrative league, matchweeks 1 to 18.",
     chart: (
       <FigTooltip

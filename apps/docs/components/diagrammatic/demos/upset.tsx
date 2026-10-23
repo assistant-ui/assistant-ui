@@ -29,7 +29,7 @@ export const examples: DemoExample[] = [
     title: "Which tags travel together",
     setup:
       "One quarter of incidents, five tags. The bars on top are combination size. The dots say which tags are in that combination. Venn cannot hold this.",
-    read: "Paging alone is the largest pile. The dangerous column is the three-tag stack: sev-1, customer, and paging, nine times. Weekend paging without a customer is 14; weekend plus customer plus sev-1 is only three. The pages that wake someone and name an account are the meeting.",
+    read: "Paging alone is the largest combination at 38. The sev-1, customer, and paging combination has nine incidents. Weekend with paging and no customer totals 20 across two combinations, while the four-tag combination has three.",
     source: "Incident tickets, Q1. n = 138. A ticket may carry several tags.",
     chart: (
       <FigTooltip

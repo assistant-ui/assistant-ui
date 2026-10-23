@@ -16,7 +16,7 @@ export const examples: DemoExample[] = [
     title: "Reservoir inflow and release through a wet season",
     setup:
       "A dam operator's season chart: river inflow above the axis, controlled releases below, November through June. The mirror form fits because the two flows literally oppose each other.",
-    read: "Inflow peaks two months before releases do. Releases kiss the 40 m³/s channel rating in March; that is the valve, not the rain. If the two halves ever peak together, the reservoir has stopped buffering.",
+    read: "Inflow peaks in late January at 62 m³/s, about a month before release peaks at 46 m³/s in late February. Release reaches the 40 m³/s guide in early February and returns to it in late March.",
     source: "Dam operator logs, fortnightly means.",
     chart: (
       <FigTooltip

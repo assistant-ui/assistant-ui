@@ -30,7 +30,7 @@ export const examples: DemoExample[] = [
     title: "Daily highs in a coastal city, one year",
     setup:
       "Twelve ridges, one year. Each row is a month of daily maximums on a shared temperature axis. The drift is the picture.",
-    read: "March is the first month the mass clears the marine layer's 16° band. July and August sit on top of each other; there is no true summer spike. December returns almost to January. Order the rows any other way and the year disappears.",
+    read: "The peak shifts toward warmer bins from January through April. July and August share the same peak bin. December's peak moves back toward January's cooler bins.",
     source: "Illustrative daily maximums, one coastal station.",
     chart: (
       <Ridgeline

@@ -40,7 +40,7 @@ export const examples: DemoExample[] = [
     title: "Host vitals in a monitoring sidebar",
     setup:
       "A hosts list shows three vitals per machine in the width of a table cell: a word, a line, a number. The sparkline exists to fit exactly between them.",
-    read: "cpu is trending up and just hit 86%. The shape is a climb, not a spike, which is a capacity plan, not a restart. The line is the verdict; the number is the evidence.",
+    read: "cpu rises from 40% to 86% and ends at its maximum. Memory ends at 71%, below its peak of 72%. Requests end at 52 per second after peaking at 58.",
     source: "Host api-2a, last eight 5-minute samples.",
     chart: (
       <FigTooltip

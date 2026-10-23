@@ -32,8 +32,8 @@ export const examples: DemoExample[] = [
   {
     title: "Q3 roadmap bets",
     setup:
-      "Thirteen named bets. X is weeks of engineering. Y is reachable weekly actives, in thousands. The crosshair is 50k users and six weeks, which is the staffing we actually have.",
-    read: "SSO and the audit log sit in the now corner. EU region is the only bet worth a quarter. The rewrite and the native app are in the no box on purpose. Billing v2 sits on the cut, which is the only debate still open.",
+      "Thirteen named bets. X is weeks of engineering. Y is reachable weekly actives, in thousands. The crosshair marks 50k users and six weeks.",
+    read: "SSO and the audit log sit in the ship-now corner. EU region has the highest reach among bets beyond six weeks, at 88k. The rewrite, new editor, and native app sit below 50k and beyond six weeks. Billing v2 sits exactly on the six-week cut.",
     source: "Q3 planning, 12 Aug 2025. Cuts at 6 weeks and 50k WAU.",
     chart: (
       <FigTooltip

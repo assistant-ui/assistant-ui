@@ -64,7 +64,7 @@ export const examples: DemoExample[] = [
     title: "Where 10.4k weekly sessions go",
     setup:
       "Two rings: surface, then page. The sunburst is a drill path around a center, not a budget poster.",
-    read: "Docs is the outer majority, and guides plus api are most of that ring. The app's thread page is already as large as home. Pricing is the only marketing leaf that competes with a product surface.",
+    read: "Docs is the largest branch at 4,310 of 10,400 sessions, and guides plus api account for 3,160 of those. The app's thread page exceeds home, 1,680 to 1,560. Pricing at 880 is close to compose at 920.",
     source: "Unique sessions, week of 4 Aug 2025.",
     chart: (
       <FigTooltip

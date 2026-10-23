@@ -48,7 +48,7 @@ export const examples: DemoExample[] = [
     title: "Deploys per day, last two weeks",
     setup:
       "A delivery board gives each service one table row: fourteen bars for fourteen days, the count at the end. Discrete periods stay bars. A line would invent a slope that never happened.",
-    read: "api shipped 42 times and spiked to 8 on the ninth day, the incident hotfix. jobs stayed almost empty except that same day. The zeros are the point; a sparkline would have drawn through them.",
+    read: "api totals 42 deploys and peaks at eight on day nine. jobs totals nine and also peaks on day nine, at three. Several days have zero jobs deploys.",
     source: "Deploy events, last 14 calendar days.",
     chart: (
       <FigTooltip

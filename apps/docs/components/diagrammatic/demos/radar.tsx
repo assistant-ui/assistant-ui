@@ -18,10 +18,9 @@ export const examples: DemoExample[] = [
   {
     title: "Primary against secondary, one quarter",
     setup:
-      "Two profiles, five axes ordered by how much they burn people: volume, night, severity, speed, weekend. Area is not a score. The shape is the staffing argument.",
-    read: "Primary eats the pages and the SEV-1s. Secondary eats the nights and the weekends. The designed envelope sits between them on every spoke except SEV-1, where secondary is a hole on purpose: secondaries do not own the incident.",
-    source:
-      "On-call load, Q2 2025. Each axis scaled to the worse rotation = 1.",
+      "Three profiles across five axes: pages, after hours, SEV-1, time to ack, and weekend load. The third profile shows a designed target alongside the two rotations.",
+    read: "Primary leads on pages, SEV-1, and time to ack. Secondary leads on after-hours and weekend load. The designed profile falls between them on four spokes; its time-to-ack value of 0.5 is below both rotations.",
+    source: "Illustrative on-call load, Q2 2025. Normalized axis values.",
     chart: (
       <Radar
         aspect={1.15}

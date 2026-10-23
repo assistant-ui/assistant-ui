@@ -3,12 +3,12 @@ import type { DemoExample } from "./types";
 
 const ROWS = [
   {
-    label: "edge · iad-1",
+    label: "edge · west-1",
     a: { label: "hit", value: 91 },
     b: { label: "miss", value: 9 },
   },
   {
-    label: "edge · cdg-1",
+    label: "edge · east-1",
     a: { label: "hit", value: 84 },
     b: { label: "miss", value: 16 },
   },
@@ -51,8 +51,8 @@ export const examples: DemoExample[] = [
   {
     title: "Cache hits against origin errors",
     setup:
-      "A traffic row is two shares that sum to the whole. Three links, three bars, no poster. The split point is the entire message.",
-    read: "iad-1 is earning its memory at 91/9. cdg-1 is the leak: 16% miss is why origin CPU woke up. Writes at 3% error are inside budget, so the page is about the Paris cache, not the database.",
+      "Each row has two shares that sum to 100. Three rows show their split points side by side.",
+    read: "West-1 has 91% hits and 9% misses. East-1 misses 16%, seven points more than west-1. Origin writes show 3% errors.",
     source: "Edge and origin counters, last 60 minutes.",
     chart: <Rows rows={ROWS} />,
   },

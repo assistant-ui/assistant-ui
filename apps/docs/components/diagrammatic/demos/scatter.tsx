@@ -54,7 +54,7 @@ export const examples: DemoExample[] = [
     title: "FrontierBench against cost, sized by context",
     setup:
       "Twelve models. X is dollars per million output tokens. Y is the FrontierBench 1.1 score. Area is context window in thousands. The third channel is why this is not a line.",
-    read: "swift sits at 45.8 for $1.90 with only 128k context. atlas-1 buys 3.3 more points at five times the price and a 1M window. tiny is honest about being tiny. The empty upper-left is the product that does not exist yet.",
+    read: "swift sits at 45.8 for $1.90 with 128k context. atlas-1 scores 3.3 points higher at roughly five times the price and a 1M window. No plotted model costs under $2 while scoring above 50.",
     source: "FrontierBench 1.1, list prices per million output tokens.",
     chart: (
       <FigTooltip
@@ -99,9 +99,10 @@ export const examples: DemoExample[] = [
   {
     title: "Differential expression, one contrast",
     setup:
-      "A volcano. X is log2 fold change. Y is −log10 p. The guides are the cuts the lab actually used, not decoration.",
-    read: "Two genes clear both cuts on the right. The left arm is quieter. Everything in the grey middle is real biology that this experiment was not powered to name.",
-    source: "RNA-seq, treated vs vehicle. n = 6+6. Wald test.",
+      "A volcano. X is log2 fold change. Y is −log10 p. The guides mark the fold-change and p-value cuts.",
+    read: "Six points clear both cuts on the right, while five clear them on the left. The highest point sits on the right at a log2 fold change of 2.6 and −log10 p of 11.2.",
+    source:
+      "Illustrative differential-expression results, treated versus vehicle.",
     chart: (
       <Scatter
         aspect={1.55}
