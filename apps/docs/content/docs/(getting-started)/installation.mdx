@@ -361,7 +361,7 @@ export async function POST(req: Request) {
 
 </Tabs>
 
-The `system` prompt and tool definitions in `tools` come from the browser request, so any caller can set them. Keep instructions and limits your server must enforce in server code, for example by prepending server-owned text to the client's `system`. Allowlist the tools the server will run and authenticate the route before deploying.
+The `system` prompt and the `tools` schemas in the request body come from the browser, so any caller can change them. Treat both as untrusted input: keep instructions your app relies on in server code, define tools the server executes on the server rather than from the request, and authenticate the route before deploying.
 
 Define environment variables:
 
