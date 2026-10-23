@@ -625,6 +625,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       end_ms: number;
     }[];
     message?: ThreadMessage;
+    userMessageId?: string;
     persistenceError?: unknown;
   }): void;
 };
