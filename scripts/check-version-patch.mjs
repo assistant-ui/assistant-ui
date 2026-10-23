@@ -24,11 +24,12 @@ const dependencyFields = [
 const isVersion = (value) =>
   typeof value === "string" &&
   /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value);
-const isRegistryRange = (value) =>
-  typeof value === "string" &&
-  /^(?:workspace:)?[0-9A-Za-z.^~<>= +-]+$/.test(value);
-const rangeNamesVersion = (range, version) =>
-  range.split(/[\s:<=>^~]+/).includes(version);
+const rewrittenRange = (range, version) => {
+  const workspace = range.startsWith("workspace:") ? "workspace:" : "";
+  const operator =
+    /^(?:[\^~]|[<>]=|>)/.exec(range.slice(workspace.length))?.[0] ?? "";
+  return `${workspace}${operator}${version}`;
+};
 const isObject = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -97,8 +98,7 @@ function checkManifests(manifests) {
         if (
           version !== undefined &&
           typeof was[name] === "string" &&
-          isRegistryRange(now[name]) &&
-          rangeNamesVersion(now[name], version)
+          now[name] === rewrittenRange(was[name], version)
         ) {
           continue;
         }
