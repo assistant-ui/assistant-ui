@@ -56,6 +56,7 @@ const request = (
   options: {
     headers?: Record<string, string>;
     body?: unknown;
+    remoteAddress?: string | undefined;
   } = {},
 ): NotesRequest => {
   const headers: Record<string, string> = {
@@ -68,6 +69,7 @@ const request = (
   return {
     method,
     path,
+    remoteAddress: options.remoteAddress,
     header: (name) => headers[name.toLowerCase()] ?? null,
     json: async () => options.body,
   };
@@ -77,6 +79,55 @@ const call = (req: NotesRequest, dev = true) =>
   handleNotesRequest(req, { root, dev });
 
 describe("guards", () => {
+  it("refuses a LAN client with a forged loopback host before writing a note", async () => {
+    const result = await call(
+      request("POST", "/notes", {
+        remoteAddress: "192.168.1.42",
+        body: { group: "demo-cta", note: "forged request" },
+      }),
+    );
+    expect(result.status).toBe(403);
+    expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toBe(page);
+  });
+
+  it("allows loopback client addresses and an unknown address", async () => {
+    for (const remoteAddress of [
+      "127.0.0.1",
+      "127.42.0.1",
+      "::1",
+      "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+      undefined,
+    ]) {
+      expect(
+        (await call(request("GET", "/ping", { remoteAddress }))).status,
+      ).toBe(200);
+    }
+  });
+
+  it("allows a LAN client when remote hosts are configured", async () => {
+    const req = request("GET", "/ping", {
+      remoteAddress: "192.168.1.42",
+    });
+    expect(
+      (await handleNotesRequest(req, { root, dev: true, allowedHosts: [] }))
+        .status,
+    ).toBe(403);
+    expect(
+      (await handleNotesRequest(req, { root, dev: true, allowedHosts: true }))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await handleNotesRequest(req, {
+          root,
+          dev: true,
+          allowedHosts: ["dev.example.test"],
+        })
+      ).status,
+    ).toBe(200);
+  });
+
   it("answers 404 outside development", async () => {
     expect(await call(request("GET", "/ping"), false)).toEqual({
       status: 404,
@@ -471,6 +522,7 @@ describe("adapters", () => {
     const req = {
       method: "POST",
       url: "/notes",
+      socket: { remoteAddress: "127.0.0.1" },
       headers: {
         "x-variants": "1",
         host: "localhost",
@@ -498,6 +550,64 @@ describe("adapters", () => {
     );
   });
 
+  it("refuses a LAN client at the Vite middleware despite a forged loopback host", async () => {
+    let middleware:
+      | ((req: unknown, res: unknown, next: () => void) => void)
+      | undefined;
+    variants().configureServer({
+      config: { root },
+      middlewares: { use: (_path, handler) => (middleware = handler as never) },
+    });
+    const response = await new Promise<number>((resolve) => {
+      const res = {
+        statusCode: 0,
+        setHeader: () => {},
+        end: () => resolve(res.statusCode),
+      };
+      middleware!(
+        {
+          method: "GET",
+          url: "/ping",
+          socket: { remoteAddress: "192.168.1.42" },
+          headers: { host: "localhost:5173", "x-variants": "1" },
+          async *[Symbol.asyncIterator]() {},
+        },
+        res,
+        () => {},
+      );
+    });
+    expect(response).toBe(403);
+  });
+
+  it("lets a LAN client reach Vite when remote hosts are allowed", async () => {
+    let middleware:
+      | ((req: unknown, res: unknown, next: () => void) => void)
+      | undefined;
+    variants({ allowedHosts: true }).configureServer({
+      config: { root },
+      middlewares: { use: (_path, handler) => (middleware = handler as never) },
+    });
+    const response = await new Promise<number>((resolve) => {
+      const res = {
+        statusCode: 0,
+        setHeader: () => {},
+        end: () => resolve(res.statusCode),
+      };
+      middleware!(
+        {
+          method: "GET",
+          url: "/ping",
+          socket: { remoteAddress: "192.168.1.42" },
+          headers: { host: "localhost:5173", "x-variants": "1" },
+          async *[Symbol.asyncIterator]() {},
+        },
+        res,
+        () => {},
+      );
+    });
+    expect(response).toBe(200);
+  });
+
   it("merges the plugin's allowedHosts with Vite's server.allowedHosts", async () => {
     let middleware:
       | ((req: unknown, res: unknown, next: () => void) => void)
@@ -517,6 +627,7 @@ describe("adapters", () => {
           {
             method: "GET",
             url: "/ping",
+            socket: { remoteAddress: "127.0.0.1" },
             headers: { "x-variants": "1", host },
             async *[Symbol.asyncIterator]() {},
           },
@@ -537,6 +648,7 @@ describe("adapters", () => {
         {
           method: "GET",
           url: "/ping",
+          socket: { remoteAddress: "127.0.0.1" },
           headers: new Proxy(
             {},
             {

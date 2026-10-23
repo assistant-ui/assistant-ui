@@ -10,6 +10,7 @@ export const NOTES_PATH = "/__variants";
 type IncomingRequest = AsyncIterable<Uint8Array | string> & {
   method?: string | undefined;
   url?: string | undefined;
+  socket: { remoteAddress?: string | undefined };
   headers: Record<string, string | string[] | undefined>;
 };
 
@@ -69,6 +70,7 @@ export function variants(options: VariantsPluginOptions = {}) {
         const notesRequest: NotesRequest = {
           method: request.method ?? "GET",
           path: request.url ?? "/",
+          remoteAddress: request.socket.remoteAddress,
           header,
           json: () => readJsonBody(request),
         };
