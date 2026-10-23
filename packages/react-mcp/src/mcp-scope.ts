@@ -26,6 +26,7 @@ export type MCPConnector = {
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
   readonly elicitation?: boolean | undefined;
+  readonly requireApproval?: boolean | undefined;
 };
 
 export type MCPCustomServerRecord = {
@@ -36,6 +37,7 @@ export type MCPCustomServerRecord = {
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
   readonly elicitation?: boolean | undefined;
+  readonly requireApproval?: boolean | undefined;
   createdAt: number;
 };
 
@@ -83,6 +85,7 @@ export type MCPServerState = {
   tools: MCPToolInfo[];
   authorizationUrl: string | null;
   readonly pendingElicitations: readonly MCPElicitation[];
+  readonly requireApproval?: boolean | undefined;
 };
 
 export type MCPManagerState = {
@@ -130,6 +133,7 @@ export type MCPManagerMethods = {
     connectionTimeout?: number | undefined;
     readonly cache?: MCPResponseCacheConfig | undefined;
     readonly elicitation?: boolean | undefined;
+    readonly requireApproval?: boolean | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };

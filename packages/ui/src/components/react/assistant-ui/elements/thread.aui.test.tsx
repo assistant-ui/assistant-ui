@@ -152,6 +152,47 @@ function AssistantContentTestThread({
   );
 }
 
+function ApprovalTestThread({ pending }: { pending: boolean }) {
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages: [
+      {
+        id: "approval-message",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "first",
+            toolName: "first",
+            args: {},
+            result: "done",
+          },
+          {
+            type: "tool-call",
+            toolCallId: "second",
+            toolName: "second",
+            args: {},
+            ...(pending
+              ? { interrupt: { type: "human" as const, payload: {} } }
+              : { result: "done" }),
+          },
+        ],
+        status: pending
+          ? { type: "requires-action", reason: "interrupt" }
+          : { type: "complete", reason: "stop" },
+      },
+    ],
+    convertMessage: (message) => message,
+    onNew: async () => {},
+    onResumeToolCall: () => {},
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
 const PNG_DATA_URI =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
@@ -275,6 +316,31 @@ afterEach(async () => {
 });
 
 describe("Thread", () => {
+  it("opens the tool group while an interrupt requires action and restores the user's open state", async () => {
+    const view = render(<ApprovalTestThread pending={false} />);
+    const group = screen.getByRole("button", { name: "2 tool calls" });
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+
+    view.rerender(<ApprovalTestThread pending />);
+    await waitFor(() =>
+      expect(group.getAttribute("aria-expanded")).toBe("true"),
+    );
+    expect(screen.getByRole("button", { name: "Allow" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Deny" })).toBeTruthy();
+
+    view.rerender(<ApprovalTestThread pending={false} />);
+    await waitFor(() =>
+      expect(group.getAttribute("aria-expanded")).toBe("false"),
+    );
+    fireEvent.click(group);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+
+    view.rerender(<ApprovalTestThread pending />);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    view.rerender(<ApprovalTestThread pending={false} />);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("does not resume when Enter is pressed in an empty composer with a checkpoint", async () => {
     const onResume = vi.fn(async () => {});
     const onNew = vi.fn(async () => {});

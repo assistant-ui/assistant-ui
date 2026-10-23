@@ -54,6 +54,257 @@ const mount = (props: Parameters<typeof McpManagerResource>[0]) => {
 };
 
 describe("McpManagerResource tool registration", () => {
+  it.each([true, { approved: true }])(
+    "asks before running a custom server tool and accepts %j",
+    async (decision) => {
+      mocks.toolNames = ["search"];
+      const handle = mount({ storage: McpMemoryStorage() });
+      try {
+        const aui = handle.getClient();
+        await vi.waitFor(() =>
+          expect(aui.mcp.getState().isHydrated).toBe(true),
+        );
+        const id = await aui.mcp.addCustomServer({
+          name: "GitHub",
+          url: "https://example.com/mcp",
+          auth: { type: "none" },
+        });
+        await vi.waitFor(() =>
+          expect(aui.mcp.getState().servers).toHaveLength(1),
+        );
+        await aui.mcp.server({ id }).connect();
+        await vi.waitFor(() =>
+          expect(aui.modelContext.getState().toolNames).toHaveLength(1),
+        );
+        const human = vi.fn(async () => decision);
+        const tool =
+          aui.modelContext.getModelContext().tools![`${id}__search`]!;
+        const result = await tool.execute!({ query: "weather" }, {
+          human,
+        } as never);
+        expect(human).toHaveBeenCalledExactlyOnceWith({
+          type: "mcp-tool-approval",
+          serverId: id,
+          serverName: "GitHub",
+          toolName: "search",
+          arguments: { query: "weather" },
+        });
+        expect(mocks.callTool).toHaveBeenCalledExactlyOnceWith(
+          "https://example.com/mcp",
+          { name: "search", arguments: { query: "weather" } },
+        );
+        expect(result).toEqual({ content: [] });
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it.each([false, { approved: false }, { approved: "true" }])(
+    "declines a connector tool when human responds %j",
+    async (decision) => {
+      mocks.toolNames = ["search"];
+      const handle = mount({
+        connectors: [
+          defineConnector({
+            id: "docs",
+            name: "Docs",
+            url: "https://example.com/mcp",
+            auth: { type: "none" },
+          }),
+        ],
+        storage: McpMemoryStorage(),
+      });
+      try {
+        const aui = handle.getClient();
+        await aui.mcp.connector({ index: 0 }).connect();
+        await vi.waitFor(() =>
+          expect(aui.modelContext.getState().toolNames).toContain(
+            "docs__search",
+          ),
+        );
+        const human = vi.fn(async () => decision);
+        const result = await aui.modelContext.getModelContext().tools![
+          "docs__search"
+        ]!.execute!({}, { human } as never);
+        expect(human).toHaveBeenCalledExactlyOnceWith({
+          type: "mcp-tool-approval",
+          serverId: "docs",
+          serverName: "Docs",
+          toolName: "search",
+          arguments: {},
+        });
+        expect(result).toEqual({
+          content: [
+            { type: "text", text: "The user declined this tool call." },
+          ],
+          isError: true,
+        });
+        expect(mocks.callTool).not.toHaveBeenCalled();
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it("fails closed when the runtime cannot request approval", async () => {
+    mocks.toolNames = ["search"];
+    const handle = mount({
+      connectors: [
+        defineConnector({
+          id: "docs",
+          name: "Docs",
+          url: "https://example.com/mcp",
+          auth: { type: "none" },
+        }),
+      ],
+      storage: McpMemoryStorage(),
+    });
+    try {
+      const aui = handle.getClient();
+      await aui.mcp.connector({ index: 0 }).connect();
+      await vi.waitFor(() =>
+        expect(aui.modelContext.getState().toolNames).toContain("docs__search"),
+      );
+      const result = await aui.modelContext.getModelContext().tools![
+        "docs__search"
+      ]!.execute!({}, {} as never);
+      expect(result).toEqual({
+        content: [
+          {
+            type: "text",
+            text: "Approval is not available in this runtime. Set requireApproval: false on this server to run its tools without asking.",
+          },
+        ],
+        isError: true,
+      });
+      expect(mocks.callTool).not.toHaveBeenCalled();
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("propagates a rejected human request without calling the server", async () => {
+    mocks.toolNames = ["search"];
+    const handle = mount({
+      connectors: [
+        defineConnector({
+          id: "docs",
+          name: "Docs",
+          url: "https://example.com/mcp",
+          auth: { type: "none" },
+        }),
+      ],
+      storage: McpMemoryStorage(),
+    });
+    try {
+      const aui = handle.getClient();
+      await aui.mcp.connector({ index: 0 }).connect();
+      await vi.waitFor(() =>
+        expect(aui.modelContext.getState().toolNames).toContain("docs__search"),
+      );
+      const error = new Error("Request cancelled");
+      await expect(
+        aui.modelContext.getModelContext().tools!["docs__search"]!.execute!(
+          {},
+          { human: () => Promise.reject(error) } as never,
+        ),
+      ).rejects.toBe(error);
+      expect(mocks.callTool).not.toHaveBeenCalled();
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("runs a connector tool without asking when approval is disabled", async () => {
+    mocks.toolNames = ["search"];
+    const handle = mount({
+      connectors: [
+        defineConnector({
+          id: "docs",
+          name: "Docs",
+          url: "https://example.com/mcp",
+          auth: { type: "none" },
+          requireApproval: false,
+        }),
+      ],
+      storage: McpMemoryStorage(),
+    });
+    try {
+      const aui = handle.getClient();
+      await aui.mcp.connector({ index: 0 }).connect();
+      await vi.waitFor(() =>
+        expect(aui.modelContext.getState().toolNames).toContain("docs__search"),
+      );
+      const result = await aui.modelContext.getModelContext().tools![
+        "docs__search"
+      ]!.execute!({ query: "today" }, {} as never);
+      expect(result).toEqual({ content: [] });
+      expect(mocks.callTool).toHaveBeenCalledExactlyOnceWith(
+        "https://example.com/mcp",
+        { name: "search", arguments: { query: "today" } },
+      );
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("persists custom server approval settings across a reload", async () => {
+    mocks.toolNames = ["search"];
+    let records: MCPCustomServerRecord[] = [];
+    const storage = () =>
+      McpCustomStorage({
+        loadCustomServers: async () => records,
+        saveCustomServers: async (next) => {
+          records = next;
+        },
+        loadAuthState: async () => null,
+        saveAuthState: async () => {},
+        clearAuthState: async () => {},
+      });
+    const first = mount({ storage: storage() });
+    let id = "";
+    try {
+      const aui = first.getClient();
+      await vi.waitFor(() => expect(aui.mcp.getState().isHydrated).toBe(true));
+      id = await aui.mcp.addCustomServer({
+        name: "GitHub",
+        url: "https://example.com/mcp",
+        auth: { type: "none" },
+        requireApproval: false,
+      });
+      await vi.waitFor(() =>
+        expect(records).toEqual([
+          expect.objectContaining({ id, requireApproval: false }),
+        ]),
+      );
+    } finally {
+      first.destroy();
+    }
+
+    const second = mount({ storage: storage() });
+    try {
+      const aui = second.getClient();
+      await vi.waitFor(() =>
+        expect(aui.mcp.getState().servers).toHaveLength(1),
+      );
+      await aui.mcp.server({ id }).connect();
+      await vi.waitFor(() =>
+        expect(aui.modelContext.getState().toolNames).toContain(
+          `${id}__search`,
+        ),
+      );
+      await aui.modelContext.getModelContext().tools![`${id}__search`]!
+        .execute!({}, {} as never);
+      expect(mocks.callTool).toHaveBeenCalledExactlyOnceWith(
+        "https://example.com/mcp",
+        { name: "search", arguments: {} },
+      );
+    } finally {
+      second.destroy();
+    }
+  });
+
   it.each(["search", "get_pull_request_review_comments", "files.read"])(
     "resolves a named renderer for the registered %s tool",
     async (toolName) => {
@@ -122,6 +373,7 @@ describe("McpManagerResource tool registration", () => {
           name: "GitHub",
           url: "https://example.com/mcp",
           auth: { type: "none" },
+          requireApproval: false,
         });
         expect(id).toHaveLength(36);
         await vi.waitFor(() =>
@@ -161,6 +413,7 @@ describe("McpManagerResource tool registration", () => {
       name: letter,
       url: `https://example.com/${letter}/mcp`,
       auth: { type: "none" },
+      requireApproval: false,
       createdAt: 1,
     }));
     const registrations: { name: string; target: unknown }[][] = [];
