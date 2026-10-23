@@ -2,6 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
+import type { UIElement } from "../ir";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { defaultGenerativeUILibrary } from "../vocabulary";
 import { convertSurfaceToUISpec } from "./convert";
@@ -77,4 +78,35 @@ describe("A2UI action bindings", () => {
       }
     },
   );
+});
+
+describe("A2UI node budget", () => {
+  it("renders every list item the converter keeps", async () => {
+    const ids = Array.from({ length: 2_500 }, (_, index) => `item-${index}`);
+    const { spec, warnings } = convertSurfaceToUISpec({
+      components: new Map<string, Record<string, unknown>>([
+        ["root", { id: "root", component: "List", children: ids }],
+        ...ids.map((id) => [id, { id, component: "Text", text: id }] as const),
+      ]),
+      dataModel: {},
+    });
+    const items = (spec as UIElement).children as UIElement[];
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(
+          <div data-aui="root">
+            {renderGenerativeUI(spec, defaultGenerativeUILibrary, {
+              status: "done",
+            })}
+          </div>,
+        ),
+      );
+      expect(container.textContent).toContain(`item-${items.length - 1}`);
+      expect(warnings).toEqual(["A2UI node budget of 5000 was reached."]);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
 });
