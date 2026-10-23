@@ -506,10 +506,10 @@ async function requireDocsToolBudget(request: NextRequest) {
 }
 
 function buildMcpServer(request: NextRequest) {
-  const server = new McpServer({
-    name: "assistant-ui-docs",
-    version: "1.0.0",
-  });
+  const server = new McpServer(
+    { name: "assistant-ui-docs", version: "1.0.0" },
+    { maxToolInputElements: 10_000 },
+  );
   const requestUrl = request.url;
   const requestOrigin = new URL(requestUrl).origin;
 

@@ -3,6 +3,7 @@ import type { Instrumentation } from "next";
 import { PostHog, type EventMessage } from "posthog-node";
 import { getAnonymousSessionSecret } from "./anonymous-session";
 import { consentRequiredFor } from "./consent-region";
+import { getClientIp } from "./rate-limit";
 
 const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
@@ -41,7 +42,7 @@ export function getDistinctId(req: Request): string {
   const secret = getAnonymousSessionSecret();
   if (!secret) return "anon_unknown";
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = getClientIp(req);
   if (!ip) return "anon_unknown";
 
   return `anon_${createHmac("sha256", secret).update(ip).digest("base64url").slice(0, 24)}`;

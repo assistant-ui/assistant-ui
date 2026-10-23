@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAnonymousSession } from "@/lib/anonymous-session";
 import { readDemoUsage, resolveDemoIdentity } from "@/lib/demo-usage";
+import { getClientIp } from "@/lib/rate-limit";
 
 export type DemoUsagePayload = {
   used: number;
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
 
   const session = getAnonymousSession(request);
   const identity = await resolveDemoIdentity(session?.id ?? "unknown");
-  const usage = await readDemoUsage(identity);
+  const usage = await readDemoUsage(identity, getClientIp(request));
 
   const payload: DemoUsagePayload = {
     ...usage,
