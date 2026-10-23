@@ -45,6 +45,7 @@ export type McpServerResourceProps = {
   connectionTimeout?: number | undefined;
   cache?: { readonly defaultTtlMs?: number } | undefined;
   readonly elicitation?: boolean;
+  readonly requireApproval?: boolean;
   onRemove: () => Promise<void>;
 };
 
@@ -596,6 +597,7 @@ const useMcpServerResourceInstance = (
       tools,
       authorizationUrl,
       pendingElicitations,
+      requireApproval: props.requireApproval,
     }),
     [
       props.id,
@@ -608,6 +610,7 @@ const useMcpServerResourceInstance = (
       tools,
       authorizationUrl,
       pendingElicitations,
+      props.requireApproval,
     ],
   );
 

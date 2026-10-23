@@ -100,6 +100,9 @@ const useMcpManagerResource = (
           ...(c.elicitation !== undefined
             ? { elicitation: c.elicitation }
             : {}),
+          ...(c.requireApproval !== undefined
+            ? { requireApproval: c.requireApproval }
+            : {}),
           onRemove: async () => {
             // connectors cannot be removed
           },
@@ -124,6 +127,9 @@ const useMcpManagerResource = (
               ...(s.cache !== undefined ? { cache: s.cache } : {}),
               ...(s.elicitation !== undefined
                 ? { elicitation: s.elicitation }
+                : {}),
+              ...(s.requireApproval !== undefined
+                ? { requireApproval: s.requireApproval }
                 : {}),
               onRemove: async () => {
                 removeCustomServer(s.id);
@@ -172,8 +178,36 @@ const useMcpManagerResource = (
             ? { description: tool.description }
             : {}),
           parameters: tool.inputSchema as never,
-          execute: (args) =>
-            lookup.get({ key: server.id }).callTool(tool.name, args as unknown),
+          execute: async (args, context) => {
+            if (server.requireApproval !== false) {
+              const decision = await context.human({
+                type: "mcp-tool-approval",
+                serverId: server.id,
+                serverName: server.name,
+                toolName: tool.name,
+                arguments: args,
+              });
+              if (
+                decision !== true &&
+                !(
+                  typeof decision === "object" &&
+                  decision !== null &&
+                  "approved" in decision &&
+                  decision.approved === true
+                )
+              ) {
+                return {
+                  content: [
+                    { type: "text", text: "The user declined this tool call." },
+                  ],
+                  isError: true,
+                };
+              }
+            }
+            return lookup
+              .get({ key: server.id })
+              .callTool(tool.name, args as unknown);
+          },
         };
       }
     }
@@ -220,6 +254,7 @@ const useMcpManagerResource = (
       connectionTimeout,
       cache,
       elicitation,
+      requireApproval,
     }) => {
       const record: MCPCustomServerRecord = {
         id: createMcpId(),
@@ -229,6 +264,7 @@ const useMcpManagerResource = (
         connectionTimeout,
         ...(cache !== undefined ? { cache } : {}),
         ...(elicitation !== undefined ? { elicitation } : {}),
+        ...(requireApproval !== undefined ? { requireApproval } : {}),
         createdAt: Date.now(),
       };
       updateCustomServers((prev) => [...prev, record]);
