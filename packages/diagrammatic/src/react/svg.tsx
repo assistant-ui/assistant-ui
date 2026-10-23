@@ -382,6 +382,7 @@ export const MicroSvg = forwardRef<
   ) => {
     const label = title ?? rest["aria-label"];
     const px = sized(width);
+    const h = sized(height);
     return (
       <svg
         ref={ref}
@@ -394,7 +395,7 @@ export const MicroSvg = forwardRef<
         {...rest}
         width={px}
         height={
-          height ??
+          h ??
           (px === undefined
             ? undefined
             : Math.round(((px * vh) / vw) * 100) / 100)
@@ -404,14 +405,14 @@ export const MicroSvg = forwardRef<
             ? {
                 display: "block",
                 width: "100%",
-                height: height === undefined ? `${em}em` : `${height}px`,
+                height: h === undefined ? `${em}em` : `${h}px`,
                 fontFamily: FONT,
                 ...style,
               }
             : px === undefined
               ? {
                   display: "inline-block",
-                  height: height === undefined ? `${em}em` : `${height}px`,
+                  height: h === undefined ? `${em}em` : `${h}px`,
                   width: "auto",
                   verticalAlign: "-0.125em",
                   fontFamily: FONT,

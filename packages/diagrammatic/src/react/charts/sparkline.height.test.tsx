@@ -21,6 +21,16 @@ describe("micro chart height", () => {
     expect(style).toContain("height:24px");
   });
 
+  it("keeps the 1em default for a height that is not a positive number", () => {
+    for (const height of [0, -4, Number.NaN]) {
+      const html = renderToStaticMarkup(
+        <Sparkline block height={height} data={[1, 3, 2]} />,
+      );
+      expect(rootStyle(html)).toContain("height:1em");
+      expect(html).not.toMatch(/<svg[^>]* height="/);
+    }
+  });
+
   it("keeps the 1em default when no height is given", () => {
     expect(
       rootStyle(renderToStaticMarkup(<Sparkline block data={[1, 3, 2]} />)),
