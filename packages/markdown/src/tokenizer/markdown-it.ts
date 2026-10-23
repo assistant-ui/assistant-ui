@@ -14,6 +14,7 @@ import type {
   TableRowNode,
 } from "../ast";
 import { plainText } from "../plain-text";
+import { createText, sliceText } from "../text-node";
 import { mathPlugin } from "./math";
 import type { Tokenizer } from "./types";
 
@@ -47,11 +48,27 @@ const closeIndexOf = (tokens: Token[], open: number): number => {
   return tokens.length - 1;
 };
 
-const appendText = (siblings: InlineNode[], value: string) => {
-  if (!value) return;
-  const last = siblings.at(-1);
-  if (last?.type === "text") last.value += value;
-  else siblings.push({ type: "text", value });
+type TextRun = {
+  siblings: InlineNode[];
+  index: number;
+  value: string;
+  syntax: string;
+};
+
+const appendText = (runs: TextRun[], siblings: InlineNode[], token: Token) => {
+  if (!token.content) return;
+  const syntax =
+    token.type === "text_special"
+      ? "\0".repeat(token.content.length)
+      : token.content;
+  const run = runs.at(-1);
+  if (run?.siblings === siblings && run.index === siblings.length - 1) {
+    run.value += token.content;
+    run.syntax += syntax;
+    return;
+  }
+  runs.push({ siblings, index: siblings.length, value: token.content, syntax });
+  siblings.push({ type: "text", value: "" });
 };
 
 const withTitle = <T extends LinkNode | ImageNode>(
@@ -73,6 +90,7 @@ const isAutolinkKept = (token: Token, text: string): boolean =>
 const convertInline = (tokens: Token[]): InlineNode[] => {
   const root: InlineNode[] = [];
   const stack: InlineNode[][] = [root];
+  const runs: TextRun[] = [];
 
   tokens.forEach((token, index) => {
     const siblings = stack.at(-1)!;
@@ -84,7 +102,7 @@ const convertInline = (tokens: Token[]): InlineNode[] => {
     switch (token.type) {
       case "text":
       case "text_special":
-        appendText(siblings, token.content);
+        appendText(runs, siblings, token);
         break;
       case "softbreak":
         siblings.push({ type: "softBreak" });
@@ -154,6 +172,9 @@ const convertInline = (tokens: Token[]): InlineNode[] => {
     }
   });
 
+  for (const { siblings, index, value, syntax } of runs) {
+    siblings[index] = createText(value, syntax);
+  }
   return root;
 };
 
@@ -177,8 +198,9 @@ const convertListItem = (
   if (!marker) return item;
 
   item.checked = marker[1] !== " ";
-  text.value = text.value.slice(marker[0].length);
-  if (!text.value) {
+  const remaining = sliceText(text, marker[0].length);
+  first.children[0] = remaining;
+  if (!remaining.value) {
     first.children.shift();
     if (next?.type === "softBreak" || next?.type === "hardBreak") {
       first.children.shift();
@@ -334,6 +356,8 @@ export const createMarkdownItTokenizer = ({
   extensions,
 }: MarkdownItTokenizerOptions): Tokenizer => {
   const md = markdownIt("commonmark");
+  // Conversion joins text after recording the literal text_special tokens.
+  md.core.ruler.disable("text_join");
   if (extensions) {
     md.set({ linkify: true });
     md.linkify.set({ fuzzyLink: true });
