@@ -17,6 +17,39 @@ export const glyph = (
   />
 );
 
+const WEEKDAYS = [
+  "7 Jul",
+  "8 Jul",
+  "9 Jul",
+  "10 Jul",
+  "11 Jul",
+  "14 Jul",
+  "15 Jul",
+  "16 Jul",
+  "17 Jul",
+  "18 Jul",
+  "21 Jul",
+  "22 Jul",
+  "23 Jul",
+  "24 Jul",
+  "25 Jul",
+  "28 Jul",
+  "29 Jul",
+  "30 Jul",
+  "31 Jul",
+  "1 Aug",
+  "4 Aug",
+  "5 Aug",
+  "6 Aug",
+  "7 Aug",
+  "8 Aug",
+  "11 Aug",
+  "12 Aug",
+  "13 Aug",
+  "14 Aug",
+  "15 Aug",
+];
+
 export const examples: DemoExample[] = [
   {
     title: "Actual requests against the Friday forecast",
@@ -27,20 +60,7 @@ export const examples: DemoExample[] = [
       "Checkout POST per day versus the Friday forecast. 7 Jul to 15 Aug.",
     chart: (
       <FigTooltip
-        labels={[
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ]}
+        labels={WEEKDAYS}
         series={{
           actual: [
             14.2, 13.8, 15.1, 14.6, 13.2, 14.0, 13.6, 14.8, 15.4, 14.1, 22.6,

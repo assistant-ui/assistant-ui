@@ -31,7 +31,7 @@ export const examples: DemoExample[] = [
           label="nps"
           title="NPS against plan"
         />
-        <p className="flex justify-between font-[family-name:var(--font-mono)] text-[10px] tracking-[0.08em] text-(--da-ink)/40 uppercase">
+        <p className="text-muted-foreground flex justify-between text-xs">
           <span>poor</span>
           <span>ok</span>
           <span>good</span>
