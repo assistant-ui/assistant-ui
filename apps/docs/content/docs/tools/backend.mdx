@@ -26,6 +26,14 @@ const {
 } = await req.json();
 ```
 
+<Callout type="warn">
+  The `system` prompt and tool definitions in `tools` come from the browser
+  request, so any caller can set them. Keep instructions and limits your
+  server must enforce in server code, for example by prepending server-owned
+  text to the client's `system`. Allowlist the tools the server will run and
+  authenticate the route before deploying.
+</Callout>
+
 ## Generative toolkits: `AISDKToolkit`
 
 When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler: schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:

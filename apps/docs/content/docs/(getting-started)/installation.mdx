@@ -361,6 +361,8 @@ export async function POST(req: Request) {
 
 </Tabs>
 
+The `system` prompt and tool definitions in `tools` come from the browser request, so any caller can set them. Keep instructions and limits your server must enforce in server code, for example by prepending server-owned text to the client's `system`. Allowlist the tools the server will run and authenticate the route before deploying.
+
 Define environment variables:
 
 <Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
