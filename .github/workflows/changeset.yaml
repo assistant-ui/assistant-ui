@@ -132,22 +132,12 @@ jobs:
         with:
           script: |
             const { execFileSync } = require("node:child_process");
-            const { existsSync, readdirSync, readFileSync } = require("node:fs");
+            const { existsSync, readFileSync } = require("node:fs");
+            const { pendingChangesets } = await import(
+              `${process.env.GITHUB_WORKSPACE}/scripts/pending-changesets.mjs`
+            );
 
-            // A version PR merge leaves no changesets; this counts them the way changesets/action does.
-            const isChangeset = (file) =>
-              !file.startsWith(".") &&
-              file.endsWith(".md") &&
-              !/^README\.md$/i.test(file) &&
-              !["AGENTS.md", "CLAUDE.md", "GEMINI.md"].includes(file);
-            const changesetsIn = (dir) => (existsSync(dir) ? readdirSync(dir).filter(isChangeset) : []);
-            const preState = existsSync(".changeset/pre.json")
-              ? JSON.parse(readFileSync(".changeset/pre.json", "utf8"))
-              : undefined;
-            const changesets = [
-              ...changesetsIn(".changeset"),
-              ...(preState?.mode === "pre" ? [] : changesetsIn(".changeset/pre")),
-            ];
+            const changesets = pendingChangesets();
             if (changesets.length > 0) {
               core.info(`Release candidates: none while ${changesets.length} changesets are pending`);
               core.setOutput("hasReleasePackages", "false");
