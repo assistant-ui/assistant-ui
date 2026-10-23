@@ -26,8 +26,16 @@ const isVersion = (value) =>
   /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value);
 const rewrittenRange = (range, version) => {
   const workspace = range.startsWith("workspace:") ? "workspace:" : "";
-  const operator =
-    /^(?:[\^~]|[<>]=|>)/.exec(range.slice(workspace.length))?.[0] ?? "";
+  const bare = range.slice(workspace.length);
+  const comparators = bare.split(" ");
+  const lower = comparators.find((comparator) => comparator.startsWith(">"));
+  const upper = comparators.find((comparator) => comparator.startsWith("<"));
+  if (comparators.length === 2 && lower && upper) {
+    return comparators[0] === lower
+      ? `${workspace}>=${version} ${upper}`
+      : `${workspace}${upper} >=${version}`;
+  }
+  const operator = /^(?:[\^~]|[<>]=|>)/.exec(bare)?.[0] ?? "";
   return `${workspace}${operator}${version}`;
 };
 const isObject = (value) =>

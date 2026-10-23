@@ -20,8 +20,8 @@ const packageB = {
   name: "@fixture/b",
   version: "0.1.0",
   dependencies: { "@fixture/a": "^1.0.0", "left-pad": "^1.3.0" },
-  devDependencies: { "@fixture/a": "workspace:^1.0.0" },
-  peerDependencies: { "@fixture/a": "~1.0.0" },
+  devDependencies: { "@fixture/a": "workspace:~1.0.0" },
+  peerDependencies: { "@fixture/a": ">=1.0.0 <2.0.0" },
   optionalDependencies: { "@fixture/a": "*" },
 };
 
@@ -29,8 +29,8 @@ const versionedB = {
   ...packageB,
   version: "0.1.1",
   dependencies: { "@fixture/a": "^1.0.1", "left-pad": "^1.3.0" },
-  devDependencies: { "@fixture/a": "workspace:^1.0.1" },
-  peerDependencies: { "@fixture/a": "~1.0.1" },
+  devDependencies: { "@fixture/a": "workspace:~1.0.1" },
+  peerDependencies: { "@fixture/a": ">=1.0.1 <2.0.0" },
 };
 
 const files = {
@@ -139,7 +139,7 @@ test("rejects manifest edits beyond versions and released dependency ranges", ()
     ["dependencies", ">=1.0.1"],
     ["dependencies", "^11.0.10"],
     ["peerDependencies", ">=1.0.1 <999.0.0"],
-    ["peerDependencies", "~1.0.1 || ^9.0.0"],
+    ["peerDependencies", ">=1.0.1 <2.0.0 || ^9.0.0"],
   ]) {
     assert.deepEqual(
       editB({ [field]: { ...versionedB[field], "@fixture/a": range } }),
