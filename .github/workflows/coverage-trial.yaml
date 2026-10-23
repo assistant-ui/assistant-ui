@@ -1,0 +1,97 @@
+name: Coverage scheduling trial
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/coverage-trial.yaml"
+      - "scripts/coverage-trial.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Coverage trial (${{ matrix.lane }})
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [baseline, shard-0, shard-1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # assistant-stream's resumable store and apps/docs need a live Redis, or their Redis suites skip and miss their coverage thresholds.
+    services:
+      redis:
+        image: redis:8-alpine # ratchet:exclude
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-start-period 10s
+          --health-start-interval 1s
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: ${{ github.event_name == 'merge_group' && '0' || '2' }}
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test coverage routing and summary
+        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs
+
+      # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
+        run: pnpm turbo build --filter="./packages/*"
+
+      - name: Run React Compiler tests
+        env:
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
+        run: pnpm test:react-compiler
+
+      - name: Run every package's tests with coverage
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          if [ "$LANE" = baseline ]; then
+            pnpm test:coverage --continue
+          else
+            mapfile -t filters < <(node scripts/coverage-trial.mjs "${LANE#shard-}")
+            pnpm test:coverage --continue "${filters[@]}"
+          fi
+
+      - name: Write the coverage summary
+        if: always()
+        run: pnpm coverage:summary --report "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: coverage-trial-${{ matrix.lane }}
+          path: |
+            packages/*/coverage/
+            apps/*/coverage/
+            examples/*/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
