@@ -115,6 +115,22 @@ Tables, task-list checkboxes, strikethrough, and bare autolinks all render becau
 ~~deprecated~~ · https://assistant-ui.com
 ```
 
+### Images from assistant output
+
+Assistant markdown loads images from any origin by default. A model can put data in an image URL and cause a request to that URL. `MarkdownTextPrimitive` forwards react-markdown's `urlTransform`, so set one on it in `markdown-text.tsx` to restrict image URLs:
+
+```tsx
+import { defaultUrlTransform } from "react-markdown";
+
+<MarkdownTextPrimitive
+  urlTransform={(url, key) =>
+    key === "src" && !url.startsWith("https://cdn.example.com/")
+      ? ""
+      : defaultUrlTransform(url)
+  }
+/>;
+```
+
 ## API reference
 
 <RuntimeMode>

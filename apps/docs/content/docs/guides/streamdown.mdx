@@ -266,7 +266,7 @@ Allow specific HTML tags in markdown content:
 
 ### Security Configuration
 
-Restrict allowed URLs for links and images. This overrides streamdown's default allow-all policy:
+Streamdown allows links and images from any origin by default, so a model can put data in an image URL and cause a request to that URL. Restrict allowed URLs for links and images:
 
 ```tsx
 <StreamdownTextPrimitive

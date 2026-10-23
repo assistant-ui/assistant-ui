@@ -3,8 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { mediaVocabulary } from "./media";
 
-const render = (node: unknown) =>
-  renderToStaticMarkup(<>{renderGenerativeUI(node, mediaVocabulary)}</>);
+const render = (node: unknown, imageOrigins?: readonly string[]) =>
+  renderToStaticMarkup(
+    <>
+      {renderGenerativeUI(node, mediaVocabulary, {
+        status: "done",
+        ...(imageOrigins ? { imageOrigins } : {}),
+      })}
+    </>,
+  );
 
 describe("mediaVocabulary", () => {
   it("Diagram shows its Mermaid source and caption until a host draws it", () => {
@@ -43,6 +50,44 @@ describe("mediaVocabulary", () => {
     expect(html).toContain(
       '<img data-aui="image" data-aui-size="md" src="/a.png" alt="alt"/>',
     );
+  });
+
+  it("Image loads listed origins and data images", () => {
+    for (const src of [
+      "https://cdn.example.com/a.png",
+      "http://localhost:3000/a.png",
+      "data:image/png;base64,YQ==",
+    ]) {
+      expect(
+        render({ $type: "Image", src, alt: "alt" }, [
+          "https://cdn.example.com",
+          "http://localhost:3000",
+        ]),
+      ).toContain(`src="${src}"`);
+    }
+  });
+
+  it.each([
+    "https://other.example.com/a.png",
+    "https://cdn.example.com.evil.test/a.png",
+    "http://cdn.example.com/a.png",
+    "/a.png",
+    "//cdn.example.com/a.png",
+    "javascript:alert(1)",
+  ])("Image leaves only alt text for disallowed src %s", (src) => {
+    expect(
+      render({ $type: "Image", src, alt: "alt" }, ["https://cdn.example.com"]),
+    ).toBe("alt");
+  });
+
+  it("Image loads all origins by default and none of the remote origins with an empty list", () => {
+    const node = {
+      $type: "Image",
+      src: "https://other.example.com/a.png",
+      alt: "alt",
+    };
+    expect(render(node)).toContain('src="https://other.example.com/a.png"');
+    expect(render(node, [])).toBe("alt");
   });
 
   it("Image renders a numeric size as an inline max-width style, not a dead data-aui-size attribute", () => {

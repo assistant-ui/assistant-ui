@@ -107,6 +107,73 @@ describe("JSONGenerativeUI — client build", () => {
     expect(html).toContain('<section data-title="Hi"></section>');
   });
 
+  it("passes imageOrigins from JSONGenerativeUI to vocabulary images", () => {
+    const restricted = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      imageOrigins: ["https://cdn.example.com"],
+    });
+    const image = (src: string) => ({ $type: "Image", src, alt: "Preview" });
+    expect(
+      renderTool(restricted.present(), image("https://cdn.example.com/a.png")),
+    ).toContain('src="https://cdn.example.com/a.png"');
+    const blocked = renderTool(
+      restricted.present(),
+      image("https://other.example.com/a.png"),
+    );
+    expect(blocked).toContain("Preview");
+    expect(blocked).not.toContain("<img");
+  });
+
+  it("matches imageOrigins entries written as URLs with a path or uppercase host", () => {
+    const restricted = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      imageOrigins: ["https://CDN.example.com/assets/"],
+    });
+    expect(
+      renderTool(restricted.present(), {
+        $type: "Image",
+        src: "https://cdn.example.com/a.png",
+        alt: "Preview",
+      }),
+    ).toContain('src="https://cdn.example.com/a.png"');
+  });
+
+  it("passes imageOrigins through live A2UI conversion", () => {
+    const restricted = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      imageOrigins: ["https://cdn.example.com"],
+    });
+    const artifact = {
+      a2ui: [
+        {
+          version: "v1.0",
+          createSurface: {
+            surfaceId: "s",
+            components: [
+              {
+                id: "root",
+                component: "Image",
+                url: "https://other.example.com/a.png",
+                altText: "Preview",
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const html = renderTool(
+      restricted.present(),
+      { $type: "Text", value: "Fallback" },
+      {
+        toolCallId: "a2ui:s",
+        artifact,
+      },
+    );
+    expect(html).toContain("Preview");
+    expect(html).not.toContain("Fallback");
+    expect(html).not.toContain("<img");
+  });
+
   it("wraps the tree so top-level siblings are spaced by the surface", () => {
     const html = renderTool(ui.present(), [
       { $type: "Card", title: "One" },

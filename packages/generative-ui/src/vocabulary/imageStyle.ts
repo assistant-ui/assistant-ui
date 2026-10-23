@@ -1,3 +1,26 @@
+export function allowedImageSrc(
+  src: string | undefined,
+  imageOrigins: readonly string[] | undefined,
+): boolean {
+  if (imageOrigins === undefined) return true;
+  if (typeof src !== "string") return false;
+  if (/^data:image\//i.test(src)) return true;
+  if (!/^https?:\/\//i.test(src)) return false;
+  let origin: string;
+  try {
+    origin = new URL(src).origin;
+  } catch {
+    return false;
+  }
+  return imageOrigins.some((entry) => {
+    try {
+      return new URL(entry).origin === origin;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function imageStyle(
   size: string | number | undefined,
   round: boolean | undefined,

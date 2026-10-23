@@ -475,6 +475,7 @@ type GenerativeUIProps = NormalizedUIElement["props"];
 type GenerativeUIRenderContext = {
   status: GenerativeUIStatus;
   dispatch?: GenerativeUIDispatch;
+  imageOrigins?: readonly string[];
 };
 
 type GenerativeUISpec = {
@@ -562,6 +563,7 @@ declare class JSONGenerativeUI$1 {
 type JSONGenerativeUIOptions = {
   library: GenerativeUILibrary$1;
   actions?: ActionRegistry;
+  imageOrigins?: readonly string[];
 };
 
 declare const JUSTIFIES: readonly [
@@ -1080,6 +1082,7 @@ type StaticRenderProps<P> = P & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 };
@@ -1089,6 +1092,7 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "streaming";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 }) | (P & {
@@ -1096,6 +1100,7 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 });
@@ -1398,6 +1403,7 @@ interface ToSlackBlocksOptions {
 
 type ToSpecCatalogOptions = {
   actions?: Record<string, ActionDefinition>;
+  imageOrigins?: readonly string[];
 };
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;

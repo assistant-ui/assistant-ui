@@ -44,12 +44,14 @@ export class JSONGenerativeUI {
   private readonly library: GenerativeUILibrary;
   private readonly parameters: PresentParameters;
   private readonly actions: ActionRegistry | undefined;
+  private readonly imageOrigins: readonly string[] | undefined;
   private readonly completedPromptToolCallIds = new Set<string>();
 
   constructor(options: JSONGenerativeUIOptions) {
     this.library = options.library;
     this.parameters = buildPresentParameters(options.library);
     this.actions = options.actions;
+    this.imageOrigins = options.imageOrigins;
   }
 
   /**
@@ -123,6 +125,9 @@ export class JSONGenerativeUI {
           fallback={args}
           library={this.library}
           status={uiStatus(status, args)}
+          {...(this.imageOrigins !== undefined
+            ? { imageOrigins: this.imageOrigins }
+            : {})}
           {...(dispatch ? { dispatch } : {})}
         />
       ) : (
@@ -132,6 +137,9 @@ export class JSONGenerativeUI {
           context={{
             status: uiStatus(status, args),
             ...(dispatch ? { dispatch } : {}),
+            ...(this.imageOrigins !== undefined
+              ? { imageOrigins: this.imageOrigins }
+              : {}),
           }}
         />
       );
