@@ -9,7 +9,7 @@ import json
 
 async def test_chat():
     """Test the chat endpoint with streaming."""
-    url = "http://localhost:8001/api/chat"
+    url = "http://localhost:8010/assistant"
 
     payload = {
         "commands": [
@@ -73,7 +73,7 @@ async def test_chat():
 
 async def test_health():
     """Test the health endpoint."""
-    url = "http://localhost:8001/health"
+    url = "http://localhost:8010/health"
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
