@@ -1515,6 +1515,79 @@ describe("useExternalHistory persistence", () => {
     },
   );
 
+  it("reports a reply that waited for tool approval with the prompt it answers", async () => {
+    const { load, reportTelemetry, step, flush } =
+      createPersistenceHarness(true);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    const first = createUserMessage({
+      id: "user-1",
+      role: "user",
+      parts: ["first"],
+    });
+    const second = createUserMessage({
+      id: "user-2",
+      role: "user",
+      parts: ["second"],
+    });
+
+    await step({ isRunning: true, messages: [first] });
+    await step({
+      isRunning: false,
+      messages: [
+        first,
+        createAssistantMessage(
+          { type: "requires-action", reason: "tool-calls" },
+          [{ id: "inner-a", parts: ["pending"] }],
+          "assistant-a",
+        ),
+      ],
+    });
+    await flush();
+    await step({
+      isRunning: true,
+      messages: [
+        first,
+        createAssistantMessage(
+          { type: "requires-action", reason: "tool-calls" },
+          [{ id: "inner-a", parts: ["pending"] }],
+          "assistant-a",
+        ),
+        second,
+      ],
+    });
+    await step({
+      isRunning: false,
+      messages: [
+        first,
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [{ id: "inner-a", parts: ["pending", "final"] }],
+          "assistant-a",
+        ),
+        second,
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [{ id: "inner-b", parts: ["answer"] }],
+          "assistant-b",
+        ),
+      ],
+    });
+    await flush();
+
+    const reportedPrompts = () =>
+      Object.fromEntries(
+        reportTelemetry.mock.calls
+          .filter(([, options]) => options?.message?.role === "assistant")
+          .map(([, options]) => [options.message.id, options.userMessageId]),
+      );
+    await waitFor(() =>
+      expect(reportedPrompts()).toEqual({
+        "assistant-a": "user-1",
+        "assistant-b": "user-2",
+      }),
+    );
+  });
+
   it("reports an unanswered cancelled run even when prompt deletion fails", async () => {
     const {
       append,

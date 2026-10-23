@@ -712,7 +712,6 @@ export const useExternalHistory = <TMessage>(
 
             if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
               deferredTelemetryIds.current.delete(message.id);
-              const userMessageId = promptId ?? lastUserMessageId;
               adapter.reportTelemetry?.(
                 batchItems.map((item, index) => ({
                   ...item,
@@ -720,8 +719,8 @@ export const useExternalHistory = <TMessage>(
                 })),
                 {
                   ...telemetryOptions,
-                  ...(userMessageId !== undefined
-                    ? { userMessageId }
+                  ...(lastUserMessageId !== undefined
+                    ? { userMessageId: lastUserMessageId }
                     : undefined),
                   message,
                   ...(messageWriteFailure && {
