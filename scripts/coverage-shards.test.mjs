@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { coverageShards } from "./coverage-shards.mjs";
+import { coverageShards, coverageBuildFilters } from "./coverage-shards.mjs";
 
 function workspace(t, packages) {
   const root = mkdtempSync(path.join(tmpdir(), "coverage-shards-"));
@@ -81,5 +81,27 @@ test("the CLI emits the selected shard filters and rejects invalid shard indexes
   }
   assert.throws(() =>
     execFileSync(process.execPath, [script, "2"], { stdio: "pipe" }),
+  );
+});
+
+test("coverage builds retain package outputs and explicit build prerequisites", (t) => {
+  const root = workspace(t, [{ name: "library", tests: 1 }]);
+  const manifest = path.join(root, "packages/library/package.json");
+  writeFileSync(
+    manifest,
+    JSON.stringify({ name: "library", scripts: { build: "aui-build" } }),
+  );
+  assert.deepEqual(
+    coverageBuildFilters(
+      ["library"],
+      [
+        { task: "build", package: "registry", command: "build-registry" },
+        { task: "build", package: "library", command: "aui-build" },
+        { task: "test:coverage", package: "site", command: "vitest" },
+        { task: "build", package: "no-build", command: "<NONEXISTENT>" },
+      ],
+      root,
+    ),
+    ["--filter=library", "--filter=registry"],
   );
 });

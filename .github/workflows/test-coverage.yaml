@@ -124,12 +124,15 @@ jobs:
       - name: Test coverage routing and summary
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs
 
-      # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
+      # Vitest workers share the runner, so coverage runs two packages at a time after their builds finish at Turbo's default concurrency.
       - name: Build packages
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
-        run: pnpm turbo build --filter="./packages/*"
+        run: |
+          filters=$(node scripts/coverage-shards.mjs "${{ matrix.shard }}" build)
+          mapfile -t args <<< "$filters"
+          pnpm turbo build "${args[@]}"
 
       - name: Run React Compiler tests
         env:

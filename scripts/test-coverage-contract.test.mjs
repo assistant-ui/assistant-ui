@@ -366,3 +366,56 @@ test(
     assert.deepEqual(selected, baseline);
   },
 );
+
+test(
+  "shard builds retain coverage prerequisites and selected package outputs",
+  {
+    skip: !turboReady && "Install dependencies before testing the Turbo graph",
+  },
+  () => {
+    const manifests = readWorkspaceManifestEntries(root).manifests;
+    for (const [index, names] of coverageShards(root).entries()) {
+      const filters = execFileSync(
+        process.execPath,
+        [
+          path.join(root, "scripts/coverage-shards.mjs"),
+          String(index),
+          "build",
+        ],
+        { encoding: "utf8" },
+      )
+        .trim()
+        .split("\n");
+      const graph = (task, args) =>
+        JSON.parse(
+          execFileSync(turbo, ["run", task, "--dry=json", ...args], {
+            cwd: root,
+            encoding: "utf8",
+            maxBuffer: 32 * 1024 * 1024,
+          }),
+        ).tasks;
+      const built = new Set(
+        graph("build", filters)
+          .filter((task) => task.command !== "<NONEXISTENT>")
+          .map((task) => task.taskId),
+      );
+      const prerequisites = graph(
+        "test:coverage",
+        names.map((name) => `--filter=${name}`),
+      ).filter(
+        (task) => task.task === "build" && task.command !== "<NONEXISTENT>",
+      );
+      assert(prerequisites.length > 0);
+      for (const task of prerequisites)
+        assert(built.has(task.taskId), task.taskId);
+      for (const { manifest, pkg } of manifests) {
+        if (
+          names.includes(pkg.name) &&
+          manifest.startsWith("packages/") &&
+          pkg.scripts?.build
+        )
+          assert(built.has(`${pkg.name}#build`), pkg.name);
+      }
+    }
+  },
+);
