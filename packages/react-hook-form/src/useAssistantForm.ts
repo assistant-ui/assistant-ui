@@ -7,6 +7,7 @@ import { useAui } from "@assistant-ui/store";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   type Field,
+  type FieldPath,
   type FieldValues,
   type Path,
   type PathValue,
@@ -28,18 +29,14 @@ type PendingAssistantSubmit = {
   reject: (error: unknown) => void;
 };
 
+type ToolExecutionContext = Parameters<
+  NonNullable<NonNullable<ModelContext["tools"]>[string]["execute"]>
+>[1];
+
 const requestFormApproval = async (
-  human: unknown,
+  human: ToolExecutionContext["human"],
   type: "form-submit" | "form-reset",
 ) => {
-  if (typeof human !== "function") {
-    return {
-      success: false,
-      message:
-        "Approval is not available in this runtime. Set requireApproval: false to run without asking.",
-    } as const;
-  }
-
   const decision: unknown = await human({ type });
   if (
     decision === true ||
@@ -60,6 +57,8 @@ export type UseAssistantFormProps<
 > = UseFormProps<TFieldValues, TContext, TTransformedValues> & {
   assistant?:
     | {
+        /** Fields kept out of the form state shared with the model, in addition to password, one-time-code and card inputs detected in the DOM. */
+        sensitiveFields?: readonly FieldPath<TFieldValues>[];
         tools?:
           | {
               set_form_field?:
@@ -120,6 +119,7 @@ export const useAssistantForm = <
   } = form;
 
   const pendingAssistantSubmitRef = useRef<PendingAssistantSubmit | null>(null);
+  const detectedSensitiveFieldsRef = useRef(new Set<string>());
   const settleAssistantSubmit = useCallback((outcome: boolean) => {
     const pending = pendingAssistantSubmitRef.current;
     if (!pending) return;
@@ -224,6 +224,9 @@ export const useAssistantForm = <
     props?.assistant?.tools?.submit_form?.requireApproval !== false;
   const resetRequiresApproval =
     props?.assistant?.tools?.reset_form?.requireApproval !== false;
+  const sensitiveFieldsKey = (props?.assistant?.sensitiveFields ?? []).join(
+    "\n",
+  );
   useEffect(() => {
     const value: ModelContext = {
       tools: {
@@ -242,14 +245,25 @@ export const useAssistantForm = <
         submit_form: tool({
           ...formTools.submit_form,
           execute: async (_args, context) => {
+            if (isSubmitting || pendingAssistantSubmitRef.current) {
+              return {
+                success: false,
+                message: "The form is already submitting.",
+              };
+            }
+            const submitCount = control._formState.submitCount;
             if (submitRequiresApproval) {
               const denied = await requestFormApproval(
-                context?.human,
+                context.human,
                 "form-submit",
               );
               if (denied) return denied;
             }
-            if (isSubmitting || pendingAssistantSubmitRef.current) {
+            if (
+              control._formState.isSubmitting ||
+              control._formState.submitCount !== submitCount ||
+              pendingAssistantSubmitRef.current
+            ) {
               return {
                 success: false,
                 message: "The form is already submitting.",
@@ -361,7 +375,7 @@ export const useAssistantForm = <
           execute: async (_args, context) => {
             if (resetRequiresApproval) {
               const denied = await requestFormApproval(
-                context?.human,
+                context.human,
                 "form-reset",
               );
               if (denied) return denied;
@@ -375,7 +389,14 @@ export const useAssistantForm = <
 
     return aui.modelContext.register({
       getModelContext: () => {
-        const sensitiveFields = new Set<string>();
+        const sensitiveFields = new Set<string>(
+          detectedSensitiveFieldsRef.current,
+        );
+        for (const name of sensitiveFieldsKey
+          ? sensitiveFieldsKey.split("\n")
+          : []) {
+          sensitiveFields.add(name.replace(/\[(\d+)\]/g, ".$1"));
+        }
         for (const name of control._names.mount) {
           const field: Field | undefined = get(control._fields, name);
           const fieldReference: unknown = Array.isArray(field?._f?.refs)
@@ -405,7 +426,9 @@ export const useAssistantForm = <
               ) ||
                 autofillField.startsWith("cc-")))
           ) {
-            sensitiveFields.add(name.replace(/\[(\d+)\]/g, ".$1"));
+            const path = name.replace(/\[(\d+)\]/g, ".$1");
+            detectedSensitiveFieldsRef.current.add(path);
+            sensitiveFields.add(path);
           }
         }
 
@@ -456,6 +479,7 @@ export const useAssistantForm = <
     settleAssistantSubmit,
     submitRequiresApproval,
     resetRequiresApproval,
+    sensitiveFieldsKey,
   ]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;

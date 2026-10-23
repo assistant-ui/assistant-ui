@@ -125,34 +125,6 @@ describe("useAssistantForm", () => {
   );
 
   it.each(["submit_form", "reset_form"] as const)(
-    "reports missing approval support for %s",
-    async (name) => {
-      const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
-        event.preventDefault(),
-      );
-      const Form = () => {
-        const form = useAssistantForm({ defaultValues: { name: "Ada" } });
-        return <input {...form.register("name")} />;
-      };
-      const { container } = render(
-        <form onSubmit={submitted}>
-          <Form />
-        </form>,
-      );
-      const input = container.querySelector("input")!;
-      fireEvent.change(input, { target: { value: "Grace" } });
-
-      await expect(executeFormTool(name, {})).resolves.toEqual({
-        success: false,
-        message:
-          "Approval is not available in this runtime. Set requireApproval: false to run without asking.",
-      });
-      expect(submitted).not.toHaveBeenCalled();
-      expect(input.value).toBe("Grace");
-    },
-  );
-
-  it.each(["submit_form", "reset_form"] as const)(
     "runs %s when approval is disabled",
     async (name) => {
       const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
@@ -231,6 +203,61 @@ describe("useAssistantForm", () => {
     ).rejects.toBe(error);
   });
 
+  it("propagates a submit_form human rejection without submitting", async () => {
+    const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+      event.preventDefault(),
+    );
+    render(
+      <form onSubmit={submitted}>
+        <NativeRequiredField />
+      </form>,
+    );
+    const error = new Error(
+      "Tool interrupt is not supported in data stream runtime",
+    );
+
+    await expect(
+      executeFormTool("submit_form", {
+        human: async () => {
+          throw error;
+        },
+      }),
+    ).rejects.toBe(error);
+    expect(submitted).not.toHaveBeenCalled();
+  });
+
+  it("does not submit again after a manual submit while approval is pending", async () => {
+    let decide!: (value: unknown) => void;
+    const human = vi.fn(
+      () =>
+        new Promise<unknown>((resolve) => {
+          decide = resolve;
+        }),
+    );
+    const onValid = vi.fn();
+    const Form = () => {
+      const form = useAssistantForm({ defaultValues: { name: "Ada" } });
+      return (
+        <form onSubmit={form.handleSubmit(onValid)}>
+          <input {...form.register("name")} />
+        </form>
+      );
+    };
+    const { container } = render(<Form />);
+
+    const execution = executeFormTool("submit_form", { human });
+    expect(human).toHaveBeenCalledWith({ type: "form-submit" });
+    fireEvent.submit(container.querySelector("form")!);
+    await waitFor(() => expect(onValid).toHaveBeenCalledOnce());
+
+    decide(true);
+    await expect(execution).resolves.toEqual({
+      success: false,
+      message: "The form is already submitting.",
+    });
+    expect(onValid).toHaveBeenCalledOnce();
+  });
+
   it("omits sensitive fields from the model context", () => {
     const Form = () => {
       const form = useAssistantForm({
@@ -263,6 +290,48 @@ describe("useAssistantForm", () => {
 
     expect(provider.getModelContext().system).toBe(
       'Form State:\n{"profile":{"name":"Ada"}}',
+    );
+  });
+
+  it("keeps an unmounted password field out of the model context", () => {
+    let form!: ReturnType<
+      typeof useAssistantForm<{ name: string; password: string }>
+    >;
+    const Form = ({ showPassword }: { showPassword: boolean }) => {
+      form = useAssistantForm({
+        defaultValues: { name: "Ada", password: "secret" },
+      });
+      return (
+        <>
+          <input {...form.register("name")} />
+          {showPassword && (
+            <input type="password" {...form.register("password")} />
+          )}
+        </>
+      );
+    };
+    const { rerender } = render(<Form showPassword />);
+    expect(provider.getModelContext().system).toBe(
+      'Form State:\n{"name":"Ada"}',
+    );
+
+    rerender(<Form showPassword={false} />);
+    expect(form.getValues("password")).toBe("secret");
+    expect(provider.getModelContext().system).toBe(
+      'Form State:\n{"name":"Ada"}',
+    );
+  });
+
+  it("omits configured sensitive fields without mounted inputs", () => {
+    renderHook(() =>
+      useAssistantForm({
+        defaultValues: { name: "Ada", token: "secret" },
+        assistant: { sensitiveFields: ["token"] },
+      }),
+    );
+
+    expect(provider.getModelContext().system).toBe(
+      'Form State:\n{"name":"Ada"}',
     );
   });
 
