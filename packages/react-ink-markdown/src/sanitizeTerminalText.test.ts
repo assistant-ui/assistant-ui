@@ -32,4 +32,12 @@ describe("sanitizeTerminalText", () => {
   ])("removes %s", (_name, input, expected) => {
     expect(sanitizeTerminalText(input)).toBe(expected);
   });
+
+  it.each([
+    ["a newline after a malformed CSI", "a\x1b[\nb", "a\nb"],
+    ["CJK text after a malformed CSI", "a\x1b[12你好", "a你好"],
+    ["CJK text after a malformed C1 CSI", "a\u009b你好", "a你好"],
+  ])("keeps %s", (_name, input, expected) => {
+    expect(sanitizeTerminalText(input)).toBe(expected);
+  });
 });

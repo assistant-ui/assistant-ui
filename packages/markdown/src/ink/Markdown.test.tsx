@@ -32,6 +32,12 @@ describe("Markdown", () => {
     ).toBe("safe label");
   });
 
+  test("keeps the text after a malformed CSI", () => {
+    expect(render(<Markdown text={"a\x1b[\nb 你好"} final />).lastFrame()).toBe(
+      "a\nb 你好",
+    );
+  });
+
   test("renders blocks and inline runs with one blank line between blocks", () => {
     expect(
       frame(

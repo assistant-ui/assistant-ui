@@ -46,8 +46,13 @@ export const sanitizeTerminalText = (value: string): string => {
 
       if (code === 0x5b || code === 0x9b) {
         while (i < value.length) {
-          const next = value.charCodeAt(i++);
-          if (next >= 0x40 && next <= 0x7e) break;
+          const next = value.charCodeAt(i);
+          if (next >= 0x20 && next <= 0x3f) {
+            i++;
+            continue;
+          }
+          if (next >= 0x40 && next <= 0x7e) i++;
+          break;
         }
       } else if (
         code === 0x5d ||
