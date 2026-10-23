@@ -146,7 +146,13 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 
 /** The marks of the coding agents a setup can be handed to. */
-export function AgentMarks({ className }: { className?: string }) {
+export function AgentMarks({
+  className,
+  align = "start",
+}: {
+  className?: string;
+  align?: "start" | "end";
+}) {
   return (
     <ul
       aria-label="Supported coding agents"
@@ -159,7 +165,7 @@ export function AgentMarks({ className }: { className?: string }) {
           className="bg-background relative flex size-5 shrink-0 items-center justify-center rounded-full transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
           style={
             {
-              "--agent-offset": `${index * -1.125}rem`,
+              "--agent-offset": `${(align === "end" ? WORKS_WITH.length - 1 - index : -index) * 1.125}rem`,
               zIndex: WORKS_WITH.length - index,
             } as CSSProperties
           }
