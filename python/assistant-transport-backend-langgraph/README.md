@@ -34,10 +34,10 @@ cp .env.example .env
 The server can be configured via environment variables:
 
 - `HOST`: Server host (default: 127.0.0.1)
-- `PORT`: Server port (default: 8001)
+- `PORT`: Server port (default: 8010)
 - `DEBUG`: Enable debug mode (default: false)
 - `LOG_LEVEL`: Log level (default: info)
-- `CORS_ORIGINS`: CORS origins (default: http://localhost:3000)
+- `CORS_ORIGINS`: Comma separated origins allowed to call the server (default: http://localhost:3000). Add every origin your frontend runs on, such as `http://127.0.0.1:3000`; `*` allows any origin and turns off credentialed requests
 - `OPENAI_API_KEY`: Your OpenAI API key (required)
 - `LANGGRAPH_POSTGRES_URL`: Optional Postgres connection URL for LangGraph checkpoints
 - `DATABASE_URL`: Fallback Postgres connection URL when `LANGGRAPH_POSTGRES_URL` is not set
@@ -51,7 +51,7 @@ uv run python main.py
 
 Or with uvicorn directly:
 ```bash
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8001
+uv run uvicorn main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 ### Using standard Python
@@ -61,7 +61,7 @@ python main.py
 
 Or with uvicorn directly:
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8001
+uvicorn main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 ## API Endpoints
