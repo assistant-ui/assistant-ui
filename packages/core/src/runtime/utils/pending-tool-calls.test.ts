@@ -5,6 +5,7 @@ import {
 } from "./pending-tool-calls";
 
 type Message =
+  | { type: "user" }
   | { type: "assistant"; toolCalls: { id: string; name: string }[] }
   | { type: "tool"; toolCallId: string };
 
@@ -14,7 +15,9 @@ const getPendingToolCalls = (messages: readonly Message[]) =>
     (message) =>
       message.type === "assistant"
         ? { toolCalls: message.toolCalls }
-        : { toolCallId: message.toolCallId },
+        : message.type === "tool"
+          ? { toolCallId: message.toolCallId }
+          : undefined,
     (toolCall) => toolCall.id,
   );
 
@@ -22,6 +25,7 @@ describe("scanPendingToolCalls", () => {
   it("returns tool calls without matching results in history order", () => {
     expect(
       getPendingToolCalls([
+        { type: "user" },
         {
           type: "assistant",
           toolCalls: [
@@ -30,6 +34,7 @@ describe("scanPendingToolCalls", () => {
           ],
         },
         { type: "tool", toolCallId: "call-1" },
+        { type: "user" },
         {
           type: "assistant",
           toolCalls: [{ id: "call-3", name: "third" }],
