@@ -5,6 +5,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   chmod,
   mkdtemp,
+  mkdir,
   readdir,
   readFile,
   realpath,
@@ -34,6 +35,11 @@ vi.mock("./client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./client")>()),
   connectCheckout: vi.fn(),
 }));
+
+vi.mock("node:os", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:os")>();
+  return { ...original, tmpdir: vi.fn(original.tmpdir) };
+});
 
 describe("the agent's briefing", () => {
   it("preserves the published instructions export and setup-created event wording", () => {
@@ -659,10 +665,11 @@ describe("writeEnvSecret", () => {
 });
 
 describe("model key handoff", () => {
-  const setup = async () => {
-    const stateHome = await realpath(
-      await mkdtemp(join(tmpdir(), "setup-agent-state-")),
-    );
+  const fixture = async (stateHomePath?: (root: string) => Promise<string>) => {
+    const root = await mkdtemp(join(tmpdir(), "setup-agent-state-"));
+    const stateHome = stateHomePath
+      ? await stateHomePath(root)
+      : await realpath(root);
     const stateHomeVariable =
       process.platform === "win32" ? "LOCALAPPDATA" : "XDG_STATE_HOME";
     const prior = process.env[stateHomeVariable];
@@ -694,21 +701,60 @@ describe("model key handoff", () => {
       stdout.mockRestore();
       vi.mocked(connectCheckout).mockReset();
       vi.unstubAllGlobals();
+      vi.mocked(tmpdir).mockRestore();
       if (prior === undefined) delete process.env[stateHomeVariable];
       else process.env[stateHomeVariable] = prior;
-      await rm(stateHome, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true });
     });
+    return { state, ask, stateHome, root };
+  };
+
+  const setup = async (stateHomePath?: (root: string) => Promise<string>) => {
+    const context = await fixture(stateHomePath);
     await main([
       "https://checkout.test/session",
       "ask",
       "--preset",
       "llm-provider",
     ]);
-    const directory = join(stateHome, "setup-agent");
+    const directory = join(context.stateHome, "setup-agent");
     const files = await readdir(directory);
     const keyFile = join(directory, files[0]!);
     const redeemKey = await readFile(keyFile, "utf8");
-    return { state, ask, directory, files, keyFile, redeemKey };
+    return { ...context, directory, files, keyFile, redeemKey };
+  };
+
+  const answerModel = (state: Checkout.State) => {
+    state.inputs[0]!.status = "answered";
+    state.inputs[0]!.answer = JSON.stringify({
+      provider: "openai",
+      model: "gpt-test",
+    });
+  };
+
+  const fallbackDirectory = async () => {
+    const root = await mkdtemp(join(tmpdir(), "setup-agent-fallback-"));
+    vi.mocked(tmpdir).mockReturnValue(root);
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    return join(
+      root,
+      `setup-agent-${process.platform === "win32" ? (await import("node:os")).userInfo().username : process.getuid!()}`,
+    );
+  };
+
+  const redeem = async (state: Checkout.State, url: string) => {
+    answerModel(state);
+    const fetch = vi.fn(
+      async (_input: string, _init?: RequestInit) =>
+        new Response("provider-key"),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const directory = await mkdtemp(join(tmpdir(), "setup-agent-env-"));
+    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const file = join(directory, ".env.local");
+    await main([url, "env", "q1", "OPENAI_API_KEY", "--file", file]);
+    expect(await readFile(file, "utf8")).toBe("OPENAI_API_KEY=provider-key\n");
+    return fetch;
   };
 
   it.skipIf(process.platform === "win32")(
@@ -722,8 +768,138 @@ describe("model key handoff", () => {
       expect(ask.mock.calls[0]?.[0].redeemKeyHash).toBe(
         createHash("sha256").update(redeemKey).digest("hex"),
       );
+      expect(files).toEqual([`${ask.mock.calls[0]?.[0].redeemKeyHash}.key`]);
     },
   );
+
+  it.skipIf(process.platform === "win32")(
+    "stores and redeems through a symlinked state home ancestor",
+    async () => {
+      const { state, keyFile, redeemKey } = await setup(async (root) => {
+        await mkdir(join(root, "real", "state"), { recursive: true });
+        await symlink(join(root, "real"), join(root, "link"));
+        return join(root, "link", "state");
+      });
+      const fetch = await redeem(state, "https://checkout.test/session");
+      expect(fetch.mock.calls[0]?.[1]).toEqual({
+        headers: { "Setup-Agent-Redeem-Key": redeemKey },
+      });
+      expect(await readdir(join(keyFile, ".."))).toEqual([]);
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "rejects a symlinked setup-agent directory and uses the temp fallback",
+    async () => {
+      const { state, ask, stateHome, root } = await fixture();
+      const target = join(root, "target");
+      await mkdir(target);
+      await symlink(target, join(stateHome, "setup-agent"));
+      const fallback = await fallbackDirectory();
+      await main([
+        "https://checkout.test/session",
+        "ask",
+        "--preset",
+        "llm-provider",
+      ]);
+      const hash = ask.mock.calls[0]?.[0].redeemKeyHash;
+      expect(await readdir(target)).toEqual([]);
+      expect(await readdir(fallback)).toEqual([`${hash}.key`]);
+      const key = await readFile(join(fallback, `${hash}.key`), "utf8");
+      const fetch = await redeem(state, "https://checkout.test/session");
+      expect(fetch.mock.calls[0]?.[1]).toEqual({
+        headers: { "Setup-Agent-Redeem-Key": key },
+      });
+      expect(await readdir(fallback)).toEqual([]);
+    },
+  );
+
+  it("asks without a hash and warns once when neither directory can store a key", async () => {
+    const { ask, stateHome } = await fixture();
+    const fallback = await fallbackDirectory();
+    await writeFile(join(stateHome, "setup-agent"), "occupied");
+    await writeFile(fallback, "occupied");
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => stderr.mockRestore());
+    await main([
+      "https://checkout.test/session",
+      "ask",
+      "--preset",
+      "llm-provider",
+    ]);
+    expect(ask).toHaveBeenCalledOnce();
+    expect(ask.mock.calls[0]?.[0]).not.toHaveProperty("redeemKeyHash");
+    expect(stderr.mock.calls).toHaveLength(1);
+    expect(stderr.mock.calls[0]?.[0]).toMatch(
+      /^warning: could not store a redeem key: .*setup-agent-/,
+    );
+  });
+
+  it("removes a stored key when agent/ask fails", async () => {
+    const { ask, stateHome } = await fixture();
+    let storedKey: string | undefined;
+    ask.mockImplementation(async (seed) => {
+      storedKey = await readFile(
+        join(stateHome, "setup-agent", `${seed.redeemKeyHash}.key`),
+        "utf8",
+      );
+      throw new Error("ask rejected");
+    });
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      exit.mockRestore();
+      stderr.mockRestore();
+    });
+    await expect(
+      main([
+        "https://checkout.test/session",
+        "ask",
+        "--preset",
+        "llm-provider",
+      ]),
+    ).rejects.toThrow("exit");
+    expect(storedKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(await readdir(join(stateHome, "setup-agent"))).toEqual([]);
+  });
+
+  it("pairs ask and env across a trailing slash in the endpoint", async () => {
+    const { state, redeemKey, keyFile } = await setup();
+    const fetch = await redeem(state, "https://checkout.test/session/");
+    expect(fetch.mock.calls[0]?.[1]).toEqual({
+      headers: { "Setup-Agent-Redeem-Key": redeemKey },
+    });
+    expect(await readdir(join(keyFile, ".."))).toEqual([]);
+  });
+
+  it("succeeds when the key file disappears before env cleanup", async () => {
+    const { state, keyFile } = await setup();
+    answerModel(state);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        await unlink(keyFile);
+        return new Response("provider-key");
+      }),
+    );
+    const directory = await mkdtemp(join(tmpdir(), "setup-agent-env-"));
+    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const file = join(directory, ".env.local");
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => stderr.mockRestore());
+    await main([
+      "https://checkout.test/session",
+      "env",
+      "q1",
+      "OPENAI_API_KEY",
+      "--file",
+      file,
+    ]);
+    expect(await readFile(file, "utf8")).toBe("OPENAI_API_KEY=provider-key\n");
+    expect(stderr).not.toHaveBeenCalled();
+  });
 
   it("sends the stored key on env redemption and removes it after writing", async () => {
     const { state, keyFile, redeemKey } = await setup();
