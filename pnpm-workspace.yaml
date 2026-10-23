@@ -15,6 +15,7 @@ strictDepBuilds: true
 
 overrides:
   '@google/adk>adm-zip': ^0.6.1
+  '@vercel/container>tar': ^7.5.22
 
 verifyDepsBeforeRun: install
 
