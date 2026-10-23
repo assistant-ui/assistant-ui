@@ -85,7 +85,7 @@ export const examples: DemoExample[] = [
               { at: 50, label: "50" },
             ]}
           />
-          <ul className="text-muted-foreground mt-3 columns-2 gap-x-8 font-[family-name:var(--font-mono)] text-xs leading-5">
+          <ul className="text-muted-foreground mt-3 columns-2 gap-x-8 text-xs leading-5 tabular-nums">
             {MODELS.map((row) => (
               <li key={row.label}>
                 {row.label} · {row.y} · ${row.x} · {row.size}k

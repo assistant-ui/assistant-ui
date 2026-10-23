@@ -61,7 +61,7 @@ export default function DiagrammaticPage() {
       <header className="mx-auto max-w-2xl text-center">
         <h1 className={typePage}>Every chart, drawn on the server</h1>
         <p className={cn(typeDeck, "mx-auto mt-4 max-w-[54ch]")}>
-          Sixty-six chart forms for React. Server-rendered SVG with zero
+          Seventy chart forms for React. Server-rendered SVG with zero
           dependencies, sized in CSS pixels, and themed by CSS tokens.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">

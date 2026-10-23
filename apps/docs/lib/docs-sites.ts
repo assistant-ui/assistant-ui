@@ -62,11 +62,11 @@ export const SUB_PROJECT_REGISTRY = {
   diagrammatic: {
     title: "Diagrammatic",
     description:
-      "Sixty-six chart forms for React, drawn as server-rendered SVG with zero dependencies and themed by CSS tokens.",
+      "Seventy chart forms for React, drawn as server-rendered SVG with zero dependencies and themed by CSS tokens.",
     path: "packages/diagrammatic",
     productDescription: "Server-rendered SVG charts",
     oss: {
-      description: "Sixty-six chart forms, drawn on the server as SVG.",
+      description: "Seventy chart forms, drawn on the server as SVG.",
       tier: "major",
       npm: "diagrammatic",
       footerOrder: 6,
