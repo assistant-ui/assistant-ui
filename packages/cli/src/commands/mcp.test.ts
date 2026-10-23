@@ -25,40 +25,36 @@ const fixture = () => {
 };
 
 describe("mcp project configuration", () => {
-  it("refuses a symbolic link and preserves its target", async () => {
-    const directory = fixture();
-    const configDir = path.join(directory, ".cursor");
-    fs.mkdirSync(configDir);
-    const target = path.join(directory, "target.json");
-    const file = path.join(configDir, "mcp.json");
-    fs.writeFileSync(target, "{}\n", { mode: 0o644 });
-    fs.chmodSync(target, 0o644);
-    fs.symlinkSync(target, file);
-    await expect(
-      mcp.parseAsync(["--cursor"], { from: "user" }),
-    ).rejects.toThrow("exit");
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining(`${file} is a symbolic link`),
-    );
-    expect(fs.readFileSync(target, "utf8")).toBe("{}\n");
-    expect(fs.statSync(target).mode & 0o777).toBe(0o644);
-  });
-
-  it("refuses a parent directory linked outside the project", async () => {
-    const directory = fixture();
-    const outside = fs.mkdtempSync(
-      path.join(os.tmpdir(), "assistant-ui-mcp-outside-"),
-    );
-    directories.push(outside);
-    fs.symlinkSync(outside, path.join(directory, ".cursor"), "dir");
-    await expect(
-      mcp.parseAsync(["--cursor"], { from: "user" }),
-    ).rejects.toThrow("exit");
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("outside the project"),
-    );
-    expect(fs.existsSync(path.join(outside, "mcp.json"))).toBe(false);
-  });
+  it.each([
+    [
+      "--cursor",
+      ".cursor",
+      "mcpServers",
+      { url: "https://www.assistant-ui.com/mcp" },
+    ],
+    [
+      "--vscode",
+      ".vscode",
+      "servers",
+      { type: "http", url: "https://www.assistant-ui.com/mcp" },
+    ],
+  ])(
+    "writes %s configuration through a linked directory",
+    async (flag, name, key, server) => {
+      const directory = fixture();
+      const shared = fs.mkdtempSync(
+        path.join(os.tmpdir(), "assistant-ui-mcp-shared-"),
+      );
+      directories.push(shared);
+      fs.symlinkSync(shared, path.join(directory, name), "dir");
+      await mcp.parseAsync([flag], { from: "user" });
+      expect(
+        JSON.parse(fs.readFileSync(path.join(shared, "mcp.json"), "utf8")),
+      ).toEqual({
+        [key]: { "assistant-ui": server },
+      });
+    },
+  );
 
   it("writes regular and missing project configuration files", async () => {
     const directory = fixture();

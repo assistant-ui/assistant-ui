@@ -27,9 +27,9 @@ export type CloudProjectConfig = {
 export const writeCloudFile = async (
   file: string,
   contents: string,
-  options: { exclusive?: boolean; mode?: number; projectRoot?: string } = {},
+  options: { exclusive?: boolean; mode?: number; projectRoot: string },
 ): Promise<void> => {
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const { projectRoot } = options;
   assertSafeProjectFile(file, projectRoot);
   await mkdir(path.dirname(file), { recursive: true });
   assertSafeProjectFile(file, projectRoot);
