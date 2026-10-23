@@ -10,6 +10,7 @@ export const NOTES_PATH = "/__variants";
 type IncomingRequest = AsyncIterable<Uint8Array | string> & {
   method?: string | undefined;
   url?: string | undefined;
+  socket: { remoteAddress?: string | undefined };
   headers: Record<string, string | string[] | undefined>;
 };
 
@@ -40,10 +41,12 @@ export type VariantsPluginOptions = {
   /** Directory scanned and written; defaults to Vite's `root`. */
   root?: string | undefined;
   /**
-   * Hosts besides loopback that may reach the endpoints, with Vite's
+   * Host names besides loopback accepted by the Host check, with Vite's
    * `server.allowedHosts` semantics, merged with Vite's own `server.allowedHosts`.
    */
   allowedHosts?: AllowedHosts | undefined;
+  /** Admits clients outside loopback for a dev server reached through a container or VM port mapping; the Host check still applies. */
+  allowRemoteClients?: boolean | undefined;
 };
 
 /**
@@ -69,10 +72,16 @@ export function variants(options: VariantsPluginOptions = {}) {
         const notesRequest: NotesRequest = {
           method: request.method ?? "GET",
           path: request.url ?? "/",
+          remoteAddress: request.socket.remoteAddress ?? "",
           header,
           json: () => readJsonBody(request),
         };
-        void handleNotesRequest(notesRequest, { root, dev: true, allowedHosts })
+        void handleNotesRequest(notesRequest, {
+          root,
+          dev: true,
+          allowedHosts,
+          allowRemoteClients: options.allowRemoteClients,
+        })
           .catch(() => ({ status: 500, body: { error: "failed" } }))
           .then(({ status, body }) => {
             response.statusCode = status;
