@@ -221,7 +221,7 @@ function Instructions() {
 - Within one message, a later `show_widget` with the same title takes over a widget as it streams, and a later `edit_widget` once its edits are complete and apply, so the widget shows once; a streaming or failed edit leaves it in place, and earlier messages keep their own widgets.
 - In frontend execution, calls that render a frame wait for it to finish and return a `render` report (errors, console warnings, blank flag, height, and `feedback` text), so the model can fix a broken widget with `edit_widget`. A superseded call returns immediately with a `timeout` report explaining that it was not rendered. Tune with `renderReport: { timeoutMs, settleMs }` (10000 and 300 ms by default) or turn it off with `renderReport: false`.
 - `preview_widget` runs `previewWidget` in the browser. Its result leaves out the PNG unless `previewScreenshot: true`, because a base64 image in a JSON tool result is large.
-- A widget's `sendPrompt(text)` appends a user message to the thread.
+- A widget's `sendPrompt(text)` adds the text to the thread composer, after any draft the user has typed, for the user to review and send.
 - Frames follow the app's shadcn/ui theme (`useAssistantUiThemeTokens`).
 - The tools execute in the browser by default; the server forwards their schemas with `frontendTools(tools)` from `@assistant-ui/ai-sdk`. With `execution: "backend"`, run `toAISDKTools(createWidgetTools(), { jsonSchema })` on the server and the toolkit only renders. `getToolDeclarations` and `buildWidgetInstructions` from `generative-frame/tools` give a server the schemas and the instructions text.
 

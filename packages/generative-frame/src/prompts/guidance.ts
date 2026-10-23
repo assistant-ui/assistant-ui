@@ -172,7 +172,7 @@ const hostApiSection = (ctx: Context) => {
   const items: string[] = [];
   if (ctx.hostApi.prompt) {
     items.push(
-      '`sendPrompt(text)` sends `text` as the user\'s next chat message. Use it for drill-downs and follow-ups behind an explicit button ("Explain this spike"), with a short, self-contained message. Never call it without a user action.',
+      '`sendPrompt(text)` offers `text` as the user\'s next chat message, which the host may put in the composer for the user to review and send. Use it for drill-downs and follow-ups behind an explicit button ("Explain this spike"), with a short, self-contained message. Never call it without a user action.',
     );
   }
   items.push(
