@@ -51,7 +51,7 @@ uv run python main.py
 
 Or with uvicorn directly:
 ```bash
-uv run uvicorn main:app --reload --host 127.0.0.1 --port 8001
+uv run uvicorn main:app --reload --host 127.0.0.1 --port 8010
 ```
 
 ### Using standard Python
@@ -61,12 +61,12 @@ python main.py
 
 Or with uvicorn directly:
 ```bash
-uvicorn main:app --reload --host 127.0.0.1 --port 8001
+uvicorn main:app --reload --host 127.0.0.1 --port 8010
 ```
 
 ## API Endpoints
 
-### POST /api/chat
+### POST /assistant
 Main chat endpoint that processes commands and streams responses using LangGraph.
 
 Request body:
@@ -97,7 +97,7 @@ Health check endpoint.
 
 ## How It Works
 
-1. The server receives chat requests at `/api/chat`
+1. The server receives chat requests at `/assistant`
 2. Commands are converted to LangGraph messages (HumanMessage, AIMessage, etc.)
 3. The LangGraph processes the messages through its nodes using a per-thread checkpoint keyed by the AssistantTransport `threadId`
 4. Two streaming tasks run concurrently:
@@ -144,10 +144,17 @@ Because the FastAPI route streams with `graph.astream`, the backend uses `AsyncP
 This backend is designed to work with the assistant-ui frontend. Update your frontend configuration to point to this server:
 
 ```typescript
-const runtime = useExternalStoreRuntime({
-  endpoint: "http://localhost:8001/api/chat"
+import { useAssistantTransportRuntime } from "@assistant-ui/react";
+
+const runtime = useAssistantTransportRuntime({
+  initialState: { messages: [] },
+  protocol: "assistant-transport",
+  api: "http://localhost:8010/assistant",
+  converter,
 });
 ```
+
+`converter` turns the backend's state into messages; `examples/with-assistant-transport/app/MyRuntimeProvider.tsx` has a complete provider.
 
 ## Customizing the LangGraph
 

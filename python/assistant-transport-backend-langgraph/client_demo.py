@@ -9,7 +9,7 @@ import json
 
 async def test_chat():
     """Test the chat endpoint with streaming."""
-    url = "http://localhost:8001/api/chat"
+    url = "http://localhost:8010/assistant"
 
     payload = {
         "commands": [
@@ -58,11 +58,12 @@ async def test_chat():
                 for line in lines[:-1]:
                     if line.startswith('data: '):
                         data_str = line[6:]  # Remove 'data: ' prefix
-                        if data_str.strip():
+                        if data_str.strip() and data_str.strip() != "[DONE]":
                             try:
                                 data = json.loads(data_str)
-                                if data.get("type") == "state-update":
-                                    print(f"  State update: {json.dumps(data.get('value', {}), indent=2)}")
+                                if data.get("type") == "update-state":
+                                    operations = data.get("operations", [])
+                                    print(f"  State update: {json.dumps(operations, indent=2)}")
                                 else:
                                     print(f"  Event: {data.get('type', 'unknown')}")
                             except json.JSONDecodeError:
@@ -73,7 +74,7 @@ async def test_chat():
 
 async def test_health():
     """Test the health endpoint."""
-    url = "http://localhost:8001/health"
+    url = "http://localhost:8010/health"
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
