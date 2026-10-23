@@ -14,6 +14,24 @@ import path from "node:path";
 import test from "node:test";
 import { checkVersionPatch } from "./check-version-patch.mjs";
 
+const manifest = (fields) => `${JSON.stringify(fields, null, 2)}\n`;
+
+const packageB = {
+  name: "@fixture/b",
+  version: "0.1.0",
+  dependencies: { "@fixture/a": "^1.0.0", "left-pad": "^1.3.0" },
+  devDependencies: { "@fixture/a": "workspace:^1.0.0" },
+  peerDependencies: { "@fixture/a": ">=1.0.0 <2.0.0" },
+};
+
+const versionedB = {
+  ...packageB,
+  version: "0.1.1",
+  dependencies: { "@fixture/a": "^1.0.1", "left-pad": "^1.3.0" },
+  devDependencies: { "@fixture/a": "workspace:^1.0.1" },
+  peerDependencies: { "@fixture/a": ">=1.0.1 <2.0.0" },
+};
+
 const files = {
   "package.json": '{ "name": "root", "private": true }\n',
   "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
@@ -22,7 +40,7 @@ const files = {
   "packages/a/package.json": '{ "name": "@fixture/a", "version": "1.0.0" }\n',
   "packages/a/CHANGELOG.md": "# @fixture/a\n",
   "packages/a/src/index.js": "export {};\n",
-  "packages/b/package.json": '{ "name": "@fixture/b", "version": "0.1.0" }\n',
+  "packages/b/package.json": manifest(packageB),
 };
 
 function createRepo() {
@@ -78,10 +96,7 @@ const versionPackages = (at) => {
     at("packages/a/CHANGELOG.md"),
     "# @fixture/a\n\n## 1.0.1\n\n- fix: a thing\n",
   );
-  writeFileSync(
-    at("packages/b/package.json"),
-    '{ "name": "@fixture/b", "version": "0.1.1" }\n',
-  );
+  writeFileSync(at("packages/b/package.json"), manifest(versionedB));
   writeFileSync(at("packages/b/CHANGELOG.md"), "# @fixture/b\n\n## 0.1.1\n");
   writeFileSync(at("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n# updated\n");
   rmSync(at(".changeset/brave-fox.md"));
@@ -89,6 +104,78 @@ const versionPackages = (at) => {
 
 test("accepts what changeset version writes", () => {
   assert.deepEqual(check(patchOf(versionPackages)), []);
+});
+
+test("rejects manifest edits beyond versions and released dependency ranges", () => {
+  const editB = (fields) =>
+    check(
+      patchOf((at) => {
+        versionPackages(at);
+        writeFileSync(
+          at("packages/b/package.json"),
+          manifest({ ...versionedB, ...fields }),
+        );
+      }),
+    );
+  const changes = (field, name) =>
+    `The version patch changes ${field}${name ? `.${name}` : ""} in packages/b/package.json`;
+
+  assert.deepEqual(editB({ scripts: { prepare: "node evil.js" } }), [
+    changes("scripts"),
+  ]);
+  assert.deepEqual(
+    editB({
+      dependencies: { ...versionedB.dependencies, "left-pad": "^1.3.1" },
+    }),
+    [changes("dependencies", "left-pad")],
+  );
+  assert.deepEqual(
+    editB({ dependencies: { ...versionedB.dependencies, evil: "^1.0.0" } }),
+    [changes("dependencies", "evil")],
+  );
+  assert.deepEqual(
+    editB({
+      dependencies: {
+        ...versionedB.dependencies,
+        "@fixture/a": "npm:evil@1.0.1",
+      },
+    }),
+    [changes("dependencies", "@fixture/a")],
+  );
+  assert.deepEqual(
+    editB({ peerDependencies: { "@fixture/a": "^1.0.1 || ^9.0.0" } }),
+    [changes("peerDependencies", "@fixture/a")],
+  );
+  assert.deepEqual(
+    editB({
+      dependencies: { ...versionedB.dependencies, "@fixture/a": "^11.0.10" },
+    }),
+    [changes("dependencies", "@fixture/a")],
+  );
+  assert.deepEqual(editB({ optionalDependencies: 5 }), [
+    changes("optionalDependencies"),
+  ]);
+  assert.deepEqual(editB({ version: "latest" }), [
+    "The version patch sets an invalid version in packages/b/package.json",
+  ]);
+
+  const unreleased = check(
+    patchOf((at) =>
+      writeFileSync(at("packages/b/package.json"), manifest(versionedB)),
+    ),
+  );
+  assert.deepEqual(unreleased, [
+    changes("dependencies", "@fixture/a"),
+    changes("devDependencies", "@fixture/a"),
+    changes("peerDependencies", "@fixture/a"),
+  ]);
+
+  const invalid = check(
+    patchOf((at) => writeFileSync(at("packages/a/package.json"), "{ nope\n")),
+  );
+  assert.deepEqual(invalid, [
+    "The version patch makes packages/a/package.json invalid JSON",
+  ]);
 });
 
 test("rejects a change to any other file", () => {
