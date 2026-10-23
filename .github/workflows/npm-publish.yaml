@@ -808,8 +808,11 @@ jobs:
       - name: Create git tags and GitHub releases at the release SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Empty when the publish job skipped (rerun of an already-published
-          # release); the script then binds versions via provenance instead.
+          # Empty when the publish job skipped or had nothing to publish, and
+          # possibly after a failed publish (the action sets the step output
+          # before throwing, but GitHub's propagation of step outputs through
+          # a failed job is not documented); the script then binds versions
+          # via npm provenance instead, and skips what it cannot associate.
           PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published_packages }}
         run: node scripts/create-release-tags.mjs
 
