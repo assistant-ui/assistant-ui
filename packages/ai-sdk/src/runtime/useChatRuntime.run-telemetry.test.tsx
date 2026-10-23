@@ -42,7 +42,7 @@ const mountWithHistory = (transport: ChatTransport<UIMessage>) => {
       .map(([, options]) => options?.message as ThreadMessage | undefined)
       .filter((message) => message?.role === "assistant")
       .map((message) => message!.status);
-  return { harness, assistantReports, append, deleteItems };
+  return { harness, assistantReports, reportTelemetry, append, deleteItems };
 };
 
 describe("useChatRuntime run telemetry", () => {
@@ -52,12 +52,18 @@ describe("useChatRuntime run telemetry", () => {
   ])(
     "reports a run stopped before its first token with %s",
     async (_, draft, threadLength) => {
-      const { harness, assistantReports, append, deleteItems } =
-        mountWithHistory(createControlledTransport().transport);
+      const {
+        harness,
+        assistantReports,
+        reportTelemetry,
+        append,
+        deleteItems,
+      } = mountWithHistory(createControlledTransport().transport);
       await waitFor(() => expect(harness.client()).toBeDefined());
       harness.send();
       await waitFor(() => expect(harness.isRunning()).toBe(true));
       await waitFor(() => expect(append).toHaveBeenCalledOnce());
+      const promptId = harness.client().thread.getState().messages[0]!.id;
       if (draft !== undefined)
         flushTapSync(() => harness.client().composer.setText(draft));
 
@@ -72,6 +78,9 @@ describe("useChatRuntime run telemetry", () => {
         threadLength,
       );
       if (draft === undefined) {
+        expect(reportTelemetry.mock.calls[0]![1]).not.toHaveProperty(
+          "userMessageId",
+        );
         await waitFor(() => expect(deleteItems).toHaveBeenCalledOnce());
         expect(deleteItems).toHaveBeenCalledWith([
           expect.objectContaining({
@@ -82,6 +91,10 @@ describe("useChatRuntime run telemetry", () => {
           }),
         ]);
       } else {
+        expect(reportTelemetry.mock.calls[0]![1]).toHaveProperty(
+          "userMessageId",
+          promptId,
+        );
         expect(deleteItems).not.toHaveBeenCalled();
       }
     },
@@ -89,9 +102,8 @@ describe("useChatRuntime run telemetry", () => {
 
   it("keeps an answered prompt stored when its reload stops before the first token", async () => {
     const stream = createControlledTransport();
-    const { harness, assistantReports, append, deleteItems } = mountWithHistory(
-      stream.transport,
-    );
+    const { harness, assistantReports, reportTelemetry, append, deleteItems } =
+      mountWithHistory(stream.transport);
     await waitFor(() => expect(harness.client()).toBeDefined());
     harness.send();
     await waitFor(() => expect(harness.isRunning()).toBe(true));
@@ -105,6 +117,21 @@ describe("useChatRuntime run telemetry", () => {
     stream.close();
     await waitFor(() => expect(harness.isRunning()).toBe(false));
     await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    const promptId = harness.client().thread.getState().messages[0]!.id;
+    await waitFor(() => expect(assistantReports()).toHaveLength(1));
+    expect(
+      reportTelemetry.mock.calls.find(
+        ([, options]) => options?.message?.role === "assistant",
+      )![1],
+    ).toEqual(
+      expect.objectContaining({
+        userMessageId: promptId,
+        message: expect.objectContaining({
+          role: "assistant",
+          status: expect.objectContaining({ type: "complete" }),
+        }),
+      }),
+    );
 
     harness.client().thread.message({ index: 1 }).reload();
     await waitFor(() => expect(harness.isRunning()).toBe(true));
@@ -124,10 +151,14 @@ describe("useChatRuntime run telemetry", () => {
     ).toEqual(["user"]);
     expect(harness.client().composer.getState().text).toBe("");
     expect(deleteItems).not.toHaveBeenCalled();
+    expect(reportTelemetry.mock.calls.at(-1)![1]).toHaveProperty(
+      "userMessageId",
+      promptId,
+    );
   });
 
   it("reports the HTTP status of a request that failed before streaming", async () => {
-    const { harness, assistantReports } = mountWithHistory(
+    const { harness, assistantReports, reportTelemetry } = mountWithHistory(
       new DefaultChatTransport({
         api: "http://localhost/api/chat",
         fetch: async () => new Response("rate limited", { status: 429 }),
@@ -149,6 +180,10 @@ describe("useChatRuntime run telemetry", () => {
         },
       ]),
     );
+    expect(reportTelemetry.mock.calls[0]![1]).toHaveProperty(
+      "userMessageId",
+      harness.client().thread.getState().messages[0]!.id,
+    );
   });
 
   it("reports a run that ends without output as incomplete", async () => {
@@ -156,7 +191,7 @@ describe("useChatRuntime run telemetry", () => {
     const responded = new Promise<void>((resolve) => {
       respond = resolve;
     });
-    const { harness, assistantReports } = mountWithHistory(
+    const { harness, assistantReports, reportTelemetry } = mountWithHistory(
       new DefaultChatTransport({
         api: "http://localhost/api/chat",
         fetch: async () => {
@@ -178,6 +213,10 @@ describe("useChatRuntime run telemetry", () => {
       expect(assistantReports()).toEqual([
         { type: "incomplete", reason: "other" },
       ]),
+    );
+    expect(reportTelemetry.mock.calls.at(-1)![1]).toHaveProperty(
+      "userMessageId",
+      harness.client().thread.getState().messages[0]!.id,
     );
   });
 });

@@ -89,7 +89,7 @@ Errors return JSON. The message is in a string `error`, such as `{ "error": "Thr
 
 | Status | When |
 |---|---|
-| 400 | A field fails validation, an unknown field is sent to a strict route, malformed JSON, a message parent that is not in the thread, a `message_id` that is not in the thread, a bad cursor, a usage day range over 366 days, an unsupported attachment type, a malformed trace export, a URL that fails the public host check |
+| 400 | A field fails validation, an unknown field is sent to a strict route, malformed JSON, a message parent that is not in the thread, a `message_id` or `user_message_id` that is not in the thread, a bad cursor, a usage day range over 366 days, an unsupported attachment type, a malformed trace export, a URL that fails the public host check |
 | 401 | No or malformed `Authorization`, an expired token, a token not yet valid |
 | 402 | `{ "error": "plan_limit_reached", "plan", "cap", "period_end" }`: a new end user past the plan's active user cap, on `POST /v1/threads/{thread_id}/messages` with a user message only |
 | 403 | A credential on the wrong host, an unknown or expired key, an invalid token, a rule that matches no token, a route the credential may not use, anonymous access turned off, an anonymous caller claiming threads |

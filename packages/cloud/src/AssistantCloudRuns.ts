@@ -13,9 +13,9 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[]; // TODO type
 };
 
-// NOTE: Keep this payload shape aligned with the strict runtime validator in
+// NOTE: Keep this payload shape aligned with the runtime validator in
 // assistant-cloud: apps/api/src/endpoints/runs/create.ts
-// (createRunSchema). New telemetry fields must be added in both repos together.
+// (createRunSchema). New telemetry fields must be accepted there first.
 export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
@@ -32,6 +32,7 @@ export type AssistantCloudRunReport = {
     | "length"
     | "content_filter";
   message_id?: string;
+  user_message_id?: string;
   first_token_ms?: number;
   release?: string;
   environment?: string;

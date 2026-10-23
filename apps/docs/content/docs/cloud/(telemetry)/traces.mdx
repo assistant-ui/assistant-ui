@@ -159,7 +159,7 @@ A trace root's id is deterministic: `run_<first 24 hexadecimal characters of sha
 | Value from a client report | What a later trace export keeps |
 |---|---|
 | `source`, `created_by`, and `created_at` | The client owned value. |
-| `thread_id`, `assistant_id`, and `message_id` | The client owned value. |
+| `thread_id`, `assistant_id`, `message_id`, and `user_message_id` | The client owned value. |
 | `tags`, `environment`, and `release` | The client owned value. |
 | `first_token_ms` | The exported value, when present. |
 | `error_code` | The existing value. |
@@ -175,7 +175,8 @@ The report and trace must have the same valid W3C trace id in one project. Eithe
 | Field family | Trace receiver | Client report |
 |---|---|---|
 | Model, provider, usage, duration, steps, and span tree | Authoritative | Kept only as client report input, not used to replace server trace data. |
-| `message_id` and `tags` | Preserved when the client report supplied them | May write them. |
+| `message_id` and `user_message_id` | Preserved when the client report supplied them | May write them when the existing run has the same thread or no thread. |
+| `tags` | Preserved when the client report supplied them | May write them. |
 | `outcome_type` | Keeps trace behavior | May write only `aborted` or `disconnected`. |
 | Thread and user | Uses span attributes when present | May fill a missing thread or unknown telemetry user. |
 | Environment and release | Uses span resource attributes when present | May fill a missing value. |

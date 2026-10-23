@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "./AssistantCloud";
+import { CloudRunReporter } from "./CloudRunReporter";
 import {
   createRunReport,
   createRunTelemetryToolCall,
@@ -117,6 +119,44 @@ describe("describeRunError", () => {
 });
 
 describe("createRunReport", () => {
+  it("serializes the user message ID only when supplied", async () => {
+    expect(
+      createRunReport({
+        threadId: "thread-1",
+        status: "error",
+        userMessageId: "remote-user-1",
+      }),
+    ).toEqual({
+      thread_id: "thread-1",
+      status: "error",
+      user_message_id: "remote-user-1",
+    });
+    for (const options of [{}, { userMessageId: undefined }]) {
+      expect(
+        createRunReport({ threadId: "thread-1", status: "error", ...options }),
+      ).not.toHaveProperty("user_message_id");
+    }
+    const report = vi.fn().mockResolvedValue({ run_id: "run-1" });
+    const reporter = new CloudRunReporter({
+      telemetry: { enabled: true },
+      runs: { report },
+    } as unknown as AssistantCloud);
+    await reporter.report({
+      threadId: "thread-1",
+      status: "error",
+      userMessageId: "remote-user-1",
+    });
+    await reporter.report({ threadId: "thread-1", status: "error" });
+    expect(report.mock.calls.map(([body]) => body)).toEqual([
+      {
+        thread_id: "thread-1",
+        status: "error",
+        user_message_id: "remote-user-1",
+      },
+      { thread_id: "thread-1", status: "error" },
+    ]);
+  });
+
   const toolCall = {
     tool_name: "weather",
     tool_call_id: "call-1",

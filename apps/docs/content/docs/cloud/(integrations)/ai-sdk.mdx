@@ -352,11 +352,11 @@ The same settling pass reports each assistant message once it is terminal. The r
 
 ### Fields sent to the cloud
 
-The report contains the required `thread_id` and `status`, then includes the fields the runtime observed.
+The report contains the required `thread_id` and `status`, then includes the fields the runtime observed. `user_message_id` links to the stored prompt even when no assistant message was stored. The adapter waits for a pending prompt append; if it fails, has no mapped ID, or the runtime deletes the prompt after an early stop, the report omits `user_message_id`.
 
 | Report group | Fields |
 |---|---|
-| Message result | `message_id`, `outcome_type`, `error_code`, `error` |
+| Message result | `message_id`, `user_message_id`, `outcome_type`, `error_code`, `error` |
 | Model and usage | `model_id`, `provider`, `provider_type`, `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` |
 | Steps and tools | `steps`, `total_steps`, `tool_calls` |
 | Timing and output | `duration_ms`, `first_token_ms`, `output_text` |

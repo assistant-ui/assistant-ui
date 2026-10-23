@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor } from "@testing-library/react";
-import { type AssistantCloud, CloudAPIError } from "assistant-cloud";
+import {
+  type AssistantCloud,
+  CloudAPIError,
+  CloudRunReporter,
+} from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import {
@@ -116,10 +120,12 @@ const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
 function assertDefined<T>(value: T): asserts value is NonNullable<T> {
@@ -147,6 +153,128 @@ const makeToolCallMessage = (
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("formatted run prompt telemetry", () => {
+  const format = {
+    format: "ai-sdk/v6",
+    encode: ({ message }: { message: TelemetryMessage }) => message,
+    decode: ({
+      parent_id,
+      content,
+    }: {
+      parent_id: string | null;
+      content: TelemetryMessage;
+    }) => ({
+      parentId: parent_id,
+      message: content,
+    }),
+    getId: (message: TelemetryMessage) => message.id,
+  };
+  const prompt = {
+    parentId: null,
+    message: {
+      id: "local-user-1",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+    },
+  };
+  const message: ThreadAssistantMessage = {
+    ...makeAssistantMessage("unanswered"),
+    content: [],
+    status: { type: "incomplete", reason: "cancelled" },
+  };
+
+  it("resolves a stored prompt ID and omits an unmapped prompt ID", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const report = vi.spyOn(CloudRunReporter.prototype, "report");
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat!(format);
+    await formatted.append(prompt);
+
+    formatted.reportTelemetry!([], { message, userMessageId: "local-user-1" });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalledOnce());
+    expect(report.mock.calls[0]![0]).toEqual(
+      expect.objectContaining({
+        threadId: "thread-1",
+        userMessageId: "remote-message-1",
+      }),
+    );
+    formatted.reportTelemetry!([], { message, userMessageId: "missing-user" });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalledTimes(2));
+    expect(report.mock.calls[1]![0]).not.toEqual(
+      expect.objectContaining({ userMessageId: expect.anything() }),
+    );
+    expect(vi.mocked(cloud.runs.report).mock.calls[1]![0]).not.toHaveProperty(
+      "user_message_id",
+    );
+  });
+
+  it.each(["succeeds", "fails", "changes scope"] as const)(
+    "waits for a pending prompt append that %s without delaying a report with no prompt",
+    async (outcome) => {
+      mocks.aui = mocks.makeClient("thread-1");
+      const cloud = makeCloud();
+      const pending = deferred<{ message_id: string }>();
+      vi.mocked(cloud.threads.messages.create).mockReturnValue(pending.promise);
+      const report = vi.spyOn(CloudRunReporter.prototype, "report");
+      const scopeRef = { current: "scope-a" };
+      const { result } = renderHook(() =>
+        useScopedAssistantCloudThreadHistoryAdapter(
+          { current: cloud },
+          scopeRef,
+        ),
+      );
+      const formatted = result.current.withFormat!(format);
+      const appending = formatted.append(prompt);
+      const appendResult = appending.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await waitFor(() =>
+        expect(cloud.threads.messages.create).toHaveBeenCalledOnce(),
+      );
+
+      formatted.reportTelemetry!([], {
+        message,
+        userMessageId: "local-user-1",
+      });
+      formatted.reportTelemetry!([], { message });
+      await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+      expect(report).toHaveBeenCalledOnce();
+      expect(report.mock.calls[0]![0]).not.toEqual(
+        expect.objectContaining({ userMessageId: expect.anything() }),
+      );
+
+      if (outcome === "changes scope") scopeRef.current = "scope-b";
+      if (outcome === "fails") pending.reject(new Error("append failed"));
+      else pending.resolve({ message_id: "remote-user-1" });
+      expect(await appendResult).toEqual(
+        outcome === "fails" ? new Error("append failed") : undefined,
+      );
+
+      if (outcome === "changes scope") {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(report).toHaveBeenCalledOnce();
+        expect(cloud.runs.report).toHaveBeenCalledOnce();
+      } else {
+        await waitFor(() => expect(cloud.runs.report).toHaveBeenCalledTimes(2));
+        expect(report.mock.calls[1]![0]).toEqual(
+          expect.objectContaining({
+            threadId: "thread-1",
+            userMessageId: outcome === "succeeds" ? "remote-user-1" : undefined,
+          }),
+        );
+        if (outcome === "fails")
+          expect(
+            vi.mocked(cloud.runs.report).mock.calls[1]![0],
+          ).not.toHaveProperty("user_message_id");
+      }
+    },
+  );
 });
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {

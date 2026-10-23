@@ -172,7 +172,7 @@ const runtime = useCloudThreadListRuntime({
 });
 ```
 
-For a custom stored-message shape, use `ThreadHistoryAdapter.withFormat` with a message-format adapter. The formatted persistence handles cloud id mapping and parent chaining, and its `reportTelemetry` method sends the stored items, duration, step timestamps and thread message as one report.
+For a custom stored-message shape, use `ThreadHistoryAdapter.withFormat` with a message-format adapter. The formatted persistence handles cloud id mapping and parent chaining, and its `reportTelemetry` method sends the stored items, duration, step timestamps and thread message as one report. Pass `userMessageId` in the options to identify the local user message that started the run; the cloud adapter waits for its pending append and includes the remote ID as `user_message_id` when persistence succeeds.
 
 ## Troubleshooting
 
