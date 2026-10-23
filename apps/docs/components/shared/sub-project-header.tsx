@@ -10,6 +10,7 @@ import {
   Columns3,
   AppWindow,
   Box,
+  ChartArea,
   ChevronDown,
   FlaskConical,
   Grid3x3,
@@ -187,6 +188,7 @@ export function SubProjectHeader({
 const PROJECT_ICONS: Record<string, LucideIcon> = {
   "safe-content-frame": ShieldCheck,
   "generative-frame": AppWindow,
+  diagrammatic: ChartArea,
   "tw-shimmer": Sparkles,
   "heat-graph": Grid3x3,
   "react-o11y": Activity,

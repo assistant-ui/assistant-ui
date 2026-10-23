@@ -1,0 +1,59 @@
+---
+title: Accessibility
+description: How a chart names itself to assistive technology, and where the numbers go.
+---
+
+import { Figure } from "@/components/diagrammatic/figure";
+import { Column } from "diagrammatic";
+
+A chart is an image to a screen reader. `title` names it: the root `svg` gets `role="img"`, an `aria-label`, and an SVG `<title>`. `summary` adds a sentence in the figure's `<desc>`, which assistive technology reads after the title. A chart without a name is marked decorative with `aria-hidden`.
+
+```tsx
+<Column
+  title="Weekly deploys"
+  summary="Deploys rose from 14 in week 1 to 31 in week 7, passing the goal of 25 in week 5."
+  items={deploys}
+  target={{ at: 25, label: "goal" }}
+/>
+```
+
+Marks are pointer affordances and are not focus stops. When the numbers matter, render them in a table beside the figure, which is the accessible path and often the better reading for everyone:
+
+<Figure n={1} caption="The figure and its table, from the same rows">
+  <Column
+    title="Weekly deploys"
+    summary="Deploys rose from 14 in week 1 to 31 in week 7, passing the goal of 25 in week 5."
+    items={[
+      { label: "W1", value: 14 },
+      { label: "W2", value: 19 },
+      { label: "W3", value: 11 },
+      { label: "W4", value: 23 },
+      { label: "W5", value: 27 },
+      { label: "W6", value: 21 },
+      { label: "W7", value: 31 },
+    ]}
+    values
+    target={{ at: 25, label: "goal" }}
+  />
+  <details className="mt-4 text-sm">
+    <summary className="text-muted-foreground cursor-pointer">Show the data</summary>
+    <table className="mt-3 w-full tabular-nums">
+      <thead className="text-muted-foreground text-left text-xs">
+        <tr><th className="font-normal">Week</th><th className="text-right font-normal">Deploys</th></tr>
+      </thead>
+      <tbody>
+        {[14, 19, 11, 23, 27, 21, 31].map((v, i) => (
+          <tr key={i}><td>W{i + 1}</td><td className="text-right">{v}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </details>
+</Figure>
+
+## Color
+
+The categorical palette clears color-vision-deficiency separation checks, and charts with two or more series draw a legend, so color is never the only key. Diverging forms pair a hue with a direction (left and right of zero), not hue alone.
+
+## Motion
+
+Charts do not animate. The only transition is the highlight fade in `styles.css`; override it under `prefers-reduced-motion` if your app requires.

@@ -59,6 +59,20 @@ export const SUB_PROJECT_REGISTRY = {
       placement: "top",
     },
   },
+  diagrammatic: {
+    title: "Diagrammatic",
+    description:
+      "Sixty-six chart forms for React, drawn as server-rendered SVG with zero dependencies and themed by CSS tokens.",
+    path: "packages/diagrammatic",
+    productDescription: "Server-rendered SVG charts",
+    oss: {
+      description: "Sixty-six chart forms, drawn on the server as SVG.",
+      tier: "major",
+      npm: "diagrammatic",
+      footerOrder: 6,
+      placement: "top",
+    },
+  },
   native: {
     title: "assistant-ui for React Native",
     description:
@@ -152,7 +166,7 @@ export function subProjectGithubUrl(slug: SubProjectSlug): string {
 // at onto its new url, so published links and MCP resource paths keep
 // resolving.
 export const DOCS_SITES = (
-  ["safe-content-frame", "generative-frame"] as const
+  ["safe-content-frame", "generative-frame", "diagrammatic"] as const
 ).map((id) => ({
   id,
   title: subProject(id).title,

@@ -1,0 +1,12 @@
+{
+  "title": "Figures",
+  "description": "How a figure takes its size, type, colors, axes, and legends, and how to lay out panels.",
+  "icon": "Ruler",
+  "pages": [
+    "sizing",
+    "theming",
+    "axes-and-scales",
+    "legends-and-copy",
+    "small-multiples"
+  ]
+}

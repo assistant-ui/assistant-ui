@@ -1,0 +1,94 @@
+---
+title: World map
+description: A choropleth on real country outlines. Values keyed by ISO country code shade each country on one sequential ramp.
+---
+
+import { Example } from "@/components/diagrammatic/example";
+import Flagship from "@/components/diagrammatic/examples/world-map/flagship";
+import Basic from "@/components/diagrammatic/examples/world-map/basic";
+import SharedScale from "@/components/diagrammatic/examples/world-map/shared-scale";
+import Themed from "@/components/diagrammatic/examples/world-map/themed";
+import Regions from "@/components/diagrammatic/examples/world-map/regions";
+import Select from "@/components/diagrammatic/examples/world-map/select";
+import ZoomExample from "@/components/diagrammatic/examples/world-map/zoom";
+
+<Example file="world-map/flagship"><Flagship /></Example>
+
+## Usage
+
+```tsx
+import { WorldMap } from "diagrammatic/world";
+
+<WorldMap values={{ US: 412, DE: 198, IN: 231 }} />;
+```
+
+`WorldMap` ships in its own entry, `diagrammatic/world`, because 166 country outlines outweigh every other chart combined; only the pages that draw a map load them. The geometry is pre-projected (Miller) and simplified offline, so the component runs no geo code at render time and stays a server component.
+
+## Examples
+
+### Values by country
+
+`values` is keyed by ISO 3166-1 alpha-2 code. Each country shades from 10% to 95% of the accent by its share of the largest value; a country without a value draws as an outline only.
+
+<Example file="world-map/basic"><Basic /></Example>
+
+### One scale across maps
+
+`max` fixes the top of the ramp, so two maps side by side shade the same value the same way. Without it, each map scales to its own largest value.
+
+<Example file="world-map/shared-scale"><SharedScale /></Example>
+
+### Color and hover style
+
+The ramp is the first categorical token, `--dg-c1`. Every country is a mark with `data-series` set to its code, so CSS can style hover or single countries out.
+
+<Example file="world-map/themed"><Themed /></Example>
+
+## Interaction
+
+Countries are addressed by code: a tooltip reads `datum.series`, and a highlight takes `{ series: "DE" }` or a list of them.
+
+### Tooltip
+
+The figure at the top of this page: `highlightOnHover="series"` plus a `Tooltip` that looks the country's name up in the exported `WORLD` list.
+
+### Highlight a region
+
+A controlled highlight with a list of queries lights up a set of countries and fades the rest.
+
+<Example file="world-map/regions"><Regions /></Example>
+
+### Pick a country
+
+`onMarkClick` reports the clicked country's code.
+
+<Example file="world-map/select"><Select /></Example>
+
+### Zoom
+
+With a function child, `Zoom` hands the map a `view` window and the map redraws through it, so borders keep their hairline width at any magnification. Scroll to zoom, drag to pan, double-click to reset.
+
+<Example file="world-map/zoom"><ZoomExample /></Example>
+
+## Related
+
+- [Dot world map](/diagrammatic/docs/charts/dot-world-map) draws the same countries as halftone dots, with groups and flows.
+- [Choropleth](/diagrammatic/docs/charts/choropleth), [Symbol map](/diagrammatic/docs/charts/symbol-map), [Dot map](/diagrammatic/docs/charts/dot-map), and [Flow map](/diagrammatic/docs/charts/flow-map) draw on a tile grid in the main entry, which gives every region the same area.
+
+## Props
+
+<ParametersTable
+  type="WorldMapProps"
+  parameters={[
+    { name: "values", type: "Record<string, number>", description: "Values keyed by ISO 3166-1 alpha-2 code. Countries without a value draw as outlines." },
+    { name: "max", type: "number", description: "The value that takes the darkest shade. Defaults to the largest value." },
+    { name: "title", type: "string", description: "Names the map for assistive technology." },
+    { name: "summary", type: "string", description: "A sentence read after the title." },
+    { name: "width", type: "number", default: "640", description: "Rendered width in CSS pixels." },
+    { name: "height", type: "number", description: "Rendered height in CSS pixels." },
+    { name: "aspect", type: "number", description: "Width over height when `height` is not given." },
+    { name: "view", type: "{ x: number; y: number; w: number; h: number }", description: "A window onto the map, from `Zoom`." },
+  ]}
+/>
+
+`WORLD` (every country's code, name, and path), `WORLD_HEIGHT`, and `CENTROIDS` are exported from `diagrammatic/world` for hosts drawing their own overlays.

@@ -1,0 +1,77 @@
+---
+title: Dot world map
+description: The world as a halftone field of dots. Countries color by named group, and flows draw as trails between countries.
+---
+
+import { Example } from "@/components/diagrammatic/example";
+import Flagship from "@/components/diagrammatic/examples/dot-world-map/flagship";
+import Basic from "@/components/diagrammatic/examples/dot-world-map/basic";
+import Groups from "@/components/diagrammatic/examples/dot-world-map/groups";
+import Flows from "@/components/diagrammatic/examples/dot-world-map/flows";
+import ZoomExample from "@/components/diagrammatic/examples/dot-world-map/zoom";
+import Motion from "@/components/diagrammatic/examples/dot-world-map/motion";
+
+<Example file="dot-world-map/flagship"><Flagship /></Example>
+
+## Usage
+
+```tsx
+import { DotWorldMap } from "diagrammatic/world";
+
+<DotWorldMap
+  groups={{ "us-east": ["US", "CA"], "eu-west": ["GB", "DE"] }}
+  flows={[{ from: "US", to: "GB" }]}
+/>;
+```
+
+Use it when the question is where, not how much: a footprint, a coverage map, a replication topology. For a value per country, use the [World map](/diagrammatic/docs/charts/world-map).
+
+## Examples
+
+### A footprint
+
+One group lights up a set of countries; every other country stays a faint dot.
+
+<Example file="dot-world-map/basic"><Basic /></Example>
+
+### Groups
+
+`groups` maps a name to a list of country codes. Groups take the categorical palette in their key order. The map draws no legend of its own; put the DOM `Legend` above it with the same names, as the figure at the top does.
+
+<Example file="dot-world-map/groups"><Groups /></Example>
+
+### Flows
+
+`flows` draws a lifted trail from one country to another, blending from the source group's color to the target's.
+
+<Example file="dot-world-map/flows"><Flows /></Example>
+
+### Animated flows
+
+Put `data-dg-motion` on the map or any ancestor and each trail runs from source to target, so the direction reads without arrows. See [Motion](/diagrammatic/docs/motion).
+
+<Example file="dot-world-map/motion"><Motion /></Example>
+
+## Interaction
+
+Each country is a mark with `data-series` set to its code, and each flow carries its source in `series` and its target in `series2`, so one tooltip can describe both, as the figure at the top does.
+
+### Zoom
+
+<Example file="dot-world-map/zoom"><ZoomExample /></Example>
+
+## Props
+
+<ParametersTable
+  type="DotWorldMapProps"
+  parameters={[
+    { name: "groups", type: "Record<string, string[]>", description: "Named sets of ISO 3166-1 alpha-2 codes, colored in key order." },
+    { name: "flows", type: "{ from: string; to: string }[]", description: "Trails between two countries, by code." },
+    { name: "title", type: "string", description: "Names the map for assistive technology." },
+    { name: "summary", type: "string", description: "A sentence read after the title." },
+    { name: "width", type: "number", default: "640", description: "Rendered width in CSS pixels." },
+    { name: "height", type: "number", description: "Rendered height in CSS pixels." },
+    { name: "aspect", type: "number", description: "Width over height when `height` is not given." },
+    { name: "view", type: "{ x: number; y: number; w: number; h: number }", description: "A window onto the map, from `Zoom`." },
+  ]}
+/>

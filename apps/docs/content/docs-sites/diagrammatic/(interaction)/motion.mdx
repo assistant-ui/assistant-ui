@@ -1,0 +1,63 @@
+---
+title: Motion
+description: Animate flow direction and live points with one attribute and the shipped stylesheet, on charts that stay server components.
+---
+
+import { Example } from "@/components/diagrammatic/example";
+import DotWorld from "@/components/diagrammatic/examples/dot-world-map/motion";
+import SankeyMotion from "@/components/diagrammatic/examples/sankey/motion";
+import LiveLine from "@/components/diagrammatic/examples/line/live";
+
+Charts that draw a direction or a live reading stamp motion layers into their SVG. The layers are invisible and inert until two things are true: `diagrammatic/styles.css` is loaded, and the chart or any ancestor carries `data-dg-motion`. Motion is CSS only, so the chart stays a server component and no JavaScript runs to animate it.
+
+```tsx
+import "diagrammatic/styles.css";
+import { Sankey } from "diagrammatic";
+
+<div data-dg-motion="">
+  <Sankey graph={graph} />
+</div>;
+```
+
+<Example file="sankey/motion"><SankeyMotion /></Example>
+
+## What moves
+
+| Layer | Attribute | Charts | What it shows |
+| --- | --- | --- | --- |
+| Flow trail | `data-dg-flow` | `Sankey`, `Chord`, `Network`, `ArcDiagram`, `FlowMap` | A comet travels each connection from its source to its target. In a `Sankey` one sweep crosses the columns in order: every ribbon in the first stage runs together, then hands off to the next stage |
+| Flow step | `data-dg-flow-step` with `--dg-t` | `DotWorldMap` | The symbols along each trail light up in order, source first |
+| Pulse | `data-dg-pulse` | `Line` with one series, `Sparkline` | A halo pulses from the latest point, for a live reading |
+
+Motion only explains something the still figure cannot: which way a connection runs, or that a value is live. Charts without either stay still.
+
+<Example file="dot-world-map/motion"><DotWorld /></Example>
+
+## Live readings
+
+Toggle the attribute with the data source, so the pulse means the reading is live.
+
+<Example file="line/live"><LiveLine /></Example>
+
+## Reduced motion
+
+Every motion rule sits inside `@media (prefers-reduced-motion: no-preference)`. A reader who asks for reduced motion sees the still figure, with nothing for you to check.
+
+## Timing and style
+
+`--dg-motion-duration` sets how long one pass takes (2.4s by default). Every trail in a figure shares that one pass; each trail carries `--dg-flow-from` and `--dg-flow-to`, the offsets that place its comet in the sweep, so leave its dash pattern to the stylesheet and restyle color, width, or opacity instead.
+
+```css
+[data-dg-motion] {
+  --dg-motion-duration: 4s;
+}
+[data-dg-motion] [data-dg-flow] {
+  stroke-opacity: 0.6;
+}
+```
+
+A highlighted chart pauses the trails of muted connections, so a highlight reads the same in motion as at rest.
+
+## Without the stylesheet
+
+The layers draw nothing on their own: a trail has `stroke-opacity="0"` and a pulse has `opacity="0"`. A host that skips `styles.css` can write its own keyframes against the same attributes, or leave the charts still.

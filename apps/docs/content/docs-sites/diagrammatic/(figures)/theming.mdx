@@ -1,0 +1,80 @@
+---
+title: Theming
+description: The chart tokens, the shadcn/ui bridge, custom skins, and dark mode.
+---
+
+import { ThemeSkins } from "@/components/diagrammatic/samples";
+
+Every color a chart draws resolves through a `--dg-*` custom property, with the shipped value as its `var()` fallback. A chart renders correctly with no stylesheet at all, and reskins globally when you set the tokens. There is no color prop.
+
+| Token | Role |
+| --- | --- |
+| `--dg-c1` to `--dg-c7` | Categorical series, in a fixed order |
+| `--dg-pos` / `--dg-neg` | The diverging pair, gains and losses |
+| `--dg-ink` | Single-series marks and text; `currentColor` by default |
+| `--dg-muted` | Secondary text |
+| `--dg-grid` | Axes and grid lines |
+| `--dg-surface` | Separator strokes and occluding fills; set it to the card's background |
+| `--dg-font` | Chart text; inherits the host font by default |
+
+<ThemeSkins />
+
+## The shipped palette
+
+The seven categorical hues are a validated set: each pair clears lightness, chroma, color-vision-deficiency separation, and contrast checks in both light and dark mode. Past seven categories, rank them and fold the tail into one `Other`, which is the honest chart anyway. A single-series chart draws in ink, not in a hue.
+
+## shadcn/ui
+
+Import the bridge next to the defaults:
+
+```css title="app/globals.css"
+@import "diagrammatic/styles.css";
+@import "diagrammatic/shadcn.css";
+```
+
+It maps `--dg-c1` to `--dg-c5` onto `--chart-1` to `--chart-5` (the sixth and seventh fall back to the shipped hues), ink onto `--foreground`, muted onto `--muted-foreground`, grid onto `--border`, and surface onto `--background`. It reads each token as a complete color, the format shadcn/ui generates for Tailwind CSS v4. A Tailwind CSS v3 theme stores bare HSL channels, so wrap them yourself on the same selectors:
+
+```css
+[data-dg],
+[data-dg-legend] {
+  --dg-c1: hsl(var(--chart-1));
+  --dg-c2: hsl(var(--chart-2));
+  --dg-c3: hsl(var(--chart-3));
+  --dg-c4: hsl(var(--chart-4));
+  --dg-c5: hsl(var(--chart-5));
+  --dg-ink: hsl(var(--foreground));
+  --dg-muted: hsl(var(--muted-foreground));
+  --dg-grid: hsl(var(--border));
+  --dg-surface: hsl(var(--background));
+}
+```
+
+## Any other design system
+
+Set the tokens you want on any ancestor, or on `[data-dg]` to reach every chart:
+
+```css
+[data-dg],
+[data-dg-legend] {
+  --dg-c1: var(--brand-1);
+  --dg-grid: var(--line);
+  --dg-font: var(--font-mono);
+}
+```
+
+## Dark mode
+
+Ink, muted, and grid derive from `currentColor`, so they follow your text color into dark mode with no extra rule. The categorical hues are constant across modes, which is what lets white text sit on a series fill in both. Set `--dg-surface` to the background a chart sits on, so the separators between pie slices and treemap tiles match it.
+
+## Marks are styleable
+
+Every drawn mark carries `data-part="mark"` plus its address (`data-i`, `data-series`), and the other parts carry `data-part="grid"`, `"axis"`, `"legend"`, or `"region"`. Bars are plain `rect` elements with square corners, so you can round or restyle them from CSS:
+
+```css
+svg[data-dg] [data-part="mark"]:is(rect) {
+  rx: 3px;
+}
+svg[data-dg] [data-part="mark"]:hover {
+  opacity: 0.8;
+}
+```

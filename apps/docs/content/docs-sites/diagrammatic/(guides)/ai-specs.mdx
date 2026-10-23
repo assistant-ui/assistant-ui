@@ -1,0 +1,86 @@
+---
+title: Charts from a model
+description: Let a model emit a chart as JSON, validate it, and draw it with one component, in an assistant-ui thread or anywhere else.
+---
+
+import { SpecPlayground } from "@/components/diagrammatic/samples-client";
+
+`diagrammatic/spec` describes every form in the main entry as a serializable spec: the form's `type` plus its data props. A model can write that JSON, `validateSpec` checks it, and `Chart` draws it.
+
+<SpecPlayground />
+
+## The spec
+
+```json
+{
+  "v": "dg/1",
+  "type": "column",
+  "title": "Weekly deploys",
+  "unit": "none",
+  "items": [
+    { "label": "W1", "value": 14 },
+    { "label": "W2", "value": 19 }
+  ]
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `type` | The form, in kebab case: `"line"`, `"stacked-bar"`, `"sankey"`. `CHART_TYPES` lists all 68 |
+| `v` | The spec shape version, `"dg/1"`. Optional; any other value fails validation |
+| `unit` | How printed numbers are formatted: `"percent"`, `"compact"`, or `"none"`. A spec cannot carry a `format` function |
+| `title`, `width`, `height`, `fontSize` | The chart's name and its pixel contract |
+| everything else | The form's data props, exactly as the component takes them |
+
+Event handlers, `style`, refs, and `format` stay out, because a spec is JSON. `diagrammatic/world` is not part of the spec.
+
+## Validate and draw
+
+```tsx
+import { Chart, validateSpec } from "diagrammatic/spec";
+
+const spec = validateSpec(JSON.parse(modelOutput));
+<Chart spec={spec} />;
+```
+
+`validateSpec` checks that the type exists and that the form's required fields are present with the right shape, and throws an error naming the field when they are not. That message is written to be handed back to the model. `Chart` never throws: a spec with an unknown type renders an inert placeholder, so a malformed stream cannot take the page down. Deep field checks stay with TypeScript, through the `ChartSpec` type.
+
+## In an assistant-ui thread
+
+Register a tool whose arguments are a spec. The tool runs in the browser, returns the validation error to the model when there is one, and renders the chart in the thread.
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { CHART_TYPES, Chart, validateSpec } from "diagrammatic/spec";
+import { z } from "zod";
+
+export default defineToolkit({
+  render_chart: {
+    description: `Draw a chart from data. "type" is one of: ${CHART_TYPES.join(", ")}.`,
+    parameters: z.object({
+      spec: z.looseObject({ type: z.string() }),
+    }),
+    execute: async ({ spec }) => {
+      "use client";
+      try {
+        validateSpec(spec);
+        return { drawn: true };
+      } catch (error) {
+        return { error: (error as Error).message };
+      }
+    },
+    render: ({ args, status }) => {
+      if (status.type === "running") return <div className="h-64 animate-pulse" />;
+      try {
+        return <Chart spec={validateSpec(args.spec)} />;
+      } catch {
+        return null;
+      }
+    },
+  },
+});
+```
+
+The tool result carries the validation error back, so the model's next step can repair the spec.

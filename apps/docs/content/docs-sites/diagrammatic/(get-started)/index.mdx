@@ -1,0 +1,70 @@
+---
+title: Introduction
+description: Sixty-six chart forms for React, drawn as server-rendered SVG with zero dependencies and themed by CSS tokens.
+---
+
+import { Figure } from "@/components/diagrammatic/figure";
+import { examples as sankey } from "@/components/diagrammatic/demos/sankey";
+
+`diagrammatic` draws charts as SVG on the server. Every form is a pure function with no hooks and no browser APIs, so it renders in a React Server Component, in SSR, or in a static export as is. A figure is drawn in CSS pixels at a stated `width` and inherits the page's font, and its colors resolve through `--dg-*` custom properties, so it reskins with your design system and needs no configuration.
+
+<Figure n={1} caption={sankey[0].title}>{sankey[0].chart}</Figure>
+
+## Install
+
+<InstallCommand npm={["diagrammatic"]} />
+
+React 18 or 19 is the only peer. The package has no runtime dependencies.
+
+## Draw a chart
+
+```tsx
+import { Line } from "diagrammatic";
+
+export default function Page() {
+  return (
+    <Line
+      title="Weekly active users"
+      labels={["W1", "W2", "W3", "W4", "W5", "W6"]}
+      data={[1200, 1350, 1310, 1580, 1720, 1910]}
+      yTicks={4}
+    />
+  );
+}
+```
+
+No `"use client"`, no provider, and no stylesheet is required. Defaults are the product: a validated categorical palette, diverging pairs with a neutral midpoint, zero-based bars, and a legend whenever a chart has two or more named series.
+
+## Entry points
+
+| Entry | Contents |
+| --- | --- |
+| `diagrammatic` | 68 chart components, `SmallMultiples`, `Legend`, tile sets, and the scale and text helpers |
+| `diagrammatic/interactive` | `Root`, `Tooltip`, `Zoom`, `Fit`, `getMarkDatum`, `getSeriesColor`, `applyHighlight` (client) |
+| `diagrammatic/spec` | `Chart`, `validateSpec`, `CHART_TYPES`, and the `ChartSpec` type |
+| `diagrammatic/world` | `WorldMap` and `DotWorldMap` with their country geometry |
+| `diagrammatic/styles.css` | Token defaults and the highlight styles |
+| `diagrammatic/shadcn.css` | A bridge from shadcn/ui theme tokens to chart tokens |
+
+## Pages
+
+<Cards>
+  <Card title="Quickstart" href="/diagrammatic/docs/quickstart">
+    Draw a chart, theme it, and add a tooltip.
+  </Card>
+  <Card title="All charts" href="/diagrammatic/docs/charts">
+    Every chart, one page each, with live examples and props.
+  </Card>
+  <Card title="Theming" href="/diagrammatic/docs/theming">
+    The seven tokens, the shadcn/ui bridge, and dark mode.
+  </Card>
+  <Card title="Interaction" href="/diagrammatic/docs/interaction">
+    Tooltips, highlight, and clicks on server-rendered charts.
+  </Card>
+  <Card title="Charts from a model" href="/diagrammatic/docs/ai-specs">
+    Validate a JSON spec and draw it, in a thread or anywhere else.
+  </Card>
+  <Card title="Migrating from Recharts" href="/diagrammatic/docs/migrating-from-recharts">
+    Map a Recharts dashboard onto the forms.
+  </Card>
+</Cards>

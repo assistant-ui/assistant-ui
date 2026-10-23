@@ -1,0 +1,46 @@
+---
+title: Axes and scales
+description: Opt-in value axes, explicit tick ladders, log scales, target lines, and guides.
+---
+
+import { AxesCharts } from "@/components/diagrammatic/samples";
+
+A chart with no value axis is a legitimate default here. Ticks are opt-in through `yTicks` and `xTicks`, which take either a count or an explicit ladder.
+
+| Value | Result |
+| --- | --- |
+| unset | No value axis |
+| `4` | Four intervals on the 1, 2, 5 ladder inside the chart's own domain |
+| `[{ at, label }]` | Exactly those ticks; they widen the domain to include themselves |
+
+Labels come from the chart's `format`, and the widest printed label sizes the gutter, so a six-digit axis is not cut and a two-digit one does not waste the plot.
+
+<AxesCharts />
+
+## Log scales
+
+`Line`, `Area`, `Scatter`, `ConnectedScatter`, `Histogram`, `Hexbin`, `Contour`, `Column`, and `Bar` take `xScale` or `yScale` of `"log"`. A tick count on log paper counts decades, because a linear ladder on log paper lands on nothing.
+
+```tsx
+<Line labels={months} data={stars} yScale="log" yTicks={3} format={formatCompact} />
+```
+
+## Targets and guides
+
+`Column` and `Bar` take a `target` reference line with an optional label. Most value-axis forms take `guides`, a list of `{ at, axis, label }` lines for thresholds such as an SLO or a release. A guide sits on the value axis by default, in data units; `axis: "x"` puts it on the category axis, in index units or in `xs` units when the chart has them. A guide widens the domain to include itself.
+
+```tsx
+<Column items={deploys} target={{ at: 25, label: "goal" }} highlight="max" />
+<Line
+  labels={hours}
+  data={p95}
+  guides={[
+    { at: 300, label: "SLO" },
+    { at: 7, axis: "x", label: "deploy" },
+  ]}
+/>
+```
+
+## The same numbers elsewhere
+
+The tick math is exported: `niceTicks`, `decadeTicks`, `resolveTicks`, `niceStep`, and `upperBound`. Use them when a table header or a legend needs the same numbers the chart prints.

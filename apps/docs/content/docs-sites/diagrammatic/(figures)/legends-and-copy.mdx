@@ -1,0 +1,40 @@
+---
+title: Legends and copy
+description: The built-in legend, the DOM legend, number formatting, and why charts take data instead of copy.
+---
+
+import { LegendChart } from "@/components/diagrammatic/samples";
+
+The built-in legend is drawn inside the SVG and appears when a chart has two or more named series. `legend={false}` turns it off. The `Legend` export is its DOM counterpart: a list of swatches and names on the page's own type, wrapping like text, and colored through the same tokens.
+
+```tsx
+import { Legend, StackedArea } from "diagrammatic";
+
+<Legend names={series.map((s) => s.name)} />
+<StackedArea series={series} labels={weeks} legend={false} />
+```
+
+<LegendChart />
+
+Use the DOM legend when names are long, when several charts share one legend, or when the legend belongs in a card header. `getSeriesColor` from `diagrammatic/interactive` reads a series' rendered color from a live figure when you would rather ask the chart than the palette.
+
+## Numbers
+
+A chart prints numbers through `format`, a function from a number to a string. `formatCompact` is exported for the common case:
+
+```tsx
+import { Column, formatCompact } from "diagrammatic";
+
+<Column items={revenue} values format={(v) => `$${formatCompact(v)}`} />
+```
+
+## Data, not copy
+
+Chart props take data: numbers, labels, and series names. A prop that would take a pre-formatted sentence or a pre-cut label is not a chart prop, and the page around the figure is where that copy belongs. Titles, source lines, and captions are your markup:
+
+```tsx
+<figure>
+  <Column title="FrontierBench 1.1 scores" items={scores} categorical values />
+  <figcaption>Weighted mean of six agent tasks. Higher is better.</figcaption>
+</figure>
+```
