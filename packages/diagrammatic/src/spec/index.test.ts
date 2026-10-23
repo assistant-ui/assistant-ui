@@ -73,6 +73,70 @@ describe("validateSpec", () => {
       /"data" for type "area" must be an array/,
     );
   });
+
+  it.each([
+    [
+      { type: "column", items: [null] },
+      'Field "items[0]" for type "column" must be an object.',
+    ],
+    [
+      { type: "column", items: [{ label: 1, value: 2 }] },
+      'Field "items[0].label" for type "column" must be a string.',
+    ],
+    [
+      { type: "column", items: [{ label: "a", value: Infinity }] },
+      'Field "items[0].value" for type "column" must be a finite number.',
+    ],
+    [
+      { type: "line", data: [null] },
+      'Field "data[0]" for type "line" must be a finite number.',
+    ],
+    [
+      { type: "line", series: [{ name: "a", data: [null] }] },
+      'Field "series[0].data[0]" for type "line" must be a finite number.',
+    ],
+    [
+      { type: "line", data: [1], series: [null] },
+      'Field "series[0]" for type "line" must be an object.',
+    ],
+    [
+      { type: "scatter", points: [null] },
+      'Field "points[0]" for type "scatter" must be an object.',
+    ],
+    [
+      { type: "connected-scatter", points: [], series: [null] },
+      'Field "series[0]" for type "connected-scatter" must be an object.',
+    ],
+    [
+      {
+        type: "connected-scatter",
+        series: [{ name: "a", points: [{ x: 1, y: "bad" }] }],
+      },
+      'Field "series[0].points[0].y" for type "connected-scatter" must be a finite number.',
+    ],
+    [
+      { type: "sankey", graph: { nodes: [null], links: [] } },
+      'Field "graph.nodes[0]" for type "sankey" must be an object.',
+    ],
+    [
+      { type: "sankey", graph: { nodes: [], links: [{}] } },
+      'Field "graph.links[0].source" for type "sankey" must be a string.',
+    ],
+    [
+      { type: "bullet", value: 5, target: 4, bands: [1, 2] },
+      'Field "bands" for type "bullet" must be a tuple of 3 items.',
+    ],
+  ])("rejects malformed array entries with their path", (spec, message) => {
+    expect(() => validateSpec(spec)).toThrow(message);
+  });
+
+  it("accepts connected scatter series without points", () => {
+    const spec = {
+      type: "connected-scatter",
+      series: [{ name: "a", points: [{ x: 1, y: 2 }] }],
+    };
+    expect(validateSpec(spec)).toBe(spec);
+  });
 });
 
 describe("Chart", () => {
