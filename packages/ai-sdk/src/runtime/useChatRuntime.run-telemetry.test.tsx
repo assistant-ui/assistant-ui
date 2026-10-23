@@ -87,6 +87,38 @@ describe("useChatRuntime run telemetry", () => {
     },
   );
 
+  it("keeps an answered prompt stored when its reload stops before the first token", async () => {
+    const stream = createControlledTransport();
+    const { harness, append, deleteItems } = mountWithHistory(stream.transport);
+    await waitFor(() => expect(harness.client()).toBeDefined());
+    harness.send();
+    await waitFor(() => expect(harness.isRunning()).toBe(true));
+    stream.emit(
+      { type: "start" },
+      { type: "text-start", id: "t" },
+      { type: "text-delta", id: "t", delta: "answer" },
+      { type: "text-end", id: "t" },
+      { type: "finish" },
+    );
+    stream.close();
+    await waitFor(() => expect(harness.isRunning()).toBe(false));
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    harness.client().thread.message({ index: 1 }).reload();
+    await waitFor(() => expect(harness.isRunning()).toBe(true));
+    await harness.client().thread.cancelRun();
+    await waitFor(() => expect(harness.isRunning()).toBe(false));
+
+    expect(
+      harness
+        .client()
+        .thread.getState()
+        .messages.map((message) => message.role),
+    ).toEqual(["user"]);
+    expect(harness.client().composer.getState().text).toBe("");
+    expect(deleteItems).not.toHaveBeenCalled();
+  });
+
   it("reports the HTTP status of a request that failed before streaming", async () => {
     const { harness, assistantReports } = mountWithHistory(
       new DefaultChatTransport({
