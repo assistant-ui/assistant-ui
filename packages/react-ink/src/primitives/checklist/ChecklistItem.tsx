@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import type { ChecklistItemData, ChecklistItemStatus } from "./types";
 
 export type ChecklistItemProps = ComponentProps<typeof Box> & {
@@ -61,16 +62,18 @@ export const ChecklistItem = ({
       <Box marginLeft={depth * 2} gap={1}>
         <ChecklistIndicator status={item.status} />
         {item.status === "pending" ? (
-          <Text dimColor>{item.text}</Text>
+          <Text dimColor>{sanitizeTerminalText(item.text)}</Text>
         ) : (
           <Text
             bold={item.status === "running"}
             color={STATUS_COLORS[item.status]}
           >
-            {item.text}
+            {sanitizeTerminalText(item.text)}
           </Text>
         )}
-        {item.detail ? <Text dimColor>({item.detail})</Text> : null}
+        {item.detail ? (
+          <Text dimColor>({sanitizeTerminalText(item.detail)})</Text>
+        ) : null}
       </Box>
       {children}
     </Box>

@@ -1,5 +1,6 @@
 import { type ComponentProps, useMemo } from "react";
 import { Box, Text } from "ink";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import { DiffContent } from "./DiffContent";
 import { useDiffContext } from "./DiffContext";
 import { DiffRoot } from "./DiffRoot";
@@ -208,7 +209,7 @@ const getDiffViewFiles = ({
   newFile?: DiffFileInput | undefined;
 }): ParsedFile[] => {
   if (patch) {
-    return parsePatch(patch);
+    return parsePatch(sanitizeTerminalText(patch));
   }
 
   if (!oldFile || !newFile) {
@@ -216,14 +217,20 @@ const getDiffViewFiles = ({
   }
 
   const { lines, additions, deletions } = computeDiff(
-    oldFile.content,
-    newFile.content,
+    sanitizeTerminalText(oldFile.content),
+    sanitizeTerminalText(newFile.content),
   );
 
   return [
     {
-      oldName: oldFile.name,
-      newName: newFile.name,
+      oldName:
+        oldFile.name === undefined
+          ? undefined
+          : sanitizeTerminalText(oldFile.name),
+      newName:
+        newFile.name === undefined
+          ? undefined
+          : sanitizeTerminalText(newFile.name),
       lines,
       additions,
       deletions,

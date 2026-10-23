@@ -27,3 +27,17 @@ it("completes successive OSC 99 notifications without replacing earlier ones", (
 
   expect(messages).toEqual(["AI task complete", "Approve the tool"]);
 });
+
+it("removes terminal controls and field separators from OSC 777 fields", () => {
+  const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
+  sendOSCNotification(
+    "safe;\x1b]52;c;YWJj\x07title",
+    "body;\x1b[2Jdone",
+    "osc777",
+  );
+
+  expect(write).toHaveBeenCalledWith(
+    "\x1b]777;notify;safe title;body done\x07",
+  );
+});

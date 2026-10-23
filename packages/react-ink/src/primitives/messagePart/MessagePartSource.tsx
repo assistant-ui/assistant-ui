@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type MessagePartPrimitiveSourceProps = Omit<
   ComponentProps<typeof Text>,
@@ -31,7 +32,7 @@ export const MessagePartPrimitiveSource = (
     if (s.part.type !== "source") return "";
     return formatSource(s.part);
   });
-  return <Text {...props}>{label}</Text>;
+  return <Text {...props}>{sanitizeTerminalText(label)}</Text>;
 };
 
 MessagePartPrimitiveSource.displayName = "MessagePartPrimitive.Source";

@@ -18,6 +18,7 @@ import type {
 } from "../ast";
 import { plainText } from "../plain-text";
 import { createMarkdownSession } from "../session";
+import { sanitizeTerminalText } from "./sanitizeTerminalText";
 
 type RenderedNode = Exclude<
   MarkdownNode,
@@ -328,7 +329,9 @@ export const Markdown: FC<MarkdownProps> = ({
     setStableComponents(components);
   }
 
-  const root = session.update(text, { final: final === true });
+  const root = session.update(sanitizeTerminalText(text), {
+    final: final === true,
+  });
   return (
     <Box flexDirection="column" rowGap={1} width="100%">
       {renderBlocks(root.children, stableComponents)}

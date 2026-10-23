@@ -1,6 +1,7 @@
 import type { ComponentProps, FC } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type AttachmentThumbProps = ComponentProps<typeof Text>;
 
@@ -16,5 +17,5 @@ export const AttachmentThumb: FC<AttachmentThumbProps> = ({
     }
     return s.attachment.type;
   });
-  return <Text {...textProps}>{children ?? label}</Text>;
+  return <Text {...textProps}>{children ?? sanitizeTerminalText(label)}</Text>;
 };

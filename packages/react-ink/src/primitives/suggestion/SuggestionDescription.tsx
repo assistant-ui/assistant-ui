@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type SuggestionDescriptionProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
@@ -12,5 +13,5 @@ export const SuggestionDescription = ({
 }: SuggestionDescriptionProps) => {
   const label = useAuiState((s) => s.suggestion.label);
 
-  return <Text {...textProps}>{children ?? label}</Text>;
+  return <Text {...textProps}>{children ?? sanitizeTerminalText(label)}</Text>;
 };
