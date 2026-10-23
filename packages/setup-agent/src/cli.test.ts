@@ -6,6 +6,7 @@ import {
   readFile,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -568,6 +569,38 @@ describe("writeEnvSecret", () => {
         take,
       ),
     ).rejects.toThrow();
+    expect(take).not.toHaveBeenCalled();
+  });
+
+  it("refuses a symbolic link without taking the secret or changing its target", async () => {
+    const dir = await tempDir();
+    const target = join(dir, "target");
+    const file = join(dir, ".env.local");
+    await writeFile(target, "ORIGINAL=1\n");
+    await chmod(target, 0o644);
+    await symlink(target, file);
+    const take = vi.fn(async () => "sk-test");
+    await expect(writeEnvSecret(file, "OPENAI_API_KEY", take)).rejects.toThrow(
+      `${file} is a symbolic link; pass --file with its target to write there`,
+    );
+    expect(take).not.toHaveBeenCalled();
+    expect(await readFile(target, "utf8")).toBe("ORIGINAL=1\n");
+    expect((await stat(target)).mode & 0o777).toBe(0o644);
+  });
+
+  it("refuses a parent directory linked outside the project", async () => {
+    const project = await tempDir();
+    const outside = await tempDir();
+    await symlink(outside, join(project, "config"), "dir");
+    const take = vi.fn(async () => "sk-test");
+    await expect(
+      writeEnvSecret(
+        join(project, "config", ".env.local"),
+        "OPENAI_API_KEY",
+        take,
+        project,
+      ),
+    ).rejects.toThrow("outside the project");
     expect(take).not.toHaveBeenCalled();
   });
 
