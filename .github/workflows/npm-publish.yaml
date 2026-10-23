@@ -741,11 +741,91 @@ jobs:
       - name: Install the Changesets CLI
         run: pnpm install --frozen-lockfile --filter . --ignore-scripts
 
+      - name: Download the packed packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.pack_artifact_id }}
+          path: ${{ runner.temp }}/changeset-pack
+
+      # The build job runs every build tool, so its artifact may publish only what the summary job resolved without running package code.
+      - name: Check the packed packages against the release targets
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          PACK_DIR: ${{ runner.temp }}/changeset-pack
+          TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const { execFileSync } = require("node:child_process");
+
+            const packDir = path.resolve(process.env.PACK_DIR);
+            const targets = JSON.parse(process.env.TARGETS_JSON);
+            const expected = new Map(targets.map(({ name, version }) => [name, version]));
+
+            const packed = JSON.parse(
+              fs.readFileSync(path.join(packDir, "publish-plan.json"), "utf8"),
+            );
+            if (packed.version !== 1 || !Array.isArray(packed.plan)) {
+              core.setFailed("The packed publish plan has an unexpected format.");
+              return;
+            }
+
+            const problems = [];
+            const planned = new Set();
+            for (const release of packed.plan.flat()) {
+              const label = `${release.name}@${release.version}`;
+              if (release.kind !== "publish") {
+                problems.push(`${label} is a ${release.kind} entry`);
+                continue;
+              }
+              if (expected.get(release.name) !== release.version) {
+                problems.push(`${label} is not a release target`);
+                continue;
+              }
+              if (planned.has(release.name)) {
+                problems.push(`${release.name} is planned twice`);
+                continue;
+              }
+              planned.add(release.name);
+              if (release.tag !== "latest" || release.access !== "public") {
+                problems.push(`${label} would publish with tag ${release.tag} and access ${release.access}`);
+              }
+
+              const tarball = path.resolve(packDir, String(release.tarball?.path));
+              const relative = path.relative(packDir, tarball);
+              if (
+                path.dirname(relative) !== "packages" ||
+                !fs.existsSync(tarball) ||
+                !fs.lstatSync(tarball).isFile()
+              ) {
+                problems.push(`${label} points at ${release.tarball?.path}, not a packed file`);
+                continue;
+              }
+              const manifest = JSON.parse(
+                execFileSync("tar", ["-xzOf", tarball, "package/package.json"], {
+                  encoding: "utf8",
+                }),
+              );
+              if (manifest.name !== release.name || manifest.version !== release.version) {
+                problems.push(`${label} contains ${manifest.name}@${manifest.version}`);
+              }
+            }
+            for (const { name, version } of targets) {
+              if (!planned.has(name)) problems.push(`${name}@${version} is not packed`);
+            }
+
+            if (problems.length > 0) {
+              core.setFailed(`The packed packages do not match the release targets:\n${problems.join("\n")}`);
+              return;
+            }
+            core.info(`Checked ${planned.size} packed packages against the release targets.`);
+
       - name: Publish to npm and create GitHub releases
         id: changesets-publish
         uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/publish@v2.1.2
         with:
-          pack-dir-artifact-id: ${{ needs.build.outputs.pack_artifact_id }}
+          script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
           create-github-releases: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
