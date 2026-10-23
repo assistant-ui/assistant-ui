@@ -14,10 +14,18 @@ import {
 import { mediaVocabulary } from "./media";
 import { renderGenerativeUI } from "../../renderGenerativeUI";
 
+const scheme = vi.hoisted(() => ({ current: "light" as "light" | "dark" }));
+
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  useColorScheme: () => scheme.current,
+}));
+
 afterEach(() => {
   cleanupSpecs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  scheme.current = "light";
 });
 
 describe("media vocabulary on React Native", () => {
@@ -44,6 +52,28 @@ describe("media vocabulary on React Native", () => {
     const blocked = render("https://other.example.com/a.png");
     expect(blocked.querySelector("img")).toBeNull();
     expect(blocked.textContent).toBe("Portrait");
+  });
+
+  it("writes a blocked image's alt text in the theme's ink", () => {
+    scheme.current = "dark";
+    const blocked = renderElement(
+      <>
+        {renderGenerativeUI(
+          {
+            $type: "Image",
+            src: "https://other.example.com/a.png",
+            alt: "Portrait",
+          },
+          mediaVocabulary,
+          { status: "done", imageOrigins: ["https://cdn.example.com"] },
+        )}
+      </>,
+    );
+    const alt = [...blocked.querySelectorAll<HTMLElement>("div")].find(
+      (element) =>
+        element.textContent === "Portrait" && element.children.length === 0,
+    )!;
+    expect(getComputedStyle(alt).color).toBe("rgb(250, 250, 250)");
   });
 
   it.each([
