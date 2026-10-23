@@ -11,6 +11,30 @@ import { toSpecCatalog } from "./toSpecCatalog";
 describe("toSpecCatalog", () => {
   const { catalog, components } = toSpecCatalog();
 
+  it("limits vocabulary images to imageOrigins in a React spec catalog", () => {
+    const restricted = toSpecCatalog(undefined, {
+      imageOrigins: ["https://cdn.example.com"],
+    });
+    const renderImage = (src: string) =>
+      renderToStaticMarkup(
+        <SpecRenderer
+          catalog={restricted.catalog}
+          components={restricted.components}
+          spec={{
+            root: "image",
+            elements: {
+              image: { type: "Image", props: { src, alt: "Photo" } },
+            },
+          }}
+        />,
+      );
+
+    expect(renderImage("https://other.example.com/photo.png")).toBe("Photo");
+    expect(renderImage("https://cdn.example.com/photo.png")).toContain(
+      'src="https://cdn.example.com/photo.png"',
+    );
+  });
+
   it("declares every default component with its slots and events", () => {
     expect(Object.keys(catalog.components)).toEqual(
       Object.keys(defaultGenerativeUILibrary),

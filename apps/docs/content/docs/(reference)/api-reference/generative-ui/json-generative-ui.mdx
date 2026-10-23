@@ -35,7 +35,7 @@ Options for [JSONGenerativeUI](/docs/api-reference/generative-ui/json-generative
 <ParametersTable {...JSONGenerativeUIOptions} />
 
 {/* api-manual:JSONGenerativeUIOptions:start */}
-Set `imageOrigins` to a list of URL origins, such as `["https://cdn.example.com"]`, to limit which remote images the default vocabulary loads. `data:image/` URLs remain available. Omit it to allow images from any origin. The same option is available in the render context passed to `renderGenerativeUI` or `GenerativeUITree`.
+Set `imageOrigins` to a list of URL origins, such as `["https://cdn.example.com"]`, to limit which remote images the default vocabulary loads. `data:image/` URLs remain available. Omit it to allow images from any origin. The same option is available in the render context passed to `renderGenerativeUI` or `GenerativeUITree`, and in React and Vue spec catalogs built with `toSpecCatalog`, where a custom Vue component receives it by declaring an `imageOrigins` prop.
 {/* api-manual:JSONGenerativeUIOptions:end */}
 
 ### PresentToolOptions

@@ -1403,6 +1403,7 @@ interface ToSlackBlocksOptions {
 
 type ToSpecCatalogOptions = {
   actions?: Record<string, ActionDefinition>;
+  imageOrigins?: readonly string[];
 };
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;

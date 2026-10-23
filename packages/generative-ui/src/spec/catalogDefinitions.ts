@@ -10,6 +10,8 @@ import { vocabularyEvents } from "./wiring";
 export type ToSpecCatalogOptions = {
   /** Host actions the model may bind to component events, next to the built-in `setState`. */
   actions?: Record<string, ActionDefinition>;
+  /** Origins allowed for vocabulary images. Omit to allow all sources. */
+  imageOrigins?: readonly string[];
 };
 
 type SpecShape = {

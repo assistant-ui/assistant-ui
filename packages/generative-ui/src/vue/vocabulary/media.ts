@@ -1,6 +1,6 @@
 import { defineComponent, h } from "vue";
 import { mediaDefinitions } from "../../vocabulary/definitions/media";
-import { imageStyle } from "../../vocabulary/imageStyle";
+import { allowedImageSrc, imageStyle } from "../../vocabulary/imageStyle";
 import { mapPlaces, placeHref } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 
@@ -9,9 +9,16 @@ export const mediaVocabulary = {
     ...mediaDefinitions.Image,
     component: defineComponent({
       name: "GenerativeUIImage",
-      props: ["src", "alt", "size", "round"],
+      props: ["src", "alt", "size", "round", "imageOrigins"],
       setup(props) {
         return () => {
+          if (
+            !allowedImageSrc(
+              props.src as string | undefined,
+              props.imageOrigins as readonly string[] | undefined,
+            )
+          )
+            return props.alt ?? null;
           const { numericSize, style } = imageStyle(
             props.size as string | number | undefined,
             props.round as boolean | undefined,

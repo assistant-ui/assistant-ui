@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import type { Spec } from "generative-frame/spec";
+import { toSpecCatalog } from "../toSpecCatalog";
 import {
   cleanupSpecs,
   renderReactSpec,
@@ -11,6 +12,22 @@ import {
 afterEach(cleanupSpecs);
 
 describe("media vocabulary in Vue", () => {
+  it("limits vocabulary images to imageOrigins in a Vue spec catalog", () => {
+    const restricted = toSpecCatalog(undefined, {
+      imageOrigins: ["https://cdn.example.com"],
+    });
+    const renderImage = (src: string) =>
+      renderVueSpec(
+        spec({ main: { type: "Image", props: { src, alt: "Photo" } } }),
+        {},
+        restricted,
+      ).markup();
+
+    expect(renderImage("https://other.example.com/photo.png")).toBe("Photo");
+    expect(renderImage("https://cdn.example.com/photo.png")).toContain(
+      'src="https://cdn.example.com/photo.png"',
+    );
+  });
   it.each<[string, Spec["elements"]]>([
     [
       "a token sized image",
