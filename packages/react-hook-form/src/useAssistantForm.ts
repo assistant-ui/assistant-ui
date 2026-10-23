@@ -28,6 +28,31 @@ type PendingAssistantSubmit = {
   reject: (error: unknown) => void;
 };
 
+const requestFormApproval = async (
+  human: unknown,
+  type: "form-submit" | "form-reset",
+) => {
+  if (typeof human !== "function") {
+    return {
+      success: false,
+      message:
+        "Approval is not available in this runtime. Set requireApproval: false to run without asking.",
+    } as const;
+  }
+
+  const decision: unknown = await human({ type });
+  if (
+    decision === true ||
+    (typeof decision === "object" &&
+      decision !== null &&
+      "approved" in decision &&
+      decision.approved === true)
+  ) {
+    return null;
+  }
+  return { success: false, message: "The user declined." } as const;
+};
+
 export type UseAssistantFormProps<
   TFieldValues extends FieldValues,
   TContext,
@@ -51,6 +76,7 @@ export type UseAssistantFormProps<
                 | undefined;
               submit_form?:
                 | {
+                    requireApproval?: boolean;
                     render?:
                       | ToolCallMessagePartComponent<
                           z.infer<(typeof formTools.submit_form)["parameters"]>,
@@ -61,6 +87,7 @@ export type UseAssistantFormProps<
                 | undefined;
               reset_form?:
                 | {
+                    requireApproval?: boolean;
                     render?:
                       | ToolCallMessagePartComponent<
                           z.infer<(typeof formTools.reset_form)["parameters"]>,
@@ -193,6 +220,10 @@ export const useAssistantForm = <
   );
 
   const aui = useAui();
+  const submitRequiresApproval =
+    props?.assistant?.tools?.submit_form?.requireApproval !== false;
+  const resetRequiresApproval =
+    props?.assistant?.tools?.reset_form?.requireApproval !== false;
   useEffect(() => {
     const value: ModelContext = {
       tools: {
@@ -210,7 +241,14 @@ export const useAssistantForm = <
         }),
         submit_form: tool({
           ...formTools.submit_form,
-          execute: async () => {
+          execute: async (_args, context) => {
+            if (submitRequiresApproval) {
+              const denied = await requestFormApproval(
+                context?.human,
+                "form-submit",
+              );
+              if (denied) return denied;
+            }
             if (isSubmitting || pendingAssistantSubmitRef.current) {
               return {
                 success: false,
@@ -320,7 +358,14 @@ export const useAssistantForm = <
         }),
         reset_form: tool({
           ...formTools.reset_form,
-          execute: async () => {
+          execute: async (_args, context) => {
+            if (resetRequiresApproval) {
+              const denied = await requestFormApproval(
+                context?.human,
+                "form-reset",
+              );
+              if (denied) return denied;
+            }
             reset();
             return { success: true };
           },
@@ -329,10 +374,68 @@ export const useAssistantForm = <
     };
 
     return aui.modelContext.register({
-      getModelContext: () => ({
-        ...value,
-        system: `Form State:\n${JSON.stringify(getValues())}`,
-      }),
+      getModelContext: () => {
+        const sensitiveFields = new Set<string>();
+        for (const name of control._names.mount) {
+          const field: Field | undefined = get(control._fields, name);
+          const fieldReference: unknown = Array.isArray(field?._f?.refs)
+            ? field._f.refs[0]
+            : field?._f?.ref;
+          if (
+            typeof HTMLElement === "undefined" ||
+            !(fieldReference instanceof HTMLElement)
+          )
+            continue;
+          const autocomplete = (
+            fieldReference.getAttribute("autocomplete") ?? ""
+          ).toLowerCase();
+          if (
+            (fieldReference instanceof HTMLInputElement &&
+              fieldReference.type === "password") ||
+            ["current-password", "new-password", "one-time-code"].includes(
+              autocomplete,
+            ) ||
+            autocomplete.startsWith("cc-")
+          ) {
+            sensitiveFields.add(name.replace(/\[(\d+)\]/g, ".$1"));
+          }
+        }
+
+        const omitSensitive = (current: unknown, path: string): unknown => {
+          if (Array.isArray(current)) {
+            return current.map((entry, index) => {
+              const entryPath = path ? `${path}.${index}` : String(index);
+              return sensitiveFields.has(entryPath)
+                ? undefined
+                : omitSensitive(entry, entryPath);
+            });
+          }
+          if (
+            current !== null &&
+            typeof current === "object" &&
+            (Object.getPrototypeOf(current) === Object.prototype ||
+              Object.getPrototypeOf(current) === null)
+          ) {
+            return Object.fromEntries(
+              Object.entries(current)
+                .filter(
+                  ([key]) =>
+                    !sensitiveFields.has(path ? `${path}.${key}` : key),
+                )
+                .map(([key, entry]) => [
+                  key,
+                  omitSensitive(entry, path ? `${path}.${key}` : key),
+                ]),
+            );
+          }
+          return current;
+        };
+
+        return {
+          ...value,
+          system: `Form State:\n${JSON.stringify(omitSensitive(getValues(), ""))}`,
+        };
+      },
     });
   }, [
     control,
@@ -343,6 +446,8 @@ export const useAssistantForm = <
     isSubmitting,
     rejectAssistantSubmit,
     settleAssistantSubmit,
+    submitRequiresApproval,
+    resetRequiresApproval,
   ]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;

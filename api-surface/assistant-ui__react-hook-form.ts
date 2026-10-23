@@ -481,9 +481,11 @@ type UseAssistantFormProps<TFieldValues extends FieldValues, TContext, TTransfor
         render?: ToolCallMessagePartComponent<z.infer<(typeof formTools.set_form_field)["parameters"]>, unknown> | undefined;
       } | undefined;
       submit_form?: {
+        requireApproval?: boolean;
         render?: ToolCallMessagePartComponent<z.infer<(typeof formTools.submit_form)["parameters"]>, unknown> | undefined;
       } | undefined;
       reset_form?: {
+        requireApproval?: boolean;
         render?: ToolCallMessagePartComponent<z.infer<(typeof formTools.reset_form)["parameters"]>, unknown> | undefined;
       } | undefined;
     } | undefined;

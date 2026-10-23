@@ -46,11 +46,16 @@ beforeEach(() => {
   });
 });
 
-const executeSubmitForm = () => {
-  const submitTool = provider.getModelContext().tools?.submit_form;
-  if (!submitTool?.execute) throw new Error("submit_form is not registered");
-  return submitTool.execute({}, {} as never);
+const executeFormTool = (
+  name: "submit_form" | "reset_form",
+  context: unknown = { human: async () => true },
+) => {
+  const formTool = provider.getModelContext().tools?.[name];
+  if (!formTool?.execute) throw new Error(`${name} is not registered`);
+  return formTool.execute({}, context as never);
 };
+
+const executeSubmitForm = () => executeFormTool("submit_form");
 
 const expectSubmitBlocked = async () => {
   await expect(executeSubmitForm()).resolves.toEqual({
@@ -77,6 +82,190 @@ const expectRegisteredFieldsToSubmit = async (Fields: () => ReactNode) => {
 };
 
 describe("useAssistantForm", () => {
+  it.each(["submit_form", "reset_form"] as const)(
+    "asks before %s and leaves the form unchanged when denied",
+    async (name) => {
+      let decide!: (value: unknown) => void;
+      const human = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            decide = resolve;
+          }),
+      );
+      const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+        event.preventDefault(),
+      );
+      const Form = () => {
+        const form = useAssistantForm({ defaultValues: { name: "Ada" } });
+        return <input {...form.register("name")} />;
+      };
+      const { container } = render(
+        <form onSubmit={submitted}>
+          <Form />
+        </form>,
+      );
+      const input = container.querySelector("input")!;
+      fireEvent.change(input, { target: { value: "Grace" } });
+
+      const execution = executeFormTool(name, { human });
+      expect(human).toHaveBeenCalledWith({
+        type: name === "submit_form" ? "form-submit" : "form-reset",
+      });
+      expect(submitted).not.toHaveBeenCalled();
+      expect(input.value).toBe("Grace");
+
+      decide({ approved: false });
+      await expect(execution).resolves.toEqual({
+        success: false,
+        message: "The user declined.",
+      });
+      expect(submitted).not.toHaveBeenCalled();
+      expect(input.value).toBe("Grace");
+    },
+  );
+
+  it.each(["submit_form", "reset_form"] as const)(
+    "reports missing approval support for %s",
+    async (name) => {
+      const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+        event.preventDefault(),
+      );
+      const Form = () => {
+        const form = useAssistantForm({ defaultValues: { name: "Ada" } });
+        return <input {...form.register("name")} />;
+      };
+      const { container } = render(
+        <form onSubmit={submitted}>
+          <Form />
+        </form>,
+      );
+      const input = container.querySelector("input")!;
+      fireEvent.change(input, { target: { value: "Grace" } });
+
+      await expect(executeFormTool(name, {})).resolves.toEqual({
+        success: false,
+        message:
+          "Approval is not available in this runtime. Set requireApproval: false to run without asking.",
+      });
+      expect(submitted).not.toHaveBeenCalled();
+      expect(input.value).toBe("Grace");
+    },
+  );
+
+  it.each(["submit_form", "reset_form"] as const)(
+    "runs %s when approval is disabled",
+    async (name) => {
+      const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+        event.preventDefault(),
+      );
+      let form!: ReturnType<typeof useAssistantForm<{ name: string }>>;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { name: "Ada" },
+          assistant: { tools: { [name]: { requireApproval: false } } },
+        });
+        return <input {...form.register("name")} />;
+      };
+      const { container } = render(
+        <form onSubmit={submitted}>
+          <Form />
+        </form>,
+      );
+      const input = container.querySelector("input")!;
+      fireEvent.change(input, { target: { value: "Grace" } });
+
+      await expect(executeFormTool(name, {})).resolves.toEqual({
+        success: true,
+      });
+      expect(submitted).toHaveBeenCalledTimes(name === "submit_form" ? 1 : 0);
+      expect(form.getValues("name")).toBe(
+        name === "reset_form" ? "Ada" : "Grace",
+      );
+    },
+  );
+
+  it("resets after object approval", async () => {
+    let form!: ReturnType<typeof useAssistantForm<{ name: string }>>;
+    renderHook(() => {
+      form = useAssistantForm({ defaultValues: { name: "Ada" } });
+    });
+    act(() => form.setValue("name", "Grace"));
+    const human = vi.fn(async () => ({ approved: true }));
+
+    await expect(executeFormTool("reset_form", { human })).resolves.toEqual({
+      success: true,
+    });
+    expect(human).toHaveBeenCalledWith({ type: "form-reset" });
+    expect(form.getValues("name")).toBe("Ada");
+  });
+
+  it("submits after boolean approval", async () => {
+    const human = vi.fn(async () => true);
+    const submitted = vi.fn((event: FormEvent<HTMLFormElement>) =>
+      event.preventDefault(),
+    );
+    render(
+      <form onSubmit={submitted}>
+        <NativeRequiredField />
+      </form>,
+    );
+    const input = document.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "Ada" } });
+
+    await expect(executeFormTool("submit_form", { human })).resolves.toEqual({
+      success: true,
+    });
+    expect(human).toHaveBeenCalledWith({ type: "form-submit" });
+    expect(submitted).toHaveBeenCalledOnce();
+  });
+
+  it("propagates a rejected approval request", async () => {
+    renderHook(() => useAssistantForm());
+    const error = new Error("approval unavailable");
+    await expect(
+      executeFormTool("reset_form", {
+        human: async () => {
+          throw error;
+        },
+      }),
+    ).rejects.toBe(error);
+  });
+
+  it("omits sensitive fields from the model context", () => {
+    const Form = () => {
+      const form = useAssistantForm({
+        defaultValues: {
+          profile: { name: "Ada", password: "secret" },
+          current: "old-secret",
+          newPassword: "new-secret",
+          code: "123456",
+          card: "4242424242424242",
+        },
+      });
+      return (
+        <>
+          <input {...form.register("profile.name")} />
+          <input type="password" {...form.register("profile.password")} />
+          <input
+            autoComplete="current-password"
+            {...form.register("current")}
+          />
+          <input
+            autoComplete="new-password"
+            {...form.register("newPassword")}
+          />
+          <input autoComplete="one-time-code" {...form.register("code")} />
+          <input autoComplete="cc-number" {...form.register("card")} />
+        </>
+      );
+    };
+    render(<Form />);
+
+    expect(provider.getModelContext().system).toBe(
+      'Form State:\n{"profile":{"name":"Ada"}}',
+    );
+  });
+
   it("exposes current form values to the model context", () => {
     const { result } = renderHook(() =>
       useAssistantForm<{ name: string }>({
