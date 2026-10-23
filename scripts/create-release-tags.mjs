@@ -89,7 +89,9 @@ const fetchNpmMetadata = async (packageName) => {
     );
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw new Error(`npm registry HTTP ${response.status} for ${packageName}`);
+      throw new Error(
+        `npm registry HTTP ${response.status} for ${packageName}`,
+      );
     }
     return await response.json();
   } finally {
@@ -128,7 +130,9 @@ export const fetchPublishCommit = async (
     );
     const payload = attestation?.bundle?.dsseEnvelope?.payload;
     if (!payload) return null;
-    const statement = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+    const statement = JSON.parse(
+      Buffer.from(payload, "base64").toString("utf8"),
+    );
     const subject = (statement?.subject ?? []).find(
       (entry) => entry?.name === `pkg:npm/${packageName}@${version}`,
     );
@@ -150,8 +154,7 @@ export const fetchPublishCommit = async (
   }
 };
 
-const git = (...args) =>
-  execFileSync("git", args, { encoding: "utf8" }).trim();
+const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
 const isNotFound = (error) => error && error.status === 404;
 

@@ -34,10 +34,7 @@ function makeWorkspace(packages) {
   for (const [dirName, manifest, withChangelog = true] of packages) {
     const pkgDir = path.join(packagesDir, dirName);
     mkdirSync(pkgDir, { recursive: true });
-    writeFileSync(
-      path.join(pkgDir, "package.json"),
-      JSON.stringify(manifest),
-    );
+    writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify(manifest));
     if (withChangelog) {
       writeFileSync(
         path.join(pkgDir, "CHANGELOG.md"),
@@ -52,8 +49,7 @@ function makeGithub() {
   const calls = [];
   const tags = new Set();
   const releases = new Set();
-  const notFound = () =>
-    Object.assign(new Error("not found"), { status: 404 });
+  const notFound = () => Object.assign(new Error("not found"), { status: 404 });
   return {
     calls,
     tags,
@@ -83,7 +79,9 @@ const npmMetadata = (names) => async (name) =>
   names.includes(name) ? { versions: { "0.0.126": {}, "2.0.0": {} } } : null;
 
 const mutating = (github) =>
-  github.calls.filter(([kind]) => kind === "createRef" || kind === "createRelease");
+  github.calls.filter(
+    ([kind]) => kind === "createRef" || kind === "createRelease",
+  );
 
 test("creates tags and releases at the release SHA for this run's published packages", async () => {
   const packagesDir = makeWorkspace([
@@ -171,7 +169,10 @@ test("rerun reconciles from the provenance attestation when the publish job skip
     log: () => {},
   });
   // Missing release retried; existing tag kept.
-  assert.deepEqual(mutating(github).map(([kind]) => kind), ["createRelease"]);
+  assert.deepEqual(
+    mutating(github).map(([kind]) => kind),
+    ["createRelease"],
+  );
 });
 
 test("back-to-back releases: a version published by another run's SHA is never retargeted", async () => {
@@ -400,7 +401,11 @@ test("provenance: an attestation for a different artifact is rejected", async ()
       gitCommit: RELEASE_SHA,
     }),
     () =>
-      fetchPublishCommit("assistant-ui/assistant-ui", "assistant-ui", "0.0.126"),
+      fetchPublishCommit(
+        "assistant-ui/assistant-ui",
+        "assistant-ui",
+        "0.0.126",
+      ),
   );
   assert.equal(commit, null);
 });
