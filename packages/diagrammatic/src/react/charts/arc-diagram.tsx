@@ -1,9 +1,10 @@
 import type { BaseProps } from "../svg";
-import { forwardRef } from "react";
+import { Fragment, forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
 import { truncate } from "../../core/text";
+import { FlowTrail } from "../motion";
 import { ChartSvg, frame } from "../svg";
 
 export type ArcDiagramProps = BaseProps & {
@@ -72,18 +73,32 @@ export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
             distance > 0
               ? `M${round(x0)} ${round(baseline)} A${round(distance / 2)} ${round(arcHeight)} 0 0 1 ${round(x1)} ${round(baseline)}`
               : `M${round(x0)} ${round(baseline)} C${round(x0 - 12)} ${round(baseline - 18)} ${round(x0 + 12)} ${round(baseline - 18)} ${round(x0)} ${round(baseline)}`;
+          const forward =
+            (xs.get(link.source) ?? 0) <= (xs.get(link.target) ?? 0);
           return (
-            <path
-              key={i}
-              d={d}
-              fill="none"
-              stroke={accent ? ACCENT : ink(0.3)}
-              data-part="mark"
-              data-i={i}
-              data-series={link.source}
-              data-series2={link.target}
-              {...(accent ? stroke.line : stroke.hair)}
-            />
+            <Fragment key={i}>
+              <path
+                d={d}
+                fill="none"
+                stroke={accent ? ACCENT : ink(0.3)}
+                data-part="mark"
+                data-i={i}
+                data-series={link.source}
+                data-series2={link.target}
+                {...(accent ? stroke.line : stroke.hair)}
+              />
+              {distance > 0 && (
+                <FlowTrail
+                  d={
+                    forward
+                      ? d
+                      : `M${round(x1)} ${round(baseline)} A${round(distance / 2)} ${round(arcHeight)} 0 0 0 ${round(x0)} ${round(baseline)}`
+                  }
+                  color={ACCENT}
+                  width={2.5}
+                />
+              )}
+            </Fragment>
           );
         })}
         {graph.nodes.map((node) => {

@@ -1,5 +1,5 @@
 import type { BaseProps } from "../react/svg";
-import { forwardRef } from "react";
+import { type CSSProperties, forwardRef } from "react";
 import { round } from "../core/geometry";
 import { cat, ink } from "../core/theme";
 import { ChartSvg, frame } from "../react/svg";
@@ -164,11 +164,16 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
                   const [x, y] = flowPoint(a, b, t);
                   const color = `color-mix(in oklab, ${toColor} ${Math.round(t * 100)}%, ${fromColor})`;
                   const style = i % 4;
+                  const step = {
+                    "data-dg-flow-step": "",
+                    style: { "--dg-t": round(t) } as CSSProperties,
+                  };
                   if (i === 0 || i === FLOW_SAMPLES - 1) {
                     const r = FLOW_END / u;
                     return (
                       <path
                         key={i}
+                        {...step}
                         d={`M${round(x)} ${round(y - r)}L${round(x + r)} ${round(y)}L${round(x)} ${round(y + r)}L${round(x - r)} ${round(y)}Z`}
                         fill={color}
                       />
@@ -179,6 +184,7 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
                     return (
                       <path
                         key={i}
+                        {...step}
                         d={`M${round(x)} ${round(y - r)}L${round(x + r)} ${round(y)}L${round(x)} ${round(y + r)}L${round(x - r)} ${round(y)}Z`}
                         fill={color}
                       />
@@ -189,6 +195,7 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
                     return (
                       <path
                         key={i}
+                        {...step}
                         d={`M${round(x - r)} ${round(y)}H${round(x + r)}M${round(x)} ${round(y - r)}V${round(y + r)}`}
                         stroke={color}
                         strokeWidth={0.6}
@@ -202,6 +209,7 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
                     return (
                       <rect
                         key={i}
+                        {...step}
                         x={x - side / 2}
                         y={y - side / 2}
                         width={side}
@@ -213,6 +221,7 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
                   return (
                     <circle
                       key={i}
+                      {...step}
                       cx={x}
                       cy={y}
                       r={FLOW_DOT / u}
