@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const assertSafeProjectFile = (file: string, projectRoot?: string) => {
+export const assertSafeProjectFile = (file: string, projectRoot: string) => {
   try {
     if (fs.lstatSync(file).isSymbolicLink()) {
       throw new Error(`${file} is a symbolic link`);
@@ -10,7 +10,6 @@ export const assertSafeProjectFile = (file: string, projectRoot?: string) => {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
 
-  if (!projectRoot) return;
   const root = fs.realpathSync(projectRoot);
   let parent = path.dirname(file);
   const missing: string[] = [];

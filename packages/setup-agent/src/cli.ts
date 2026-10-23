@@ -670,7 +670,9 @@ export const writeEnvSecret = async (
   assertEnvKey(key);
   try {
     if ((await lstat(file)).isSymbolicLink()) {
-      throw new Error(`${file} is a symbolic link`);
+      throw new Error(
+        `${file} is a symbolic link; pass --file with its target to write there`,
+      );
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -700,7 +702,10 @@ export const writeEnvSecret = async (
       constants.O_NOFOLLOW,
     0o600,
   ).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === "ELOOP") throw new Error(`${file} is a symbolic link`);
+    if (error.code === "ELOOP")
+      throw new Error(
+        `${file} is a symbolic link; pass --file with its target to write there`,
+      );
     throw error;
   });
   try {

@@ -581,7 +581,7 @@ describe("writeEnvSecret", () => {
     await symlink(target, file);
     const take = vi.fn(async () => "sk-test");
     await expect(writeEnvSecret(file, "OPENAI_API_KEY", take)).rejects.toThrow(
-      `${file} is a symbolic link`,
+      `${file} is a symbolic link; pass --file with its target to write there`,
     );
     expect(take).not.toHaveBeenCalled();
     expect(await readFile(target, "utf8")).toBe("ORIGINAL=1\n");
