@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { jsonSchema, type ModelMessage, type ToolSet } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 
@@ -97,6 +97,10 @@ const loadRoute = async (path: string) => {
   const POST: (request: Request) => Promise<Response> = route.POST;
   return POST;
 };
+
+beforeAll(async () => {
+  await Promise.all(routes.map(({ path }) => loadRoute(path)));
+});
 
 const createRequest = (signal?: AbortSignal) =>
   new Request("http://localhost/api/chat", {
