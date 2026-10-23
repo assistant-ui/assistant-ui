@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { proxy } from "./proxy";
+import { withFail } from "./lib/http";
 
 const request = (
   headers?: HeadersInit,
@@ -167,5 +168,28 @@ describe("Pi API proxy", () => {
     );
     expect(bodyless.headers.get("content-type")).toBeNull();
     expect(proxy(bodyless).status).toBe(403);
+  });
+
+  it("rejects a direct route call outside development", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const handler = vi.fn(async (_request: Request) =>
+      Response.json({ ok: true }),
+    );
+
+    expect((await withFail(handler)(request())).status).toBe(404);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("rejects a direct route call from a cross-site browser", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const handler = vi.fn(async (_request: Request) =>
+      Response.json({ ok: true }),
+    );
+
+    expect(
+      (await withFail(handler)(request({ "sec-fetch-site": "cross-site" })))
+        .status,
+    ).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
   });
 });

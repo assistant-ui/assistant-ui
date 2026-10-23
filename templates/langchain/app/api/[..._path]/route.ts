@@ -2,7 +2,18 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+function isAllowedPath(path: string, method: string) {
+  const thread = "[a-zA-Z0-9_-]+";
+  if (method === "GET")
+    return new RegExp(`^threads/${thread}/state$`).test(path);
+  if (method !== "POST") return false;
+  return (
+    path === "threads" ||
+    new RegExp(
+      `^threads/${thread}/(?:commands|stream/events|history|runs/stream|runs/${thread}/cancel)$`,
+    ).test(path)
+  );
+}
 
 function isAllowedRequestContext(req: NextRequest) {
   const fetchSite = req.headers.get("sec-fetch-site");
@@ -31,6 +42,11 @@ async function handleRequest(req: NextRequest, method: string) {
   if (!isAllowedRequestContext(req)) return crossOriginResponse();
 
   try {
+    const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
+    if (!isAllowedPath(path, method)) {
+      return new NextResponse(null, { status: 404 });
+    }
+
     const apiUrl = process.env.LANGGRAPH_API_URL?.trim();
     if (!apiUrl) {
       return NextResponse.json(
@@ -39,7 +55,6 @@ async function handleRequest(req: NextRequest, method: string) {
       );
     }
 
-    const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
     const searchParams = new URLSearchParams(req.nextUrl.search);
     searchParams.delete("_path");
     searchParams.delete("nxtP_path");
@@ -115,14 +130,12 @@ async function handleRequest(req: NextRequest, method: string) {
 }
 
 export const GET = (req: NextRequest) => handleRequest(req, "GET");
+export const HEAD = () => new NextResponse(null, { status: 404 });
 export const POST = (req: NextRequest) => handleRequest(req, "POST");
-export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
-export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
-export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
+export const PUT = () => new NextResponse(null, { status: 404 });
+export const PATCH = () => new NextResponse(null, { status: 404 });
+export const DELETE = () => new NextResponse(null, { status: 404 });
 export const OPTIONS = (req: NextRequest) =>
   isAllowedRequestContext(req)
-    ? new NextResponse(null, {
-        status: 204,
-        headers: { Allow: ALLOWED_METHODS },
-      })
+    ? new NextResponse(null, { status: 404 })
     : crossOriginResponse();

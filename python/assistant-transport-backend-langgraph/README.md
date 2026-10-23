@@ -33,7 +33,7 @@ cp .env.example .env
 
 The server can be configured via environment variables:
 
-- `HOST`: Server host (default: 0.0.0.0)
+- `HOST`: Server host (default: 127.0.0.1)
 - `PORT`: Server port (default: 8001)
 - `DEBUG`: Enable debug mode (default: false)
 - `LOG_LEVEL`: Log level (default: info)
