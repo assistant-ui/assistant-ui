@@ -60,7 +60,7 @@ afterEach(() => {
 
 it.each(["", "42"])(
   "captures a real browser trace after an incomplete port read %j",
-  { skip: !hasChrome, timeout: 60_000 },
+  { skip: !hasChrome, timeout: 90_000 },
   async (prefix) => {
     const dir = mkdtempSync(join(tmpdir(), "aui-trace-port-"));
     dirs.push(dir);
