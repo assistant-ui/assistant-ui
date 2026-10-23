@@ -191,31 +191,6 @@ describe("CheckoutDO", () => {
     expect(fixture.stored.has('secret:["setup-a","q1"]')).toBe(false);
   });
 
-  it("rejects a second deposit and retains the first", async () => {
-    const fixture = createInstance(modelState());
-    const client = await connect(fixture);
-    expect(
-      (
-        await fixture.instance.fetch(
-          secretRequest("setup-a", "PUT", "first-key"),
-        )
-      ).status,
-    ).toBe(204);
-    expect(
-      (
-        await fixture.instance.fetch(
-          secretRequest("setup-a", "PUT", "second-key"),
-        )
-      ).status,
-    ).toBe(409);
-    await client.commands["checkout/answer"]({
-      inputId: "q1",
-      answer: modelAnswer,
-    });
-    const response = await fixture.instance.fetch(secretRequest());
-    expect(await response.text()).toBe("first-key");
-  });
-
   it("keeps a key outside state and consumes it once only after its matching answer", async () => {
     const fixture = createInstance(modelState());
     const client = await connect(fixture);

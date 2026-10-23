@@ -195,10 +195,6 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       if (request.method === "PUT") {
         if (input.status !== "open")
           return new Response("input closed", { status: 409 });
-        const existing = await this.ctx.storage.get(key);
-        if (this.#isCurrentDeposit(existing)) {
-          return new Response("secret already deposited", { status: 409 });
-        }
         const answer = url.searchParams.get("answer");
         if (answer === null || !isValidModelAnswer(input, answer)) {
           return new Response("invalid deposit", { status: 400 });
