@@ -7,7 +7,7 @@ export const toCssLength = (value: string | number): string =>
 export const safeBackground = (value: unknown) =>
   typeof value === "string" &&
   !value.includes("\\") &&
-  !/(?:url|image|image-set|-webkit-image-set|cross-fade|element|paint)\s*\(/i.test(
+  !/(?:url|src|image|image-set|-webkit-image-set|cross-fade|element|paint)\s*\(/i.test(
     value,
   )
     ? value

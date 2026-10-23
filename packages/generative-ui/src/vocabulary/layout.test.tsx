@@ -92,6 +92,7 @@ describe("layoutVocabulary", () => {
   it.each([
     "url(https://example.com/a.png)",
     "linear-gradient(red, blue), UrL (https://example.com/a.png)",
+    'src("https://example.com/a.png")',
     "image (https://example.com/a.png)",
     "image-set(url(https://example.com/a.png) 1x)",
     "-webkit-image-set (url(https://example.com/a.png) 1x)",
