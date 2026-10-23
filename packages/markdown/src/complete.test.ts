@@ -151,6 +151,7 @@ test.each<[string, InlineNode[]]>([
     ],
   ],
   [String.raw`See \![docs](/docs`, [{ type: "text", value: "See !docs" }]],
+  [String.raw`See [label](/a\)b`, [{ type: "text", value: "See label" }]],
 ])("%j completes only the unescaped syntax", (source, expected) => {
   expect(inlines(streamed(source))).toEqual(expected);
 });

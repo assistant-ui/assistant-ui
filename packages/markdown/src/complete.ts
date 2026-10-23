@@ -88,9 +88,10 @@ const closeIncompleteLink = (nodes: InlineNode[]): InlineNode[] | undefined => {
       tail = plainText([node]) + tail;
       continue;
     }
-    const marker = syntaxOf(node).lastIndexOf("](");
+    const syntax = syntaxOf(node);
+    const marker = syntax.lastIndexOf("](");
     const destination =
-      (marker === -1 ? node.value : node.value.slice(marker + 2)) + tail;
+      (marker === -1 ? syntax : syntax.slice(marker + 2)) + tail;
     if (/[\s)]/.test(destination)) return undefined;
     if (marker === -1) {
       tail = destination;
