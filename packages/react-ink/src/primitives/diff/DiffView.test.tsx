@@ -432,6 +432,20 @@ describe("DiffView", () => {
     expect(frame).not.toContain("\x1b]8");
   });
 
+  it("counts changes that differ only in terminal controls", async () => {
+    const frame = await renderFrame(
+      <DiffView
+        oldFile={{ content: "a\r\nx\x1b[31my\n", name: "f.txt" }}
+        newFile={{ content: "a\nx\x1b[32my\n", name: "f.txt" }}
+      />,
+    );
+
+    expect(frame).toContain("+2");
+    expect(frame).toContain("-2");
+    expect(frame).toContain("+ xy");
+    expect(frame).not.toContain("\x1b[3");
+  });
+
   it("supports composing primitives from prepared files", async () => {
     const frame = await renderFrame(
       <DiffRoot
