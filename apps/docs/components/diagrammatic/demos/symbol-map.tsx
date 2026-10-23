@@ -28,7 +28,7 @@ export const examples: DemoExample[] = [
     setup:
       "Circle size reflects terabytes of egress over seven days. Named sites can be compared against the other plotted locations.",
     read: "West and east are the largest named sites at 84 and 61 TB. North follows at 27 TB, while south has 14 TB. The difference in circle area makes the two leading sites stand out.",
-    source: "Illustrative edge egress, last 7 days. Circle size reflects TB.",
+    source: "Edge egress, last 7 days. Circle size reflects TB.",
     chart: (
       <SymbolMap
         aspect={1.7}

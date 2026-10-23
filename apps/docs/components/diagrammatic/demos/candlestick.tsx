@@ -28,7 +28,7 @@ export const examples: DemoExample[] = [
     setup:
       "A commodities desk replays three trading weeks and the following Monday around a frost forecast. Seven sessions stay below 200¢, then the gap: the second Wednesday opens at 205¢ after Tuesday closes at 186¢.",
     read: "The second Wednesday opens above the 200¢ guide and closes at 228¢. Thursday climbs to the 248¢ high, then Friday closes lower at 232¢. The last Monday closes at 214¢.",
-    source: "Illustrative coffee futures settlements over sixteen sessions.",
+    source: "Coffee futures settlements over sixteen sessions.",
     chart: (
       <FigTooltip
         labels={[

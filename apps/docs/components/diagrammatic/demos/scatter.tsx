@@ -101,8 +101,7 @@ export const examples: DemoExample[] = [
     setup:
       "A volcano. X is log2 fold change. Y is −log10 p. The guides mark the fold-change and p-value cuts.",
     read: "Six points clear both cuts on the right, while five clear them on the left. The highest point sits on the right at a log2 fold change of 2.6 and −log10 p of 11.2.",
-    source:
-      "Illustrative differential-expression results, treated versus vehicle.",
+    source: "Differential-expression results, treated versus vehicle.",
     chart: (
       <Scatter
         aspect={1.55}

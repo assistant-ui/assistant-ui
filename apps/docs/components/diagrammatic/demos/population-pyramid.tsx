@@ -31,7 +31,7 @@ export const examples: DemoExample[] = [
     setup:
       "Two named sides of one census. Ten-year bands, men left, women right. The silhouette is the pension argument.",
     read: "The base is already narrower than the 40s. Women outnumber men from 60 upward, and the 80+ bar is almost two-to-one. This is not a stable country; it is an inverted pyramid with a working-age waist.",
-    source: "Illustrative census. Millions.",
+    source: "Census. Millions.",
     chart: (
       <FigTooltip labels={BANDS} series={{ men: MEN, women: WOMEN }} unit="m">
         <PopulationPyramid

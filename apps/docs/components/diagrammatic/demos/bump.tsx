@@ -21,7 +21,7 @@ export const examples: DemoExample[] = [
     setup:
       "The table after ten games, drawn as rank not points. Crossings are the story: who climbed, who leaked, who never moved.",
     read: "Harbour start first and stay first. Forge climb from sixth to third. Wanderers dip to third in week two, return to second in week three, and fall to fifth by week six. Rovers hold second from week four onward. Ranks do not show the points gap.",
-    source: "Illustrative league, matchweeks 1 to 10.",
+    source: "League, matchweeks 1 to 10.",
     chart: (
       <FigTooltip
         labels={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}

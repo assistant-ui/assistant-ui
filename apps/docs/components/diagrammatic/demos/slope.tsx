@@ -22,8 +22,7 @@ export const examples: DemoExample[] = [
     setup:
       "Two surveys, five years apart, show the percentage of respondents using each medium weekly. Two columns and one line per medium make the shifts visible.",
     read: "Video rises from 30 to 68 while TV falls from 70 to 30, so their lines cross. Podcasts rise from 8 to 21, more than doubling, while print falls from 20 to 8. Social and music decline by 10 and 4 points respectively.",
-    source:
-      "Illustrative surveys, percent of respondents using each medium weekly.",
+    source: "Surveys, percent of respondents using each medium weekly.",
     chart: (
       <FigTooltip
         labels={[

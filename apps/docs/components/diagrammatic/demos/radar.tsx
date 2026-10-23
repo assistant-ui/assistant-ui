@@ -20,7 +20,7 @@ export const examples: DemoExample[] = [
     setup:
       "Three profiles across five axes: pages, after hours, SEV-1, time to ack, and weekend load. The third profile shows a designed target alongside the two rotations.",
     read: "Primary leads on pages, SEV-1, and time to ack. Secondary leads on after-hours and weekend load. The designed profile falls between them on four spokes; its time-to-ack value of 0.5 is below both rotations.",
-    source: "Illustrative on-call load, Q2 2025. Normalized axis values.",
+    source: "On-call load, Q2 2025. Normalized axis values.",
     chart: (
       <Radar
         aspect={1.15}

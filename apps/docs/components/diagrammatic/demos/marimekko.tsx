@@ -61,7 +61,7 @@ export const examples: DemoExample[] = [
     setup:
       "Width is the region's share of the bill. Height inside a column is the vendor. The cell that matters is the one you annotate.",
     read: "NA covers 48% of the rectangle, and vendor A takes 31 of those 48 points. Vendor B has 8 points against vendor A's 12 in EU. In APAC, vendor C exceeds vendor B, 5 to 4.",
-    source: "Illustrative FY25 cloud spend shares. Cells sum to 100.",
+    source: "FY25 cloud spend shares. Cells sum to 100.",
     chart: (
       <FigTooltip
         matrix={{

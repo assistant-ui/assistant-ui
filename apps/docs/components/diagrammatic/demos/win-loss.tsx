@@ -37,7 +37,7 @@ export const examples: DemoExample[] = [
     setup:
       "A club page compresses each result into a tick above or below the line. No scores. Streaks are what the eye keeps.",
     read: "The 24/25 season opens with two wins before its first loss. The 25/26 season starts with two wins and three losses in five matches, then wins three straight in matchweeks 8 to 10.",
-    source: "Illustrative league, matchweeks 1 to 18.",
+    source: "League, matchweeks 1 to 18.",
     chart: (
       <FigTooltip
         series={{

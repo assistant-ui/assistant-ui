@@ -49,7 +49,7 @@ export const examples: DemoExample[] = [
     title: "Engineering team structure",
     setup: "Who reports to whom. No sizes. The tree is the org, not a metric.",
     read: "Product and platform each have three teams. Mobile and infra each have two. The engineering root therefore has four branches and ten leaf teams.",
-    source: "Illustrative engineering team directory.",
+    source: "Engineering team directory.",
     chart: <Tree aspect={1.35} title="Engineering" depth={2} root={ROOT} />,
   },
 ];

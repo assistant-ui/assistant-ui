@@ -26,7 +26,7 @@ export const examples: DemoExample[] = [
     setup:
       "One origin, eight destinations. Width is terabytes. More than a handful tangles; eight is the job.",
     read: "The largest route carries 84 TB to tile (4, 1). The next two carry 41 and 28 TB. The remaining five carry 52 TB together.",
-    source: "Illustrative origin egress, last 7 days. Width = TB.",
+    source: "Origin egress, last 7 days. Width = TB.",
     chart: (
       <FlowMap
         aspect={1.7}

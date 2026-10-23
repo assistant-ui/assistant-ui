@@ -43,7 +43,7 @@ export const examples: DemoExample[] = [
     setup:
       "A rate on mapped regions. Unshaded areas have no entry in this illustrative sample.",
     read: "The two darkest mapped areas have rates of 86 and 74. The next two are 68 and 61. Most shaded areas have rates below 40.",
-    source: "Illustrative billed tokens per 1,000 weekly actives.",
+    source: "Billed tokens per 1,000 weekly actives.",
     chart: (
       <FigTooltip
         entries={Object.fromEntries(

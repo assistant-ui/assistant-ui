@@ -165,7 +165,7 @@ export const examples: DemoExample[] = [
     setup:
       "A step line plots survival estimates. Short ticks mark censored observations. The shaded band bounds the estimate.",
     read: "Median PFS falls between months 12 and 15. Three of the six censor marks appear after the 15-month tick, while the plotted survival estimate falls from 0.45 to 0.36.",
-    source: "Illustrative progression-free survival with censoring marks.",
+    source: "Progression-free survival with censoring marks.",
     chart: (
       <Line
         aspect={2.1}

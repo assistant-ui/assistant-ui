@@ -56,6 +56,6 @@ export const examples: DemoExample[] = [
         />
       </FigTooltip>
     ),
-    source: "Illustrative FrontierBench 1.1 scores. Higher is better.",
+    source: "FrontierBench 1.1 scores. Higher is better.",
   },
 ];

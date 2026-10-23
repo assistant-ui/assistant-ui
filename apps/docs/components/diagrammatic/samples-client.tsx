@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Component, useMemo, useState, type ReactNode } from "react";
 import { Area, Bar, Line } from "diagrammatic";
 import {
   Fit,
@@ -242,6 +242,27 @@ const INITIAL_SPEC = `{
   ]
 }`;
 
+class RenderBoundary extends Component<
+  { children: ReactNode },
+  { error: string | null }
+> {
+  override state: { error: string | null } = { error: null };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+
+  override render() {
+    return this.state.error === null ? (
+      this.props.children
+    ) : (
+      <p className="text-destructive font-mono text-xs [font-variant-ligatures:none]">
+        {this.state.error}
+      </p>
+    );
+  }
+}
+
 export function SpecPlayground() {
   const [source, setSource] = useState(INITIAL_SPEC);
   const result = useMemo((): { spec: ChartSpec } | { error: string } => {
@@ -266,13 +287,15 @@ export function SpecPlayground() {
         </label>
         <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex flex-col justify-center p-6">
           {"spec" in result ? (
-            <Fit>
-              {({ width }) => (
-                <Chart
-                  spec={{ ...result.spec, width: result.spec.width ?? width }}
-                />
-              )}
-            </Fit>
+            <RenderBoundary key={source}>
+              <Fit>
+                {({ width }) => (
+                  <Chart
+                    spec={{ ...result.spec, width: result.spec.width ?? width }}
+                  />
+                )}
+              </Fit>
+            </RenderBoundary>
           ) : (
             <p className="text-destructive font-mono text-xs [font-variant-ligatures:none]">
               {result.error}

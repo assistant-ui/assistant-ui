@@ -29,7 +29,7 @@ export const examples: DemoExample[] = [
     setup:
       "Nodes follow a fixed file order. Each arc shows how many positions an import jumps.",
     read: "test reaching back to cli is the longest jump, spanning eleven positions. cli to ui spans eight, followed by cli to ws and core to log at seven each. core to db to api forms two shorter hops.",
-    source: "Illustrative module imports in file order.",
+    source: "Module imports in file order.",
     chart: (
       <FigTooltip
         entries={{

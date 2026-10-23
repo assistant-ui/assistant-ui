@@ -53,7 +53,7 @@ export const examples: DemoExample[] = [
     setup:
       "Twelve topics, with a height for each merge. Lower joins show closer topics.",
     read: "Login, 2fa, and session join first. Billing, refund, and invoice join next. The auth and billing clusters join at 0.40. Export, api-key, and webhook form another cluster by 0.28. Other hangs off the last join at 0.78.",
-    source: "Illustrative ticket topic merge distances.",
+    source: "Ticket topic merge distances.",
     chart: (
       <Dendrogram
         aspect={1.8}

@@ -31,8 +31,7 @@ export const examples: DemoExample[] = [
     setup:
       "Twelve repositories, one median per row. Lollipops keep the list readable when twelve bars would ink the page shut. The stem is not the value; the dot is.",
     read: "Payments has the shortest median at 1.4 hours. Four repos exceed the eight-hour same-day mark. Legacy billing has the longest median at 36 hours, followed by design-sys at 18.5 and docs at 14.2.",
-    source:
-      "Illustrative median hours to first non-author review across 12 repositories.",
+    source: "Median hours to first non-author review across 12 repositories.",
     chart: (
       <FigTooltip
         labels={REPOS.map((row) => row.label)}

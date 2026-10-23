@@ -16,7 +16,7 @@ export const examples: DemoExample[] = [
     setup:
       "One cell, one deploy. A waffle is for shares you can count with a finger, not a famous fact about the planet.",
     read: "The grid contains 91 clean deploys, six rollbacks, and three hotfixes. Clean deploys account for 91% of the 100 cells.",
-    source: "Illustrative production deploys, trailing 100.",
+    source: "Production deploys, trailing 100.",
     chart: (
       <FigTooltip
         labels={DEPLOYS.map((row) => row.label)}

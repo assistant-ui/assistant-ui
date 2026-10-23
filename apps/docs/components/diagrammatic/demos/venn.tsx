@@ -18,7 +18,7 @@ export const examples: DemoExample[] = [
       "Two circles. Three labeled counts. Area is illustrative; the numbers carry the truth.",
     read: "6.1k people used both, about 8% of the 73.5k union. Web-only has 42.1k users, compared with 25.3k on iOS only.",
     source:
-      "Illustrative unique users, last 28 days. Overlap counts the same person on both surfaces.",
+      "Unique users, last 28 days. Overlap counts the same person on both surfaces.",
     chart: (
       <FigTooltip
         entries={{

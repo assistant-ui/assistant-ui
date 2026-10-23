@@ -19,8 +19,7 @@ export const examples: DemoExample[] = [
     setup:
       "The density profiles show the shape of review times. Each group has 20 plotted reviews, shown as dots and counted in its label.",
     read: "Payments clusters at the short end, with a 3.1-hour median among the plotted reviews. Growth and platform have medians of 6.85 and 6.1 hours. Legacy has an early cluster and a later pile, with a 14.9-hour median.",
-    source:
-      "Illustrative first non-author review times, 20 plotted reviews per team.",
+    source: "First non-author review times, 20 plotted reviews per team.",
     chart: (
       <FigTooltip
         labels={[

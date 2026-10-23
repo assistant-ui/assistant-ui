@@ -40,8 +40,7 @@ export const examples: DemoExample[] = [
     setup:
       "The metric remains errors per 1k sessions, now on hexagonal cells. One region, one hex. Adjacency is approximate. This is not a hexbin.",
     read: "The eastern hexes are the dark cluster, and every column darkens toward the south. The west sits in between, and the middle stays pale.",
-    source:
-      "Illustrative checkout POST errors per 1k sessions, week of 11 Aug.",
+    source: "Checkout POST errors per 1k sessions, week of 11 Aug.",
     chart: (
       <Choropleth
         aspect={1.7}

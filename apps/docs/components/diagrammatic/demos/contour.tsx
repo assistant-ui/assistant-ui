@@ -43,7 +43,7 @@ export const examples: DemoExample[] = [
     setup:
       "Three hundred pull requests as density, not dots. Each ring is a covariance ellipse around the points.",
     read: "Most reviews are small diffs answered within a few hours. A smaller group of large diffs takes most of a working day. Bigger diffs wait longer, and the rings say by how much.",
-    source: "Illustrative first-review hours against files changed. n = 300.",
+    source: "First-review hours against files changed. n = 300.",
     chart: (
       <Contour
         aspect={1.6}

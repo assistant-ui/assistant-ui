@@ -16,7 +16,7 @@ export const examples: DemoExample[] = [
     setup:
       "Sixteen weekly rainfall totals form the area. The core monsoon band marks the high-rainfall stretch in July and August.",
     read: "Rainfall rises above the 200mm fill stage in the second week of July and stays above it through the fourth week of August. Those seven totals exceed the guide. The first week of September falls to 150mm.",
-    source: "Illustrative weekly rainfall totals.",
+    source: "Weekly rainfall totals.",
     chart: (
       <FigTooltip
         labels={[
