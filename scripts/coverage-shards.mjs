@@ -28,7 +28,7 @@ export function coverageShards(root = repoRoot) {
   return shards;
 }
 
-if (isExecutedAsMain(import.meta.url)) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   const index = Number(process.argv[2]);
   if (![0, 1].includes(index)) throw new Error("Expected shard 0 or 1");
   const names = coverageShards()[index];

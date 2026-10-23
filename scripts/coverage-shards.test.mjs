@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -62,4 +63,22 @@ test("installed dependency tests do not affect shard assignment", (t) => {
   for (let i = 0; i < 10; i++)
     writeFileSync(path.join(installed, `${i}.test.ts`), "");
   assert.deepEqual(coverageShards(root), before);
+});
+
+test("the CLI emits the selected shard filters and rejects invalid shard indexes", () => {
+  const script = new URL("./coverage-shards.mjs", import.meta.url);
+  for (const index of [0, 1]) {
+    const output = execFileSync(
+      process.execPath,
+      [script.pathname, String(index)],
+      { encoding: "utf8" },
+    );
+    assert.deepEqual(
+      output.trim().split("\n"),
+      coverageShards()[index].map((name) => `--filter=${name}`),
+    );
+  }
+  assert.throws(() =>
+    execFileSync(process.execPath, [script.pathname, "2"], { stdio: "pipe" }),
+  );
 });
