@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -85,6 +85,15 @@ describe("appendHistory", () => {
         2,
       )}\n`,
     );
+  });
+
+  it("refuses a recording whose sha is not a plain file name part", async () => {
+    for (const sha of ["/../../escaped", "deadbeef/x", "..", ".hidden", ""]) {
+      expect(() => appendHistory({ dir, recording: record(sha, []) })).toThrow(
+        "invalid sha",
+      );
+    }
+    await expect(readdir(dir)).resolves.toEqual([]);
   });
 });
 
