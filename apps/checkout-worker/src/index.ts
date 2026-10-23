@@ -195,6 +195,10 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       if (request.method === "PUT") {
         if (input.status !== "open")
           return new Response("input closed", { status: 409 });
+        const existing = await this.ctx.storage.get(key);
+        if (this.#isCurrentDeposit(existing)) {
+          return new Response("secret already deposited", { status: 409 });
+        }
         const answer = url.searchParams.get("answer");
         if (answer === null || !isValidModelAnswer(input, answer)) {
           return new Response("invalid deposit", { status: 400 });
@@ -225,6 +229,24 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       if (!this.#isCurrentDeposit(value)) {
         await this.ctx.storage.delete(key);
         return new Response("no secret", { status: 404 });
+      }
+      if (input.redeemKeyHash !== undefined) {
+        const redeemKey = request.headers.get("Setup-Agent-Redeem-Key");
+        const digest = new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(redeemKey ?? ""),
+          ),
+        );
+        let difference = 0;
+        for (let i = 0; i < digest.length; i++) {
+          difference |=
+            digest[i]! ^
+            Number.parseInt(input.redeemKeyHash.slice(i * 2, i * 2 + 2), 16);
+        }
+        if (redeemKey === null || difference !== 0) {
+          return new Response("invalid redeem key", { status: 403 });
+        }
       }
       await this.ctx.storage.delete(key);
       return new Response(value.secret, {

@@ -1,12 +1,17 @@
+import { createHash } from "node:crypto";
+import { connectCheckout } from "./client";
 import { initialCheckoutState, type Checkout } from "./protocol";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   chmod,
   mkdtemp,
+  readdir,
   readFile,
+  realpath,
   rm,
   stat,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,6 +19,7 @@ import { join } from "node:path";
 import {
   HELP,
   INSTRUCTIONS,
+  main,
   askSeed,
   agentInstructions,
   diffEvents,
@@ -23,6 +29,11 @@ import {
   waitForStart,
   writeEnvSecret,
 } from "./cli";
+
+vi.mock("./client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./client")>()),
+  connectCheckout: vi.fn(),
+}));
 
 describe("the agent's briefing", () => {
   it("preserves the published instructions export and setup-created event wording", () => {
@@ -645,4 +656,179 @@ describe("writeEnvSecret", () => {
       "OTHER_KEY=1\nOPENAI_API_KEY=sk-test\n",
     );
   });
+});
+
+describe("model key handoff", () => {
+  const setup = async () => {
+    const stateHome = await realpath(
+      await mkdtemp(join(tmpdir(), "setup-agent-state-")),
+    );
+    const stateHomeVariable =
+      process.platform === "win32" ? "LOCALAPPDATA" : "XDG_STATE_HOME";
+    const prior = process.env[stateHomeVariable];
+    process.env[stateHomeVariable] = stateHome;
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      id: "setup-a",
+      createdAt: 1,
+      status: "planning",
+    };
+    const ask = vi.fn(async (seed: Checkout.InputSeed) => {
+      state.inputs.push({
+        ...seed,
+        id: "q1",
+        phase: "planning",
+        kind: "model",
+        optional: false,
+        status: "open",
+        createdAt: 2,
+      });
+      return { inputId: "q1" };
+    });
+    const client = { state, commands: { "agent/ask": ask }, dispose: vi.fn() };
+    vi.mocked(connectCheckout).mockResolvedValue(
+      client as unknown as Awaited<ReturnType<typeof connectCheckout>>,
+    );
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    onTestFinished(async () => {
+      stdout.mockRestore();
+      vi.mocked(connectCheckout).mockReset();
+      vi.unstubAllGlobals();
+      if (prior === undefined) delete process.env[stateHomeVariable];
+      else process.env[stateHomeVariable] = prior;
+      await rm(stateHome, { recursive: true, force: true });
+    });
+    await main([
+      "https://checkout.test/session",
+      "ask",
+      "--preset",
+      "llm-provider",
+    ]);
+    const directory = join(stateHome, "setup-agent");
+    const files = await readdir(directory);
+    const keyFile = join(directory, files[0]!);
+    const redeemKey = await readFile(keyFile, "utf8");
+    return { state, ask, directory, files, keyFile, redeemKey };
+  };
+
+  it.skipIf(process.platform === "win32")(
+    "stores the model redeem key privately under the user state home",
+    async () => {
+      const { ask, directory, files, keyFile, redeemKey } = await setup();
+      expect(files).toHaveLength(1);
+      expect((await stat(directory)).mode & 0o777).toBe(0o700);
+      expect((await stat(keyFile)).mode & 0o777).toBe(0o600);
+      expect(redeemKey).toMatch(/^[0-9a-f]{64}$/);
+      expect(ask.mock.calls[0]?.[0].redeemKeyHash).toBe(
+        createHash("sha256").update(redeemKey).digest("hex"),
+      );
+    },
+  );
+
+  it("sends the stored key on env redemption and removes it after writing", async () => {
+    const { state, keyFile, redeemKey } = await setup();
+    state.inputs[0]!.status = "answered";
+    state.inputs[0]!.answer = JSON.stringify({
+      provider: "openai",
+      model: "gpt-test",
+    });
+    const fetch = vi.fn(
+      async (_input: string, _init?: RequestInit) =>
+        new Response("provider-key"),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const file = join(
+      await mkdtemp(join(tmpdir(), "setup-agent-env-")),
+      ".env.local",
+    );
+    onTestFinished(() =>
+      rm(join(file, ".."), { recursive: true, force: true }),
+    );
+    await main([
+      "https://checkout.test/session",
+      "env",
+      "q1",
+      "OPENAI_API_KEY",
+      "--file",
+      file,
+    ]);
+    expect(fetch.mock.calls[0]?.[1]).toEqual({
+      headers: { "Setup-Agent-Redeem-Key": redeemKey },
+    });
+    expect(await readFile(file, "utf8")).toBe("OPENAI_API_KEY=provider-key\n");
+    expect(await readdir(join(keyFile, ".."))).toEqual([]);
+  });
+
+  it("keeps the stored key after a forbidden redemption", async () => {
+    const { state, keyFile, redeemKey } = await setup();
+    state.inputs[0]!.status = "answered";
+    state.inputs[0]!.answer = JSON.stringify({
+      provider: "openai",
+      model: "gpt-test",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 403 })),
+    );
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      exit.mockRestore();
+      stderr.mockRestore();
+    });
+    const file = join(
+      await mkdtemp(join(tmpdir(), "setup-agent-env-")),
+      ".env.local",
+    );
+    onTestFinished(() =>
+      rm(join(file, ".."), { recursive: true, force: true }),
+    );
+    await expect(
+      main([
+        "https://checkout.test/session",
+        "env",
+        "q1",
+        "OPENAI_API_KEY",
+        "--file",
+        file,
+      ]),
+    ).rejects.toThrow("exit");
+    expect(stderr).toHaveBeenCalledWith(
+      expect.stringContaining('redeem key rejected for "q1"'),
+    );
+    expect(await readFile(keyFile, "utf8")).toBe(redeemKey);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "refuses a symbolic link for the stored key",
+    async () => {
+      const { state, keyFile } = await setup();
+      state.inputs[0]!.status = "answered";
+      state.inputs[0]!.answer = JSON.stringify({
+        provider: "openai",
+        model: "gpt-test",
+      });
+      const target = join(keyFile, "..", "other-key");
+      await writeFile(target, "other-value");
+      await unlink(keyFile);
+      await symlink(target, keyFile);
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+        throw new Error("exit");
+      });
+      const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      onTestFinished(() => {
+        exit.mockRestore();
+        stderr.mockRestore();
+      });
+      await expect(
+        main(["https://checkout.test/session", "env", "q1", "OPENAI_API_KEY"]),
+      ).rejects.toThrow("exit");
+      expect(fetch).not.toHaveBeenCalled();
+      expect(await readFile(target, "utf8")).toBe("other-value");
+    },
+  );
 });

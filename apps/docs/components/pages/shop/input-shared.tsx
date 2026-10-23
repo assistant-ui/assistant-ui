@@ -2,6 +2,7 @@
 
 import {
   useId,
+  useRef,
   useState,
   type ComponentType,
   type KeyboardEvent,
@@ -238,14 +239,18 @@ export const useInputActions = (
       ...(provider !== undefined && { model_provider: provider }),
     });
   };
+  const deposited = useRef(new Map<string, string>());
   const deposit = async (secret: string, answer: string) => {
     const setupId = checkout.state?.id;
     if (!setupId) throw new Error("setup not created");
+    const depositKey = `${setupId}:${input.id}:${answer}`;
+    if (deposited.current.get(depositKey) === secret) return;
     const response = await fetch(
       `${checkout.url}/secret/${encodeURIComponent(input.id)}?setup=${encodeURIComponent(setupId)}&answer=${encodeURIComponent(answer)}`,
       { method: "PUT", body: secret },
     );
     if (!response.ok) throw new Error(`secret rejected: ${response.status}`);
+    deposited.current.set(depositKey, secret);
   };
   return {
     busy,

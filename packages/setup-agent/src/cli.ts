@@ -2,10 +2,28 @@ import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
 import { spawn } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, open, readFile, realpath } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  realpath,
+  unlink,
+} from "node:fs/promises";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline/promises";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import {
+  dirname,
+  isAbsolute,
+  join,
+  parse,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import {
   AGENT_HEARTBEAT_MS,
   OPTION_ICONS,
@@ -719,6 +737,83 @@ export const writeEnvSecret = async (
   }
 };
 
+const redeemKeyDirectory = async () => {
+  const stateHome =
+    process.platform === "win32"
+      ? process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local")
+      : process.env.XDG_STATE_HOME || join(homedir(), ".local", "state");
+  if (!isAbsolute(stateHome)) {
+    throw new Error("state home must be an absolute path");
+  }
+  const directory = join(stateHome, "setup-agent");
+  const root = parse(directory).root;
+  let current = root;
+  for (const component of directory.slice(root.length).split(sep)) {
+    if (!component) continue;
+    current = join(current, component);
+    await mkdir(current, { mode: 0o700 }).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code !== "EEXIST") throw error;
+      },
+    );
+    const info = await lstat(current);
+    if (!info.isDirectory() || info.isSymbolicLink()) {
+      throw new Error(
+        `state path must not contain a symbolic link: ${current}`,
+      );
+    }
+  }
+  await chmod(directory, 0o700);
+  return directory;
+};
+
+const redeemKeyFile = async (url: string, setupId: string, inputId: string) =>
+  join(
+    await redeemKeyDirectory(),
+    `${createHash("sha256")
+      .update(JSON.stringify([url, setupId, inputId]))
+      .digest("hex")}.key`,
+  );
+
+const saveRedeemKey = async (
+  url: string,
+  setupId: string,
+  inputId: string,
+  key: string,
+) => {
+  const file = await redeemKeyFile(url, setupId, inputId);
+  const handle = await open(
+    file,
+    constants.O_WRONLY |
+      constants.O_CREAT |
+      constants.O_EXCL |
+      constants.O_NOFOLLOW,
+    0o600,
+  );
+  try {
+    await handle.writeFile(key);
+  } finally {
+    await handle.close();
+  }
+};
+
+const readRedeemKey = async (url: string, setupId: string, inputId: string) => {
+  const file = await redeemKeyFile(url, setupId, inputId);
+  const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const info = await handle.stat();
+    if (
+      !info.isFile() ||
+      (process.platform !== "win32" && (info.mode & 0o077) !== 0)
+    ) {
+      throw new Error("redeem key file must be private and regular");
+    }
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
+};
+
 const answerFields = (input: Checkout.Input, answer: string) => ({
   answer: (input.multiple && parseMultipleAnswer(answer)) || answer,
   ...(input.note !== undefined && { note: input.note }),
@@ -816,7 +911,21 @@ export const main = async (argv: readonly string[]) => {
         break;
       }
       case "ask": {
-        const { inputId } = await commands["agent/ask"](askSeed(rest, flags));
+        const seed = askSeed(rest, flags);
+        const redeemKey =
+          seed.kind === "model" ? randomBytes(32).toString("hex") : undefined;
+        const { inputId } = await commands["agent/ask"]({
+          ...seed,
+          ...(redeemKey !== undefined && {
+            redeemKeyHash: createHash("sha256").update(redeemKey).digest("hex"),
+          }),
+        });
+        if (redeemKey !== undefined) {
+          const setupId =
+            requireState(client).id ??
+            fail("the setup has not been created yet");
+          await saveRedeemKey(url, setupId, inputId, redeemKey);
+        }
         if (!flags.has("wait")) {
           print({ ok: true, inputId });
           break;
@@ -876,11 +985,23 @@ export const main = async (argv: readonly string[]) => {
         ) {
           fail(`input "${inputId}" is not an llm-provider answer`);
         }
+        const redeemKey =
+          input.redeemKeyHash === undefined
+            ? undefined
+            : await readRedeemKey(url, setupId, inputId).catch(() =>
+                fail(`no local redeem key for "${inputId}"`),
+              );
         const file = resolve(flagText(flags, "file") ?? ".env.local");
         await writeEnvSecret(file, envKey, async () => {
           const response = await fetch(
             `${url.replace(/\/$/, "")}/secret/${encodeURIComponent(inputId)}?setup=${encodeURIComponent(setupId)}`,
+            redeemKey === undefined
+              ? undefined
+              : { headers: { "Setup-Agent-Redeem-Key": redeemKey } },
           );
+          if (response.status === 403) {
+            fail(`redeem key rejected for "${inputId}"`);
+          }
           if (response.status === 404) {
             fail(
               `the key for "${inputId}" was already taken or never deposited`,
@@ -889,6 +1010,9 @@ export const main = async (argv: readonly string[]) => {
           if (!response.ok) fail(`could not fetch the key: ${response.status}`);
           return response.text();
         });
+        if (redeemKey !== undefined) {
+          await unlink(await redeemKeyFile(url, setupId, inputId));
+        }
         print({ ok: true, envKey, file });
         break;
       }

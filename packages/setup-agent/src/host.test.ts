@@ -606,6 +606,46 @@ describe("inputs", () => {
 describe("model inputs", () => {
   const answer = { provider: "openai", model: "gpt-test" };
 
+  it("stores a valid redeem hash only on model inputs", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    const hash = "a".repeat(64);
+    const { inputId } = await host.commands["agent/ask"]({
+      ...presetInput("llm-provider"),
+      redeemKeyHash: hash,
+    });
+    expect(
+      host.state.inputs.find((input) => input.id === inputId)?.redeemKeyHash,
+    ).toBe(hash);
+    await host.commands["checkout/answer"]({
+      inputId,
+      answer: JSON.stringify(answer),
+    });
+    expect(
+      host.state.inputs.find((input) => input.id === inputId)?.redeemKeyHash,
+    ).toBe(hash);
+    for (const redeemKeyHash of [
+      "A".repeat(64),
+      "a".repeat(63),
+      "not-a-hash",
+    ]) {
+      expect(
+        await reason(
+          host.commands["agent/ask"]({
+            ...presetInput("llm-provider"),
+            redeemKeyHash,
+          }),
+        ),
+      ).toEqual({ reason: "invalid-input" });
+    }
+    expect(
+      await reason(
+        host.commands["agent/ask"]({ prompt: "Name?", redeemKeyHash: hash }),
+      ),
+    ).toEqual({ reason: "invalid-input" });
+  });
+
   it("parses a model answer and rejects malformed ones", () => {
     expect(parseModelAnswer(JSON.stringify(answer))).toEqual(answer);
     expect(

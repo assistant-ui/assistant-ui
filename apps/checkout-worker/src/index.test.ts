@@ -151,6 +151,71 @@ describe("secret lifecycle", () => {
 });
 
 describe("CheckoutDO", () => {
+  it("requires the model input's redeem key without consuming a deposit on failure", async () => {
+    const snapshot = modelState();
+    snapshot.inputs[0]!.redeemKeyHash =
+      "3389fd9e8dac282ba9df440375f67fbe84dcd70f157d4adabbdd2fd56c7a8f08";
+    const fixture = createInstance(snapshot);
+    const client = await connect(fixture);
+    expect(
+      (
+        await fixture.instance.fetch(
+          secretRequest("setup-a", "PUT", "provider-key"),
+        )
+      ).status,
+    ).toBe(204);
+    await client.commands["checkout/answer"]({
+      inputId: "q1",
+      answer: modelAnswer,
+    });
+    expect((await fixture.instance.fetch(secretRequest())).status).toBe(403);
+    expect(
+      (
+        await fixture.instance.fetch(
+          new Request(secretRequest(), {
+            headers: { "Setup-Agent-Redeem-Key": "wrong" },
+          }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(fixture.stored.get('secret:["setup-a","q1"]')).toEqual(
+      expect.objectContaining({ secret: "provider-key" }),
+    );
+    const response = await fixture.instance.fetch(
+      new Request(secretRequest(), {
+        headers: { "Setup-Agent-Redeem-Key": "redeem-key" },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("provider-key");
+    expect(fixture.stored.has('secret:["setup-a","q1"]')).toBe(false);
+  });
+
+  it("rejects a second deposit and retains the first", async () => {
+    const fixture = createInstance(modelState());
+    const client = await connect(fixture);
+    expect(
+      (
+        await fixture.instance.fetch(
+          secretRequest("setup-a", "PUT", "first-key"),
+        )
+      ).status,
+    ).toBe(204);
+    expect(
+      (
+        await fixture.instance.fetch(
+          secretRequest("setup-a", "PUT", "second-key"),
+        )
+      ).status,
+    ).toBe(409);
+    await client.commands["checkout/answer"]({
+      inputId: "q1",
+      answer: modelAnswer,
+    });
+    const response = await fixture.instance.fetch(secretRequest());
+    expect(await response.text()).toBe("first-key");
+  });
+
   it("keeps a key outside state and consumes it once only after its matching answer", async () => {
     const fixture = createInstance(modelState());
     const client = await connect(fixture);
