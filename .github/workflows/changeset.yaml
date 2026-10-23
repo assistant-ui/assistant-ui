@@ -105,10 +105,11 @@ jobs:
       - name: Check the version changes
         run: node scripts/check-version-patch.mjs "$RUNNER_TEMP/version/version.patch"
 
+      # The action resets the branch to this commit before it runs `script`, and runs it without a shell. The lockfile is resolved here instead of in the version job; `--lockfile-only` installs nothing and runs no package code.
       - name: Create version PR
         uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/version@v2.1.2
         with:
-          script: git apply --index ${{ runner.temp }}/version/version.patch
+          script: bash -c "git apply --index ${{ runner.temp }}/version/version.patch && pnpm install --no-frozen-lockfile --lockfile-only --ignore-scripts"
           commit-message: "chore: update versions"
           pr-title: "chore: update versions"
           github-token: ${{ secrets.GITHUB_TOKEN }}
