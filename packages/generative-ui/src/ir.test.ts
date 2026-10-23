@@ -29,15 +29,34 @@ describe("normalizeUINode", () => {
     if (!Array.isArray(normalizedChildren)) {
       throw new Error("expected normalized children to be an array");
     }
-    expect(normalizedChildren).toHaveLength(4_998);
+    expect(normalizedChildren).toHaveLength(4_999);
     expect(normalizedChildren[0]).toMatchObject({
       type: "Text",
       props: { value: 0 },
     });
-    expect(normalizedChildren[4_997]).toMatchObject({
+    expect(normalizedChildren[4_998]).toMatchObject({
       type: "Text",
-      props: { value: 4_997 },
+      props: { value: 4_998 },
     });
+  });
+
+  it("keeps a tree within the element budget whole however many arrays and leaves it has", () => {
+    const branches = Array.from({ length: 2_000 }, (_, index) => ({
+      $type: "Column",
+      children: [{ $type: "Divider" }, `leaf ${index}`],
+    }));
+    const root = asElement(
+      normalizeUINode({ $type: "Column", children: branches }),
+    );
+
+    if (!Array.isArray(root.children)) {
+      throw new Error("expected normalized children to be an array");
+    }
+    expect(root.children).toHaveLength(2_000);
+    expect(asElement(root.children[1_999]).children).toEqual([
+      expect.objectContaining({ type: "Divider" }),
+      "leaf 1999",
+    ]);
   });
 
   it("shares the node budget across a root list and resets it for each call", () => {
@@ -46,7 +65,7 @@ describe("normalizeUINode", () => {
       value: index,
     }));
 
-    expect(normalizeSpec(spec).root).toHaveLength(4_999);
+    expect(normalizeSpec(spec).root).toHaveLength(5_000);
     expect(normalizeUINode({ $type: "Text", value: "next" })).toMatchObject({
       type: "Text",
       props: { value: "next" },

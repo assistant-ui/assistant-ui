@@ -201,14 +201,13 @@ function normalizeNode(
   depth: number,
   budget: { remaining: number },
 ): NormalizedUINode {
-  if (budget.remaining === 0) return null;
-  budget.remaining--;
   if (depth > MAX_DEPTH) return null;
   if (node == null || typeof node === "boolean") return null;
   if (typeof node === "string" || typeof node === "number") return node;
   if (Array.isArray(node)) {
     const children: NormalizedUINode[] = [];
-    for (let index = 0; index < node.length && budget.remaining > 0; index++) {
+    const width = Math.min(node.length, MAX_NODES);
+    for (let index = 0; index < width && budget.remaining > 0; index++) {
       children.push(
         normalizeNode(
           node[index],
@@ -229,6 +228,8 @@ function normalizeNode(
   const type = node[typeKey];
   if (typeof type === "string") {
     if (partialPath?.length === 1 && partialPath[0] === typeKey) return null;
+    if (budget.remaining === 0) return null;
+    budget.remaining--;
     // A key still streaming in is a prefix of the final one, so the node stays keyless until it completes.
     const keyName = node["$key"] != null ? "$key" : MODEL_KEYS.key;
     const keyStreaming =
@@ -249,6 +250,8 @@ function normalizeNode(
   }
 
   if (isLegacyNode(node)) {
+    if (budget.remaining === 0) return null;
+    budget.remaining--;
     const props = stripReservedProps(
       (node.props ?? {}) as Record<string, unknown>,
     );
