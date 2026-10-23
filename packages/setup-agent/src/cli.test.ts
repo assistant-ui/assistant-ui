@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { connectCheckout } from "./client";
+import type { connectCheckout } from "./client";
 import { initialCheckoutState, type Checkout } from "./protocol";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
@@ -31,15 +31,14 @@ import {
   writeEnvSecret,
 } from "./cli";
 
-vi.mock("./client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./client")>()),
-  connectCheckout: vi.fn(),
+const { connectCheckoutMock } = vi.hoisted(() => ({
+  connectCheckoutMock: vi.fn<typeof connectCheckout>(),
 }));
 
-vi.mock("node:os", async (importOriginal) => {
-  const original = await importOriginal<typeof import("node:os")>();
-  return { ...original, tmpdir: vi.fn(original.tmpdir) };
-});
+vi.mock("./client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./client")>()),
+  connectCheckout: connectCheckoutMock,
+}));
 
 describe("the agent's briefing", () => {
   it("preserves the published instructions export and setup-created event wording", () => {
@@ -693,15 +692,15 @@ describe("model key handoff", () => {
       return { inputId: "q1" };
     });
     const client = { state, commands: { "agent/ask": ask }, dispose: vi.fn() };
-    vi.mocked(connectCheckout).mockResolvedValue(
+    connectCheckoutMock.mockResolvedValue(
       client as unknown as Awaited<ReturnType<typeof connectCheckout>>,
     );
     const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
     onTestFinished(async () => {
       stdout.mockRestore();
-      vi.mocked(connectCheckout).mockReset();
+      connectCheckoutMock.mockReset();
       vi.unstubAllGlobals();
-      vi.mocked(tmpdir).mockRestore();
+      vi.unstubAllEnvs();
       if (prior === undefined) delete process.env[stateHomeVariable];
       else process.env[stateHomeVariable] = prior;
       await rm(root, { recursive: true, force: true });
@@ -734,7 +733,8 @@ describe("model key handoff", () => {
 
   const fallbackDirectory = async () => {
     const root = await mkdtemp(join(tmpdir(), "setup-agent-fallback-"));
-    vi.mocked(tmpdir).mockReturnValue(root);
+    for (const variable of ["TMPDIR", "TMP", "TEMP"])
+      vi.stubEnv(variable, root);
     onTestFinished(() => rm(root, { recursive: true, force: true }));
     return join(
       root,
@@ -814,24 +814,32 @@ describe("model key handoff", () => {
     },
   );
 
-  it("asks without a hash and warns once when neither directory can store a key", async () => {
+  it("refuses a model question when neither directory can store its key", async () => {
     const { ask, stateHome } = await fixture();
     const fallback = await fallbackDirectory();
     await writeFile(join(stateHome, "setup-agent"), "occupied");
     await writeFile(fallback, "occupied");
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
-    onTestFinished(() => stderr.mockRestore());
-    await main([
-      "https://checkout.test/session",
-      "ask",
-      "--preset",
-      "llm-provider",
-    ]);
-    expect(ask).toHaveBeenCalledOnce();
-    expect(ask.mock.calls[0]?.[0]).not.toHaveProperty("redeemKeyHash");
-    expect(stderr.mock.calls).toHaveLength(1);
-    expect(stderr.mock.calls[0]?.[0]).toMatch(
-      /^warning: could not store a redeem key: .*setup-agent-/,
+    onTestFinished(() => {
+      exit.mockRestore();
+      stderr.mockRestore();
+    });
+
+    await expect(
+      main([
+        "https://checkout.test/session",
+        "ask",
+        "--preset",
+        "llm-provider",
+      ]),
+    ).rejects.toThrow("exit");
+
+    expect(ask).not.toHaveBeenCalled();
+    expect(String(stderr.mock.calls[0]?.[0])).toMatch(
+      /^setup-agent: could not store the model redeem key: /,
     );
   });
 

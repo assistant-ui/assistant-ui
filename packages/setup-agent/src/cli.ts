@@ -936,22 +936,20 @@ export const main = async (argv: readonly string[]) => {
           redeemKey === undefined
             ? undefined
             : createHash("sha256").update(redeemKey).digest("hex");
-        let keyFile: string | undefined;
-        if (redeemKey !== undefined && redeemKeyHash !== undefined) {
-          try {
-            keyFile = await saveRedeemKey(redeemKeyHash, redeemKey);
-          } catch (error) {
-            process.stderr.write(
-              `warning: could not store a redeem key: ${error instanceof Error ? error.message : String(error)}\n`,
-            );
-          }
-        }
+        const keyFile =
+          redeemKey === undefined || redeemKeyHash === undefined
+            ? undefined
+            : await saveRedeemKey(redeemKeyHash, redeemKey).catch(
+                (error: unknown) =>
+                  fail(
+                    `could not store the model redeem key: ${error instanceof Error ? error.message : String(error)}`,
+                  ),
+              );
         let inputId: string;
         try {
           ({ inputId } = await commands["agent/ask"]({
             ...seed,
-            ...(keyFile !== undefined &&
-              redeemKeyHash !== undefined && { redeemKeyHash }),
+            ...(redeemKeyHash !== undefined && { redeemKeyHash }),
           }));
         } catch (error) {
           if (keyFile !== undefined) await unlink(keyFile).catch(() => {});
