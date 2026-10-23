@@ -84,8 +84,13 @@ const fakeWidget = (): FakeWidget => {
 
 vi.mock("@assistant-ui/react", () => ({
   useAui: () => ({
-    thread: { append: mocks.append },
-    composer: { setText: mocks.setText },
+    thread: {
+      append: mocks.append,
+      composer: () => ({
+        setText: mocks.setText,
+        getState: () => ({ text: "" }),
+      }),
+    },
     modelContext: {
       register: (provider: { getModelContext(): { system?: string } }) => {
         mocks.providers.push(provider);

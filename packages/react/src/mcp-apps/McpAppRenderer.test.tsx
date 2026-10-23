@@ -25,8 +25,13 @@ const { appendMock, setTextMock, framePropsMock } = vi.hoisted(() => ({
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
   useAui: () => ({
-    thread: { append: appendMock },
-    composer: { setText: setTextMock },
+    thread: {
+      append: appendMock,
+      composer: () => ({
+        setText: setTextMock,
+        getState: () => ({ text: "" }),
+      }),
+    },
   }),
 }));
 

@@ -277,8 +277,14 @@ function InlineRenderer({
           if ("reason" in result) {
             return { isError: true, ok: false, reason: result.reason };
           }
-          aui.composer.setText(
-            result.content.map((part) => part.text).join("\n"),
+          const composer = aui.thread.composer();
+          composer.setText(
+            [
+              composer.getState().text,
+              result.content.map((part) => part.text).join("\n"),
+            ]
+              .filter((part) => part.trim())
+              .join(" "),
           );
           return { ok: true };
         }),
