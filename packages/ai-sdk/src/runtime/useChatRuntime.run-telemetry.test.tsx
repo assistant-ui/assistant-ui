@@ -89,7 +89,9 @@ describe("useChatRuntime run telemetry", () => {
 
   it("keeps an answered prompt stored when its reload stops before the first token", async () => {
     const stream = createControlledTransport();
-    const { harness, append, deleteItems } = mountWithHistory(stream.transport);
+    const { harness, assistantReports, append, deleteItems } = mountWithHistory(
+      stream.transport,
+    );
     await waitFor(() => expect(harness.client()).toBeDefined());
     harness.send();
     await waitFor(() => expect(harness.isRunning()).toBe(true));
@@ -107,7 +109,12 @@ describe("useChatRuntime run telemetry", () => {
     harness.client().thread.message({ index: 1 }).reload();
     await waitFor(() => expect(harness.isRunning()).toBe(true));
     await harness.client().thread.cancelRun();
-    await waitFor(() => expect(harness.isRunning()).toBe(false));
+    await waitFor(() =>
+      expect(assistantReports().at(-1)).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      }),
+    );
 
     expect(
       harness
