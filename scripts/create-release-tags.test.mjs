@@ -10,9 +10,7 @@ import {
 } from "./create-release-tags.mjs";
 
 const RELEASE_SHA = "a".repeat(40);
-const RELEASE_COMMITTED_AT = "2026-10-20T12:00:00Z";
-const RECENT = "2026-10-20T13:00:00Z";
-const HISTORICAL = "2026-01-01T00:00:00Z";
+const OTHER_SHA = "b".repeat(40);
 
 const changelog = (version) => `# Changelog
 
@@ -35,7 +33,10 @@ function makeWorkspace(packages) {
   for (const [dirName, manifest, withChangelog = true] of packages) {
     const pkgDir = path.join(packagesDir, dirName);
     mkdirSync(pkgDir, { recursive: true });
-    writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify(manifest));
+    writeFileSync(
+      path.join(pkgDir, "package.json"),
+      JSON.stringify(manifest),
+    );
     if (withChangelog) {
       writeFileSync(
         path.join(pkgDir, "CHANGELOG.md"),
@@ -50,7 +51,8 @@ function makeGithub() {
   const calls = [];
   const tags = new Set();
   const releases = new Set();
-  const notFound = () => Object.assign(new Error("not found"), { status: 404 });
+  const notFound = () =>
+    Object.assign(new Error("not found"), { status: 404 });
   return {
     calls,
     tags,
@@ -76,34 +78,36 @@ function makeGithub() {
   };
 }
 
-const npmMetadata = (entries) => async (name) => {
-  const meta = entries[name];
-  if (!meta) return null;
-  return {
-    versions: Object.fromEntries(meta.map(([v]) => [v, {}])),
-    time: Object.fromEntries(meta),
-  };
-};
+const npmMetadata = (names) => async (name) =>
+  names.includes(name) ? { versions: { "0.0.126": {}, "2.0.0": {} } } : null;
 
-const basePackages = (packagesDir) => readPublishablePackages(packagesDir);
+const mutating = (github) =>
+  github.calls.filter(([kind]) => kind === "createRef" || kind === "createRelease");
 
-test("creates tags and releases at the release SHA with the changelog body", async () => {
+test("creates tags and releases at the release SHA for this run's published packages", async () => {
   const packagesDir = makeWorkspace([
     ["cli", { name: "assistant-ui", version: "0.0.126" }],
+    ["widget", { name: "widget", version: "2.0.0" }],
   ]);
   const github = makeGithub();
   const result = await createReleaseTags({
-    packages: basePackages(packagesDir),
+    packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    releaseCommittedAt: RELEASE_COMMITTED_AT,
+    publishedPackages: [
+      { name: "assistant-ui", version: "0.0.126" },
+      { name: "widget", version: "2.0.0" },
+    ],
     github,
-    getNpmMetadata: npmMetadata({ "assistant-ui": [["0.0.126", RECENT]] }),
+    getNpmMetadata: npmMetadata(["assistant-ui", "widget"]),
     log: () => {},
   });
   assert.deepEqual(result.problems, []);
   assert.deepEqual(
     github.calls.filter(([kind]) => kind === "createRef"),
-    [["createRef", "assistant-ui@0.0.126", RELEASE_SHA]],
+    [
+      ["createRef", "assistant-ui@0.0.126", RELEASE_SHA],
+      ["createRef", "widget@2.0.0", RELEASE_SHA],
+    ],
   );
   const release = github.calls.find(([kind]) => kind === "createRelease")[1];
   assert.equal(release.tag_name, "assistant-ui@0.0.126");
@@ -113,18 +117,19 @@ test("creates tags and releases at the release SHA with the changelog body", asy
   assert.doesNotMatch(release.body, /0\.0\.1/);
 });
 
-test("skips packages whose version is not on npm (partial publish)", async () => {
+test("a partial publish tags exactly the packages the step reported, no others", async () => {
   const packagesDir = makeWorkspace([
     ["cli", { name: "assistant-ui", version: "0.0.126" }],
     ["widget", { name: "widget", version: "2.0.0" }],
   ]);
   const github = makeGithub();
   await createReleaseTags({
-    packages: basePackages(packagesDir),
+    packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    releaseCommittedAt: RELEASE_COMMITTED_AT,
+    // The widget publish failed; only assistant-ui reached npm this run.
+    publishedPackages: [{ name: "assistant-ui", version: "0.0.126" }],
     github,
-    getNpmMetadata: npmMetadata({ "assistant-ui": [["0.0.126", RECENT]] }),
+    getNpmMetadata: npmMetadata(["assistant-ui", "widget"]),
     log: () => {},
   });
   assert.deepEqual(
@@ -133,57 +138,96 @@ test("skips packages whose version is not on npm (partial publish)", async () =>
   );
 });
 
-test("rerun keeps existing tags and releases and retries only the missing release", async () => {
+test("skips packages whose version is not on npm", async () => {
   const packagesDir = makeWorkspace([
     ["cli", { name: "assistant-ui", version: "0.0.126" }],
-    ["widget", { name: "widget", version: "2.0.0" }],
   ]);
   const github = makeGithub();
-  github.tags.add("assistant-ui@0.0.126");
-  github.tags.add("widget@2.0.0");
-  github.releases.add("widget@2.0.0");
   await createReleaseTags({
-    packages: basePackages(packagesDir),
+    packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    releaseCommittedAt: RELEASE_COMMITTED_AT,
+    publishedPackages: [{ name: "assistant-ui", version: "0.0.126" }],
     github,
-    getNpmMetadata: npmMetadata({
-      "assistant-ui": [["0.0.126", RECENT]],
-      widget: [["2.0.0", RECENT]],
-    }),
+    getNpmMetadata: npmMetadata([]),
     log: () => {},
   });
-  assert.deepEqual(
-    github.calls.filter(([kind]) => kind === "createRef"),
-    [],
-  );
-  assert.deepEqual(
-    github.calls
-      .filter(([kind]) => kind === "createRelease")
-      .map((c) => c[1].tag_name),
-    ["assistant-ui@0.0.126"],
-  );
+  assert.deepEqual(mutating(github), []);
 });
 
-test("never retargets a historical version's tag at the release SHA", async () => {
+test("rerun reconciles from the provenance attestation when the publish job skipped", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+  ]);
+  const github = makeGithub();
+  github.tags.add("assistant-ui@0.0.126"); // tag from the first run
+  await createReleaseTags({
+    packages: readPublishablePackages(packagesDir),
+    releaseSha: RELEASE_SHA,
+    publishedPackages: null,
+    github,
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
+    getPublishCommit: async () => RELEASE_SHA,
+    log: () => {},
+  });
+  // Missing release retried; existing tag kept.
+  assert.deepEqual(mutating(github).map(([kind]) => kind), ["createRelease"]);
+});
+
+test("back-to-back releases: a version published by another run's SHA is never retargeted", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+  ]);
+  const github = makeGithub();
+  const result = await createReleaseTags({
+    packages: readPublishablePackages(packagesDir),
+    releaseSha: RELEASE_SHA,
+    publishedPackages: null,
+    github,
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
+    // The attestation names the earlier run's commit, not this RELEASE_SHA.
+    getPublishCommit: async () => OTHER_SHA,
+    log: () => {},
+  });
+  assert.deepEqual(mutating(github), []);
+  assert.deepEqual(result.problems, []);
+});
+
+test("a version without a usable attestation is skipped, not guessed", async () => {
   const packagesDir = makeWorkspace([
     ["cli", { name: "assistant-ui", version: "0.0.126" }],
   ]);
   const github = makeGithub();
   await createReleaseTags({
-    packages: basePackages(packagesDir),
+    packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    releaseCommittedAt: RELEASE_COMMITTED_AT,
+    publishedPackages: null,
     github,
-    getNpmMetadata: npmMetadata({ "assistant-ui": [["0.0.126", HISTORICAL]] }),
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
+    getPublishCommit: async () => null,
     log: () => {},
   });
-  assert.deepEqual(
-    github.calls.filter(
-      ([kind]) => kind === "createRef" || kind === "createRelease",
-    ),
-    [],
-  );
+  assert.deepEqual(mutating(github), []);
+});
+
+test("an unreadable attestation is a problem, not a silent skip", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+  ]);
+  const github = makeGithub();
+  const result = await createReleaseTags({
+    packages: readPublishablePackages(packagesDir),
+    releaseSha: RELEASE_SHA,
+    publishedPackages: null,
+    github,
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
+    getPublishCommit: async () => {
+      throw new Error("npm attestations HTTP 502");
+    },
+    log: () => {},
+  });
+  assert.deepEqual(mutating(github), []);
+  assert.equal(result.problems.length, 1);
+  assert.match(result.problems[0], /attestation/);
 });
 
 test("propagates release-creation errors instead of treating them as existing", async () => {
@@ -196,11 +240,11 @@ test("propagates release-creation errors instead of treating them as existing", 
   };
   await assert.rejects(
     createReleaseTags({
-      packages: basePackages(packagesDir),
+      packages: readPublishablePackages(packagesDir),
       releaseSha: RELEASE_SHA,
-      releaseCommittedAt: RELEASE_COMMITTED_AT,
+      publishedPackages: [{ name: "assistant-ui", version: "0.0.126" }],
       github,
-      getNpmMetadata: npmMetadata({ "assistant-ui": [["0.0.126", RECENT]] }),
+      getNpmMetadata: npmMetadata(["assistant-ui"]),
       log: () => {},
     }),
     /Validation Failed/,
@@ -213,11 +257,11 @@ test("tags a package without a changelog but skips its release, like the action"
   ]);
   const github = makeGithub();
   await createReleaseTags({
-    packages: basePackages(packagesDir),
+    packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    releaseCommittedAt: RELEASE_COMMITTED_AT,
+    publishedPackages: [{ name: "assistant-ui", version: "0.0.126" }],
     github,
-    getNpmMetadata: npmMetadata({ "assistant-ui": [["0.0.126", RECENT]] }),
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
     log: () => {},
   });
   assert.deepEqual(
