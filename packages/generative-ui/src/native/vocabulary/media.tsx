@@ -89,8 +89,11 @@ function ImageContent({
 
 function Image(props: ImageProps & { $imageOrigins?: readonly string[] }) {
   const consumed = useListViewItemText(props.alt);
+  const ink = useInk();
   if (!allowedImageSrc(props.src, props.$imageOrigins)) {
-    return consumed || !props.alt ? null : <Text>{props.alt}</Text>;
+    return consumed || !props.alt ? null : (
+      <Text style={{ color: ink }}>{props.alt}</Text>
+    );
   }
   return (
     <ImageContent key={props.src} {...props} hidden={!props.alt || consumed} />

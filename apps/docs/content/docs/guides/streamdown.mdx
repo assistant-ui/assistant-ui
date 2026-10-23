@@ -58,14 +58,6 @@ import "streamdown/styles.css";
 
 The bare `caret` prop does **not** require this import; only the word-level animation does.
 
-## Images from assistant output
-
-Assistant markdown loads images from any origin by default. A model can put data in an image URL and cause a request to that URL. Restrict image URLs with `security.allowedImagePrefixes`:
-
-```tsx
-<StreamdownTextPrimitive security={{ allowedImagePrefixes: ["https://cdn.example.com/"] }} />
-```
-
 ## Basic Usage
 
 ```tsx
@@ -274,7 +266,7 @@ Allow specific HTML tags in markdown content:
 
 ### Security Configuration
 
-Restrict allowed URLs for links and images. This overrides streamdown's default allow-all policy:
+Streamdown allows links and images from any origin by default, so a model can put data in an image URL and cause a request to that URL. Restrict allowed URLs for links and images:
 
 ```tsx
 <StreamdownTextPrimitive

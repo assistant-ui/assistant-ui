@@ -31,6 +31,53 @@ describe("toSpecCatalog for Vue", () => {
     expect(capture).toHaveBeenCalledOnce();
   });
 
+  it("forwards props, events and imageOrigins through the wrapper", async () => {
+    const capture = vi.fn();
+    const Gallery = defineComponent({
+      props: ["label", "imageOrigins"],
+      emits: ["press"],
+      setup(props, { emit }) {
+        return () =>
+          h(
+            "button",
+            { onClick: () => emit("press") },
+            `${String(props.label)} ${(props.imageOrigins as readonly string[]).join(",")}`,
+          );
+      },
+    });
+    const setup = toSpecCatalog(
+      {
+        Gallery: {
+          component: Gallery,
+          description: "A gallery.",
+          properties: z.object({ label: z.string() }),
+          events: ["press"],
+        },
+      },
+      {
+        imageOrigins: ["https://cdn.example.com"],
+        actions: { capture: { description: "Captures a press." } },
+      },
+    );
+    const rendered = renderVueSpec(
+      spec({
+        main: {
+          type: "Gallery",
+          props: { label: "Photos" },
+          on: { press: { action: "capture", params: {} } },
+        },
+      }),
+      { capture },
+      setup,
+    );
+
+    const button = rendered.container.querySelector("button");
+    expect(button?.textContent).toBe("Photos https://cdn.example.com");
+    button?.click();
+    await nextTick();
+    expect(capture).toHaveBeenCalledOnce();
+  });
+
   it("keeps imageOrigins off components that do not declare it", () => {
     const markup = renderVueSpec(
       spec({ main: { type: "Card", props: { title: "Hello" } } }),
