@@ -1,11 +1,12 @@
 import type { BaseProps } from "../svg";
-import { forwardRef } from "react";
+import { Fragment, forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round } from "../../core/geometry";
 import { sankeyColumns } from "../../core/layout";
 import { textWidth, truncate } from "../../core/text";
 import { alpha, cat, ink } from "../../core/theme";
 import { AxisLabels, ChartSvg, PAD, frame } from "../svg";
+import { FlowTrail } from "../motion";
 
 export type SankeyProps = BaseProps & { graph: Graph };
 
@@ -57,17 +58,30 @@ export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
           const sx = X(ribbon.sourceColumn) + nodeW;
           const tx = X(ribbon.targetColumn);
           const mx = (sx + tx) / 2;
+          const sm = (ribbon.sy0 + ribbon.sy1) / 2;
+          const tm = (ribbon.ty0 + ribbon.ty1) / 2;
           return (
-            <path
-              key={i}
-              d={`M${round(sx)} ${round(ribbon.sy0)} C${round(mx)} ${round(ribbon.sy0)} ${round(mx)} ${round(ribbon.ty0)} ${round(tx)} ${round(ribbon.ty0)} L${round(tx)} ${round(ribbon.ty1)} C${round(mx)} ${round(ribbon.ty1)} ${round(mx)} ${round(ribbon.sy1)} ${round(sx)} ${round(ribbon.sy1)} Z`}
-              fill={cat(ribbon.sourceIndex)}
-              opacity={alpha(0.32 - (i % 2) * 0.1)}
-              data-part="mark"
-              data-i={i}
-              data-series={ribbon.source}
-              data-series2={ribbon.target}
-            />
+            <Fragment key={i}>
+              <path
+                d={`M${round(sx)} ${round(ribbon.sy0)} C${round(mx)} ${round(ribbon.sy0)} ${round(mx)} ${round(ribbon.ty0)} ${round(tx)} ${round(ribbon.ty0)} L${round(tx)} ${round(ribbon.ty1)} C${round(mx)} ${round(ribbon.ty1)} ${round(mx)} ${round(ribbon.sy1)} ${round(sx)} ${round(ribbon.sy1)} Z`}
+                fill={cat(ribbon.sourceIndex)}
+                opacity={alpha(0.32 - (i % 2) * 0.1)}
+                data-part="mark"
+                data-i={i}
+                data-series={ribbon.source}
+                data-series2={ribbon.target}
+              />
+              <FlowTrail
+                d={`M${round(sx)} ${round(sm)} C${round(mx)} ${round(sm)} ${round(mx)} ${round(tm)} ${round(tx)} ${round(tm)}`}
+                color={cat(ribbon.sourceIndex)}
+                width={Math.max(
+                  1.5,
+                  Math.min(4, Math.abs(ribbon.sy1 - ribbon.sy0) * 0.35),
+                )}
+                from={ribbon.sourceColumn / Math.max(1, lastColumn)}
+                to={ribbon.targetColumn / Math.max(1, lastColumn)}
+              />
+            </Fragment>
           );
         })}
         {nodes.map((node) => {

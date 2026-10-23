@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { piClient } from "@/lib/pi-server";
+import { withFail } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ type Context = { params: Promise<{ threadId: string }> };
  * only to subsequent live events. A client disconnect unsubscribes but does NOT
  * abort the Pi run — disconnect ≠ abort.
  */
-export async function GET(req: NextRequest, { params }: Context) {
+export const GET = withFail(async (req: NextRequest, { params }: Context) => {
   const { threadId } = await params;
   const encoder = new TextEncoder();
   let unsubscribe: (() => void) | undefined;
@@ -56,4 +57,4 @@ export async function GET(req: NextRequest, { params }: Context) {
       connection: "keep-alive",
     },
   });
-}
+});

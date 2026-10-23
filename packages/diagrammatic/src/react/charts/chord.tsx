@@ -1,9 +1,10 @@
 import type { BaseProps } from "../svg";
-import { forwardRef } from "react";
+import { Fragment, forwardRef } from "react";
 import { polar, ring, round } from "../../core/geometry";
 import { chordLayout } from "../../core/layout";
 import { truncate } from "../../core/text";
 import { SURFACE, alpha, cat } from "../../core/theme";
+import { FlowTrail } from "../motion";
 import { ChartSvg, PAD, frame } from "../svg";
 
 export type ChordProps = BaseProps & {
@@ -53,24 +54,32 @@ export const Chord = forwardRef<SVGSVGElement, ChordProps>(
           const s1 = point(ribbon.s1);
           const t0 = point(ribbon.t0);
           const t1 = point(ribbon.t1);
+          const sm = point((ribbon.s0 + ribbon.s1) / 2);
+          const tm = point((ribbon.t0 + ribbon.t1) / 2);
           return (
-            <path
-              key={i}
-              d={[
-                `M${round(s0.x)} ${round(s0.y)}`,
-                `A${radius} ${radius} 0 0 1 ${round(s1.x)} ${round(s1.y)}`,
-                `Q${round(cx)} ${round(cy)} ${round(t1.x)} ${round(t1.y)}`,
-                `A${radius} ${radius} 0 0 0 ${round(t0.x)} ${round(t0.y)}`,
-                `Q${round(cx)} ${round(cy)} ${round(s0.x)} ${round(s0.y)}`,
-                "Z",
-              ].join(" ")}
-              fill={cat(ribbon.groupIndex)}
-              opacity={alpha(0.28 - (i % 2) * 0.1)}
-              data-part="mark"
-              data-i={i}
-              data-series={flows[i]!.from}
-              data-series2={flows[i]!.to}
-            />
+            <Fragment key={i}>
+              <path
+                d={[
+                  `M${round(s0.x)} ${round(s0.y)}`,
+                  `A${radius} ${radius} 0 0 1 ${round(s1.x)} ${round(s1.y)}`,
+                  `Q${round(cx)} ${round(cy)} ${round(t1.x)} ${round(t1.y)}`,
+                  `A${radius} ${radius} 0 0 0 ${round(t0.x)} ${round(t0.y)}`,
+                  `Q${round(cx)} ${round(cy)} ${round(s0.x)} ${round(s0.y)}`,
+                  "Z",
+                ].join(" ")}
+                fill={cat(ribbon.groupIndex)}
+                opacity={alpha(0.28 - (i % 2) * 0.1)}
+                data-part="mark"
+                data-i={i}
+                data-series={flows[i]!.from}
+                data-series2={flows[i]!.to}
+              />
+              <FlowTrail
+                d={`M${round(sm.x)} ${round(sm.y)} Q${round(cx)} ${round(cy)} ${round(tm.x)} ${round(tm.y)}`}
+                color={cat(ribbon.groupIndex)}
+                width={2}
+              />
+            </Fragment>
           );
         })}
         {arcs.map((arc, i) => (

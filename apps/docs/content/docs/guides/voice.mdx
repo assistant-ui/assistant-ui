@@ -317,7 +317,7 @@ See the [Orb page](/elements/orb) for anatomy, variants, and state samples.
 The [`with-livekit`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-livekit) example shows the full wiring:
 
 1. **Adapter** (`examples/with-livekit/lib/livekit-voice-adapter.ts`): `LiveKitVoiceAdapter` implements `RealtimeVoiceAdapter`. `connect` calls `createVoiceSession`, connects a LiveKit `Room`, enables the local microphone, attaches remote audio tracks, maps room events to helpers (`setStatus`, `end`, `emitMode`, `emitVolume`, `emitTranscript`), and forwards typed text with `localParticipant.sendText` on the `lk.chat` topic, which the agent reads as text input.
-2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a ten-minute token for an isolated room so secrets stay off the client.
+2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a ten-minute token for an isolated room so secrets stay off the client. It accepts any same-origin request, so require your application session in it and apply a durable rate limit before deploying.
 3. **Agent worker** (`examples/with-livekit/agent/`): a Python LiveKit Agents process that joins the room and runs the voice pipeline.
 
 Minimal runtime wiring:

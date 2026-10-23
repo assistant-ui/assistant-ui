@@ -1,5 +1,5 @@
 import type { BaseProps } from "../svg";
-import { forwardRef } from "react";
+import { Fragment, forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import {
@@ -10,6 +10,7 @@ import {
 import { ACCENT, SURFACE, ink } from "../../core/theme";
 import { textWidth, truncate } from "../../core/text";
 import { ChartSvg, PAD, frame } from "../svg";
+import { FlowTrail } from "../motion";
 
 export type NetworkProps = BaseProps & { graph: Graph };
 
@@ -71,19 +72,25 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
           const b = positions.get(link.target);
           if (!a || !b) return null;
           return (
-            <line
-              key={i}
-              x1={round(a.x)}
-              y1={round(a.y)}
-              x2={round(b.x)}
-              y2={round(b.y)}
-              stroke={ink(0.2)}
-              data-part="mark"
-              data-i={i}
-              data-series={link.source}
-              data-series2={link.target}
-              {...stroke.hair}
-            />
+            <Fragment key={i}>
+              <line
+                x1={round(a.x)}
+                y1={round(a.y)}
+                x2={round(b.x)}
+                y2={round(b.y)}
+                stroke={ink(0.2)}
+                data-part="mark"
+                data-i={i}
+                data-series={link.source}
+                data-series2={link.target}
+                {...stroke.hair}
+              />
+              <FlowTrail
+                d={`M${round(a.x)} ${round(a.y)} L${round(b.x)} ${round(b.y)}`}
+                color={ACCENT}
+                width={2}
+              />
+            </Fragment>
           );
         })}
         {marks.map((mark) => {

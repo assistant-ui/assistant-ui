@@ -159,6 +159,7 @@ export type AllowedTags = Record<string, string[]>;
  *   allowedLinkPrefixes: ["https://example.com", "https://docs.example.com"],
  *   allowedImagePrefixes: ["https://cdn.example.com"],
  *   allowedProtocols: ["https", "mailto"],
+ *   defaultOrigin: "https://example.com",
  * }}
  */
 export type SecurityConfig = {
@@ -170,7 +171,7 @@ export type SecurityConfig = {
   allowedProtocols?: string[];
   /** Allow base64 data images. Default: true */
   allowDataImages?: boolean;
-  /** Default origin for relative URLs */
+  /** Origin that relative URLs resolve against. Required when `allowedLinkPrefixes` or `allowedImagePrefixes` lists anything other than `"*"`. */
   defaultOrigin?: string;
   /** CSS class for blocked links */
   blockedLinkClass?: string;
@@ -387,6 +388,7 @@ export type StreamdownTextPrimitiveProps = Omit<
    *   allowedLinkPrefixes: ["https://trusted.com"],
    *   allowedImagePrefixes: ["https://cdn.trusted.com"],
    *   allowedProtocols: ["https"],
+   *   defaultOrigin: "https://trusted.com",
    * }}
    */
   security?: SecurityConfig | undefined;

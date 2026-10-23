@@ -495,11 +495,15 @@ app = FastAPI(
 )
 
 # Configure CORS
-cors_origins = ["*"]  # Allow all origins
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
@@ -590,7 +594,7 @@ async def health_check():
 
 def main():
     """Main entry point for running the server."""
-    host = os.getenv("HOST", "0.0.0.0")
+    host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8010"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
     log_level = os.getenv("LOG_LEVEL", "info").lower()
