@@ -272,3 +272,4 @@ def test_example_configuration_binds_loopback(monkeypatch: pytest.MonkeyPatch) -
     main.main()
 
     assert runs[0]["host"] == "127.0.0.1"
+    assert runs[0]["port"] == 8010
