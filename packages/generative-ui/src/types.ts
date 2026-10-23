@@ -41,6 +41,8 @@ export type GenerativeUIRenderContext = {
   /** Whether the tool call's arguments are still streaming or are complete. */
   status: GenerativeUIStatus;
   dispatch?: GenerativeUIDispatch;
+  /** Origins allowed for vocabulary images. Omit to allow all sources. */
+  imageOrigins?: readonly string[];
 };
 
 /**
@@ -62,6 +64,7 @@ type StreamingRenderProps<P> =
       $status: "streaming";
       $action?: Action;
       $dispatch?: GenerativeUIDispatch;
+      $imageOrigins?: readonly string[];
       $slots?: Readonly<Record<string, ReactNode>>;
       $bindings?: GenerativeUIBindings<P>;
     })
@@ -70,6 +73,7 @@ type StreamingRenderProps<P> =
       $status: "done";
       $action?: Action;
       $dispatch?: GenerativeUIDispatch;
+      $imageOrigins?: readonly string[];
       $slots?: Readonly<Record<string, ReactNode>>;
       $bindings?: GenerativeUIBindings<P>;
     });
@@ -80,6 +84,7 @@ type StaticRenderProps<P> = P & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 };

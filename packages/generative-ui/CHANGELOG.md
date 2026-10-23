@@ -1,5 +1,14 @@
 # @assistant-ui/generative-ui
 
+## 0.0.7
+
+### Patch Changes
+
+- [#10025](https://github.com/assistant-ui/assistant-ui/pull/10025) [`6ceb72f`](https://github.com/assistant-ui/assistant-ui/commit/6ceb72f9f7bf9f2d847708a89b632985312fd60e) - keep model text in Slack output from notifying a channel: plain @here, @channel and @everyone in mrkdwn gain a word joiner, and Slack mention and labeled link syntax in markdown blocks is escaped outside code ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`0a6d4cb`](https://github.com/assistant-ui/assistant-ui/commit/0a6d4cb49bd7749e7e708448708e325c88752531)]:
+  - assistant-stream@0.3.54
+  - generative-frame@0.0.8
+
 ## 0.0.6
 
 ### Patch Changes

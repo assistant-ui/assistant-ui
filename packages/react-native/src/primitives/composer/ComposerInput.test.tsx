@@ -166,7 +166,7 @@ describe("ComposerInput", () => {
         fireInput(input, "ni");
       });
 
-      expect(h.setText).toHaveBeenCalledWith("ni");
+      expect(h.setText).toHaveBeenCalledWith("ni", { origin: "user" });
       expect(h.flushTapSyncSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -417,7 +417,7 @@ describe("ComposerInput", () => {
         fireInput(input, "ni");
       });
 
-      expect(h.setText).toHaveBeenCalledWith("ni");
+      expect(h.setText).toHaveBeenCalledWith("ni", { origin: "user" });
       expect(h.flushTapSyncSpy).not.toHaveBeenCalled();
     });
 

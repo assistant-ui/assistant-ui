@@ -1,7 +1,11 @@
+import importlib
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from dotenv import dotenv_values
+from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 import main
@@ -212,3 +216,60 @@ async def test_mixed_graph_turn_does_not_reenter_agent(monkeypatch: pytest.Monke
         for message in result["messages"]
         if isinstance(message, ToolMessage)
     ] == ["server-1"]
+
+
+@pytest.fixture
+def load_main(monkeypatch: pytest.MonkeyPatch):
+    def load(**env: str):
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        return importlib.reload(main)
+
+    yield load
+    monkeypatch.undo()
+    importlib.reload(main)
+
+
+def preflight(app, origin: str):
+    return TestClient(app).options(
+        "/assistant",
+        headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
+    )
+
+
+def test_cors_allows_listed_origins_with_credentials(load_main) -> None:
+    app = load_main(CORS_ORIGINS="http://localhost:3000, http://127.0.0.1:3000").app
+    response = preflight(app, "http://127.0.0.1:3000")
+
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:3000"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
+def test_cors_rejects_unlisted_origins(load_main) -> None:
+    app = load_main(CORS_ORIGINS="http://localhost:3000").app
+    response = preflight(app, "https://example.net")
+
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_wildcard_turns_off_credentials(load_main) -> None:
+    app = load_main(CORS_ORIGINS="*").app
+    response = preflight(app, "https://example.net")
+
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert "access-control-allow-credentials" not in response.headers
+
+
+def test_example_configuration_binds_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key, value in dotenv_values(Path(__file__).with_name(".env.example")).items():
+        if value is not None:
+            monkeypatch.setenv(key, value)
+    runs: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        main.uvicorn, "run", lambda *_args, **kwargs: runs.append(kwargs)
+    )
+
+    main.main()
+
+    assert runs[0]["host"] == "127.0.0.1"
+    assert runs[0]["port"] == 8010

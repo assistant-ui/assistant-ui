@@ -5,6 +5,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionPayload } from "@/app/api/auth/session/route";
 import type { SessionState } from "./session";
 
+const mocks = vi.hoisted(() => ({ syncAnalyticsUser: vi.fn() }));
+
+vi.mock("./analytics-identity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./analytics-identity")>()),
+  syncAnalyticsUser: mocks.syncAnalyticsUser,
+}));
+
 async function sessionStateFor(
   nodeEnv: string,
   payload: SessionPayload,
@@ -52,12 +59,44 @@ describe("useSession", () => {
     const state = await sessionStateFor("production", {
       enabled: true,
       cloudHistory: true,
-      user: { name: "Ada Lovelace", email: "ada@test", image: null },
+      user: {
+        analyticsId: "u_1",
+        name: "Ada Lovelace",
+        email: "ada@test",
+        image: null,
+      },
     });
     expect(state).toEqual({
       status: "signed-in",
       cloudHistory: true,
-      user: { name: "Ada Lovelace", email: "ada@test", image: null },
+      user: {
+        analyticsId: "u_1",
+        name: "Ada Lovelace",
+        email: "ada@test",
+        image: null,
+      },
     });
+  });
+
+  it("hands analytics the pseudonymous id of a signed-in visitor", async () => {
+    await sessionStateFor("production", {
+      enabled: true,
+      cloudHistory: false,
+      user: { analyticsId: "u_1", name: "Ada", email: "ada@test", image: null },
+    });
+    expect(mocks.syncAnalyticsUser).toHaveBeenCalledExactlyOnceWith("u_1");
+  });
+
+  it("tells analytics about a signed-out answer only when accounts gave it", async () => {
+    await sessionStateFor("production", {
+      enabled: true,
+      cloudHistory: false,
+      user: null,
+    });
+    expect(mocks.syncAnalyticsUser).toHaveBeenCalledExactlyOnceWith(null);
+
+    mocks.syncAnalyticsUser.mockClear();
+    await sessionStateFor("production", unconfigured);
+    expect(mocks.syncAnalyticsUser).not.toHaveBeenCalled();
   });
 });

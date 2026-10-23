@@ -1,4 +1,13 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -32,6 +41,22 @@ const input = {
 };
 
 describe("cloud provisioning", () => {
+  it("refuses a linked pending request without changing its target", async () => {
+    const dir = await directory();
+    const configDir = path.join(dir, ".assistant-ui");
+    await mkdir(configDir);
+    const target = path.join(dir, "target.json");
+    const file = path.join(configDir, "provision.json");
+    await writeFile(target, "original\n");
+    await chmod(target, 0o644);
+    await symlink(target, file);
+    await expect(resolveProvisionRequest(dir, input)).rejects.toThrow(
+      `${file} is a symbolic link`,
+    );
+    expect(await readFile(target, "utf8")).toBe("original\n");
+    expect((await stat(target)).mode & 0o777).toBe(0o644);
+  });
+
   it("replays the same identity after a failed request without persisting an access code", async () => {
     const dir = await directory();
     const first = await resolveProvisionRequest(

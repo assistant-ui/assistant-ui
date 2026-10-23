@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { resource, useResource, flushTapSync } from "@assistant-ui/tap";
 import { useState } from "react";
+import type { AssistantRuntime } from "@assistant-ui/core";
 import type { ChatTransport, UIMessage } from "ai";
 import {
   RuntimeAdapter,
@@ -18,6 +19,7 @@ import {
   useChatThread,
   type ChatThreadEnvironment,
 } from "./useChatThread";
+import { DynamicChatTransport } from "./DynamicChatTransport";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { AISDKThreads } from "./AISDKThreads";
 import {
@@ -854,6 +856,70 @@ describe("useChatThread", () => {
       handle.destroy();
       storage.clear();
     }
+  });
+
+  it("clears a dropped partial before replaying through the transport wrappers", async () => {
+    let dropped!: ReadableStreamDefaultController<UIMessageChunk>;
+    const chunks = (...values: UIMessageChunk[]) =>
+      new ReadableStream<UIMessageChunk>({
+        start(controller) {
+          for (const value of values) controller.enqueue(value);
+          controller.close();
+        },
+      });
+    const sourceTransport = {
+      resumeStreamIsReplay: true,
+      sendMessages: vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+        async () =>
+          new ReadableStream<UIMessageChunk>({
+            start(controller) {
+              dropped = controller;
+              controller.enqueue({ type: "start", messageId: "answer" });
+              controller.enqueue({ type: "text-start", id: "text" });
+              controller.enqueue({
+                type: "text-delta",
+                id: "text",
+                delta: "Partial",
+              });
+            },
+          }),
+      ),
+      reconnectToStream: vi.fn(async () =>
+        chunks(
+          { type: "start" },
+          { type: "text-start", id: "text" },
+          { type: "text-delta", id: "text", delta: "Partial complete" },
+          { type: "text-end", id: "text" },
+          { type: "finish" },
+        ),
+      ),
+    } satisfies ChatTransport<UIMessage>;
+    const dynamicTransport = new DynamicChatTransport(sourceTransport);
+    const owner = {};
+    dynamicTransport.registerThread("main", owner);
+    const proxy = dynamicTransport.createThreadProxy(owner, () => ({
+      runtime: {} as AssistantRuntime,
+      getThreadListItem: () => undefined,
+    }));
+    const chat = createChat({ id: "main", transport: proxy }, { current: {} });
+    const pending = chat.sendMessage({ text: "hello" });
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(-1)?.parts).toEqual([
+        expect.objectContaining({ type: "text", text: "Partial" }),
+      ]);
+    });
+    dropped.error(new TypeError("fetch failed"));
+    await pending;
+
+    await chat.resumeStream();
+
+    expect(chat.error).toBeUndefined();
+    expect(chat.messages).toHaveLength(2);
+    expect(chat.messages.at(-1)?.id).toBe("answer");
+    expect(chat.messages.at(-1)?.parts).toEqual([
+      { type: "text", text: "Partial complete", state: "done" },
+    ]);
   });
 
   it.each([undefined, "different-answer"])(

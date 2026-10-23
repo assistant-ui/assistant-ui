@@ -7,6 +7,8 @@ import type { ToolCallMessagePartComponent } from "../types/MessagePartComponent
 import {
   unstable_getInteractableVersions as getInteractableVersions,
   interactableToolName,
+  isInteractableCreateCall,
+  toolResultRecord,
 } from "../../model-context/interactable-composer-metadata";
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 import { useJSONEqual } from "../utils/useJSONEqual";
@@ -102,7 +104,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
   // the result's resolved id (covers id-less calls), or the id argument.
   let inferredId: string | undefined;
   if (part?.toolName === updateToolName) {
-    const result = part.result as Record<string, unknown> | undefined;
+    const result = toolResultRecord(part.result);
     const args = part.args as Record<string, unknown> | undefined;
     if (result?.success !== false) {
       if (typeof result?.id === "string") inferredId = result.id;
@@ -112,7 +114,9 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
 
   const id = config.id ?? inferredId ?? autoId;
   const internalScope =
-    part?.toolName === name || part?.toolName === updateToolName
+    part?.toolName === name ||
+    part?.toolName === updateToolName ||
+    (part !== undefined && isInteractableCreateCall(part, id, name))
       ? "thread"
       : undefined;
 

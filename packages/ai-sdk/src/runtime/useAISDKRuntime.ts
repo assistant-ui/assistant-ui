@@ -17,6 +17,7 @@ import type {
 } from "@ai-sdk/react";
 import { isToolUIPart, generateId, getToolName } from "ai";
 import {
+  useExternalMessageConverter,
   useExternalStoreRuntime,
   useRuntimeAdapters,
   type JoinStrategy,
@@ -59,6 +60,8 @@ import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../utils/getVercelAIMessages";
 import {
   AISDKMessageConverter,
+  convertAISDKMessage,
+  createAISDKMetadataKey,
   type AISDKMessageConverterMetadata,
 } from "../converters/convertMessage";
 import { wrapModelContentEnvelope } from "assistant-stream/internal";
@@ -513,7 +516,10 @@ const findRawToolMessageIndex = <UI_MESSAGE extends UIMessage>(
 };
 
 const toChatError = (error: Error): AssistantError => {
-  const code = (error as { code?: unknown }).code;
+  const { code, statusCode } = error as {
+    code?: unknown;
+    statusCode?: unknown;
+  };
   return {
     code:
       typeof code === "string"
@@ -522,6 +528,7 @@ const toChatError = (error: Error): AssistantError => {
           ? error.name
           : "unknown",
     message: error.message,
+    ...(typeof statusCode === "number" && { statusCode }),
   };
 };
 
@@ -638,6 +645,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const [createdAtCaches] = useState(
+    () => new Map<string, Map<string, Date>>(),
+  );
+  let createdAtCache = createdAtCaches.get(chatHelpers.id);
+  if (!createdAtCache) {
+    createdAtCache = new Map();
+    createdAtCaches.set(chatHelpers.id, createdAtCache);
+  }
   const toolLastInputCacheRef = useRef<Map<string, ReadonlyJSONObject>>(
     new Map(),
   );
@@ -724,6 +739,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toThreadMessages = useCallback(
     (sourceMessages: UI_MESSAGE[]) => {
       const metadata: AISDKMessageConverterMetadata = {
+        createdAtCache,
         supportsRichToolApprovalResponses,
         toolArtifacts: toolArtifactsRef.current,
         toolInteractions: toolInteractionsRef.current,
@@ -735,7 +751,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         metadata,
       );
     },
-    [supportsRichToolApprovalResponses],
+    [createdAtCache, supportsRichToolApprovalResponses],
   );
 
   const retractCancellation = useCallback(
@@ -777,12 +793,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     retractCancellation,
   ]);
 
-  const messages = AISDKMessageConverter.useThreadMessages({
+  const [getConverterMetadataKey] = useState(createAISDKMetadataKey);
+  const messages = useExternalMessageConverter({
+    callback: convertAISDKMessage,
     isRunning,
     messages: chatHelpers.messages,
     joinStrategy,
     metadata: useMemo<AISDKMessageConverterMetadata>(
       () => ({
+        createdAtCache,
         toolStatuses,
         messageTiming,
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
@@ -803,6 +822,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         ...(toolApprovalResponses.size > 0 && { toolApprovalResponses }),
       }),
       [
+        createdAtCache,
         toolStatuses,
         messageTiming,
         optimisticMessageId,
@@ -815,6 +835,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolInteractions,
       ],
     ),
+    getMetadataKey: getConverterMetadataKey,
   });
 
   const exportedMessageRepository = useMemo(() => {
@@ -841,6 +862,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const {
     isLoading,
     deleteMessage: deleteHistoryMessage,
+    markRunCancelled,
     persistToolInteractions,
     persistToolApprovalResponses,
   } = useExternalHistory(
@@ -1043,6 +1065,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   };
 
   const cancelRun = async () => {
+    markRunCancelled();
     for (const toolCallId of Object.keys(toolStatuses)) {
       cancelledToolCallIds.add(toolCallId);
     }

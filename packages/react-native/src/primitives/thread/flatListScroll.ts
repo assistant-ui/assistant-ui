@@ -289,6 +289,7 @@ export const useFlatListAutoScroll = <T>({
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnThreadSwitch?: boolean | undefined;
 }) => {
+  const aui = useAui();
   const metricsRef = useRef({
     contentHeight: 0,
     viewportHeight: 0,
@@ -458,16 +459,19 @@ export const useFlatListAutoScroll = <T>({
     scrollToBottom(true);
   });
 
-  useAuiEvent("threads.selectionChanged", () => {
-    if (!scrollToBottomOnThreadSwitch) return;
-    initializeScrollRequestedRef.current = false;
-    lastScrollEventOffsetRef.current = 0;
-    pendingScrollToBottomRef.current = {
-      animated: false,
-      minimumContentSizeVersion: contentSizeVersionRef.current + 1,
-    };
-    scrollToBottom(false);
-  });
+  useEffect(() => {
+    if (!aui.optional.threads) return;
+    return aui.on("threads.selectionChanged", () => {
+      if (!scrollToBottomOnThreadSwitch) return;
+      initializeScrollRequestedRef.current = false;
+      lastScrollEventOffsetRef.current = 0;
+      pendingScrollToBottomRef.current = {
+        animated: false,
+        minimumContentSizeVersion: contentSizeVersionRef.current + 1,
+      };
+      scrollToBottom(false);
+    });
+  }, [aui, scrollToBottom, scrollToBottomOnThreadSwitch]);
 
   return {
     handleLayout,

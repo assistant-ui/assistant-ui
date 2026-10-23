@@ -100,8 +100,12 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
 const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
   if (content == null) return [];
   if (Array.isArray(content))
-    return content.filter(
-      (block) => typeof block === "object" && block !== null,
+    return content.flatMap((block) =>
+      typeof block === "string"
+        ? [{ type: "text", text: block }]
+        : typeof block === "object" && block !== null
+          ? [block]
+          : [],
     );
   warnOnceInDevelopment(
     `Ignoring message content that is neither a string nor an array: ${typeof content}`,

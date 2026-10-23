@@ -229,6 +229,7 @@ export class ExternalStoreThreadRuntimeCore
   public extras: unknown = undefined;
 
   private _converter = new ThreadMessageConverter();
+  private _createdAtById = new Map<string, Date>();
   private _submittedFeedback = new Map<string, SubmittedFeedbackOverlay>();
 
   // Ids the host was asked to delete via onDelete, mapped to the onDelete
@@ -521,6 +522,7 @@ export class ExternalStoreThreadRuntimeCore
       repositoryInstance !== this.repository;
     if (repositoryChanged) {
       this.repository = repositoryInstance;
+      this._createdAtById.clear();
       this._cancelledToolTurn = null;
       this._cancelledRunIds.clear();
       this._pendingResume = undefined;
@@ -692,7 +694,13 @@ export class ExternalStoreThreadRuntimeCore
               return cache;
             }
 
-            const messageLike = store.convertMessage(m, idx);
+            let messageLike = store.convertMessage(m, idx);
+            if (messageLike.createdAt == null && messageLike.id != null) {
+              const createdAt =
+                this._createdAtById.get(messageLike.id) ?? new Date();
+              this._createdAtById.set(messageLike.id, createdAt);
+              messageLike = { ...messageLike, createdAt };
+            }
             const newMessage = fromThreadMessageLike(
               messageLike,
               fallbackId,

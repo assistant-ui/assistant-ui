@@ -18,6 +18,71 @@ const asElement = (node: NormalizedUINode): NormalizedUIElement => {
 };
 
 describe("normalizeUINode", () => {
+  it("stops normalizing wide sibling lists at the node budget", () => {
+    const children = Array.from({ length: 10_000 }, (_, index) => ({
+      $type: "Text",
+      value: index,
+    }));
+    const root = asElement(normalizeUINode({ $type: "Column", children }));
+    const normalizedChildren = root.children;
+
+    if (!Array.isArray(normalizedChildren)) {
+      throw new Error("expected normalized children to be an array");
+    }
+    expect(normalizedChildren).toHaveLength(4_999);
+    expect(normalizedChildren[0]).toMatchObject({
+      type: "Text",
+      props: { value: 0 },
+    });
+    expect(normalizedChildren[4_998]).toMatchObject({
+      type: "Text",
+      props: { value: 4_998 },
+    });
+  });
+
+  it("keeps a tree within the node budget whole however many arrays it has", () => {
+    const branches = Array.from({ length: 2_000 }, () => ({
+      $type: "Column",
+      children: [{ $type: "Divider" }],
+    }));
+    const root = asElement(
+      normalizeUINode({ $type: "Column", children: branches }),
+    );
+
+    if (!Array.isArray(root.children)) {
+      throw new Error("expected normalized children to be an array");
+    }
+    expect(root.children).toHaveLength(2_000);
+    expect(asElement(root.children[1_999]).children).toEqual([
+      expect.objectContaining({ type: "Divider" }),
+    ]);
+  });
+
+  it("charges text leaves in nested arrays against the node budget", () => {
+    const leaves = Array.from({ length: 3_000 }, (_, index) => `leaf ${index}`);
+    const root = asElement(
+      normalizeUINode({ $type: "Column", children: [leaves, leaves] }),
+    );
+
+    if (!Array.isArray(root.children)) {
+      throw new Error("expected normalized children to be an array");
+    }
+    expect(root.children.flat()).toHaveLength(4_999);
+  });
+
+  it("shares the node budget across a root list and resets it for each call", () => {
+    const spec = Array.from({ length: 6_000 }, (_, index) => ({
+      $type: "Text",
+      value: index,
+    }));
+
+    expect(normalizeSpec(spec).root).toHaveLength(5_000);
+    expect(normalizeUINode({ $type: "Text", value: "next" })).toMatchObject({
+      type: "Text",
+      props: { value: "next" },
+    });
+  });
+
   describe("text leaf", () => {
     it("passes a string through", () => {
       expect(normalizeUINode("hello")).toBe("hello");

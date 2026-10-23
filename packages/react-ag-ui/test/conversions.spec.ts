@@ -3,7 +3,8 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
 import type { Tool } from "assistant-stream";
-import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
+import type { Message } from "@ag-ui/client";
+import { MessageSchema, UserMessageSchema } from "@ag-ui/core/schemas";
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
@@ -219,6 +220,38 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("keeps content parts on an errored tool result and emits a text error", () => {
+    const parts = [
+      { type: "text", text: "failed" },
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/error.png" },
+      },
+    ];
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-99",
+            toolName: "inspect",
+            argsText: "{}",
+            result: parts,
+            isError: true,
+          },
+        ],
+      },
+    ]);
+
+    expect(result[1]).toMatchObject({
+      role: "tool",
+      content: parts,
+      error: "failed",
+    });
+  });
+
   it("includes tool messages for completed tool calls", () => {
     const result = toAgUiMessages([
       {
@@ -253,6 +286,120 @@ describe("adapter conversions", () => {
       toolCallId: "call-42",
       content: '{"ok":true}',
     });
+  });
+
+  it("serializes a tool result array that is not AG-UI content parts", () => {
+    const toolResult = [{ type: "image", image: "https://example.com/a.png" }];
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "render",
+            argsText: "{}",
+            result: toolResult,
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[1]).toMatchObject({
+      role: "tool",
+      toolCallId: "call-1",
+      content: JSON.stringify(toolResult),
+    });
+  });
+
+  it("round-trips mixed text and image tool content parts", () => {
+    const parts = [
+      { type: "text", text: "first" },
+      { type: "text", text: "second" },
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/result.png" },
+      },
+    ];
+    const messages = fromAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "tool-1", role: "tool", toolCallId: "call-1", content: parts },
+    ]);
+
+    const toolPart = (messages[0]?.content as unknown[])[0];
+    expect(toolPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      result: parts,
+    });
+    expect(toolPart).not.toHaveProperty("modelContent");
+    expect(toAgUiMessages(messages)[1]?.content).toEqual(parts);
+  });
+
+  it("exports a direct tool message with content parts", () => {
+    const parts = [
+      { type: "text", text: "found" },
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/result.png" },
+      },
+    ];
+
+    expect(
+      toAgUiMessages([
+        { id: "tool-1", role: "tool", toolCallId: "call-1", content: parts },
+      ])[0]?.content,
+    ).toEqual(parts);
+  });
+
+  it("keeps MCP array result content as model-facing text", () => {
+    const parts = [
+      { type: "text", text: "first" },
+      { type: "text", text: "second" },
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/result.png" },
+      },
+    ];
+    const plainMessages = fromAgUiMessages([
+      {
+        id: "tool-1",
+        role: "tool",
+        toolCallId: "call-1",
+        content: parts,
+      },
+    ]);
+    expect(toAgUiMessages(plainMessages)[1]?.content).toEqual(parts);
+
+    const mcpMessages = fromAgUiMessages([
+      {
+        id: "tool-2",
+        role: "tool",
+        toolCallId: "call-2",
+        content: parts,
+        structuredContent: { count: 2 },
+      },
+    ]);
+    expect(mcpMessages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        result: { content: parts, structuredContent: { count: 2 } },
+        modelContent: [{ type: "text", text: "firstsecond" }],
+      },
+    ]);
+    expect(toAgUiMessages(mcpMessages)[1]?.content).toBe("firstsecond");
   });
 
   it("excludes synthesized parts from outbound messages", () => {
@@ -2501,6 +2648,100 @@ describe("adapter conversions", () => {
       ],
     });
     expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
+  });
+
+  it("keeps the wire order of user text and media parts", () => {
+    const image = {
+      type: "image",
+      source: { type: "url", value: "https://example.com/photo.png" },
+    };
+    const document = {
+      type: "document",
+      source: { type: "file", value: "file-123" },
+    };
+    const pasted = {
+      type: "image",
+      source: { type: "data", value: "aGk=", mimeType: "image/png" },
+    };
+    const inputs = [
+      {
+        id: "u-1",
+        role: "user",
+        content: [image, document, { type: "text", text: "caption" }],
+      },
+      {
+        id: "u-2",
+        role: "user",
+        content: [
+          { type: "text", text: "before" },
+          document,
+          { type: "text", text: "after" },
+        ],
+      },
+      {
+        id: "u-3",
+        role: "user",
+        content: [
+          { type: "text", text: "first" },
+          pasted,
+          { type: "text", text: "second" },
+          image,
+        ],
+      },
+      {
+        id: "u-4",
+        role: "user",
+        content: [
+          { type: "text", text: "one" },
+          { type: "text", text: "two" },
+        ],
+      },
+      {
+        id: "u-5",
+        role: "user",
+        content: [{ type: "text", text: "" }, document, image],
+      },
+    ];
+
+    const output = toAgUiMessages(fromAgUiMessages(inputs));
+    expect(output.map((message) => message.content)).toEqual(
+      inputs.map((input) => input.content),
+    );
+  });
+
+  it("leads with the user text when the imported text was edited", () => {
+    const image = {
+      type: "image",
+      source: { type: "url", value: "https://example.com/photo.png" },
+    };
+    const document = {
+      type: "document",
+      source: { type: "file", value: "file-123" },
+    };
+    const imported = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "before" },
+          image,
+          { type: "text", text: "after" },
+        ],
+      },
+      {
+        id: "u-2",
+        role: "user",
+        content: [document, { type: "text", text: "caption" }, image],
+      },
+    ]);
+
+    const output = toAgUiMessages(
+      imported.map((message) => ({ ...message, content: "rewritten" })),
+    );
+    expect(output.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "rewritten" }, image],
+      [{ type: "text", text: "rewritten" }, document, image],
+    ]);
   });
 
   it("converts a native audio content part to an AG-UI audio source", () => {

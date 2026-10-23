@@ -73,17 +73,20 @@ describe("createHistoryWriteChain", () => {
   it("runs the next write after a rejection", async () => {
     const writes = createHistoryWriteChain();
     const firstGate = deferred();
+    const secondGate = deferred();
     const error = new Error("write failed");
     const calls: string[] = [];
 
     const first = writes.chain("one", () => firstGate.promise);
     const second = writes.chain("one", () => {
       calls.push("second");
-      return Promise.resolve();
+      return secondGate.promise;
     });
     firstGate.reject(error);
 
     await expect(first).rejects.toBe(error);
+    expect(writes.pending("one")).toBe(second);
+    secondGate.resolve();
     await expect(second).resolves.toBeUndefined();
     expect(calls).toEqual(["second"]);
     expect(writes.pending("one")).toBeUndefined();
@@ -102,18 +105,25 @@ describe("createHistoryWriteChain", () => {
     expect(writes.pending("one")).toBeUndefined();
   });
 
-  it("allows an in-flight entry to move to another id", async () => {
+  it("serializes later writes after an in-flight entry moves to another id", async () => {
     const writes = createHistoryWriteChain();
     const firstGate = deferred();
+    const calls: string[] = [];
     const first = writes.chain("old", () => firstGate.promise);
 
     expect(writes.move("old", "new")).toBe(first);
-    const second = writes.chain("new", () => Promise.resolve());
+    const second = writes.chain("new", () => {
+      calls.push("second");
+      return Promise.resolve();
+    });
 
+    await Promise.resolve();
+    expect(calls).toEqual([]);
     expect(writes.pending("old")).toBeUndefined();
     expect(writes.pending("new")).toBe(second);
     firstGate.resolve();
     await Promise.all([first, second]);
+    expect(calls).toEqual(["second"]);
     expect(writes.pending("new")).toBeUndefined();
   });
 

@@ -1,12 +1,20 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionState } from "@/lib/session";
 
 const mocks = vi.hoisted(() => ({
   session: { status: "loading" } as SessionState,
   pathname: "/",
+  trackDemoSignInClick: vi.fn(),
+  resetAnalyticsUser: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics-identity", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/analytics-identity")>()),
+  trackDemoSignInClick: mocks.trackDemoSignInClick,
+  resetAnalyticsUser: mocks.resetAnalyticsUser,
 }));
 
 vi.mock("@/lib/session", async (importOriginal) => ({
@@ -55,7 +63,12 @@ describe("SidebarAccount", () => {
     mocks.session = {
       status: "signed-in",
       cloudHistory: false,
-      user: { name: "Harry Yep", email: "harry@assistant-ui.com", image: null },
+      user: {
+        analyticsId: "user_1",
+        name: "Harry Yep",
+        email: "harry@assistant-ui.com",
+        image: null,
+      },
     };
     render(<SidebarAccount />);
 
@@ -63,5 +76,44 @@ describe("SidebarAccount", () => {
     expect(trigger.textContent).toContain("Harry Yep");
     expect(trigger.textContent).toContain("HY");
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
+  });
+
+  it("tracks the sign-in it offers", () => {
+    mocks.session = { status: "anonymous" };
+    render(<SidebarAccount />);
+
+    const link = screen.getByRole("link", { name: "Sign in" });
+    link.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(link);
+
+    expect(mocks.trackDemoSignInClick).toHaveBeenCalledExactlyOnceWith(
+      "sidebar",
+    );
+  });
+
+  it("forgets the analytics identity before signing out", async () => {
+    const submit = vi
+      .spyOn(HTMLFormElement.prototype, "submit")
+      .mockImplementation(() => {});
+    mocks.session = {
+      status: "signed-in",
+      cloudHistory: false,
+      user: {
+        analyticsId: "user_1",
+        name: "Harry Yep",
+        email: "harry@assistant-ui.com",
+        image: null,
+      },
+    };
+    render(<SidebarAccount />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Account" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Sign out" }));
+
+    expect(mocks.resetAnalyticsUser).toHaveBeenCalledOnce();
+    expect(submit).toHaveBeenCalledOnce();
+    expect(mocks.resetAnalyticsUser.mock.invocationCallOrder[0]).toBeLessThan(
+      submit.mock.invocationCallOrder[0]!,
+    );
   });
 });

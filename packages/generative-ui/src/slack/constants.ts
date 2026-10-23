@@ -111,6 +111,9 @@ export const TABLE_CAPTION = "Table";
 /** The cumulative character limit for native markdown blocks. */
 export const MARKDOWN_TEXT_BUDGET = 12000;
 
+/** The word joiner placed after the `@` of a plain `@here`, `@channel`, or `@everyone` in mrkdwn, which Slack would otherwise turn into a mention. */
+export const MENTION_JOINER = String.fromCharCode(0x2060);
+
 const ALERT_FALLBACK_EMOJI = {
   info: "ℹ️",
   success: "✅",

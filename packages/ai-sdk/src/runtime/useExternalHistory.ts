@@ -2,6 +2,7 @@
 
 import type {
   AssistantRuntime,
+  ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
   MessageFormatAdapter,
@@ -79,6 +80,37 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
   (message.status.reason === "tool-calls" ||
     (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
+
+// A run that settles without an assistant message after its prompt leaves nothing to report on its own.
+const isUnansweredRun = (
+  messages: readonly ThreadMessage[],
+  promptId: string,
+) => {
+  const promptIndex = messages.findIndex((message) => message.id === promptId);
+  return (
+    promptIndex === -1 ||
+    !messages
+      .slice(promptIndex + 1)
+      .some((message) => message.role === "assistant")
+  );
+};
+
+const createUnansweredRunMessage = (
+  reason: "cancelled" | "other",
+): ThreadAssistantMessage => ({
+  id: "unanswered-run",
+  role: "assistant",
+  content: [],
+  status: { type: "incomplete", reason },
+  createdAt: new Date(),
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
 
 const isTerminalMessage = (message: ThreadMessage) =>
   message.status === undefined ||
@@ -299,6 +331,16 @@ export const useExternalHistory = <TMessage>(
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
   const queuedPromptIdRef = useRef<string | null>(null);
+  const runPromptIdRef = useRef<string | null>(null);
+  const runPromptMessagesRef = useRef<TMessage[]>([]);
+  const settledPromptIdRef = useRef<string | null>(null);
+  const settledPromptMessagesRef = useRef<TMessage[]>([]);
+  const runCancelledRef = useRef(false);
+  const settledRunCancelledRef = useRef(false);
+
+  const markRunCancelled = useCallback(() => {
+    if (wasRunningRef.current) runCancelledRef.current = true;
+  }, []);
 
   const releaseRemovedMessages = useCallback(
     (messages: readonly ThreadMessage[]) => {
@@ -315,6 +357,21 @@ export const useExternalHistory = <TMessage>(
       }
     },
     [],
+  );
+
+  const clearDeletedMessage = useCallback(
+    (messageId: string, items: MessageFormatItem<TMessage>[]) => {
+      historyIds.current.delete(messageId);
+      deferredTelemetryIds.current.delete(messageId);
+      deletedMessageIds.current.set(messageId, false);
+      releaseRemovedMessages(runtimeRef.current.thread.getState().messages);
+      for (const item of items) {
+        persistedInnerMessages.current.delete(
+          storageFormatAdapter.getId(item.message),
+        );
+      }
+    },
+    [releaseRemovedMessages, runtimeRef, storageFormatAdapter],
   );
 
   const persistToolInteractions = useCallback(
@@ -436,6 +493,14 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
+        const prompt = threadState.messages.findLast(
+          (message) => message.role === "user",
+        );
+        if (prompt) {
+          runPromptIdRef.current = prompt.id;
+          runPromptMessagesRef.current =
+            getExternalStoreMessages<TMessage>(prompt);
+        }
         if (historyReadyRef.current) persistRunPrompt(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
@@ -446,6 +511,12 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (wasRunning) {
+        settledPromptIdRef.current = runPromptIdRef.current;
+        settledPromptMessagesRef.current = runPromptMessagesRef.current;
+        settledRunCancelledRef.current = runCancelledRef.current;
+        runPromptIdRef.current = null;
+        runPromptMessagesRef.current = [];
+        runCancelledRef.current = false;
         queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
@@ -525,6 +596,12 @@ export const useExternalHistory = <TMessage>(
 
       runStartRef.current = null;
       stepBoundariesRef.current = [];
+      const promptId = settledPromptIdRef.current;
+      const promptMessages = settledPromptMessagesRef.current;
+      const runCancelled = settledRunCancelledRef.current;
+      settledPromptIdRef.current = null;
+      settledPromptMessagesRef.current = [];
+      settledRunCancelledRef.current = false;
 
       const telemetryOptions = {
         ...(durationMs != null ? { durationMs } : undefined),
@@ -535,6 +612,8 @@ export const useExternalHistory = <TMessage>(
         .then(async () => {
           const { messages } = latest;
           let lastInnerMessageId: string | null = null;
+          let lastUserMessageId: string | undefined;
+          let writeFailure: { error: unknown } | undefined;
 
           const getLastInnerId = (msgs: TMessage[]): string | null =>
             msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
@@ -564,6 +643,7 @@ export const useExternalHistory = <TMessage>(
 
           for (const message of messages) {
             if (deletedMessageIds.current.has(message.id)) continue;
+            if (message.role === "user") lastUserMessageId = message.id;
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
             const isTerminal = isTerminalMessage(message);
@@ -590,11 +670,20 @@ export const useExternalHistory = <TMessage>(
               collectToolInteractions(message, getToolInteractions?.()),
               collectToolApprovalResponses(message, toolApprovalResponses),
             );
+            let messageWriteFailure = writeFailure;
             for (const item of batchItems) {
+              // Rows are stored parent first, so nothing after a failed append can be stored in this pass.
+              if (writeFailure) break;
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);
               if (!persisted) {
-                await appendIfUnpersisted(item);
+                try {
+                  await appendIfUnpersisted(item);
+                } catch (error) {
+                  console.error("Failed to persist message history:", error);
+                  writeFailure = { error };
+                  messageWriteFailure = writeFailure;
+                }
               } else if (
                 persisted.source !== item.message &&
                 durationMs !== undefined &&
@@ -610,8 +699,9 @@ export const useExternalHistory = <TMessage>(
                       source: item.message,
                       content,
                     });
-                  } catch {
+                  } catch (error) {
                     // A failed update leaves the stale baseline behind so the next run stop retries it.
+                    messageWriteFailure ??= { error };
                   }
                 }
               }
@@ -629,9 +719,42 @@ export const useExternalHistory = <TMessage>(
                 })),
                 {
                   ...telemetryOptions,
+                  ...(lastUserMessageId !== undefined
+                    ? { userMessageId: lastUserMessageId }
+                    : undefined),
                   message,
+                  ...(messageWriteFailure && {
+                    persistenceError: messageWriteFailure.error,
+                  }),
                 },
               );
+            }
+          }
+
+          if (promptId !== null && isUnansweredRun(messages, promptId)) {
+            const shouldDeletePrompt =
+              runCancelled &&
+              !messages.some((message) => message.id === promptId);
+            adapter.reportTelemetry?.([], {
+              ...telemetryOptions,
+              ...(!(shouldDeletePrompt && adapter.delete)
+                ? { userMessageId: promptId }
+                : undefined),
+              message: createUnansweredRunMessage(
+                runCancelled ? "cancelled" : "other",
+              ),
+            });
+            if (shouldDeletePrompt && adapter.delete) {
+              const items = promptMessages.map((message) => ({
+                parentId: null,
+                message,
+              }));
+              try {
+                await adapter.delete(items);
+                clearDeletedMessage(promptId, items);
+              } catch (error) {
+                console.error("Failed to delete message history:", error);
+              }
             }
           }
         })
@@ -642,7 +765,8 @@ export const useExternalHistory = <TMessage>(
 
     persistWhenReadyRef.current = () => {
       const state = runtimeRef.current.thread.getState();
-      if (state.messages.length === 0) return;
+      if (state.messages.length === 0 && settledPromptIdRef.current === null)
+        return;
       if (state.isRunning) {
         persistRunPrompt(state.messages);
         return;
@@ -732,6 +856,7 @@ export const useExternalHistory = <TMessage>(
     getToolInteractions,
     toolApprovalResponses,
     releaseRemovedMessages,
+    clearDeletedMessage,
   ]);
 
   const deleteMessage = useCallback(
@@ -759,27 +884,19 @@ export const useExternalHistory = <TMessage>(
 
       const deletion = persistInFlightRef.current.then(async () => {
         await deleteMessages(itemsToDelete);
-
-        historyIds.current.delete(messageId);
-        deferredTelemetryIds.current.delete(messageId);
-        deletedMessageIds.current.set(messageId, false);
-        releaseRemovedMessages(runtimeRef.current.thread.getState().messages);
-        for (const item of itemsToDelete) {
-          persistedInnerMessages.current.delete(
-            storageFormatAdapter.getId(item.message),
-          );
-        }
+        clearDeletedMessage(messageId, itemsToDelete);
       });
 
       persistInFlightRef.current = deletion.catch(() => {});
       await deletion;
     },
-    [formatAdapter, runtimeRef, storageFormatAdapter, releaseRemovedMessages],
+    [formatAdapter, runtimeRef, storageFormatAdapter, clearDeletedMessage],
   );
 
   return {
     isLoading,
     deleteMessage,
+    markRunCancelled,
     persistToolInteractions,
     persistToolApprovalResponses: persistToolInteractions,
   };

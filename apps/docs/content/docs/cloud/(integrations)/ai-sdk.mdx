@@ -352,11 +352,11 @@ The same settling pass reports each assistant message once it is terminal. The r
 
 ### Fields sent to the cloud
 
-The report contains the required `thread_id` and `status`, then includes the fields the runtime observed.
+The report contains the required `thread_id` and `status`, then includes the fields the runtime observed. `user_message_id` links to the stored prompt even when no assistant message was stored. The adapter waits for a pending prompt append; if it fails, has no mapped ID, or the runtime deletes the prompt after an early stop, the report omits `user_message_id`.
 
 | Report group | Fields |
 |---|---|
-| Message result | `message_id`, `outcome_type`, `error_code`, `error` |
+| Message result | `message_id`, `user_message_id`, `outcome_type`, `error_code`, `error` |
 | Model and usage | `model_id`, `provider`, `provider_type`, `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` |
 | Steps and tools | `steps`, `total_steps`, `tool_calls` |
 | Timing and output | `duration_ms`, `first_token_ms`, `output_text` |
@@ -388,7 +388,7 @@ The route sample supplies model, provider, total usage and the finish reason. Th
 | A dropped connection rather than a stop | The outcome calculation receives a finish reason and error state, not a live disconnect signal. | This runtime cannot report `disconnected`; a stop and a connection loss do not become distinct outcomes here. |
 | Model, provider, usage or trace id without route metadata | Those values are not visible in the browser stream unless the route records them in message metadata. | The Models page reads *No run in this period reported a model*. It names a model only when the client sent its id. |
 
-The cloud does not support deleting individual thread messages. A delete request from this history adapter fails instead of removing the stored row.
+Deleting a message removes its stored rows from the cloud, except that a message whose stored child messages remain cannot be deleted yet and the request fails. When a stop before the first token moves the prompt back into the composer, the history adapter deletes the prompt it had already stored, so a reload does not show it unanswered and sending the draft again stores it once.
 
 ## Feedback and attachments
 

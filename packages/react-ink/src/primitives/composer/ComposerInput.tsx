@@ -47,7 +47,7 @@ export const ComposerInput = ({
       {...boxProps}
       isDisabled={isInputDisabled}
       value={storeText}
-      onChange={(text) => aui.composer.setText(text)}
+      onChange={(text) => aui.composer.setText(text, { origin: "user" })}
       onSubmit={submit}
       submitOnEnter={submitOnEnter}
       placeholder={placeholder}

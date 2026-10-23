@@ -1,14 +1,16 @@
 import {
   mkdir,
+  open,
   readFile,
-  writeFile,
   link,
   rename,
   rm,
   stat,
 } from "node:fs/promises";
+import { constants } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { assertSafeProjectFile } from "./safe-project-file";
 
 export type CloudProjectConfig = {
   organizationId: string;
@@ -25,15 +27,28 @@ export type CloudProjectConfig = {
 export const writeCloudFile = async (
   file: string,
   contents: string,
-  options: { exclusive?: boolean; mode?: number } = {},
+  options: { exclusive?: boolean; mode?: number; projectRoot: string },
 ): Promise<void> => {
+  const { projectRoot } = options;
+  assertSafeProjectFile(file, projectRoot);
   await mkdir(path.dirname(file), { recursive: true });
+  assertSafeProjectFile(file, projectRoot);
   const temporary = `${file}.${randomUUID()}.tmp`;
   try {
-    await writeFile(temporary, contents, {
-      flag: "wx",
-      mode: options.mode ?? 0o600,
-    });
+    const handle = await open(
+      temporary,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_EXCL |
+        constants.O_NOFOLLOW,
+      options.mode ?? 0o600,
+    );
+    try {
+      await handle.writeFile(contents);
+    } finally {
+      await handle.close();
+    }
+    assertSafeProjectFile(file, projectRoot);
     if (options.exclusive) await link(temporary, file);
     else await rename(temporary, file);
   } finally {
@@ -106,6 +121,10 @@ export const writeCloudProjectConfig = async (
   apiKey: string,
 ): Promise<void> => {
   const envFile = path.join(directory, ".env.local");
+  const gitignoreFile = path.join(directory, ".gitignore");
+  assertSafeProjectFile(envFile, directory);
+  assertSafeProjectFile(gitignoreFile, directory);
+  assertSafeProjectFile(cloudProjectConfigPath(directory), directory);
   const contents = await readOptionalFile(envFile);
   const environment = mergeCloudEnvironment(contents, {
     ASSISTANT_API_KEY: apiKey,
@@ -113,7 +132,6 @@ export const writeCloudProjectConfig = async (
     NEXT_PUBLIC_ASSISTANT_HARNESS_URL: config.harnessOrigin,
     NEXT_PUBLIC_ASSISTANT_WORKSPACE_ID: config.workspaceId,
   });
-  const gitignoreFile = path.join(directory, ".gitignore");
   const gitignore = await readOptionalFile(gitignoreFile);
   const ignored = gitignore.split(/\r?\n/).map((line) => line.trim());
   if (!ignored.includes(".env.local") && !ignored.includes(".env*.local")) {
@@ -121,6 +139,7 @@ export const writeCloudProjectConfig = async (
       gitignoreFile,
       `${gitignore}${gitignore && !gitignore.endsWith("\n") ? "\n" : ""}.env.local\n`,
       {
+        projectRoot: directory,
         mode: await stat(gitignoreFile)
           .then((info) => info.mode & 0o777)
           .catch((error: NodeJS.ErrnoException) => {
@@ -130,9 +149,10 @@ export const writeCloudProjectConfig = async (
       },
     );
   }
-  await writeCloudFile(envFile, environment);
+  await writeCloudFile(envFile, environment, { projectRoot: directory });
   await writeCloudFile(
     cloudProjectConfigPath(directory),
     `${JSON.stringify(config, null, 2)}\n`,
+    { projectRoot: directory },
   );
 };

@@ -208,6 +208,20 @@ const element = (
 });
 
 describe("layout vocabulary in Vue", () => {
+  it.each([
+    "url(https://example.com/a.png)",
+    "image-set (red 1x)",
+    "u\\72l(red)",
+  ])("ignores resource background %s on Card and Box", (background) => {
+    for (const type of ["Card", "Box"]) {
+      const markup = renderVueSpec(
+        spec(element(type, { background })),
+      ).markup();
+      expect(markup).not.toContain("background:");
+      expect(markup).not.toContain("data-aui-background");
+    }
+  });
+
   it("renders a zero Card title", () => {
     const { markup } = renderVueSpec(spec(element("Card", { title: 0 })));
     expect(markup()).toContain('<header data-aui="card-title">0</header>');

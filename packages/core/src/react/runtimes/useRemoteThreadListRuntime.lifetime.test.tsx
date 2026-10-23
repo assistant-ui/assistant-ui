@@ -232,3 +232,28 @@ describe.each(["class", "client"] as const)(
     });
   },
 );
+
+it.each(["class", "client"] as const)(
+  "warns about unstable_Provider once per runtime only on the class path (%s)",
+  async (path) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { list, useRuntime } = createHarness(path);
+    const App = () => (
+      <AssistantRuntimeProvider runtime={useRuntime()}>
+        {null}
+      </AssistantRuntimeProvider>
+    );
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await waitFor(() => expect(list).toHaveBeenCalled());
+
+    const deprecations = warn.mock.calls.filter(([message]) =>
+      String(message).includes("unstable_Provider is deprecated"),
+    );
+    expect(deprecations).toHaveLength(path === "class" ? 1 : 0);
+  },
+);

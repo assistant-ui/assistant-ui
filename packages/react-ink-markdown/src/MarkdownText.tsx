@@ -6,6 +6,7 @@ import {
   type Theme,
 } from "markdansi";
 import { memo, useCallback, useSyncExternalStore } from "react";
+import { sanitizeTerminalText } from "./sanitizeTerminalText";
 
 export type MarkdownTextProps = {
   /** The markdown text to render. */
@@ -107,7 +108,7 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
       : options;
 
   const rendered = render(
-    text,
+    sanitizeTerminalText(text),
     Object.values(resolvedOptions).some((v) => v !== undefined)
       ? (resolvedOptions as RenderOptions)
       : undefined,

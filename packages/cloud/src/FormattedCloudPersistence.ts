@@ -39,6 +39,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       format: string,
       content: ReadonlyJSONObject,
     ) => Promise<void>;
+    delete?: (threadId: string, messageIds: string[]) => Promise<void>;
   },
   adapter: MessageFormatAdapter<TMessage, TStorageFormat>,
 ) => ({
@@ -70,6 +71,16 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
           encoded as ReadonlyJSONObject,
         );
       }
+    : undefined,
+  delete: persistence.delete
+    ? async (
+        threadId: string,
+        items: { parentId: string | null; message: TMessage }[],
+      ): Promise<void> =>
+        persistence.delete!(
+          threadId,
+          items.map((item) => adapter.getId(item.message)),
+        )
     : undefined,
   load: async (threadId: string) => {
     const messages = await persistence.load(threadId, adapter.format);

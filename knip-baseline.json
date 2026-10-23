@@ -24,6 +24,7 @@
     "packages/cloud/package.json": ["ai-v6"],
     "packages/generative-frame/package.json": ["react-native-web"],
     "packages/generative-ui/package.json": ["react-native-web"],
+    "packages/markdown/package.json": ["react-native-web"],
     "packages/mcp-docs-server/package.json": ["@modelcontextprotocol/core"],
     "packages/react-data-stream/package.json": ["@types/json-schema"],
     "packages/react-devtools/package.json": ["@assistant-ui/tap"],
@@ -203,7 +204,6 @@
     "packages/variants/src/ui.ts": ["ICONS", "stableLabel"],
     "packages/x-performance/lib/size.mjs": ["SIZE_IGNORE"],
     "packages/x-performance/lib/trace-lane.mjs": ["stageFixture"],
-    "packages/x-performance/lib/trace.mjs": ["captureTrace"],
     "packages/x-react18/src/declaration-errors.mjs": ["diagnosticKey"],
     "scripts/lib/experimental-annotations.mjs": ["EXPERIMENTAL_NOTICE"],
     "scripts/lib/review-policy.mjs": ["REVIEW_POLICY_PATH"]
@@ -297,7 +297,6 @@
     ],
     "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
     "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
-    "packages/react-ag-ui/src/runtime/adapter/conversions.ts": ["InputContent"],
     "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
       "AgUiSubscriber"
     ],

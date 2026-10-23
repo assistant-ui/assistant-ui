@@ -71,7 +71,8 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
   const browseRef = useRef<BrowseState | null>(null);
 
   useEffect(() => {
-    if (aui.composer.getState().type !== "thread") return undefined;
+    if (aui.composer.getState().type !== "thread" || !aui.optional.threads)
+      return undefined;
 
     return aui.on("threads.selectionChanged", () => {
       browseRef.current = null;
@@ -97,7 +98,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
       const browse = browseRef.current;
 
       const commitText = (text: string): void => {
-        flushTapSync(() => aui.composer.setText(text));
+        flushTapSync(() => aui.composer.setText(text, { origin: "recall" }));
         // React's controlled-value commit restores the pre-recall caret;
         // reposition after the commit, before paint.
         requestAnimationFrame(() => {

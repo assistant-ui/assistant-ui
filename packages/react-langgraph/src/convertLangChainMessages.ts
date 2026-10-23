@@ -252,9 +252,12 @@ const contentBlocks = (
     warnForMalformedMessageContent(content);
     return [];
   }
-  return content.filter(
-    (part): part is LangChainMessageContentBlock =>
-      typeof part === "object" && part !== null,
+  return content.flatMap((part): LangChainMessageContentBlock[] =>
+    typeof part === "string"
+      ? [{ type: "text", text: part }]
+      : typeof part === "object" && part !== null
+        ? [part]
+        : [],
   );
 };
 

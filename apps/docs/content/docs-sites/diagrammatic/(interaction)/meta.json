@@ -1,0 +1,6 @@
+{
+  "title": "Interaction",
+  "description": "Tooltips, highlight, clicks, zoom, and motion on server-rendered charts.",
+  "icon": "MousePointer2",
+  "pages": ["interaction", "zoom", "motion"]
+}

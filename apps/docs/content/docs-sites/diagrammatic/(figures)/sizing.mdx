@@ -1,0 +1,53 @@
+---
+title: Sizing
+description: How a figure takes its width, height, and type size, and how to fit one to a fluid box.
+---
+
+import { SizingChart } from "@/components/diagrammatic/samples";
+import { FitSample } from "@/components/diagrammatic/samples-client";
+
+Every figure is drawn in CSS pixels. The root `svg` carries `width`, `height`, and a `viewBox` of the same size, so one unit inside the figure is one pixel on the page. Margins, hairlines, hit areas, and type are pixel measures, and the chart's 11px tick labels are the same 11px as your captions.
+
+| Prop | What it sets | Default |
+| --- | --- | --- |
+| `width` | Rendered width in CSS pixels | `640` |
+| `height` | Rendered height in CSS pixels | `width / aspect` |
+| `aspect` | Width over height when `height` is not given | Per form, most are `5 / 3` |
+| `fontSize` | Type size in CSS pixels; every text role follows it | `11` |
+
+<SizingChart n={1} caption="The default: 640px wide at 11px type" />
+
+## A narrower host
+
+The root style is `display: block; max-width: 100%; height: auto`. A host narrower than the figure shrinks it as a whole, like an image, and a wider host leaves it at its size. To keep 11px type on a narrow card, pass a smaller `width` instead of letting the figure shrink.
+
+<SizingChart n={2} width={360} caption="width={360}: the frame is laid out again for 360px, and the type stays at 11px" />
+
+## Type
+
+`fontSize` is the one type knob. Axis and category labels print at that size, printed values step up a tenth, and a chart's own large numbers are multiples of it. The gutters that hold the type are computed from it too, so larger type still has room.
+
+<SizingChart n={3} fontSize={13} caption="fontSize={13}: every role and every gutter follows" />
+
+The family is inherited through `var(--dg-font, inherit)`. There is no per-role size prop and no font prop.
+
+## A fluid box
+
+When the width comes from layout rather than from your code, `Fit` from `diagrammatic/interactive` measures its box and hands the width down. It renders `initial` (640 by default) on the server and on the first client render, then redraws at the measured width in steps of `step` pixels.
+
+```tsx
+"use client";
+
+import { Area } from "diagrammatic";
+import { Fit } from "diagrammatic/interactive";
+
+<Fit>{({ width }) => <Area data={signups} width={width} aspect={3} yTicks={3} />}</Fit>;
+```
+
+<FitSample />
+
+The chart inside the callback is a client component, because the callback is. Measure once at the wrapper; the charts never measure themselves.
+
+## Text that does not fit
+
+Nothing is drawn outside the box. A row label longer than its gutter is cut with an ellipsis, a legend that would cross the edge cuts its names, and an end value is pulled inside the frame. Widths are estimated as `chars × fontSize × 0.6`, because a server render cannot measure glyphs. `truncate`, `textWidth`, and `charsThatFit` are exported for laying out your own labels by the same rule.

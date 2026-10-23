@@ -210,6 +210,9 @@ function renderElement(
   if (context.dispatch !== undefined) {
     props["$dispatch"] = context.dispatch;
   }
+  if (context.imageOrigins !== undefined) {
+    props["$imageOrigins"] = context.imageOrigins;
+  }
   if (element.action !== undefined) {
     props["$action"] = element.action;
   }

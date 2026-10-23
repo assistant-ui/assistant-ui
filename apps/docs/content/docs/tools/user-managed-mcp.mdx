@@ -91,6 +91,7 @@ Defaults and useful options:
 - `oauthRedirectUri`: `${window.location.origin}/mcp/callback`
 - `autoConnect`: `true` (connect on mount when usable auth is persisted)
 - `connectionTimeout`: optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
+- `requireApproval`: `true` by default for each connector and custom server. Set `requireApproval: false` on a connector or in `addCustomServer(...)` to let that server's tools run without asking.
 - Connector `id` values must be unique. The id is used for server lookup, OAuth routing, and model-visible tool names such as `linear__search`.
 
 </Step>
@@ -264,6 +265,33 @@ import { getMcpToolName } from "@assistant-ui/react-mcp";
 
 Replace `serverId` with the connected server's ID and `ReviewCommentsToolUI` with your tool renderer. A renderer keyed by the old `serverId__toolName` string must use the helper when that name requires an alias.
 
+A custom renderer replaces the default tool UI, so it must render approval controls when the interrupt payload has type `"mcp-tool-approval"`. Set `requireApproval: false` on servers your app trusts if their tools should run without asking.
+
+```tsx
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+
+const isMcpApproval = (payload: unknown) =>
+  typeof payload === "object" &&
+  payload !== null &&
+  "type" in payload &&
+  payload.type === "mcp-tool-approval";
+
+const ReviewCommentsToolUI: ToolCallMessagePartComponent = ({
+  interrupt,
+  resume,
+}) => {
+  if (isMcpApproval(interrupt?.payload)) {
+    return (
+      <div>
+        <button onClick={() => resume({ approved: true })}>Allow</button>
+        <button onClick={() => resume({ approved: false })}>Deny</button>
+      </div>
+    );
+  }
+  return null; // your tool UI
+};
+```
+
 If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
 
 ```ts
@@ -380,6 +408,10 @@ Three modes, declared per-connector or per-custom-record:
 
 The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591, [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
 
+## Tool approvals
+
+Connected MCP tools ask for approval before each call by default. The default thread opens a pending tool group and shows **Allow** and **Deny** in `ToolFallback`. A custom tool renderer can handle the same human-input request by calling `resume({ approved: true })` or `resume({ approved: false })`. Runtimes without human-in-the-loop support fail with an error instead of running the tool; set `requireApproval: false` on that server to allow execution in such a runtime.
+
 ## State & methods
 
 Read render-time state with `useAuiState`:
@@ -431,6 +463,7 @@ if (firstResource) {
 What ships:
 
 - Tool listing and invocation, auto-registered as frontend tools
+- Per-server approval before tool execution
 - Resource listing and reads for app-built browsers or preview panes
 - Form-mode elicitation with app-composed fields and response actions
 - OAuth (PKCE + DCR), bearer, none
@@ -441,8 +474,7 @@ What's deferred:
 
 - Prompts, sampling
 - Auto-reconnect with backoff
-- Per-tool enable/disable persistence
-- Per-tool consent prompts
+- Per-tool approval and enable/disable settings
 - Out-of-the-box token encryption (use `McpCustomStorage` against a server endpoint)
 
 ## Related

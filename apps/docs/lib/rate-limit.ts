@@ -248,7 +248,7 @@ function firstIp(value: string | null): string | null {
   return value?.split(",")[0]?.trim() || null;
 }
 
-function getClientIp(request: Request): string | null {
+export function getClientIp(request: Request): string | null {
   const vercelIp = firstIp(request.headers.get("x-vercel-forwarded-for"));
   if (vercelIp) return vercelIp;
   if (

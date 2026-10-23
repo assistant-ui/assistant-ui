@@ -1869,14 +1869,17 @@ describe("SetupWizard messages", () => {
 });
 
 describe("SetupWizard analytics", () => {
-  it("tracks each step once as the live page moves on", () => {
+  it("tracks each step once as the live page moves on, with its place and the time spent on the one before", () => {
     const events = captureEvents();
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
     const { rerender } = render(
       <SetupWizard checkout={context(initialCheckoutState(), false)} />,
     );
-    expect(events("setup_step_viewed")).toEqual([{ step: "welcome" }]);
+    const welcome = { step: "welcome", step_index: 0 };
+    expect(events("setup_step_viewed")).toEqual([welcome]);
     rerender(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
-    expect(events("setup_step_viewed")).toEqual([{ step: "welcome" }]);
+    expect(events("setup_step_viewed")).toEqual([welcome]);
+    now.mockReturnValue(4_500);
     rerender(
       <SetupWizard
         checkout={context(
@@ -1888,8 +1891,48 @@ describe("SetupWizard analytics", () => {
       />,
     );
     expect(events("setup_step_viewed")).toEqual([
-      { step: "welcome" },
-      { step: "connect" },
+      welcome,
+      { step: "connect", step_index: 1, ms_on_previous_step: 3_500 },
+    ]);
+    now.mockRestore();
+  });
+
+  it("tracks the connection dropping once per drop, with the step it happened on", () => {
+    const events = captureEvents();
+    const state = connected({ status: "planning" });
+    const { rerender } = render(<SetupWizard checkout={context(state)} />);
+    expect(events("setup_error")).toEqual([]);
+    const degraded = {
+      ...context(state),
+      degraded: true,
+      connection: {
+        status: "retrying",
+        attempt: 1,
+        reconnect: () => {},
+      } as unknown as CheckoutContextValue["connection"],
+    };
+    rerender(<SetupWizard checkout={degraded} />);
+    rerender(<SetupWizard checkout={degraded} />);
+    expect(events("setup_error")).toEqual([
+      { reason: "connection_lost", step: "working" },
+    ]);
+  });
+
+  it("tracks the agent going quiet mid-setup as an error", () => {
+    const events = captureEvents();
+    const live = connected({ status: "planning" });
+    const { rerender } = render(<SetupWizard checkout={context(live)} />);
+    const quiet = connected({
+      status: "planning",
+      agent: {
+        ...live.agent,
+        connected: false,
+        lastSeenAt: 1,
+      },
+    });
+    rerender(<SetupWizard checkout={context(quiet, false)} />);
+    expect(events("setup_error")).toEqual([
+      { reason: "agent_disconnected", step: "working" },
     ]);
   });
 

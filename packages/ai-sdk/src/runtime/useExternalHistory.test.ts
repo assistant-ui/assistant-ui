@@ -862,6 +862,12 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
+  const stoppedPrompt: InnerMessage = {
+    id: "user-1",
+    role: "user",
+    parts: ["prompt"],
+  };
+
   const createSlowLoadHarness = (resolveOnUnmount = true) => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -900,10 +906,11 @@ describe("useExternalHistory persistence", () => {
         stored.headId = item.message.id;
       },
     );
+    const reportTelemetry = vi.fn();
     const adapter: ThreadHistoryAdapter = {
       load: vi.fn(),
       append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({ load, append }),
+      withFormat: vi.fn().mockReturnValue({ load, append, reportTelemetry }),
     };
     const toMessages = (messages: InnerMessage[]) =>
       messages.map((message) =>
@@ -988,6 +995,7 @@ describe("useExternalHistory persistence", () => {
     };
     return {
       append,
+      reportTelemetry,
       first,
       mount,
       settleBeforeLoad,
@@ -1276,6 +1284,7 @@ describe("useExternalHistory persistence", () => {
       formattedAdapter,
       importMessages,
       deleteMessage: result.current.deleteMessage,
+      markRunCancelled: () => result.current.markRunCancelled(),
       reportTelemetry,
       load,
       persistToolInteractions: result.current.persistToolInteractions,
@@ -1419,6 +1428,252 @@ describe("useExternalHistory persistence", () => {
       ),
     );
     expect(innerMessage.metadata).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "a stopped run whose prompt core moved to the composer",
+      true,
+      [],
+      "cancelled",
+      true,
+    ],
+    [
+      "a stopped run whose prompt the composer could not take back",
+      true,
+      [createUserMessage(stoppedPrompt)],
+      "cancelled",
+      false,
+    ],
+    [
+      "a run that settled without output",
+      false,
+      [createUserMessage(stoppedPrompt)],
+      "other",
+      false,
+    ],
+    [
+      "a run that settled without output after its prompt disappeared",
+      false,
+      [],
+      "other",
+      false,
+    ],
+  ] as const)(
+    "reports %s",
+    async (
+      _,
+      cancelled,
+      settledMessages: readonly ThreadMessage[],
+      reason,
+      shouldDelete,
+    ) => {
+      const {
+        append,
+        deleteItems,
+        load,
+        markRunCancelled,
+        reportTelemetry,
+        step,
+        flush,
+      } = createPersistenceHarness(false);
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+      await step({
+        isRunning: true,
+        messages: [createUserMessage(stoppedPrompt)],
+      });
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+      if (cancelled) markRunCancelled();
+      await step({ isRunning: false, messages: [...settledMessages] });
+      await flush();
+
+      await waitFor(() =>
+        expect(reportTelemetry).toHaveBeenCalledWith(
+          [],
+          expect.objectContaining({
+            message: expect.objectContaining({
+              role: "assistant",
+              status: { type: "incomplete", reason },
+            }),
+          }),
+        ),
+      );
+      expect(
+        reportTelemetry.mock.calls.filter(
+          ([, options]) => options?.message?.role === "assistant",
+        ),
+      ).toHaveLength(1);
+      if (shouldDelete) {
+        expect(deleteItems).toHaveBeenCalledOnce();
+        expect(deleteItems).toHaveBeenCalledWith([
+          { parentId: null, message: stoppedPrompt },
+        ]);
+      } else {
+        expect(deleteItems).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("reports a reply that waited for tool approval with the prompt it answers", async () => {
+    const { load, reportTelemetry, step, flush } =
+      createPersistenceHarness(true);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    const first = createUserMessage({
+      id: "user-1",
+      role: "user",
+      parts: ["first"],
+    });
+    const second = createUserMessage({
+      id: "user-2",
+      role: "user",
+      parts: ["second"],
+    });
+
+    await step({ isRunning: true, messages: [first] });
+    await step({
+      isRunning: false,
+      messages: [
+        first,
+        createAssistantMessage(
+          { type: "requires-action", reason: "tool-calls" },
+          [{ id: "inner-a", parts: ["pending"] }],
+          "assistant-a",
+        ),
+      ],
+    });
+    await flush();
+    await step({
+      isRunning: true,
+      messages: [
+        first,
+        createAssistantMessage(
+          { type: "requires-action", reason: "tool-calls" },
+          [{ id: "inner-a", parts: ["pending"] }],
+          "assistant-a",
+        ),
+        second,
+      ],
+    });
+    await step({
+      isRunning: false,
+      messages: [
+        first,
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [{ id: "inner-a", parts: ["pending", "final"] }],
+          "assistant-a",
+        ),
+        second,
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [{ id: "inner-b", parts: ["answer"] }],
+          "assistant-b",
+        ),
+      ],
+    });
+    await flush();
+
+    const reportedPrompts = () =>
+      Object.fromEntries(
+        reportTelemetry.mock.calls
+          .filter(([, options]) => options?.message?.role === "assistant")
+          .map(([, options]) => [options.message.id, options.userMessageId]),
+      );
+    await waitFor(() =>
+      expect(reportedPrompts()).toEqual({
+        "assistant-a": "user-1",
+        "assistant-b": "user-2",
+      }),
+    );
+  });
+
+  it("reports an unanswered cancelled run even when prompt deletion fails", async () => {
+    const {
+      append,
+      deleteItems,
+      load,
+      markRunCancelled,
+      reportTelemetry,
+      step,
+      flush,
+    } = createPersistenceHarness(false);
+    const failure = new Error("delete failed");
+    deleteItems.mockRejectedValueOnce(failure);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await waitFor(() => expect(load).toHaveBeenCalledOnce());
+      await step({
+        isRunning: true,
+        messages: [createUserMessage(stoppedPrompt)],
+      });
+      await waitFor(() => expect(append).toHaveBeenCalledOnce());
+      markRunCancelled();
+      await step({ isRunning: false, messages: [] });
+      await flush();
+      expect(deleteItems).toHaveBeenCalledOnce();
+      expect(log).toHaveBeenCalledWith(
+        "Failed to delete message history:",
+        failure,
+      );
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          message: expect.objectContaining({
+            status: { type: "incomplete", reason: "cancelled" },
+          }),
+        }),
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("reports a run stopped while history is still loading", async () => {
+    const { first, reportTelemetry, resolveEmptyLoad } =
+      createSlowLoadHarness(false);
+
+    await first.step({
+      isRunning: true,
+      messages: [createUserMessage(stoppedPrompt)],
+    });
+    first.result.current.markRunCancelled();
+    await first.step({ isRunning: false, messages: [] });
+    await act(async () => {
+      resolveEmptyLoad();
+    });
+
+    await waitFor(() =>
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          message: expect.objectContaining({
+            status: { type: "incomplete", reason: "cancelled" },
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("reports only the reply of a run that answered its prompt", async () => {
+    const { load, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    const reply = createAssistantMessage({ type: "complete", reason: "stop" }, [
+      { id: "assistant-1", role: "assistant", parts: ["hi"] },
+    ]);
+
+    await runCycle([createUserMessage(stoppedPrompt), reply]);
+    await flush();
+
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalled());
+    expect(
+      reportTelemetry.mock.calls.filter(
+        ([, options]) => options?.message?.role === "assistant",
+      ),
+    ).toEqual([
+      [expect.any(Array), expect.objectContaining({ message: reply })],
+    ]);
   });
 
   it("keeps tool artifacts out of run telemetry", async () => {
@@ -3533,33 +3788,84 @@ describe("useExternalHistory persistence", () => {
     expect(deleteItems.mock.contexts[0]).toBe(formattedAdapter);
   });
 
-  it("reports telemetry after retrying a failed append", async () => {
+  it("reports a failed append as a persistence error once", async () => {
     const { append, reportTelemetry, runCycle, flush } =
       createPersistenceHarness(false);
-    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+    const failure = new Error("temporary storage failure");
+    append.mockRejectedValueOnce(failure);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
     const message = createAssistantMessage(
       { type: "complete", reason: "stop" },
       [{ id: "inner-a", parts: ["answer"] }],
     );
 
-    try {
-      await runCycle([message]);
-      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
-      await flush();
-      expect(reportTelemetry).not.toHaveBeenCalled();
+    await runCycle([message]);
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [{ parentId: null, message: { id: "inner-a", parts: ["answer"] } }],
+      expect.objectContaining({ message, persistenceError: failure }),
+    );
 
-      await runCycle([message]);
-      await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
-      await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await flush();
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+  });
 
-      expect(reportTelemetry).toHaveBeenCalledWith(
-        [{ parentId: null, message: { id: "inner-a", parts: ["answer"] } }],
-        expect.any(Object),
-      );
-    } finally {
-      errorSpy.mockRestore();
-    }
+  it("reports messages after a failed append without storing them", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    const failure = new Error("temporary storage failure");
+    append.mockRejectedValueOnce(failure);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
+    const first = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const second = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+
+    await runCycle([first, second]);
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(2));
+    await flush();
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry.mock.calls.map(([, options]) => options)).toEqual([
+      expect.objectContaining({ message: first, persistenceError: failure }),
+      expect.objectContaining({ message: second, persistenceError: failure }),
+    ]);
+  });
+
+  it("reports a failed update of a settled message as a persistence error", async () => {
+    const { update, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(true);
+    const failure = new Error("temporary storage failure");
+    update.mockRejectedValueOnce(failure);
+    const pending = createAssistantMessage(
+      { type: "requires-action", reason: "tool-calls" },
+      [{ id: "inner-a", parts: ["pending"] }],
+    );
+    const settled = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["pending", "final"] }],
+    );
+
+    await runCycle([pending]);
+    await flush();
+    await runCycle([settled]);
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ message: settled, persistenceError: failure }),
+    );
   });
 
   it("does not reappend a stored inner message whose outer message was filtered", async () => {

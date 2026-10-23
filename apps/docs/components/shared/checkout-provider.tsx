@@ -15,6 +15,7 @@ import {
   useCheckoutSession,
   type CheckoutSession,
 } from "@/lib/checkout/session-store";
+import { analytics } from "@/lib/analytics";
 import type { Checkout } from "@/lib/checkout/protocol";
 
 export type CheckoutContextValue = {
@@ -93,7 +94,10 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       {session !== null ? (
         <BridgeBoundary
           key={session.id}
-          onError={() => setFailedId(session.id)}
+          onError={() => {
+            setFailedId(session.id);
+            analytics.setup.error({ reason: "session_unreadable" });
+          }}
         >
           <Suspense fallback={null}>
             <CheckoutSessionBridge session={session} onChange={setConnected} />

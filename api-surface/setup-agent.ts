@@ -69,6 +69,7 @@ declare namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional: boolean;
     status: InputStatus;
     answer?: string;
@@ -135,6 +136,7 @@ declare namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional?: boolean;
   };
   type PlanDecision = {
@@ -435,6 +437,6 @@ declare const upsertEnvLine: (content: string, key: string, value: string) => st
 
 declare const waitForStart: (client: Pick<CheckoutClient, "state" | "subscribe">) => Promise<Checkout.Status>;
 
-declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>) => Promise<void>;
+declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>, projectRoot?: string) => Promise<void>;
 
 export { entry_cli_exports as entry_cli, entry_host_exports as entry_host, entry_root_exports as entry_root };

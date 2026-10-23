@@ -120,7 +120,7 @@ export const useNotification = (config: NotificationConfig = {}) => {
       last?.status && "reason" in last.status ? last.status.reason : "";
     return JSON.stringify({
       isRunning: s.thread.isRunning,
-      threadId: s.threadListItem.id,
+      threadId: s.optional.threadListItem?.id ?? "unknown",
       messageId: last?.id ?? "",
       statusType: last?.status?.type ?? "",
       statusReason,
@@ -150,6 +150,8 @@ export const useNotification = (config: NotificationConfig = {}) => {
     if (isRunning && runContext) {
       seenRunningForRef.current = runContext;
     }
+    if (isRunning && (statusType === "complete" || statusType === "incomplete"))
+      return;
     if (!messageId || !statusType || !key || !runContext) return;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { readOptionalFile, writeCloudFile } from "./cloud-config";
+import { assertSafeProjectFile } from "./safe-project-file";
 import { validateCloudUrl } from "./cloud-auth";
 
 export type CloudProvisionRequest = {
@@ -28,6 +29,7 @@ export const resolveProvisionRequest = async (
   accessCode?: string,
 ): Promise<CloudProvisionRequest> => {
   const file = path.join(directory, ".assistant-ui", "provision.json");
+  assertSafeProjectFile(file, directory);
   const previous = await readOptionalFile(file);
   let request: CloudProvisionRequest;
   if (previous) {
@@ -42,6 +44,7 @@ export const resolveProvisionRequest = async (
     request = { ...input, idempotency_key: randomUUID() };
     await writeCloudFile(file, `${JSON.stringify(request, null, 2)}\n`, {
       exclusive: true,
+      projectRoot: directory,
     });
   }
   return { ...request, ...(accessCode ? { access_code: accessCode } : {}) };

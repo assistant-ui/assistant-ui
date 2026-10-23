@@ -40,7 +40,7 @@ export const composerInput = (options?: {
       target.value = text.current;
       return;
     }
-    flushTapSync(() => aui.composer.setText(target.value));
+    flushTapSync(() => aui.composer.setText(target.value, { origin: "user" }));
   };
   const onkeydown = (event: KeyboardEvent) => {
     if (event.defaultPrevented || !submitOnEnter) return;

@@ -29,7 +29,7 @@ import {
 import { render, act, cleanup } from "@testing-library/react";
 import { resource } from "../../core/resource";
 import { createTapRoot } from "../../core/createTapRoot";
-import { flushTapSync } from "../../core/scheduler";
+import { flushTapSync, scheduleTask } from "../../core/scheduler";
 import { useResource } from "../../index";
 import { cleanupAllResources } from "../test-utils";
 
@@ -69,6 +69,13 @@ type Scenario = {
 };
 
 const settleDelay = () => new Promise<void>((r) => setTimeout(r, 30));
+
+// A timer that expires in the same timers phase as the delay queues tap's flush
+// behind it; a scheduled task drains that flush, as act drains React's.
+const settleTapRoot = async () => {
+  await settleDelay();
+  await new Promise<void>((resolve) => scheduleTask(resolve));
+};
 
 /** Shared React driver for the `react` and `bridge` worlds. */
 const runInReact = async (
@@ -118,7 +125,7 @@ const runTapRoot = async (scenario: Scenario): Promise<string[]> => {
   await scenario.drive?.({
     api: () => root.getValue(),
     act: (fn) => flushTapSync(fn),
-    settle: settleDelay,
+    settle: settleTapRoot,
   });
   if (scenario.unmountAtEnd) root.unmount();
   return events;

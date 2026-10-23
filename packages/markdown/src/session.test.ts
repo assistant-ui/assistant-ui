@@ -143,6 +143,20 @@ test("append parsing starts on a line and stays within the last two paragraphs",
   ]);
 });
 
+test("a reparsed block keeps its object until its source changes", () => {
+  const session = createMarkdownSession();
+  const first = session.update("# Title\n\nfirst");
+  const second = session.update("# Title\n\nfirst words");
+  expect(second.children[0]).toBe(first.children[0]);
+  expect(second.children[1]).not.toBe(first.children[1]);
+
+  const setext = createMarkdownSession();
+  const paragraph = setext.update("Title\nmore\n\nnext");
+  const heading = setext.update("Title\nmore\n\nnext\n===", { final: true });
+  expect(heading.children[0]).toBe(paragraph.children[0]);
+  expect(heading.children[1]).toMatchObject({ type: "heading" });
+});
+
 test.each([
   ["truncation", "First.\n\nSecond.\n", "First.\n"],
   ["mid-text edit", "First.\n\nSecond.\n", "Changed.\n\nSecond.\n"],

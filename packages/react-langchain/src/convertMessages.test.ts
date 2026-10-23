@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 import type { AppendMessage } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
@@ -26,6 +31,35 @@ const contentOf = (result: ReturnType<typeof convertLangChainBaseMessage>) => {
     throw new Error("expected a content-bearing message");
   return result.content;
 };
+
+describe("convertLangChainBaseMessage Python text arrays", () => {
+  it.each([
+    ["human", HumanMessage, "user"],
+    ["ai", AIMessage, "assistant"],
+    ["system", SystemMessage, "system"],
+  ] as const)("preserves strings in %s content", (_type, Message, role) => {
+    const message = new Message(
+      JSON.parse(
+        '{"id":"m1","content":["Before ",{"type":"image_url","image_url":{"url":"https://example.com/cat.png"}},{"type":"text","text":"after"},"!"]}',
+      ),
+    );
+
+    expect(
+      convertLangChainBaseMessage(message as LangChainBaseMessage),
+    ).toMatchObject({
+      role,
+      content:
+        role === "system"
+          ? [{ type: "text", text: "Before after!" }]
+          : [
+              { type: "text", text: "Before " },
+              { type: "image", image: "https://example.com/cat.png" },
+              { type: "text", text: "after" },
+              { type: "text", text: "!" },
+            ],
+    });
+  });
+});
 
 describe("convertLangChainBaseMessage modality", () => {
   it("lifts voice modality onto human and ai messages and ignores unknown values", () => {

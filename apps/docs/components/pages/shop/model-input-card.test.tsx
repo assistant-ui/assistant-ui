@@ -5,6 +5,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -22,6 +23,12 @@ vi.mock("@/lib/checkout/providers", async (importOriginal) => ({
   testProviderKey,
 }));
 
+vi.mock("@vercel/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics")>()),
+  track: vi.fn(),
+}));
+
+import { useInputActions } from "./input-shared";
 import { ModelInputCard } from "./model-input-card";
 import { WizardHost } from "./test/wizard-host";
 
@@ -246,6 +253,56 @@ describe("ModelInputCard", () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("tracks the answer with the picked provider and never the model or key", async () => {
+    const capture = vi.fn();
+    window.posthog = { capture };
+    const context = checkout();
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={context} />
+      </WizardHost>,
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /Google/ }));
+    toKeyStep();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
+    );
+    fireEvent.change(screen.getByLabelText("Model"), {
+      target: { value: "gemini-3-pro" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(capture).toHaveBeenCalledWith("setup_input_answered", {
+        kind: "model",
+        skipped: false,
+        model_provider: "google",
+      }),
+    );
+    delete window.posthog;
+  });
+
+  it("leaves out a provider the agent offered that this site does not know", async () => {
+    const capture = vi.fn();
+    window.posthog = { capture };
+    const offered = {
+      ...input,
+      options: [{ id: "acme-internal-llm", label: "Acme" }],
+    };
+    const { result } = renderHook(() => useInputActions(offered, checkout()));
+
+    await act(() =>
+      result.current.answer(
+        JSON.stringify({ provider: "acme-internal-llm", model: "m1" }),
+      ),
+    );
+
+    expect(capture).toHaveBeenCalledWith("setup_input_answered", {
+      kind: "model",
+      skipped: false,
+    });
+    delete window.posthog;
   });
 
   it("does not show a completed key test after its key changes", async () => {

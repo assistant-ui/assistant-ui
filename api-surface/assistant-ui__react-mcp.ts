@@ -82,6 +82,7 @@ type MCPConnector = {
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
   readonly elicitation?: boolean | undefined;
+  readonly requireApproval?: boolean | undefined;
 };
 
 type MCPCustomServerRecord = {
@@ -92,6 +93,7 @@ type MCPCustomServerRecord = {
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
   readonly elicitation?: boolean | undefined;
+  readonly requireApproval?: boolean | undefined;
   createdAt: number;
 };
 
@@ -130,6 +132,7 @@ type MCPManagerMethods = {
     connectionTimeout?: number | undefined;
     readonly cache?: MCPResponseCacheConfig | undefined;
     readonly elicitation?: boolean | undefined;
+    readonly requireApproval?: boolean | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
@@ -199,6 +202,7 @@ type MCPServerState = {
   tools: MCPToolInfo[];
   authorizationUrl: string | null;
   readonly pendingElicitations: readonly MCPElicitation[];
+  readonly requireApproval?: boolean | undefined;
 };
 
 type MCPStorage = {
@@ -585,6 +589,7 @@ type McpServerResourceProps = {
     readonly defaultTtlMs?: number;
   } | undefined;
   readonly elicitation?: boolean;
+  readonly requireApproval?: boolean;
   onRemove: () => Promise<void>;
 };
 

@@ -246,10 +246,40 @@ const asToolCallPart = (part: unknown): ToolCallLikePart | undefined => {
   return p.type === "tool-call" ? p : undefined;
 };
 
+/** A tool call's result as a record. LangGraph and LangChain send a frontend
+ *  tool's result as JSON text and bring it back as that text. */
+export const toolResultRecord = (
+  result: unknown,
+): Record<string, unknown> | undefined => {
+  if (typeof result === "string" && result.startsWith("{")) {
+    try {
+      result = JSON.parse(result);
+    } catch {
+      return undefined;
+    }
+  }
+  return isRecord(result) ? result : undefined;
+};
+
+/** Whether `p` is the call that created instance `id` of interactable `name`:
+ *  the call is named after the interactable, or its result names it, as
+ *  `unstable_interactableTool` records when `name` sets the two apart. */
+export const isInteractableCreateCall = (
+  p: {
+    toolCallId?: string | undefined;
+    toolName?: string | undefined;
+    result?: unknown;
+  },
+  id: string,
+  name: string,
+): boolean =>
+  p.toolCallId === id &&
+  (p.toolName === name || toolResultRecord(p.result)?.interactable === name);
+
 /** Whether an accepted `update_*` call addressed instance `id`. */
 const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
   if (!p.args || typeof p.args !== "object") return false;
-  const result = isRecord(p.result) ? p.result : undefined;
+  const result = toolResultRecord(p.result);
   if (result?.success === false) return false;
   if (typeof result?.id === "string") return result.id === id;
   const argsId = (p.args as Record<string, unknown>).id;
@@ -257,7 +287,7 @@ const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
 };
 
 const createAddedItemIdFactory = (result: unknown) => {
-  const value = isRecord(result) ? result.addedItemIds : undefined;
+  const value = toolResultRecord(result)?.addedItemIds;
   if (!isRecord(value)) return undefined;
 
   const idsByField = new Map<string, string[]>();
@@ -351,7 +381,7 @@ export function unstable_getInteractableVersions(
     for (const part of msg.content ?? []) {
       const p = asToolCallPart(part);
       if (!p) continue;
-      if (p.toolCallId === id && p.toolName === name) {
+      if (isInteractableCreateCall(p, id, name)) {
         if (p.args && typeof p.args === "object") {
           versions.push({ state: p.args, origin: "create", toolCallId: id });
         }

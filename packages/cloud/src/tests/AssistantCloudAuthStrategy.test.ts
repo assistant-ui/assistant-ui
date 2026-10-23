@@ -359,7 +359,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("aborts timed out shared anonymous token requests before retrying", async () => {
+  it("aborts shared anonymous token requests at the deadline before retrying", async () => {
     vi.useFakeTimers();
     const values = new Map<string, string>();
     installLocalStorage({
@@ -409,7 +409,9 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(requestSignal).toBeInstanceOf(AbortSignal);
 
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect.soft(requestSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
     await Promise.all([firstRequest, secondRequest]);
     expect(requestSignal?.aborted).toBe(true);
     expect(values.has(refreshTokenKey)).toBe(false);
@@ -420,7 +422,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("aborts timed out refresh requests without replacing the identity", async () => {
+  it("aborts refresh requests at the deadline without replacing the identity", async () => {
     vi.useFakeTimers();
     const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
     installLocalStorage({
@@ -462,7 +464,9 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     );
     expect(requestSignal).toBeInstanceOf(AbortSignal);
 
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect.soft(requestSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
     await request;
     expect(requestSignal?.aborted).toBe(true);
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));

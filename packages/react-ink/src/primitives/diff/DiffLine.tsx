@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import type { ParsedLine } from "./types";
 
 const INDICATOR: Record<ParsedLine["type"], string> = {
@@ -29,7 +30,7 @@ export const DiffLine = ({
 
   const numStr = lineNum !== undefined ? String(lineNum) : "";
   const padded = numStr.padStart(lineNumberWidth);
-  const content = `${INDICATOR[line.type]} ${line.content}`;
+  const content = `${INDICATOR[line.type]} ${sanitizeTerminalText(line.content)}`;
 
   return (
     <Box {...boxProps}>

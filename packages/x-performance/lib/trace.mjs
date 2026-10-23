@@ -140,13 +140,31 @@ export const captureTrace = async (
     ],
     { stdio: "ignore" },
   );
+  let exit;
+  const closed = new Promise((resolve) =>
+    proc.once("close", (code, signal) => {
+      exit = signal ?? code;
+      resolve();
+    }),
+  );
   try {
     const portFile = join(profile, "DevToolsActivePort");
-    for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
-    if (!existsSync(portFile)) {
-      throw new Error(`Chrome failed to start within 10s (${chrome})`);
+    // A cold launch during the parallel CI coverage run has taken over 17s.
+    const deadline = Date.now() + 60_000;
+    let port;
+    while (!port && exit === undefined && Date.now() < deadline) {
+      if (existsSync(portFile)) {
+        port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
+      }
+      if (!port) await sleep(100);
     }
-    const port = readFileSync(portFile, "utf8").split("\n")[0];
+    if (!port) {
+      throw new Error(
+        exit === undefined
+          ? `Chrome failed to start within 60s (${chrome})`
+          : `Chrome exited with ${exit} before it started (${chrome})`,
+      );
+    }
     const version = await fetch(`http://127.0.0.1:${port}/json/version`).then(
       (r) => r.json(),
     );
@@ -199,9 +217,16 @@ export const captureTrace = async (
     return chunks;
   } finally {
     cdp?.ws.close();
-    proc.kill();
-    await sleep(200);
-    rmSync(profile, { recursive: true, force: true });
+    try {
+      proc.kill();
+      await withTimeout(closed, 10_000, "Chrome to exit").catch(async () => {
+        proc.kill("SIGKILL");
+        await withTimeout(closed, 10_000, "Chrome to exit after SIGKILL");
+      });
+      rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
+    } catch (error) {
+      console.error(`Chrome cleanup failed (${profile}): ${error.message}`);
+    }
   }
 };
 

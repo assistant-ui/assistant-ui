@@ -101,6 +101,7 @@ export namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional: boolean;
     status: InputStatus;
     answer?: string;
@@ -192,6 +193,7 @@ export namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional?: boolean;
   };
 

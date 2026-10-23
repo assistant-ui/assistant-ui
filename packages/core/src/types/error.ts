@@ -11,6 +11,7 @@ export type AssistantErrorCode =
 export type AssistantError = {
   readonly code: AssistantErrorCode;
   readonly message: string;
+  readonly statusCode?: number;
   readonly severity?: ErrorSeverity;
   readonly display?: ErrorDisplay;
 };
@@ -30,6 +31,13 @@ export const isAssistantError = (value: unknown): value is AssistantError => {
   if (
     typeof candidate.code !== "string" ||
     typeof candidate.message !== "string"
+  ) {
+    return false;
+  }
+  if (
+    "statusCode" in candidate &&
+    candidate.statusCode !== undefined &&
+    typeof candidate.statusCode !== "number"
   ) {
     return false;
   }

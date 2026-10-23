@@ -1,0 +1,23 @@
+---
+title: Small multiples
+description: Lay any form out as a grid of panels on one shared scale.
+---
+
+import { SmallMultiplesChart } from "@/components/diagrammatic/samples";
+
+`SmallMultiples` lays any form out as a grid of panels. Give every panel the same domain (here `yMax`) so the panels compare. Panel titles are your markup.
+
+```tsx
+import { Line, SmallMultiples } from "diagrammatic";
+
+<SmallMultiples columns={2} title="Active seats by region">
+  {regions.map((region) => (
+    <div key={region.name}>
+      <p>{region.name}</p>
+      <Line data={region.data} yMax={52} width={300} aspect={2} />
+    </div>
+  ))}
+</SmallMultiples>;
+```
+
+<SmallMultiplesChart />

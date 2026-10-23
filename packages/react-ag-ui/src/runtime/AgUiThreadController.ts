@@ -45,7 +45,7 @@ import {
   type AgUiThreadState,
 } from "./agUiThreadState";
 import type { Logger } from "./logger";
-import { readMcpAppResourceUri } from "./mcp-tool-result";
+import { readMcpAppResourceUri, toolContentText } from "./mcp-tool-result";
 import type {
   AgUiCustomMetadata,
   AgUiEvent,
@@ -91,6 +91,39 @@ const isResolvedToolCall = (
   part: ThreadAssistantMessage["content"][number],
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
+
+const listedPendingToolCallIds = (
+  assistant: ThreadAssistantMessage,
+): ReadonlySet<string> | undefined => {
+  const ids = (
+    assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+      | AgUiCustomMetadata
+      | undefined
+  )?.pendingToolCallIds;
+  return ids?.length ? new Set(ids) : undefined;
+};
+
+const withoutPendingToolCallIds = (
+  metadata: ThreadAssistantMessage["metadata"],
+): ThreadAssistantMessage["metadata"] => {
+  const namespace = metadata.custom[AG_UI_METADATA_NAMESPACE] as
+    | AgUiCustomMetadata
+    | undefined;
+  if (!namespace || !("pendingToolCallIds" in namespace)) return metadata;
+  const { pendingToolCallIds: _pendingToolCallIds, ...remainingNamespace } =
+    namespace;
+  const { [AG_UI_METADATA_NAMESPACE]: _namespace, ...remainingCustom } =
+    metadata.custom;
+  return {
+    ...metadata,
+    custom: {
+      ...remainingCustom,
+      ...(Object.keys(remainingNamespace).length > 0
+        ? { [AG_UI_METADATA_NAMESPACE]: remainingNamespace }
+        : {}),
+    },
+  };
+};
 
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
   part.type === "data" && part.name.startsWith("agui-activity/");
@@ -438,10 +471,10 @@ export class AgUiThreadController {
 
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
-    const pending = this.getPendingToolCalls();
-    if (!pending) return;
-    this.cancelUnresolvedToolCalls(pending.messageId);
-    this.maybeCompleteAfterToolResults(pending.messageId);
+    for (const assistant of this.getPendingToolCallMessages()) {
+      this.cancelUnresolvedToolCalls(assistant.id);
+      this.maybeCompleteAfterToolResults(assistant.id);
+    }
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -579,6 +612,25 @@ export class AgUiThreadController {
     return assistant;
   }
 
+  private getTrailingAssistantTurn(): ThreadAssistantMessage[] {
+    const messages = this.getMessages();
+    const turn: ThreadAssistantMessage[] = [];
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index];
+      if (message?.role !== "assistant") break;
+      turn.unshift(message as ThreadAssistantMessage);
+    }
+    return turn;
+  }
+
+  private getPendingToolCallMessages(): ThreadAssistantMessage[] {
+    return this.getTrailingAssistantTurn().filter(
+      (message) =>
+        message.status?.type === "requires-action" &&
+        message.status.reason === "tool-calls",
+    );
+  }
+
   getPendingInterrupts(): {
     messageId: string;
     interrupts: readonly AgUiInterrupt[];
@@ -598,15 +650,21 @@ export class AgUiThreadController {
     messageId: string;
     toolCallIds: string[];
   } | null {
-    const assistant = this.findRequiresActionAssistant("tool-calls");
-    if (!assistant) return null;
     const toolCallIds: string[] = [];
-    for (const part of iterateToolCallParts(assistant.content)) {
-      if (isResolvedToolCall(part)) continue;
-      toolCallIds.push(part.toolCallId);
+    let messageId: string | undefined;
+    for (const assistant of this.getPendingToolCallMessages()) {
+      const listed = listedPendingToolCallIds(assistant);
+      for (const part of iterateToolCallParts(assistant.content)) {
+        if (
+          isResolvedToolCall(part) ||
+          (listed && !listed.has(part.toolCallId))
+        )
+          continue;
+        messageId ??= assistant.id;
+        toolCallIds.push(part.toolCallId);
+      }
     }
-    if (toolCallIds.length === 0) return null;
-    return { messageId: assistant.id, toolCallIds };
+    return messageId === undefined ? null : { messageId, toolCallIds };
   }
 
   async submitInterruptResponses(
@@ -638,6 +696,7 @@ export class AgUiThreadController {
     this.assertInterruptsAnswerable(
       "submitInterruptResponses",
       pending.interrupts,
+      responsesById,
     );
 
     await this.resumeWithResponses(
@@ -685,6 +744,7 @@ export class AgUiThreadController {
   private assertInterruptsAnswerable(
     method: "submitInterruptResponses" | "respondToToolApproval",
     interrupts: readonly AgUiInterrupt[],
+    responsesById?: ReadonlyMap<string, AgUiResumeEntry>,
   ): void {
     const now = Date.now();
     for (const interrupt of interrupts) {
@@ -695,7 +755,10 @@ export class AgUiThreadController {
           `[agui] ${method}: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
         );
       }
-      if (expiry <= now) {
+      if (
+        expiry <= now &&
+        responsesById?.get(interrupt.id)?.status !== "cancelled"
+      ) {
         throw new Error(
           `[agui] ${method}: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
         );
@@ -798,8 +861,10 @@ export class AgUiThreadController {
         if (this.state.isRunning) {
           throw new Error("[agui] steerAway: a run is already in progress");
         }
-        this.cancelUnresolvedToolCalls(pendingTools.messageId);
-        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        for (const assistant of this.getPendingToolCallMessages()) {
+          this.cancelUnresolvedToolCalls(assistant.id);
+          this.maybeCompleteAfterToolResults(assistant.id);
+        }
         const normalized = this.toAppendMessage(message);
         const threadMessageId = this.appendEntry(normalized);
         await this.startRun(threadMessageId, normalized.runConfig);
@@ -1117,6 +1182,12 @@ export class AgUiThreadController {
   // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    if (this.getPendingInterrupts()) return;
+    const turn = this.getTrailingAssistantTurn();
+    if (!turn.some((message) => message.id === messageId)) return;
+    if (this.getPendingToolCalls()) return;
+    const headId = turn.at(-1)?.id;
+    if (headId === undefined) return;
 
     const owner = this.abortController;
     if (owner) {
@@ -1125,11 +1196,11 @@ export class AgUiThreadController {
       this.dispatch({
         type: "resumeDeferred",
         owner,
-        messageId,
+        messageId: headId,
       });
       return;
     }
-    this.startResumeRun(messageId);
+    this.startResumeRun(headId);
   }
 
   private maybeCompleteAfterToolResults(messageId: string): boolean {
@@ -1143,7 +1214,9 @@ export class AgUiThreadController {
       return false;
     }
     let allResolved = true;
+    const listed = listedPendingToolCallIds(assistant);
     for (const part of iterateToolCallParts(assistant.content)) {
+      if (listed && !listed.has(part.toolCallId)) continue;
       if (!isResolvedToolCall(part)) {
         allResolved = false;
         break;
@@ -1156,6 +1229,7 @@ export class AgUiThreadController {
         ? {
             ...(current as ThreadAssistantMessage),
             status: { type: "complete" as const, reason: "unknown" as const },
+            metadata: withoutPendingToolCallIds(current.metadata),
           }
         : current,
     );
@@ -1341,6 +1415,9 @@ export class AgUiThreadController {
     // resurrecting for custom-event data would leave a trailing data-only
     // duplicate.
     let assistantCollided = false;
+    const heldMessages = new Map<string, Set<string>>();
+    let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
+    let settlingRun = false;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -1370,7 +1447,66 @@ export class AgUiThreadController {
 
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
+    const settleHeldMessages = (terminalStatus: MessageStatus): string[] => {
+      const pendingMessages: string[] = [];
+      for (const [messageId, openToolCallIds] of heldMessages) {
+        let requiresToolResult = false;
+        const updated = this.session.updateMessage(messageId, (message) => {
+          if (message.role !== "assistant") return message;
+          const assistant = message as ThreadAssistantMessage;
+          const pendingToolCallIds = Array.from(openToolCallIds).filter(
+            (id) =>
+              !restrictedPendingToolCallIds ||
+              restrictedPendingToolCallIds.has(id),
+          );
+          const canWaitForTools =
+            terminalStatus.type === "complete" ||
+            terminalStatus.type === "requires-action";
+          const status: MessageStatus = canWaitForTools
+            ? pendingToolCallIds.length > 0
+              ? { type: "requires-action", reason: "tool-calls" }
+              : { type: "complete", reason: "unknown" }
+            : terminalStatus;
+          requiresToolResult = status.type === "requires-action";
+          const metadata = withoutPendingToolCallIds(assistant.metadata);
+          return {
+            ...assistant,
+            status,
+            metadata:
+              status.type === "requires-action" && restrictedPendingToolCallIds
+                ? {
+                    ...metadata,
+                    custom: {
+                      ...metadata.custom,
+                      [AG_UI_METADATA_NAMESPACE]: {
+                        ...(metadata.custom[AG_UI_METADATA_NAMESPACE] as
+                          | AgUiCustomMetadata
+                          | undefined),
+                        pendingToolCallIds,
+                      },
+                    },
+                  }
+                : metadata,
+          };
+        });
+        if (updated) {
+          this.publishUpdate();
+          this.persistAssistantHistory(messageId);
+          if (requiresToolResult) {
+            pendingMessages.push(messageId);
+          }
+        }
+      }
+      heldMessages.clear();
+      return pendingMessages;
+    };
+
     const applyUpdate = (update: ChatModelRunResult) => {
+      const terminalStatus = update.status;
+      const pendingMessages =
+        settlingRun && terminalStatus && terminalStatus.type !== "running"
+          ? settleHeldMessages(terminalStatus)
+          : [];
       const hasStreamContent =
         Array.isArray(update.content) &&
         update.content.some((part) => part.type !== "data");
@@ -1381,14 +1517,22 @@ export class AgUiThreadController {
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
+      for (const messageId of pendingMessages) {
+        this.maybeResumeAfterToolResults(messageId);
+      }
     };
 
     const adoptServerMessageId = (
       serverId: string,
       startNewMessage: boolean,
+      openToolCallIds: string[] = [],
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
-        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        if (openToolCallIds.length > 0) {
+          heldMessages.set(assistantMessageId, new Set(openToolCallIds));
+        } else {
+          applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        }
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
         if (this.session.tryGetMessage(previousId)) {
@@ -1430,22 +1574,43 @@ export class AgUiThreadController {
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
       },
-      onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
+      onTextMessageStart: (serverId, openToolCallIds) =>
+        adoptServerMessageId(serverId, true, openToolCallIds),
     });
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
-      if (event.type === "RUN_FINISHED") runFinished = true;
-      const nextAssistantMessageId = this.handleEvent(
-        aggregator,
-        event,
-        assistantMessageId,
-        joinStrategy,
-        runStartMessageIds,
-        hasRunUserBoundary,
-      );
-      if (event.type === "MESSAGES_SNAPSHOT") {
-        assistantMessageId = nextAssistantMessageId;
+      if (event.type === "RUN_FINISHED") {
+        runFinished = true;
+        const ids =
+          event.outcome?.type === "success"
+            ? event.outcome.pendingToolCallIds
+            : undefined;
+        restrictedPendingToolCallIds = ids?.length ? new Set(ids) : undefined;
+      }
+      if (event.type === "TOOL_CALL_RESULT") {
+        for (const openToolCallIds of heldMessages.values()) {
+          openToolCallIds.delete(event.toolCallId);
+        }
+      }
+      settlingRun =
+        event.type === "RUN_FINISHED" ||
+        event.type === "RUN_ERROR" ||
+        event.type === "RUN_CANCELLED";
+      try {
+        const nextAssistantMessageId = this.handleEvent(
+          aggregator,
+          event,
+          assistantMessageId,
+          joinStrategy,
+          runStartMessageIds,
+          hasRunUserBoundary,
+        );
+        if (event.type === "MESSAGES_SNAPSHOT") {
+          assistantMessageId = nextAssistantMessageId;
+        }
+      } finally {
+        settlingRun = false;
       }
     };
 
@@ -1834,10 +1999,15 @@ export class AgUiThreadController {
     const touched = this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
-      const metadata = update.metadata
+      const mergedMetadata = update.metadata
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
         : assistant.metadata;
       latestStatus = update.status ?? assistant.status;
+      const metadata =
+        latestStatus?.type === "requires-action" &&
+        latestStatus.reason === "tool-calls"
+          ? mergedMetadata
+          : withoutPendingToolCallIds(mergedMetadata);
       const content =
         update.content !== undefined
           ? this.preserveToolResults(
@@ -2213,6 +2383,7 @@ export class AgUiThreadController {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const mcpAppUri = readMcpAppResourceUri(event.mcpResult?._meta);
+      const modelText = toolContentText(event.content);
       let matchedToolCall = false;
       const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
         if (part.toolCallId !== event.toolCallId) return part;
@@ -2229,11 +2400,9 @@ export class AgUiThreadController {
         if (snapshotResultApplied) {
           return {
             ...part,
-            ...(part.modelContent === undefined && event.content
+            ...(part.modelContent === undefined
               ? {
-                  modelContent: [
-                    { type: "text" as const, text: event.content },
-                  ],
+                  modelContent: [{ type: "text" as const, text: modelText }],
                 }
               : {}),
             ...(part.isError === undefined
@@ -2248,12 +2417,18 @@ export class AgUiThreadController {
               : {}),
           };
         }
+        const { modelContent: _modelContent, ...partWithoutModelContent } =
+          part;
         return {
-          ...part,
+          ...(event.mcpResult === undefined && Array.isArray(event.content)
+            ? partWithoutModelContent
+            : part),
           result: (event.mcpResult ??
-            tryParseJSON(event.content ?? "")) as ReadonlyJSONValue,
+            (Array.isArray(event.content)
+              ? event.content
+              : tryParseJSON(event.content))) as ReadonlyJSONValue,
           ...(event.mcpResult !== undefined
-            ? { modelContent: [{ type: "text" as const, text: event.content }] }
+            ? { modelContent: [{ type: "text" as const, text: modelText }] }
             : {}),
           ...(typeof event.mcpResult?.isError === "boolean"
             ? { isError: event.mcpResult.isError }

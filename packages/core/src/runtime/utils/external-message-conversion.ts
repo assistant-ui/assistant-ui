@@ -472,9 +472,26 @@ export const createExternalMessageMetadataKey = <TMessage extends WeakKey>(
   };
 };
 
+type ToolCallState = {
+  hasInterruptedToolCalls: boolean;
+  hasPendingToolCalls: boolean;
+  hasBackgroundToolCalls: boolean;
+};
+
+const getToolCallState = (joined: ThreadMessageLike): ToolCallState => {
+  const content = typeof joined.content === "object" ? joined.content : [];
+  return {
+    hasInterruptedToolCalls: content.some(isInterruptedToolCall),
+    hasPendingToolCalls: content.some(isPendingToolCall),
+    hasBackgroundToolCalls: content.some(isBackgroundToolCall),
+  };
+};
+
 type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
+  createdAtByMessageId?: Map<string, Date>;
+  toolCallStates?: InternalExternalMessageConversionCache["toolCallStates"];
 };
 
 type ExternalMessageConversionCallbackCacheEntry<T> =
@@ -494,6 +511,12 @@ export type InternalExternalMessageConversionCache<
   converterCache: ThreadMessageConverter;
   // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
   generatedFallbackMessages: WeakSet<object>;
+  createdAtByMessageId: Map<string, Date>;
+  // Keyed by the outputs array of a chunk, which is never mutated after chunking, so its joined tool-call state is fixed.
+  toolCallStates: WeakMap<
+    readonly ExternalMessageConverterMessage[],
+    ToolCallState
+  >;
 };
 
 export const createExternalMessageConversionCache = <
@@ -503,6 +526,8 @@ export const createExternalMessageConversionCache = <
   chunkCache: new WeakMap(),
   converterCache: new ThreadMessageConverter(),
   generatedFallbackMessages: new WeakSet(),
+  createdAtByMessageId: new Map(),
+  toolCallStates: new WeakMap(),
 });
 
 export const convertExternalMessageChunk = <T>(
@@ -515,7 +540,13 @@ export const convertExternalMessageChunk = <T>(
   cancelledMessageIds?: ReadonlySet<string>,
 ) => {
   const isLast = idx === chunkCount - 1;
-  const joined = joinExternalMessages(message.outputs);
+  let joined: ThreadMessageLike | undefined;
+  let toolCallState = cache?.toolCallStates?.get(message.outputs);
+  if (!toolCallState) {
+    joined = joinExternalMessages(message.outputs);
+    toolCallState = getToolCallState(joined);
+    cache?.toolCallStates?.set(message.outputs, toolCallState);
+  }
   const isCancelled =
     cancelledMessageIds !== undefined &&
     message.outputs.some(
@@ -524,23 +555,14 @@ export const convertExternalMessageChunk = <T>(
         output.id != null &&
         cancelledMessageIds.has(output.id),
     );
-  const hasInterruptedToolCalls =
-    typeof joined.content === "object" &&
-    joined.content.some(isInterruptedToolCall);
-  const hasPendingToolCalls =
-    typeof joined.content === "object" &&
-    joined.content.some(isPendingToolCall);
-  const hasBackgroundToolCalls =
-    typeof joined.content === "object" &&
-    joined.content.some(isBackgroundToolCall);
   const autoStatus = getAutoStatus(
     isLast,
     isRunning,
-    hasInterruptedToolCalls,
-    hasPendingToolCalls,
+    toolCallState.hasInterruptedToolCalls,
+    toolCallState.hasPendingToolCalls,
     isLast ? error : undefined,
     isCancelled,
-    hasBackgroundToolCalls,
+    toolCallState.hasBackgroundToolCalls,
   );
   const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
@@ -577,7 +599,29 @@ export const convertExternalMessageChunk = <T>(
     }
   }
 
-  const newMessage = fromThreadMessageLike(joined, fallbackId, autoStatus);
+  joined ??= joinExternalMessages(message.outputs);
+  const createdAtByMessageId = cache?.createdAtByMessageId;
+  const createdAt =
+    joined.createdAt ??
+    (joined.id === undefined
+      ? undefined
+      : createdAtByMessageId?.get(joined.id));
+  const messageToConvert =
+    joined.createdAt == null && createdAt !== undefined
+      ? { ...joined, createdAt }
+      : joined;
+  const newMessage = fromThreadMessageLike(
+    messageToConvert,
+    fallbackId,
+    autoStatus,
+  );
+  if (
+    createdAtByMessageId &&
+    joined.createdAt == null &&
+    joined.id !== undefined
+  ) {
+    createdAtByMessageId.set(joined.id, newMessage.createdAt);
+  }
   if (cache && joined.id == null) {
     cache.generatedFallbackMessages.add(newMessage);
   }
@@ -678,6 +722,8 @@ export const convertExternalMessages = <T extends WeakKey>(
           {
             message: cached,
             generatedFallbackMessages: cache.generatedFallbackMessages,
+            createdAtByMessageId: cache.createdAtByMessageId,
+            toolCallStates: cache.toolCallStates,
           },
           metadata.cancelledMessageIds,
         ),

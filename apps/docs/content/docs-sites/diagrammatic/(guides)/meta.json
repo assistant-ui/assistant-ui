@@ -1,0 +1,6 @@
+{
+  "title": "Guides",
+  "description": "Charts from a model, accessibility, and migrating from Recharts.",
+  "icon": "BookOpen",
+  "pages": ["ai-specs", "accessibility", "migrating-from-recharts"]
+}

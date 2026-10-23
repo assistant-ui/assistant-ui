@@ -86,16 +86,16 @@ export type RemoteThreadListAdapter = {
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
   /**
-   * Optional React component wrapped around each active thread, an older face of `unstable_useAdapters` for injecting per-thread adapters such as history or attachments. Prefer `unstable_useAdapters`, which `useCloudThreadListAdapter` and `createLocalStorageAdapter` implement.
+   * Optional React component wrapped around each active thread, an older face of `unstable_useAdapters` for injecting per-thread adapters such as history or attachments. A component that only wraps `children` in `RuntimeAdapterProvider` migrates by returning those adapters from `unstable_useAdapters`.
    *
-   * `useRemoteThreadListRuntime` renders this component only when the adapter it mounts with has one; it then renders each later adapter's provider and synthesizes a `RuntimeAdapterProvider` from `unstable_useAdapters` for a later adapter without one. A hook that mounts with an adapter without this component calls `unstable_useAdapters` for every later adapter and ignores this component. The `RemoteThreadList` store entry ignores it; expose `unstable_useAdapters` for that host.
+   * `useRemoteThreadListRuntime` renders this component only when the adapter it mounts with has one, and that runtime then runs on the deprecated `RemoteThreadListThreadListRuntimeCore` instead of the `RemoteThreadList` client; it renders each later adapter's provider and synthesizes a `RuntimeAdapterProvider` from `unstable_useAdapters` for a later adapter without one. A hook that mounts with an adapter without this component calls `unstable_useAdapters` for every later adapter and ignores this component. The `RemoteThreadList` store entry ignores it.
    *
    * The Provider must render `children` on its first commit; deferring them
    * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
    *
-   * @deprecated Experimental since 2025-01-03. Not scheduled for removal; the API may change in any release.
+   * @deprecated Return the adapters from `unstable_useAdapters` instead. `unstable_Provider` will be removed in a future minor release of `@assistant-ui/core`.
    */
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 

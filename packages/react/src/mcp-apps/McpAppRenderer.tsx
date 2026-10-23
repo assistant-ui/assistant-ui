@@ -277,7 +277,15 @@ function InlineRenderer({
           if ("reason" in result) {
             return { isError: true, ok: false, reason: result.reason };
           }
-          aui.thread.append({ content: result.content });
+          const composer = aui.thread.composer();
+          composer.setText(
+            [
+              composer.getState().text,
+              result.content.map((part) => part.text).join("\n"),
+            ]
+              .filter((part) => part.trim())
+              .join(" "),
+          );
           return { ok: true };
         }),
       callTool: (params) =>

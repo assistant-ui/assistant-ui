@@ -18,6 +18,7 @@ export function A2uiPresentRenderer({
   library,
   status,
   dispatch,
+  imageOrigins,
 }: {
   surfaceId: string;
   operations: unknown;
@@ -25,6 +26,7 @@ export function A2uiPresentRenderer({
   library: GenerativeUILibrary;
   status: GenerativeUIStatus;
   dispatch?: GenerativeUIDispatch;
+  imageOrigins?: readonly string[];
 }) {
   const surface = React.useMemo(
     () => applyA2uiOperations(new Map(), operations).state.get(surfaceId),
@@ -78,7 +80,11 @@ export function A2uiPresentRenderer({
       <GenerativeUITree
         node={converted?.spec ?? fallback}
         library={library}
-        context={{ status, ...(dispatch ? { dispatch } : {}) }}
+        context={{
+          status,
+          ...(dispatch ? { dispatch } : {}),
+          ...(imageOrigins !== undefined ? { imageOrigins } : {}),
+        }}
       />
     </BindingContext.Provider>
   );

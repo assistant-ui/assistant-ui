@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { GET, OPTIONS, POST } from "./route";
+import { DELETE, GET, OPTIONS, PATCH, POST, PUT } from "./route";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -125,6 +125,19 @@ describe("LangGraph proxy", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("returns 404 for a disallowed path even when the upstream URL is missing", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "");
+
+    const response = await POST(
+      new NextRequest("https://app.example/api/assistants/search", {
+        method: "POST",
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(404);
+  });
+
   it("rejects upstream redirects without exposing their location", async () => {
     vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
     vi.stubEnv("LANGCHAIN_API_KEY", "secret-key");
@@ -161,7 +174,7 @@ describe("LangGraph proxy", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await GET(
-      new NextRequest("https://app.example/api/threads", {
+      new NextRequest("https://app.example/api/threads/thread-1/state", {
         method: "GET",
         headers: { "sec-fetch-site": "same-origin" },
       }),
@@ -180,5 +193,71 @@ describe("LangGraph proxy", () => {
 
     expect(response.status).toBe(403);
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it.each([
+    ["POST", "threads"],
+    ["GET", "threads/thread-1/state"],
+    ["POST", "threads/thread-1/commands"],
+    ["POST", "threads/thread-1/stream/events"],
+    ["POST", "threads/thread-1/history"],
+    ["POST", "threads/thread-1/runs/stream"],
+    ["POST", "threads/thread-1/runs/run-1/cancel"],
+  ])("forwards %s /%s", async (method, path) => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = new NextRequest(`https://app.example/api/${path}`, {
+      method,
+      ...(method === "POST" ? { body: "{}" } : {}),
+    });
+    const response =
+      method === "GET" ? await GET(request) : await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`https://agent.example/${path}`);
+  });
+
+  it.each([
+    ["GET", "threads"],
+    ["POST", "threads/thread-1/state"],
+    ["POST", "assistants/search"],
+    ["POST", "threads/prune"],
+    ["POST", "threads/thread-1/runs/run-1"],
+    ["POST", "threads/thread-1/runs/%2Fadmin/cancel"],
+  ])("returns 404 for %s /%s", async (method, path) => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = new NextRequest(`https://app.example/api/${path}`, {
+      method,
+      ...(method === "POST" ? { body: "{}" } : {}),
+    });
+    const response =
+      method === "GET" ? await GET(request) : await POST(request);
+
+    expect(response.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for same-origin preflight requests", () => {
+    expect(
+      OPTIONS(new NextRequest("https://app.example/api/threads")).status,
+    ).toBe(404);
+  });
+
+  it.each([
+    ["PUT", PUT],
+    ["PATCH", PATCH],
+    ["DELETE", DELETE],
+  ])("returns 404 for %s without forwarding", (_method, handler) => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(handler().status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

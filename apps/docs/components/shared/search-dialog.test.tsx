@@ -29,6 +29,7 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
     },
   },
 }));
+import { analytics } from "@/lib/analytics";
 import { SearchDialog } from "./search-dialog";
 
 const pages = [
@@ -166,6 +167,31 @@ it("lets a failed index load be retried", async () => {
   expect(
     await screen.findByRole("option", { name: /Assistant Cloud/ }),
   ).toBeTruthy();
+});
+
+it("reports a query only once the index has loaded", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  mocks.load.mockRejectedValueOnce(new Error("offline"));
+  await act(async () => {
+    render(<SearchDialog open onOpenChange={() => {}} />);
+  });
+  fireEvent.change(screen.getByRole("combobox"), {
+    target: { value: "conversation" },
+  });
+  // Suggestions settle in one pass and the query's own timer runs in the next.
+  await act(() => vi.advanceTimersByTimeAsync(2000));
+  await act(() => vi.advanceTimersByTimeAsync(2000));
+  expect(analytics.search.noResults).not.toHaveBeenCalled();
+  expect(analytics.search.querySubmitted).not.toHaveBeenCalled();
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  });
+  await act(() => vi.advanceTimersByTimeAsync(2000));
+  expect(analytics.search.querySubmitted).toHaveBeenCalledExactlyOnceWith(
+    "conversation",
+    2,
+  );
 });
 
 it("adds every indexed page by category without losing the selected shortcut", async () => {

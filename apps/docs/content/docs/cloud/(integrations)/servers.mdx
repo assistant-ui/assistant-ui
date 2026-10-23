@@ -127,6 +127,7 @@ Content-Type: application/json
 {
   "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
   "message_id": "msg_1TqGz6mYuwqf7Aa3TLiCv29Z",
+  "user_message_id": "msg_01HpuFBSuyKBf6YN5ljVXODa",
   "status": "completed",
   "model_id": "gpt-6-luna",
   "provider": "openai",
@@ -144,6 +145,7 @@ Content-Type: application/json
 |---|---|
 | `thread_id` and `status` | Required. They attach the run to the conversation and say whether it completed, was incomplete or failed. |
 | `message_id` | Connects the run to the reply it produced. It must belong to `thread_id`. |
+| `user_message_id` | Connects the run to the stored user message that started the turn, even when no reply was stored. It must belong to `thread_id`. |
 | `model_id` and `provider` | Populate the model and provider dimensions. |
 | Token counts, `duration_ms` and `first_token_ms` | Populate usage and timing when your backend measured them. |
 | `error`, `error_code` and `outcome_type` | Describe an incomplete or failed run. |
@@ -226,6 +228,7 @@ run_response = session.post(
         "thread_id": thread_id,
         "status": "completed",
         "message_id": assistant_message_id,
+        "user_message_id": user_message_id,
         "model_id": "gpt-6-luna",
         "provider": "openai",
         "input_tokens": 48,

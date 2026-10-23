@@ -1,13 +1,14 @@
 import type { GenerativeUILibrary } from "../types";
 import { mediaDefinitions } from "./definitions/media";
-import { imageStyle } from "./imageStyle";
+import { allowedImageSrc, imageStyle } from "./imageStyle";
 import { mapPlaces, placeHref } from "./structureValues";
 import { toTextContent } from "./toTextContent";
 
 export const mediaVocabulary = {
   Image: {
     ...mediaDefinitions.Image,
-    render: ({ src, alt, size, round }) => {
+    render: ({ src, alt, size, round, $imageOrigins }) => {
+      if (!allowedImageSrc(src, $imageOrigins)) return alt ?? null;
       const { numericSize, style } = imageStyle(size, round);
 
       return (

@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type ThreadListItemTitleProps = Omit<
   ComponentProps<typeof Text>,
@@ -16,7 +17,11 @@ export function ThreadListItemTitle({
   const title = useAuiState((s) => s.threadListItem.title);
   const content = title || fallback;
   if (typeof content === "string" || typeof content === "number") {
-    return <Text {...props}>{content}</Text>;
+    return (
+      <Text {...props}>
+        {typeof content === "string" ? sanitizeTerminalText(content) : content}
+      </Text>
+    );
   }
   return <>{content}</>;
 }

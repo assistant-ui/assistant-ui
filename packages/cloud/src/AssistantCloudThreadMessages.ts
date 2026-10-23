@@ -149,6 +149,13 @@ export class AssistantCloudThreadMessages {
     );
   }
 
+  public async delete(threadId: string, messageIds: string[]): Promise<void> {
+    return this.cloud.makeRequest(
+      `/threads/${encodeURIComponent(threadId)}/messages`,
+      { method: "DELETE", body: { message_ids: messageIds } },
+    );
+  }
+
   public async feedback(
     threadId: string,
     messageId: string,

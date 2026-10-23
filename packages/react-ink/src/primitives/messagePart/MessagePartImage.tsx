@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type MessagePartPrimitiveImageProps = Omit<
   ComponentProps<typeof Text>,
@@ -18,7 +19,7 @@ export const MessagePartPrimitiveImage = (
     if (s.part.type !== "image") return "";
     return s.part.filename ? `[image: ${s.part.filename}]` : "[image]";
   });
-  return <Text {...props}>{label}</Text>;
+  return <Text {...props}>{sanitizeTerminalText(label)}</Text>;
 };
 
 MessagePartPrimitiveImage.displayName = "MessagePartPrimitive.Image";

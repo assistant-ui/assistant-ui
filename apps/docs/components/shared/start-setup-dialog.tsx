@@ -79,10 +79,12 @@ export function StartSetupDialog({
     if (mode === null) return;
     analytics.cta.clicked(`start_setup_${mode}`, location);
     setOpen(false);
-    if (mode === "agent") {
-      if (instructions) beginSetup(products, instructions);
-      else beginSetup(products);
-    } else router.push(manualHref);
+    if (mode === "agent")
+      beginSetup(products, instructions ?? "", {
+        source: "start_dialog",
+        location,
+      });
+    else router.push(manualHref);
   };
 
   return (

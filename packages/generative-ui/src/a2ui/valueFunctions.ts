@@ -1,5 +1,6 @@
 const MAX_TEMPLATE_LENGTH = 10_000;
 const MAX_TEMPLATE_PARTS = 1_000;
+const MAX_FORMATTED_LENGTH = 100_000;
 const MAX_EXPRESSION_DEPTH = 32;
 
 export type ExpressionPart =
@@ -460,15 +461,24 @@ const VALUE_FUNCTIONS: Readonly<Record<string, ValueFunction>> = {
       context.templates.set(template, parts);
     }
     if (parts === null) return undefined;
-    return parts
-      .map((part) =>
-        toText(
-          typeof part === "object" && part !== null
-            ? context.resolve(part)
-            : part,
-        ),
-      )
-      .join("");
+    const resolved: string[] = [];
+    let length = 0;
+    for (const part of parts) {
+      const value = toText(
+        typeof part === "object" && part !== null
+          ? context.resolve(part)
+          : part,
+      );
+      if (value.length > MAX_FORMATTED_LENGTH - length) {
+        context.warn(
+          `A2UI formatString output is longer than ${MAX_FORMATTED_LENGTH} characters.`,
+        );
+        return undefined;
+      }
+      resolved.push(value);
+      length += value.length;
+    }
+    return resolved.join("");
   },
   formatNumber: (args, context) => formatAmount("formatNumber", args, context),
   formatCurrency: (args, context) =>

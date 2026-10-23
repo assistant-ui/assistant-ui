@@ -4,7 +4,7 @@ import "json-schema";
 
 import { ComponentType } from "react";
 
-import { FieldValues, UseFormProps, UseFormReturn } from "react-hook-form";
+import { FieldPath, FieldValues, UseFormProps, UseFormReturn } from "react-hook-form";
 
 import { z } from "zod";
 
@@ -476,14 +476,17 @@ type Unstable_ToolInteractionLog = {
 
 type UseAssistantFormProps<TFieldValues extends FieldValues, TContext, TTransformedValues> = UseFormProps<TFieldValues, TContext, TTransformedValues> & {
   assistant?: {
+    sensitiveFields?: readonly FieldPath<TFieldValues>[];
     tools?: {
       set_form_field?: {
         render?: ToolCallMessagePartComponent<z.infer<(typeof formTools.set_form_field)["parameters"]>, unknown> | undefined;
       } | undefined;
       submit_form?: {
+        requireApproval?: boolean;
         render?: ToolCallMessagePartComponent<z.infer<(typeof formTools.submit_form)["parameters"]>, unknown> | undefined;
       } | undefined;
       reset_form?: {
+        requireApproval?: boolean;
         render?: ToolCallMessagePartComponent<z.infer<(typeof formTools.reset_form)["parameters"]>, unknown> | undefined;
       } | undefined;
     } | undefined;

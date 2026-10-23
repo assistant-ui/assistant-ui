@@ -91,6 +91,7 @@ type MCPConnector = {
   connectionTimeout?: number;
   cache?: { defaultTtlMs?: number };
   elicitation?: boolean;
+  requireApproval?: boolean;
 };
 defineConnector(c: MCPConnector): MCPConnector;
 ```
@@ -106,6 +107,7 @@ type MCPCustomServerRecord = {
   connectionTimeout?: number;
   cache?: { defaultTtlMs?: number };
   elicitation?: boolean;
+  requireApproval?: boolean;
   createdAt: number;
 };
 ```
@@ -143,6 +145,7 @@ type MCPServerState = {
   tools: MCPToolInfo[];
   authorizationUrl: string | null;
   readonly pendingElicitations: readonly MCPElicitation[];
+  requireApproval?: boolean;
 };
 
 type MCPManagerState = {
@@ -169,7 +172,7 @@ declare module "@assistant-ui/store" {
 type MCPManagerMethods = {
   getState: () => MCPManagerState;
   server: (lookup: { id: string }) => MCPServerMethods;
-  addCustomServer: (input: { name: string; url: string; auth: MCPAuthConfig; connectionTimeout?: number; elicitation?: boolean }) => Promise<string>;
+  addCustomServer: (input: { name: string; url: string; auth: MCPAuthConfig; connectionTimeout?: number; elicitation?: boolean; requireApproval?: boolean }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
 
@@ -256,6 +259,7 @@ Defaults baked in:
 - `oauthRedirectUri` → `${window.location.origin}/mcp/callback`
 - `autoConnect` → `true`
 - `connectionTimeout` → optional timeout in milliseconds; disabled by default. Set it on the manager as a default or on a server entry to bound the MCP readiness flow (`connect()` plus `listTools()`).
+- `requireApproval` → optional; by default each tool call asks the user through the runtime's human-in-the-loop request first, and `false` runs that server's tools without asking.
 
 ## 4. Auth
 

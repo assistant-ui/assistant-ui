@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import { createMessageQueue } from "../../runtime/queue/message-queue";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
@@ -2551,5 +2551,79 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     runtime.__internal_setAdapter(store());
 
     expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore createdAt of converted messages", () => {
+  type Raw = { id: string; text: string };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const storeOf = (messages: Raw[]) =>
+    ({
+      messages,
+      convertMessage: (raw: Raw): ThreadMessageLike => ({
+        id: raw.id,
+        role: "assistant",
+        content: raw.text,
+      }),
+      onNew: async () => {},
+    }) as ExternalStoreAdapter<Raw>;
+
+  it("keeps the first time an id converts while its source object changes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      storeOf([{ id: "a1", text: "hel" }]),
+    );
+    const first = runtime.messages[0]!.createdAt.getTime();
+
+    vi.setSystemTime(new Date("2026-01-01T00:01:00Z"));
+    runtime.__internal_setAdapter(storeOf([{ id: "a1", text: "hello" }]));
+
+    expect(runtime.messages[0]!.content).toEqual([
+      { type: "text", text: "hello" },
+    ]);
+    expect(runtime.messages[0]!.createdAt.getTime()).toBe(first);
+  });
+
+  it("stamps a reused id afresh after the repository instance changes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    const runtime = new ExternalStoreThreadRuntimeCore(modelContextProvider, {
+      ...storeOf([{ id: "a1", text: "first thread" }]),
+      unstable_messageRepositoryInstance: new MessageRepository(),
+    } as ExternalStoreAdapter<Raw>);
+    const first = runtime.messages[0]!.createdAt.getTime();
+
+    vi.setSystemTime(new Date("2026-01-01T00:01:00Z"));
+    runtime.__internal_setAdapter({
+      ...storeOf([{ id: "a1", text: "second thread" }]),
+      unstable_messageRepositoryInstance: new MessageRepository(),
+    } as ExternalStoreAdapter<Raw>);
+
+    expect(runtime.messages[0]!.content).toEqual([
+      { type: "text", text: "second thread" },
+    ]);
+    expect(runtime.messages[0]!.createdAt.getTime()).not.toBe(first);
+  });
+
+  it("keeps a createdAt from convertMessage", () => {
+    const createdAt = new Date("2025-06-01T00:00:00Z");
+    const runtime = new ExternalStoreThreadRuntimeCore(modelContextProvider, {
+      messages: [{ id: "a1", text: "hi" }],
+      convertMessage: (raw: Raw): ThreadMessageLike => ({
+        id: raw.id,
+        role: "assistant",
+        content: raw.text,
+        createdAt,
+      }),
+      onNew: async () => {},
+    } as ExternalStoreAdapter<Raw>);
+
+    expect(runtime.messages[0]!.createdAt).toBe(createdAt);
   });
 });

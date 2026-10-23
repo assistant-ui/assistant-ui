@@ -21,7 +21,7 @@ import {
   type LexicalEditor,
   type LexicalNode,
 } from "lexical";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { getClientId, useAui, useAuiState } from "@assistant-ui/store";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
@@ -46,7 +46,7 @@ type ParsedSegment = {
 type CompositeParser = (text: string) => readonly ParsedSegment[];
 type ParsedLines = readonly (readonly ParsedSegment[])[];
 type ComposerIdentity = {
-  composerRuntime: object;
+  composerId: ReturnType<typeof getClientId>;
   threadId: string | undefined;
 };
 
@@ -424,6 +424,7 @@ export function SyncPlugin({
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
   const mainThreadId = useAuiState((s) => s.optional.threads?.mainThreadId);
+  const composerText = useAuiState((s) => s.composer.text);
   const root = unstable_useTriggerPopoverRootContextOptional();
 
   const subscribe = useCallback(
@@ -453,7 +454,6 @@ export function SyncPlugin({
 
   const parser = useMemo(() => composeParsers(formatters), [formatters]);
 
-  const isSyncingFromLexicalRef = useRef(false);
   const isSyncingFromRuntimeRef = useRef(false);
   const textDirtySinceSyncRef = useRef(false);
   const lastSyncedTextRef = useRef("");
@@ -471,35 +471,29 @@ export function SyncPlugin({
 
         if (dirtyElements.size > 0 || dirtyLeaves.size > 0) {
           editorState.read(() => {
-            isSyncingFromLexicalRef.current = true;
+            const rootNode = $getRoot();
+            let fullText = "";
 
-            try {
-              const rootNode = $getRoot();
-              let fullText = "";
-
-              // One newline per paragraph boundary; empty paragraphs are lines
-              // too.
-              let lineIndex = 0;
-              for (const paragraph of rootNode.getChildren()) {
-                if (!$isElementNode(paragraph)) continue;
-                if (lineIndex > 0) {
-                  fullText += "\n";
-                }
-                lineIndex++;
-                for (const child of paragraph.getChildren()) {
-                  fullText += child.getTextContent();
-                }
+            // One newline per paragraph boundary; empty paragraphs are lines
+            // too.
+            let lineIndex = 0;
+            for (const paragraph of rootNode.getChildren()) {
+              if (!$isElementNode(paragraph)) continue;
+              if (lineIndex > 0) {
+                fullText += "\n";
               }
-
-              const composer = aui.composer;
-
-              if (fullText !== lastSyncedTextRef.current) {
-                textDirtySinceSyncRef.current = true;
-                lastSyncedTextRef.current = fullText;
-                composer.setText(fullText);
+              lineIndex++;
+              for (const child of paragraph.getChildren()) {
+                fullText += child.getTextContent();
               }
-            } finally {
-              isSyncingFromLexicalRef.current = false;
+            }
+
+            const composer = aui.composer;
+
+            if (fullText !== lastSyncedTextRef.current) {
+              textDirtySinceSyncRef.current = true;
+              lastSyncedTextRef.current = fullText;
+              composer.setText(fullText, { origin: "user" });
             }
           });
         }
@@ -510,15 +504,15 @@ export function SyncPlugin({
   }, [editor, aui]);
 
   useEffect(() => {
-    const composerRuntime = aui.composer.__internal_getRuntime?.();
-    if (!composerRuntime) return;
-
-    const updateComposerIdentity = () => {
-      const nextIdentity = { composerRuntime, threadId: mainThreadId };
+    const updateComposerIdentity = (composer: typeof aui.composer) => {
+      const nextIdentity = {
+        composerId: getClientId(composer),
+        threadId: mainThreadId,
+      };
       const previousIdentity = lastComposerIdentityRef.current;
       const composerChanged =
         previousIdentity !== undefined &&
-        (previousIdentity.composerRuntime !== nextIdentity.composerRuntime ||
+        (previousIdentity.composerId !== nextIdentity.composerId ||
           previousIdentity.threadId !== nextIdentity.threadId);
       lastComposerIdentityRef.current = nextIdentity;
       if (composerChanged) {
@@ -529,7 +523,8 @@ export function SyncPlugin({
       }
       return composerChanged;
     };
-    const composerChanged = updateComposerIdentity();
+    const composer = aui.composer;
+    const composerChanged = updateComposerIdentity(composer);
 
     const applyRuntimeText = (
       runtimeText: string,
@@ -573,7 +568,7 @@ export function SyncPlugin({
       applyRuntimeText(runtimeText, lastAppliedParserRef.current, parsedLines);
     };
 
-    const initialText = composerRuntime.getState().text;
+    const initialText = composer.getState().text;
     const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
 
     applyPendingParserRef.current = tryApplyParserChange;
@@ -583,19 +578,7 @@ export function SyncPlugin({
     } else {
       tryApplyParserChange();
     }
-
-    return composerRuntime.subscribe(() => {
-      if (isSyncingFromLexicalRef.current) return;
-
-      const composerChanged = updateComposerIdentity();
-
-      const runtimeText = composerRuntime.getState().text;
-
-      if (runtimeText === lastSyncedTextRef.current) return;
-
-      applyRuntimeText(runtimeText, undefined, undefined, composerChanged);
-    });
-  }, [editor, aui, parser, mainThreadId]);
+  }, [editor, aui, parser, mainThreadId, composerText]);
 
   return null;
 }

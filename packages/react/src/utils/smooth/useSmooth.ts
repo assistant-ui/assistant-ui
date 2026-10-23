@@ -217,6 +217,17 @@ export const useSmooth = (
   const [animatorRef] = useState(
     () => new TextStreamAnimator(displayedText, setText),
   );
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (enabled !== prevEnabled) {
+    setPrevEnabled(enabled);
+    if (
+      enabled &&
+      part === prevPart &&
+      text.startsWith(animatorRef.currentText)
+    ) {
+      setDisplayedText(animatorRef.currentText);
+    }
+  }
 
   useEffect(() => {
     animatorRef.drainMs = drainMs;
@@ -227,13 +238,16 @@ export const useSmooth = (
 
   const animatorPartRef = useRef(part);
   useEffect(() => {
+    const partChanged = animatorPartRef.current !== part;
+    animatorPartRef.current = part;
     if (!enabled) {
       animatorRef.stop();
+      animatorRef.currentText = text;
+      animatorRef.targetText = text;
+      animatorRef.lastCommitTime = -Infinity;
       return;
     }
 
-    const partChanged = animatorPartRef.current !== part;
-    animatorPartRef.current = part;
     // A new part whose text shares a prefix with the previous target would
     // keep the stale cursor and flicker without this reset.
     if (partChanged || !text.startsWith(animatorRef.targetText)) {

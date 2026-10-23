@@ -1,4 +1,4 @@
-import { AbstractAgent, Context, InputContent, Message } from "@ag-ui/client";
+import { AbstractAgent, ContentPart, Context, Message } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -34,7 +34,7 @@ type AgUiInterruptReason = "tool_call" | "input_required" | "confirmation" | (st
 type AgUiMessage = {
   id: string;
   role: "user";
-  content: string | InputContent[];
+  content: string | ContentPart[];
   name?: string;
   metadata?: Record<string, unknown>;
 } | {
@@ -59,7 +59,7 @@ type AgUiMessage = {
 } | {
   id: string;
   role: "tool";
-  content: string;
+  content: string | ContentPart[];
   toolCallId: string;
   error?: string;
   metadata?: Record<string, unknown>;
@@ -75,9 +75,12 @@ type AgUiResumeTranscript = "appended" | "full";
 
 type AgUiRunFinishedOutcome = {
   type: "success";
+  pendingToolCallIds?: string[];
 } | {
   type: "interrupt";
   interrupts: AgUiInterrupt[];
+} | {
+  type: "cancelled";
 };
 
 type AgUiToolCall = {
@@ -262,7 +265,7 @@ type ComposerRuntime = {
   readonly type: "edit" | "thread";
   getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
-  setText(text: string): void;
+  setText(text: string, options?: ComposerSetTextOptions): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   reset(): Promise<void>;
@@ -293,6 +296,10 @@ type ComposerRuntimeEventPayload = {
   attachmentAddError: AttachmentAddErrorEvent & {
     readonly contentType?: string | undefined;
   };
+  textChange: {
+    readonly text: string;
+    readonly origin: ComposerTextOrigin;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -305,6 +312,10 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
+type ComposerSetTextOptions = {
+  readonly origin?: ComposerTextOrigin;
+};
+
 type ComposerSubmission = {
   readonly id: string;
   readonly role: MessageRole;
@@ -312,6 +323,8 @@ type ComposerSubmission = {
   readonly quote: QuoteInfo | undefined;
   readonly attachments: readonly Attachment[];
 };
+
+type ComposerTextOrigin = "external" | "recall" | "reset" | "return" | "send" | "user";
 
 type CreateAppendMessage = string | {
   parentId?: string | null | undefined;
@@ -612,6 +625,8 @@ type GenericThreadHistoryAdapter<TMessage> = {
       end_ms: number;
     }[];
     message?: ThreadMessage;
+    userMessageId?: string;
+    persistenceError?: unknown;
   }): void;
 };
 

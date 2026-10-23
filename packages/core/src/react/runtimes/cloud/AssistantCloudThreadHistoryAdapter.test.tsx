@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor } from "@testing-library/react";
-import type { AssistantCloud } from "assistant-cloud";
+import {
+  type AssistantCloud,
+  CloudAPIError,
+  CloudRunReporter,
+} from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import {
@@ -81,6 +85,7 @@ const makeCloud = (telemetry: Partial<AssistantCloud["telemetry"]> = {}) =>
         list: vi.fn().mockResolvedValue({ messages: [] }),
         create: vi.fn().mockResolvedValue({ message_id: "remote-message-1" }),
         update: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
         feedback: vi.fn().mockResolvedValue({
           feedback_id: "feedback-1",
           type: "positive",
@@ -115,10 +120,12 @@ const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
 function assertDefined<T>(value: T): asserts value is NonNullable<T> {
@@ -146,6 +153,128 @@ const makeToolCallMessage = (
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("formatted run prompt telemetry", () => {
+  const format = {
+    format: "ai-sdk/v6",
+    encode: ({ message }: { message: TelemetryMessage }) => message,
+    decode: ({
+      parent_id,
+      content,
+    }: {
+      parent_id: string | null;
+      content: TelemetryMessage;
+    }) => ({
+      parentId: parent_id,
+      message: content,
+    }),
+    getId: (message: TelemetryMessage) => message.id,
+  };
+  const prompt = {
+    parentId: null,
+    message: {
+      id: "local-user-1",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+    },
+  };
+  const message: ThreadAssistantMessage = {
+    ...makeAssistantMessage("unanswered"),
+    content: [],
+    status: { type: "incomplete", reason: "cancelled" },
+  };
+
+  it("resolves a stored prompt ID and omits an unmapped prompt ID", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const report = vi.spyOn(CloudRunReporter.prototype, "report");
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat!(format);
+    await formatted.append(prompt);
+
+    formatted.reportTelemetry!([], { message, userMessageId: "local-user-1" });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalledOnce());
+    expect(report.mock.calls[0]![0]).toEqual(
+      expect.objectContaining({
+        threadId: "thread-1",
+        userMessageId: "remote-message-1",
+      }),
+    );
+    formatted.reportTelemetry!([], { message, userMessageId: "missing-user" });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalledTimes(2));
+    expect(report.mock.calls[1]![0]).not.toEqual(
+      expect.objectContaining({ userMessageId: expect.anything() }),
+    );
+    expect(vi.mocked(cloud.runs.report).mock.calls[1]![0]).not.toHaveProperty(
+      "user_message_id",
+    );
+  });
+
+  it.each(["succeeds", "fails", "changes scope"] as const)(
+    "waits for a pending prompt append that %s without delaying a report with no prompt",
+    async (outcome) => {
+      mocks.aui = mocks.makeClient("thread-1");
+      const cloud = makeCloud();
+      const pending = deferred<{ message_id: string }>();
+      vi.mocked(cloud.threads.messages.create).mockReturnValue(pending.promise);
+      const report = vi.spyOn(CloudRunReporter.prototype, "report");
+      const scopeRef = { current: "scope-a" };
+      const { result } = renderHook(() =>
+        useScopedAssistantCloudThreadHistoryAdapter(
+          { current: cloud },
+          scopeRef,
+        ),
+      );
+      const formatted = result.current.withFormat!(format);
+      const appending = formatted.append(prompt);
+      const appendResult = appending.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await waitFor(() =>
+        expect(cloud.threads.messages.create).toHaveBeenCalledOnce(),
+      );
+
+      formatted.reportTelemetry!([], {
+        message,
+        userMessageId: "local-user-1",
+      });
+      formatted.reportTelemetry!([], { message });
+      await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+      expect(report).toHaveBeenCalledOnce();
+      expect(report.mock.calls[0]![0]).not.toEqual(
+        expect.objectContaining({ userMessageId: expect.anything() }),
+      );
+
+      if (outcome === "changes scope") scopeRef.current = "scope-b";
+      if (outcome === "fails") pending.reject(new Error("append failed"));
+      else pending.resolve({ message_id: "remote-user-1" });
+      expect(await appendResult).toEqual(
+        outcome === "fails" ? new Error("append failed") : undefined,
+      );
+
+      if (outcome === "changes scope") {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(report).toHaveBeenCalledOnce();
+        expect(cloud.runs.report).toHaveBeenCalledOnce();
+      } else {
+        await waitFor(() => expect(cloud.runs.report).toHaveBeenCalledTimes(2));
+        expect(report.mock.calls[1]![0]).toEqual(
+          expect.objectContaining({
+            threadId: "thread-1",
+            userMessageId: outcome === "succeeds" ? "remote-user-1" : undefined,
+          }),
+        );
+        if (outcome === "fails")
+          expect(
+            vi.mocked(cloud.runs.report).mock.calls[1]![0],
+          ).not.toHaveProperty("user_message_id");
+      }
+    },
+  );
 });
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
@@ -603,6 +732,75 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       expect.anything(),
     );
     expect(secondCloud.threads.messages.create).not.toHaveBeenCalled();
+  });
+
+  it("deletes an appended default message by its Cloud ID", async () => {
+    mocks.aui = mocks.makeClient("delete-default-thread");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("delete-default-local"),
+    };
+    await result.current.append(item);
+    await result.current.delete?.([item]);
+    expect(cloud.threads.messages.delete).toHaveBeenCalledWith(
+      "delete-default-thread",
+      ["remote-message-1"],
+    );
+  });
+
+  it("deletes an appended formatted message by its Cloud ID", async () => {
+    mocks.aui = mocks.makeClient("delete-formatted-thread");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat!({
+      format: "test/v1",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    const item = { parentId: null, message: { id: "delete-formatted-local" } };
+    await formatted.append(item);
+    await formatted.delete?.([item]);
+    expect(cloud.threads.messages.delete).toHaveBeenCalledWith(
+      "delete-formatted-thread",
+      ["remote-message-1"],
+    );
+  });
+
+  it("does not create a Cloud thread to delete local messages", async () => {
+    mocks.aui = mocks.makeClient(undefined, "delete-local-thread");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("delete-local-message"),
+    };
+    await result.current.delete?.([item]);
+    const formatted = result.current.withFormat!({
+      format: "test/v1",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    await formatted.delete?.([
+      { parentId: null, message: { id: "delete-local-message" } },
+    ]);
+    expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
+    expect(cloud.threads.messages.create).not.toHaveBeenCalled();
   });
 
   it("preserves default message mappings across adapter mounts", async () => {
@@ -1126,6 +1324,39 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports a settled message whose write failed as a persistence error once", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const failure = new CloudAPIError(
+      "Message too large",
+      413,
+      "payload_too_large",
+    );
+    vi.mocked(cloud.threads.messages.create).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("local-message-1"),
+    };
+
+    await expect(result.current.append(item)).rejects.toBe(failure);
+    await result.current.append(item);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+    expect(cloud.runs.report).toHaveBeenCalledTimes(1);
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thread_id: "thread-1",
+        status: "error",
+        outcome_type: "persistence_error",
+        error: "Message too large",
+        error_code: "payload_too_large",
+      }),
+    );
+  });
+
   it("reports the error message and code of a failed run", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
@@ -1505,6 +1736,130 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         duration_ms: 120,
       }),
     );
+  });
+
+  it.each([
+    [
+      "a rate-limited run",
+      {
+        type: "incomplete",
+        reason: "error",
+        error: {
+          code: "AI_APICallError",
+          message: "Too many requests",
+          statusCode: 429,
+        },
+      },
+      {
+        status: "error",
+        outcome_type: "rate_limited",
+        error_code: "429",
+        error: "Too many requests",
+      },
+    ],
+    [
+      "a run stopped before any assistant message was stored",
+      { type: "incomplete", reason: "cancelled" },
+      { status: "incomplete", outcome_type: "aborted" },
+    ],
+    [
+      "a run that settled without output",
+      { type: "incomplete", reason: "other" },
+      { status: "incomplete" },
+    ],
+  ] as const)("reports %s", async (_, status, expected) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    assertDefined(result.current.withFormat);
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as TelemetryMessage,
+      }),
+      getId: (message: TelemetryMessage) => message.id,
+    });
+
+    assertDefined(formatted.reportTelemetry);
+    formatted.reportTelemetry([], {
+      message: { ...makeAssistantMessage("assistant-1"), content: [], status },
+    });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).toEqual(
+      expect.objectContaining({ thread_id: "thread-1", ...expected }),
+    );
+    expect(report.outcome_type).toBe(
+      "outcome_type" in expected ? expected.outcome_type : undefined,
+    );
+  });
+
+  const tooLarge = new CloudAPIError(
+    "Message too large",
+    413,
+    "payload_too_large",
+  );
+  it.each([
+    [
+      "a completed run whose history failed to store",
+      { type: "complete", reason: "stop" },
+      tooLarge,
+      {
+        status: "error",
+        outcome_type: "persistence_error",
+        error: "Message too large",
+        error_code: "payload_too_large",
+      },
+    ],
+    [
+      "a stopped run whose history failed to store",
+      { type: "incomplete", reason: "cancelled" },
+      tooLarge,
+      { status: "incomplete", outcome_type: "aborted" },
+    ],
+    [
+      "a completed run whose history write rejected without a reason",
+      { type: "complete", reason: "stop" },
+      undefined,
+      { status: "error", outcome_type: "persistence_error" },
+    ],
+  ] as const)("reports %s", async (_, status, persistenceError, expected) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    assertDefined(result.current.withFormat);
+    const formatted = result.current.withFormat({
+      format: "aui/v0",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as TelemetryMessage,
+      }),
+      getId: (message: TelemetryMessage) => message.id,
+    });
+    const message = {
+      id: "message-1",
+      role: "assistant",
+      content: [{ type: "text", text: "done" }],
+      status,
+    };
+
+    assertDefined(formatted.reportTelemetry);
+    formatted.reportTelemetry([{ parentId: null, message }], {
+      persistenceError,
+    });
+    await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
+
+    const report = vi.mocked(cloud.runs.report).mock.calls[0]![0]!;
+    expect(report).toEqual(expect.objectContaining(expected));
+    expect(report.error).toBe("error" in expected ? expected.error : undefined);
   });
 
   it("reports the model ID carried by aui/v0 step metadata", async () => {

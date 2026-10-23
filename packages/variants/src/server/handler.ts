@@ -1,4 +1,5 @@
 import { readFile, realpath } from "node:fs/promises";
+import { BlockList, isIP } from "node:net";
 import { relative } from "node:path";
 import {
   appendRequest,
@@ -22,6 +23,7 @@ export type NotesRequest = {
   method: string;
   /** Path after the mount point, with the query string, e.g. `/notes?groups=a`. */
   path: string;
+  remoteAddress?: string | undefined;
   header: (name: string) => string | null;
   json: () => Promise<unknown>;
 };
@@ -33,8 +35,10 @@ export type NotesOptions = {
   root: string;
   /** Endpoints answer only in development. */
   dev: boolean;
-  /** Hosts besides loopback that may reach the endpoints. */
+  /** Host names besides loopback accepted by the Host check. */
   allowedHosts?: AllowedHosts | undefined;
+  /** Admits clients outside loopback; the Host check still applies. */
+  allowRemoteClients?: boolean | undefined;
 };
 
 export type AllowedHosts = readonly string[] | true;
@@ -81,6 +85,19 @@ const serialized = <T>(task: () => Promise<T>): Promise<T> => {
 const firstToken = (value: string | null) =>
   value?.split(",", 1)[0]?.trim() || null;
 
+const loopbackClients = new BlockList();
+loopbackClients.addSubnet("127.0.0.0", 8, "ipv4");
+loopbackClients.addAddress("::1", "ipv6");
+loopbackClients.addSubnet("::ffff:127.0.0.0", 104, "ipv6");
+
+const isLoopbackClient = (address: string) => {
+  const family = isIP(address);
+  return (
+    family !== 0 &&
+    loopbackClients.check(address, family === 4 ? "ipv4" : "ipv6")
+  );
+};
+
 /** The host name of a `Host` header, without the port; IPv6 keeps its brackets. */
 const hostName = (host: string) => {
   const lower = host.trim().toLowerCase();
@@ -123,7 +140,17 @@ export const checkRequest = (
   request: NotesRequest,
   needsJson: boolean,
   allowedHosts?: AllowedHosts,
+  allowRemoteClients = false,
 ): NotesResponse | undefined => {
+  if (
+    request.remoteAddress !== undefined &&
+    !allowRemoteClients &&
+    !isLoopbackClient(request.remoteAddress)
+  )
+    return fail(
+      403,
+      "remote client not allowed; set allowRemoteClients to admit it",
+    );
   const host = request.header("host");
   if (!host) return fail(400, "missing host header");
   if (!isAllowedHost(host, allowedHosts))
@@ -248,6 +275,7 @@ export const handleNotesRequest = async (
     request,
     method === "POST",
     options.allowedHosts,
+    options.allowRemoteClients,
   );
   if (rejected) return rejected;
 

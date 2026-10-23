@@ -25,7 +25,7 @@ A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After`
 | Thread and message route IDs | 1 to 255 characters. A message list cursor is at most 256 characters. |
 | Message `content` | At most 1,048,576 serialized characters. |
 | Messages deleted per request | 1 to 200 IDs |
-| Run `thread_id`, `message_id`, and `trace_id` | 1 to 255, 1 to 48, and 1 to 48 characters. A trace ID is a W3C trace ID only when it matches `^[0-9a-f]{32}$`. |
+| Run `thread_id`, `message_id`, `user_message_id`, and `trace_id` | `thread_id` accepts 1 to 255 characters; each other ID accepts 1 to 48 characters. A trace ID is a W3C trace ID only when it matches `^[0-9a-f]{32}$`. |
 | Run `root_span_id` | Exactly 16 lowercase hexadecimal characters, matching `^[0-9a-f]{16}$`. |
 | Run `error` and `error_code` | 2,048 and 64 characters. |
 | Run `tags` | 20 tags of 64 characters |

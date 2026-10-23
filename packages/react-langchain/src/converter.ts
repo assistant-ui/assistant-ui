@@ -395,6 +395,7 @@ export const createLangChainStreamingTimingAccessors = <
     id?: string | undefined;
     content?: unknown;
     tool_calls?: readonly unknown[] | undefined;
+    additional_kwargs?: unknown;
   },
 >(
   getType: (message: TMessage) => string,
@@ -417,7 +418,11 @@ export const createLangChainStreamingTimingAccessors = <
     if (typeof content === "string") return content.length;
     if (!Array.isArray(content)) return 0;
     let len = 0;
-    for (const part of content as readonly LangChainContentBlock[]) {
+    for (const part of content as readonly (string | LangChainContentBlock)[]) {
+      if (typeof part === "string") {
+        len += part.length;
+        continue;
+      }
       if (typeof part !== "object" || part === null) continue;
       switch (part.type) {
         case "text":
@@ -454,6 +459,15 @@ export const createLangChainStreamingTimingAccessors = <
     getAssistantMessageId,
     getTextLength,
     getToolCallCount,
+    getMessageContent: (messages, id) => {
+      const message = findAiMessage(messages, id);
+      if (message === undefined) return undefined;
+      return {
+        content: message.content,
+        tool_calls: message.tool_calls,
+        additional_kwargs: message.additional_kwargs,
+      };
+    },
   };
 };
 

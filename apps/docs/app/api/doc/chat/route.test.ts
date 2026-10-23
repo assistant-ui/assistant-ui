@@ -38,6 +38,7 @@ vi.mock("@/lib/source", () => {
     docsSiteSources: {
       "safe-content-frame": emptySource,
       "generative-frame": emptySource,
+      diagrammatic: emptySource,
     },
   };
 });

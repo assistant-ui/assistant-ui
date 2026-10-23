@@ -33,11 +33,11 @@ cp .env.example .env
 
 The server can be configured via environment variables:
 
-- `HOST`: Server host (default: 0.0.0.0)
-- `PORT`: Server port (default: 8001)
+- `HOST`: Server host (default: 127.0.0.1)
+- `PORT`: Server port (default: 8010)
 - `DEBUG`: Enable debug mode (default: false)
 - `LOG_LEVEL`: Log level (default: info)
-- `CORS_ORIGINS`: CORS origins (default: http://localhost:3000)
+- `CORS_ORIGINS`: Comma separated origins allowed to call the server (default: http://localhost:3000). Add every origin your frontend runs on, such as `http://127.0.0.1:3000`; `*` allows any origin and turns off credentialed requests
 - `OPENAI_API_KEY`: Your OpenAI API key (required)
 - `LANGGRAPH_POSTGRES_URL`: Optional Postgres connection URL for LangGraph checkpoints
 - `DATABASE_URL`: Fallback Postgres connection URL when `LANGGRAPH_POSTGRES_URL` is not set
@@ -51,7 +51,7 @@ uv run python main.py
 
 Or with uvicorn directly:
 ```bash
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8001
+uv run uvicorn main:app --reload --host 127.0.0.1 --port 8010
 ```
 
 ### Using standard Python
@@ -61,12 +61,12 @@ python main.py
 
 Or with uvicorn directly:
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8001
+uvicorn main:app --reload --host 127.0.0.1 --port 8010
 ```
 
 ## API Endpoints
 
-### POST /api/chat
+### POST /assistant
 Main chat endpoint that processes commands and streams responses using LangGraph.
 
 Request body:
@@ -97,7 +97,7 @@ Health check endpoint.
 
 ## How It Works
 
-1. The server receives chat requests at `/api/chat`
+1. The server receives chat requests at `/assistant`
 2. Commands are converted to LangGraph messages (HumanMessage, AIMessage, etc.)
 3. The LangGraph processes the messages through its nodes using a per-thread checkpoint keyed by the AssistantTransport `threadId`
 4. Two streaming tasks run concurrently:
@@ -144,10 +144,18 @@ Because the FastAPI route streams with `graph.astream`, the backend uses `AsyncP
 This backend is designed to work with the assistant-ui frontend. Update your frontend configuration to point to this server:
 
 ```typescript
-const runtime = useExternalStoreRuntime({
-  endpoint: "http://localhost:8001/api/chat"
+import { useAssistantTransportRuntime } from "@assistant-ui/react";
+
+const runtime = useAssistantTransportRuntime({
+  initialState: { messages: [] },
+  protocol: "assistant-transport",
+  api: "http://localhost:8010/assistant",
+  converter,
+  headers: {},
 });
 ```
+
+`converter` turns the backend's state into messages; `examples/with-assistant-transport/app/MyRuntimeProvider.tsx` has a complete provider.
 
 ## Customizing the LangGraph
 

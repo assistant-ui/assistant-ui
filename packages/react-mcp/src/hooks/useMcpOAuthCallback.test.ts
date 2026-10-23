@@ -173,38 +173,55 @@ describe("useMcpOAuthCallback", () => {
     expect(onCompleteA).toHaveBeenCalledWith("docs");
   });
 
-  it("keeps the newer callback's result when an older attempt settles late", async () => {
-    const secondUrl =
-      "https://app.example.com/oauth/callback?state=aui-mcp%3AZG9jcw.second";
-    let rejectFirst!: (err: Error) => void;
-    mocks.completeAuth.mockReturnValueOnce(
-      new Promise<void>((_resolve, reject) => {
-        rejectFirst = reject;
-      }),
-    );
-    mocks.completeAuth.mockResolvedValueOnce();
-    const onComplete = vi.fn();
-    const onError = vi.fn();
+  it.each(["resolves", "rejects"] as const)(
+    "keeps the newer callback's result when an older attempt %s late",
+    async (outcome) => {
+      const secondUrl =
+        "https://app.example.com/oauth/callback?state=aui-mcp%3AZ2l0aHVi.second";
+      let resolveFirst!: () => void;
+      let rejectFirst!: (err: Error) => void;
+      mocks.completeAuth.mockReturnValueOnce(
+        new Promise<void>((resolve, reject) => {
+          resolveFirst = resolve;
+          rejectFirst = reject;
+        }),
+      );
+      mocks.completeAuth.mockResolvedValueOnce();
+      const onComplete = vi.fn();
+      const onError = vi.fn();
 
-    const { result, rerender } = renderHook(
-      ({ url }) => useMcpOAuthCallback({ url, onComplete, onError }),
-      { initialProps: { url: callbackUrl } },
-    );
-    await waitFor(() => expect(mocks.completeAuth).toHaveBeenCalledOnce());
+      const { result, rerender } = renderHook(
+        ({ url }) => useMcpOAuthCallback({ url, onComplete, onError }),
+        { initialProps: { url: callbackUrl } },
+      );
+      await waitFor(() => expect(mocks.completeAuth).toHaveBeenCalledOnce());
 
-    rerender({ url: secondUrl });
-    await waitFor(() => expect(result.current.status).toBe("done"));
+      rerender({ url: secondUrl });
+      await waitFor(() =>
+        expect(result.current).toEqual({
+          status: "done",
+          serverId: "github",
+          error: null,
+        }),
+      );
 
-    // The first attempt only fails once the second has already succeeded.
-    await act(async () => {
-      rejectFirst(new Error("authorization code expired"));
-      await Promise.resolve();
-    });
+      await act(async () => {
+        if (outcome === "resolves") {
+          resolveFirst();
+        } else {
+          rejectFirst(new Error("authorization code expired"));
+        }
+      });
 
-    expect(result.current).toMatchObject({ status: "done", error: null });
-    expect(onError).not.toHaveBeenCalled();
-    expect(onComplete).toHaveBeenCalledExactlyOnceWith("docs");
-  });
+      expect(result.current).toEqual({
+        status: "done",
+        serverId: "github",
+        error: null,
+      });
+      expect(onError).not.toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalledExactlyOnceWith("github");
+    },
+  );
 
   // Strict Mode tears the effect down and remounts it without starting a new
   // attempt, so the one already running must still publish its result.

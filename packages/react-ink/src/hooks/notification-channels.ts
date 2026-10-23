@@ -1,3 +1,5 @@
+import { sanitizeTerminalText } from "../sanitizeTerminalText";
+
 export type OSCVariant = "osc9" | "osc99" | "osc777";
 
 type ProcessWithStdout = {
@@ -11,10 +13,6 @@ type ProcessWithStdout = {
 const writeToStdout = (value: string) => {
   const stdout = (globalThis as ProcessWithStdout).process?.stdout;
   stdout?.write(value);
-};
-
-const sanitizeOSCText = (value: string) => {
-  return value.replaceAll("\x07", "").replaceAll("\x1b", "");
 };
 
 export const ringBell = () => {
@@ -31,8 +29,8 @@ export const sendOSCNotification = (
   body?: string,
   variant: OSCVariant = "osc9",
 ) => {
-  const sanitizedTitle = sanitizeOSCText(title);
-  const sanitizedBody = body ? sanitizeOSCText(body) : undefined;
+  const sanitizedTitle = sanitizeTerminalText(title);
+  const sanitizedBody = body ? sanitizeTerminalText(body) : undefined;
   const message = sanitizedBody ?? sanitizedTitle;
 
   switch (variant) {
@@ -41,7 +39,7 @@ export const sendOSCNotification = (
       return;
     case "osc777":
       writeToStdout(
-        `\x1b]777;notify;${sanitizedTitle};${sanitizedBody ?? ""}\x07`,
+        `\x1b]777;notify;${sanitizedTitle.replaceAll(";", " ")};${sanitizedBody?.replaceAll(";", " ") ?? ""}\x07`,
       );
       return;
     case "osc9":

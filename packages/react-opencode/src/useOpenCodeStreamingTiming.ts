@@ -70,6 +70,8 @@ const openCodeStreamingTimingAccessors: StreamingTimingAccessors<OpenCodeThreadS
       const state = stateOf(messages);
       return state ? getMessageToolCallCount(state, messageId) : 0;
     },
+    getMessageContent: (messages, messageId) =>
+      stateOf(messages)?.messagesById[messageId]?.parts,
   };
 
 /**

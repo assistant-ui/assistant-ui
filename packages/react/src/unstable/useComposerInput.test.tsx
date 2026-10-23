@@ -100,7 +100,7 @@ describe("unstable_useComposerInput", () => {
   it("writes text via flushTapSync when editing", () => {
     renderInput()().setText("world");
     expect(flushTapSync).toHaveBeenCalledTimes(1);
-    expect(composerSetText).toHaveBeenCalledWith("world");
+    expect(composerSetText).toHaveBeenCalledWith("world", { origin: "user" });
   });
 
   it("ignores setText when the composer is not editing (editing guard)", () => {

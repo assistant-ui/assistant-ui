@@ -206,18 +206,20 @@ describe("useExternalMessageConverter", () => {
     });
     callback.mockClear();
 
-    rerender({
-      callback,
-      getMetadataKey,
-      metadata: { error: "request failed" },
-    });
+    for (const error of ["request failed", "retry failed"]) {
+      rerender({
+        callback,
+        getMetadataKey,
+        metadata: { error },
+      });
 
-    expect(callback).not.toHaveBeenCalled();
-    expect(result.current.at(-1)?.status).toMatchObject({
-      type: "incomplete",
-      reason: "error",
-      error: "request failed",
-    });
+      expect(callback).not.toHaveBeenCalled();
+      expect(result.current.at(-1)?.status).toMatchObject({
+        type: "incomplete",
+        reason: "error",
+        error,
+      });
+    }
 
     rerender({
       callback,

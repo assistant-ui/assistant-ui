@@ -961,6 +961,16 @@ describe("createThreadViewportAutoScroll", () => {
     observers[0]!.trigger();
     expect(onAtBottomChange).not.toHaveBeenCalled();
     expect(view.scrollTo).not.toHaveBeenCalled();
+    const replacement = geometry(1000, 500);
+    controller.attach(replacement.element);
+    controller.runStarted();
+    view.element.dispatchEvent(new Event("wheel"));
+    flushFrames();
+    expect(replacement.element.scrollTop).toBe(500);
+    expect(replacement.scrollTo).toHaveBeenCalledExactlyOnceWith({
+      top: 1000,
+      behavior: "auto",
+    });
     controller.dispose();
   });
 

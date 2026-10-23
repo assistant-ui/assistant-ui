@@ -86,6 +86,12 @@ const useCheckoutHost = (restored: unknown) => {
 
   const ask = (seed: Checkout.InputSeed & { stepId?: string }) => {
     const kind = seed.kind ?? "text";
+    if (
+      seed.redeemKeyHash !== undefined &&
+      (kind !== "model" || !/^[0-9a-f]{64}$/.test(seed.redeemKeyHash))
+    ) {
+      throw reject("invalid-input", "invalid model redeem key hash");
+    }
     const options =
       kind === "entry-point"
         ? parseEntryPointOptions(seed.options)
@@ -166,6 +172,9 @@ const useCheckoutHost = (restored: unknown) => {
       ...(kind === "product" && { product: seed.product }),
       ...(seed.default !== undefined && { default: seed.default }),
       ...(seed.help !== undefined && { help: seed.help }),
+      ...(seed.redeemKeyHash !== undefined && {
+        redeemKeyHash: seed.redeemKeyHash,
+      }),
       optional: seed.optional ?? false,
       status: "open",
       ...(stepId !== undefined && { stepId }),

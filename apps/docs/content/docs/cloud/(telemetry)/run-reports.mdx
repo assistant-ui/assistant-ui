@@ -3,7 +3,7 @@ title: Run reports
 description: The report sent for an assistant response, its limits and outcomes, and how it becomes a run in Assistant Cloud.
 ---
 
-Every persisted assistant response can send one run report to Assistant Cloud. The report records the response, model work, tools, timing, deployment dimensions, and errors. A report the SDK builds carries the assistant's text and the tool arguments and results, never the user's messages. A report you send yourself can add `steps[].input`, which stores whatever you put there, a user's prompt included. The dashboard turns that record into the Runs, Models, Users, and Overview views.
+Every persisted assistant response can send one run report to Assistant Cloud. The report records the response, model work, tools, timing, deployment dimensions, and errors. A report the SDK builds carries the assistant's text and the tool arguments and results, never the user's message content. The report can link to a stored prompt through `user_message_id`. A report you send yourself can add `steps[].input`, which stores whatever you put there, a user's prompt included. The dashboard turns that record into the Runs, Models, Users, and Overview views.
 
 Reports can contain assistant text, tool arguments and results, step input and error text, and tool arguments often quote the user. Use `beforeReport` to remove or redact those values before they leave the app, or turn telemetry off when the project should store threads and messages without reports or engagement events.
 
@@ -16,6 +16,7 @@ Reports can contain assistant text, tool arguments and results, step input and e
 | `thread_id` | string, 1 to 255 characters | The cloud thread the run belongs to. |
 | `status` | `completed`, `incomplete`, or `error` | The terminal state of the response. |
 | `message_id` | string, 1 to 48 characters | The persisted assistant message that produced the run. |
+| `user_message_id` | string, 1 to 48 characters | The persisted user message that started the turn. It must belong to `thread_id`. |
 | `outcome_type` | `rate_limited`, `validation_failed`, `provider_error`, `server_error`, `budget_denied`, `persistence_error`, `aborted`, `timeout`, `disconnected`, `length`, or `content_filter` | The more specific reason for a noncompleted response. |
 | `error_code` | string, 1 to 64 characters | A machine readable failure code. |
 | `error` | string, 1 to 2,048 characters | The failure message. |
@@ -69,7 +70,7 @@ Each `sampling_calls` item may have `model_id` of up to 255 characters, the four
 
 The service combines `metadata`, unknown top level keys, and `attributes` in that order. Later `attributes` values win. The resulting attributes JSON must be at most 16,384 bytes. Unknown top level keys are kept as attributes instead of being rejected, so a newer SDK can send fields an older project does not yet recognize.
 
-The route rejects invalid input with `{ "error": "Schema validation error", "details": […] }`, `details` listing the failed checks. It answers `{ "error": "message_id must belong to thread_id" }` when the message is not in the named thread, and `{ "error": "Thread not found" }` when the thread is not visible to the caller.
+The route rejects invalid input with `{ "error": "Schema validation error", "details": […] }`, `details` listing the failed checks. It answers `{ "error": "message_id must belong to thread_id" }` or `{ "error": "user_message_id must belong to thread_id" }` when the corresponding message is not in the named thread, `{ "error": "user_message_id must name a user message" }` when the prompt has another role, and `{ "error": "Thread not found" }` when the thread is not visible to the caller.
 
 ## How the SDK builds a report
 
@@ -81,7 +82,7 @@ The thread history adapter reports a terminal assistant message after persistenc
 | AI SDK runtime with `ai-sdk/v6` | The same message state and first token time, client duration and step timing, text across assistant messages, steps, tool calls, sampling calls, and usage. Static tools are `frontend`, dynamic tools are `mcp`, and a step that calls a tool is marked `tool-calls`. | The provider finish reason for each step. It only observes the stored message. |
 | LangGraph, LangChain, and Google ADK | The cloud thread list, titles, a copy of settled messages, feedback, and engagement when configured with a cloud client. | Run reports, because the model work happens on the server. Send [traces](/docs/cloud/traces) for it. |
 
-For both message formats, report construction reads only assistant messages. A message waiting for tool approval is not reported, so a paused run is not counted as completed or reported twice.
+For both message formats, report construction reads only assistant messages. A message waiting for tool approval is not reported, so a paused run is not counted as completed or reported twice. The AI SDK runtime also reports a run that ends without an assistant message: a request that fails before streaming reports its error, a run stopped before its first token reports `aborted`, and a run that ends without any output reports `incomplete` with no outcome type. None of these reports carries a `message_id`, because no assistant message was stored. The AI SDK runtime supplies `user_message_id` when the prompt is stored, including when its append is still pending at report time. A failed or unmapped append omits that field without suppressing the report. If an early stop deletes the prompt, the runtime omits `user_message_id` so the report cannot reference the deleted message.
 
 ### `messageMetadata` values
 
@@ -134,13 +135,15 @@ The SDK derives a status before it creates the report. The first matching input 
 
 | Input or `outcome_type` | Resulting status | Produced today |
 |---|---|---|
-| `isError: true`, or `finishReason: "error"` | `error`, with no outcome type | The SDK when the persisted message is incomplete for `error`. |
+| `isError: true`, or `finishReason: "error"` | `error`, with the outcome type of the error's HTTP status, if any | The SDK when the persisted message is incomplete for `error`. |
 | `isAbort: true`, `finishReason: "cancelled"`, or `aborted` | `incomplete` | The SDK. |
 | `isDisconnect: true` or `disconnected` | `incomplete` | No shipped integration produces it today. The core runtimes do not observe the live connection. |
 | `length` | `incomplete` | The SDK from a message finish reason, and server spans. |
 | `content_filter` | `incomplete` | The SDK from `content-filter` or `content_filter`, and server spans. |
-| `timeout`, `rate_limited`, `provider_error`, or `server_error` | `error` | Only runs executed by an Assistant Cloud assistant. |
-| `validation_failed`, `budget_denied`, or `persistence_error` | `error` | No integration produces these values today. They remain valid filter vocabulary. |
+| `rate_limited`, `validation_failed`, or `server_error` | `error` | The SDK from the failed request's HTTP status, which also becomes `error_code`: `429` gives `rate_limited`, `400` or `422` gives `validation_failed`, and `5xx` gives `server_error`. Runs executed by an Assistant Cloud assistant also produce `rate_limited` and `server_error`. |
+| `timeout` or `provider_error` | `error` | Only runs executed by an Assistant Cloud assistant. |
+| `persistence_error` | `error` | The SDK when storing a completed turn in thread history fails. The failed write's message becomes `error` and its code becomes `error_code`. A stopped or failed turn keeps its own outcome. |
+| `budget_denied` | `error` | No integration produces this value today. It remains valid filter vocabulary. |
 
 The Overview outcome chart groups values differently from the report vocabulary: `completed`, `stopped` for `aborted`, `disconnected`, `truncated` for `length` or `content_filter`, `failed` for every other outcome type, and `unknown` when there is no outcome type.
 
@@ -187,7 +190,8 @@ A report with a valid W3C `trace_id` locks and merges into the existing run for 
 
 | Field family | Merge rule |
 |---|---|
-| `message_id` and `tags` | The client report writes them. |
+| `message_id` and `user_message_id` | The client report writes them when the existing run has the same thread or no thread. |
+| `tags` | The client report writes them. |
 | `outcome_type` | The client may write only `aborted` or `disconnected`. |
 | `thread_id` | The client writes it only when the server run has no thread. |
 | `created_by` | The client writes it only when the server run belongs to the unknown telemetry user. |
@@ -239,6 +243,6 @@ const cloud = new AssistantCloud({
 | A report does not appear although the response persisted | `beforeReport` returned `null`, threw, or the send failed. Report delivery never surfaces an error to the UI. | Check the callback result and the request. Only a later observation retries a report released after `429`. |
 | Runs are listed under no model and have no price | The route did not put model, provider, and usage into `messageMetadata`. | Return `modelId`, `provider`, and `usage` from the route. |
 | A client run and server spans remain separate | The report has no valid 32 character hexadecimal trace id, or it does not match the server trace id. | Wrap the route metadata with `withAssistantCloudTraceMetadata` and export the same trace. |
-| The report returns `message_id must belong to thread_id` | The message id belongs to a different cloud thread. | Send the persisted assistant message id for the report's thread. |
+| The report returns `message_id must belong to thread_id` or `user_message_id must belong to thread_id` | The message is missing or belongs to a different cloud thread. | Send a stored message id from the report's thread, or omit the field. |
 | The report returns `Thread not found` | The caller cannot resolve that thread in its scope. | Create or select the correct cloud thread before sending the report. |
 | An expected tag, attribute, text, or token value is absent | It exceeded a report bound or was normalized away. | Keep tags within 20 distinct 64 character values, attributes within 16,384 bytes, text within 50,000 characters, errors within 2,048 characters, and token counters at or below 100,000,000. |

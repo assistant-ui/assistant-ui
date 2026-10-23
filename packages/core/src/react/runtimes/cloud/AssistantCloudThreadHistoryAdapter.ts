@@ -34,6 +34,7 @@ import {
   extractTelemetry,
   mergeRunMessageInfo,
   mergeStepTimestamps,
+  withPersistenceFailure,
 } from "./runTelemetry";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import {
@@ -383,10 +384,14 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           localMessageId,
         );
       },
-      async delete() {
-        throw new Error(
-          "Assistant Cloud does not support deleting thread messages yet.",
-        );
+      async delete(items: MessageFormatItem<TMessage>[]) {
+        const pinned = resolvePinned();
+        if (!pinned || !pinned.getState().remoteId) return;
+        const context = adapter.captureScope(pinned);
+        const remoteId = await adapter.resolveExistingRemoteId(pinned);
+        adapter.assertCurrentScope(context);
+        if (!remoteId) return;
+        await getTargetFormatted(context).delete?.(remoteId, items);
       },
       reportTelemetry(
         items: MessageFormatItem<TMessage>[],
@@ -394,6 +399,8 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           durationMs?: number;
           stepTimestamps?: StepTimestamp[];
           message?: ThreadMessage;
+          userMessageId?: string;
+          persistenceError?: unknown;
         },
       ) {
         const encodedRunMessages = items.map((item) =>
@@ -668,28 +675,47 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const firstSettle =
       isSettledMessage(message) && !ledger.settled.has(message.id);
     this.assertCurrentScope(context);
-    await write(encoded);
-    if (!firstSettle) return;
-    ledger.settled.add(message.id);
-    if (ledger.reported.has(message.id)) return;
-
-    if (!context.cloud.telemetry.enabled) return;
-    const extracted = extractTelemetry("aui/v0", encoded);
-    if (!extracted) return;
-    ledger.reported.add(message.id);
-    this._sendReport(
-      remoteId,
-      extracted,
-      undefined,
-      undefined,
-      extractRunMessageInfo(message, "aui/v0"),
-      context,
-    );
+    let writeError: { error: unknown } | undefined;
+    try {
+      await write(encoded);
+    } catch (error) {
+      writeError = { error };
+    }
+    if (!firstSettle) {
+      if (writeError) throw writeError.error;
+      return;
+    }
+    if (!writeError) ledger.settled.add(message.id);
+    if (!ledger.reported.has(message.id) && context.cloud.telemetry.enabled) {
+      const extracted = extractTelemetry("aui/v0", encoded);
+      if (extracted) {
+        ledger.reported.add(message.id);
+        const info = extractRunMessageInfo(message, "aui/v0");
+        this._sendReport(
+          remoteId,
+          extracted,
+          undefined,
+          undefined,
+          writeError
+            ? withPersistenceFailure(info, extracted.status, writeError.error)
+            : info,
+          context,
+        );
+      }
+    }
+    if (writeError) throw writeError.error;
   }
 
-  async delete() {
-    throw new Error(
-      "Assistant Cloud does not support deleting thread messages yet.",
+  async delete(items: ExportedMessageRepositoryItem[]) {
+    const threadListItem = this.aui.threadListItem;
+    if (!threadListItem.getState().remoteId) return;
+    const context = this.captureScope(threadListItem);
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
+    if (!remoteId) return;
+    await context.persistence.delete(
+      remoteId,
+      items.map((item) => item.message.id),
     );
   }
 
@@ -732,9 +758,11 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     options?: {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
+      userMessageId?: string;
+      persistenceError?: unknown;
     },
     threadListItem?: CloudThreadListItem,
-    messageInfo?: RunMessageInfo,
+    observedInfo?: RunMessageInfo,
   ) {
     const item = threadListItem ?? this.aui.threadListItem;
     const context = this.captureScope(item);
@@ -742,14 +770,30 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
     const extracted =
       extractRunTelemetry(format, runMessages) ??
-      (messageInfo?.status !== undefined
+      (observedInfo?.status !== undefined
         ? { status: "incomplete" as const }
         : undefined);
     if (!extracted) return;
 
+    const messageInfo =
+      options && "persistenceError" in options
+        ? withPersistenceFailure(
+            observedInfo,
+            extracted.status,
+            options.persistenceError,
+          )
+        : observedInfo;
+
     void this.resolveExistingRemoteId(item)
-      .then((remoteId) => {
+      .then(async (remoteId) => {
         if (!remoteId) return;
+        this.assertCurrentScope(context);
+        const userMessageId =
+          options?.userMessageId !== undefined
+            ? await context.persistence
+                .getRemoteId(options.userMessageId)
+                .catch(() => undefined)
+            : undefined;
         this.assertCurrentScope(context);
         this._sendReport(
           remoteId,
@@ -758,6 +802,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           options?.stepTimestamps,
           messageInfo,
           context,
+          userMessageId,
         );
       })
       .catch(() => {});
@@ -770,6 +815,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     stepTimestamps?: StepTimestamp[],
     messageInfo?: RunMessageInfo,
     context = this.captureScope(),
+    userMessageId?: string,
   ) {
     if (!this.isCurrentScope(context)) return;
     const current = this.runReporterContext;
@@ -795,6 +841,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       error: messageInfo?.error,
       errorCode: messageInfo?.errorCode,
       messageId,
+      userMessageId,
       traceId: messageInfo?.traceId,
       modelId: data.modelId,
       provider: messageInfo?.provider,

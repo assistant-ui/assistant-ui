@@ -68,12 +68,34 @@ import {
   useContext,
   useLayoutEffect,
   useRef,
+  useState,
   type ComponentType,
   type FC,
   type PropsWithChildren,
 } from "react";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+
+const DefaultToolGroup: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({
+  group,
+  children,
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <ToolGroupRoot
+      variant="ghost"
+      open={open || group.counts.requiresAction > 0}
+      onOpenChange={setOpen}
+    >
+      <ToolGroupTrigger
+        count={group.indices.length}
+        active={group.status.type === "running"}
+      />
+      <ToolGroupContent>{children}</ToolGroupContent>
+    </ToolGroupRoot>
+  );
+};
 
 const shouldShowComposerResume = (s: AssistantState) =>
   !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
@@ -91,6 +113,8 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
  * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
  * tool group; without it they render like any other tool call.
+ * `ComposerExtra` renders in the composer's action row beside the attach
+ * button.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -103,6 +127,7 @@ export type ThreadComponents = {
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
     | undefined;
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
+  ComposerExtra?: ComponentType | undefined;
 };
 
 const messageGroupBy = groupPartByType({
@@ -523,6 +548,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
+  const { ComposerExtra } = useContext(ThreadComponentsContext);
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -532,7 +558,14 @@ const ComposerAction: FC = () => {
 
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-      <ComposerAddAttachment />
+      {ComposerExtra ? (
+        <div className="aui-composer-action-start flex items-center gap-1.5">
+          <ComposerAddAttachment />
+          <ComposerExtra />
+        </div>
+      ) : (
+        <ComposerAddAttachment />
+      )}
       <div className="flex items-center gap-1.5">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
@@ -674,13 +707,7 @@ const AssistantMessage: FC = () => {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
                 return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
+                  <DefaultToolGroup group={part}>{children}</DefaultToolGroup>
                 );
               case "group-reasoning": {
                 if (ReasoningGroup) {

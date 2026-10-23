@@ -135,6 +135,10 @@ export class DynamicChatTransport<
   public readonly reconnectToStream: ChatTransport<UI_MESSAGE>["reconnectToStream"] =
     (options) => this.getTransport(options.chatId).reconnectToStream(options);
 
+  public get resumeStreamIsReplay() {
+    return this.transport.resumeStreamIsReplay ?? false;
+  }
+
   public readonly getCurrentTransport = (chatId: string) =>
     this.getThreadTransport(this.threadContexts.get(chatId)) ?? this.transport;
 
@@ -147,7 +151,11 @@ export class DynamicChatTransport<
     owner: object,
     getBinding: () => ThreadTransportBinding,
   ): ChatTransport<UI_MESSAGE> {
+    const dynamicTransport = this;
     return {
+      get resumeStreamIsReplay() {
+        return dynamicTransport.resumeStreamIsReplay;
+      },
       sendMessages: (options) =>
         this.getOrCreateBoundTransport(
           options.chatId,

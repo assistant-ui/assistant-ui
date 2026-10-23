@@ -270,7 +270,7 @@ function useWidgetModelContext(source: ModelContextSource) {
 /**
  * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
  * assistant-ui thread: widget code streams into a frame from the partial
- * tool arguments, `sendPrompt` appends a user message to the thread, and the
+ * tool arguments, `sendPrompt` adds its text to the thread composer, and the
  * frame follows the app's theme. With `execution: "frontend"` the tools run
  * in the browser too, so the server only forwards their schemas.
  */
@@ -316,7 +316,12 @@ export function createWidgetToolkit(
       onPrompt:
         options.widget?.onPrompt ??
         ((text: string) => {
-          aui.thread.append(text);
+          const composer = aui.thread.composer();
+          composer.setText(
+            [composer.getState().text, text]
+              .filter((part) => part.trim())
+              .join(" "),
+          );
         }),
     };
   }

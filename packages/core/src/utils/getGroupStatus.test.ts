@@ -66,14 +66,16 @@ describe("getGroupSummary", () => {
     expect(summary.status).toEqual({ type: "running" });
   });
 
-  it("uses the last status when no part runs and treats missing parts as complete", () => {
+  it("ignores running parts outside the group and treats missing members as complete", () => {
     const summary = getGroupSummary(
       [
+        part({ type: "running" }),
         undefined,
         part({ type: "incomplete", reason: "cancelled" }),
         part({ type: "requires-action", reason: "interrupt" }),
+        part({ type: "running" }),
       ],
-      [0, 1, 2],
+      [1, 2, 3],
     );
 
     expect(summary.counts).toEqual({

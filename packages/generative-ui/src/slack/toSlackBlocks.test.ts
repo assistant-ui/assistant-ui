@@ -27,6 +27,7 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
+  MENTION_JOINER,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
   PLACEHOLDER_TEXT_CAP,
@@ -4280,18 +4281,90 @@ describe("Slack mrkdwn escaping", () => {
     expect(title.slice(0, -1)).not.toMatch(/&[a-z]*$/);
   });
 
-  it("keeps standard Markdown intact and escapes its mrkdwn overflow fallback", () => {
-    const markdown = toSlackBlocks({ $type: "Markdown", value: "<@U123>" });
+  it("escapes Slack tokens in Markdown outside code and in its mrkdwn overflow fallback", () => {
+    const value = [
+      "<!here> <@U1> <#C1> <https://evil.example|bank>",
+      "<https://example.com> [docs](https://example.com) a < b && c",
+      "`<!here>` ``Array<string | number>`` \\`<!channel>\\`",
+      "```ts",
+      "type A = Array<string | number>; // <!here>",
+      "```",
+    ].join("\n");
+    const markdown = toSlackBlocks({ $type: "Markdown", value });
     const overflow = toSlackBlocks([
       { $type: "Markdown", value: "m".repeat(MARKDOWN_TEXT_BUDGET) },
       { $type: "Markdown", value: "<@U123>" },
     ]);
 
-    expect(markdown.blocks).toEqual([{ type: "markdown", text: "<@U123>" }]);
+    expect(markdown.blocks).toEqual([
+      {
+        type: "markdown",
+        text: [
+          "&lt;!here> &lt;@U1> &lt;#C1> &lt;https://evil.example|bank>",
+          "<https://example.com> [docs](https://example.com) a < b && c",
+          "`<!here>` ``Array<string | number>`` \\`&lt;!channel>\\`",
+          "```ts",
+          "type A = Array<string | number>; // <!here>",
+          "```",
+        ].join("\n"),
+      },
+    ]);
     expect(overflow.blocks[1]).toMatchObject({
       type: "section",
       text: { type: "mrkdwn", text: "&lt;@U123&gt;" },
     });
+  });
+
+  it("leaves a Citation link target unjoined while joining its label", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Citation",
+      title: "@here",
+      url: "https://x.com/search?q=@here",
+    });
+
+    expect(blocks[0]).toMatchObject({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `<https://x.com/search?q=@here|@${MENTION_JOINER}here>`,
+      },
+    });
+  });
+
+  it("escapes Slack tokens after a code fence that never closes", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Markdown",
+      value: "```\n<!here>",
+    });
+
+    expect(blocks).toEqual([{ type: "markdown", text: "```\n&lt;!here>" }]);
+  });
+
+  it("counts escaped Markdown against the markdown budget", () => {
+    const { blocks } = toSlackBlocks([
+      { $type: "Markdown", value: "m".repeat(MARKDOWN_TEXT_BUDGET - 4) },
+      { $type: "Markdown", value: "<!a>" },
+    ]);
+
+    expect(blocks[1]).toMatchObject({ type: "section" });
+  });
+
+  it("joins plain broadcast mentions in mrkdwn, including code, but not emails or user handles", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Text",
+      value:
+        "@here (@Channel) `@everyone` ops@channel.io see/@here @Harry @heretic _@here_ x_@channel",
+    });
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `@${MENTION_JOINER}here (@${MENTION_JOINER}Channel) \`@${MENTION_JOINER}everyone\` ops@channel.io see/@${MENTION_JOINER}here @Harry @heretic _@${MENTION_JOINER}here_ x_@${MENTION_JOINER}channel`,
+        },
+      },
+    ]);
   });
 
   it("clamps after escaping without leaving a partial entity", () => {

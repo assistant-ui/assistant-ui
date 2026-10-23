@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
@@ -17,13 +18,19 @@ import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 
-function SearchButton({ onToggle }: { onToggle: () => void }) {
+type SearchOpenSource = Parameters<typeof analytics.search.opened>[0];
+
+function SearchButton({
+  onToggle,
+}: {
+  onToggle: (source: SearchOpenSource) => void;
+}) {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         e.stopPropagation();
-        onToggle();
+        onToggle("keyboard");
       }
     };
     document.addEventListener("keydown", down, true);
@@ -34,7 +41,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
     <>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => onToggle("header")}
         className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
         aria-label="Search (⌘K)"
       >
@@ -43,7 +50,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
       <Button
         variant="outline"
         size="sm"
-        onClick={onToggle}
+        onClick={() => onToggle("header")}
         className="hidden md:inline-flex"
         aria-label="Search (⌘K)"
       >
@@ -82,7 +89,12 @@ export function Header() {
 
           <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not([data-empty]))_[data-header-cloud]]:hidden">
             <CartButton />
-            <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
+            <SearchButton
+              onToggle={(source) => {
+                if (!searchOpen) analytics.search.opened(source);
+                setSearchOpen(!searchOpen);
+              }}
+            />
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
             <Button

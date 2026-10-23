@@ -49,6 +49,7 @@ export const aiSdkStreamingTimingAccessors: StreamingTimingAccessors<UIMessage> 
     getAssistantMessageId,
     getTextLength,
     getToolCallCount,
+    getMessageContent: (messages, id) => findAssistant(messages, id)?.parts,
   };
 
 /**
