@@ -82,6 +82,61 @@ const untilNextEnabled = () =>
   );
 
 describe("ModelInputCard", () => {
+  it.each(["Next", "Enter", "Continue anyway"] as const)(
+    "deposits a key after returning from the skipped key step via %s",
+    async (advance) => {
+      testProviderKey.mockResolvedValueOnce(
+        advance === "Continue anyway"
+          ? { status: "unreachable" }
+          : { status: "ok", models: ["gpt-5"] },
+      );
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal("fetch", fetchMock);
+      try {
+        const context = checkout();
+        render(
+          <WizardHost>
+            <ModelInputCard input={input} checkout={context} />
+          </WizardHost>,
+        );
+        toKeyStep();
+        fireEvent.click(
+          screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Back" }));
+        fireEvent.change(screen.getByLabelText("API key"), {
+          target: { value: "replacement-key" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Test key" }));
+        await screen.findByRole("status");
+        if (advance === "Continue anyway") {
+          fireEvent.click(screen.getByRole("button", { name: advance }));
+        } else if (advance === "Enter") {
+          fireEvent.keyDown(screen.getByLabelText("API key"), { key: "Enter" });
+        } else {
+          await untilNextEnabled();
+          fireEvent.click(screen.getByRole("button", { name: advance }));
+        }
+        fireEvent.change(screen.getByLabelText("Model"), {
+          target: { value: "gpt-5" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        await waitFor(() =>
+          expect(context.commands["checkout/answer"]).toHaveBeenCalledWith({
+            inputId: "model",
+            answer: JSON.stringify({ provider: "openai", model: "gpt-5" }),
+          }),
+        );
+        expect(fetchMock).toHaveBeenCalledWith(
+          `https://checkout.example.test/session/secret/model?setup=setup-a&answer=${encodeURIComponent(JSON.stringify({ provider: "openai", model: "gpt-5" }))}`,
+          { method: "PUT", body: "replacement-key" },
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
   it("offers every provider before asking for anything else", async () => {
     render(
       <WizardHost>
@@ -231,7 +286,7 @@ describe("ModelInputCard", () => {
     expect(screen.getByLabelText("Model")).toBeDefined();
   });
 
-  it("answers without depositing a secret when the key is skipped", async () => {
+  it("answers without depositing a supplied key when the user skips it", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const context = checkout();
@@ -241,6 +296,9 @@ describe("ModelInputCard", () => {
       </WizardHost>,
     );
     toKeyStep();
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "key-not-to-upload" },
+    });
     fireEvent.click(
       screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
     );

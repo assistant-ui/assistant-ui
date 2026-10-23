@@ -117,6 +117,11 @@ export function ModelInputCard({
     setTest(result);
   };
 
+  const continueWithKey = () => {
+    setKeySkipped(false);
+    setStep("model");
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (step === "provider") {
@@ -124,7 +129,7 @@ export function ModelInputCard({
       return;
     }
     if (step === "key") {
-      if (test.status === "ok") setStep("model");
+      if (test.status === "ok") continueWithKey();
       return;
     }
     if (!provider || chosenModel === "") return;
@@ -245,7 +250,7 @@ export function ModelInputCard({
                   )
                     return;
                   event.preventDefault();
-                  if (test.status === "ok") setStep("model");
+                  if (test.status === "ok") continueWithKey();
                   else void runTest();
                 }}
                 placeholder={provider.envKey}
@@ -387,7 +392,7 @@ export function ModelInputCard({
           {tested && test.status !== "ok" ? (
             <button
               type="button"
-              onClick={() => setStep("model")}
+              onClick={continueWithKey}
               className={inputLinkClassName}
             >
               Continue anyway
