@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  readFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -76,10 +82,32 @@ test("the CLI emits the selected shard filters and rejects invalid shard indexes
     });
     assert.deepEqual(
       output.trim().split("\n"),
-      coverageShards()[index].map((name) => `--filter=${name}`),
+      coverageShards(
+        undefined,
+        JSON.parse(
+          readFileSync(
+            new URL("./coverage-durations.json", import.meta.url),
+            "utf8",
+          ),
+        ).seconds,
+      )[index].map((name) => `--filter=${name}`),
     );
   }
   assert.throws(() =>
     execFileSync(process.execPath, [script, "2"], { stdio: "pipe" }),
   );
+});
+
+test("measured durations balance slow workspaces while new workspaces still run", (t) => {
+  const root = workspace(t, [
+    { name: "a", tests: 10 },
+    { name: "b", tests: 9 },
+    { name: "c", tests: 1 },
+    { name: "new", tests: 0 },
+  ]);
+  const shards = coverageShards(root, { a: 10, b: 1, c: 9, removed: 100 });
+  assert.deepEqual(shards, [
+    ["a", "new"],
+    ["c", "b"],
+  ]);
 });
