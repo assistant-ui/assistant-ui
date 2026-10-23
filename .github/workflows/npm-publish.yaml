@@ -883,7 +883,7 @@ jobs:
         if: failure()
         run: |
           echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
-          echo "::error::Re-run all jobs of this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}. Re-running only this job retries every version in the packed plan, including ones already published."
+          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
 
   registry-deploy:
     name: Deploy registry
