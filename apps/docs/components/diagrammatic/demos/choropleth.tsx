@@ -24,7 +24,7 @@ export const examples: DemoExample[] = [
     title: "Checkout errors per 1k sessions",
     setup:
       "A rate, never a count. The tiles are an abstract landmass. The legend is the scale a reader can use.",
-    read: "The east edge is dark because that region still talks to the old inventory host. The interior is pale on purpose. Big empty tiles stay quiet because this is a rate.",
+    read: "The east edge is the dark band, and it darkens further toward the south. The capital and the west coast form two smaller hot spots. The interior stays pale, because this is a rate and a large tile is not a large problem.",
     source: "Checkout POST errors per 1k sessions, week of 11 Aug.",
     chart: (
       <Choropleth
@@ -38,9 +38,10 @@ export const examples: DemoExample[] = [
   {
     title: "Incident rate on a honeycomb map",
     setup:
-      "Same rate as the square landmass, different cell. One region, one hex. Adjacency is approximate. This is not a hexbin.",
-    read: "The east cluster is still the dark one. Hexes keep the empty interior empty, so the rate does not smear into neighbours the way a choropleth of real coastlines would.",
-    source: "Checkout POST errors per 1k sessions, week of 11 Aug. HEX_TILES.",
+      "The metric remains errors per 1k sessions, now on hexagonal cells. One region, one hex. Adjacency is approximate. This is not a hexbin.",
+    read: "The eastern hexes are the dark cluster, and every column darkens toward the south. The west sits in between, and the middle stays pale.",
+    source:
+      "Illustrative checkout POST errors per 1k sessions, week of 11 Aug.",
     chart: (
       <Choropleth
         aspect={1.7}

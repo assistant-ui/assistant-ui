@@ -4,7 +4,7 @@ import type { DemoExample } from "./types";
 export const glyph = (
   <div className="mx-auto flex w-full max-w-96 flex-col gap-4">
     <Bullet value={128} target={140} bands={[60, 110, 160]} label="rev" />
-    <Bullet value={104} target={90} bands={[50, 95, 160]} label="nps" />
+    <Bullet value={94} target={90} bands={[50, 95, 160]} label="nps" />
   </div>
 );
 
@@ -25,7 +25,7 @@ export const examples: DemoExample[] = [
           title="Revenue against plan"
         />
         <Bullet
-          value={104}
+          value={94}
           target={90}
           bands={[50, 95, 160]}
           label="nps"

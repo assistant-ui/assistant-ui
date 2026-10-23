@@ -70,7 +70,7 @@ export const examples: DemoExample[] = [
     title: "Where a 4.82s checkout spends time",
     setup:
       "A p95 checkout gets profiled. The icicle is the flame graph without the fire: handler on top, callees beneath, width equal to time.",
-    read: "Database is 2.26s, and inventory is half of that. Payments is the second slab, almost all authorize. Render and auth together do not match the inventory query. The index to add is three levels down.",
+    read: "Database is 2.26s, and inventory is half of that. Payments is the second slab at 1.48s, with 0.92s in authorize. Render and auth total 1.08s, less than the 1.12s inventory query.",
     source: "p95 checkout POST, 14 Aug 2025, traced for 20 minutes.",
     chart: (
       <FigTooltip

@@ -24,7 +24,7 @@ export const examples: DemoExample[] = [
     title: "Incidents by severity, six quarters",
     setup:
       "The reliability review compares three severities inside each quarter. Grouping keeps SEV-1 against SEV-1; a stack would hide the only number the board quotes.",
-    read: "Q4 24 is the outage quarter: SEV-1 hits 11 against a budget of eight. The next two quarters fall back under the line, which is the on-call hiring landing, not seasonality. SEV-3 barely moves.",
+    read: "Q4 24 has the highest total at 91 incidents. SEV-1 reaches 11 against a budget of eight, then falls to four and three in the next two quarters. SEV-3 also peaks in Q4 24 at 52, then falls to 33 by Q2 25.",
     source: "Incident bot, production only. n = 390.",
     chart: (
       <FigTooltip

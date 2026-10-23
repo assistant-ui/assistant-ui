@@ -25,11 +25,11 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "packages/* imports, file order",
+    title: "Module imports in file order",
     setup:
-      "Nodes stay in repository order. Height is how far an import jumps. That is the only reason this is not a network.",
-    read: "cli leaping to ws is the tallest arc and the next cut. test reaching back to cli is the second. Short hops from core to db to api are the healthy spine.",
-    source: "Internal imports under packages/, August 2025.",
+      "Nodes follow a fixed file order. Each arc shows how many positions an import jumps.",
+    read: "test reaching back to cli is the longest jump, spanning eleven positions. cli to ui spans eight, followed by cli to ws and core to log at seven each. core to db to api forms two shorter hops.",
+    source: "Illustrative module imports in file order.",
     chart: (
       <FigTooltip
         entries={{

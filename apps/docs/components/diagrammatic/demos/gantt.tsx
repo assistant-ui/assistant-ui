@@ -23,7 +23,7 @@ export const examples: DemoExample[] = [
     title: "A release plan from April to July, today marked",
     setup:
       "A project lead keeps one chart above the standup notes: the release plan as bars against the calendar, with a dotted line for today. It exists to make schedule slips visible before they become surprises.",
-    read: "Frontend is mid-flight at the today line and beta deliberately overlaps it — that overlap is the plan, not a mistake. Launch sits alone in July with no slack behind it; if frontend slips a week, the chart already shows which bar absorbs the hit.",
+    read: "Frontend runs from day 40 to day 78 and crosses the today line at day 52. Beta overlaps it from day 40 to day 62. Launch starts on day 74, four days before frontend ends, and overlaps marketing through day 86.",
     source: "Standup board, today is day 52.",
     chart: (
       <FigTooltip
@@ -41,16 +41,16 @@ export const examples: DemoExample[] = [
         ]}
         series={{
           span: [
-            "d0–26",
-            "d4–22",
-            "d20–48",
-            "d8–34",
-            "d40–78",
-            "d44–58",
-            "d50–72",
-            "d32–62",
-            "d60–86",
-            "d74–90",
+            "d0 to 26",
+            "d4 to 22",
+            "d20 to 48",
+            "d8 to 34",
+            "d40 to 78",
+            "d44 to 58",
+            "d50 to 72",
+            "d32 to 62",
+            "d60 to 86",
+            "d74 to 90",
           ],
         }}
       >

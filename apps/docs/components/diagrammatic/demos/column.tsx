@@ -23,8 +23,8 @@ export const examples: DemoExample[] = [
   {
     title: "The benchmark card: one entity, one color, every value printed",
     setup:
-      "The chart every model release ships: seven contenders as columns, each its own identity color, the score printed on top, a footnote defining the metric. Here it is rebuilt whole — `categorical` colors each item from the token palette, `values` prints every score, and the card chrome is a few lines of your own markup.",
-    read: "Identity color follows the entity, so the same hue can track glacier across every chart in the report. The field splits into two stories at a glance: a leading pack of three within 3.3 points of each other, and a 14-point cliff down to the trailing four. atlas-1 edges nova by 2.8 — a margin the printed values settle without an axis.",
+      "Seven contenders appear as columns, each with an identity color and its score printed on top. `categorical` colors each item from the token palette, and `values` prints every score.",
+    read: "The leading three scores span 3.3 points, from 45.8 to 49.1. The next score is 40.2, a 5.6-point gap below swift. atlas-1 edges nova by 2.8 points, as the printed values show.",
     chart: (
       <FigTooltip
         labels={[
@@ -56,7 +56,6 @@ export const examples: DemoExample[] = [
         />
       </FigTooltip>
     ),
-    source:
-      "FrontierBench 1.1 Main is the weighted mean of six agent tasks. Higher is better.",
+    source: "Illustrative FrontierBench 1.1 scores. Higher is better.",
   },
 ];

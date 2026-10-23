@@ -41,10 +41,9 @@ export const examples: DemoExample[] = [
   {
     title: "Review hours against files changed",
     setup:
-      "Three hundred pull requests as density, not dots. Rings are covariance ellipses at 0.55σ, 1.1σ, 1.65σ, and 2.2σ.",
-    read: "The inner ring sits on small diffs reviewed the same afternoon. The tilt is the tax: past about twelve files the hours stretch. The outer ring is the weekend leftovers, not a second population.",
-    source:
-      "First-review hours vs files changed, March 2025. n = 300. Rings at 0.55 / 1.1 / 1.65 / 2.2 σ.",
+      "Three hundred pull requests as density, not dots. Each ring is a covariance ellipse around the points.",
+    read: "Most reviews are small diffs answered within a few hours. A smaller group of large diffs takes most of a working day. Bigger diffs wait longer, and the rings say by how much.",
+    source: "Illustrative first-review hours against files changed. n = 300.",
     chart: (
       <Contour
         aspect={1.6}

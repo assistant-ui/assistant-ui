@@ -14,24 +14,24 @@ const ROUTES = [
 
 export const glyph = (
   <FlowMap
-    title="Egress from iad"
-    origin={{ col: 13, row: 2, label: "iad" }}
+    title="Egress from hub"
+    origin={{ col: 13, row: 2, label: "hub" }}
     routes={ROUTES.slice(0, 4)}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Egress from iad-1",
+    title: "Egress from hub-1",
     setup:
       "One origin, eight destinations. Width is terabytes. More than a handful tangles; eight is the job.",
-    read: "The westbound stroke to sfo is the fat one. Paris and Tokyo split the rest of the planet. The thin interior routes are why we still pay origin CPU in Denver.",
-    source: "Origin iad-1 egress, last 7 days. Width = TB.",
+    read: "The largest route carries 84 TB to tile (4, 1). The next two carry 41 and 28 TB. The remaining five carry 52 TB together.",
+    source: "Illustrative origin egress, last 7 days. Width = TB.",
     chart: (
       <FlowMap
         aspect={1.7}
-        title="Egress from iad-1"
-        origin={{ col: 13, row: 2, label: "iad-1" }}
+        title="Egress from hub-1"
+        origin={{ col: 13, row: 2, label: "hub-1" }}
         routes={ROUTES}
       />
     ),

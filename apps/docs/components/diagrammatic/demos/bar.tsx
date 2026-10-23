@@ -31,8 +31,8 @@ export const examples: DemoExample[] = [
     title: "Median time to ack, last 90 days",
     setup:
       "The on-call review ranks every rotation by how long a page sat before a human answered. Horizontal bars, longest names, a dashed SLO at 15 minutes.",
-    read: "Payments answers in 4.2 minutes. Legacy is 41, almost three SLOs late, and ads has already slipped the line. The six teams under 15 minutes are not the meeting; the four past the dash are.",
-    source: "Pager ack timestamps, last 90 days. n = 1,184 pages.",
+    read: "Payments answers in 4.2 minutes. Legacy is 41, or 26 minutes past the SLO, and ads also exceeds the line. The six teams under 15 minutes are not the meeting; the four past the dash are.",
+    source: "Median pager acknowledgement time by rotation, last 90 days.",
     chart: (
       <FigTooltip
         labels={TEAMS.map((row) => row.label)}

@@ -49,7 +49,7 @@ export const examples: DemoExample[] = [
     title: "Would recommend this job, by team",
     setup:
       "Five-point Likert, anchored on neutral. Agreement grows right. Each row carries its n so a team of 16 cannot shout down a team of 96.",
-    read: "Sales is 76% yes. Support and legacy lean left, and legacy's strong-no bar is the largest single slab on the page. Neutral is the spine, not a leftover.",
+    read: "Sales is 76% yes. Support and legacy lean left, and legacy's 30% strong-no bar is the largest strong-no slab. Neutral is the spine, not a leftover.",
     source: "Engagement survey, June 2025. eNPS item only.",
     chart: (
       <FigTooltip

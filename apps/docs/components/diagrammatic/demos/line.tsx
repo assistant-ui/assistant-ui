@@ -48,7 +48,7 @@ export const examples: DemoExample[] = [
     title: "Mean response length by training recipe",
     setup:
       "The chart that decided the run: mean tokens per response, three reward recipes, evaluated every thousand steps. The shaded span is where the alternating penalty was on.",
-    read: "Baseline inflates without a ceiling. The fixed penalty overcorrects into terseness and never comes back. Only the alternating recipe bends inside the penalty window and lands in the 250 to 300 token band, which was the target the whole time.",
+    read: "Baseline rises from 220 to 631 tokens. The fixed penalty overcorrects into terseness and never comes back. Only the alternating recipe bends inside the penalty window and lands in the 250 to 300 token band, which was the target the whole time.",
     source: "Mean tokens per response, eval every 1k steps.",
     chart: (
       <FigTooltip
@@ -113,7 +113,7 @@ export const examples: DemoExample[] = [
     title: "Loop gain against frequency",
     setup:
       "A compensation review on the servo. Frequency is decades, not a timeline. Magnitude stays in decibels so the paper is log only on x.",
-    read: "The gain crosses −3 dB between 2 kHz and 5 kHz. The 20 dB/decade slope after the pole is the integrator the firmware asked for. Nothing here is a time series.",
+    read: "The gain crosses −3 dB between 2 kHz and 5 kHz. From 5 kHz to 50 kHz, gain falls from −8 dB to −28 dB, or 20 dB over one decade. Nothing here is a time series.",
     source: "Closed-loop magnitude, 10 Hz to 100 kHz. Bench, 12 Aug.",
     chart: (
       <Line
@@ -163,9 +163,9 @@ export const examples: DemoExample[] = [
   {
     title: "Progression-free survival",
     setup:
-      "Oncology readout. The step is the Kaplan-Meier estimator. Short ticks are censored patients, not events. The band is the Greenwood interval.",
-    read: "Median PFS falls between months 12 and 15. The last third of the ticks sit on a flat tail: those patients are still on study, not cured by the chart.",
-    source: "Investigator PFS, n = 86. Censoring at last contact.",
+      "A step line plots survival estimates. Short ticks mark censored observations. The shaded band bounds the estimate.",
+    read: "Median PFS falls between months 12 and 15. Three of the six censor marks appear after the 15-month tick, while the plotted survival estimate falls from 0.45 to 0.36.",
+    source: "Illustrative progression-free survival with censoring marks.",
     chart: (
       <Line
         aspect={2.1}

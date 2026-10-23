@@ -22,7 +22,7 @@ export const examples: DemoExample[] = [
     title: "LCP, before and after the image CDN",
     setup:
       "Ten pages, two moments. Pale is the week before the CDN. Dark is the week after. The bar is the work.",
-    read: "Docs and home drop through the 2.5s budget. Checkout is the barbell that points the wrong way and is the only page still over the line: the PDP gallery was left off the CDN allowlist.",
+    read: "Docs, profile, and dashboard drop below the 2.5s budget. Home was already below it. Checkout is the only page that gets slower, rising from 1.86s to 2.14s, but it remains below the budget.",
     source: "Field p75 LCP, ms. Week of 28 Jul versus week of 11 Aug.",
     chart: (
       <FigTooltip

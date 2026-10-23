@@ -24,8 +24,8 @@ export const examples: DemoExample[] = [
   {
     title: "Every PR in March, time to first review",
     setup:
-      "Seventy-eight pull requests, one dot each. A histogram would have rounded the 62-hour review into a bin. The flag is a person.",
-    read: "The swarm thickens between two and six hours. Then the tail: six reviews past a working day, two past two days, one at 62 hours that sat over a long weekend on legacy-billing. The SLO is 12 hours; the dots past the last labelled tick are the conversation.",
+      "Seventy-eight pull requests, one dot each. A histogram would have rounded the 62-hour review into a bin. The flag marks that value.",
+    read: "The swarm thickens between two and six hours. Then the tail: 22 reviews take more than eight hours, eight take more than 24 hours, and two take more than 48 hours. One reaches 62 hours. The 12-hour tick marks the start of the long tail; two dots sit past the last labelled tick.",
     source: "First non-author review, March 2025. n = 78.",
     chart: (
       <FigTooltip series={{ hours: HOURS }} unit="h">

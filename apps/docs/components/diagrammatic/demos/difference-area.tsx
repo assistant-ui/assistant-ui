@@ -55,7 +55,7 @@ export const examples: DemoExample[] = [
     title: "Actual requests against the Friday forecast",
     setup:
       "Thirty weekdays of checkout POSTs. The interesting number is the gap, not either line.",
-    read: "The shade flips in the sale week and punches through the 18k capacity line. After that the green wedge is queue we did not buy. The forecast never moved; the people did.",
+    read: "Actual requests move above forecast on 21 Jul and cross the 18k capacity guide that day. They remain above 18k through 28 Jul, while the forecast stays between 14.2k and 14.7k.",
     source:
       "Checkout POST per day versus the Friday forecast. 7 Jul to 15 Aug.",
     chart: (

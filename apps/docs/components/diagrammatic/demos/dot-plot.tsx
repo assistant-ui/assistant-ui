@@ -25,7 +25,7 @@ export const examples: DemoExample[] = [
       "A compensation review lays the ladder on one axis. Dots, not bars, because the gaps are the finding. Each label carries the sample behind the median.",
     read: "Intern through staff still steps about $24k to $30k. Then the ladder compresses: principal is only $26k above staff, distinguished another $18k. An EM sits between senior and staff; a director sits on principal. PM tracks mid, not senior.",
     source:
-      "Cash compensation, US engineering and product, April 2025 band. n = 486.",
+      "Illustrative engineering and product cash compensation, April 2025. n = 486.",
     chart: (
       <FigTooltip
         labels={[

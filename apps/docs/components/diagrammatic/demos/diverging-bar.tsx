@@ -23,7 +23,7 @@ export const examples: DemoExample[] = [
     title: "Revenue against plan, by product",
     setup:
       "Zero is the plan. The form sorts itself. Direction is the verdict before any number is read.",
-    read: "Cloud is 48% over. Video is 38% under. Six products above the line, four below, and the misses get steeper as the list descends. Video is why agenda item two exists.",
+    read: "Cloud is 48% over. Video is 38% under. Six products are above the line and four are below. The misses grow from 12% for maps to 38% for video.",
     source: "Q2 2025 revenue versus the January plan.",
     chart: (
       <FigTooltip

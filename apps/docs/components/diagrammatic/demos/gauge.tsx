@@ -9,8 +9,8 @@ export const examples: DemoExample[] = [
   {
     title: "The instrument cluster: three dials, one glance",
     setup:
-      "A car's dashboard is not one gauge, it is a cluster — so this figure composes three: the tachometer large in the center, speed and oil temperature small at its sides, each with its own ring, minors, and red zone. The dials are all data props (`ticks`, `minorTicks`, `redline`, `needle`); the cluster layout — and even the tick-label size, bumped with one CSS rule on the grid seam — is your own markup, because arranging instruments is composition, not a component.",
-    read: "One glance, three readings: 172 on the speedo, the tach needle two major ticks shy of the 7.2k redline, and oil at 94° with headroom before its own red band. Every zone-crossing rule travels with each dial — red ticks past each limit, needles that flip red only when they cross — so the cluster stays readable at speed, which is the whole design brief of a dashboard.",
+      "Three dials share a grid: the tachometer in the center, speed and oil temperature at its sides. Each has a needle and minor ticks. The tachometer and oil dial have redlines.",
+    read: "Speed reads 172 km/h. The tachometer reads 6.8k rpm, below its 7.2k redline. Oil reads 94°, below the redline near 111°.",
     source: "Drivetrain telemetry, one lap. Speed, tach, oil.",
     chart: (
       <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1.15fr_1.5fr_1.15fr]">

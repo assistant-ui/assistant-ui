@@ -25,7 +25,7 @@ export const examples: DemoExample[] = [
     title: "Score against cost, families as threads",
     setup:
       "Family curves in score-versus-cost space. Cost is log paper because a dollar and ten dollars are different decades. Cheaper sits to the right. The dashed cross pins the value pick to both scales.",
-    read: "swift owns the prize corner at 45.8 for $1.90. atlas-1 holds the crown at 46.6 and pays $9.60. nova's thread beats atlas-0 at every shared price. The crossings are the generations.",
+    read: "swift owns the prize corner at 45.8 for $1.90. atlas-1 holds the crown at 46.6 and pays $9.60. At their shared $4.10 price, nova scores 43.0 against atlas-0 at 31.8. Each thread shows how score changes with cost.",
     source: "FrontierBench 1.1 Main. Cost is USD per rollout.",
     chart: (
       <FigTooltip

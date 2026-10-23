@@ -42,8 +42,9 @@ export const examples: DemoExample[] = [
     title: "Commits by weekday and hour",
     setup:
       "Seven days, twenty-four hours, a dot per cell. The punchcard is the job Heatmap already owns.",
-    read: "The afternoon column from 15h to 16h is the release train. Thursday night is the only late cluster. Saturday morning exists; Sunday almost does not. Empty hours stay empty.",
-    source: "git commits on origin/main, last 12 weeks. n = 1,486.",
+    read: "The 15h to 16h block is busiest on weekdays, with 57 commits per day. Thursday has the largest late cluster, with 11 commits at both 21h and 22h against seven on other weekdays. Saturday morning exists; Sunday almost does not. Empty hours stay empty.",
+    source:
+      "Illustrative commits by weekday and hour, last 12 weeks. n = 1,246.",
     chart: (
       <FigTooltip
         matrix={{
@@ -65,8 +66,8 @@ export const examples: DemoExample[] = [
     title: "Production deploys, last half year",
     setup:
       "Twenty-six weeks, seven days. Empty cells stay empty. This is the calendar job, not the punchcard.",
-    read: "Tuesday is the release train. Thursday is the hotfix column. Saturday is almost blank except the two incident weekends in March. The quiet week in late December is the freeze.",
-    source: "Successful production deploys, 1 Jan to 30 Jun. n = 312.",
+    read: "Tuesday has 126 deploys across the 26 weeks, more than any other day. Thursday follows with 49. Saturday and Sunday have activity only in weeks 11 and 19. The first week has only one Tuesday deploy.",
+    source: "Illustrative production deploys across 26 weeks. n = 263.",
     chart: (
       <FigTooltip
         matrix={{

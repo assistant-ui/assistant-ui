@@ -20,8 +20,8 @@ export const examples: DemoExample[] = [
   {
     title: "One dot is fifty weekly actives",
     setup:
-      "Texture instead of fill. A large empty region stays empty. The unit is printed on the figure.",
-    read: "The coast is a crowd. The interior is a scatter. You can count the capital and you cannot mistake a large pale region for a market.",
+      "Texture instead of fill. A low-count region stays sparse. The unit is printed on the figure.",
+    read: "The capital tiles have 12 to 15 dots each. Interior tiles carry one or two. Dot counts keep sparse areas visibly sparse.",
     source: "Weekly actives, week of 11 Aug. 1 dot = 50 people.",
     chart: (
       <DotMap

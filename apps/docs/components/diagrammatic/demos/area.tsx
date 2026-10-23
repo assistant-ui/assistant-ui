@@ -14,9 +14,9 @@ export const examples: DemoExample[] = [
   {
     title: "A monsoon in millimetres, its core annotated",
     setup:
-      "A reservoir engineer's season chart, complete: sixteen weeks of rainfall as filled area, and a regions band marking the core monsoon — the six weeks the water year is actually decided in. The area under the curve is the town's supply; the band says which part of it is structural.",
-    read: "July and August sit above the 200mm fill stage, which is why the reservoir made the year. The September collapse drops through the line, which is a warning rather than weather. The band says which weeks actually filled it.",
-    source: "Reservoir authority gauge, weekly totals.",
+      "Sixteen weekly rainfall totals form the area. The core monsoon band marks the high-rainfall stretch in July and August.",
+    read: "Rainfall rises above the 200mm fill stage in the second week of July and stays above it through the fourth week of August. Those seven totals exceed the guide. The first week of September falls to 150mm.",
+    source: "Illustrative weekly rainfall totals.",
     chart: (
       <FigTooltip
         labels={[

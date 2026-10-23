@@ -29,7 +29,7 @@ export const examples: DemoExample[] = [
     title: "On-call handoffs, one quarter",
     setup:
       "Pages that left one rotation and landed on another. The circle is the point: these teams page each other.",
-    read: "Payments into checkout is the thickest ribbon, and the return is thinner. Growth almost only hands into checkout. Platform is the utility: it sends into payments and search and gets little back.",
+    read: "Payments into checkout is the thickest ribbon at 38, and the return carries 22. Growth sends 18 into checkout and seven into search. Platform sends 27 across payments and search and receives eight from payments.",
     source: "Incident handoffs, Q2 2025. n = 147.",
     chart: (
       <FigTooltip

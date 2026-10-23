@@ -16,8 +16,8 @@ export const examples: DemoExample[] = [
   {
     title: "Checkout, one Wednesday",
     setup:
-      "Five stages, each a subset of the last. The taper is decoration; the rate on every step is the argument.",
-    read: "Address loses 39% of the cart. Payment holds most of who remain. Confirm is the second cliff: 30% leave after they have already typed a card. Paid is 31.5% of view-cart, and almost everyone who confirms pays.",
+      "Five stages, each a subset of the last. The taper shows the remaining sessions; the rate on every step shows the loss.",
+    read: "Address loses 39% of the cart. Payment holds most of who remain. Confirm is the second cliff: 30% leave between payment and confirmation. Paid is 31.5% of view-cart, and almost everyone who confirms pays.",
     source: "Checkout POST funnel, Wednesday 13 Aug. n = 18,420 carts.",
     chart: (
       <FigTooltip

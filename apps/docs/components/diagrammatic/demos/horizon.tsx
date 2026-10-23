@@ -38,7 +38,7 @@ export const examples: DemoExample[] = [
     title: "Fleet load, eight hosts, one day",
     setup:
       "A dashboard that has eight hosts and eight rows of height. Each strip is a full day folded three times. Darker means a higher fold, not a different host.",
-    read: "The API pair peaks together at 11. Workers peak later, after the queue fills. Jobs burns at 02:00, which is the batch window. The two edge rows stay pale all day. A line chart of this fleet would not fit on the page.",
+    read: "The API pair peaks together at 11:00. Workers peak later, at 14:00 and 15:00. Jobs peaks at 02:00. The edge rows have lower peaks of 6.4k and 6.8k requests per second.",
     source: "Requests per second, hourly. Darker fold is higher load.",
     chart: (
       <FigTooltip

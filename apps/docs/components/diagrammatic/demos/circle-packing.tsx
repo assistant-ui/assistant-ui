@@ -69,8 +69,8 @@ export const examples: DemoExample[] = [
   {
     title: "Pages last quarter, by service family",
     setup:
-      "Incidents packed by the family that owned them, then by service. Size is page count. The packing is for membership, not measurement.",
-    read: "Checkout is the planet. api inside it is larger than every search service combined. Growth is a moon. The structure is the argument: pages concentrate where checkout talks to the card network, not where headcount sits.",
+      "Incidents are packed by the family that owned them, then by service. Circle area shows page count, while nesting shows membership.",
+    read: "Checkout is the planet. api inside it is larger than every search service combined. Growth is a moon. Checkout has 321 pages, more than search, growth, and platform combined.",
     source: "Pages, last 90 days. n = 581.",
     chart: (
       <FigTooltip

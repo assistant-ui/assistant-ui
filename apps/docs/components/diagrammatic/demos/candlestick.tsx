@@ -26,9 +26,9 @@ export const examples: DemoExample[] = [
   {
     title: "Coffee futures around a frost report",
     setup:
-      "A commodities desk replays the three weeks around Brazil's frost forecast hitting the wire. Seven quiet sessions, then the gap: Wednesday opens far above Tuesday's close, with no trading in between.",
-    read: "The gap up in week two is the news arriving overnight, and it clears the 200¢ line the desk had treated as a ceiling. Price moved while the market slept. Two more green sessions ride the panic to the high; the fade after that is supply chains doing arithmetic.",
-    source: "Exchange settlement, four weeks around the Brazil frost wire.",
+      "A commodities desk replays three trading weeks and the following Monday around a frost forecast. Seven sessions stay below 200¢, then the gap: the second Wednesday opens at 205¢ after Tuesday closes at 186¢.",
+    read: "The second Wednesday opens above the 200¢ guide and closes at 228¢. Thursday climbs to the 248¢ high, then Friday closes lower at 232¢. The last Monday closes at 214¢.",
+    source: "Illustrative coffee futures settlements over sixteen sessions.",
     chart: (
       <FigTooltip
         labels={[

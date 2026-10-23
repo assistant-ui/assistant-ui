@@ -42,7 +42,7 @@ export const examples: DemoExample[] = [
     title: "3,100 Friday-night pickups",
     setup:
       "Three thousand points as a scatter is a smear. Hexes keep the empty cells empty and let two neighborhoods announce themselves.",
-    read: "The dark mass is downtown after 22h. The second core is the stadium letting out. The pale spray toward the airport is real and thin. Empty hexes on the water are the map telling the truth.",
+    read: "Half the pickups pile into one core. A second, smaller core sits up and to the right of it. Two thin groups make up the rest, and the empty hexes between them are places nobody was picked up.",
     source: "Ride-hail pickups, Friday 20:00 to 02:00. n = 3,100.",
     chart: (
       <Hexbin

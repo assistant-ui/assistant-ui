@@ -20,7 +20,7 @@ export const examples: DemoExample[] = [
     title: "League table, first ten matchweeks",
     setup:
       "The table after ten games, drawn as rank not points. Crossings are the story: who climbed, who leaked, who never moved.",
-    read: "Harbour start first and stay first. Forge climb from sixth to third. Wanderers slide from second to fifth and never find a week that reverses it. Rovers hold second after week four as if the rest of the league had agreed. Ranks hide the gap; this chart will not tell you it was eight points.",
+    read: "Harbour start first and stay first. Forge climb from sixth to third. Wanderers dip to third in week two, return to second in week three, and fall to fifth by week six. Rovers hold second from week four onward. Ranks do not show the points gap.",
     source: "Illustrative league, matchweeks 1 to 10.",
     chart: (
       <FigTooltip
