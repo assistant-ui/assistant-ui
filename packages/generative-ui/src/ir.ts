@@ -203,7 +203,11 @@ function normalizeNode(
 ): NormalizedUINode {
   if (depth > MAX_DEPTH) return null;
   if (node == null || typeof node === "boolean") return null;
-  if (typeof node === "string" || typeof node === "number") return node;
+  if (typeof node === "string" || typeof node === "number") {
+    if (budget.remaining === 0) return null;
+    budget.remaining--;
+    return node;
+  }
   if (Array.isArray(node)) {
     const children: NormalizedUINode[] = [];
     const width = Math.min(node.length, MAX_NODES);

@@ -40,10 +40,10 @@ describe("normalizeUINode", () => {
     });
   });
 
-  it("keeps a tree within the element budget whole however many arrays and leaves it has", () => {
-    const branches = Array.from({ length: 2_000 }, (_, index) => ({
+  it("keeps a tree within the node budget whole however many arrays it has", () => {
+    const branches = Array.from({ length: 2_000 }, () => ({
       $type: "Column",
-      children: [{ $type: "Divider" }, `leaf ${index}`],
+      children: [{ $type: "Divider" }],
     }));
     const root = asElement(
       normalizeUINode({ $type: "Column", children: branches }),
@@ -55,8 +55,19 @@ describe("normalizeUINode", () => {
     expect(root.children).toHaveLength(2_000);
     expect(asElement(root.children[1_999]).children).toEqual([
       expect.objectContaining({ type: "Divider" }),
-      "leaf 1999",
     ]);
+  });
+
+  it("charges text leaves in nested arrays against the node budget", () => {
+    const leaves = Array.from({ length: 3_000 }, (_, index) => `leaf ${index}`);
+    const root = asElement(
+      normalizeUINode({ $type: "Column", children: [leaves, leaves] }),
+    );
+
+    if (!Array.isArray(root.children)) {
+      throw new Error("expected normalized children to be an array");
+    }
+    expect(root.children.flat()).toHaveLength(4_999);
   });
 
   it("shares the node budget across a root list and resets it for each call", () => {
