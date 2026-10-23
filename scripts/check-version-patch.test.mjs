@@ -99,7 +99,6 @@ const versionPackages = (at) => {
   );
   writeFileSync(at("packages/b/package.json"), manifest(versionedB));
   writeFileSync(at("packages/b/CHANGELOG.md"), "# @fixture/b\n\n## 0.1.1\n");
-  writeFileSync(at("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n# updated\n");
   rmSync(at(".changeset/brave-fox.md"));
 };
 
@@ -186,6 +185,19 @@ test("rejects a change to any other file", () => {
   assert.deepEqual(result, [
     "The version patch changes packages/a/src/index.js",
   ]);
+});
+
+test("rejects a lockfile change", () => {
+  const result = check(
+    patchOf((at) => {
+      versionPackages(at);
+      writeFileSync(
+        at("pnpm-lock.yaml"),
+        "lockfileVersion: '9.0'\n# updated\n",
+      );
+    }),
+  );
+  assert.deepEqual(result, ["The version patch changes pnpm-lock.yaml"]);
 });
 
 test("rejects new files other than a changelog", () => {

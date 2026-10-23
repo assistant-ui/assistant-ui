@@ -10,10 +10,7 @@ const isPackageJson = (file) => path.posix.basename(file) === "package.json";
 const isChangelog = (file) => path.posix.basename(file) === "CHANGELOG.md";
 const isChangeset = (file) => /^\.changeset\/(?:pre\/)?[^/]+\.md$/.test(file);
 const isModifiable = (file) =>
-  isPackageJson(file) ||
-  isChangelog(file) ||
-  file === "pnpm-lock.yaml" ||
-  file === ".changeset/pre.json";
+  isPackageJson(file) || isChangelog(file) || file === ".changeset/pre.json";
 
 const dependencyFields = [
   "dependencies",
