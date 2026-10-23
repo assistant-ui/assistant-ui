@@ -217,11 +217,56 @@ jobs:
         if: steps.target.outputs.shouldPublish == 'false'
         run: echo "$PYTHON_PACKAGE_NAME@${{ steps.target.outputs.version }} is already published; nothing to do."
 
+  build:
+    name: Build PyPI distributions
+    needs:
+      - approve
+      - summary
+    if: needs.summary.outputs.should_publish == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      dist_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
+        with:
+          # No cache - hardened against cache poisoning for sensitive publish operations
+          enable-cache: false
+
+      - name: Build sdist + wheel
+        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          uv build
+          ls -la dist
+
+      - name: Upload distributions
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: pypi-dist
+          path: ${{ env.PYTHON_PACKAGE_DIR }}/dist
+          if-no-files-found: error
+          retention-days: 30
+
   publish:
     name: Publish to PyPI
     needs:
       - approve
       - summary
+      - build
     if: needs.summary.outputs.should_publish == 'true'
     environment: pypi publish
     runs-on: ubuntu-24.04
@@ -243,33 +288,38 @@ jobs:
           fetch-depth: 1
           fetch-tags: true
           ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
+      - name: Download distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
         with:
-          # No cache - hardened against cache poisoning for sensitive publish operations
-          enable-cache: false
+          artifact-ids: ${{ needs.build.outputs.dist_artifact_id }}
+          path: ${{ env.PYTHON_PACKAGE_DIR }}/dist
 
-      - name: Build sdist + wheel
-        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
-        run: |
-          set -euo pipefail
-          rm -rf dist
-          uv build
-          ls -la dist
-
-      - name: Verify built version matches target
-        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
+      # The build job runs the build backend, so its artifact may publish only the version the summary job read from pyproject.toml without building.
+      - name: Check the distributions against the release target
+        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}/dist
         run: |
           set -euo pipefail
           dist_name="${PYTHON_PACKAGE_NAME//-/_}-${VERSION}"
-          shopt -s nullglob
-          wheels=( "dist/${dist_name}"-*.whl )
-          if [ "${#wheels[@]}" -eq 0 ] || [ ! -f "dist/${dist_name}.tar.gz" ]; then
-            echo "Expected build artifacts for ${dist_name} are missing." >&2
-            ls dist >&2 || true
+          shopt -s nullglob dotglob
+          files=( * )
+          wheels=( "${dist_name}"-*.whl )
+          if [ ! -f "${dist_name}.tar.gz" ] || [ -L "${dist_name}.tar.gz" ] || [ "${#wheels[@]}" -eq 0 ]; then
+            echo "::error::Expected an sdist and a wheel for ${dist_name}; found: ${files[*]:-nothing}"
             exit 1
           fi
+          for file in "${files[@]}"; do
+            if [ "$file" != "${dist_name}.tar.gz" ] && [[ "$file" != "${dist_name}"-*.whl ]]; then
+              echo "::error::Unexpected file in the distributions: $file"
+              exit 1
+            fi
+            if [ -L "$file" ] || [ ! -f "$file" ]; then
+              echo "::error::Not a regular file: $file"
+              exit 1
+            fi
+          done
+          ls -la
 
       # PyPI trusted publishing requires this workflow filename and the
       # `pypi publish` environment to match the project's trusted-publisher config.
