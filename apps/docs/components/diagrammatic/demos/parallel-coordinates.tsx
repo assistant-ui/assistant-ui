@@ -33,14 +33,12 @@ export const examples: DemoExample[] = [
     source: "On-call weekly rollup, W23 to W32 2025.",
     chart: (
       <FigTooltip
-        labels={WEEKS.map((row) => row.name)}
-        series={{
-          pages: WEEKS.map((row) => row.values[0]!),
-          "MTTA m": WEEKS.map((row) => row.values[1]!),
-          "MTTR h": WEEKS.map((row) => row.values[2]!),
-          "SEV-1": WEEKS.map((row) => row.values[3]!),
-          "after-hrs %": WEEKS.map((row) => row.values[4]!),
-        }}
+        entries={Object.fromEntries(
+          WEEKS.map((row) => [
+            row.name,
+            AXES.map((axis, k) => `${axis} ${row.values[k]}`).join(" · "),
+          ]),
+        )}
       >
         <ParallelCoordinates
           aspect={2}

@@ -113,7 +113,7 @@ export const examples: DemoExample[] = [
     title: "Loop gain against frequency",
     setup:
       "A compensation review on the servo. Frequency is decades, not a timeline. Magnitude stays in decibels so the paper is log only on x.",
-    read: "The gain crosses −3 dB at 2 kHz. The 20 dB/decade slope after the pole is the integrator the firmware asked for. Nothing here is a time series.",
+    read: "The gain crosses −3 dB between 2 kHz and 5 kHz. The 20 dB/decade slope after the pole is the integrator the firmware asked for. Nothing here is a time series.",
     source: "Closed-loop magnitude, 10 Hz to 100 kHz. Bench, 12 Aug.",
     chart: (
       <Line
@@ -164,7 +164,7 @@ export const examples: DemoExample[] = [
     title: "Progression-free survival",
     setup:
       "Oncology readout. The step is the Kaplan-Meier estimator. Short ticks are censored patients, not events. The band is the Greenwood interval.",
-    read: "Median PFS is just after month 9. The last third of the ticks sit on a flat tail: those patients are still on study, not cured by the chart.",
+    read: "Median PFS falls between months 12 and 15. The last third of the ticks sit on a flat tail: those patients are still on study, not cured by the chart.",
     source: "Investigator PFS, n = 86. Censoring at last contact.",
     chart: (
       <Line

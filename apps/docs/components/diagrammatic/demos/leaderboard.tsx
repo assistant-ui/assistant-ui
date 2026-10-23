@@ -19,8 +19,8 @@ export const examples: DemoExample[] = [
   {
     title: "Top referrers, last 28 days",
     setup:
-      "The docs site answers where readers arrive from. Rank, name, sessions, and a quiet bar in one row. Anything past the tenth line is Other.",
-    read: "Google is still half of github plus x. The surprise is changelog.assistant-ui.com in sixth: the release notes now outrun YouTube. Below hn the bars collapse; those four rows together do not match reddit.",
+      "Where readers arrive from. Rank, name, sessions, and a quiet bar in one row. Anything past the tenth line is Other.",
+    read: "Google alone outweighs github and x.com together. Below the top five the bars collapse; the four rows after news.ycombinator.com together do not match reddit.",
     source: "Sessions, last 28 days. Direct and unattributed omitted.",
     chart: (
       <FigTooltip

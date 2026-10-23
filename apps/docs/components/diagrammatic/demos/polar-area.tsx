@@ -24,7 +24,7 @@ export const examples: DemoExample[] = [
     setup:
       "A Nightingale rose for a city hospital: twenty-four hours around the clock, radius as volume. The form exists for a cycle, not a ranking.",
     read: "The afternoon swell from 15h to 17h is the road. The 03h dent is the quiet the night shift actually gets. Area grows with the square of radius, so 61 at 16h looks larger than the 18-to-61 ratio; the tooltip keeps the count honest.",
-    source: "ED trauma desk, 2024. n = 6,412 arrivals.",
+    source: "ED trauma desk, 2024. n = 639 arrivals.",
     chart: (
       <FigTooltip
         labels={HOURS.map((row) => `${row.label}h`)}
