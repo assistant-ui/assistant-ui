@@ -754,13 +754,128 @@ jobs:
           TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
         run: node scripts/check-packed-release.mjs
 
-      - name: Publish to npm and create GitHub releases
+      - name: Publish to npm
         id: changesets-publish
         uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/publish@v2.1.2
         with:
           script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
-          create-github-releases: true
+          # The action pins tags and releases to the run's GITHUB_SHA (pushTag uses
+          # context.sha, createRelease sets no target_commitish), which differs from
+          # RELEASE_SHA on dispatch runs. Both are created at RELEASE_SHA below.
+          push-git-tags: false
+          create-github-releases: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create git tags and GitHub releases at the release SHA
+        if: steps.changesets-publish.outputs.published == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.changesets-publish.outputs.published-packages }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
+
+            const releaseSha = (process.env.RELEASE_SHA || "").trim();
+            if (!/^[0-9a-f]{40}$/i.test(releaseSha)) {
+              core.setFailed(`RELEASE_SHA is not a full commit SHA: ${releaseSha}`);
+              return;
+            }
+
+            const published = JSON.parse(process.env.PUBLISHED_PACKAGES || "[]");
+
+            // Port of getChangelogEntry from changesets/action@v2.1.2 (src/utils.ts),
+            // so release bodies keep the changelog entry the action would have used.
+            const getChangelogEntry = (changelog, version) => {
+              let headingStartInfo;
+              let endIndex;
+              const regex = /^(#{1,6})\s(.*)$|^(`{3,})/gm;
+              let match;
+              while ((match = regex.exec(changelog)) != null) {
+                if (match[3]) {
+                  const endOfCodeBlockRegex = new RegExp(`^${match[3]}`, "gm");
+                  endOfCodeBlockRegex.lastIndex = regex.lastIndex;
+                  const endMatch = endOfCodeBlockRegex.exec(changelog);
+                  if (endMatch) {
+                    regex.lastIndex = endOfCodeBlockRegex.lastIndex;
+                    continue;
+                  }
+                  break;
+                }
+                const headingDepth = match[1].length;
+                const headingText = match[2].trim();
+                if (headingText === version) {
+                  headingStartInfo = { index: regex.lastIndex, depth: headingDepth };
+                  continue;
+                }
+                if (headingStartInfo && headingDepth === headingStartInfo.depth) {
+                  endIndex = match.index;
+                  break;
+                }
+              }
+              if (!headingStartInfo) return null;
+              return changelog.slice(headingStartInfo.index, endIndex).trim();
+            };
+
+            const packagesDir = path.join(process.cwd(), "packages");
+            const dirByName = new Map();
+            for (const ent of fs.readdirSync(packagesDir, { withFileTypes: true })) {
+              if (!ent.isDirectory()) continue;
+              const manifestPath = path.join(packagesDir, ent.name, "package.json");
+              if (!fs.existsSync(manifestPath)) continue;
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+              if (manifest.name) dirByName.set(manifest.name, ent.name);
+            }
+
+            for (const { name, version } of published) {
+              const tag = `${name}@${version}`;
+              try {
+                await github.rest.git.createRef({
+                  ...context.repo,
+                  ref: `refs/tags/${tag}`,
+                  sha: releaseSha,
+                });
+                core.info(`Created tag ${tag} at ${releaseSha}`);
+              } catch (error) {
+                if (String(error.message).includes("Reference already exists")) {
+                  core.info(`Tag ${tag} already exists; keeping it`);
+                } else {
+                  throw error;
+                }
+              }
+
+              const dir = dirByName.get(name);
+              const changelogPath = dir && path.join(packagesDir, dir, "CHANGELOG.md");
+              if (!changelogPath || !fs.existsSync(changelogPath)) {
+                core.info(`No CHANGELOG.md for ${name}; skipping release ${tag}`);
+                continue;
+              }
+              const content = getChangelogEntry(
+                fs.readFileSync(changelogPath, "utf8"),
+                version,
+              );
+              if (content == null) {
+                throw new Error(`Could not find changelog entry for ${tag}`);
+              }
+
+              try {
+                await github.rest.repos.createRelease({
+                  ...context.repo,
+                  tag_name: tag,
+                  name: tag,
+                  body: content,
+                  prerelease: version.includes("-"),
+                  target_commitish: releaseSha,
+                });
+                core.info(`Created release ${tag} targeting ${releaseSha}`);
+              } catch (error) {
+                if (error.status === 422) {
+                  core.info(`Release ${tag} already exists; keeping it`);
+                } else {
+                  throw error;
+                }
+              }
+            }
 
       - name: Recovery guidance
         if: failure()
