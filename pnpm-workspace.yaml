@@ -32,8 +32,8 @@ update:
 # Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  - '@farming-labs/docs@0.2.125'
-  - '@farming-labs/theme@0.2.125'
+  - '@farming-labs/docs@0.2.127'
+  - '@farming-labs/theme@0.2.127'
   - '@assistant-ui/*'
   - '@next/*'
   - '@openuidev/assistant-ui'
