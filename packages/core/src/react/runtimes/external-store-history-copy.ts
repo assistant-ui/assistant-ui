@@ -36,7 +36,7 @@ export class ExternalStoreHistoryCopy {
     }
   >();
   private pending = false;
-  private inFlight = false;
+  private inFlightSession: number | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private waiters: {
     resolve: () => void;
@@ -170,7 +170,7 @@ export class ExternalStoreHistoryCopy {
           this.waiters.push({ resolve, reject });
         })
       : Promise.resolve();
-    if (!this.inFlight && this.timer === undefined) {
+    if (this.inFlightSession !== this.session && this.timer === undefined) {
       this.timer = setTimeout(() => {
         this.timer = undefined;
         void this.flush();
@@ -184,7 +184,7 @@ export class ExternalStoreHistoryCopy {
     const history = this.history;
     const session = this.session;
     this.pending = false;
-    this.inFlight = true;
+    this.inFlightSession = session;
     const waiters = this.waiters.splice(0);
     const branch = this.branch();
     const changed = branch
@@ -218,8 +218,10 @@ export class ExternalStoreHistoryCopy {
       }
       for (const waiter of waiters) waiter.reject(error);
     } finally {
-      this.inFlight = false;
-      if (this.pending) void this.schedule();
+      if (this.inFlightSession === session) {
+        this.inFlightSession = undefined;
+        if (this.pending) void this.schedule();
+      }
     }
   }
 }

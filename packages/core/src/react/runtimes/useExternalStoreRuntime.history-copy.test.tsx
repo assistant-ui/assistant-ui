@@ -85,6 +85,10 @@ const setup = (
       return runtime!;
     },
     update,
+    replaceHistory: (next: ThreadHistoryAdapter) => {
+      history = next;
+      act(() => view.rerender(tree()));
+    },
     view,
   };
 };
@@ -511,6 +515,69 @@ describe("useExternalStoreRuntime history copy", () => {
     expect(unstable_copy).toHaveBeenCalledTimes(2);
     expect(unstable_copy.mock.calls[1]![1]).toEqual(["assistant-2"]);
     app.view.unmount();
+  });
+
+  it("copies through a replacement adapter without letting the old write release its pending copy", async () => {
+    vi.useFakeTimers();
+    const first = historyAdapter();
+    const replacement = historyAdapter();
+    const oldWrite = Promise.withResolvers<void>();
+    const replacementWrite = Promise.withResolvers<void>();
+    first.unstable_copy.mockImplementationOnce(() => oldWrite.promise);
+    replacement.unstable_copy.mockImplementationOnce(
+      () => replacementWrite.promise,
+    );
+    const app = setup(first.history);
+    const flushCopy = () =>
+      act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+    const firstMessage = user("user-1");
+    const secondMessage = assistant("assistant-2");
+
+    try {
+      app.update({ isRunning: true });
+      app.update({ isRunning: false, messages: [firstMessage] });
+      await flushCopy();
+      expect(first.unstable_copy.mock.calls[0]![1]).toEqual(["user-1"]);
+
+      app.replaceHistory(replacement.history);
+      app.update({ isRunning: true });
+      app.update({
+        isRunning: false,
+        messages: [firstMessage, secondMessage],
+      });
+      await flushCopy();
+      expect(
+        replacement.unstable_copy.mock.calls.map((call) => call[1]),
+      ).toEqual([["assistant-2"]]);
+
+      app.update({ isRunning: true });
+      app.update({
+        isRunning: false,
+        messages: [firstMessage, secondMessage, user("user-3")],
+      });
+      oldWrite.resolve();
+      await flushCopy();
+      expect(replacement.unstable_copy).toHaveBeenCalledOnce();
+
+      replacementWrite.resolve();
+      await flushCopy();
+      expect(
+        replacement.unstable_copy.mock.calls.map((call) => call[1]),
+      ).toEqual([["assistant-2"], ["user-3"]]);
+      expect(
+        replacement.unstable_copy.mock.calls[1]![0].map(
+          (message) => message.id,
+        ),
+      ).toEqual(["user-1", "assistant-2", "user-3"]);
+    } finally {
+      app.view.unmount();
+      oldWrite.resolve();
+      replacementWrite.resolve();
+      await flushCopy();
+      vi.useRealTimers();
+    }
   });
 
   it.each(["no history", "history without copy"])(
