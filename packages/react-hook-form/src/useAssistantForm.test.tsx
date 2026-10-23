@@ -266,6 +266,41 @@ describe("useAssistantForm", () => {
     );
   });
 
+  it("omits sensitive fields named by compound autocomplete values", () => {
+    const Form = () => {
+      const form = useAssistantForm({
+        defaultValues: {
+          name: "Ada",
+          login: "old-secret",
+          card: "4242424242424242",
+          passkey: "passkey-secret",
+        },
+      });
+      return (
+        <>
+          <input
+            autoComplete="section-checkout name"
+            {...form.register("name")}
+          />
+          <input
+            autoComplete="section-login current-password"
+            {...form.register("login")}
+          />
+          <input autoComplete="billing cc-number" {...form.register("card")} />
+          <input
+            autoComplete="current-password webauthn"
+            {...form.register("passkey")}
+          />
+        </>
+      );
+    };
+    render(<Form />);
+
+    expect(provider.getModelContext().system).toBe(
+      'Form State:\n{"name":"Ada"}',
+    );
+  });
+
   it("exposes current form values to the model context", () => {
     const { result } = renderHook(() =>
       useAssistantForm<{ name: string }>({

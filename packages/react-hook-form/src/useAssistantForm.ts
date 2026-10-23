@@ -388,14 +388,22 @@ export const useAssistantForm = <
             continue;
           const autocomplete = (
             fieldReference.getAttribute("autocomplete") ?? ""
-          ).toLowerCase();
+          )
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
+          const autofillField =
+            autocomplete.at(-1) === "webauthn"
+              ? autocomplete.at(-2)
+              : autocomplete.at(-1);
           if (
             (fieldReference instanceof HTMLInputElement &&
               fieldReference.type === "password") ||
-            ["current-password", "new-password", "one-time-code"].includes(
-              autocomplete,
-            ) ||
-            autocomplete.startsWith("cc-")
+            (autofillField !== undefined &&
+              (["current-password", "new-password", "one-time-code"].includes(
+                autofillField,
+              ) ||
+                autofillField.startsWith("cc-")))
           ) {
             sensitiveFields.add(name.replace(/\[(\d+)\]/g, ".$1"));
           }
