@@ -9,6 +9,8 @@ on:
       - "examples/**"
       - "templates/**"
       - "evals/**"
+      - "scripts/coverage-shards.mjs"
+      - "scripts/coverage-shards.test.mjs"
       - "scripts/coverage-summary.mjs"
       - "scripts/coverage-summary.test.mjs"
       - "scripts/test-coverage-contract.test.mjs"
@@ -34,25 +36,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  coverage:
-    name: Test Coverage
+  plan:
+    name: Plan coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # assistant-stream's resumable store and apps/docs need a live Redis, or their Redis suites skip and miss their coverage thresholds.
-    services:
-      redis:
-        image: redis:8-alpine # ratchet:exclude
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-start-period 10s
-          --health-start-interval 1s
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-    env:
-      REDIS_URL: redis://127.0.0.1:6379
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.inputs.outputs.run }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -77,6 +66,8 @@ jobs:
             examples \
             templates \
             evals \
+            scripts/coverage-shards.mjs \
+            scripts/coverage-shards.test.mjs \
             scripts/coverage-summary.mjs \
             scripts/coverage-summary.test.mjs \
             scripts/test-coverage-contract.test.mjs \
@@ -91,8 +82,38 @@ jobs:
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
+  shards:
+    name: Coverage shard ${{ matrix.shard }}
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # assistant-stream's resumable store and apps/docs need a live Redis, or their Redis suites skip and miss their coverage thresholds.
+    services:
+      redis:
+        image: redis:8-alpine # ratchet:exclude
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-start-period 10s
+          --health-start-interval 1s
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: ${{ github.event_name == 'merge_group' && '0' || '2' }}
+
       - name: Setup pnpm and node.js
-        if: steps.inputs.outputs.run == 'true'
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
@@ -100,47 +121,81 @@ jobs:
           install: false
 
       - name: Install dependencies
-        if: steps.inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Test coverage routing and summary
-        if: steps.inputs.outputs.run == 'true'
-        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs
+        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs
 
       # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
       - name: Build packages
-        if: steps.inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: pnpm turbo build --filter="./packages/*"
 
       - name: Run React Compiler tests
-        if: steps.inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: pnpm test:react-compiler
 
-      - name: Run every package's tests with coverage
-        if: steps.inputs.outputs.run == 'true'
+      - name: Run assigned packages with coverage
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
-        run: pnpm test:coverage --continue
+        run: |
+          filters=$(node scripts/coverage-shards.mjs "${{ matrix.shard }}")
+          mapfile -t args <<< "$filters"
+          pnpm test:coverage --continue "${args[@]}"
 
       - name: Write the coverage summary
-        if: always() && steps.inputs.outputs.run == 'true'
+        if: always()
         run: pnpm coverage:summary --report "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage reports
-        if: always() && steps.inputs.outputs.run == 'true'
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
-          name: coverage
+          name: coverage-${{ matrix.shard }}
           path: |
             packages/*/coverage/
             apps/*/coverage/
             examples/*/coverage/
           if-no-files-found: ignore
           retention-days: 14
+
+  coverage:
+    name: Test Coverage
+    needs: [plan, shards]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify coverage jobs
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          RUN: ${{ needs.plan.outputs.run }}
+          SHARD_RESULT: ${{ needs.shards.result }}
+        run: |
+          test "$PLAN_RESULT" = success
+          if [ "$RUN" = true ]; then
+            test "$SHARD_RESULT" = success
+          else
+            test "$RUN" = false
+            test "$SHARD_RESULT" = skipped
+          fi
+
+      - name: Checkout summary script
+        if: needs.plan.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+
+      - name: Download coverage reports
+        if: needs.plan.outputs.run == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+
+      - name: Write combined coverage summary
+        if: needs.plan.outputs.run == 'true'
+        run: node scripts/coverage-summary.mjs --report "$GITHUB_STEP_SUMMARY"
