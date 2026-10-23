@@ -151,6 +151,7 @@ const runtime = useAssistantTransportRuntime({
   protocol: "assistant-transport",
   api: "http://localhost:8010/assistant",
   converter,
+  headers: {},
 });
 ```
 
