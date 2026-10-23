@@ -35,10 +35,7 @@ function makeWorkspace(packages) {
   for (const [dirName, manifest, withChangelog = true] of packages) {
     const pkgDir = path.join(packagesDir, dirName);
     mkdirSync(pkgDir, { recursive: true });
-    writeFileSync(
-      path.join(pkgDir, "package.json"),
-      JSON.stringify(manifest),
-    );
+    writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify(manifest));
     if (withChangelog) {
       writeFileSync(
         path.join(pkgDir, "CHANGELOG.md"),
@@ -53,8 +50,7 @@ function makeGithub() {
   const calls = [];
   const tags = new Set();
   const releases = new Set();
-  const notFound = () =>
-    Object.assign(new Error("not found"), { status: 404 });
+  const notFound = () => Object.assign(new Error("not found"), { status: 404 });
   return {
     calls,
     tags,
@@ -162,7 +158,9 @@ test("rerun keeps existing tags and releases and retries only the missing releas
     [],
   );
   assert.deepEqual(
-    github.calls.filter(([kind]) => kind === "createRelease").map((c) => c[1].tag_name),
+    github.calls
+      .filter(([kind]) => kind === "createRelease")
+      .map((c) => c[1].tag_name),
     ["assistant-ui@0.0.126"],
   );
 });
@@ -181,7 +179,9 @@ test("never retargets a historical version's tag at the release SHA", async () =
     log: () => {},
   });
   assert.deepEqual(
-    github.calls.filter(([kind]) => kind === "createRef" || kind === "createRelease"),
+    github.calls.filter(
+      ([kind]) => kind === "createRef" || kind === "createRelease",
+    ),
     [],
   );
 });

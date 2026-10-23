@@ -78,7 +78,9 @@ const fetchNpmMetadata = async (packageName) => {
     );
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw new Error(`npm registry HTTP ${response.status} for ${packageName}`);
+      throw new Error(
+        `npm registry HTTP ${response.status} for ${packageName}`,
+      );
     }
     return await response.json();
   } finally {
@@ -86,8 +88,7 @@ const fetchNpmMetadata = async (packageName) => {
   }
 };
 
-const git = (...args) =>
-  execFileSync("git", args, { encoding: "utf8" }).trim();
+const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
 const isNotFound = (error) => error && error.status === 404;
 
