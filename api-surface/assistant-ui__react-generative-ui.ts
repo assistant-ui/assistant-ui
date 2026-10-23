@@ -430,6 +430,7 @@ type GenerativeUIProps = NormalizedUIElement["props"];
 type GenerativeUIRenderContext = {
   status: GenerativeUIStatus;
   dispatch?: GenerativeUIDispatch;
+  imageOrigins?: readonly string[];
 };
 
 type GenerativeUISpec = {
@@ -510,6 +511,7 @@ declare class JSONGenerativeUI {
 type JSONGenerativeUIOptions = {
   library: GenerativeUILibrary;
   actions?: ActionRegistry;
+  imageOrigins?: readonly string[];
 };
 
 declare const JUSTIFIES: readonly [
@@ -913,6 +915,7 @@ type StaticRenderProps<P> = P & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 };
@@ -922,6 +925,7 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "streaming";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 }) | (P & {
