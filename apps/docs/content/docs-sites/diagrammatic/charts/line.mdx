@@ -1,0 +1,168 @@
+---
+title: Line
+description: The default for anything measured over time. One series or several, on linear or log paper, with regions, bands, annotations, and guides.
+---
+
+import { Example } from "@/components/diagrammatic/example";
+import Flagship from "@/components/diagrammatic/examples/line/flagship";
+import Basic from "@/components/diagrammatic/examples/line/basic";
+import Series from "@/components/diagrammatic/examples/line/series";
+import Step from "@/components/diagrammatic/examples/line/step";
+import Regions from "@/components/diagrammatic/examples/line/regions";
+import Bands from "@/components/diagrammatic/examples/line/bands";
+import Guides from "@/components/diagrammatic/examples/line/guides";
+import LogScale from "@/components/diagrammatic/examples/line/log-scale";
+import Xs from "@/components/diagrammatic/examples/line/xs";
+import Censor from "@/components/diagrammatic/examples/line/censor";
+import Tooltip from "@/components/diagrammatic/examples/line/tooltip";
+import Highlight from "@/components/diagrammatic/examples/line/highlight";
+import Select from "@/components/diagrammatic/examples/line/select";
+import Live from "@/components/diagrammatic/examples/line/live";
+import FitExample from "@/components/diagrammatic/examples/line/fit";
+import Spec from "@/components/diagrammatic/examples/line/spec";
+
+<Example file="line/flagship"><Flagship /></Example>
+
+## Usage
+
+```tsx
+import { Line } from "diagrammatic";
+
+<Line labels={["Jan", "Feb", "Mar"]} data={[34, 46, 40]} />;
+```
+
+`Line` renders on the server. Pass `data` for one series or `series` for several; `labels` names the points on the x axis.
+
+## Examples
+
+### One series
+
+A single series draws in ink with its last value printed at the end of the line.
+
+<Example file="line/basic"><Basic /></Example>
+
+### Several series
+
+Two or more named series take the categorical palette in order and get a legend. Past four lines, consider [small multiples](/diagrammatic/docs/small-multiples).
+
+<Example file="line/series"><Series /></Example>
+
+### Steps
+
+`step` holds each value until the next one, for quantities that change in discrete jumps: seats, prices, replica counts.
+
+<Example file="line/step"><Step /></Example>
+
+### Regions and annotations
+
+`regions` shades a span of the x axis in index units, and `marks` pins a label to a point. Together they tell the reader why the line moved.
+
+<Example file="line/regions"><Regions /></Example>
+
+### Uncertainty bands
+
+`bands` takes a `lower` and `upper` array per series and draws the range under the line, for forecasts and confidence intervals.
+
+<Example file="line/bands"><Bands /></Example>
+
+### Thresholds
+
+`guides` draws reference lines on either axis: an SLO on the value axis, a deploy on the x axis.
+
+<Example file="line/guides"><Guides /></Example>
+
+### Log scale
+
+`yScale="log"` puts growth that spans decades on one frame. A tick count on log paper counts decades.
+
+<Example file="line/log-scale"><LogScale /></Example>
+
+### Uneven x positions
+
+`xs` places points at numeric x positions instead of evenly, and `xScale="log"` spaces them logarithmically, as a scaling curve needs.
+
+<Example file="line/xs"><Xs /></Example>
+
+### Survival curves
+
+A `step` line with `marks` of `kind: "censor"` is a Kaplan-Meier plot: the ticks mark where observation stopped without an event.
+
+<Example file="line/censor"><Censor /></Example>
+
+## Interaction
+
+These examples wrap the server-rendered chart in `diagrammatic/interactive`. See [Interaction](/diagrammatic/docs/interaction) for the full API.
+
+### Tooltip
+
+The tooltip receives the hovered point's `index` and looks the value up in your data.
+
+<Example file="line/tooltip"><Tooltip /></Example>
+
+### Highlight a series
+
+A controlled `highlight` fades every other series; `highlightOnHover="series"` does the same while the pointer rests on a line.
+
+<Example file="line/highlight"><Highlight /></Example>
+
+### Select a point
+
+`onMarkClick` reports the clicked point's address, and a controlled highlight keeps the selection visible.
+
+<Example file="line/select"><Select /></Example>
+
+### Live data
+
+The chart is a pure function of its props, so streaming data is a state update. This one appends a reading every second, and `data-dg-motion` pulses the latest point while it runs. See [Motion](/diagrammatic/docs/motion).
+
+<Example file="line/live"><Live /></Example>
+
+### Fluid width
+
+`Fit` measures its box and hands the width down, so the frame is laid out again at every width and the type stays at 11px. Resize the window.
+
+<Example file="line/fit"><FitExample /></Example>
+
+## From a spec
+
+The same chart as JSON, for a model to write. See [Charts from a model](/diagrammatic/docs/ai-specs).
+
+<Example file="line/spec"><Spec /></Example>
+
+## When to use it
+
+- **Use it for** trends, rates, and anything measured on a continuous timeline.
+- **Watch out** for more than four lines, which turn to spaghetti; facet into small multiples instead. For a quantity that accumulates, an [area](/diagrammatic/docs/charts/area) reads better.
+
+## Props
+
+<ParametersTable
+  type="LineProps"
+  parameters={[
+    { name: "data", type: "number[]", description: "One series of values. Use `series` for several." },
+    { name: "series", type: "{ name: string; data: number[] }[]", description: "Named series, colored in palette order. Two or more get a legend." },
+    { name: "labels", type: "string[]", description: "One label per point on the x axis. An empty string skips a label." },
+    { name: "xs", type: "number[]", description: "Numeric x positions, one per point, instead of even spacing." },
+    { name: "xScale", type: "\"linear\" | \"log\"", default: "\"linear\"", description: "The x scale when `xs` is given." },
+    { name: "yScale", type: "\"linear\" | \"log\"", default: "\"linear\"", description: "The value scale." },
+    { name: "yMax", type: "number", description: "Fixes the top of the value axis, so several charts share a scale." },
+    { name: "xTicks", type: "number | { at: number; label: string }[]", description: "A tick count or an explicit ladder on the x axis." },
+    { name: "yTicks", type: "number | { at: number; label: string }[]", description: "A tick count or an explicit ladder on the value axis. Unset draws no value axis." },
+    { name: "step", type: "boolean", default: "false", description: "Holds each value until the next point." },
+    { name: "regions", type: "{ from: number; to: number; label?: string }[]", description: "Shaded spans of the x axis, in index units or `xs` units." },
+    { name: "bands", type: "{ lower: number[]; upper: number[] }[]", description: "A range under each series, in series order." },
+    { name: "marks", type: "{ at: number; series?: string; label?: string; kind?: \"point\" | \"censor\" }[]", description: "Annotations pinned to points. `kind: \"censor\"` draws a censoring tick." },
+    { name: "guides", type: "{ at: number; axis?: \"x\" | \"y\"; label?: string }[]", description: "Reference lines. The value axis by default." },
+    { name: "legend", type: "boolean", description: "The in-figure legend. On when there are two or more series." },
+    { name: "format", type: "(value: number) => string", default: "formatCompact", description: "Formats printed values and tick labels." },
+    { name: "title", type: "string", description: "Names the chart for assistive technology. See [Accessibility](/diagrammatic/docs/accessibility)." },
+    { name: "summary", type: "string", description: "A sentence read after the title." },
+    { name: "width", type: "number", default: "640", description: "Rendered width in CSS pixels. See [Sizing](/diagrammatic/docs/sizing)." },
+    { name: "height", type: "number", description: "Rendered height in CSS pixels. Defaults to `width / aspect`." },
+    { name: "aspect", type: "number", description: "Width over height when `height` is not given." },
+    { name: "fontSize", type: "number", default: "11", description: "The type size in CSS pixels." },
+    { name: "view", type: "{ x: number; y: number; w: number; h: number }", description: "A window onto the figure, from `Zoom`." },
+  ]}
+/>
+
+Every other SVG attribute, event handler, `style`, and `ref` passes through to the root `svg`.

@@ -89,6 +89,7 @@ vi.mock("@/lib/source", () => ({
   docsSiteSources: {
     "safe-content-frame": { getPages: () => mocks.sites },
     "generative-frame": { getPages: () => [] },
+    diagrammatic: { getPages: () => [] },
   },
 }));
 

@@ -1,0 +1,82 @@
+---
+title: Sparkline
+description: A line the size of a word, for sentences, table cells, and KPI tiles.
+---
+
+import { Example } from "@/components/diagrammatic/example";
+import Flagship from "@/components/diagrammatic/examples/sparkline/flagship";
+import Inline from "@/components/diagrammatic/examples/sparkline/inline";
+import Table from "@/components/diagrammatic/examples/sparkline/table";
+import Sizes from "@/components/diagrammatic/examples/sparkline/sizes";
+import Color from "@/components/diagrammatic/examples/sparkline/color";
+import Live from "@/components/diagrammatic/examples/sparkline/live";
+
+<Example file="sparkline/flagship"><Flagship /></Example>
+
+## Usage
+
+```tsx
+import { Sparkline } from "diagrammatic";
+
+<p>
+  Signups climbed all week <Sparkline data={[12, 14, 13, 17, 21]} />.
+</p>;
+```
+
+A sparkline shows shape, not values: there is no axis, and the dot marks the latest point. Print the number it summarizes beside it.
+
+## Examples
+
+### In a sentence
+
+By default a sparkline is `1em` tall with an automatic width, so it sits on the line of text it is part of.
+
+<Example file="sparkline/inline"><Inline /></Example>
+
+### In a table
+
+The same sizing makes it a table cell that follows the row's type.
+
+<Example file="sparkline/table"><Table /></Example>
+
+### In a tile
+
+`block` breaks out of the text line and fills the host's width; `height` sets its pixel height. The figure at the top of this page is three tiles built this way, with `fill` shading the area under the line.
+
+### Sizes
+
+It scales with the surrounding `font-size`. Pass `width` and `height` for a fixed pixel size.
+
+<Example file="sparkline/sizes"><Sizes /></Example>
+
+### Color
+
+The line is the current text color at 60%, and the end dot and fill take `--dg-c1`.
+
+<Example file="sparkline/color"><Color /></Example>
+
+### Live
+
+A sparkline is a pure function of `data`, so a live reading is a state update. `data-dg-motion` pulses the end dot to mark it live; see [Motion](/diagrammatic/docs/motion).
+
+<Example file="sparkline/live"><Live /></Example>
+
+## When to use it
+
+- **Use it for** trend at a glance next to the number it explains: KPI tiles, table rows, sentences.
+- **Watch out** for reading values off it. It has no axis and no tooltip by design; when the values matter, use a [Line](/diagrammatic/docs/charts/line).
+
+## Props
+
+<ParametersTable
+  type="SparklineProps"
+  parameters={[
+    { name: "data", type: "number[]", required: true, description: "The values, in order. The baseline is zero or the smallest value, whichever is lower." },
+    { name: "fill", type: "boolean", default: "false", description: "Shades the area under the line." },
+    { name: "block", type: "boolean", default: "false", description: "Fills the host's width instead of sitting inline." },
+    { name: "width", type: "number", description: "A pixel width instead of the automatic one." },
+    { name: "height", type: "number", description: "A pixel height instead of `1em`." },
+    { name: "title", type: "string", description: "Names the sparkline for assistive technology." },
+    { name: "summary", type: "string", description: "A sentence read after the title." },
+  ]}
+/>

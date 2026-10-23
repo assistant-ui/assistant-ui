@@ -1,0 +1,6 @@
+{
+  "title": "Getting Started",
+  "description": "What diagrammatic is, its entry points, and a first chart with a tooltip.",
+  "icon": "Rocket",
+  "pages": ["index", "quickstart"]
+}

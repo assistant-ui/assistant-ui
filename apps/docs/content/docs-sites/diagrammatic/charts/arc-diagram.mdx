@@ -1,0 +1,16 @@
+---
+title: "Arc diagram"
+description: "A network flattened onto one line."
+---
+
+import { Example } from "@/components/diagrammatic/example";
+import { Form } from "@/components/diagrammatic/form";
+import Motion from "@/components/diagrammatic/examples/arc-diagram/motion";
+
+<Form slug="arc-diagram" />
+
+## Motion
+
+Each arc carries a trail from its `source` to its `target`, whichever side of the axis the source sits on. Put `data-dg-motion` on the chart or any ancestor; see [Motion](/diagrammatic/docs/motion).
+
+<Example file="arc-diagram/motion"><Motion /></Example>
