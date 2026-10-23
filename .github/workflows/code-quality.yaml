@@ -152,6 +152,9 @@ jobs:
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
 
+      - name: Test the packed release checker
+        run: node --test scripts/check-packed-release.test.mjs
+
       - name: Test the adapter architecture checker
         run: node --test scripts/check-adapter-architecture.test.mjs
 
