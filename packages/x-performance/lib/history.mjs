@@ -35,8 +35,16 @@ const table = (rows) =>
   ].join("\n");
 
 export const appendHistory = ({ dir, recording, now = new Date() }) => {
-  mkdirSync(dir, { recursive: true });
   const { env } = recording;
+  if (
+    typeof env?.sha !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(env.sha)
+  ) {
+    throw new Error(
+      `recording has an invalid sha: ${JSON.stringify(env?.sha)}`,
+    );
+  }
+  mkdirSync(dir, { recursive: true });
   const point = {
     schema: "aui-perf/history@1",
     date: now.toISOString(),
