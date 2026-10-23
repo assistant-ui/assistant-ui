@@ -5,14 +5,13 @@ on:
     - cron: "17 4 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 concurrency:
   group: ${{ github.workflow }}
 
 jobs:
-  record:
+  measure:
+    permissions:
+      contents: read
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 30
     steps:
@@ -20,6 +19,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -39,6 +39,35 @@ jobs:
 
       - name: Record nightly benchmarks
         run: node packages/x-performance/bin/aui-perf.mjs record nightly.json --runs 4
+
+      - name: Upload nightly recording
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-recording
+          path: packages/x-performance/.perf/nightly.json
+          include-hidden-files: true
+
+  publish:
+    needs: measure
+    permissions:
+      contents: write
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+
+      - name: Download nightly recording
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
+        with:
+          name: nightly-recording
+          path: packages/x-performance/.perf
 
       - name: Append and render the nightly history
         shell: bash
