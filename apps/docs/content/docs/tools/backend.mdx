@@ -26,6 +26,10 @@ const {
 } = await req.json();
 ```
 
+<Callout type="warn">
+  The `system` prompt and the `tools` schemas in the request body come from the browser, so any caller can change them. Treat both as untrusted input. A system prompt only guides the model, so enforce authorization, argument validation and usage limits in server code, define tools the server executes on the server rather than from the request, and authenticate the route before deploying.
+</Callout>
+
 ## Generative toolkits: `AISDKToolkit`
 
 When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler: schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
