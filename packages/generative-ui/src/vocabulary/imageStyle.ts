@@ -6,11 +6,19 @@ export function allowedImageSrc(
   if (typeof src !== "string") return false;
   if (/^data:image\//i.test(src)) return true;
   if (!/^https?:\/\//i.test(src)) return false;
+  let origin: string;
   try {
-    return imageOrigins.includes(new URL(src).origin);
+    origin = new URL(src).origin;
   } catch {
     return false;
   }
+  return imageOrigins.some((entry) => {
+    try {
+      return new URL(entry).origin === origin;
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function imageStyle(

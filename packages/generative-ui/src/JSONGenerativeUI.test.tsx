@@ -124,6 +124,20 @@ describe("JSONGenerativeUI — client build", () => {
     expect(blocked).not.toContain("<img");
   });
 
+  it("matches imageOrigins entries written as URLs with a path or uppercase host", () => {
+    const restricted = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      imageOrigins: ["https://CDN.example.com/assets/"],
+    });
+    expect(
+      renderTool(restricted.present(), {
+        $type: "Image",
+        src: "https://cdn.example.com/a.png",
+        alt: "Preview",
+      }),
+    ).toContain('src="https://cdn.example.com/a.png"');
+  });
+
   it("passes imageOrigins through live A2UI conversion", () => {
     const restricted = new ClientGenUI({
       library: defaultGenerativeUILibrary,

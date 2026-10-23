@@ -933,6 +933,7 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $imageOrigins?: readonly string[];
   $slots?: Readonly<Record<string, ReactNode>>;
   $bindings?: GenerativeUIBindings<P>;
 });
