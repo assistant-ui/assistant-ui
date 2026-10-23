@@ -141,11 +141,18 @@ describe("thread runtime lifecycle", () => {
   it("starts a fresh generation after invalidation", () => {
     const runtime = createRuntime();
     const generation = captureThreadRuntimeGeneration(runtime);
+    let nextGeneration: AbortSignal | undefined;
+    generation.addEventListener("abort", () => {
+      nextGeneration = captureThreadRuntimeGeneration(runtime);
+    });
 
     invalidateThreadRuntime(runtime);
 
     expect(generation.aborted).toBe(true);
     expect(captureThreadRuntimeGeneration(runtime).aborted).toBe(false);
+    expect(nextGeneration).toBe(captureThreadRuntimeGeneration(runtime));
+    invalidateThreadRuntime(runtime);
+    expect(nextGeneration?.aborted).toBe(true);
   });
 
   it("ends the call of a superseded runtime without disposing it", () => {
