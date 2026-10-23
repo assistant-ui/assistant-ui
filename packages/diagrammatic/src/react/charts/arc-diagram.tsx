@@ -87,17 +87,15 @@ export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
                 data-series2={link.target}
                 {...(accent ? stroke.line : stroke.hair)}
               />
-              {distance > 0 && (
-                <FlowTrail
-                  d={
-                    forward
-                      ? d
-                      : `M${round(x1)} ${round(baseline)} A${round(distance / 2)} ${round(arcHeight)} 0 0 0 ${round(x0)} ${round(baseline)}`
-                  }
-                  color={ACCENT}
-                  width={2.5}
-                />
-              )}
+              <FlowTrail
+                d={
+                  forward || distance === 0
+                    ? d
+                    : `M${round(x1)} ${round(baseline)} A${round(distance / 2)} ${round(arcHeight)} 0 0 0 ${round(x0)} ${round(baseline)}`
+                }
+                color={ACCENT}
+                width={2.5}
+              />
             </Fragment>
           );
         })}

@@ -42,7 +42,8 @@
     transform-origin: center;
     animation: dg-pulse 1.8s ease-out infinite;
   }
-  [data-dg-motion] [data-dg-muted] + [data-dg-flow] {
+  [data-dg-motion] [data-dg-muted] + [data-dg-flow],
+  [data-dg-motion] [data-dg-muted] [data-dg-flow] {
     animation-play-state: paused;
     stroke-opacity: 0;
   }

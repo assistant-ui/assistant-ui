@@ -18,7 +18,11 @@ describe("motion layers", () => {
     it(`${name} stamps one inert trail per directed connection`, () => {
       const html = renderToStaticMarkup(FIXTURES[name]!);
       const found = trails(html);
-      expect(found.length).toBeGreaterThan(0);
+      const connections =
+        name === "flow-map"
+          ? html.match(/<g[^>]*data-part="mark"[^>]*data-i="/g)!.length
+          : html.match(/data-part="mark"[^>]*data-series2="/g)!.length;
+      expect(found).toHaveLength(connections);
       for (const trail of found) {
         expect(trail).toContain('pathLength="1"');
         expect(trail).toContain('stroke-opacity="0"');
@@ -27,6 +31,21 @@ describe("motion layers", () => {
       }
     });
   }
+
+  it("gives an arc self-loop its own trail", () => {
+    const html = renderToStaticMarkup(
+      <ArcDiagram
+        graph={{
+          nodes: [{ id: "a" }, { id: "b" }],
+          links: [
+            { source: "a", target: "a", value: 1 },
+            { source: "a", target: "b", value: 1 },
+          ],
+        }}
+      />,
+    );
+    expect(trails(html)).toHaveLength(2);
+  });
 
   it("hands a Sankey sweep from one column stage to the next", () => {
     const html = renderToStaticMarkup(
