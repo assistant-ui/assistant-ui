@@ -12,12 +12,20 @@ import { isExecutedAsMain } from "./lib/main.mjs";
 //
 // A version is only tagged/released here when its association with RELEASE_SHA
 // is proven, never inferred from timestamps:
-//  1. The publish step's `published-packages` output (set even when the step
-//     fails partway through) names exactly the versions this run published
-//     from the RELEASE_SHA checkout.
-//  2. On reruns where the publish job skips (everything already on npm), the
-//     package's SLSA provenance attestation on the npm registry names the
-//     commit its publishing run ran against; it must equal RELEASE_SHA.
+//  1. The publish step's `published-packages` output names exactly the versions
+//     this run published from the RELEASE_SHA checkout. Verified in the pinned
+//     action source (ae32849, src/publish/index.ts): the step sets the output
+//     before throwing on a partial failure, and leaves it unset when nothing
+//     was published. NOT verified: whether GitHub propagates step outputs
+//     through a FAILED job into needs.publish.outputs, so after a failed
+//     publish this value may be missing or empty - both are treated as "no
+//     fresh evidence" and fall through to (2), never to guessing.
+//  2. Otherwise (rerun of an already-published release, or a missing/empty
+//     publish output) the package's SLSA provenance attestation on the npm
+//     registry names the commit its publishing run ran against; it must equal
+//     RELEASE_SHA. Trust boundary: the registry response is trusted over TLS;
+//     the DSSE bundle is decoded but NOT signature-verified locally, so this
+//     is a registry-asserted binding, not a cryptographically verified one.
 // Anything else is ambiguous and skipped with a warning naming the manual
 // recovery path, instead of risking a tag pointed at the wrong commit.
 
@@ -81,9 +89,7 @@ const fetchNpmMetadata = async (packageName) => {
     );
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw new Error(
-        `npm registry HTTP ${response.status} for ${packageName}`,
-      );
+      throw new Error(`npm registry HTTP ${response.status} for ${packageName}`);
     }
     return await response.json();
   } finally {
@@ -93,8 +99,16 @@ const fetchNpmMetadata = async (packageName) => {
 
 // Reads the SLSA provenance attestation npm stores for trusted publishing and
 // returns the git commit the publishing workflow run ran against, or null when
-// there is no usable attestation.
-const fetchPublishCommit = async (repository, packageName, version) => {
+// there is no usable attestation. The attestation is only accepted when its
+// subject names exactly this package@version, and matches the registry
+// tarball digest (dist.integrity) when one is supplied, so an attestation for
+// a different artifact is never applied here.
+export const fetchPublishCommit = async (
+  repository,
+  packageName,
+  version,
+  expectedIntegrity = null,
+) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
@@ -114,9 +128,17 @@ const fetchPublishCommit = async (repository, packageName, version) => {
     );
     const payload = attestation?.bundle?.dsseEnvelope?.payload;
     if (!payload) return null;
-    const statement = JSON.parse(
-      Buffer.from(payload, "base64").toString("utf8"),
+    const statement = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+    const subject = (statement?.subject ?? []).find(
+      (entry) => entry?.name === `pkg:npm/${packageName}@${version}`,
     );
+    if (!subject) return null; // the attestation is for a different artifact
+    if (expectedIntegrity?.startsWith("sha512-")) {
+      const hex = Buffer.from(expectedIntegrity.slice(7), "base64").toString(
+        "hex",
+      );
+      if (subject.digest?.sha512 !== hex) return null;
+    }
     const dependency = (
       statement?.predicate?.buildDefinition?.resolvedDependencies ?? []
     ).find((dep) =>
@@ -128,13 +150,16 @@ const fetchPublishCommit = async (repository, packageName, version) => {
   }
 };
 
-const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+const git = (...args) =>
+  execFileSync("git", args, { encoding: "utf8" }).trim();
 
 const isNotFound = (error) => error && error.status === 404;
 
-// publishedPackages: the publish step's output when the publish job ran (the
-// provable association for this run), or null when it skipped (rerun of an
-// already-published release; the attestation binding applies instead).
+// publishedPackages: the publish step's output when it ran and published (the
+// provable association for this run). null or an empty list carries no fresh
+// evidence, and the attestation binding applies instead; with a non-empty
+// list, exactly the listed versions are tagged and every other package is
+// left alone (its tag/reconcile is its own publishing run's job, not ours).
 // github: { getRef(ref), createRef(ref, sha), getReleaseByTag(tag), createRelease(release) }
 // where getters reject with a { status: 404 } error when missing.
 export const createReleaseTags = async ({
@@ -157,7 +182,7 @@ export const createReleaseTags = async ({
       continue;
     }
 
-    if (publishedPackages) {
+    if (publishedPackages?.length) {
       const publishedHere = publishedPackages.some(
         (entry) => entry.name === pkg.name && entry.version === pkg.version,
       );
@@ -168,7 +193,11 @@ export const createReleaseTags = async ({
     } else {
       let publishCommit = null;
       try {
-        publishCommit = await getPublishCommit(pkg.name, pkg.version);
+        publishCommit = await getPublishCommit(
+          pkg.name,
+          pkg.version,
+          metadata?.versions?.[pkg.version]?.dist?.integrity ?? null,
+        );
       } catch (error) {
         problems.push(
           `Could not read the provenance attestation for ${tag}: ${error.message}`,
@@ -299,8 +328,8 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
         owner,
         repo,
       }),
-      getPublishCommit: (name, version) =>
-        fetchPublishCommit(`${owner}/${repo}`, name, version),
+      getPublishCommit: (name, version, integrity) =>
+        fetchPublishCommit(`${owner}/${repo}`, name, version, integrity),
     });
     if (result.problems.length > 0) {
       for (const problem of result.problems) console.log(`::error::${problem}`);
