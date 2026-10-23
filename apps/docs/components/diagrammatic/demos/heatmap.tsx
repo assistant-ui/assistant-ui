@@ -37,6 +37,16 @@ export const glyph = (
   />
 );
 
+const DEPLOYS = DAYS.map((_, day) =>
+  Array.from({ length: 26 }, (_, week) => {
+    if (week === 0) return day === 1 ? 1 : 0;
+    if (day >= 5) return week === 10 || week === 18 ? 2 : 0;
+    if (day === 1) return 4 + (week % 3);
+    if (day === 3) return week % 2 === 0 ? 3 : 1;
+    return day === 4 && week % 5 === 0 ? 2 : 1;
+  }),
+);
+
 export const examples: DemoExample[] = [
   {
     title: "Commits by weekday and hour",
@@ -71,18 +81,8 @@ export const examples: DemoExample[] = [
       <FigTooltip
         matrix={{
           rows: DAYS,
-          columns: Array.from({ length: 26 }, (_, week) =>
-            week % 4 === 0 ? `w${week + 1}` : "",
-          ),
-          values: DAYS.map((_, day) =>
-            Array.from({ length: 26 }, (_, week) => {
-              if (week === 51 || week === 0) return day === 1 ? 1 : 0;
-              if (day >= 5) return week === 10 || week === 18 ? 2 : 0;
-              if (day === 1) return week % 1 === 0 ? 4 + (week % 3) : 1;
-              if (day === 3) return week % 2 === 0 ? 3 : 1;
-              return day === 4 && week % 5 === 0 ? 2 : 1;
-            }),
-          ),
+          columns: Array.from({ length: 26 }, (_, week) => `w${week + 1}`),
+          values: DEPLOYS,
         }}
       >
         <Heatmap
@@ -94,15 +94,7 @@ export const examples: DemoExample[] = [
             cols: Array.from({ length: 26 }, (_, week) =>
               week % 4 === 0 ? `w${week + 1}` : "",
             ),
-            values: DAYS.map((_, day) =>
-              Array.from({ length: 26 }, (_, week) => {
-                if (week === 0) return day === 1 ? 1 : 0;
-                if (day >= 5) return week === 10 || week === 18 ? 2 : 0;
-                if (day === 1) return 4 + (week % 3);
-                if (day === 3) return week % 2 === 0 ? 3 : 1;
-                return day === 4 && week % 5 === 0 ? 2 : 1;
-              }),
-            ),
+            values: DEPLOYS,
           }}
         />
       </FigTooltip>

@@ -11,7 +11,7 @@ Charts stay server components. Interaction lives in `diagrammatic/interactive`, 
 
 ## The mark address
 
-Every drawn mark carries `data-part="mark"` and up to four address slots. Every form fills the same four, so the interaction API never grows per form.
+Every drawn mark carries `data-part="mark"` and up to four address slots. Each form fills the slots its marks have (a parallel-coordinates record has a series but no index), and no form adds a fifth, so the interaction API never grows per form.
 
 | Slot | Attribute | Meaning |
 | --- | --- | --- |
@@ -38,18 +38,22 @@ A highlight stamps `data-dg-active` on matching marks and `data-dg-muted` on the
 ```tsx
 "use client";
 
-import { Line } from "diagrammatic";
-import { Root, type MarkQuery } from "diagrammatic/interactive";
+import { useState } from "react";
+import { Line, type Series } from "diagrammatic";
+import { Root } from "diagrammatic/interactive";
 
-const [selected, setSelected] = useState<string | null>(null);
-
-<Root
-  {...(selected && { highlight: { series: selected } satisfies MarkQuery })}
-  highlightOnHover="series"
-  onMarkClick={(datum) => console.log(datum.series, datum.index)}
->
-  <Line series={series} labels={weeks} />
-</Root>;
+export function TrafficChart({ series, weeks }: { series: Series[]; weeks: string[] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <Root
+      {...(selected && { highlight: { series: selected } })}
+      highlightOnHover="series"
+      onMarkClick={(datum) => setSelected(datum.series ?? null)}
+    >
+      <Line series={series} labels={weeks} />
+    </Root>
+  );
+}
 ```
 
 ## Tooltip
