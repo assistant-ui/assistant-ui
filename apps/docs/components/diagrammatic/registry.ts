@@ -1041,12 +1041,7 @@ export const CHART_SECTIONS: ChartSection[] = SECTIONS.map(
   }),
 );
 
-export const CHARTS: Chart[] = CHART_SECTIONS.flatMap(
-  (section) => section.charts,
-);
-
-export const CHART_COUNT = CHARTS.length;
-export const SECTION_COUNT = CHART_SECTIONS.length;
+const CHARTS: Chart[] = CHART_SECTIONS.flatMap((section) => section.charts);
 
 export function sectionId(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
