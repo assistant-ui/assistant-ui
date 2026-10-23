@@ -107,7 +107,7 @@ function ConnectionNotice({
   return (
     <div
       role="status"
-      className="bg-muted flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm sm:px-6"
+      className="bg-muted/50 flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm sm:px-6"
     >
       {retrying ? (
         <LoaderCircleIcon className="size-4 shrink-0 animate-spin" />
@@ -123,7 +123,12 @@ function ConnectionNotice({
                 : "."
             }`}
       </span>
-      <Button size="sm" variant="outline" onClick={connection.reconnect}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="cursor-pointer"
+        onClick={connection.reconnect}
+      >
         Retry now
       </Button>
     </div>
