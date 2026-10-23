@@ -35,6 +35,8 @@ on:
       - "knip-baseline.json"
       - "scripts/check-adapter-architecture.mjs"
       - "scripts/check-adapter-architecture.test.mjs"
+      - "scripts/check-pypi-dist.sh"
+      - "scripts/check-pypi-dist.test.mjs"
       - "scripts/check-packed-release.mjs"
       - "scripts/check-packed-release.test.mjs"
       - "scripts/source-mapped-tsconfigs.test.mjs"
@@ -153,6 +155,9 @@ jobs:
 
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
+
+      - name: Test the PyPI distribution checker
+        run: node --test scripts/check-pypi-dist.test.mjs
 
       - name: Test the packed release checker
         run: node --test scripts/check-packed-release.test.mjs

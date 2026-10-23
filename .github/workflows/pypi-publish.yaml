@@ -298,28 +298,7 @@ jobs:
 
       # The build job runs the build backend, so its artifact may publish only the version the summary job read from pyproject.toml without building.
       - name: Check the distributions against the release target
-        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}/dist
-        run: |
-          set -euo pipefail
-          dist_name="${PYTHON_PACKAGE_NAME//-/_}-${VERSION}"
-          shopt -s nullglob dotglob
-          files=( * )
-          wheels=( "${dist_name}"-*.whl )
-          if [ ! -f "${dist_name}.tar.gz" ] || [ -L "${dist_name}.tar.gz" ] || [ "${#wheels[@]}" -eq 0 ]; then
-            echo "::error::Expected an sdist and a wheel for ${dist_name}; found: ${files[*]:-nothing}"
-            exit 1
-          fi
-          for file in "${files[@]}"; do
-            if [ "$file" != "${dist_name}.tar.gz" ] && [[ "$file" != "${dist_name}"-*.whl ]]; then
-              echo "::error::Unexpected file in the distributions: $file"
-              exit 1
-            fi
-            if [ -L "$file" ] || [ ! -f "$file" ]; then
-              echo "::error::Not a regular file: $file"
-              exit 1
-            fi
-          done
-          ls -la
+        run: bash scripts/check-pypi-dist.sh "$PYTHON_PACKAGE_DIR/dist" "$PYTHON_PACKAGE_NAME" "$VERSION"
 
       # PyPI trusted publishing requires this workflow filename and the
       # `pypi publish` environment to match the project's trusted-publisher config.
