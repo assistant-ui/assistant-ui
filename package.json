@@ -6,7 +6,7 @@
   },
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
-    "docs:dev": "turbo run dev --filter=@assistant-ui/docs",
+    "docs:dev": "turbo run dev --filter=@assistant-ui/docs-site",
     "ci:version": "changeset version",
     "build": "turbo build --concurrency=4",
     "api-surface": "node scripts/update-api-surface.mjs",

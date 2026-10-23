@@ -11,7 +11,7 @@ So: whenever you add a new publishable package (or notice one missing its config
 
 ## When this applies
 
-The release workflow only scans `packages/*` and publishes each package there whose `package.json` is not `"private": true`. So a new package under `packages/` needs this setup unless you mark it `"private": true` (as `@assistant-ui/ui` and `@assistant-ui/x-changelog` are). Anything outside `packages/` is never published regardless — e.g. `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` live under `apps/`, so they're excluded by location.
+The release workflow only scans `packages/*` and publishes each package there whose `package.json` is not `"private": true`. So a new package under `packages/` needs this setup unless you mark it `"private": true` (as `@assistant-ui/ui` and `@assistant-ui/x-changelog` are). Anything outside `packages/` is never published regardless — e.g. `@assistant-ui/docs-site` and `@assistant-ui/shadcn-registry` live under `apps/`, so they're excluded by location.
 
 ## The config values (identical for every package in this repo)
 

@@ -60,7 +60,7 @@ jobs:
 
       - name: Install API reference dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --ignore-scripts --filter="@assistant-ui/docs..."
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter="@assistant-ui/docs-site..."
 
       - name: Update API surface snapshots
         env:

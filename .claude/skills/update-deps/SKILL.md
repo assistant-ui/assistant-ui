@@ -52,7 +52,7 @@ Both are defined in the root `package.json`; `deps:update` runs `scripts/update-
 
 ### Notes
 
-- Do **not** hand-edit the generated changeset's bump levels — `generate-deps-changeset.sh` emits `patch` for every published package whose `package.json` changed in a consumer-facing field and skips private packages (`@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, etc.). Per `AGENTS.md`, dependency updates are always patch.
+- Do **not** hand-edit the generated changeset's bump levels — `generate-deps-changeset.sh` emits `patch` for every published package whose `package.json` changed in a consumer-facing field and skips private packages (`@assistant-ui/docs-site`, `@assistant-ui/shadcn-registry`, etc.). Per `AGENTS.md`, dependency updates are always patch.
 - The script compares every `package.json` against the point where the branch left `origin/main`, so committed, staged and unstaged edits all count and it can run after the bumps are committed; fetch `origin/main` first. A rerun on an existing dependency branch rewrites the changeset an earlier run added instead of writing a second one.
 - `pnpm-lock.yaml` will have a huge diff; that's expected since step 2 deletes it.
 - `pnpm unmanaged-pins:check` guards two pins the updater never opens, so a routine run can go red on a file it did not touch. Raise the exact pins in `apps/docs/lib/xulux/learn/courses/*/shared/project/package.json` to whatever the workspace now prevailingly declares (pins on packages this repository publishes are exempt, since those move on every release), and move any version-scoped `allowBuilds` entry in `pnpm-workspace.yaml` to the version the refreshed lockfile installs.
