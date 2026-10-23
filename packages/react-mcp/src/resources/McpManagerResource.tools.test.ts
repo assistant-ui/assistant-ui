@@ -147,43 +147,6 @@ describe("McpManagerResource tool registration", () => {
     },
   );
 
-  it("fails closed when the runtime cannot request approval", async () => {
-    mocks.toolNames = ["search"];
-    const handle = mount({
-      connectors: [
-        defineConnector({
-          id: "docs",
-          name: "Docs",
-          url: "https://example.com/mcp",
-          auth: { type: "none" },
-        }),
-      ],
-      storage: McpMemoryStorage(),
-    });
-    try {
-      const aui = handle.getClient();
-      await aui.mcp.connector({ index: 0 }).connect();
-      await vi.waitFor(() =>
-        expect(aui.modelContext.getState().toolNames).toContain("docs__search"),
-      );
-      const result = await aui.modelContext.getModelContext().tools![
-        "docs__search"
-      ]!.execute!({}, {} as never);
-      expect(result).toEqual({
-        content: [
-          {
-            type: "text",
-            text: "Approval is not available in this runtime. Set requireApproval: false on this server to run its tools without asking.",
-          },
-        ],
-        isError: true,
-      });
-      expect(mocks.callTool).not.toHaveBeenCalled();
-    } finally {
-      handle.destroy();
-    }
-  });
-
   it("propagates a rejected human request without calling the server", async () => {
     mocks.toolNames = ["search"];
     const handle = mount({
@@ -238,7 +201,7 @@ describe("McpManagerResource tool registration", () => {
       );
       const result = await aui.modelContext.getModelContext().tools![
         "docs__search"
-      ]!.execute!({ query: "today" }, {} as never);
+      ]!.execute!({ query: "today" }, { human: vi.fn() } as never);
       expect(result).toEqual({ content: [] });
       expect(mocks.callTool).toHaveBeenCalledExactlyOnceWith(
         "https://example.com/mcp",
@@ -295,7 +258,7 @@ describe("McpManagerResource tool registration", () => {
         ),
       );
       await aui.modelContext.getModelContext().tools![`${id}__search`]!
-        .execute!({}, {} as never);
+        .execute!({}, { human: vi.fn() } as never);
       expect(mocks.callTool).toHaveBeenCalledExactlyOnceWith(
         "https://example.com/mcp",
         { name: "search", arguments: {} },
@@ -388,10 +351,9 @@ describe("McpManagerResource tool registration", () => {
         expect(names).toHaveLength(1);
         expect(names[0]).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
         if (toolName.length <= 26) expect(names[0]).toBe(`${id}__${toolName}`);
-        await context.tools![names[0]!]!.execute!(
-          { pull_number: 42 },
-          {} as never,
-        );
+        await context.tools![names[0]!]!.execute!({ pull_number: 42 }, {
+          human: vi.fn(),
+        } as never);
         expect(mocks.callTool).toHaveBeenCalledWith("https://example.com/mcp", {
           name: toolName,
           arguments: { pull_number: 42 },
@@ -463,7 +425,7 @@ describe("McpManagerResource tool registration", () => {
         const registration = [];
         for (const name of names) {
           const tool = currentTools[name]!;
-          await tool.execute!({}, {} as never);
+          await tool.execute!({}, { human: vi.fn() } as never);
           registration.push({ name, target: mocks.callTool.mock.calls.at(-1) });
         }
         expect(mocks.callTool).toHaveBeenCalledTimes(

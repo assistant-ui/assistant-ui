@@ -180,17 +180,6 @@ const useMcpManagerResource = (
           parameters: tool.inputSchema as never,
           execute: async (args, context) => {
             if (server.requireApproval !== false) {
-              if (typeof context?.human !== "function") {
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: "Approval is not available in this runtime. Set requireApproval: false on this server to run its tools without asking.",
-                    },
-                  ],
-                  isError: true,
-                };
-              }
               const decision = await context.human({
                 type: "mcp-tool-approval",
                 serverId: server.id,

@@ -265,6 +265,33 @@ import { getMcpToolName } from "@assistant-ui/react-mcp";
 
 Replace `serverId` with the connected server's ID and `ReviewCommentsToolUI` with your tool renderer. A renderer keyed by the old `serverId__toolName` string must use the helper when that name requires an alias.
 
+A custom renderer replaces the default tool UI, so it must render approval controls when the interrupt payload has type `"mcp-tool-approval"`. Set `requireApproval: false` on servers your app trusts if their tools should run without asking.
+
+```tsx
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+
+const isMcpApproval = (payload: unknown) =>
+  typeof payload === "object" &&
+  payload !== null &&
+  "type" in payload &&
+  payload.type === "mcp-tool-approval";
+
+const ReviewCommentsToolUI: ToolCallMessagePartComponent = ({
+  interrupt,
+  resume,
+}) => {
+  if (isMcpApproval(interrupt?.payload)) {
+    return (
+      <div>
+        <button onClick={() => resume({ approved: true })}>Allow</button>
+        <button onClick={() => resume({ approved: false })}>Deny</button>
+      </div>
+    );
+  }
+  return null; // your tool UI
+};
+```
+
 If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
 
 ```ts
