@@ -156,6 +156,7 @@ export type AllowedTags = Record<string, string[]>;
  * @example
  * // Restrict to specific domains
  * security={{
+ *   defaultOrigin: "https://example.com",
  *   allowedLinkPrefixes: ["https://example.com", "https://docs.example.com"],
  *   allowedImagePrefixes: ["https://cdn.example.com"],
  *   allowedProtocols: ["https", "mailto"],
@@ -385,6 +386,7 @@ export type StreamdownTextPrimitiveProps = Omit<
    * @example
    * // Restrict links to trusted domains only
    * security={{
+   *   defaultOrigin: "https://trusted.com",
    *   allowedLinkPrefixes: ["https://trusted.com"],
    *   allowedImagePrefixes: ["https://cdn.trusted.com"],
    *   allowedProtocols: ["https"],
