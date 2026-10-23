@@ -2,9 +2,10 @@ import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
 import { spawn } from "node:child_process";
-import { open, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { lstat, open, readFile, realpath } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
-import { resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import {
   AGENT_HEARTBEAT_MS,
   OPTION_ICONS,
@@ -664,9 +665,44 @@ export const writeEnvSecret = async (
   file: string,
   key: string,
   take: () => Promise<string>,
+  projectRoot = process.cwd(),
 ) => {
   assertEnvKey(key);
-  const handle = await open(file, "a+", 0o600);
+  try {
+    if ((await lstat(file)).isSymbolicLink()) {
+      throw new Error(`${file} is a symbolic link`);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  const projectRelative = relative(projectRoot, file);
+  if (
+    projectRelative !== ".." &&
+    !projectRelative.startsWith(`..${sep}`) &&
+    !isAbsolute(projectRelative)
+  ) {
+    const root = await realpath(projectRoot);
+    const parent = await realpath(dirname(file));
+    const parentRelative = relative(root, parent);
+    if (
+      parentRelative === ".." ||
+      parentRelative.startsWith(`..${sep}`) ||
+      isAbsolute(parentRelative)
+    ) {
+      throw new Error(`${file} has a parent directory outside the project`);
+    }
+  }
+  const handle = await open(
+    file,
+    constants.O_RDWR |
+      constants.O_APPEND |
+      constants.O_CREAT |
+      constants.O_NOFOLLOW,
+    0o600,
+  ).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ELOOP") throw new Error(`${file} is a symbolic link`);
+    throw error;
+  });
   try {
     await handle.chmod(0o600);
     const value = await take();

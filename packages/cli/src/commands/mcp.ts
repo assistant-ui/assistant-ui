@@ -12,6 +12,7 @@ import {
 } from "jsonc-parser";
 import { logger } from "../lib/utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
+import { assertSafeProjectFile } from "../lib/safe-project-file";
 import * as p from "@clack/prompts";
 
 type MCPTarget =
@@ -343,12 +344,17 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   const targetConfig = MCP_CONFIGS[target];
   const configPath = targetConfig.getPath();
   const configDir = path.dirname(configPath);
+  const projectRoot =
+    target === "cursor" || target === "vscode" ? process.cwd() : undefined;
 
   logger.info(`Installing MCP server for ${targetConfig.name}...`);
+
+  if (projectRoot) assertSafeProjectFile(configPath, projectRoot);
 
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }
+  if (projectRoot) assertSafeProjectFile(configPath, projectRoot);
 
   let existingConfig: any = {};
   let content = "{}\n";
@@ -402,7 +408,32 @@ async function installForTarget(target: MCPTarget): Promise<void> {
         )
       : targetConfig.server,
   );
-  fs.writeFileSync(configPath, updatedContent);
+  if (projectRoot) {
+    assertSafeProjectFile(configPath, projectRoot);
+    let descriptor: number;
+    try {
+      descriptor = fs.openSync(
+        configPath,
+        fs.constants.O_WRONLY |
+          fs.constants.O_CREAT |
+          fs.constants.O_TRUNC |
+          fs.constants.O_NOFOLLOW,
+        0o666,
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ELOOP") {
+        throw new Error(`${configPath} is a symbolic link`);
+      }
+      throw error;
+    }
+    try {
+      fs.writeFileSync(descriptor, updatedContent);
+    } finally {
+      fs.closeSync(descriptor);
+    }
+  } else {
+    fs.writeFileSync(configPath, updatedContent);
+  }
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
@@ -469,6 +500,9 @@ export const mcp = new Command()
         await installForTarget(target);
       } catch (error) {
         if (error instanceof SpawnSignalError) throw error;
+        if (error instanceof Error && !(error instanceof McpConfigParseError)) {
+          logger.error(error.message);
+        }
         process.exit(1);
       }
     }
