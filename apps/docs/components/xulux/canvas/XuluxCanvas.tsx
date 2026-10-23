@@ -40,23 +40,18 @@ const previewOrigins = new Set(
 );
 
 function toAllowedPreviewUrl(url: string | null): string | null {
-  if (!url) return null;
-  if (url.startsWith("/") && !url.startsWith("//")) return toAbsoluteUrl(url);
-  let origin: string;
+  if (!url || /[\\\s]/.test(url)) return null;
+  const base =
+    typeof window === "undefined" ? undefined : window.location.origin;
+  let parsed: URL;
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-    origin = parsed.origin;
+    parsed = base ? new URL(url, base) : new URL(url);
   } catch {
-    return null;
+    return !base && url.startsWith("/") && !url.startsWith("//") ? url : null;
   }
-  if (previewOrigins.has(origin)) return url;
-  if (typeof window !== "undefined" && origin === window.location.origin) {
-    return url;
-  }
-  return null;
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  if (parsed.origin !== base && !previewOrigins.has(parsed.origin)) return null;
+  return base ? parsed.href : url;
 }
 
 function hostnameFromUrl(url: string): string {

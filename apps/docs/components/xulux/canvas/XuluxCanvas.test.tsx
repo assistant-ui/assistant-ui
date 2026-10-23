@@ -45,6 +45,8 @@ describe("XuluxCanvas preview origin", () => {
     "https://evil.example/preview",
     "https://0d9e27d14127c0eeadfc34b424cc7ed0.preview.bl.run.evil.example/preview",
     "//evil.example/preview",
+    "/\\evil.example/preview",
+    "/\t/evil.example/preview",
     "javascript:alert(1)",
   ])("shows the empty state for an untrusted preview from %s", (url) => {
     renderPreview(url);
