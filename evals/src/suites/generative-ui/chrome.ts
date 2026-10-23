@@ -111,12 +111,14 @@ export async function openChromePage(
       child.exitCode !== null ||
       child.signalCode !== null;
     const deadline = Date.now() + 30_000;
-    while (!existsSync(portFile) && !stopped() && Date.now() < deadline) {
+    let port: string | undefined;
+    while (!stopped() && Date.now() < deadline) {
+      if (existsSync(portFile)) {
+        port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
+        if (port) break;
+      }
       await sleep(100);
     }
-    const port = existsSync(portFile)
-      ? readFileSync(portFile, "utf8").split("\n")[0]
-      : undefined;
     if (!port) {
       if (stopped()) {
         await withTimeout(closed, 1_000, "Chrome's log").catch(() => {});
