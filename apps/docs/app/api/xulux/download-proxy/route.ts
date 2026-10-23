@@ -160,8 +160,9 @@ export async function GET(req: Request) {
     return new NextResponse(limitArchiveSize(body), {
       status: 200,
       headers: {
-        "Content-Type":
-          upstream.headers.get("content-type") ?? "application/octet-stream",
+        "Content-Type": "application/zip",
+        "Content-Disposition": 'attachment; filename="template.zip"',
+        "X-Content-Type-Options": "nosniff",
         // fetch decodes the body but leaves the encoded content-length on the
         // response, so forwarding it under an encoding declares a byte count
         // this route will never write.
