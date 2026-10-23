@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
+import type { ConversationUsage } from "@/lib/conversation-limit";
 import { getAnonymousSession } from "@/lib/anonymous-session";
 import { readDemoUsage, resolveDemoIdentity } from "@/lib/demo-usage";
 import { getClientIp } from "@/lib/rate-limit";
 
-export type DemoUsagePayload = {
-  used: number;
-  limit: number;
-  remaining: number;
-  resetAt: number;
-  signedIn: boolean;
-};
+export type DemoUsagePayload = ConversationUsage & { signedIn: boolean };
 
 // The composer asks before the visitor types, so a spent day offers sign-in
 // instead of letting them write a message the route would refuse.

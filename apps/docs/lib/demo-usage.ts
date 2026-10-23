@@ -52,6 +52,18 @@ function unlimited(limit: number): ConversationUsage {
   return { used: 0, limit, remaining: limit, resetAt: nextReset(Date.now()) };
 }
 
+function withSharedCap(
+  usage: ConversationUsage,
+  capRemaining: number,
+): ConversationUsage {
+  if (capRemaining >= usage.remaining) return usage;
+  return {
+    ...usage,
+    remaining: capRemaining,
+    ...(capRemaining === 0 ? { sharedLimitReached: true } : {}),
+  };
+}
+
 export async function readDemoUsage(
   identity: DemoIdentity,
   ip: string | null,
@@ -59,13 +71,15 @@ export async function readDemoUsage(
   const store = conversationCounter();
   if (!store) return unlimited(identity.limit);
   try {
-    const usage = await store.read(identity.identity, identity.limit);
+    const now = Date.now();
+    const usage = await store.read(identity.identity, identity.limit, now);
     if (identity.signedIn || !ip) return usage;
     const ipUsage = await store.read(
       `ip:${ip}`,
       ANONYMOUS_CONVERSATIONS_PER_IP_PER_DAY,
+      now,
     );
-    return ipUsage.remaining < usage.remaining ? ipUsage : usage;
+    return withSharedCap(usage, ipUsage.remaining);
   } catch {
     return unlimited(identity.limit);
   }
@@ -81,17 +95,23 @@ export async function claimConversation(
   // The cap is friction, not a security boundary, so a counter that cannot be
   // reached lets the conversation through instead of refusing it.
   try {
-    const claim = await store.claim(
+    if (identity.signedIn || !ip)
+      return await store.claim(identity.identity, threadId, identity.limit);
+    const claim = await store.claimWithCap(
       identity.identity,
       threadId,
       identity.limit,
-    );
-    if (!claim.allowed || identity.signedIn || !ip) return claim;
-    return await store.claim(
       `ip:${ip}`,
-      threadId,
+      `${identity.identity}:${threadId}`,
       ANONYMOUS_CONVERSATIONS_PER_IP_PER_DAY,
     );
+    return {
+      allowed: claim.allowed,
+      usage: withSharedCap(
+        claim.usage,
+        Math.max(0, ANONYMOUS_CONVERSATIONS_PER_IP_PER_DAY - claim.capUsed),
+      ),
+    };
   } catch {
     return { allowed: true, usage: unlimited(identity.limit) };
   }

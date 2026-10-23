@@ -23,6 +23,9 @@ export default defineToolkit({
         conversationsRemaining: usage.remaining,
         resetsAt: new Date(usage.resetAt).toISOString(),
         signedIn: usage.signedIn,
+        ...(usage.sharedLimitReached
+          ? { sharedNetworkLimitReached: true }
+          : {}),
         // The cap counts conversations rather than messages, and the model
         // otherwise reports whichever the visitor happened to ask about.
         countedUnit: "conversations, not messages",
