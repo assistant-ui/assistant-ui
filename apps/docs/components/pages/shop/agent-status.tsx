@@ -144,7 +144,7 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
 }
 
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
-const AGENT_MARK_SHIFT_REM = 1.125;
+const AGENT_MARK_SHIFT_REM = 1;
 
 /** The marks of the coding agents a setup can be handed to. */
 export function AgentMarks({ className }: { className?: string }) {
@@ -152,7 +152,7 @@ export function AgentMarks({ className }: { className?: string }) {
     <ul
       aria-label="Supported coding agents"
       tabIndex={0}
-      className="group/agents focus-visible:outline-ring flex items-center gap-2 rounded-sm outline-offset-4 focus-visible:outline-2"
+      className="group/agents focus-visible:outline-ring flex items-center gap-1.5 rounded-sm outline-offset-4 focus-visible:outline-2"
     >
       {WORKS_WITH.map((kind, index) => (
         <li
