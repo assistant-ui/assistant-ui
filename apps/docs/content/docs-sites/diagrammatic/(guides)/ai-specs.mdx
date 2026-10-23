@@ -43,7 +43,7 @@ const spec = validateSpec(JSON.parse(modelOutput));
 <Chart spec={spec} />;
 ```
 
-`validateSpec` checks that the type exists and that the form's required fields are present with the right shape, and throws an error naming the field when they are not. That message is written to be handed back to the model. `Chart` never throws: a spec with an unknown type renders an inert placeholder, so a malformed stream cannot take the page down. Deep field checks stay with TypeScript, through the `ChartSpec` type.
+`validateSpec` checks that the type exists and that the form's required fields are present with the right shape, and throws an error naming the field when they are not. That message is written to be handed back to the model. A spec with an unknown type renders an inert placeholder instead of throwing, so a half-written stream cannot take the page down. `validateSpec` checks structure only; deep field checks stay with TypeScript through the `ChartSpec` type, so a malformed value inside a valid shape (an item that is not an object, say) can still throw while the chart renders. Render untrusted specs inside an error boundary.
 
 ## In an assistant-ui thread
 

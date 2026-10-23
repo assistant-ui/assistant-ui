@@ -57,12 +57,29 @@ const WORKSPACES: Record<string, number> = {
 };
 
 const NAMES = new Map(WORLD.map((country) => [country.iso, country.name]));
+const OPTIONS = WORLD.filter((country) => country.iso in WORKSPACES).sort(
+  (a, b) => a.name.localeCompare(b.name),
+);
 
 export default function CountryPicker() {
   const [iso, setIso] = useState("JP");
 
   return (
     <div>
+      <label className="mb-3 flex items-center gap-2 text-sm">
+        Country
+        <select
+          value={iso}
+          onChange={(event) => setIso(event.target.value)}
+          className="rounded-md border bg-transparent px-2 py-1"
+        >
+          {OPTIONS.map((country) => (
+            <option key={country.iso} value={country.iso}>
+              {country.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <Root
         highlight={{ series: iso }}
         onMarkClick={(datum) => {
@@ -76,7 +93,7 @@ export default function CountryPicker() {
         {WORKSPACES[iso] !== undefined
           ? ` has ${WORKSPACES[iso]} active workspaces.`
           : " has no active workspaces yet."}{" "}
-        Click another country.
+        Click a country or pick one from the list.
       </p>
     </div>
   );
