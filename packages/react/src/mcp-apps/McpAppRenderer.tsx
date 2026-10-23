@@ -277,7 +277,9 @@ function InlineRenderer({
           if ("reason" in result) {
             return { isError: true, ok: false, reason: result.reason };
           }
-          aui.thread.append({ content: result.content });
+          aui.composer.setText(
+            result.content.map((part) => part.text).join("\n"),
+          );
           return { ok: true };
         }),
       callTool: (params) =>

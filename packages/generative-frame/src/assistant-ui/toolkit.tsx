@@ -316,7 +316,7 @@ export function createWidgetToolkit(
       onPrompt:
         options.widget?.onPrompt ??
         ((text: string) => {
-          aui.thread.append(text);
+          aui.composer.setText(text);
         }),
     };
   }

@@ -16,8 +16,9 @@ import type {
   McpAppsRemoteHostOptions,
 } from "./types";
 
-const { appendMock, framePropsMock } = vi.hoisted(() => ({
+const { appendMock, setTextMock, framePropsMock } = vi.hoisted(() => ({
   appendMock: vi.fn(),
+  setTextMock: vi.fn(),
   framePropsMock: vi.fn(),
 }));
 
@@ -25,6 +26,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
   useAui: () => ({
     thread: { append: appendMock },
+    composer: { setText: setTextMock },
   }),
 }));
 
@@ -190,6 +192,7 @@ function RemoteHarness({
 describe("McpAppRenderer", () => {
   beforeEach(() => {
     appendMock.mockReset();
+    setTextMock.mockReset();
     framePropsMock.mockReset();
   });
 
@@ -676,7 +679,7 @@ describe("McpAppRenderer", () => {
     expect(listResources).toHaveBeenCalledWith(params);
   });
 
-  it("appends MCP Apps message content in the default sendMessage handler", async () => {
+  it("puts MCP Apps text content in the composer without appending", async () => {
     render(<Harness host={loadingHost()} />);
     await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
     const handlers = framePropsMock.mock.lastCall?.[0]
@@ -692,19 +695,13 @@ describe("McpAppRenderer", () => {
         ],
       }),
     ).toEqual({ ok: true });
-    expect(appendMock).toHaveBeenCalledWith({
-      content: [
-        { type: "text", text: "Open Grade 5 Math" },
-        { type: "text", text: "Period 4" },
-      ],
-    });
+    expect(setTextMock).toHaveBeenCalledWith("Open Grade 5 Math\nPeriod 4");
+    expect(appendMock).not.toHaveBeenCalled();
 
     expect(handlers.sendMessage?.({ text: "typed instead" })).toEqual({
       ok: true,
     });
-    expect(appendMock).toHaveBeenLastCalledWith({
-      content: [{ type: "text", text: "typed instead" }],
-    });
+    expect(setTextMock).toHaveBeenLastCalledWith("typed instead");
 
     expect(
       handlers.sendMessage?.({
@@ -722,7 +719,8 @@ describe("McpAppRenderer", () => {
       ok: false,
       reason: "unrecognised params shape",
     });
-    expect(appendMock).toHaveBeenCalledTimes(2);
+    expect(setTextMock).toHaveBeenCalledTimes(2);
+    expect(appendMock).not.toHaveBeenCalled();
   });
 
   it("extracts sparse message content without traversing holes", async () => {
@@ -755,9 +753,8 @@ describe("McpAppRenderer", () => {
     }
 
     expect(visitedHole).not.toHaveBeenCalled();
-    expect(appendMock).toHaveBeenCalledWith({
-      content: [{ type: "text", text: "sparse prompt" }],
-    });
+    expect(setTextMock).toHaveBeenCalledExactlyOnceWith("sparse prompt");
+    expect(appendMock).not.toHaveBeenCalled();
   });
 
   it("ignores non-index message content properties after structured clone", async () => {
@@ -781,13 +778,10 @@ describe("McpAppRenderer", () => {
       ).toEqual({ ok: true });
     }
 
-    expect(appendMock).toHaveBeenCalledTimes(2);
-    expect(appendMock).toHaveBeenNthCalledWith(1, {
-      content: [{ type: "text", text: "message text" }],
-    });
-    expect(appendMock).toHaveBeenNthCalledWith(2, {
-      content: [{ type: "text", text: "message text" }],
-    });
+    expect(setTextMock).toHaveBeenCalledTimes(2);
+    expect(setTextMock).toHaveBeenNthCalledWith(1, "message text");
+    expect(setTextMock).toHaveBeenNthCalledWith(2, "message text");
+    expect(appendMock).not.toHaveBeenCalled();
   });
 
   it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
@@ -838,6 +832,8 @@ describe("McpAppRenderer", () => {
     expect(updateModelContext).toHaveBeenCalledWith({ text: "context" });
     expect(openLink).toHaveBeenCalledWith({ url: "https://example.com" });
     expect(sendMessage).toHaveBeenCalledWith({ text: "hello" });
+    expect(setTextMock).not.toHaveBeenCalled();
+    expect(appendMock).not.toHaveBeenCalled();
     expect(onInitialized).toHaveBeenCalledOnce();
     expect(host.callTool).toHaveBeenCalledWith({ name: "search" });
     expect(host.readResource).toHaveBeenCalledWith({ uri: "ui://resource" });

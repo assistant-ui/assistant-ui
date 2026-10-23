@@ -21,6 +21,7 @@ import { createWidgetToolkit, useWidgetInstructions } from "./toolkit";
 
 const mocks = vi.hoisted(() => ({
   append: vi.fn(),
+  setText: vi.fn(),
   register: vi.fn(),
   messages: [] as unknown[],
   remoteId: undefined as string | undefined,
@@ -84,6 +85,7 @@ const fakeWidget = (): FakeWidget => {
 vi.mock("@assistant-ui/react", () => ({
   useAui: () => ({
     thread: { append: mocks.append },
+    composer: { setText: mocks.setText },
     modelContext: {
       register: (provider: { getModelContext(): { system?: string } }) => {
         mocks.providers.push(provider);
@@ -605,7 +607,7 @@ describe("createWidgetToolkit", () => {
     });
   });
 
-  it("streams show_widget code and appends sendPrompt to the thread", () => {
+  it("streams show_widget code and puts sendPrompt in the composer", () => {
     const { toolkit, registry } = createWidgetToolkit({
       widget: { maxHeight: 500 },
     });
@@ -640,10 +642,30 @@ describe("createWidgetToolkit", () => {
     (mocks.widgetProps.at(-1)!["onPrompt"] as (text: string) => void)(
       "Tell me more",
     );
-    expect(mocks.append).toHaveBeenCalledWith("Tell me more");
+    expect(mocks.setText).toHaveBeenCalledExactlyOnceWith("Tell me more");
+    expect(mocks.append).not.toHaveBeenCalled();
     expect(mocks.widgetProps.at(-1)!["tokens"]).toMatchObject({
       colorScheme: "light",
     });
+  });
+
+  it("calls a custom widget onPrompt instead of filling the composer", () => {
+    const onPrompt = vi.fn();
+    const ShowWidget = entries(
+      createWidgetToolkit({ widget: { onPrompt } }).toolkit,
+    )["show_widget"]!.render;
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>ready</p>" })}
+      />,
+    );
+
+    (mocks.widgetProps.at(-1)!["onPrompt"] as (text: string) => void)(
+      "Tell me more",
+    );
+    expect(onPrompt).toHaveBeenCalledExactlyOnceWith("Tell me more");
+    expect(mocks.setText).not.toHaveBeenCalled();
+    expect(mocks.append).not.toHaveBeenCalled();
   });
 
   it("returns the live render report from show_widget", async () => {
