@@ -39,3 +39,14 @@ export async function Example({
     />
   );
 }
+
+// MDX imports Example directly, so the LLM renderer takes this static instead of the client preview frame.
+(
+  Example as typeof Example & {
+    llm: (props: { file: string }) => Promise<ReactNode>;
+  }
+).llm = async ({ file }) => (
+  <pre>
+    <code className="language-tsx">{await readExample(file)}</code>
+  </pre>
+);

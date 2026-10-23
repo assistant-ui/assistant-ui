@@ -885,7 +885,7 @@ const SECTIONS: SectionInput[] = [
     charts: [
       {
         slug: "choropleth",
-        exportName: "ABSTRACT_TILES",
+        exportName: "Choropleth",
         name: "Choropleth",
         blurb: "Regions colored by value.",
         use: "Rates and ratios across regions on one sequential ramp.",
@@ -916,7 +916,7 @@ const SECTIONS: SectionInput[] = [
       },
       {
         slug: "dot-map",
-        exportName: "ABSTRACT_TILES",
+        exportName: "DotMap",
         name: "Dot map",
         blurb: "One dot, one unit, placed.",
         use: "Density and settlement patterns that emerge from individual units.",
