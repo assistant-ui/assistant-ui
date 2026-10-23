@@ -52,7 +52,7 @@ export const examples: DemoExample[] = [
   {
     title: "Daily tokens by model, 49 days",
     setup:
-      "The public usage page: daily token volume stacked by model, 50 thin bars. Totals first, mix second. Hover any day for the ledger.",
+      "The public usage page: daily token volume stacked by model, 49 thin bars. Totals first, mix second. Hover any day for the ledger.",
     read: "pico's band rises from 9B on July 1 to 31B on August 18, while atlas-0 falls from 11B to 4B. The total exceeds the 70B guide once, reaching 71B on August 16. swift first appears in late July and reaches 5B on the last day.",
     source: "Illustrative billed tokens per day, 1 Jul to 18 Aug.",
     chart: (
