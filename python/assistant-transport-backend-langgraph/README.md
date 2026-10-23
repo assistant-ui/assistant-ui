@@ -141,7 +141,7 @@ Because the FastAPI route streams with `graph.astream`, the backend uses `AsyncP
 
 ## Integration with Frontend
 
-This backend is designed to work with the assistant-ui frontend. Update your frontend configuration to point to this server:
+This backend implements Assistant Transport. Configure `useAssistantTransportRuntime` with `initialState`, a LangGraph state `converter`, and `headers`; the `with-assistant-transport` example shows a complete converter. Point the `api` option to this server's `POST /assistant` endpoint:
 
 ```typescript
 import { useAssistantTransportRuntime } from "@assistant-ui/react";
