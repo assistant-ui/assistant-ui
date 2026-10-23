@@ -151,6 +151,29 @@ describe("evaluateA2uiValueFunction", () => {
     });
   });
 
+  it("accepts formatString output at the length cap", () => {
+    const value = "x".repeat(100_000);
+    expect(
+      evaluate("formatString", { value: "${/value}" }, { "/value": value }),
+    ).toEqual({
+      value,
+      warnings: [],
+    });
+  });
+
+  it("warns and skips formatString output beyond the length cap", () => {
+    expect(
+      evaluate(
+        "formatString",
+        { value: "${/value}".repeat(500) },
+        { "/value": "x".repeat(201) },
+      ),
+    ).toEqual({
+      value: undefined,
+      warnings: ["A2UI formatString output is longer than 100000 characters."],
+    });
+  });
+
   it("formats numbers and currencies with the requested decimals and grouping", () => {
     const number = (options: Intl.NumberFormatOptions, value: number) =>
       new Intl.NumberFormat(undefined, options).format(value);

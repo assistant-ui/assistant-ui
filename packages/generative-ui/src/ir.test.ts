@@ -18,6 +18,41 @@ const asElement = (node: NormalizedUINode): NormalizedUIElement => {
 };
 
 describe("normalizeUINode", () => {
+  it("stops normalizing wide sibling lists at the node budget", () => {
+    const children = Array.from({ length: 10_000 }, (_, index) => ({
+      $type: "Text",
+      value: index,
+    }));
+    const root = asElement(normalizeUINode({ $type: "Column", children }));
+    const normalizedChildren = root.children;
+
+    if (!Array.isArray(normalizedChildren)) {
+      throw new Error("expected normalized children to be an array");
+    }
+    expect(normalizedChildren).toHaveLength(4_998);
+    expect(normalizedChildren[0]).toMatchObject({
+      type: "Text",
+      props: { value: 0 },
+    });
+    expect(normalizedChildren[4_997]).toMatchObject({
+      type: "Text",
+      props: { value: 4_997 },
+    });
+  });
+
+  it("shares the node budget across a root list and resets it for each call", () => {
+    const spec = Array.from({ length: 6_000 }, (_, index) => ({
+      $type: "Text",
+      value: index,
+    }));
+
+    expect(normalizeSpec(spec).root).toHaveLength(4_999);
+    expect(normalizeUINode({ $type: "Text", value: "next" })).toMatchObject({
+      type: "Text",
+      props: { value: "next" },
+    });
+  });
+
   describe("text leaf", () => {
     it("passes a string through", () => {
       expect(normalizeUINode("hello")).toBe("hello");
