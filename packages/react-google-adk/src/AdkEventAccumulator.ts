@@ -141,6 +141,30 @@ const mediaToContentPart = ({
       };
 };
 
+const toContentPart = (
+  part: AdkEventPart,
+): AdkMessageContentPart | undefined => {
+  if (part.text != null) {
+    return { type: part.thought ? "reasoning" : "text", text: part.text };
+  }
+  if (part.functionCall || part.functionResponse) return;
+  if (part.executableCode) {
+    return {
+      type: "code",
+      code: part.executableCode.code,
+      language: part.executableCode.language ?? "python",
+    };
+  }
+  if (part.codeExecutionResult) {
+    return {
+      type: "code_result",
+      output: part.codeExecutionResult.output,
+      outcome: part.codeExecutionResult.outcome ?? "OUTCOME_OK",
+    };
+  }
+  return mediaToContentPart(part);
+};
+
 // ── Snake_case normalization ──
 
 export const normalizeAdkEvent = (event: AdkEvent): AdkEvent => {
@@ -201,10 +225,6 @@ export const normalizeAdkEvent = (event: AdkEvent): AdkEvent => {
 export class AdkEventAccumulator {
   private messagesMap = new Map<string, AdkMessage>();
   private currentMessageId: string | null = null;
-  private partialTextBuffer = "";
-  private finalTextReplacedThisEvent = false;
-  private finalReasoningReplacedThisEvent = false;
-  private partialReasoningBuffer = "";
   private accumulatedStateDelta: Record<string, unknown> = Object.create(null);
   private accumulatedArtifactDelta: Record<string, number> =
     Object.create(null);
@@ -380,11 +400,24 @@ export class AdkEventAccumulator {
       }
     }
 
-    // Replace-semantics close out the streamed partial buffer, which only
-    // the first final text/reasoning part of an event may do; later parts
-    // of the same event are distinct content and append.
-    this.finalTextReplacedThisEvent = false;
-    this.finalReasoningReplacedThisEvent = false;
+    if (!event.partial && this.currentMessageId) {
+      const current = this.messagesMap.get(this.currentMessageId);
+      if (current?.type === "ai") {
+        const repeatedTypes = new Set<AdkMessageContentPart["type"]>();
+        for (const part of parts) {
+          if (part.functionResponse) break;
+          const contentPart = toContentPart(part);
+          if (contentPart) repeatedTypes.add(contentPart.type);
+        }
+        // A final response repeats its streamed parts, but tool-only and non-progressive media events can omit earlier text.
+        this.messagesMap.set(current.id, {
+          ...current,
+          content: this.getContentArray(current).filter(
+            (part) => !repeatedTypes.has(part.type),
+          ),
+        });
+      }
+    }
     for (const [index, part] of parts.entries()) {
       this.processPart(part, event, index);
     }
@@ -425,35 +458,10 @@ export class AdkEventAccumulator {
     event: AdkEvent,
     partIndex: number,
   ): void {
-    // Text with thought=true → reasoning (accumulated)
-    if (part.text != null && part.thought) {
+    const contentPart = toContentPart(part);
+    if (contentPart) {
       const msg = this.getOrCreateAiMessage(event);
-      if (event.partial) {
-        this.partialReasoningBuffer += part.text;
-        this.replaceLastReasoningContent(msg, this.partialReasoningBuffer);
-      } else if (!this.finalReasoningReplacedThisEvent) {
-        this.finalReasoningReplacedThisEvent = true;
-        this.partialReasoningBuffer = "";
-        this.replaceLastReasoningContent(msg, part.text);
-      } else {
-        this.appendContent(msg, { type: "reasoning", text: part.text });
-      }
-      return;
-    }
-
-    // Regular text
-    if (part.text != null) {
-      const msg = this.getOrCreateAiMessage(event);
-      if (event.partial) {
-        this.partialTextBuffer += part.text;
-        this.replaceLastTextContent(msg, this.partialTextBuffer);
-      } else if (!this.finalTextReplacedThisEvent) {
-        this.finalTextReplacedThisEvent = true;
-        this.partialTextBuffer = "";
-        this.replaceLastTextContent(msg, part.text);
-      } else {
-        this.appendContent(msg, { type: "text", text: part.text });
-      }
+      this.appendContent(msg, contentPart, event.partial === true);
       return;
     }
 
@@ -499,33 +507,6 @@ export class AdkEventAccumulator {
       this.messagesMap.set(toolMsg.id, toolMsg);
       return;
     }
-
-    // Executable code
-    if (part.executableCode) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, {
-        type: "code",
-        code: part.executableCode.code,
-        language: part.executableCode.language ?? "python",
-      });
-      return;
-    }
-
-    // Code execution result
-    if (part.codeExecutionResult) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, {
-        type: "code_result",
-        output: part.codeExecutionResult.output,
-        outcome: part.codeExecutionResult.outcome ?? "OUTCOME_OK",
-      });
-      return;
-    }
-
-    const mediaPart = mediaToContentPart(part);
-    if (!mediaPart) return;
-    const msg = this.getOrCreateAiMessage(event);
-    this.appendContent(msg, mediaPart);
   }
 
   private trackMessageMetadata(event: AdkEvent): void {
@@ -579,50 +560,29 @@ export class AdkEventAccumulator {
     };
     this.messagesMap.set(id, msg);
     this.currentMessageId = id;
-    this.partialTextBuffer = "";
-    this.partialReasoningBuffer = "";
     return msg;
   }
 
   private appendContent(
     msg: InProgressMessage,
     part: AdkMessageContentPart,
-  ): void {
-    const content = [...this.getContentArray(msg), part];
-    const updated: InProgressMessage = { ...msg, content };
-    this.messagesMap.set(updated.id, updated);
-  }
-
-  private replaceLastTextContent(msg: InProgressMessage, text: string): void {
-    const content = [...this.getContentArray(msg)];
-    const lastTextIdx = content.findLastIndex((p) => p.type === "text");
-    if (lastTextIdx >= 0) {
-      content[lastTextIdx] = { type: "text", text };
-    } else {
-      content.push({ type: "text", text });
-    }
-    const updated: InProgressMessage = { ...msg, content };
-    this.messagesMap.set(updated.id, updated);
-  }
-
-  private replaceLastReasoningContent(
-    msg: InProgressMessage,
-    text: string,
+    partial: boolean,
   ): void {
     const content = [...this.getContentArray(msg)];
-    const lastIdx = content.findLastIndex((p) => p.type === "reasoning");
-    if (lastIdx >= 0) {
-      content[lastIdx] = { type: "reasoning", text };
+    const last = content.at(-1);
+    if (
+      partial &&
+      (part.type === "text" || part.type === "reasoning") &&
+      last?.type === part.type
+    ) {
+      content[content.length - 1] = { ...part, text: last.text + part.text };
     } else {
-      content.push({ type: "reasoning", text });
+      content.push(part);
     }
-    const updated: InProgressMessage = { ...msg, content };
-    this.messagesMap.set(updated.id, updated);
+    this.messagesMap.set(msg.id, { ...msg, content });
   }
 
   private finalizeCurrentMessage(): void {
-    this.partialTextBuffer = "";
-    this.partialReasoningBuffer = "";
     this.currentMessageId = null;
   }
 
