@@ -30,6 +30,9 @@ type GroupSelection = {
 type IncomingRequest = AsyncIterable<Uint8Array | string> & {
   method?: string | undefined;
   url?: string | undefined;
+  socket: {
+    remoteAddress?: string | undefined;
+  };
   headers: Record<string, string | string[] | undefined>;
 };
 
