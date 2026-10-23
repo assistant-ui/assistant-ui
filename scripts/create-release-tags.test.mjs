@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   createReleaseTags,
+  fetchPublishCommit,
   getChangelogEntry,
   readPublishablePackages,
 } from "./create-release-tags.mjs";
@@ -33,7 +34,10 @@ function makeWorkspace(packages) {
   for (const [dirName, manifest, withChangelog = true] of packages) {
     const pkgDir = path.join(packagesDir, dirName);
     mkdirSync(pkgDir, { recursive: true });
-    writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify(manifest));
+    writeFileSync(
+      path.join(pkgDir, "package.json"),
+      JSON.stringify(manifest),
+    );
     if (withChangelog) {
       writeFileSync(
         path.join(pkgDir, "CHANGELOG.md"),
@@ -48,7 +52,8 @@ function makeGithub() {
   const calls = [];
   const tags = new Set();
   const releases = new Set();
-  const notFound = () => Object.assign(new Error("not found"), { status: 404 });
+  const notFound = () =>
+    Object.assign(new Error("not found"), { status: 404 });
   return {
     calls,
     tags,
@@ -78,9 +83,7 @@ const npmMetadata = (names) => async (name) =>
   names.includes(name) ? { versions: { "0.0.126": {}, "2.0.0": {} } } : null;
 
 const mutating = (github) =>
-  github.calls.filter(
-    ([kind]) => kind === "createRef" || kind === "createRelease",
-  );
+  github.calls.filter(([kind]) => kind === "createRef" || kind === "createRelease");
 
 test("creates tags and releases at the release SHA for this run's published packages", async () => {
   const packagesDir = makeWorkspace([
@@ -168,10 +171,7 @@ test("rerun reconciles from the provenance attestation when the publish job skip
     log: () => {},
   });
   // Missing release retried; existing tag kept.
-  assert.deepEqual(
-    mutating(github).map(([kind]) => kind),
-    ["createRelease"],
-  );
+  assert.deepEqual(mutating(github).map(([kind]) => kind), ["createRelease"]);
 });
 
 test("back-to-back releases: a version published by another run's SHA is never retargeted", async () => {
@@ -287,4 +287,132 @@ test("getChangelogEntry extracts exactly the version section", () => {
   assert.match(entry, /### Patch Changes/);
   assert.doesNotMatch(entry, /## 0\.0\.1/);
   assert.equal(getChangelogEntry(changelog("1.2.3"), "9.9.9"), null);
+});
+
+test("an empty publish output is no fresh evidence: provenance fallback applies", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+  ]);
+  const github = makeGithub();
+  await createReleaseTags({
+    packages: readPublishablePackages(packagesDir),
+    releaseSha: RELEASE_SHA,
+    publishedPackages: [], // rerun ran the publish job but had nothing to publish
+    github,
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
+    getPublishCommit: async () => RELEASE_SHA,
+    log: () => {},
+  });
+  assert.deepEqual(
+    github.calls.filter(([kind]) => kind === "createRef"),
+    [["createRef", "assistant-ui@0.0.126", RELEASE_SHA]],
+  );
+});
+
+test("an empty publish output with non-matching provenance skips, never guesses", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+  ]);
+  const github = makeGithub();
+  await createReleaseTags({
+    packages: readPublishablePackages(packagesDir),
+    releaseSha: RELEASE_SHA,
+    publishedPackages: [],
+    github,
+    getNpmMetadata: npmMetadata(["assistant-ui"]),
+    getPublishCommit: async () => OTHER_SHA,
+    log: () => {},
+  });
+  assert.deepEqual(mutating(github), []);
+});
+
+// fetchPublishCommit attestation handling (registry responses are mocked; no
+// network and no GitHub writes).
+const SHA512_HEX = "ab".repeat(64);
+const sha512Integrity = (hex) =>
+  `sha512-${Buffer.from(hex, "hex").toString("base64")}`;
+
+const attestationBody = ({ subjectName, gitCommit }) => ({
+  attestations: [
+    {
+      predicateType: "https://slsa.dev/provenance/v1",
+      bundle: {
+        dsseEnvelope: {
+          payload: Buffer.from(
+            JSON.stringify({
+              subject: [{ name: subjectName, digest: { sha512: SHA512_HEX } }],
+              predicate: {
+                buildDefinition: {
+                  resolvedDependencies: [
+                    {
+                      uri: "git+https://github.com/assistant-ui/assistant-ui@refs/heads/main",
+                      digest: { gitCommit },
+                    },
+                  ],
+                },
+              },
+            }),
+          ).toString("base64"),
+        },
+      },
+    },
+  ],
+});
+
+const withMockRegistry = async (body, fn) => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => body,
+  });
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = original;
+  }
+};
+
+const fetchCommit = (integrity = null) =>
+  withMockRegistry(
+    attestationBody({
+      subjectName: "pkg:npm/assistant-ui@0.0.126",
+      gitCommit: RELEASE_SHA,
+    }),
+    () =>
+      fetchPublishCommit(
+        "assistant-ui/assistant-ui",
+        "assistant-ui",
+        "0.0.126",
+        integrity,
+      ),
+  );
+
+test("provenance: a matching subject yields the publishing commit", async () => {
+  assert.equal(await fetchCommit(), RELEASE_SHA);
+  assert.equal(await fetchCommit(sha512Integrity(SHA512_HEX)), RELEASE_SHA);
+});
+
+test("provenance: an attestation for a different artifact is rejected", async () => {
+  const commit = await withMockRegistry(
+    attestationBody({
+      subjectName: "pkg:npm/some-other-package@9.9.9",
+      gitCommit: RELEASE_SHA,
+    }),
+    () =>
+      fetchPublishCommit("assistant-ui/assistant-ui", "assistant-ui", "0.0.126"),
+  );
+  assert.equal(commit, null);
+});
+
+test("provenance: a tarball digest mismatch is rejected", async () => {
+  const commit = await fetchCommit(sha512Integrity("cd".repeat(64)));
+  assert.equal(commit, null);
+});
+
+test("provenance: no SLSA attestation means no association", async () => {
+  const commit = await withMockRegistry({ attestations: [] }, () =>
+    fetchPublishCommit("assistant-ui/assistant-ui", "assistant-ui", "0.0.126"),
+  );
+  assert.equal(commit, null);
 });
