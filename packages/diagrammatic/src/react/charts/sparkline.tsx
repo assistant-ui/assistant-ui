@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import { areaPath, linePath, scalePoints, stroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
 import { MicroSvg } from "../svg";
+import { Pulse } from "../motion";
 
 export type SparklineProps = MicroBaseProps & {
   data: number[];
@@ -39,6 +40,7 @@ export const Sparkline = forwardRef<SVGSVGElement, SparklineProps>(
           data-part="mark"
           {...stroke.medium}
         />
+        {last && <Pulse cx={last.x} cy={last.y} r={2} color={ACCENT} />}
         {last && (
           <circle
             cx={last.x}

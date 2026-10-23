@@ -1,4 +1,5 @@
 import type { BaseProps } from "../svg";
+import { Pulse } from "../motion";
 import { forwardRef } from "react";
 import {
   type TickSpec,
@@ -252,6 +253,12 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
         ))}
         {!multi && last && (
           <g>
+            <Pulse
+              cx={round(last.x)}
+              cy={round(last.y)}
+              r={3.5}
+              color={ACCENT}
+            />
             <circle
               cx={round(last.x)}
               cy={round(last.y)}
