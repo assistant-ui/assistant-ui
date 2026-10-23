@@ -74,6 +74,7 @@ type VariantsConfig = {
 type VariantsPluginOptions = {
   root?: string | undefined;
   allowedHosts?: AllowedHosts | undefined;
+  allowRemoteClients?: boolean | undefined;
 };
 
 type VariantsProps = {

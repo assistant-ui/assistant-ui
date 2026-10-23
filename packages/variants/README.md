@@ -351,7 +351,7 @@ How the endpoints behave:
 - **Guards:**
   - development only (the Vite plugin is `apply: "serve"`; the Next handlers return 404 unless `NODE_ENV` is `development`)
   - loopback hosts only: the `Host` must be `localhost`, `*.localhost`, `127.0.0.1` or `[::1]` (any port), so a DNS-rebound page on another domain is refused even when its `Origin` matches. Allow another dev host with `variants({ allowedHosts })` (merged with Vite's `server.allowedHosts`) or `createVariantsRoutes({ allowedHosts })` for Next
-  - Vite refuses clients outside loopback unless `allowedHosts` is `true` or a non-empty list
+  - Vite admits clients outside loopback with `allowRemoteClients: true` for a dev server reached through a container or VM port mapping; the Host check still applies
   - a required `x-variants: 1` header
   - same-origin only: `Origin` must match `Host`, and `Sec-Fetch-Site: cross-site` is refused
   - `application/json` bodies of at most 64KB (malformed JSON is a 400, a larger body a 413)

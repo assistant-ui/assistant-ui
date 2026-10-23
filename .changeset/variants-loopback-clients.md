@@ -2,4 +2,4 @@
 "@assistant-ui/variants": patch
 ---
 
-fix: refuse non-loopback vite clients unless remote hosts are configured.
+fix: refuse non-loopback vite clients unless `allowRemoteClients` is set.

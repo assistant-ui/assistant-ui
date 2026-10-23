@@ -105,27 +105,59 @@ describe("guards", () => {
     }
   });
 
-  it("allows a LAN client when remote hosts are configured", async () => {
+  it("allows a LAN client when allowRemoteClients is true", async () => {
     const req = request("GET", "/ping", {
       remoteAddress: "192.168.1.42",
     });
-    expect(
-      (await handleNotesRequest(req, { root, dev: true, allowedHosts: [] }))
-        .status,
-    ).toBe(403);
-    expect(
-      (await handleNotesRequest(req, { root, dev: true, allowedHosts: true }))
-        .status,
-    ).toBe(200);
+    expect((await handleNotesRequest(req, { root, dev: true })).status).toBe(
+      403,
+    );
     expect(
       (
         await handleNotesRequest(req, {
           root,
           dev: true,
-          allowedHosts: ["dev.example.test"],
+          allowRemoteClients: true,
         })
       ).status,
     ).toBe(200);
+  });
+
+  it("refuses a LAN client when only allowedHosts is true", async () => {
+    expect(
+      await handleNotesRequest(
+        request("GET", "/ping", { remoteAddress: "192.168.1.42" }),
+        { root, dev: true, allowedHosts: true },
+      ),
+    ).toEqual({
+      status: 403,
+      body: {
+        error: "remote client not allowed; set allowRemoteClients to admit it",
+      },
+    });
+  });
+
+  it("refuses an unlisted Host for a LAN client when allowRemoteClients is true", async () => {
+    expect(
+      await handleNotesRequest(
+        request("GET", "/ping", {
+          remoteAddress: "192.168.1.42",
+          headers: {
+            host: "other.example.test",
+            origin: "http://other.example.test",
+          },
+        }),
+        {
+          root,
+          dev: true,
+          allowedHosts: ["dev.example.test"],
+          allowRemoteClients: true,
+        },
+      ),
+    ).toEqual({
+      status: 403,
+      body: { error: "host not allowed; add it to allowedHosts" },
+    });
   });
 
   it("answers 404 outside development", async () => {
@@ -550,11 +582,11 @@ describe("adapters", () => {
     );
   });
 
-  it("refuses a LAN client at the Vite middleware despite a forged loopback host", async () => {
+  it("refuses a LAN client at the Vite middleware even when allowedHosts is true", async () => {
     let middleware:
       | ((req: unknown, res: unknown, next: () => void) => void)
       | undefined;
-    variants().configureServer({
+    variants({ allowedHosts: true }).configureServer({
       config: { root },
       middlewares: { use: (_path, handler) => (middleware = handler as never) },
     });
@@ -579,11 +611,47 @@ describe("adapters", () => {
     expect(response).toBe(403);
   });
 
-  it("lets a LAN client reach Vite when remote hosts are allowed", async () => {
+  it("refuses a Vite client whose socket has no remoteAddress", async () => {
     let middleware:
       | ((req: unknown, res: unknown, next: () => void) => void)
       | undefined;
-    variants({ allowedHosts: true }).configureServer({
+    variants().configureServer({
+      config: { root },
+      middlewares: { use: (_path, handler) => (middleware = handler as never) },
+    });
+    const response = await new Promise<{ status: number; body: string }>(
+      (resolve) => {
+        const res = {
+          statusCode: 0,
+          setHeader: () => {},
+          end: (body: string) => resolve({ status: res.statusCode, body }),
+        };
+        middleware!(
+          {
+            method: "GET",
+            url: "/ping",
+            socket: {},
+            headers: { host: "localhost:5173", "x-variants": "1" },
+            async *[Symbol.asyncIterator]() {},
+          },
+          res,
+          () => {},
+        );
+      },
+    );
+    expect(response).toEqual({
+      status: 403,
+      body: JSON.stringify({
+        error: "remote client not allowed; set allowRemoteClients to admit it",
+      }),
+    });
+  });
+
+  it("lets a LAN client reach Vite when allowRemoteClients is true", async () => {
+    let middleware:
+      | ((req: unknown, res: unknown, next: () => void) => void)
+      | undefined;
+    variants({ allowRemoteClients: true }).configureServer({
       config: { root },
       middlewares: { use: (_path, handler) => (middleware = handler as never) },
     });

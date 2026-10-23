@@ -35,8 +35,10 @@ export type NotesOptions = {
   root: string;
   /** Endpoints answer only in development. */
   dev: boolean;
-  /** Hosts besides loopback that may reach the endpoints. */
+  /** Host names besides loopback accepted by the Host check. */
   allowedHosts?: AllowedHosts | undefined;
+  /** Admits clients outside loopback; the Host check still applies. */
+  allowRemoteClients?: boolean | undefined;
 };
 
 export type AllowedHosts = readonly string[] | true;
@@ -138,14 +140,17 @@ export const checkRequest = (
   request: NotesRequest,
   needsJson: boolean,
   allowedHosts?: AllowedHosts,
+  allowRemoteClients = false,
 ): NotesResponse | undefined => {
   if (
     request.remoteAddress !== undefined &&
-    !isLoopbackClient(request.remoteAddress) &&
-    allowedHosts !== true &&
-    !allowedHosts?.length
+    !allowRemoteClients &&
+    !isLoopbackClient(request.remoteAddress)
   )
-    return fail(403, "remote client not allowed; set allowedHosts");
+    return fail(
+      403,
+      "remote client not allowed; set allowRemoteClients to admit it",
+    );
   const host = request.header("host");
   if (!host) return fail(400, "missing host header");
   if (!isAllowedHost(host, allowedHosts))
@@ -270,6 +275,7 @@ export const handleNotesRequest = async (
     request,
     method === "POST",
     options.allowedHosts,
+    options.allowRemoteClients,
   );
   if (rejected) return rejected;
 
