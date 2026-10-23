@@ -315,6 +315,7 @@ declare class AssistantCloudThreadMessages {
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
@@ -515,6 +516,7 @@ declare class CloudMessagePersistence {
   constructor(getCloud: () => AssistantCloud);
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
+  delete(threadId: string, messageIds: string[]): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
   getResolvedRemoteId(messageId: string): string | undefined;
@@ -812,6 +814,7 @@ declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence
   load: (threadId: string, format?: string) => Promise<any[]>;
   isPersisted: (messageId: string) => boolean;
   update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>;
+  delete?: (threadId: string, messageIds: string[]) => Promise<void>;
 }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => {
   append: (threadId: string, item: {
     parentId: string | null;
@@ -821,6 +824,10 @@ declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence
     parentId: string | null;
     message: TMessage;
   }, messageId: string) => Promise<void>) | undefined;
+  delete: ((threadId: string, items: {
+    parentId: string | null;
+    message: TMessage;
+  }[]) => Promise<void>) | undefined;
   load: (threadId: string) => Promise<{
     messages: {
       parentId: string | null;

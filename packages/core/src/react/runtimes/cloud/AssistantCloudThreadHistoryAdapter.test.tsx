@@ -81,6 +81,7 @@ const makeCloud = (telemetry: Partial<AssistantCloud["telemetry"]> = {}) =>
         list: vi.fn().mockResolvedValue({ messages: [] }),
         create: vi.fn().mockResolvedValue({ message_id: "remote-message-1" }),
         update: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
         feedback: vi.fn().mockResolvedValue({
           feedback_id: "feedback-1",
           type: "positive",
@@ -603,6 +604,75 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       expect.anything(),
     );
     expect(secondCloud.threads.messages.create).not.toHaveBeenCalled();
+  });
+
+  it("deletes an appended default message by its Cloud ID", async () => {
+    mocks.aui = mocks.makeClient("delete-default-thread");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("delete-default-local"),
+    };
+    await result.current.append(item);
+    await result.current.delete?.([item]);
+    expect(cloud.threads.messages.delete).toHaveBeenCalledWith(
+      "delete-default-thread",
+      ["remote-message-1"],
+    );
+  });
+
+  it("deletes an appended formatted message by its Cloud ID", async () => {
+    mocks.aui = mocks.makeClient("delete-formatted-thread");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat!({
+      format: "test/v1",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    const item = { parentId: null, message: { id: "delete-formatted-local" } };
+    await formatted.append(item);
+    await formatted.delete?.([item]);
+    expect(cloud.threads.messages.delete).toHaveBeenCalledWith(
+      "delete-formatted-thread",
+      ["remote-message-1"],
+    );
+  });
+
+  it("does not create a Cloud thread to delete local messages", async () => {
+    mocks.aui = mocks.makeClient(undefined, "delete-local-thread");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const item = {
+      parentId: null,
+      message: makeAssistantMessage("delete-local-message"),
+    };
+    await result.current.delete?.([item]);
+    const formatted = result.current.withFormat!({
+      format: "test/v1",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+    await formatted.delete?.([
+      { parentId: null, message: { id: "delete-local-message" } },
+    ]);
+    expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
+    expect(cloud.threads.messages.create).not.toHaveBeenCalled();
   });
 
   it("preserves default message mappings across adapter mounts", async () => {

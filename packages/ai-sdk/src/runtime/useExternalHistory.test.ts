@@ -1436,24 +1436,47 @@ describe("useExternalHistory persistence", () => {
       true,
       [],
       "cancelled",
+      true,
     ],
     [
       "a stopped run whose prompt the composer could not take back",
       true,
       [createUserMessage(stoppedPrompt)],
       "cancelled",
+      false,
     ],
     [
       "a run that settled without output",
       false,
       [createUserMessage(stoppedPrompt)],
       "other",
+      false,
+    ],
+    [
+      "a run that settled without output after its prompt disappeared",
+      false,
+      [],
+      "other",
+      false,
     ],
   ] as const)(
     "reports %s",
-    async (_, cancelled, settledMessages: readonly ThreadMessage[], reason) => {
-      const { append, load, markRunCancelled, reportTelemetry, step, flush } =
-        createPersistenceHarness(false);
+    async (
+      _,
+      cancelled,
+      settledMessages: readonly ThreadMessage[],
+      reason,
+      shouldDelete,
+    ) => {
+      const {
+        append,
+        deleteItems,
+        load,
+        markRunCancelled,
+        reportTelemetry,
+        step,
+        flush,
+      } = createPersistenceHarness(false);
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
       await step({
@@ -1481,8 +1504,57 @@ describe("useExternalHistory persistence", () => {
           ([, options]) => options?.message?.role === "assistant",
         ),
       ).toHaveLength(1);
+      if (shouldDelete) {
+        expect(deleteItems).toHaveBeenCalledOnce();
+        expect(deleteItems).toHaveBeenCalledWith([
+          { parentId: null, message: stoppedPrompt },
+        ]);
+      } else {
+        expect(deleteItems).not.toHaveBeenCalled();
+      }
     },
   );
+
+  it("reports an unanswered cancelled run even when prompt deletion fails", async () => {
+    const {
+      append,
+      deleteItems,
+      load,
+      markRunCancelled,
+      reportTelemetry,
+      step,
+      flush,
+    } = createPersistenceHarness(false);
+    const failure = new Error("delete failed");
+    deleteItems.mockRejectedValueOnce(failure);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await waitFor(() => expect(load).toHaveBeenCalledOnce());
+      await step({
+        isRunning: true,
+        messages: [createUserMessage(stoppedPrompt)],
+      });
+      await waitFor(() => expect(append).toHaveBeenCalledOnce());
+      markRunCancelled();
+      await step({ isRunning: false, messages: [] });
+      await flush();
+      expect(deleteItems).toHaveBeenCalledOnce();
+      expect(log).toHaveBeenCalledWith(
+        "Failed to delete message history:",
+        failure,
+      );
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          message: expect.objectContaining({
+            status: { type: "incomplete", reason: "cancelled" },
+          }),
+        }),
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
 
   it("reports a run stopped while history is still loading", async () => {
     const { first, reportTelemetry, resolveEmptyLoad } =

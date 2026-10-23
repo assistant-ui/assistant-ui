@@ -14,13 +14,16 @@ import { useChatRuntime } from "./useChatRuntime";
 
 const mountWithHistory = (transport: ChatTransport<UIMessage>) => {
   const reportTelemetry = vi.fn();
+  const append = vi.fn(async () => {});
+  const deleteItems = vi.fn(async () => {});
   const history: ThreadHistoryAdapter = {
     load: async () => ({ messages: [] }),
     append: async () => {},
     withFormat: () =>
       ({
         load: async () => ({ messages: [] }),
-        append: async () => {},
+        append,
+        delete: deleteItems,
         reportTelemetry,
       }) as never,
   };
@@ -39,7 +42,7 @@ const mountWithHistory = (transport: ChatTransport<UIMessage>) => {
       .map(([, options]) => options?.message as ThreadMessage | undefined)
       .filter((message) => message?.role === "assistant")
       .map((message) => message!.status);
-  return { harness, assistantReports };
+  return { harness, assistantReports, append, deleteItems };
 };
 
 describe("useChatRuntime run telemetry", () => {
@@ -49,12 +52,12 @@ describe("useChatRuntime run telemetry", () => {
   ])(
     "reports a run stopped before its first token with %s",
     async (_, draft, threadLength) => {
-      const { harness, assistantReports } = mountWithHistory(
-        createControlledTransport().transport,
-      );
+      const { harness, assistantReports, append, deleteItems } =
+        mountWithHistory(createControlledTransport().transport);
       await waitFor(() => expect(harness.client()).toBeDefined());
       harness.send();
       await waitFor(() => expect(harness.isRunning()).toBe(true));
+      await waitFor(() => expect(append).toHaveBeenCalledOnce());
       if (draft !== undefined)
         flushTapSync(() => harness.client().composer.setText(draft));
 
@@ -68,8 +71,60 @@ describe("useChatRuntime run telemetry", () => {
       expect(harness.client().thread.getState().messages).toHaveLength(
         threadLength,
       );
+      if (draft === undefined) {
+        await waitFor(() => expect(deleteItems).toHaveBeenCalledOnce());
+        expect(deleteItems).toHaveBeenCalledWith([
+          expect.objectContaining({
+            message: expect.objectContaining({
+              role: "user",
+              parts: [{ type: "text", text: "keep streaming" }],
+            }),
+          }),
+        ]);
+      } else {
+        expect(deleteItems).not.toHaveBeenCalled();
+      }
     },
   );
+
+  it("keeps an answered prompt stored when its reload stops before the first token", async () => {
+    const stream = createControlledTransport();
+    const { harness, assistantReports, append, deleteItems } = mountWithHistory(
+      stream.transport,
+    );
+    await waitFor(() => expect(harness.client()).toBeDefined());
+    harness.send();
+    await waitFor(() => expect(harness.isRunning()).toBe(true));
+    stream.emit(
+      { type: "start" },
+      { type: "text-start", id: "t" },
+      { type: "text-delta", id: "t", delta: "answer" },
+      { type: "text-end", id: "t" },
+      { type: "finish" },
+    );
+    stream.close();
+    await waitFor(() => expect(harness.isRunning()).toBe(false));
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    harness.client().thread.message({ index: 1 }).reload();
+    await waitFor(() => expect(harness.isRunning()).toBe(true));
+    await harness.client().thread.cancelRun();
+    await waitFor(() =>
+      expect(assistantReports().at(-1)).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      }),
+    );
+
+    expect(
+      harness
+        .client()
+        .thread.getState()
+        .messages.map((message) => message.role),
+    ).toEqual(["user"]);
+    expect(harness.client().composer.getState().text).toBe("");
+    expect(deleteItems).not.toHaveBeenCalled();
+  });
 
   it("reports the HTTP status of a request that failed before streaming", async () => {
     const { harness, assistantReports } = mountWithHistory(

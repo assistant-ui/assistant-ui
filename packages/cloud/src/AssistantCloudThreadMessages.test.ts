@@ -13,6 +13,18 @@ const createCloudThreadMessages = () => {
 };
 
 describe("AssistantCloudThreadMessages responses", () => {
+  it("deletes message IDs from the encoded thread path", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValue(undefined);
+
+    await messages.delete("thread/1", ["msg_1", "msg_2"]);
+
+    expect(makeRequest).toHaveBeenCalledWith("/threads/thread%2F1/messages", {
+      method: "DELETE",
+      body: { message_ids: ["msg_1", "msg_2"] },
+    });
+  });
+
   it("validates created message IDs", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();
     const body = {

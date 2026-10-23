@@ -35,6 +35,7 @@ const makePersistence = () => ({
   load: vi.fn().mockResolvedValue([]),
   isPersisted: vi.fn().mockReturnValue(false),
   update: vi.fn().mockResolvedValue(undefined),
+  delete: vi.fn().mockResolvedValue(undefined),
 });
 
 describe("createFormattedPersistence", () => {
@@ -65,6 +66,18 @@ describe("createFormattedPersistence", () => {
       "test/v1",
       { encoded: true, text: "hello" },
     );
+  });
+
+  it("deletes items by their storage IDs", async () => {
+    const formatted = createFormattedPersistence(persistence, adapter);
+    await formatted.delete?.("thread-1", [
+      { parentId: null, message: { id: "first", text: "one" } },
+      { parentId: "first", message: { id: "second", text: "two" } },
+    ]);
+    expect(persistence.delete).toHaveBeenCalledWith("thread-1", [
+      "first",
+      "second",
+    ]);
   });
 
   it("load filters by format, decodes messages, and reverses order", async () => {
