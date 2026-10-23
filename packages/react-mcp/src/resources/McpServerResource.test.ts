@@ -203,6 +203,75 @@ const getOAuthProvider = (index: number) => {
   };
 };
 
+describe("McpServerResource failed connection cleanup", () => {
+  beforeEach(resetMocks);
+
+  it.each(["connect", "completeAuth"] as const)(
+    "preserves a later disconnect while cleaning up a failed %s",
+    async (operation) => {
+      let finishClose!: () => void;
+      const close = new Promise<void>((resolve) => {
+        finishClose = resolve;
+      });
+      mocks.closeResults.push(() => close);
+      const failure = new Error("connection failed");
+      const results =
+        operation === "connect"
+          ? mocks.connectResults
+          : mocks.finishAuthResults;
+      results.push(() => Promise.reject(failure));
+      const storage = createStorage();
+      vi.mocked(storage.loadAuthState).mockResolvedValue({
+        serverUrl: "https://example.com/mcp",
+        state: "expected",
+      });
+      const root = mount({
+        auth: { type: operation === "connect" ? "none" : "oauth" },
+        storage,
+      });
+      const attempt = (
+        operation === "connect"
+          ? root.getValue().connect()
+          : root
+              .getValue()
+              .completeAuth(
+                "https://example.com/callback?code=abc&state=expected",
+              )
+      ).catch((error: unknown) => error);
+
+      try {
+        await waitFor(() => mocks.transports[0]?.close.mock.calls.length === 1);
+        const disconnect = root.getValue().disconnect();
+        await waitForResourceUpdate(
+          () => root.getValue().getState().connectionState === "disconnected",
+        );
+
+        finishClose();
+        await Promise.all([attempt, disconnect]);
+        await flushMacrotask();
+
+        expect(root.getValue().getState()).toMatchObject({
+          connectionState: "disconnected",
+          lastError: null,
+        });
+        if (operation === "completeAuth") {
+          await expect(attempt).resolves.toMatchObject({
+            message:
+              'MCP server "docs" authorization was interrupted before completion.',
+            cause: failure,
+          });
+        } else {
+          await expect(attempt).resolves.toBeUndefined();
+        }
+      } finally {
+        finishClose();
+        await attempt;
+        root.unmount();
+      }
+    },
+  );
+});
+
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
 
