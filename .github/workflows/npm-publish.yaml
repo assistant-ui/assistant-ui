@@ -761,16 +761,46 @@ jobs:
           script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
           # The action pins tags and releases to the run's GITHUB_SHA (pushTag uses
           # context.sha, createRelease sets no target_commitish), which differs from
-          # RELEASE_SHA on dispatch runs. Both are created at RELEASE_SHA below.
+          # RELEASE_SHA on dispatch runs. The release-tags job creates both at
+          # RELEASE_SHA from npm registry truth instead.
           push-git-tags: false
           create-github-releases: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create git tags and GitHub releases at the release SHA
-        if: steps.changesets-publish.outputs.published == 'true'
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  release-tags:
+    name: Create git tags and GitHub releases
+    needs:
+      - approve
+      - publish
+    # Runs even when publish is skipped (everything already on npm, e.g. a rerun
+    # after a release-creation failure) or failed partway through: tags and
+    # releases are reconciled from npm registry truth at RELEASE_SHA.
+    if: ${{ always() && !cancelled() && needs.approve.result == 'success' && needs.publish.result != 'cancelled' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: npm-publish-exec
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      - name: Reconcile git tags and GitHub releases with npm
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
-        env:
-          PUBLISHED_PACKAGES: ${{ steps.changesets-publish.outputs.published-packages }}
         with:
           script: |
             const fs = require("node:fs");
@@ -782,7 +812,25 @@ jobs:
               return;
             }
 
-            const published = JSON.parse(process.env.PUBLISHED_PACKAGES || "[]");
+            const publishedOnNpm = async (name, version) => {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15_000);
+              try {
+                const response = await fetch(
+                  `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+                  { signal: controller.signal },
+                );
+                if (response.status === 404) return false;
+                if (!response.ok) {
+                  throw new Error(
+                    `npm registry HTTP ${response.status} for ${name}@${version}`,
+                  );
+                }
+                return true;
+              } finally {
+                clearTimeout(timeout);
+              }
+            };
 
             // Port of getChangelogEntry from changesets/action@v2.1.2 (src/utils.ts),
             // so release bodies keep the changelog entry the action would have used.
@@ -818,70 +866,77 @@ jobs:
             };
 
             const packagesDir = path.join(process.cwd(), "packages");
-            const dirByName = new Map();
+            const packages = [];
             for (const ent of fs.readdirSync(packagesDir, { withFileTypes: true })) {
               if (!ent.isDirectory()) continue;
               const manifestPath = path.join(packagesDir, ent.name, "package.json");
               if (!fs.existsSync(manifestPath)) continue;
               const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-              if (manifest.name) dirByName.set(manifest.name, ent.name);
+              if (!manifest.name || !manifest.version || manifest.private) continue;
+              packages.push({
+                name: manifest.name,
+                version: manifest.version,
+                changelogPath: path.join(packagesDir, ent.name, "CHANGELOG.md"),
+              });
             }
 
-            for (const { name, version } of published) {
-              const tag = `${name}@${version}`;
+            for (const pkg of packages) {
+              const tag = `${pkg.name}@${pkg.version}`;
+              if (!(await publishedOnNpm(pkg.name, pkg.version))) {
+                core.info(`${tag} is not on npm; skipping`);
+                continue;
+              }
+
+              let tagExists = true;
               try {
+                await github.rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
+              } catch (error) {
+                if (error.status === 404) tagExists = false;
+                else throw error;
+              }
+              if (!tagExists) {
                 await github.rest.git.createRef({
                   ...context.repo,
                   ref: `refs/tags/${tag}`,
                   sha: releaseSha,
                 });
                 core.info(`Created tag ${tag} at ${releaseSha}`);
-              } catch (error) {
-                if (String(error.message).includes("Reference already exists")) {
-                  core.info(`Tag ${tag} already exists; keeping it`);
-                } else {
-                  throw error;
-                }
               }
 
-              const dir = dirByName.get(name);
-              const changelogPath = dir && path.join(packagesDir, dir, "CHANGELOG.md");
-              if (!changelogPath || !fs.existsSync(changelogPath)) {
-                core.info(`No CHANGELOG.md for ${name}; skipping release ${tag}`);
+              let releaseExists = true;
+              try {
+                await github.rest.repos.getReleaseByTag({ ...context.repo, tag });
+              } catch (error) {
+                if (error.status === 404) releaseExists = false;
+                else throw error;
+              }
+              if (releaseExists) {
+                core.info(`Release ${tag} already exists; keeping it`);
+                continue;
+              }
+
+              if (!fs.existsSync(pkg.changelogPath)) {
+                core.info(`No CHANGELOG.md for ${pkg.name}; skipping release ${tag}`);
                 continue;
               }
               const content = getChangelogEntry(
-                fs.readFileSync(changelogPath, "utf8"),
-                version,
+                fs.readFileSync(pkg.changelogPath, "utf8"),
+                pkg.version,
               );
               if (content == null) {
                 throw new Error(`Could not find changelog entry for ${tag}`);
               }
 
-              try {
-                await github.rest.repos.createRelease({
-                  ...context.repo,
-                  tag_name: tag,
-                  name: tag,
-                  body: content,
-                  prerelease: version.includes("-"),
-                  target_commitish: releaseSha,
-                });
-                core.info(`Created release ${tag} targeting ${releaseSha}`);
-              } catch (error) {
-                if (error.status === 422) {
-                  core.info(`Release ${tag} already exists; keeping it`);
-                } else {
-                  throw error;
-                }
-              }
+              await github.rest.repos.createRelease({
+                ...context.repo,
+                tag_name: tag,
+                name: tag,
+                body: content,
+                prerelease: pkg.version.includes("-"),
+                target_commitish: releaseSha,
+              });
+              core.info(`Created release ${tag} targeting ${releaseSha}`);
             }
-
-      - name: Recovery guidance
-        if: failure()
-        run: |
-          echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
-          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
 
   registry-deploy:
     name: Deploy registry
