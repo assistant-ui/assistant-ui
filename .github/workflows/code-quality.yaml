@@ -35,6 +35,8 @@ on:
       - "knip-baseline.json"
       - "scripts/check-adapter-architecture.mjs"
       - "scripts/check-adapter-architecture.test.mjs"
+      - "scripts/check-packed-release.mjs"
+      - "scripts/check-packed-release.test.mjs"
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
@@ -151,6 +153,9 @@ jobs:
 
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
+
+      - name: Test the packed release checker
+        run: node --test scripts/check-packed-release.test.mjs
 
       - name: Test the adapter architecture checker
         run: node --test scripts/check-adapter-architecture.test.mjs

@@ -663,12 +663,52 @@ jobs:
         if: steps.targets.outputs.targetCount == '0'
         run: echo "No packages require publishing for this release SHA."
 
+  build:
+    name: Build npm packages
+    needs:
+      - approve
+      - summary
+    if: needs.summary.outputs.target_count != '0'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      pack_artifact_id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        with:
+          runtime: node@24
+          install: false
+          # No cache (`cache` defaults to false) - hardened against cache poisoning for sensitive publish operations
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo build --filter="./packages/*"
+
+      - name: Pack packages to publish
+        id: pack
+        uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/pack@v2.1.2
+
   publish:
     name: Publish to npm
     needs:
       - approve
       - cancel_pending
       - summary
+      - build
     if: needs.summary.outputs.target_count != '0'
     environment: npm Publish
     runs-on: ubuntu-24.04
@@ -688,6 +728,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -696,14 +737,28 @@ jobs:
           install: false
           # No cache (`cache` defaults to false) - hardened against cache poisoning for sensitive publish operations
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # This job holds the publishing identity, so it installs only the root's tools for the Changesets CLI and runs no install script or build.
+      - name: Install the Changesets CLI
+        run: pnpm install --frozen-lockfile --filter . --ignore-scripts
+
+      - name: Download the packed packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.pack_artifact_id }}
+          path: ${{ runner.temp }}/changeset-pack
+
+      # The build job runs every build tool, so its artifact may publish only the targets the summary job resolved without running package code.
+      - name: Check the packed packages against the release targets
+        env:
+          PACK_DIR: ${{ runner.temp }}/changeset-pack
+          TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
+        run: node scripts/check-packed-release.mjs
 
       - name: Publish to npm and create GitHub releases
         id: changesets-publish
-        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action@v2.1.2
+        uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/publish@v2.1.2
         with:
-          publish-script: pnpm ci:publish
+          script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
           create-github-releases: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
