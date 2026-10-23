@@ -34,6 +34,14 @@ describe("GET /playground/init", () => {
       "quotes in the max width",
       { styles: { maxWidth: '44rem", onClick: bad()' } },
     ],
+    [
+      "a declaration break in a color",
+      {
+        styles: {
+          colors: { accent: { light: "red; } body { display: none" } },
+        },
+      },
+    ],
   ])("rejects %s before generating registry source", (_, diff) => {
     expect(GET(request(diff)).status).toBe(400);
   });

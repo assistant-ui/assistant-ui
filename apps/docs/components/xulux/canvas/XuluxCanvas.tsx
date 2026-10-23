@@ -31,9 +31,11 @@ function toAbsoluteUrl(url: string | null): string | null {
   return new URL(url, window.location.origin).toString();
 }
 
-const sandboxOrigins = new Set(
+const previewOrigins = new Set(
   getXuluxHostedTemplatesCatalog().templates.flatMap((template) =>
-    template.sandboxBaseUrl ? [new URL(template.sandboxBaseUrl).origin] : [],
+    [template.sandboxBaseUrl, template.previewUrl].flatMap((url) =>
+      url && /^https?:\/\//.test(url) ? [new URL(url).origin] : [],
+    ),
   ),
 );
 
@@ -50,7 +52,7 @@ function toAllowedPreviewUrl(url: string | null): string | null {
   } catch {
     return null;
   }
-  if (sandboxOrigins.has(origin)) return url;
+  if (previewOrigins.has(origin)) return url;
   if (typeof window !== "undefined" && origin === window.location.origin) {
     return url;
   }
