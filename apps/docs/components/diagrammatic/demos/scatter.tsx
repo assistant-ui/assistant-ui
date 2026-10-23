@@ -51,11 +51,11 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "SWE-bench against cost, sized by context",
+    title: "FrontierBench against cost, sized by context",
     setup:
-      "Twelve models. X is dollars per million output tokens. Y is SWE-bench Verified. Area is context window in thousands. The third channel is why this is not a line.",
+      "Twelve models. X is dollars per million output tokens. Y is the FrontierBench 1.1 score. Area is context window in thousands. The third channel is why this is not a line.",
     read: "swift sits at 45.8 for $1.90 with only 128k context. atlas-1 buys 3.3 more points at five times the price and a 1M window. tiny is honest about being tiny. The empty upper-left is the product that does not exist yet.",
-    source: "SWE-bench Verified, public list prices, August 2025.",
+    source: "FrontierBench 1.1, list prices per million output tokens.",
     chart: (
       <FigTooltip
         labels={MODELS.map((row) => row.label)}
@@ -68,11 +68,11 @@ export const examples: DemoExample[] = [
         <div>
           <Scatter
             aspect={1.7}
-            title="SWE-bench against cost"
+            title="FrontierBench against cost"
             points={MODELS}
             xScale="log"
             xLabel="$ / M output tokens"
-            yLabel="SWE-bench Verified"
+            yLabel="FrontierBench 1.1"
             xTicks={[
               { at: 0.3, label: "$0.30" },
               { at: 1, label: "$1" },

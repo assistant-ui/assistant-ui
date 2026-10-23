@@ -61,7 +61,7 @@ export function Form({ slug }: { slug: string }) {
             )}
             {example.source && (
               <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-                {example.source}
+                Illustrative data. {example.source}
               </p>
             )}
           </Figure>

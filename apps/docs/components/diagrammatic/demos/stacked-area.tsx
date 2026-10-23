@@ -4,8 +4,8 @@ import type { DemoExample } from "./types";
 
 const HOURS = Array.from({ length: 25 }, (_, i) => String(i).padStart(2, "0"));
 const GAS = [
-  15, 14, 13, 13, 12, 11, 9, 7, 6, 5, 4, 4, 5, 5, 6, 8, 10, 13, 15, 16, 16, 16,
-  16, 15, 15,
+  15, 14, 13, 13, 12, 11, 9, 7, 6, 5, 4, 4, 5, 5, 6, 8, 10, 15, 19, 22, 22, 21,
+  19, 17, 16,
 ];
 const NUCLEAR = Array.from({ length: 25 }, () => 8);
 const WIND = [
@@ -13,7 +13,7 @@ const WIND = [
   9,
 ];
 const SOLAR = [
-  0, 0, 0, 0, 0, 0, 1, 3, 7, 11, 15, 17, 18, 17, 15, 12, 8, 4, 1, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 1, 3, 6, 10, 13, 15, 16, 15, 13, 10, 7, 4, 1, 0, 0, 0, 0, 0,
   0,
 ];
 
@@ -34,7 +34,7 @@ export const examples: DemoExample[] = [
     title: "Grid generation mix across one day",
     setup:
       "A grid operator's dashboard shows the day's generation stacked by source, because demand must always equal the top edge. This is a sunny weekday in spring.",
-    read: "Solar swells through midday and gas fills the morning and evening shoulders around it. The 40 GW line is the evening peak: solar is already gone, so gas has to climb back. Nuclear is a flat floor; wind ignores the sun.",
+    read: "Solar swells through midday and gas fills the morning and evening shoulders around it. Demand peaks at 40 GW at 20:00, above the midday 37 GW: solar is already gone, so gas has to climb back. Nuclear is a flat floor; wind ignores the sun.",
     source: "Spring weekday, one control area. Gigawatts at the hour.",
     chart: (
       <FigTooltip

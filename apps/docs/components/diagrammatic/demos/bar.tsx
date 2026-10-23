@@ -32,7 +32,7 @@ export const examples: DemoExample[] = [
     setup:
       "The on-call review ranks every rotation by how long a page sat before a human answered. Horizontal bars, longest names, a dashed SLO at 15 minutes.",
     read: "Payments answers in 4.2 minutes. Legacy is 41, almost three SLOs late, and ads has already slipped the line. The six teams under 15 minutes are not the meeting; the four past the dash are.",
-    source: "PagerDuty ack timestamps, last 90 days. n = 1,184 pages.",
+    source: "Pager ack timestamps, last 90 days. n = 1,184 pages.",
     chart: (
       <FigTooltip
         labels={TEAMS.map((row) => row.label)}

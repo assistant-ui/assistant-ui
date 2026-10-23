@@ -56,4 +56,4 @@ The categorical palette clears color-vision-deficiency separation checks, and ch
 
 ## Motion
 
-Charts do not animate. The only transition is the highlight fade in `styles.css`; override it under `prefers-reduced-motion` if your app requires.
+Charts are still by default. Flow trails and live-point pulses animate only when the chart or an ancestor carries `data-dg-motion` and `diagrammatic/styles.css` is loaded, and every motion rule sits inside `@media (prefers-reduced-motion: no-preference)`, so a reader who asks for reduced motion sees the still figure. The highlight fade is the only other transition; see [Motion](/diagrammatic/docs/motion).

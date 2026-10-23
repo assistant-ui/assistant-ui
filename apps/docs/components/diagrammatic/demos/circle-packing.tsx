@@ -71,7 +71,7 @@ export const examples: DemoExample[] = [
     setup:
       "Incidents packed by the family that owned them, then by service. Size is page count. The packing is for membership, not measurement.",
     read: "Checkout is the planet. api inside it is larger than every search service combined. Growth is a moon. The structure is the argument: pages concentrate where checkout talks to the card network, not where headcount sits.",
-    source: "PagerDuty pages, last 90 days. n = 581.",
+    source: "Pages, last 90 days. n = 581.",
     chart: (
       <FigTooltip
         entries={{

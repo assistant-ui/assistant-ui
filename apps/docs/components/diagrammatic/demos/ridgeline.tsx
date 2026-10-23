@@ -27,15 +27,15 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "San Francisco daily highs, 2024",
+    title: "Daily highs in a coastal city, one year",
     setup:
       "Twelve ridges, one year. Each row is a month of daily maximums on a shared temperature axis. The drift is the picture.",
     read: "March is the first month the mass clears the marine layer's 16° band. July and August sit on top of each other; there is no true summer spike. December returns almost to January. Order the rows any other way and the year disappears.",
-    source: "NOAA daily Tmax, San Francisco Downtown, 2024.",
+    source: "Illustrative daily maximums, one coastal station.",
     chart: (
       <Ridgeline
         aspect={1.35}
-        title="Daily highs, San Francisco 2024"
+        title="Daily highs by month"
         rows={MONTHS}
         highlight="Mar"
         labels={["8°", "14°", "20°", "26°"]}

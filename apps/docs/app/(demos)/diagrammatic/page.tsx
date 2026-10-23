@@ -83,7 +83,7 @@ export default function DiagrammaticPage() {
           {flagship.chart}
           {flagship.source && (
             <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-              {flagship.source}
+              Illustrative data. {flagship.source}
             </p>
           )}
         </Figure>
