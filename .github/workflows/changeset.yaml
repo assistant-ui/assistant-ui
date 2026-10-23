@@ -54,7 +54,7 @@ jobs:
         run: |
           pnpm ci:version
           git add --all
-          git diff --cached --binary > "$RUNNER_TEMP/version.patch"
+          git diff --cached --binary --no-renames > "$RUNNER_TEMP/version.patch"
           if [ -s "$RUNNER_TEMP/version.patch" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
