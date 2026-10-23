@@ -712,6 +712,10 @@ jobs:
     if: needs.summary.outputs.target_count != '0'
     environment: npm Publish
     runs-on: ubuntu-24.04
+    outputs:
+      # Set by the action even when the publish step fails partway through, so
+      # the release-tags job knows exactly which versions this run published.
+      published_packages: ${{ steps.changesets-publish.outputs.published-packages }}
     permissions:
       contents: write
       # Required for npm trusted publishing (OIDC).
@@ -804,6 +808,9 @@ jobs:
       - name: Create git tags and GitHub releases at the release SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty when the publish job skipped (rerun of an already-published
+          # release); the script then binds versions via provenance instead.
+          PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published_packages }}
         run: node scripts/create-release-tags.mjs
 
   registry-deploy:
