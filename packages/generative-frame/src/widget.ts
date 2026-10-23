@@ -40,7 +40,7 @@ export type ToolCallRequest = {
 };
 
 export type WidgetHandlers = {
-  /** A widget called `sendPrompt(text)`; send it as the user's next message. */
+  /** A widget called `sendPrompt(text)`, possibly without a user gesture; let the user review it before it is sent as their message. */
   onPrompt?: (text: string) => unknown;
   /** Raw MCP Apps `ui/message`. Takes precedence over `onPrompt`. */
   onMessage?: (params: UiMessageParams) => unknown;
