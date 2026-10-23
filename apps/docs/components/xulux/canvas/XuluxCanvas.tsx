@@ -17,6 +17,7 @@ import {
   useXuluxAnalytics,
 } from "@/lib/xulux/analytics-context";
 import { cn } from "@/lib/utils";
+import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 import type { XuluxPreviewFrame as XuluxPreviewFrameConfig } from "../templates/types";
 import { XuluxCanvasTabBar, type CanvasTab } from "./XuluxCanvasTabBar";
 import { XuluxFileBrowser } from "./XuluxFileBrowser";
@@ -28,6 +29,32 @@ function toAbsoluteUrl(url: string | null): string | null {
   if (/^https?:\/\//.test(url)) return url;
   if (typeof window === "undefined") return url;
   return new URL(url, window.location.origin).toString();
+}
+
+const sandboxOrigins = new Set(
+  getXuluxHostedTemplatesCatalog().templates.flatMap((template) =>
+    template.sandboxBaseUrl ? [new URL(template.sandboxBaseUrl).origin] : [],
+  ),
+);
+
+function toAllowedPreviewUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith("/") && !url.startsWith("//")) return toAbsoluteUrl(url);
+  let origin: string;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    origin = parsed.origin;
+  } catch {
+    return null;
+  }
+  if (sandboxOrigins.has(origin)) return url;
+  if (typeof window !== "undefined" && origin === window.location.origin) {
+    return url;
+  }
+  return null;
 }
 
 function hostnameFromUrl(url: string): string {
@@ -74,7 +101,7 @@ export function XuluxCanvas({
   const canDownloadTemplate = Boolean(downloadUrl) && status === "ready";
   const canOpenSource =
     source === "template" && status === "ready" && sourceUrl;
-  const resolvedPreviewUrl = toAbsoluteUrl(previewUrl);
+  const resolvedPreviewUrl = toAllowedPreviewUrl(previewUrl);
   const canRefresh = !!resolvedPreviewUrl && status === "ready";
   const iframeKey = resolvedPreviewUrl
     ? `${resolvedPreviewUrl}-${iframeVersion}`
