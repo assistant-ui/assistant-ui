@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { CheckIcon, CopyIcon, LoaderCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -148,9 +148,23 @@ const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 /** The marks of the coding agents a setup can be handed to. */
 export function AgentMarks({ className }: { className?: string }) {
   return (
-    <ul className="flex items-center gap-2">
-      {WORKS_WITH.map((kind) => (
-        <li key={kind} className="flex" title={agentKindName(kind)}>
+    <ul
+      aria-label="Supported coding agents"
+      tabIndex={0}
+      className="group/agents focus-visible:outline-ring flex items-center gap-2 rounded-sm outline-offset-4 focus-visible:outline-2"
+    >
+      {WORKS_WITH.map((kind, index) => (
+        <li
+          key={kind}
+          className="bg-background relative flex size-5 shrink-0 items-center justify-center rounded-full transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
+          style={
+            {
+              "--agent-offset": `${index * -1.125}rem`,
+              zIndex: WORKS_WITH.length - index,
+            } as CSSProperties
+          }
+          title={agentKindName(kind)}
+        >
           <AgentKindIcon kind={kind} className={className} />
           <span className="sr-only">{agentKindName(kind)}</span>
         </li>
