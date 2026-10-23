@@ -67,6 +67,82 @@ describe.skipIf(REDIS_TESTS_DISABLED)("conversation counter on redis", () => {
     expect((await counter.read(who, 3, NOON)).used).toBe(3);
   });
 
+  it("refuses a full shared cap without spending a new session slot", async () => {
+    const cap = `ip:${identity()}`;
+    const first = identity();
+    const second = identity();
+    const refused = identity();
+    await counter.claimWithCap(first, "a", 10, cap, `${first}:a`, 2, NOON);
+    await counter.claimWithCap(second, "b", 10, cap, `${second}:b`, 2, NOON);
+
+    expect(
+      await counter.claimWithCap(
+        refused,
+        "c",
+        10,
+        cap,
+        `${refused}:c`,
+        2,
+        NOON,
+      ),
+    ).toEqual({
+      allowed: false,
+      usage: { used: 0, limit: 10, remaining: 10, resetAt: MIDNIGHT },
+      capUsed: 2,
+      capRefused: true,
+    });
+    expect(await client.exists(dayKey(refused))).toBe(0);
+    expect((await counter.read(cap, 2, NOON)).used).toBe(2);
+
+    expect(
+      await counter.claimWithCap(first, "a", 10, cap, `${first}:a`, 2, NOON),
+    ).toMatchObject({ allowed: true, usage: { used: 1 }, capUsed: 2 });
+    expect((await counter.read(cap, 2, NOON)).used).toBe(2);
+  });
+
+  it("counts the same thread id in separate sessions against the shared cap", async () => {
+    const cap = `ip:${identity()}`;
+    const first = identity();
+    const second = identity();
+
+    await counter.claimWithCap(
+      first,
+      "same",
+      10,
+      cap,
+      `${first}:same`,
+      2,
+      NOON,
+    );
+    await counter.claimWithCap(
+      second,
+      "same",
+      10,
+      cap,
+      `${second}:same`,
+      2,
+      NOON,
+    );
+
+    expect((await counter.read(cap, 2, NOON)).used).toBe(2);
+    expect(await client.sMembers(dayKey(cap))).toEqual(
+      expect.arrayContaining([`${first}:same`, `${second}:same`]),
+    );
+    expect(await client.pTTL(dayKey(first))).toBeGreaterThan(0);
+    expect(await client.pTTL(dayKey(cap))).toBeGreaterThan(0);
+  });
+
+  it("does not spend the shared cap when the session is full", async () => {
+    const cap = `ip:${identity()}`;
+    const who = identity();
+    await counter.claimWithCap(who, "a", 1, cap, `${who}:a`, 3, NOON);
+
+    expect(
+      await counter.claimWithCap(who, "b", 1, cap, `${who}:b`, 3, NOON),
+    ).toMatchObject({ allowed: false, capUsed: 1, capRefused: false });
+    expect((await counter.read(cap, 3, NOON)).used).toBe(1);
+  });
+
   it("reads back what the claims spent", async () => {
     const who = identity();
     await counter.claim(who, "a", 10, NOON);

@@ -11,7 +11,7 @@ import {
 // What is pinned here is the day key, the reset boundary, and the arguments
 // each script is handed. The scripts themselves run in
 // conversation-limit.redis.test.ts, against a server.
-function fakeRedis(result: [number, number] = [1, 1], readUsed = 2) {
+function fakeRedis(result: number[] = [1, 1], readUsed = 2) {
   const calls: { script: string; keys: string[]; args: string[] }[] = [];
   const redis: ConversationRedisClient = {
     scard: async () => readUsed,
@@ -50,6 +50,45 @@ describe("createConversationCounter", () => {
 
     expect(calls[0]!.keys).toEqual(["aui:test:anon:abc:2026-09-04"]);
     expect(calls[0]!.args.slice(0, 2)).toEqual(["thread-1", "3"]);
+  });
+
+  it("passes both daily keys and distinct members to one capped claim", async () => {
+    const { redis, calls } = fakeRedis([1, 1, 2, 0]);
+    const counter = createConversationCounter(redis, "aui:test:");
+
+    expect(
+      await counter.claimWithCap(
+        "anon:abc",
+        "thread-1",
+        10,
+        "ip:203.0.113.7",
+        "anon:abc:thread-1",
+        30,
+        NOON,
+      ),
+    ).toEqual({
+      allowed: true,
+      usage: {
+        used: 1,
+        limit: 10,
+        remaining: 9,
+        resetAt: Date.UTC(2026, 8, 5, 0, 0, 0),
+      },
+      capUsed: 2,
+      capRefused: false,
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.keys).toEqual([
+      "aui:test:anon:abc:2026-09-04",
+      "aui:test:ip:203.0.113.7:2026-09-04",
+    ]);
+    expect(calls[0]!.args).toEqual([
+      "thread-1",
+      "10",
+      String(2 * 24 * 60 * 60 * 1000),
+      "anon:abc:thread-1",
+      "30",
+    ]);
   });
 
   it("reports what is left when the claim is refused", async () => {

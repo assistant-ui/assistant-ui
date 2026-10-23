@@ -113,4 +113,38 @@ describe("ConversationBudget analytics", () => {
       "budget",
     );
   });
+
+  it("shows the network allowance and the signed-in daily limit", () => {
+    mocks.usage = {
+      status: "ready",
+      usage: {
+        used: 1,
+        limit: 10,
+        remaining: 0,
+        resetAt: resetAtFor(4),
+        signedIn: false,
+        sharedLimitReached: true,
+      },
+    } as DemoUsageState;
+
+    render(<ConversationBudget>composer</ConversationBudget>);
+
+    expect(
+      screen.getByText(
+        "This network has used today's anonymous conversations. Sign in for 30 a day.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("shows the corrected sign-in limit for a visitor's own spent day", () => {
+    mocks.usage = spentDay(resetAtFor(5));
+
+    render(<ConversationBudget>composer</ConversationBudget>);
+
+    expect(
+      screen.getByText(
+        "That is all 3 conversations for today. Sign in for 30 a day.",
+      ),
+    ).toBeTruthy();
+  });
 });

@@ -221,6 +221,21 @@ describe("GET /api/mcp", () => {
 });
 
 describe("POST /api/mcp", () => {
+  it("caps nested tool input at 10,000 elements", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "preview_template",
+      arguments: {
+        templateId: "base-assistant-ui",
+        config: { hostUi: Array.from({ length: 10_001 }, (_, i) => i) },
+      },
+    });
+
+    const result = getToolCallResult(response);
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain("maximum of 10000 elements");
+    expect(mocks.fetchPreviewSession).not.toHaveBeenCalled();
+  });
+
   it("initializes the assistant-ui docs server", async () => {
     const response = await requestMcp("initialize", {
       protocolVersion: "2025-06-18",

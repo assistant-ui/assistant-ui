@@ -8,7 +8,7 @@ import {
   unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/ai-sdk";
 import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
-import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import { checkPublicAssistantRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   PUBLIC_ASSISTANT_CROSS_ORIGINS,
   requirePublicAssistantSession,
@@ -145,7 +145,11 @@ export async function POST(req: Request) {
     // thread id, so the day counts conversations rather than turns.
     if (budgeted) {
       const identity = await resolveDemoIdentity(session.id);
-      const { allowed, usage } = await claimConversation(identity, threadId);
+      const { allowed, usage } = await claimConversation(
+        identity,
+        threadId,
+        getClientIp(req),
+      );
       if (!allowed) {
         return withCors(
           req,
