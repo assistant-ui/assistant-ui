@@ -580,6 +580,60 @@ describe("useExternalStoreRuntime history copy", () => {
     }
   });
 
+  it("waits for an unfinished write when returning to the same history adapter", async () => {
+    vi.useFakeTimers();
+    const first = historyAdapter();
+    const replacement = historyAdapter();
+    const oldWrite = Promise.withResolvers<void>();
+    first.unstable_copy.mockImplementationOnce(() => oldWrite.promise);
+    const app = setup(first.history);
+    const flushCopy = () =>
+      act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+      });
+    const firstMessage = user("user-1");
+    const secondMessage = assistant("assistant-2");
+
+    try {
+      app.update({ isRunning: true });
+      app.update({ isRunning: false, messages: [firstMessage] });
+      await flushCopy();
+      expect(first.unstable_copy).toHaveBeenCalledOnce();
+
+      app.replaceHistory(replacement.history);
+      app.update({ isRunning: true });
+      app.update({
+        isRunning: false,
+        messages: [firstMessage, secondMessage],
+      });
+      await flushCopy();
+      expect(replacement.unstable_copy.mock.calls[0]![1]).toEqual([
+        "assistant-2",
+      ]);
+
+      app.replaceHistory(first.history);
+      app.update({ isRunning: true });
+      app.update({
+        isRunning: false,
+        messages: [firstMessage, secondMessage, user("user-3")],
+      });
+      await flushCopy();
+      expect(first.unstable_copy).toHaveBeenCalledOnce();
+
+      oldWrite.resolve();
+      await flushCopy();
+      expect(first.unstable_copy.mock.calls.map((call) => call[1])).toEqual([
+        ["user-1"],
+        ["user-3"],
+      ]);
+    } finally {
+      app.view.unmount();
+      oldWrite.resolve();
+      await flushCopy();
+      vi.useRealTimers();
+    }
+  });
+
   it.each(["no history", "history without copy"])(
     "keeps unsupported recording behavior with %s",
     async (caseName) => {
