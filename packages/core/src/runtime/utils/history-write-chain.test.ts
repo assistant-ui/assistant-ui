@@ -73,17 +73,20 @@ describe("createHistoryWriteChain", () => {
   it("runs the next write after a rejection", async () => {
     const writes = createHistoryWriteChain();
     const firstGate = deferred();
+    const secondGate = deferred();
     const error = new Error("write failed");
     const calls: string[] = [];
 
     const first = writes.chain("one", () => firstGate.promise);
     const second = writes.chain("one", () => {
       calls.push("second");
-      return Promise.resolve();
+      return secondGate.promise;
     });
     firstGate.reject(error);
 
     await expect(first).rejects.toBe(error);
+    expect(writes.pending("one")).toBe(second);
+    secondGate.resolve();
     await expect(second).resolves.toBeUndefined();
     expect(calls).toEqual(["second"]);
     expect(writes.pending("one")).toBeUndefined();
