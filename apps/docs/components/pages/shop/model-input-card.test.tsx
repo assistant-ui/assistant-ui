@@ -255,6 +255,31 @@ describe("ModelInputCard", () => {
     vi.unstubAllGlobals();
   });
 
+  it("retries a failed answer without depositing its secret again", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValue({ ok: false, status: 409 });
+    vi.stubGlobal("fetch", fetchMock);
+    const context = checkout();
+    vi.mocked(context.commands["checkout/answer"]).mockRejectedValueOnce(
+      new Error("offline"),
+    );
+    const { result } = renderHook(() => useInputActions(input, context));
+    const answer = JSON.stringify({ provider: "openai", model: "gpt-5" });
+
+    const landed: boolean[] = [];
+    await act(async () => {
+      landed.push(await result.current.answerWithSecret(answer, "openai-key"));
+      landed.push(await result.current.answerWithSecret(answer, "openai-key"));
+    });
+
+    expect(landed).toEqual([false, true]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(context.commands["checkout/answer"]).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+
   it("tracks the answer with the picked provider and never the model or key", async () => {
     const capture = vi.fn();
     window.posthog = { capture };
