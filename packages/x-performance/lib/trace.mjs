@@ -143,15 +143,17 @@ export const captureTrace = async (
   const closed = new Promise((resolve) => proc.once("close", resolve));
   try {
     const portFile = join(profile, "DevToolsActivePort");
+    // A cold first launch on a busy CI runner takes about 10s.
+    const deadline = Date.now() + 30_000;
     let port;
-    for (let i = 0; i < 100 && !port; i++) {
+    while (!port && Date.now() < deadline) {
       if (existsSync(portFile)) {
         port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
       }
       if (!port) await sleep(100);
     }
     if (!port) {
-      throw new Error(`Chrome failed to start within 10s (${chrome})`);
+      throw new Error(`Chrome failed to start within 30s (${chrome})`);
     }
     const version = await fetch(`http://127.0.0.1:${port}/json/version`).then(
       (r) => r.json(),
