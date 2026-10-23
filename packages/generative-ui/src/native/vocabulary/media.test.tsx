@@ -12,6 +12,7 @@ import {
   spec,
 } from "../testUtils";
 import { mediaVocabulary } from "./media";
+import { renderGenerativeUI } from "../../renderGenerativeUI";
 
 afterEach(() => {
   cleanupSpecs();
@@ -20,6 +21,31 @@ afterEach(() => {
 });
 
 describe("media vocabulary on React Native", () => {
+  it("loads only listed origins and data images when imageOrigins is set", () => {
+    const render = (src: string) =>
+      renderElement(
+        <>
+          {renderGenerativeUI(
+            { $type: "Image", src, alt: "Portrait" },
+            mediaVocabulary,
+            {
+              status: "done",
+              imageOrigins: ["https://cdn.example.com"],
+            },
+          )}
+        </>,
+      );
+    expect(
+      render("https://cdn.example.com/a.png").querySelector("img"),
+    ).not.toBeNull();
+    expect(
+      render("data:image/png;base64,YQ==").querySelector("img"),
+    ).not.toBeNull();
+    const blocked = render("https://other.example.com/a.png");
+    expect(blocked.querySelector("img")).toBeNull();
+    expect(blocked.textContent).toBe("Portrait");
+  });
+
   it.each([
     ["sm", 128, false],
     ["md", 256, false],

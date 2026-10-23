@@ -12,6 +12,7 @@ import {
 import type { ImageSize } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { mediaDefinitions } from "../../vocabulary/definitions/media";
+import { allowedImageSrc } from "../../vocabulary/imageStyle";
 import { mapPlaces, placeHref } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { useListViewItemText } from "../rowLabel";
@@ -86,8 +87,11 @@ function ImageContent({
   );
 }
 
-function Image(props: ImageProps) {
+function Image(props: ImageProps & { $imageOrigins?: readonly string[] }) {
   const consumed = useListViewItemText(props.alt);
+  if (!allowedImageSrc(props.src, props.$imageOrigins)) {
+    return consumed || !props.alt ? null : <Text>{props.alt}</Text>;
+  }
   return (
     <ImageContent key={props.src} {...props} hidden={!props.alt || consumed} />
   );

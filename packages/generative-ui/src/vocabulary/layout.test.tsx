@@ -89,6 +89,35 @@ describe("layoutVocabulary", () => {
     expect(render({ $type: "Card", title: "T" })).not.toContain("style=");
   });
 
+  it.each([
+    "url(https://example.com/a.png)",
+    "linear-gradient(red, blue), UrL (https://example.com/a.png)",
+    "image (https://example.com/a.png)",
+    "image-set(url(https://example.com/a.png) 1x)",
+    "-webkit-image-set (url(https://example.com/a.png) 1x)",
+    "cross-fade (red, blue)",
+    "element (#preview)",
+    "paint (icon)",
+    "u\\72l(https://example.com/a.png)",
+  ])("Card and Box discard resource background %s", (background) => {
+    expect(render({ $type: "Card", background })).toBe(
+      '<section data-aui="card"></section>',
+    );
+    expect(render({ $type: "Box", background })).toBe(
+      '<div data-aui="box"></div>',
+    );
+  });
+
+  it("Card and Box ignore a non-string background", () => {
+    const background = { url: "https://example.com/a.png" };
+    expect(render({ $type: "Card", background })).toBe(
+      '<section data-aui="card"></section>',
+    );
+    expect(render({ $type: "Box", background })).toBe(
+      '<div data-aui="box"></div>',
+    );
+  });
+
   it("Card without a title omits the header", () => {
     expect(render({ $type: "Card" })).toBe(
       '<section data-aui="card"></section>',

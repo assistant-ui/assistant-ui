@@ -431,6 +431,30 @@ describe("layout vocabulary on React Native", () => {
     expect(title.style.color).toBe("rgb(10, 10, 10)");
   });
 
+  it("ignores a resource background on Card and Box", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: {
+            title: "Plan",
+            background: "url(https://example.com/a.png)",
+          },
+        },
+      }),
+    );
+    const title = byRole(container, "heading", "Plan");
+    expect(title.parentElement!.style.backgroundColor).toBe(
+      "rgba(10, 10, 10, 0.04)",
+    );
+    const box = renderNativeSpec(
+      spec({
+        main: { type: "Box", props: { background: "image-set (red 1x)" } },
+      }),
+    ).container.firstElementChild as HTMLElement;
+    expect(box.style.backgroundColor).toBe("");
+  });
+
   it.each([
     ["light", "rgba(10, 10, 10, 0.04)"],
     ["dark", "rgba(250, 250, 250, 0.06)"],

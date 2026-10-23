@@ -4,7 +4,7 @@ import type { Align, Justify } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { layoutDefinitions } from "../../vocabulary/definitions/layout";
 import { fire } from "../../vocabulary/dispatch";
-import { footerAction } from "../../vocabulary/layoutValues";
+import { footerAction, safeBackground } from "../../vocabulary/layoutValues";
 import { tabLabels } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { FieldScopeProvider, useFieldScopeOwner } from "../fieldScope";
@@ -95,7 +95,7 @@ function Card({
 }: CardProps) {
   const theme = useNativeTheme();
   const ink = useInk();
-  const tint = nativeColor(background);
+  const tint = nativeColor(safeBackground(background));
   const submitAction = footerAction(confirm) ?? $action;
   const scope = useFieldScopeOwner((values) =>
     fire(submitAction, $dispatch, values),
@@ -265,7 +265,7 @@ function Box({
   background?: string;
   children?: ReactNode;
 }) {
-  const color = nativeColor(background);
+  const color = nativeColor(safeBackground(background));
   const boxWidth = dimension(width);
   const boxHeight = dimension(height);
   return (
