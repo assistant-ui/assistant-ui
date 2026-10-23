@@ -226,6 +226,24 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
         await this.ctx.storage.delete(key);
         return new Response("no secret", { status: 404 });
       }
+      if (input.redeemKeyHash !== undefined) {
+        const redeemKey = request.headers.get("Setup-Agent-Redeem-Key");
+        const digest = new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(redeemKey ?? ""),
+          ),
+        );
+        let difference = 0;
+        for (let i = 0; i < digest.length; i++) {
+          difference |=
+            digest[i]! ^
+            Number.parseInt(input.redeemKeyHash.slice(i * 2, i * 2 + 2), 16);
+        }
+        if (redeemKey === null || difference !== 0) {
+          return new Response("invalid redeem key", { status: 403 });
+        }
+      }
       await this.ctx.storage.delete(key);
       return new Response(value.secret, {
         headers: { "content-type": "text/plain" },

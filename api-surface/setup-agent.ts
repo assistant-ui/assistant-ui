@@ -69,6 +69,7 @@ declare namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional: boolean;
     status: InputStatus;
     answer?: string;
@@ -135,6 +136,7 @@ declare namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional?: boolean;
   };
   type PlanDecision = {
