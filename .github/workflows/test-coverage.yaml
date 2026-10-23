@@ -122,6 +122,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Test coverage routing and summary
+        if: matrix.shard == 0
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs
 
       # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
@@ -132,6 +133,7 @@ jobs:
         run: pnpm turbo build --filter="./packages/*"
 
       - name: Run React Compiler tests
+        if: matrix.shard == 0
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
