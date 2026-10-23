@@ -21,6 +21,23 @@ const frame = (text: string, components?: MarkdownComponents) =>
   );
 
 describe("Markdown", () => {
+  test("removes a supplied OSC 8 link from rendered text", () => {
+    expect(
+      render(
+        <Markdown
+          text={"\x1b]8;;https://wrong.example\x07safe label\x1b]8;;\x07"}
+          final
+        />,
+      ).lastFrame(),
+    ).toBe("safe label");
+  });
+
+  test("keeps the text after a malformed CSI", () => {
+    expect(render(<Markdown text={"a\x1b[\nb 你好"} final />).lastFrame()).toBe(
+      "a\nb 你好",
+    );
+  });
+
   test("renders blocks and inline runs with one blank line between blocks", () => {
     expect(
       frame(

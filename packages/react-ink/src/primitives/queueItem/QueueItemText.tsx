@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type QueueItemTextProps = ComponentProps<typeof Text>;
 
@@ -16,5 +17,5 @@ export const QueueItemText = ({
       .join("\n\n"),
   );
 
-  return <Text {...textProps}>{children ?? text}</Text>;
+  return <Text {...textProps}>{children ?? sanitizeTerminalText(text)}</Text>;
 };

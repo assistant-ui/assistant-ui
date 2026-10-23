@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type MessagePartPrimitiveReasoningProps = Omit<
   ComponentProps<typeof Text>,
@@ -18,7 +19,7 @@ export const MessagePartPrimitiveReasoning = (
     if (s.part.type !== "reasoning") return "";
     return s.part.text;
   });
-  return <Text {...props}>{reasoning}</Text>;
+  return <Text {...props}>{sanitizeTerminalText(reasoning)}</Text>;
 };
 
 MessagePartPrimitiveReasoning.displayName = "MessagePartPrimitive.Reasoning";

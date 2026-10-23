@@ -417,6 +417,35 @@ describe("foldContext", () => {
 });
 
 describe("DiffView", () => {
+  it("removes terminal controls from patch names and lines", async () => {
+    const patch = `diff --git a/safe\x1b]8;;https://wrong.example\x07.txt b/safe\x1b]8;;\x07.txt
+--- a/safe\x1b]8;;https://wrong.example\x07.txt
++++ b/safe\x1b]8;;\x07.txt
+@@ -1 +1 @@
+-old
++safe\x1b]8;;https://wrong.example\x07line\x1b]8;;\x07
+`;
+    const frame = await renderFrame(<DiffView patch={patch} />);
+
+    expect(frame).toContain("safe.txt");
+    expect(frame).toContain("safeline");
+    expect(frame).not.toContain("\x1b]8");
+  });
+
+  it("counts changes that differ only in terminal controls", async () => {
+    const frame = await renderFrame(
+      <DiffView
+        oldFile={{ content: "a\r\nx\x1b[31my\n", name: "f.txt" }}
+        newFile={{ content: "a\nx\x1b[32my\n", name: "f.txt" }}
+      />,
+    );
+
+    expect(frame).toContain("+2");
+    expect(frame).toContain("-2");
+    expect(frame).toContain("+ xy");
+    expect(frame).not.toContain("\x1b[3");
+  });
+
   it("supports composing primitives from prepared files", async () => {
     const frame = await renderFrame(
       <DiffRoot

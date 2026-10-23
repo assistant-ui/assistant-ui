@@ -2,6 +2,7 @@ import type { ComponentProps, FC } from "react";
 import { Text } from "ink";
 import Spinner from "ink-spinner";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 
 export type AttachmentStatusProps = Omit<
   ComponentProps<typeof Text>,
@@ -43,7 +44,7 @@ export const AttachmentStatus: FC<AttachmentStatusProps> = ({
         : { text: "|| paused", defaultColor: "yellow" };
     return (
       <Text {...textProps} color={textProps.color ?? defaultColor}>
-        {text}
+        {sanitizeTerminalText(text)}
       </Text>
     );
   }

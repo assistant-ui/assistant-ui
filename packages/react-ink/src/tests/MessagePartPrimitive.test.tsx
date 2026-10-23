@@ -31,6 +31,16 @@ describe("MessagePartPrimitive", () => {
     expect(frame).toBe("hello terminal");
   });
 
+  it("removes a supplied OSC 8 link from a text part", async () => {
+    mockPart(mockUseAuiState, {
+      type: "text",
+      text: "\x1b]8;;https://wrong.example\x07safe label\x1b]8;;\x07",
+      status: { type: "complete" },
+    });
+
+    expect(await renderFrame(<MessagePartPrimitive.Text />)).toBe("safe label");
+  });
+
   it.each([
     ["text", () => <MessagePartPrimitive.Text />],
     ["image", () => <MessagePartPrimitive.Image />],

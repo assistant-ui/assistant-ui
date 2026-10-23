@@ -125,10 +125,10 @@ describe("notification channels", () => {
     ["osc99", "\x1b]99;;body\x1b\\"],
     ["osc777", "\x1b]777;notify;title;body\x07"],
   ] as const)(
-    "sendOSCNotification strips ESC and BEL in %s",
+    "sendOSCNotification removes CSI and BEL in %s",
     (variant, expected) => {
       const w = spyStdout();
-      sendOSCNotification("ti\x1btle", "bo\x07dy\x1b", variant);
+      sendOSCNotification("ti\x1b[2Jtle", "bo\x07dy\x1b", variant);
       expect(w).toHaveBeenCalledWith(expected);
       w.mockRestore();
     },
