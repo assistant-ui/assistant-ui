@@ -3,10 +3,11 @@ import { matchInTransit, retainInTransit } from "./composer-submission";
 
 describe("in-transit submission matching", () => {
   it("lets the oldest eligible submission claim one new message", () => {
+    const unmatched = { role: "system", known: new Set<string>() };
     const first = { role: "user", known: new Set<string>() };
     const second = { role: "user", known: new Set<string>() };
     const assistant = { role: "assistant", known: new Set<string>() };
-    const entries = [first, second, assistant];
+    const entries = [unmatched, first, second, assistant];
     const match = matchInTransit(
       entries,
       () => ["old|user", "new|user", "answer|assistant"],
