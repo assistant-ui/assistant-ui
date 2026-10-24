@@ -408,8 +408,6 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
-    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
-    needs: build
     if: ${{ !cancelled() }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
@@ -541,8 +539,6 @@ jobs:
 
   typecheck:
     name: Typecheck Changed Packages
-    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
-    needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
