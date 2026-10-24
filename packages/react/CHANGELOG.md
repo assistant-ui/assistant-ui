@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.15.32
+
+### Patch Changes
+
+- [#10033](https://github.com/assistant-ui/assistant-ui/pull/10033) [`48e41ab`](https://github.com/assistant-ui/assistant-ui/commit/48e41ab3c58a2f78aadba764639215dcc00c19ee) - fix: preserve already visible text when enabling smooth streaming or turning off reduced motion. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10058](https://github.com/assistant-ui/assistant-ui/pull/10058) [`f40d53f`](https://github.com/assistant-ui/assistant-ui/commit/f40d53fcb081cd4564803eadb884147e05ea017b) - fix: fill the composer with widget and MCP App prompts for review before sending. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - assistant-cloud@0.2.9
+  - @assistant-ui/core@0.3.32
+
 ## 0.15.31
 
 ### Patch Changes

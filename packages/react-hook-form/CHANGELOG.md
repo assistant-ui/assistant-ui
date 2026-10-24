@@ -1,5 +1,13 @@
 # @assistant-ui/react-hook-form
 
+## 0.12.38
+
+### Patch Changes
+
+- [#10060](https://github.com/assistant-ui/assistant-ui/pull/10060) [`d0a10aa`](https://github.com/assistant-ui/assistant-ui/commit/d0a10aa864ce9cf45fbdd889db9e07076432431b) - fix: ask before assistant form submissions and resets, and omit sensitive form values from model context. A custom `submit_form` or `reset_form` render must handle the approval interrupt and call `resume({ approved })`, or set `requireApproval: false`; `assistant.sensitiveFields` excludes fields the DOM check cannot see. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - @assistant-ui/core@0.3.32
+
 ## 0.12.37
 
 ### Patch Changes

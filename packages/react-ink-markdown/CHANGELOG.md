@@ -1,5 +1,14 @@
 # @assistant-ui/react-ink-markdown
 
+## 0.0.53
+
+### Patch Changes
+
+- [#10047](https://github.com/assistant-ui/assistant-ui/pull/10047) [`fcbaa5b`](https://github.com/assistant-ui/assistant-ui/commit/fcbaa5baac0a22dc192fd625c4a46884a37165ed) - fix: remove terminal control sequences from rendered text and notifications. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5), [`fcbaa5b`](https://github.com/assistant-ui/assistant-ui/commit/fcbaa5baac0a22dc192fd625c4a46884a37165ed)]:
+  - @assistant-ui/core@0.3.32
+  - @assistant-ui/react-ink@0.0.54
+
 ## 0.0.52
 
 ### Patch Changes

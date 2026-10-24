@@ -1,5 +1,14 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.41
+
+### Patch Changes
+
+- [#10028](https://github.com/assistant-ui/assistant-ui/pull/10028) [`790fa5d`](https://github.com/assistant-ui/assistant-ui/commit/790fa5dc393a698a53c12240d7bcb9be26dda4f0) - fix: preserve streamed text and reasoning order around media, and replace repeated media and code when the final ADK response arrives. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - assistant-cloud@0.2.9
+  - @assistant-ui/core@0.3.32
+
 ## 0.0.40
 
 ### Patch Changes

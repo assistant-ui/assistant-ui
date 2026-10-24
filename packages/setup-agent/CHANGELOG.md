@@ -1,5 +1,13 @@
 # setup-agent
 
+## 0.0.7
+
+### Patch Changes
+
+- [#10066](https://github.com/assistant-ui/assistant-ui/pull/10066) [`bfd98a8`](https://github.com/assistant-ui/assistant-ui/commit/bfd98a80c51a766201a350b77acbf62c4b5499ee) - fix: bind model key redemption to the asking CLI. ([@okisdev](https://github.com/okisdev))
+
+- [#10063](https://github.com/assistant-ui/assistant-ui/pull/10063) [`297b607`](https://github.com/assistant-ui/assistant-ui/commit/297b6077eacb2ccebb37386dc1f9d9e2a61cc8ca) - fix: refuse symbolic links and project paths that resolve outside the project when writing configuration. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.6
 
 ### Patch Changes

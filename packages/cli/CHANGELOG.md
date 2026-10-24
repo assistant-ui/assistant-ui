@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.127
+
+### Patch Changes
+
+- [#10063](https://github.com/assistant-ui/assistant-ui/pull/10063) [`297b607`](https://github.com/assistant-ui/assistant-ui/commit/297b6077eacb2ccebb37386dc1f9d9e2a61cc8ca) - fix: refuse symbolic links and project paths that resolve outside the project when writing configuration. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.126
 
 ### Patch Changes

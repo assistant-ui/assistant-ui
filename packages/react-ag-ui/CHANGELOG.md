@@ -1,5 +1,13 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`8a99840`](https://github.com/assistant-ui/assistant-ui/commit/8a99840fae250b92b77114128dd2105a9cfabb87), [`e4564a4`](https://github.com/assistant-ui/assistant-ui/commit/e4564a484574ac74127bc905abdcb609a7418cd5), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - @assistant-ui/core@0.3.32
+  - @assistant-ui/generative-ui@0.0.8
+
 ## 0.1.0
 
 ### Minor Changes
