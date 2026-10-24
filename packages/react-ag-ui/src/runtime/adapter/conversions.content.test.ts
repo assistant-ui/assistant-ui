@@ -1,7 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { Message as AgUiWireMessage } from "@ag-ui/client";
 import { MessageSchema, UserMessageSchema } from "@ag-ui/core/schemas";
-import type { AppendMessage } from "@assistant-ui/core";
+import {
+  SimpleImageAttachmentAdapter,
+  type AppendMessage,
+} from "@assistant-ui/core";
 import {
   fromAgUiMessages,
   toAgUiMessages,
@@ -79,6 +82,27 @@ describe("toAgUiMessages data URLs", () => {
 });
 
 describe("toAgUiMessages content metadata", () => {
+  it("preserves an uploaded image's filename through a snapshot round trip", async () => {
+    const adapter = new SimpleImageAttachmentAdapter();
+    const pending = await adapter.add({
+      file: new File([new Uint8Array([137, 80, 78, 71])], "cat.png", {
+        type: "image/png",
+      }),
+    });
+    const attachment = await adapter.send(pending);
+    const sent = toAgUiMessages([userMessage([], [attachment])]);
+    const restored = fromAgUiMessages(sent);
+
+    expect(restored[0]?.attachments?.[0]?.name).toBe("cat.png");
+    expect(sent[0]?.content).toEqual([
+      {
+        type: "image",
+        source: { type: "data", value: "iVBORw==", mimeType: "image/png" },
+        metadata: { filename: "cat.png" },
+      },
+    ]);
+  });
+
   it.each(["image", "document"] as const)(
     "preserves a %s file source and its metadata through a snapshot round trip",
     (type) => {

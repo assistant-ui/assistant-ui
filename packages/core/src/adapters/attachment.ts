@@ -44,6 +44,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
         {
           type: "image",
           image: await getFileDataURL(attachment.file, options),
+          filename: attachment.name,
         },
       ],
     };
