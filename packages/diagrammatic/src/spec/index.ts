@@ -172,18 +172,62 @@ export type ChartSpec =
   | S<"split-bar", SplitBarProps>;
 
 type Kind = "array" | "object" | "string" | "number";
+type Shape =
+  | { kind: "string" | "number" | "boolean" }
+  | { kind: "array"; items: Shape }
+  | { kind: "tuple"; items: Shape[] }
+  | {
+      kind: "object";
+      required: Record<string, Shape>;
+      optional?: Record<string, Shape>;
+    };
+type Field = [string, Kind, Shape?];
+
+const stringShape: Shape = { kind: "string" };
+const numberShape: Shape = { kind: "number" };
+const booleanShape: Shape = { kind: "boolean" };
+const arrayOf = (items: Shape): Shape => ({ kind: "array", items });
+const tupleOf = (...items: Shape[]): Shape => ({ kind: "tuple", items });
+const objectOf = (
+  required: Record<string, Shape>,
+  optional?: Record<string, Shape>,
+): Shape => ({ kind: "object", required, ...(optional ? { optional } : {}) });
+
+const stringArray = arrayOf(stringShape);
+const numberArray = arrayOf(numberShape);
+const itemArray = arrayOf(objectOf({ label: stringShape, value: numberShape }));
+const seriesArray = arrayOf(objectOf({ name: stringShape, data: numberArray }));
+const pointArray = arrayOf(objectOf({ x: numberShape, y: numberShape }));
+const connectedPointArray = arrayOf(
+  objectOf({ x: numberShape, y: numberShape }, { label: stringShape }),
+);
+const connectedSeriesArray = arrayOf(
+  objectOf({ name: stringShape, points: connectedPointArray }),
+);
+const graphShape = objectOf({
+  nodes: arrayOf(
+    objectOf({ id: stringShape }, { label: stringShape, group: numberShape }),
+  ),
+  links: arrayOf(
+    objectOf(
+      { source: stringShape, target: stringShape },
+      { value: numberShape },
+    ),
+  ),
+});
+
 type Descriptor = {
   Component: ElementType;
-  required: [string, Kind][];
+  required: Field[];
   acceptsNumericUnit?: boolean;
   /** Fields a chart accepts in place of one another; at least one must be present. */
-  either?: [string, Kind][];
+  either?: Field[];
 };
 
 const entry = (
   Component: ElementType,
-  required: [string, Kind][],
-  either?: [string, Kind][],
+  required: Field[],
+  either?: Field[],
 ): Descriptor => ({ Component, required, ...(either ? { either } : {}) });
 
 const REGISTRY: Record<string, Descriptor> = {
@@ -191,105 +235,310 @@ const REGISTRY: Record<string, Descriptor> = {
     charts.Line,
     [],
     [
-      ["data", "array"],
-      ["series", "array"],
+      ["data", "array", numberArray],
+      ["series", "array", seriesArray],
     ],
   ),
   area: entry(
     charts.Area,
     [],
     [
-      ["data", "array"],
-      ["series", "array"],
+      ["data", "array", numberArray],
+      ["series", "array", seriesArray],
     ],
   ),
-  "stacked-area": entry(charts.StackedArea, [["series", "array"]]),
-  streamgraph: entry(charts.Streamgraph, [["series", "array"]]),
+  "stacked-area": entry(charts.StackedArea, [["series", "array", seriesArray]]),
+  streamgraph: entry(charts.Streamgraph, [["series", "array", seriesArray]]),
   "mirrored-area": entry(charts.MirroredArea, [
     ["down", "object"],
     ["up", "object"],
   ]),
-  slope: entry(charts.Slope, [["items", "array"]]),
-  bump: entry(charts.Bump, [["series", "array"]]),
-  candlestick: entry(charts.Candlestick, [["data", "array"]]),
+  slope: entry(charts.Slope, [
+    [
+      "items",
+      "array",
+      arrayOf(
+        objectOf({
+          label: stringShape,
+          from: numberShape,
+          to: numberShape,
+        }),
+      ),
+    ],
+  ]),
+  bump: entry(charts.Bump, [
+    [
+      "series",
+      "array",
+      arrayOf(objectOf({ name: stringShape, ranks: numberArray })),
+    ],
+  ]),
+  candlestick: entry(charts.Candlestick, [
+    [
+      "data",
+      "array",
+      arrayOf(
+        objectOf({
+          open: numberShape,
+          high: numberShape,
+          low: numberShape,
+          close: numberShape,
+        }),
+      ),
+    ],
+  ]),
   horizon: entry(charts.Horizon, []),
-  gantt: entry(charts.Gantt, [["rows", "array"]]),
-  bar: entry(charts.Bar, [["items", "array"]]),
-  column: entry(charts.Column, [["items", "array"]]),
+  gantt: entry(charts.Gantt, [
+    [
+      "rows",
+      "array",
+      arrayOf(
+        objectOf(
+          { label: stringShape, from: numberShape, to: numberShape },
+          { state: stringShape },
+        ),
+      ),
+    ],
+  ]),
+  bar: entry(charts.Bar, [["items", "array", itemArray]]),
+  column: entry(charts.Column, [["items", "array", itemArray]]),
   "grouped-bar": entry(charts.GroupedBar, [
-    ["groups", "array"],
-    ["series", "array"],
+    ["groups", "array", stringArray],
+    ["series", "array", seriesArray],
   ]),
   "stacked-bar": entry(charts.StackedBar, [
-    ["groups", "array"],
-    ["series", "array"],
+    ["groups", "array", stringArray],
+    ["series", "array", seriesArray],
   ]),
-  lollipop: entry(charts.Lollipop, [["items", "array"]]),
-  "dot-plot": entry(charts.DotPlot, [["items", "array"]]),
-  "range-bar": entry(charts.RangeBar, [["items", "array"]]),
-  leaderboard: entry(charts.Leaderboard, [["items", "array"]]),
+  lollipop: entry(charts.Lollipop, [["items", "array", itemArray]]),
+  "dot-plot": entry(charts.DotPlot, [["items", "array", itemArray]]),
+  "range-bar": entry(charts.RangeBar, [
+    [
+      "items",
+      "array",
+      arrayOf(
+        objectOf(
+          { label: stringShape, from: numberShape, to: numberShape },
+          { at: numberShape },
+        ),
+      ),
+    ],
+  ]),
+  leaderboard: entry(charts.Leaderboard, [["items", "array", itemArray]]),
   pictogram: entry(charts.Pictogram, [
-    ["items", "array"],
+    ["items", "array", itemArray],
     ["unit", "number"],
   ]),
-  "radial-bar": entry(charts.RadialBar, [["items", "array"]]),
-  "polar-area": entry(charts.PolarArea, [["items", "array"]]),
-  pie: entry(charts.Pie, [["items", "array"]]),
-  waffle: entry(charts.Waffle, [["items", "array"]]),
+  "radial-bar": entry(charts.RadialBar, [
+    [
+      "items",
+      "array",
+      arrayOf(
+        objectOf(
+          { label: stringShape, value: numberShape },
+          { max: numberShape },
+        ),
+      ),
+    ],
+  ]),
+  "polar-area": entry(charts.PolarArea, [["items", "array", itemArray]]),
+  pie: entry(charts.Pie, [["items", "array", itemArray]]),
+  waffle: entry(charts.Waffle, [["items", "array", itemArray]]),
   treemap: entry(charts.Treemap, [["root", "object"]]),
   sunburst: entry(charts.Sunburst, [["root", "object"]]),
   icicle: entry(charts.Icicle, [["root", "object"]]),
   "circle-packing": entry(charts.CirclePacking, [["root", "object"]]),
-  marimekko: entry(charts.Marimekko, [["columns", "array"]]),
-  funnel: entry(charts.Funnel, [["items", "array"]]),
-  histogram: entry(charts.Histogram, [["bins", "array"]]),
-  "box-plot": entry(charts.BoxPlot, [["groups", "array"]]),
-  violin: entry(charts.Violin, [["groups", "array"]]),
-  ridgeline: entry(charts.Ridgeline, [["rows", "array"]]),
-  beeswarm: entry(charts.Beeswarm, [["values", "array"]]),
-  "strip-plot": entry(charts.StripPlot, [["rows", "array"]]),
+  marimekko: entry(charts.Marimekko, [
+    [
+      "columns",
+      "array",
+      arrayOf(
+        objectOf({
+          label: stringShape,
+          width: numberShape,
+          shares: itemArray,
+        }),
+      ),
+    ],
+  ]),
+  funnel: entry(charts.Funnel, [["items", "array", itemArray]]),
+  histogram: entry(charts.Histogram, [["bins", "array", numberArray]]),
+  "box-plot": entry(charts.BoxPlot, [
+    [
+      "groups",
+      "array",
+      arrayOf(
+        objectOf(
+          {
+            label: stringShape,
+            low: numberShape,
+            q1: numberShape,
+            median: numberShape,
+            q3: numberShape,
+            high: numberShape,
+          },
+          { points: numberArray },
+        ),
+      ),
+    ],
+  ]),
+  violin: entry(charts.Violin, [
+    [
+      "groups",
+      "array",
+      arrayOf(
+        objectOf(
+          { label: stringShape, widths: numberArray, median: numberShape },
+          { points: numberArray },
+        ),
+      ),
+    ],
+  ]),
+  ridgeline: entry(charts.Ridgeline, [
+    [
+      "rows",
+      "array",
+      arrayOf(objectOf({ label: stringShape, bins: numberArray })),
+    ],
+  ]),
+  beeswarm: entry(charts.Beeswarm, [["values", "array", numberArray]]),
+  "strip-plot": entry(charts.StripPlot, [
+    [
+      "rows",
+      "array",
+      arrayOf(objectOf({ label: stringShape, values: numberArray })),
+    ],
+  ]),
   "population-pyramid": entry(charts.PopulationPyramid, [
-    ["bands", "array"],
+    ["bands", "array", stringArray],
     ["left", "object"],
     ["right", "object"],
   ]),
-  scatter: entry(charts.Scatter, [["points", "array"]]),
-  "connected-scatter": entry(charts.ConnectedScatter, [["points", "array"]]),
-  hexbin: entry(charts.Hexbin, [["points", "array"]]),
-  contour: entry(charts.Contour, [["points", "array"]]),
+  scatter: entry(charts.Scatter, [
+    [
+      "points",
+      "array",
+      arrayOf(
+        objectOf(
+          { x: numberShape, y: numberShape },
+          {
+            size: numberShape,
+            label: stringShape,
+            series: stringShape,
+          },
+        ),
+      ),
+    ],
+  ]),
+  "connected-scatter": entry(
+    charts.ConnectedScatter,
+    [],
+    [
+      ["points", "array", connectedPointArray],
+      ["series", "array", connectedSeriesArray],
+    ],
+  ),
+  hexbin: entry(charts.Hexbin, [["points", "array", pointArray]]),
+  contour: entry(charts.Contour, [["points", "array", pointArray]]),
   heatmap: entry(charts.Heatmap, [["matrix", "object"]]),
   quadrant: entry(charts.Quadrant, [
-    ["points", "array"],
+    [
+      "points",
+      "array",
+      arrayOf(
+        objectOf({ x: numberShape, y: numberShape }, { label: stringShape }),
+      ),
+    ],
     ["xLabel", "string"],
     ["yLabel", "string"],
   ]),
   "parallel-coordinates": entry(charts.ParallelCoordinates, [
-    ["axes", "array"],
-    ["records", "array"],
+    ["axes", "array", stringArray],
+    [
+      "records",
+      "array",
+      arrayOf(objectOf({ name: stringShape, values: numberArray })),
+    ],
   ]),
   radar: entry(charts.Radar, [
-    ["axes", "array"],
-    ["series", "array"],
+    ["axes", "array", stringArray],
+    ["series", "array", seriesArray],
   ]),
-  "diverging-bar": entry(charts.DivergingBar, [["items", "array"]]),
-  "diverging-stacked": entry(charts.DivergingStacked, [["rows", "array"]]),
-  dumbbell: entry(charts.Dumbbell, [["items", "array"]]),
+  "diverging-bar": entry(charts.DivergingBar, [["items", "array", itemArray]]),
+  "diverging-stacked": entry(charts.DivergingStacked, [
+    [
+      "rows",
+      "array",
+      arrayOf(
+        objectOf({
+          label: stringShape,
+          values: tupleOf(
+            numberShape,
+            numberShape,
+            numberShape,
+            numberShape,
+            numberShape,
+          ),
+        }),
+      ),
+    ],
+  ]),
+  dumbbell: entry(charts.Dumbbell, [
+    [
+      "items",
+      "array",
+      arrayOf(
+        objectOf({
+          label: stringShape,
+          from: numberShape,
+          to: numberShape,
+        }),
+      ),
+    ],
+  ]),
   "difference-area": entry(charts.DifferenceArea, [
     ["actual", "object"],
     ["reference", "object"],
   ]),
-  sankey: entry(charts.Sankey, [["graph", "object"]]),
+  sankey: entry(charts.Sankey, [["graph", "object", graphShape]]),
   chord: entry(charts.Chord, [
-    ["groups", "array"],
-    ["flows", "array"],
+    ["groups", "array", stringArray],
+    [
+      "flows",
+      "array",
+      arrayOf(
+        objectOf({
+          from: stringShape,
+          to: stringShape,
+          value: numberShape,
+        }),
+      ),
+    ],
   ]),
-  waterfall: entry(charts.Waterfall, [["steps", "array"]]),
-  network: entry(charts.Network, [["graph", "object"]]),
-  "arc-diagram": entry(charts.ArcDiagram, [["graph", "object"]]),
+  waterfall: entry(charts.Waterfall, [
+    [
+      "steps",
+      "array",
+      arrayOf(
+        objectOf(
+          { label: stringShape, value: numberShape },
+          { total: booleanShape },
+        ),
+      ),
+    ],
+  ]),
+  network: entry(charts.Network, [["graph", "object", graphShape]]),
+  "arc-diagram": entry(charts.ArcDiagram, [["graph", "object", graphShape]]),
   tree: entry(charts.Tree, [["root", "object"]]),
   dendrogram: entry(charts.Dendrogram, [
-    ["leaves", "array"],
-    ["merges", "array"],
+    ["leaves", "array", stringArray],
+    [
+      "merges",
+      "array",
+      arrayOf(
+        objectOf({ a: numberShape, b: numberShape, height: numberShape }),
+      ),
+    ],
   ]),
   venn: entry(charts.Venn, [
     ["a", "object"],
@@ -297,26 +546,47 @@ const REGISTRY: Record<string, Descriptor> = {
     ["overlap", "number"],
   ]),
   upset: entry(charts.Upset, [
-    ["sets", "array"],
-    ["intersections", "array"],
+    ["sets", "array", stringArray],
+    [
+      "intersections",
+      "array",
+      arrayOf(objectOf({ sets: stringArray, value: numberShape })),
+    ],
   ]),
-  choropleth: entry(charts.Choropleth, [["values", "array"]]),
-  "symbol-map": entry(charts.SymbolMap, [["marks", "array"]]),
+  choropleth: entry(charts.Choropleth, [["values", "array", numberArray]]),
+  "symbol-map": entry(charts.SymbolMap, [
+    [
+      "marks",
+      "array",
+      arrayOf(
+        objectOf(
+          { col: numberShape, row: numberShape, value: numberShape },
+          { label: stringShape },
+        ),
+      ),
+    ],
+  ]),
   "dot-map": {
-    ...entry(charts.DotMap, [["counts", "array"]]),
+    ...entry(charts.DotMap, [["counts", "array", numberArray]]),
     acceptsNumericUnit: true,
   },
   "flow-map": entry(charts.FlowMap, [
     ["origin", "object"],
-    ["routes", "array"],
+    [
+      "routes",
+      "array",
+      arrayOf(
+        objectOf({ col: numberShape, row: numberShape, value: numberShape }),
+      ),
+    ],
   ]),
-  sparkline: entry(charts.Sparkline, [["data", "array"]]),
-  sparkbar: entry(charts.Sparkbar, [["data", "array"]]),
-  "win-loss": entry(charts.WinLoss, [["data", "array"]]),
+  sparkline: entry(charts.Sparkline, [["data", "array", numberArray]]),
+  sparkbar: entry(charts.Sparkbar, [["data", "array", numberArray]]),
+  "win-loss": entry(charts.WinLoss, [["data", "array", numberArray]]),
   bullet: entry(charts.Bullet, [
     ["value", "number"],
     ["target", "number"],
-    ["bands", "array"],
+    ["bands", "array", tupleOf(numberShape, numberShape, numberShape)],
   ]),
   "progress-ring": entry(charts.ProgressRing, [["value", "number"]]),
   gauge: entry(charts.Gauge, [["value", "number"]]),
@@ -324,7 +594,7 @@ const REGISTRY: Record<string, Descriptor> = {
     charts.SplitBar,
     [],
     [
-      ["items", "array"],
+      ["items", "array", itemArray],
       ["a", "object"],
     ],
   ),
@@ -340,10 +610,61 @@ function kindOf(value: unknown): Kind | "other" {
   return "other";
 }
 
+function invalidShape(
+  value: unknown,
+  shape: Shape,
+  path: string,
+): { path: string; expected: string } | undefined {
+  switch (shape.kind) {
+    case "string":
+      return typeof value === "string"
+        ? undefined
+        : { path, expected: "a string" };
+    case "number":
+      return typeof value === "number" && Number.isFinite(value)
+        ? undefined
+        : { path, expected: "a finite number" };
+    case "boolean":
+      return typeof value === "boolean"
+        ? undefined
+        : { path, expected: "a boolean" };
+    case "array":
+      if (!Array.isArray(value)) return { path, expected: "an array" };
+      for (let i = 0; i < value.length; i++) {
+        const error = invalidShape(value[i], shape.items, `${path}[${i}]`);
+        if (error) return error;
+      }
+      return undefined;
+    case "tuple":
+      if (!Array.isArray(value) || value.length !== shape.items.length) {
+        return { path, expected: `a tuple of ${shape.items.length} items` };
+      }
+      for (let i = 0; i < shape.items.length; i++) {
+        const error = invalidShape(value[i], shape.items[i]!, `${path}[${i}]`);
+        if (error) return error;
+      }
+      return undefined;
+    case "object":
+      if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        return { path, expected: "an object" };
+      }
+      const record = value as Record<string, unknown>;
+      for (const [key, field] of Object.entries(shape.required)) {
+        const error = invalidShape(record[key], field, `${path}.${key}`);
+        if (error) return error;
+      }
+      for (const [key, field] of Object.entries(shape.optional ?? {})) {
+        if (record[key] === undefined) continue;
+        const error = invalidShape(record[key], field, `${path}.${key}`);
+        if (error) return error;
+      }
+      return undefined;
+  }
+}
+
 /**
- * Structural check of an untrusted spec: known type, required fields present
- * with the right shape. Throws with a path on failure; deep field validation
- * stays with TypeScript at authoring time.
+ * Structural check of an untrusted spec against the field shapes in REGISTRY.
+ * Throws with a path on failure.
  */
 export function validateSpec(input: unknown): ChartSpec {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
@@ -358,13 +679,21 @@ export function validateSpec(input: unknown): ChartSpec {
     throw new Error(`Unknown chart type at "type": ${String(type)}.`);
   }
   const descriptor = REGISTRY[type]!;
-  const shaped = ([key, kind]: [string, Kind]) => {
+  const shaped = ([key, kind, shape]: Field) => {
     const value = spec[key];
     if (value === undefined) return false;
     if (kindOf(value) !== kind) {
       throw new Error(
         `Field "${key}" for type "${type}" must be ${kind === "array" ? "an array" : `a ${kind}`}.`,
       );
+    }
+    if (shape) {
+      const error = invalidShape(value, shape, key);
+      if (error) {
+        throw new Error(
+          `Field "${error.path}" for type "${type}" must be ${error.expected}.`,
+        );
+      }
     }
     return true;
   };
@@ -375,9 +704,12 @@ export function validateSpec(input: unknown): ChartSpec {
       );
     }
   }
-  if (descriptor.either && !descriptor.either.some(shaped)) {
-    const names = descriptor.either.map(([key]) => `"${key}"`).join(" or ");
-    throw new Error(`Missing required field ${names} for type "${type}".`);
+  if (descriptor.either) {
+    if (!descriptor.either.some(([key]) => spec[key] !== undefined)) {
+      const names = descriptor.either.map(([key]) => `"${key}"`).join(" or ");
+      throw new Error(`Missing required field ${names} for type "${type}".`);
+    }
+    for (const field of descriptor.either) shaped(field);
   }
   return input as ChartSpec;
 }
