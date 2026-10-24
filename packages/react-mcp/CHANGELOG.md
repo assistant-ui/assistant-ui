@@ -1,5 +1,15 @@
 # @assistant-ui/react-mcp
 
+## 0.1.26
+
+### Patch Changes
+
+- [#10037](https://github.com/assistant-ui/assistant-ui/pull/10037) [`6a0c792`](https://github.com/assistant-ui/assistant-ui/commit/6a0c792074ae256c139330af66c810d56049dd8a) - fix: preserve a later disconnect while a failed connection or OAuth completion is cleaning up its transport. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10059](https://github.com/assistant-ui/assistant-ui/pull/10059) [`4233d7e`](https://github.com/assistant-ui/assistant-ui/commit/4233d7e7bd8ce3ea149e69a58b8ea12abb434f2b) - fix: ask before running connected MCP tools by default. A custom renderer for an MCP tool must handle the approval interrupt and call `resume({ approved })`, or the server can set `requireApproval: false`. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - @assistant-ui/core@0.3.32
+
 ## 0.1.25
 
 ### Patch Changes

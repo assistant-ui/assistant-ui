@@ -1,5 +1,11 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.21
+
+### Patch Changes
+
+- [#10075](https://github.com/assistant-ui/assistant-ui/pull/10075) [`86d482d`](https://github.com/assistant-ui/assistant-ui/commit/86d482d5927b566798db7bb16d5f17b82c5916ef) - docs: set `defaultOrigin` in the security examples, which rehype-harden requires once a prefix list is specific. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.20
 
 ### Patch Changes

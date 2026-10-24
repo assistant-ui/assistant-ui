@@ -1,5 +1,16 @@
 # @assistant-ui/ai-sdk
 
+## 0.0.16
+
+### Patch Changes
+
+- [#10023](https://github.com/assistant-ui/assistant-ui/pull/10023) [`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e) - delete stored cloud messages, and remove a prompt a stop moved back into the composer from any history adapter that implements `delete` ([@okisdev](https://github.com/okisdev))
+
+- [#10052](https://github.com/assistant-ui/assistant-ui/pull/10052) [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5) - link cloud run reports to the user message that started the turn ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - assistant-cloud@0.2.9
+  - @assistant-ui/core@0.3.32
+
 ## 0.0.15
 
 ### Patch Changes
