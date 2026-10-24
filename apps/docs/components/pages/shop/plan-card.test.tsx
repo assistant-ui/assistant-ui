@@ -161,6 +161,7 @@ describe("PlanCard", () => {
   it("installs from the footer, or sends a note as a change request", async () => {
     const plan = vi.fn(async () => {});
     const checkout = {
+      session: { id: "setup-1" },
       commands: { "checkout/plan": plan },
     } as unknown as CheckoutContextValue;
     render(
@@ -177,7 +178,11 @@ describe("PlanCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
     await waitFor(() =>
-      expect(plan).toHaveBeenCalledWith({ decision: "approve" }),
+      expect(plan).toHaveBeenCalledWith({
+        decision: "approve",
+        id: "setup-1",
+        revision: 1,
+      }),
     );
 
     const note = screen.getByLabelText(
@@ -189,6 +194,8 @@ describe("PlanCard", () => {
       expect(plan).toHaveBeenCalledWith({
         decision: "revise",
         feedback: "Use Anthropic.",
+        id: "setup-1",
+        revision: 1,
       }),
     );
   });
