@@ -1010,8 +1010,15 @@ export function SetupWizard({
       </div>
       <footer
         ref={footer}
-        className="border-foreground/10 flex shrink-0 items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
+        className="border-foreground/10 flex shrink-0 flex-wrap items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
       >
+        {closed ? (
+          <Button variant="outline" disabled>
+            Cancel
+          </Button>
+        ) : (
+          <CancelButton checkout={checkout} onEnd={() => exit(false)} />
+        )}
         <AgentIndicator
           checkout={checkout}
           unread={unread}
@@ -1042,14 +1049,6 @@ export function SetupWizard({
               <ChevronRightIcon data-icon="inline-end" />
             )}
           </Button>
-          <span className="w-2" aria-hidden="true" />
-          {closed ? (
-            <Button variant="outline" disabled>
-              Cancel
-            </Button>
-          ) : (
-            <CancelButton checkout={checkout} onEnd={() => exit(false)} />
-          )}
         </div>
       </footer>
     </section>
