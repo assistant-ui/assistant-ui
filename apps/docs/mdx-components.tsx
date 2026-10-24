@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import Image, { type StaticImageData } from "next/image";
+import { ThemeImage } from "@/components/pages/docs/theme-image";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import { Heading } from "@/components/pages/docs/fumadocs/heading";
 import { cn } from "@/lib/utils";
@@ -105,6 +106,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
     a: MdxLink,
     img: MdxImage,
+    ThemeImage,
     h1: (props: ComponentProps<"h1">) => <Heading as="h1" {...props} />,
     h2: (props: ComponentProps<"h2">) => <Heading as="h2" {...props} />,
     h3: (props: ComponentProps<"h3">) => <Heading as="h3" {...props} />,
