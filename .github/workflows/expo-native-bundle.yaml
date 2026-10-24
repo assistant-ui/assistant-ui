@@ -14,6 +14,8 @@ on:
       - packages/store/**
       - packages/tap/**
       - packages/ui/**
+      - "!packages/ui/src/components/react/**"
+      - "!packages/ui/src/components/vue/**"
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
       - "!packages/**/*.test.ts"
@@ -38,6 +40,8 @@ on:
       - packages/store/**
       - packages/tap/**
       - packages/ui/**
+      - "!packages/ui/src/components/react/**"
+      - "!packages/ui/src/components/vue/**"
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
       - "!packages/**/*.test.ts"
