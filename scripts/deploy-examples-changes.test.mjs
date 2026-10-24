@@ -340,6 +340,13 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
       ),
       false,
     );
+    for (const file of [
+      "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+      "packages/ui/src/components/react/ui/radix/button.tsx",
+      "packages/ui/src/components/vue/assistant-ui/thread.vue",
+    ]) {
+      assert.equal(matches(file), false, file);
+    }
     assert.equal(
       matches(
         "packages/ui/src/components/react-native/assistant-ui/thread.test.tsx",
