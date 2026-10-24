@@ -1414,6 +1414,8 @@ describe("SetupWizard", () => {
     await waitFor(() =>
       expect(commands["checkout/plan"]).toHaveBeenCalledWith({
         decision: "approve",
+        id: "test",
+        revision: 1,
       }),
     );
   });
