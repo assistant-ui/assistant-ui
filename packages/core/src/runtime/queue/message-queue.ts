@@ -334,7 +334,7 @@ export const createMessageQueue = (
   };
 
   const steer = (message: AppendMessage) => {
-    if (running && !dispatchPending && driver.cancel) {
+    if (running && !held && !dispatchPending && driver.cancel) {
       const id = generateId();
       const transform = nextDispatchTransform;
       nextDispatchTransform = undefined;
@@ -395,6 +395,7 @@ export const createMessageQueue = (
       toLane === "steer" &&
       fromLane !== "steer" &&
       running &&
+      !held &&
       !dispatchPending &&
       driver.cancel
     ) {
