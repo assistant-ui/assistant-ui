@@ -712,6 +712,10 @@ jobs:
     if: needs.summary.outputs.target_count != '0'
     environment: npm Publish
     runs-on: ubuntu-24.04
+    outputs:
+      # Set by the action even when the publish step fails partway through, so
+      # the release-tags job knows exactly which versions this run published.
+      published_packages: ${{ steps.changesets-publish.outputs.published-packages }}
     permissions:
       contents: write
       # Required for npm trusted publishing (OIDC).
@@ -754,12 +758,17 @@ jobs:
           TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
         run: node scripts/check-packed-release.mjs
 
-      - name: Publish to npm and create GitHub releases
+      - name: Publish to npm
         id: changesets-publish
         uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/publish@v2.1.2
         with:
           script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
-          create-github-releases: true
+          # The action pins tags and releases to the run's GITHUB_SHA (pushTag uses
+          # context.sha, createRelease sets no target_commitish), which differs from
+          # RELEASE_SHA on dispatch runs. The release-tags job creates both at
+          # RELEASE_SHA from npm registry truth instead.
+          push-git-tags: false
+          create-github-releases: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Recovery guidance
@@ -767,6 +776,45 @@ jobs:
         run: |
           echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
           echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  release-tags:
+    name: Create git tags and GitHub releases
+    needs:
+      - approve
+      - summary
+      - publish
+    # Runs even when publish is skipped (everything already on npm, e.g. a rerun
+    # after a release-creation failure) or failed partway through: tags and
+    # releases are reconciled from npm registry truth at RELEASE_SHA. summary is
+    # required so the release commit always passed its ancestor validation.
+    if: ${{ always() && !cancelled() && needs.approve.result == 'success' && needs.summary.result == 'success' && needs.publish.result != 'cancelled' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: npm-publish-exec
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      - name: Create git tags and GitHub releases at the release SHA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty when the publish job skipped or had nothing to publish, and
+          # possibly after a failed publish (the action sets the step output
+          # before throwing, but GitHub's propagation of step outputs through
+          # a failed job is not documented); the script then binds versions
+          # via npm provenance instead, and skips what it cannot associate.
+          PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published_packages }}
+        run: node scripts/create-release-tags.mjs
 
   registry-deploy:
     name: Deploy registry
