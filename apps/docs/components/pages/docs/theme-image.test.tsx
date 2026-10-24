@@ -2,7 +2,8 @@
 
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ThemeImage, ThemeImageLLM } from "./theme-image";
+import { LLM_COMPONENTS } from "@/lib/llm-components";
+import { ThemeImage } from "./theme-image";
 
 const props = {
   light: "/docs/demo-light.webp",
@@ -31,8 +32,9 @@ describe("ThemeImage", () => {
     }
   });
 
-  it("exports a single image to the markdown output", () => {
-    const { container } = render(<ThemeImageLLM {...props} />);
+  it("exports a single image through the markdown component map", () => {
+    const MarkdownThemeImage = LLM_COMPONENTS.ThemeImage as typeof ThemeImage;
+    const { container } = render(<MarkdownThemeImage {...props} />);
     const images = container.querySelectorAll("img");
 
     expect(images).toHaveLength(1);
