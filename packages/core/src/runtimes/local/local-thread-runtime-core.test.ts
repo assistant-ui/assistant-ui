@@ -1603,6 +1603,38 @@ describe("LocalThreadRuntimeCore - detach", () => {
 });
 
 describe("LocalThreadRuntimeCore optimistic append", () => {
+  it("reopens an edited draft when initialization rejects before starting a run", async () => {
+    const initialization = Promise.withResolvers<void>();
+    const run = vi.fn(async () => ({ content: [] }));
+    const thread = createThread(
+      { run },
+      {
+        initialMessages: [{ id: "user", role: "user", content: "original" }],
+      },
+    );
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+    thread.beginEdit("user");
+    const edit = thread.getEditComposer("user")!;
+    edit.setText("revised draft");
+    await edit.send();
+    expect(thread.getEditComposer("user")).toBeUndefined();
+
+    initialization.reject(new Error("initialization failed"));
+    await vi.waitFor(() =>
+      expect(thread.getEditComposer("user")?.text).toBe("revised draft"),
+    );
+
+    expect(thread.messages).toMatchObject([
+      { id: "user", content: [{ type: "text", text: "original" }] },
+    ]);
+    expect(run).not.toHaveBeenCalled();
+    thread.__internal_setGetInitializePromise(async () => {});
+    await thread.getEditComposer("user")!.send();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    expect(thread.getEditComposer("user")).toBeUndefined();
+    thread.detach();
+  });
+
   it("paints the appended message before initialization resolves", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
