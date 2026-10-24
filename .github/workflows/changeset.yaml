@@ -6,8 +6,7 @@ on:
       - main
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,13 +17,20 @@ env:
 
 jobs:
   version:
-    name: Create Version PR
+    name: Version packages
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The changelog generator looks up the pull request behind each change.
+      pull-requests: read
+    outputs:
+      patch_artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -36,23 +42,108 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-changelog... --filter @assistant-ui/react-devtools...
 
-      - name: Create version PR
-        id: changesets
-        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action@v2.1.2
+      - name: Select the release mode
+        id: mode
+        uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/select-mode@v2.1.2
+
+      - name: Version packages
+        id: version
+        if: steps.mode.outputs.mode == 'version'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          pnpm ci:version
+          git add --all
+          git diff --cached --binary --no-renames > "$RUNNER_TEMP/version.patch"
+          if [ -s "$RUNNER_TEMP/version.patch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload the version changes
+        id: upload
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
+          name: version-patch
+          path: ${{ runner.temp }}/version.patch
+          if-no-files-found: error
+          retention-days: 7
+
+  pull-request:
+    name: Create Version PR
+    needs: version
+    if: needs.version.outputs.patch_artifact_id != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      # This job holds the write token, so it installs only the root's tools for the Changesets CLI and runs no install script or version script.
+      - name: Install the Changesets CLI
+        run: pnpm install --frozen-lockfile --filter . --ignore-scripts
+
+      - name: Download the version changes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
+        with:
+          artifact-ids: ${{ needs.version.outputs.patch_artifact_id }}
+          path: ${{ runner.temp }}/version
+
+      # The version job runs the changelog generator and pnpm, so its patch may only touch what changeset version writes.
+      - name: Check the version changes
+        run: node scripts/check-version-patch.mjs "$RUNNER_TEMP/version/version.patch"
+
+      # The action resets the branch to this commit before it runs `script`, runs it without a shell, and passes it the write token as `GITHUB_TOKEN`. The lockfile is resolved here instead of in the version job, with `--lockfile-only` installing nothing and pnpm getting no token.
+      - name: Create version PR
+        uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/version@v2.1.2
+        with:
+          script: bash -c "git apply --index ${{ runner.temp }}/version/version.patch && env -u GITHUB_TOKEN pnpm install --no-frozen-lockfile --lockfile-only --ignore-scripts"
           commit-message: "chore: update versions"
           pr-title: "chore: update versions"
-          version-script: pnpm ci:version
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  dispatch:
+    name: Trigger npm publish
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to create the repository dispatch event.
+      contents: write
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect release packages
         id: release_plan
-        if: steps.changesets.outputs.has-changesets == 'false'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const { execFileSync } = require("node:child_process");
             const { existsSync, readFileSync } = require("node:fs");
+            const { pendingChangesets } = await import(
+              `${process.env.GITHUB_WORKSPACE}/scripts/pending-changesets.mjs`
+            );
+
+            const changesets = pendingChangesets();
+            if (changesets.length > 0) {
+              core.info(`Release candidates: none while ${changesets.length} changesets are pending`);
+              core.setOutput("hasReleasePackages", "false");
+              return;
+            }
 
             const before = context.payload.before;
             const after = context.sha;
@@ -122,7 +213,7 @@ jobs:
             core.setOutput("hasReleasePackages", hasReleasePackages ? "true" : "false");
 
       - name: Trigger npm publish
-        if: steps.changesets.outputs.has-changesets == 'false' && steps.release_plan.outputs.hasReleasePackages == 'true'
+        if: steps.release_plan.outputs.hasReleasePackages == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |

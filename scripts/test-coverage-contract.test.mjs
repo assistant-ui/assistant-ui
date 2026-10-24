@@ -271,7 +271,7 @@ test(
   },
   () => {
     const docsBuild = executableTasks().find(
-      (task) => task.taskId === "@assistant-ui/docs#build",
+      (task) => task.taskId === "@assistant-ui/docs-site#build",
     );
     assert(docsBuild);
     for (const task of executableTasks().filter(
