@@ -77,7 +77,7 @@
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
     "directory": "packages/docs"
   },
-  "private": true,
+  "private": false,
   "peerDependenciesMeta": {
     "next": {
       "optional": true
