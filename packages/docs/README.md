@@ -6,23 +6,14 @@ and previous/next navigation. Page actions sit alongside the title; bottom
 navigation stays at the bottom of short pages and follows longer content.
 
 Site content, repository links, fonts, and legal footer remain in the consuming
-app. Harness SDK consumes a packed archive from this package in its own repository.
+app. Consumers install this package from npm.
 The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 
 ## Install
 
-This package is not yet published. In this workspace, use
-`"@assistant-ui/docs": "workspace:*"` and run:
-
 ```sh
-pnpm install
-pnpm --filter @assistant-ui/docs build
-pnpm --filter @assistant-ui/docs pack
+pnpm add @assistant-ui/docs@0.0.1 @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
 ```
-
-To use it in another repository before publishing, run `pnpm pack` in this
-package and install the resulting `.tgz` with `pnpm add /path/to/package.tgz`.
-Once published, the same package can be installed with `pnpm add @assistant-ui/docs`.
 
 Use Farming Labs Docs, Next, and Theme 0.2.127 with Fumadocs UI 16.17.1.
 Fumadocs UI is a required peer because the theme imports its shared contexts.
@@ -145,5 +136,6 @@ exports. The `next` export stays on the server, while the header and page contro
 Import `provider` from the server root layout; it re-exports the framework's
 client provider without pulling server-only framework exports into the browser.
 
-The package stays private until its first registry release is configured. Packing
-and installing the archive works without publishing or linking the repositories.
+In this workspace, use `"@assistant-ui/docs": "workspace:*"`. To test local
+changes in another repository, run `pnpm pack` in this package and install the
+resulting archive with `pnpm add /path/to/package.tgz`.
