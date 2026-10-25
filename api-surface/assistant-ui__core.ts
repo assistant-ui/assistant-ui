@@ -1738,6 +1738,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }, endEditCallback: () => void, _param3: {
     parentId: string | null;
     message: ThreadMessage;
+    onMessageNotSent?: (message: AppendMessage) => void;
   });
   get parentId(): string | null;
   get sourceId(): string | null;
