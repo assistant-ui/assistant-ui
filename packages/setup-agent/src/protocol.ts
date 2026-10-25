@@ -197,9 +197,12 @@ export namespace Checkout {
     optional?: boolean;
   };
 
-  export type PlanDecision =
-    | { decision: "approve" }
-    | { decision: "revise"; feedback: string };
+  export type PlanDecision = {
+    /** The setup the browser reviewed; omitted by legacy clients. */
+    id?: string;
+    /** The plan revision the browser reviewed; omitted by legacy clients. */
+    revision?: number;
+  } & ({ decision: "approve" } | { decision: "revise"; feedback: string });
 
   export type Commands = {
     "checkout/create": (params: {
@@ -256,6 +259,7 @@ export namespace Checkout {
     | "plan-required"
     | "no-plan"
     | "plan-decided"
+    | "stale-plan"
     | "finish-not-proposed"
     | "feedback-required"
     | "empty-plan"

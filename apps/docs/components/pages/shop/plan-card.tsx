@@ -369,13 +369,23 @@ export function PlanAccordion({
   );
 }
 
-function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
+function PlanDecisionForm({
+  checkout,
+  revision,
+}: {
+  checkout: CheckoutContextValue;
+  revision: number;
+}) {
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const decide = async (decision: Checkout.PlanDecision) => {
     setBusy(true);
     try {
-      await checkout.commands["checkout/plan"](decision);
+      await checkout.commands["checkout/plan"]({
+        ...decision,
+        id: checkout.session.id,
+        revision,
+      });
     } catch {
       toast.error("Could not send your decision");
     } finally {
@@ -515,7 +525,9 @@ export function PlanCard({
         {collapsed ? null : (
           <PlanAccordion markdown={current.markdown} steps={steps} />
         )}
-        {proposed ? <PlanDecisionForm checkout={checkout} /> : null}
+        {proposed ? (
+          <PlanDecisionForm checkout={checkout} revision={current.revision} />
+        ) : null}
       </div>
     </div>
   );
