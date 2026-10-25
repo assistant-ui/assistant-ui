@@ -693,6 +693,9 @@ function convertParts(
           data: part.url,
           mimeType: part.mediaType ?? "unknown/unknown",
           ...(part.filename != null && { filename: part.filename }),
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata as PartProviderMetadata,
+          }),
         } satisfies FileMessagePart;
       }
 
@@ -730,6 +733,9 @@ function convertParts(
           type: "file",
           data: part.url,
           mimeType: part.mediaType ?? "unknown/unknown",
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata as PartProviderMetadata,
+          }),
         } satisfies FileMessagePart;
       }
 
@@ -787,6 +793,10 @@ export const convertAISDKMessage: useExternalMessageConverter.Callback<
                   ? {
                       type: "image",
                       image: part.url,
+                      ...(part.providerMetadata != null && {
+                        providerMetadata:
+                          part.providerMetadata as PartProviderMetadata,
+                      }),
                       filename: part.filename!,
                     }
                   : {
@@ -794,6 +804,10 @@ export const convertAISDKMessage: useExternalMessageConverter.Callback<
                       filename: part.filename!,
                       data: part.url,
                       mimeType: mediaType,
+                      ...(part.providerMetadata != null && {
+                        providerMetadata:
+                          part.providerMetadata as PartProviderMetadata,
+                      }),
                     },
               ],
               contentType: mediaType,

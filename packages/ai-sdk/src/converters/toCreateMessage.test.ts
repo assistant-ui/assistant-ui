@@ -634,3 +634,83 @@ describe("toCreateMessage", () => {
     ]);
   });
 });
+
+describe("toCreateMessage provider metadata", () => {
+  const providerMetadata = { google: { thoughtSignature: "signature" } };
+
+  it("preserves metadata on text, images and files", () => {
+    const message: AppendMessage = {
+      ...baseMessage,
+      createdAt: new Date(0),
+      attachments: [],
+      metadata: { custom: {} },
+      content: [
+        { type: "text", text: "hello", providerMetadata },
+        {
+          type: "image",
+          image: "data:image/png;base64,aW1n",
+          filename: "cat.png",
+          providerMetadata,
+        },
+        {
+          type: "file",
+          data: "cGRm",
+          mimeType: "application/pdf",
+          filename: "guide.pdf",
+          providerMetadata,
+        },
+      ],
+    };
+    expect(toCreateMessage(message).parts).toEqual([
+      { type: "text", text: "hello", providerMetadata },
+      {
+        type: "file",
+        url: "data:image/png;base64,aW1n",
+        mediaType: "image/png",
+        filename: "cat.png",
+        providerMetadata,
+      },
+      {
+        type: "file",
+        url: "data:application/pdf;base64,cGRm",
+        mediaType: "application/pdf",
+        filename: "guide.pdf",
+        providerMetadata,
+      },
+    ]);
+  });
+
+  it("preserves metadata from attachment content", () => {
+    const message: AppendMessage = {
+      ...baseMessage,
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      content: [],
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "image",
+          name: "cat.png",
+          contentType: "image/png",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "image",
+              image: "data:image/png;base64,aW1n",
+              providerMetadata,
+            },
+          ],
+        },
+      ],
+    };
+    expect(toCreateMessage(message).parts).toEqual([
+      {
+        type: "file",
+        url: "data:image/png;base64,aW1n",
+        mediaType: "image/png",
+        filename: "cat.png",
+        providerMetadata,
+      },
+    ]);
+  });
+});
