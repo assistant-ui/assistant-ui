@@ -241,6 +241,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "platforms",
   },
   {
+    name: "@assistant-ui/docs",
+    description: "Documentation theme for Farming Labs Docs.",
+    category: "ui",
+  },
+  {
     name: "@assistant-ui/react-markdown",
     description: "Streaming-aware markdown renderer.",
     category: "ui",

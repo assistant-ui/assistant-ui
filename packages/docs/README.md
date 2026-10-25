@@ -12,7 +12,7 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs@0.0.1 @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
 ```
 
 Use Farming Labs Docs, Next, and Theme 0.2.127 with Fumadocs UI 16.17.1.
