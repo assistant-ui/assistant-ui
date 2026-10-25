@@ -71,7 +71,10 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 import { analytics } from "@/lib/analytics";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
-import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
+import {
+  acknowledgeSetupIntro,
+  getCheckoutSession,
+} from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { useElapsed } from "@/components/pages/shop/use-elapsed";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -775,6 +778,7 @@ export function SetupWizard({
     if (done) analytics.setup.installFinished();
   }, [done]);
   const exit = (finished: boolean) => {
+    if (getCheckoutSession()?.id !== checkout.session.id) return;
     onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
