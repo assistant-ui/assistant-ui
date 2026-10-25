@@ -1652,14 +1652,24 @@ function emitToolResult(
 ): void {
   if (part.result === undefined) return;
 
-  const resultContent =
-    part.modelContent !== undefined
-      ? extractText(part.modelContent)
-      : isToolContentParts(part.result)
-        ? part.result
-        : typeof part.result === "string"
-          ? part.result
-          : JSON.stringify(part.result);
+  let resultContent: string | ContentPart[];
+  if (part.modelContent?.some((content) => content.type === "file")) {
+    resultContent = part.modelContent.flatMap((content) => {
+      const contentPart = toContentPart(
+        content,
+        content.type === "file" ? content.mediaType : undefined,
+      );
+      return contentPart ? [contentPart] : [];
+    });
+  } else if (part.modelContent !== undefined) {
+    resultContent = extractText(part.modelContent);
+  } else if (isToolContentParts(part.result)) {
+    resultContent = part.result;
+  } else if (typeof part.result === "string") {
+    resultContent = part.result;
+  } else {
+    resultContent = JSON.stringify(part.result);
+  }
   const messageMetadata = readAgUiPartMessageMetadata(part.providerMetadata);
 
   converted.push({
