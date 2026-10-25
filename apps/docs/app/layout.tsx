@@ -56,7 +56,8 @@ export const metadata = {
     description:
       "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
     siteName: "assistant-ui",
-    type: "website",
+    // Discord reads og:video only when og:type is video or video.*.
+    type: "video.other",
     images: [
       {
         url: "/api/og?variant=home",
