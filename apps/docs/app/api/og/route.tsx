@@ -67,16 +67,16 @@ export async function GET(request: NextRequest) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 32,
+          gap: 22,
         }}
       >
         <svg
           aria-hidden="true"
-          width="120"
-          height="120"
+          width="170"
+          height="170"
           viewBox="0 0 32 32"
           fill="none"
-          style={{ marginBottom: -10 }}
+          style={{ marginBottom: -14 }}
         >
           <rect width="32" height="32" rx="6" fill="#000000" />
           <g
