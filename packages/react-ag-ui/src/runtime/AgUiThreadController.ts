@@ -1185,10 +1185,6 @@ export class AgUiThreadController {
     if (this.getPendingInterrupts()) return;
     const turn = this.getTrailingAssistantTurn();
     if (!turn.some((message) => message.id === messageId)) return;
-    if (this.getPendingToolCalls()) return;
-    const headId = turn.at(-1)?.id;
-    if (headId === undefined) return;
-
     const owner = this.abortController;
     if (owner) {
       // A run is still draining (RUN_FINISHED arrived but the stream has not
@@ -1196,10 +1192,13 @@ export class AgUiThreadController {
       this.dispatch({
         type: "resumeDeferred",
         owner,
-        messageId: headId,
+        messageId,
       });
       return;
     }
+    if (this.getPendingToolCalls()) return;
+    const headId = turn.at(-1)?.id;
+    if (headId === undefined) return;
     this.startResumeRun(headId);
   }
 
@@ -1308,12 +1307,24 @@ export class AgUiThreadController {
     // continuation whose target survived the snapshot is still answerable.
     // Membership is the head branch, not the repository: a soft merge leaves
     // the messages it dropped behind as off-branch nodes.
-    const resumeTarget = this.state.pendingResume?.messageId;
-    if (
-      resumeTarget !== undefined &&
-      !this.session.getMessages().some((message) => message.id === resumeTarget)
-    ) {
-      this.dispatch({ type: "resumeCleared" });
+    const pendingResume = this.state.pendingResume;
+    if (pendingResume) {
+      const selectedIds = new Set(
+        this.session.getMessages().map((message) => message.id),
+      );
+      const retained = pendingResume.messageIds.filter((id) =>
+        selectedIds.has(id),
+      );
+      if (retained.length !== pendingResume.messageIds.length) {
+        this.dispatch({ type: "resumeCleared" });
+        for (const messageId of retained) {
+          this.dispatch({
+            type: "resumeDeferred",
+            owner: pendingResume.owner,
+            messageId,
+          });
+        }
+      }
     }
     this.publishUpdate();
   }
@@ -1706,10 +1717,18 @@ export class AgUiThreadController {
     // A tool result that landed before the run settled deferred its
     // continuation here so a second run never overlaps the first.
     if (this.state.pendingResume?.owner === abortController) {
-      const { messageId } = this.state.pendingResume;
+      const { messageIds } = this.state.pendingResume;
       this.dispatch({ type: "resumeCleared" });
-      if (!abortSignal.aborted) {
-        this.startResumeRun(messageId);
+      if (
+        !abortSignal.aborted &&
+        !this.getPendingInterrupts() &&
+        !this.getPendingToolCalls()
+      ) {
+        const turn = this.getTrailingAssistantTurn();
+        if (turn.some((message) => messageIds.includes(message.id))) {
+          const headId = turn.at(-1)?.id;
+          if (headId !== undefined) this.startResumeRun(headId);
+        }
       }
     }
 

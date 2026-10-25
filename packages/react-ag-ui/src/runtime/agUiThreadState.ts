@@ -8,7 +8,10 @@ export type AgUiThreadState = {
   historyMutationGeneration: number;
   stateSnapshot: ReadonlyJSONValue | undefined;
   lastRunConfig: RunConfig | undefined;
-  pendingResume: { owner: AbortController; messageId: string } | null;
+  pendingResume: {
+    owner: AbortController;
+    messageIds: readonly string[];
+  } | null;
   pendingA2uiResumeOwner: AbortController | null;
   pendingA2uiAction: Record<string, unknown> | undefined;
 };
@@ -78,11 +81,17 @@ export const reduceAgUiThreadState = (
         : { ...state, lastRunConfig: action.runConfig };
     case "resumeDeferred":
       return state.pendingResume?.owner === action.owner &&
-        state.pendingResume.messageId === action.messageId
+        state.pendingResume.messageIds.includes(action.messageId)
         ? state
         : {
             ...state,
-            pendingResume: { owner: action.owner, messageId: action.messageId },
+            pendingResume: {
+              owner: action.owner,
+              messageIds:
+                state.pendingResume?.owner === action.owner
+                  ? [...state.pendingResume.messageIds, action.messageId]
+                  : [action.messageId],
+            },
           };
     case "resumeCleared":
       return state.pendingResume === null
