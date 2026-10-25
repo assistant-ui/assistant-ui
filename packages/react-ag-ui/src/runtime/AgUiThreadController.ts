@@ -1343,7 +1343,17 @@ export class AgUiThreadController {
           hardReplace = true;
           break;
         }
-        this.session.addOrUpdateMessage(expectedParentId, message);
+        const retained =
+          existing?.message.role === "assistant" && message.role === "assistant"
+            ? {
+                ...message,
+                content: this.preserveToolResults(
+                  existing.message.content,
+                  message.content,
+                ),
+              }
+            : message;
+        this.session.addOrUpdateMessage(expectedParentId, retained);
         expectedParentId = message.id;
         lastAppliedId = message.id;
       }
