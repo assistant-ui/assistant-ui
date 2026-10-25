@@ -87,7 +87,116 @@ function addResult(
   });
 }
 
+function withResolvedResults(
+  messages: readonly ThreadMessage[],
+  results: Readonly<Record<string, string>>,
+): ThreadMessage[] {
+  return messages.map((message) => {
+    if (message.role !== "assistant") return message;
+    return {
+      ...message,
+      content: message.content.map((part) => {
+        if (part.type !== "tool-call") return part;
+        const result = results[part.toolCallId];
+        return result === undefined
+          ? part
+          : { ...part, result, isError: false };
+      }),
+    };
+  });
+}
+
+function toolCallResults(core: AgUiThreadController) {
+  return core
+    .getMessages()
+    .flatMap((message) =>
+      message.role !== "assistant"
+        ? []
+        : message.content.flatMap((part) =>
+            part.type === "tool-call"
+              ? [{ toolCallId: part.toolCallId, result: part.result }]
+              : [],
+          ),
+    );
+}
+
 describe("AgUiThreadController deferred tool results", () => {
+  it.each([
+    {
+      snapshot: "stale",
+      snapshotResults: undefined,
+      expectedResults: {
+        "tool-a": "tool-a-result",
+        "tool-b": "tool-b-result",
+      },
+    },
+    {
+      snapshot: "fresh resolved",
+      snapshotResults: {
+        "tool-a": "fresh tool-a result",
+        "tool-b": "fresh tool-b result",
+      },
+      expectedResults: {
+        "tool-a": "fresh tool-a result",
+        "tool-b": "fresh tool-b result",
+      },
+    },
+  ])(
+    "preserves result authority when applying a same-parent $snapshot snapshot",
+    async ({ snapshotResults, expectedResults }) => {
+      const { core, runAgent, release } = openToolTurn();
+      const firstRun = core.append(userMessage);
+
+      try {
+        const captured = core.getMessages();
+        const externalSnapshot = snapshotResults
+          ? withResolvedResults(captured, snapshotResults)
+          : captured;
+
+        addResult(core, "assistant-a", "tool-a");
+        addResult(core, "assistant-b", "tool-b");
+        expect(core.getPendingToolCalls()).toBeNull();
+        expect(runAgent).toHaveBeenCalledOnce();
+
+        core.applyExternalMessages(externalSnapshot);
+
+        expect(toolCallResults(core)).toEqual([
+          { toolCallId: "tool-a", result: expectedResults["tool-a"] },
+          { toolCallId: "tool-b", result: expectedResults["tool-b"] },
+        ]);
+        expect(runAgent).toHaveBeenCalledOnce();
+      } finally {
+        release();
+        await firstRun;
+      }
+
+      await vi.waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+      expect(runAgent).toHaveBeenCalledTimes(2);
+
+      const wireMessages = runAgent.mock.calls[1]?.[0].messages ?? [];
+      const wireToolResults = wireMessages.filter(
+        (message) =>
+          typeof message === "object" &&
+          message !== null &&
+          "role" in message &&
+          message.role === "tool",
+      );
+      expect(wireToolResults).toHaveLength(2);
+      expect(wireToolResults).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            toolCallId: "tool-a",
+            content: expectedResults["tool-a"],
+          }),
+          expect.objectContaining({
+            toolCallId: "tool-b",
+            content: expectedResults["tool-b"],
+          }),
+        ]),
+      );
+    },
+  );
+
   it("continues a surviving owner after a snapshot removes another pending tool", async () => {
     const { core, runAgent, release } = openToolTurn();
     const firstRun = core.append(userMessage);
