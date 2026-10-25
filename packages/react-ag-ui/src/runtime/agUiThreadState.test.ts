@@ -115,7 +115,10 @@ describe("reduceAgUiThreadState", () => {
       owner,
       messageId: "assistant",
     });
-    expect(withResume.pendingResume).toEqual({ owner, messageId: "assistant" });
+    expect(withResume.pendingResume).toEqual({
+      owner,
+      messageIds: ["assistant"],
+    });
     expect(
       reduceAgUiThreadState(withResume, {
         type: "resumeDeferred",
@@ -123,6 +126,22 @@ describe("reduceAgUiThreadState", () => {
         messageId: "assistant",
       }),
     ).toBe(withResume);
+    const withTwoOwners = reduceAgUiThreadState(withResume, {
+      type: "resumeDeferred",
+      owner,
+      messageId: "assistant-next",
+    });
+    expect(withTwoOwners.pendingResume).toEqual({
+      owner,
+      messageIds: ["assistant", "assistant-next"],
+    });
+    expect(
+      reduceAgUiThreadState(withTwoOwners, {
+        type: "resumeDeferred",
+        owner: new AbortController(),
+        messageId: "new-run",
+      }).pendingResume?.messageIds,
+    ).toEqual(["new-run"]);
     const withOwner = reduceAgUiThreadState(withResume, {
       type: "a2uiResumeDeferred",
       owner,
@@ -189,7 +208,7 @@ describe("reduceAgUiThreadState", () => {
     });
     expect(cleared.pendingA2uiResumeOwner).toBeNull();
     expect(cleared.pendingA2uiAction).toBeUndefined();
-    expect(cleared.pendingResume).toEqual({ owner, messageId: "assistant" });
+    expect(cleared.pendingResume).toEqual({ owner, messageIds: ["assistant"] });
     expect(
       reduceAgUiThreadState(cleared, { type: "a2uiContinuationsCleared" }),
     ).toBe(cleared);
