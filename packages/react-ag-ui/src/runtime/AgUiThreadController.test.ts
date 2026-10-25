@@ -568,7 +568,7 @@ describe("AgUiThreadController setState", () => {
   });
 });
 
-describe("AgUiThreadController same-ID replay reproduction", () => {
+describe("AgUiThreadController resuming a disconnected run", () => {
   type Subscriber = {
     onTextMessageStartEvent?: (payload: { event: unknown }) => void;
     onTextMessageContentEvent?: (payload: { event: unknown }) => void;

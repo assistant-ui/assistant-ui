@@ -68,8 +68,13 @@ import {
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 import {
+  createReplayContentMerger,
+  preserveToolResult,
+} from "./adapter/replay-content";
+import {
   buildToolApprovalResume,
   projectAgUiToolApprovals,
+  preserveToolApprovalDecision,
   withSettledToolApprovals,
   withToolApprovalDecision,
 } from "./adapter/tool-approval";
@@ -93,7 +98,7 @@ const isResolvedToolCall = (
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
 const listedPendingToolCallIds = (
-  assistant: ThreadAssistantMessage,
+  assistant: Pick<ThreadAssistantMessage, "metadata">,
 ): ReadonlySet<string> | undefined => {
   const ids = (
     assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
@@ -102,6 +107,17 @@ const listedPendingToolCallIds = (
   )?.pendingToolCallIds;
   return ids?.length ? new Set(ids) : undefined;
 };
+
+type ReplayContext = {
+  accountedResultIds: ReadonlySet<string>;
+  admittedToolCallIds: ReadonlySet<string>;
+  merge: ReturnType<typeof createReplayContentMerger>;
+};
+
+type SnapshotMessageReconciler = (
+  snapshot: ThreadAssistantMessage,
+  previous: ThreadAssistantMessage | undefined,
+) => ThreadAssistantMessage;
 
 const withoutPendingToolCallIds = (
   metadata: ThreadAssistantMessage["metadata"],
@@ -123,6 +139,43 @@ const withoutPendingToolCallIds = (
         : {}),
     },
   };
+};
+
+const withPendingToolCallIds = (
+  metadata: ThreadAssistantMessage["metadata"],
+  ids: Iterable<string>,
+): ThreadAssistantMessage["metadata"] => ({
+  ...metadata,
+  custom: {
+    ...metadata.custom,
+    [AG_UI_METADATA_NAMESPACE]: {
+      ...(metadata.custom[AG_UI_METADATA_NAMESPACE] as
+        | AgUiCustomMetadata
+        | undefined),
+      pendingToolCallIds: [...ids],
+    },
+  },
+});
+
+const actionableToolCallIds = (
+  message: ThreadMessage | undefined,
+): ReadonlySet<string> => {
+  if (
+    message?.role !== "assistant" ||
+    message.status?.type !== "requires-action" ||
+    message.status.reason !== "tool-calls"
+  )
+    return new Set();
+  const permitted = listedPendingToolCallIds(message);
+  return new Set(
+    Array.from(iterateToolCallParts(message.content))
+      .filter(
+        (part) =>
+          !isResolvedToolCall(part) &&
+          (!permitted || permitted.has(part.toolCallId)),
+      )
+      .map((part) => part.toolCallId),
+  );
 };
 
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
@@ -560,6 +613,7 @@ export class AgUiThreadController {
       config.runConfig ?? this.state.lastRunConfig,
       undefined,
       config.stream,
+      true,
     );
   }
 
@@ -599,17 +653,13 @@ export class AgUiThreadController {
   private findRequiresActionAssistant(
     reason: "interrupt" | "tool-calls",
   ): ThreadAssistantMessage | null {
-    const assistant = this.getMessages().findLast(
-      (message) => message.role === "assistant",
-    ) as ThreadAssistantMessage | undefined;
-    if (
-      !assistant ||
-      assistant.status?.type !== "requires-action" ||
-      assistant.status.reason !== reason
-    ) {
-      return null;
-    }
-    return assistant;
+    return (
+      this.getTrailingAssistantTurn().findLast(
+        (message) =>
+          message.status?.type === "requires-action" &&
+          message.status.reason === reason,
+      ) ?? null
+    );
   }
 
   private getTrailingAssistantTurn(): ThreadAssistantMessage[] {
@@ -715,8 +765,9 @@ export class AgUiThreadController {
     messageId: string,
     resume: AgUiResumeEntry[],
   ): Promise<void> {
+    const parentId = this.session.headId ?? messageId;
     this.clearPendingInterrupts(messageId, resume);
-    await this.startRun(messageId, this.state.lastRunConfig, {
+    await this.startRun(parentId, this.state.lastRunConfig, {
       entries: resume,
       interruptedMessageId: messageId,
     });
@@ -1180,8 +1231,23 @@ export class AgUiThreadController {
   // The continuation fires whether the frontend result lands before
   // RUN_FINISHED (the status flips to requires-action only later, while the
   // run is still draining) or after it.
-  private maybeResumeAfterToolResults(messageId: string): void {
+  private maybeResumeAfterToolResults(
+    messageId: string,
+    accountedResultIds?: ReadonlySet<string>,
+  ): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    if (accountedResultIds) {
+      const message = this.session.tryGetMessage(messageId)?.message;
+      if (
+        message?.role !== "assistant" ||
+        !Array.from(iterateToolCallParts(message.content)).some(
+          (part) =>
+            isResolvedToolCall(part) &&
+            !accountedResultIds.has(part.toolCallId),
+        )
+      )
+        return;
+    }
     if (this.getPendingInterrupts()) return;
     const turn = this.getTrailingAssistantTurn();
     if (!turn.some((message) => message.id === messageId)) return;
@@ -1386,6 +1452,7 @@ export class AgUiThreadController {
     runConfig?: RunConfig,
     resume?: ResumeDispatch,
     resumeStream?: ResumeStream,
+    replayExistingMessages = false,
   ): Promise<void> {
     if (this.isThreadSwitching?.()) return;
     // A default AG-UI run supersedes the active run; the hook's opt-in message
@@ -1393,6 +1460,7 @@ export class AgUiThreadController {
     // its message; this covers the entry points that start a run without one.
     if (!this.supersedeActiveRun()) return;
 
+    const generation = this.state.historyMutationGeneration;
     const normalizedRunConfig = runConfig ?? {};
     this.dispatch({
       type: "runConfigRecorded",
@@ -1412,6 +1480,52 @@ export class AgUiThreadController {
     const runStartMessageIds = new Set(
       this.getMessageRepository().messages.map(({ message }) => message.id),
     );
+    const selectedMessages = this.session.getMessages();
+    const parentIndex = selectedMessages.findIndex(
+      (message) => message.id === parentId,
+    );
+    let replayStart = parentIndex + 1;
+    if (selectedMessages[parentIndex]?.role === "assistant") {
+      replayStart = parentIndex;
+      while (
+        replayStart > 0 &&
+        selectedMessages[replayStart - 1]?.role === "assistant"
+      )
+        replayStart--;
+    }
+    const replayMessageIds: string[] = [];
+    if (replayExistingMessages && !resumeStream && parentIndex >= 0) {
+      for (const message of selectedMessages.slice(replayStart)) {
+        if (message.role !== "assistant") break;
+        replayMessageIds.push(message.id);
+      }
+    }
+    // Only request-delivered and producer-observed results suppress continuation.
+    const accountedResultIds = new Set(
+      historicalMessages.flatMap((message) =>
+        message.role === "assistant"
+          ? Array.from(iterateToolCallParts(message.content))
+              .filter(isResolvedToolCall)
+              .map((part) => part.toolCallId)
+          : [],
+      ),
+    );
+    const replayContexts = new Map(
+      replayMessageIds.map((id) => [
+        id,
+        {
+          accountedResultIds,
+          admittedToolCallIds: actionableToolCallIds(
+            this.session.tryGetMessage(id)?.message,
+          ),
+          merge: createReplayContentMerger(),
+        },
+      ]),
+    );
+    let lastReplayedIndex = -1;
+    let replayEnded = replayMessageIds.length === 0;
+    const replayTail = replayMessageIds.at(-1);
+    if (replayTail) this.session.selectHead(replayTail);
     const joinStrategy = this.joinStrategy;
     const hasRunUserBoundary = parent?.message.role === "user" && !resume;
 
@@ -1456,23 +1570,51 @@ export class AgUiThreadController {
       return created;
     };
 
-    if (shouldEagerlyInsertAssistant) ensureAssistant();
+    if (shouldEagerlyInsertAssistant && replayEnded) ensureAssistant();
 
     const settleHeldMessages = (terminalStatus: MessageStatus): string[] => {
       const pendingMessages: string[] = [];
+      const producerPending = restrictedPendingToolCallIds;
+      const canWaitForTools =
+        terminalStatus.type === "complete" ||
+        terminalStatus.type === "requires-action";
+      if (producerPending && canWaitForTools) {
+        for (const message of this.getTrailingAssistantTurn()) {
+          if (
+            message.id === assistantMessageId ||
+            heldMessages.has(message.id) ||
+            !replayContexts.has(message.id)
+          )
+            continue;
+          if (
+            Array.from(iterateToolCallParts(message.content)).some(
+              (part) =>
+                producerPending.has(part.toolCallId) &&
+                !accountedResultIds.has(part.toolCallId),
+            )
+          )
+            heldMessages.set(message.id, new Set());
+        }
+      }
       for (const [messageId, openToolCallIds] of heldMessages) {
         let requiresToolResult = false;
         const updated = this.session.updateMessage(messageId, (message) => {
           if (message.role !== "assistant") return message;
           const assistant = message as ThreadAssistantMessage;
-          const pendingToolCallIds = Array.from(openToolCallIds).filter(
-            (id) =>
-              !restrictedPendingToolCallIds ||
-              restrictedPendingToolCallIds.has(id),
-          );
-          const canWaitForTools =
-            terminalStatus.type === "complete" ||
-            terminalStatus.type === "requires-action";
+          const pendingToolCallIds = producerPending
+            ? Array.from(iterateToolCallParts(assistant.content))
+                .filter(
+                  (part) =>
+                    producerPending.has(part.toolCallId) &&
+                    (!isResolvedToolCall(part) ||
+                      openToolCallIds.has(part.toolCallId) ||
+                      (replayContexts.has(messageId) &&
+                        !accountedResultIds.has(part.toolCallId))),
+                )
+                .map((part) => part.toolCallId)
+            : Array.from(openToolCallIds);
+          const replay = replayContexts.get(messageId);
+          if (replay) replay.admittedToolCallIds = new Set(pendingToolCallIds);
           const status: MessageStatus = canWaitForTools
             ? pendingToolCallIds.length > 0
               ? { type: "requires-action", reason: "tool-calls" }
@@ -1484,19 +1626,9 @@ export class AgUiThreadController {
             ...assistant,
             status,
             metadata:
-              status.type === "requires-action" && restrictedPendingToolCallIds
-                ? {
-                    ...metadata,
-                    custom: {
-                      ...metadata.custom,
-                      [AG_UI_METADATA_NAMESPACE]: {
-                        ...(metadata.custom[AG_UI_METADATA_NAMESPACE] as
-                          | AgUiCustomMetadata
-                          | undefined),
-                        pendingToolCallIds,
-                      },
-                    },
-                  }
+              status.type === "requires-action" &&
+              (restrictedPendingToolCallIds || replayContexts.has(messageId))
+                ? withPendingToolCallIds(metadata, pendingToolCallIds)
                 : metadata,
           };
         });
@@ -1512,7 +1644,44 @@ export class AgUiThreadController {
       return pendingMessages;
     };
 
+    const accountProducerResults = (
+      content: ThreadAssistantMessage["content"],
+    ) => {
+      for (const part of iterateToolCallParts(content))
+        if (isResolvedToolCall(part)) accountedResultIds.add(part.toolCallId);
+    };
+    const reconcileReplaySnapshot: SnapshotMessageReconciler = (
+      snapshot,
+      previous,
+    ) => {
+      const replay = replayContexts.get(snapshot.id);
+      if (!replay) return snapshot;
+      // Observe the producer before preserving any local frontend results.
+      accountProducerResults(snapshot.content);
+      replay.admittedToolCallIds = actionableToolCallIds(snapshot);
+      if (heldMessages.has(snapshot.id))
+        heldMessages.set(snapshot.id, new Set(replay.admittedToolCallIds));
+      return previous
+        ? {
+            ...snapshot,
+            content: this.preserveToolResults(
+              previous.content,
+              snapshot.content,
+              true,
+            ),
+          }
+        : snapshot;
+    };
+
     const applyUpdate = (update: ChatModelRunResult) => {
+      if (replayContexts.size && update.content !== undefined)
+        accountProducerResults(
+          update.content as ThreadAssistantMessage["content"],
+        );
+      if (!replayEnded && assistantMessageId === undefined) {
+        if (!update.status || update.status.type === "running") return;
+        assistantMessageId = replayTail;
+      }
       const terminalStatus = update.status;
       const pendingMessages =
         settlingRun && terminalStatus && terminalStatus.type !== "running"
@@ -1521,15 +1690,21 @@ export class AgUiThreadController {
       const hasStreamContent =
         Array.isArray(update.content) &&
         update.content.some((part) => part.type !== "data");
+      const messageId = ensureAssistant(hasStreamContent);
       const resolved = this.updateAssistantMessage(
-        ensureAssistant(hasStreamContent),
+        messageId,
         update,
+        replayContexts.get(messageId),
+        restrictedPendingToolCallIds,
       );
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
       for (const messageId of pendingMessages) {
-        this.maybeResumeAfterToolResults(messageId);
+        this.maybeResumeAfterToolResults(
+          messageId,
+          replayMessageIds.includes(messageId) ? accountedResultIds : undefined,
+        );
       }
     };
 
@@ -1538,20 +1713,62 @@ export class AgUiThreadController {
       startNewMessage: boolean,
       openToolCallIds: string[] = [],
     ) => {
+      const existing = this.session.tryGetMessage(serverId);
+      const replayIndex = replayMessageIds.indexOf(serverId);
+      const adoptsReplay =
+        !replayEnded &&
+        !assistantCollided &&
+        replayIndex > lastReplayedIndex &&
+        existing?.message.role === "assistant" &&
+        this.session.getMessages().some((message) => message.id === serverId);
       if (startNewMessage && assistantMessageId !== undefined) {
-        if (openToolCallIds.length > 0) {
+        let hasReplayCallsToHold = false;
+        const replay = replayContexts.get(assistantMessageId);
+        if (replay) {
+          const current =
+            this.session.tryGetMessage(assistantMessageId)?.message;
+          if (current?.role === "assistant") {
+            const retainedPending = Array.from(
+              iterateToolCallParts(current.content),
+            ).filter(
+              (part) =>
+                !isResolvedToolCall(part) ||
+                (replay.admittedToolCallIds.has(part.toolCallId) &&
+                  !accountedResultIds.has(part.toolCallId)),
+            );
+            hasReplayCallsToHold = retainedPending.length > 0;
+            openToolCallIds = [
+              ...new Set([
+                ...openToolCallIds,
+                ...retainedPending
+                  .filter((part) =>
+                    replay.admittedToolCallIds.has(part.toolCallId),
+                  )
+                  .map((part) => part.toolCallId),
+              ]),
+            ];
+          }
+        }
+        if (openToolCallIds.length > 0 || hasReplayCallsToHold) {
           heldMessages.set(assistantMessageId, new Set(openToolCallIds));
         } else {
           applyUpdate({ status: { type: "complete", reason: "unknown" } });
         }
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
-        if (this.session.tryGetMessage(previousId)) {
+        if (!adoptsReplay && this.session.tryGetMessage(previousId)) {
           const created = this.insertAssistantPlaceholder(previousId);
           assistantMessageId = created;
           this.markPendingAssistantHistory(created, previousId);
         }
       }
+      if (adoptsReplay) {
+        assistantMessageId = serverId;
+        lastReplayedIndex = replayIndex;
+        this.markPendingAssistantHistory(serverId, existing.parentId);
+        return;
+      }
+      replayEnded = true;
       const placeholder = ensureAssistant(true);
       if (placeholder === serverId) return;
       const reassigned = this.reassignAssistantId(placeholder, serverId);
@@ -1589,10 +1806,13 @@ export class AgUiThreadController {
         adoptServerMessageId(serverId, true, openToolCallIds),
     });
     let runFinished = false;
+    let replayInterruptMessageId: string | undefined;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
       if (event.type === "RUN_FINISHED") {
         runFinished = true;
+        if (event.outcome?.type === "interrupt")
+          replayInterruptMessageId = assistantMessageId ?? replayTail;
         const ids =
           event.outcome?.type === "success"
             ? event.outcome.pendingToolCallIds
@@ -1600,6 +1820,7 @@ export class AgUiThreadController {
         restrictedPendingToolCallIds = ids?.length ? new Set(ids) : undefined;
       }
       if (event.type === "TOOL_CALL_RESULT") {
+        if (replayContexts.size) accountedResultIds.add(event.toolCallId);
         for (const openToolCallIds of heldMessages.values()) {
           openToolCallIds.delete(event.toolCallId);
         }
@@ -1608,6 +1829,8 @@ export class AgUiThreadController {
         event.type === "RUN_FINISHED" ||
         event.type === "RUN_ERROR" ||
         event.type === "RUN_CANCELLED";
+      const beforeSnapshot =
+        event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
       try {
         const nextAssistantMessageId = this.handleEvent(
           aggregator,
@@ -1616,8 +1839,16 @@ export class AgUiThreadController {
           joinStrategy,
           runStartMessageIds,
           hasRunUserBoundary,
+          replayContexts.size ? reconcileReplaySnapshot : undefined,
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
+          for (const message of beforeSnapshot) {
+            const context = replayContexts.get(message.id);
+            const current = this.session.tryGetMessage(message.id)?.message;
+            if (context && current?.content !== message.content) {
+              context.merge = createReplayContentMerger();
+            }
+          }
           assistantMessageId = nextAssistantMessageId;
         }
       } finally {
@@ -1714,6 +1945,30 @@ export class AgUiThreadController {
       throw err;
     }
 
+    const pending = replayInterruptMessageId
+      ? this.getPendingInterrupts()
+      : null;
+    if (
+      pending &&
+      pending.messageId === replayInterruptMessageId &&
+      replayContexts.has(pending.messageId) &&
+      !abortSignal.aborted &&
+      this.abortController === null &&
+      generation === this.state.historyMutationGeneration &&
+      !this.isThreadSwitching?.()
+    ) {
+      const message = this.session.tryGetMessage(pending.messageId)?.message;
+      const responses =
+        message?.role === "assistant"
+          ? buildToolApprovalResume(message.content, pending.interrupts)
+          : null;
+      if (responses) {
+        this.clearDeferredContinuations(abortController);
+        await this.submitInterruptResponses(responses);
+        return;
+      }
+    }
+
     // A tool result that landed before the run settled deferred its
     // continuation here so a second run never overlaps the first.
     if (this.state.pendingResume?.owner === abortController) {
@@ -1725,7 +1980,21 @@ export class AgUiThreadController {
         !this.getPendingToolCalls()
       ) {
         const turn = this.getTrailingAssistantTurn();
-        if (turn.some((message) => messageIds.includes(message.id))) {
+        if (
+          turn.some((message) => {
+            if (!messageIds.includes(message.id)) return false;
+            const replay = replayContexts.get(message.id);
+            return (
+              !replay ||
+              Array.from(iterateToolCallParts(message.content)).some(
+                (part) =>
+                  isResolvedToolCall(part) &&
+                  replay.admittedToolCallIds.has(part.toolCallId) &&
+                  !accountedResultIds.has(part.toolCallId),
+              )
+            );
+          })
+        ) {
           const headId = turn.at(-1)?.id;
           if (headId !== undefined) this.startResumeRun(headId);
         }
@@ -2013,6 +2282,8 @@ export class AgUiThreadController {
   private updateAssistantMessage(
     messageId: string,
     update: ChatModelRunResult,
+    replay?: ReplayContext,
+    pendingToolCallIds?: ReadonlySet<string>,
   ): string {
     let latestStatus: MessageStatus | undefined;
     const touched = this.session.updateMessage(messageId, (message) => {
@@ -2022,18 +2293,92 @@ export class AgUiThreadController {
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
         : assistant.metadata;
       latestStatus = update.status ?? assistant.status;
+      let content =
+        update.content !== undefined
+          ? replay
+            ? replay.merge(
+                assistant.content,
+                update.content as ThreadAssistantMessage["content"],
+              )
+            : this.preserveToolResults(
+                assistant.content,
+                update.content as ThreadAssistantMessage["content"],
+              )
+          : assistant.content;
+      const calls = replay ? Array.from(iterateToolCallParts(content)) : [];
+      // A retained historical call needs existing or current stream authority.
+      const pending =
+        pendingToolCallIds ??
+        (replay
+          ? new Set([
+              ...replay.admittedToolCallIds,
+              ...Array.from(iterateToolCallParts(update.content ?? []))
+                .filter((part) => !isResolvedToolCall(part))
+                .map((part) => part.toolCallId),
+            ])
+          : undefined);
+      if (replay && latestStatus?.type !== "running" && pending)
+        replay.admittedToolCallIds = pending;
+      if (replay) {
+        // Project gates against the content the user can actually answer.
+        const interrupts =
+          latestStatus?.type === "requires-action" &&
+          latestStatus.reason === "interrupt"
+            ? (
+                mergedMetadata.custom[AG_UI_METADATA_NAMESPACE] as
+                  | AgUiCustomMetadata
+                  | undefined
+              )?.interrupts
+            : undefined;
+        const approvals = projectAgUiToolApprovals(
+          interrupts,
+          new Set(calls.map((part) => part.toolCallId)),
+        );
+        content = mapToolCallPartsDeep(content, (part) => {
+          const approval = approvals.get(part.toolCallId);
+          if (approval)
+            return {
+              ...part,
+              approval: preserveToolApprovalDecision(part.approval, approval),
+            };
+          if (
+            !part.approval ||
+            part.approval.approved !== undefined ||
+            part.approval.resolution
+          )
+            return part;
+          const { approval: _approval, ...withoutApproval } = part;
+          return withoutApproval;
+        }).content;
+      }
+      if (replay && latestStatus?.type === "complete") {
+        const listed =
+          pending ??
+          listedPendingToolCallIds({
+            ...assistant,
+            metadata: mergedMetadata,
+          });
+        if (
+          calls.some(
+            (part) =>
+              (!isResolvedToolCall(part) ||
+                !replay.accountedResultIds.has(part.toolCallId)) &&
+              (!listed || listed.has(part.toolCallId)),
+          )
+        )
+          latestStatus = { type: "requires-action", reason: "tool-calls" };
+      }
+      const admission =
+        pending && replay
+          ? withPendingToolCallIds(mergedMetadata, pending)
+          : mergedMetadata;
       const metadata =
         latestStatus?.type === "requires-action" &&
         latestStatus.reason === "tool-calls"
-          ? mergedMetadata
-          : withoutPendingToolCallIds(mergedMetadata);
-      const content =
-        update.content !== undefined
-          ? this.preserveToolResults(
-              assistant.content,
-              update.content as ThreadAssistantMessage["content"],
-            )
-          : assistant.content;
+          ? admission
+          : replay && latestStatus?.type === "running"
+            ? mergedMetadata
+            : withoutPendingToolCallIds(admission);
       return {
         ...assistant,
         content,
@@ -2056,7 +2401,10 @@ export class AgUiThreadController {
     if (this.isPersistableStatus(latestStatus)) {
       this.persistAssistantHistory(resolvedMessageId);
     }
-    this.maybeResumeAfterToolResults(resolvedMessageId);
+    this.maybeResumeAfterToolResults(
+      resolvedMessageId,
+      replay?.accountedResultIds,
+    );
     return resolvedMessageId;
   }
 
@@ -2067,10 +2415,14 @@ export class AgUiThreadController {
   private preserveToolResults(
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
+    preserveDecisions = false,
   ): ThreadAssistantMessage["content"] {
     const preserved = new Map<string, ToolCallMessagePart>();
     for (const part of iterateToolCallParts(previous)) {
-      if (isResolvedToolCall(part)) {
+      if (
+        isResolvedToolCall(part) ||
+        (preserveDecisions && part.approval?.approved !== undefined)
+      ) {
         preserved.set(part.toolCallId, part);
       }
     }
@@ -2081,18 +2433,15 @@ export class AgUiThreadController {
     const { content: merged, changed } = mapToolCallPartsDeep(next, (part) => {
       const prior = preserved.get(part.toolCallId);
       if (!prior) return part;
-      if (!isResolvedToolCall(part) && isResolvedToolCall(prior)) {
-        return {
-          ...part,
-          result: prior.result,
-          ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
-          ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
-          ...(prior.modelContent !== undefined
-            ? { modelContent: prior.modelContent }
-            : {}),
-        };
+      const result = preserveToolResult(prior, part);
+      if (preserveDecisions && result.approval) {
+        const approval = preserveToolApprovalDecision(
+          prior.approval,
+          result.approval,
+        );
+        if (approval !== result.approval) return { ...result, approval };
       }
-      return part;
+      return result;
     });
     return this.preserveToolInteractions(previous, changed ? merged : next);
   }
@@ -2279,6 +2628,7 @@ export class AgUiThreadController {
     joinStrategy: UseAgUiRuntimeOptions["joinStrategy"],
     runStartMessageIds: ReadonlySet<string>,
     hasRunUserBoundary: boolean,
+    reconcileSnapshot?: SnapshotMessageReconciler,
   ): string | undefined {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
@@ -2323,6 +2673,7 @@ export class AgUiThreadController {
           joinStrategy,
           runStartMessageIds,
           hasRunUserBoundary,
+          reconcileSnapshot,
         );
         const headId = this.session.headId;
         if (hasActiveText && headId !== previousHeadId) {
@@ -2540,6 +2891,7 @@ export class AgUiThreadController {
     joinStrategy: UseAgUiRuntimeOptions["joinStrategy"],
     runStartMessageIds: ReadonlySet<string>,
     hasRunUserBoundary: boolean,
+    reconcileSnapshot?: SnapshotMessageReconciler,
   ) {
     try {
       const activeAssistantItem = activeAssistantId
@@ -2579,19 +2931,22 @@ export class AgUiThreadController {
         const existing = this.session.tryGetMessage(
           convertedMessage.id,
         )?.message;
-        if (
-          convertedMessage.role === "assistant" &&
-          existing?.role === "assistant"
-        ) {
-          converted[index] = {
-            ...convertedMessage,
-            content: this.mergeSnapshotAssistantContent(
-              existing.content,
-              convertedMessage.content,
-              snapshotHasReasoning,
-              snapshotHasActivity,
-            ),
-          };
+        if (convertedMessage.role === "assistant") {
+          const previous =
+            existing?.role === "assistant" ? existing : undefined;
+          const snapshot =
+            reconcileSnapshot?.(convertedMessage, previous) ?? convertedMessage;
+          converted[index] = previous
+            ? {
+                ...snapshot,
+                content: this.mergeSnapshotAssistantContent(
+                  previous.content,
+                  snapshot.content,
+                  snapshotHasReasoning,
+                  snapshotHasActivity,
+                ),
+              }
+            : snapshot;
         }
       }
       if (joinStrategy === "concat-content") {

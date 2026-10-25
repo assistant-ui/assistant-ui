@@ -228,6 +228,22 @@ export const projectAgUiToolApprovals = (
   );
 };
 
+/** Carries a recorded local decision only while the server names the same gate. */
+export const preserveToolApprovalDecision = (
+  previous: ToolApproval | undefined,
+  next: ToolApproval,
+): ToolApproval => {
+  if (previous?.id !== next.id) return next;
+  return {
+    ...next,
+    ...(previous.approved !== undefined ? { approved: previous.approved } : {}),
+    ...(previous.reason !== undefined ? { reason: previous.reason } : {}),
+    ...(previous.resolution !== undefined
+      ? { resolution: previous.resolution }
+      : {}),
+  };
+};
+
 /**
  * Records a decision on the gated tool call. The decision is held on the part
  * until every gate in the batch is answered, because AG-UI resumes a run with
@@ -266,16 +282,20 @@ export const buildToolApprovalResume = (
   content: readonly ThreadAssistantMessagePart[],
   interrupts: readonly AgUiInterrupt[],
 ): AgUiResumeEntry[] | null => {
-  const open = new Set(interrupts.map((interrupt) => interrupt.id));
+  const calls = Array.from(iterateToolCallParts(content));
+  const gates = projectAgUiToolApprovals(
+    interrupts,
+    new Set(calls.map((part) => part.toolCallId)),
+  );
   // Decisions accumulate in a `Map` rather than in an object literal, because an
   // interrupt id of `__proto__` would otherwise write to the prototype chain
   // instead of recording a response, and `constructor` or `toString` would
   // report themselves as answered while undecided.
   const responses = new Map<string, { status: "resolved"; payload: unknown }>();
-  for (const part of iterateToolCallParts(content)) {
+  for (const part of calls) {
     const approval = part.approval;
     if (!approval || approval.approved === undefined) continue;
-    if (!open.has(approval.id)) continue;
+    if (gates.get(part.toolCallId)?.id !== approval.id) continue;
     responses.set(approval.id, {
       status: "resolved",
       payload: {
