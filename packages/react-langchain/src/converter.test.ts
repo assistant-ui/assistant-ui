@@ -20,6 +20,26 @@ describe("createLangChainStreamingTimingAccessors", () => {
 });
 
 describe("convertLangChainContentBlock standard content blocks", () => {
+  it.each([
+    [
+      { data: "ZmFrZQ==", mimeType: "image/png" },
+      "data:image/png;base64,ZmFrZQ==",
+    ],
+    [
+      { base64: "ZmFrZQ==", mime_type: "image/png" },
+      "data:image/png;base64,ZmFrZQ==",
+    ],
+    [{ url: "https://cdn.example/a.png" }, "https://cdn.example/a.png"],
+  ])("preserves the filename on an image block %j", (source, image) => {
+    expect(
+      convertLangChainContentBlock({
+        type: "image",
+        ...source,
+        metadata: { filename: "diagram.png" },
+      }),
+    ).toEqual({ type: "image", image, filename: "diagram.png" });
+  });
+
   it("converts a base64 image block to an image part", () => {
     expect(
       convertLangChainContentBlock({
