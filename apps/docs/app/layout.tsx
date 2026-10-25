@@ -40,8 +40,10 @@ export const viewport = {
   maximumScale: 1,
 };
 
+const metadataBase = getMetadataBase();
+
 export const metadata = {
-  metadataBase: getMetadataBase(),
+  metadataBase,
   alternates: { canonical: "./" },
   title: {
     template: "%s · assistant-ui",
@@ -61,6 +63,15 @@ export const metadata = {
         width: 1200,
         height: 630,
         alt: "assistant-ui",
+      },
+    ],
+    // Next resolves og:image against metadataBase but emits og:video as written.
+    videos: [
+      {
+        url: new URL("/og/home.mp4", metadataBase).href,
+        type: "video/mp4",
+        width: 2400,
+        height: 1260,
       },
     ],
   },
