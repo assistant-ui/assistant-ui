@@ -567,3 +567,82 @@ describe("AgUiThreadController setState", () => {
     expect(runAgent).not.toHaveBeenCalled();
   });
 });
+
+describe("AgUiThreadController same-ID replay reproduction", () => {
+  type Subscriber = {
+    onTextMessageStartEvent?: (payload: { event: unknown }) => void;
+    onTextMessageContentEvent?: (payload: { event: unknown }) => void;
+    onTextMessageEndEvent?: (payload: { event: unknown }) => void;
+    onRunFinishedEvent?: (payload: { event: unknown }) => void;
+  };
+  const sendText = (
+    subscriber: Subscriber,
+    messageId: string,
+    text: string,
+    end = true,
+  ) => {
+    subscriber.onTextMessageStartEvent?.({
+      event: { type: "TEXT_MESSAGE_START", messageId },
+    });
+    subscriber.onTextMessageContentEvent?.({
+      event: { type: "TEXT_MESSAGE_CONTENT", messageId, delta: text },
+    });
+    if (end) {
+      subscriber.onTextMessageEndEvent?.({
+        event: { type: "TEXT_MESSAGE_END", messageId },
+      });
+    }
+  };
+
+  it.each(["user", "assistant"] as const)(
+    "preserves replayed IDs and content when resume uses the %s parent",
+    async (parent) => {
+      const runAgent = vi.fn(
+        async (input: { runId: string }, subscriber: Subscriber) => {
+          if (runAgent.mock.calls.length === 1) {
+            sendText(subscriber, "assistant-a", "first", false);
+            throw new Error("stream disconnected");
+          }
+          sendText(subscriber, "assistant-a", "first and more");
+          sendText(subscriber, "assistant-b", "second answer");
+          subscriber.onRunFinishedEvent?.({
+            event: { type: "RUN_FINISHED", runId: input.runId },
+          });
+        },
+      );
+      const { core } = createCore(undefined, {
+        runAgent,
+        abortRun: vi.fn(),
+      } as unknown as AbstractAgent);
+
+      await expect(
+        core.append({ ...userMessage("question"), startRun: true }),
+      ).rejects.toThrow("stream disconnected");
+      const userId = core.getMessages()[0]!.id;
+      expect(core.getMessages()[1]).toMatchObject({
+        id: "assistant-a",
+        content: [{ type: "text", text: "first" }],
+      });
+
+      await core.resume({
+        parentId: parent === "user" ? userId : "assistant-a",
+        sourceId: null,
+        runConfig: {},
+      });
+
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        userId,
+        "assistant-a",
+        "assistant-b",
+      ]);
+      expect(core.getMessages().slice(1)).toMatchObject([
+        { content: [{ type: "text", text: "first and more" }] },
+        { content: [{ type: "text", text: "second answer" }] },
+      ]);
+      expect(
+        core.getMessageRepository().messages.map(({ parentId }) => parentId),
+      ).toEqual([null, userId, "assistant-a"]);
+    },
+  );
+});
