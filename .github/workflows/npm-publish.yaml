@@ -769,10 +769,9 @@ jobs:
         uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/publish@v2.1.2
         with:
           script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
-          # The action pins tags and releases to the run's GITHUB_SHA (pushTag uses
-          # context.sha, createRelease sets no target_commitish), which differs from
-          # RELEASE_SHA on dispatch runs. The release-tags job creates both at
-          # RELEASE_SHA from npm registry truth instead.
+          # The action pins tags and releases to the run's GITHUB_SHA, which differs
+          # from RELEASE_SHA on dispatch runs; the release-tags job creates both at
+          # RELEASE_SHA instead.
           push-git-tags: false
           create-github-releases: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
