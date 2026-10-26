@@ -724,10 +724,13 @@ export abstract class BaseComposerRuntimeCore
   public cancel() {
     // A composer that keeps its draft while sending (an edit session) ends
     // that session here, so its submission must not dispatch afterwards.
-    if (this.isSubmitting && !this.detachesDraftOnSend) {
-      this._submissionSend?.controller.abort();
-      this._endSubmission();
-      this._notifySubscribers();
+    if (!this.detachesDraftOnSend) {
+      this._dictationSessionController.cancel();
+      if (this.isSubmitting) {
+        this._submissionSend?.controller.abort();
+        this._endSubmission();
+        this._notifySubscribers();
+      }
     }
     this.handleCancel();
   }
