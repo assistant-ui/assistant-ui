@@ -57,7 +57,7 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
       source: readonly ThreadListItemCoreState[];
     }
   >();
-  private readonly unreportedInitializations = new Set<Promise<void>>();
+  private mainReport: Promise<void> | undefined;
 
   constructor(
     initialThreadIdSeed: string,
@@ -238,25 +238,7 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     return this.actions.delete(threadId);
   }
   public initialize(threadId: string) {
-    const initialization = this.actions.initialize(threadId);
-    // Every runtime's send path awaits initialize for the remote ID alone, so it
-    // resolves as the adapter answers, a commit before the thread list reports
-    // the remote ID. reloadMainThread, which remounts on the reported item,
-    // waits for that report; a reload while initialize is still pending does not.
-    void initialization.then(
-      (result) => {
-        const reported = this.untilItemReports(
-          threadId,
-          (item) => item.remoteId === result.remoteId,
-        );
-        this.unreportedInitializations.add(reported);
-        void reported.then(() =>
-          this.unreportedInitializations.delete(reported),
-        );
-      },
-      () => {},
-    );
-    return initialization;
+    return this.actions.initialize(threadId);
   }
   public generateTitle(threadId: string, options?: { automatic?: boolean }) {
     const id = this.getItemById(threadId)?.id ?? threadId;
@@ -266,9 +248,26 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     return this.actions.generateTitle(threadId, messages, options);
   }
 
+  /**
+   * The thread list announces the main thread's remote ID (onThreadIdChange)
+   * as it stores it, a commit before the main item reports it, so an
+   * initialize() that just resolved, from any entry point, leaves the item a
+   * commit behind. reloadMainThread, which remounts on the reported item,
+   * waits for that report; initialize itself does not, since every runtime's
+   * send path awaits it for the remote ID its result carries.
+   */
+  public __internal_announceMainRemoteId = (remoteId: string | undefined) => {
+    const report = this.untilReported(
+      () => this.getItemById(this.mainThreadId)?.remoteId === remoteId,
+    );
+    this.mainReport = report;
+    void report.then(() => {
+      if (this.mainReport === report) this.mainReport = undefined;
+    });
+  };
+
   public async reloadMainThread() {
-    if (this.unreportedInitializations.size > 0)
-      await Promise.all(this.unreportedInitializations);
+    if (this.mainReport) await this.mainReport;
     const id = this.mainThreadId;
     if (this.getItemById(id)?.status === "new") return;
     const core = this.getMainThreadRuntimeCore();
@@ -283,15 +282,11 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   /**
-   * Resolves once the thread list reports the thread passing `reports`, or no
-   * longer reports it. The wait ends after `COMMIT_TIMEOUT_MS` anyway, as
-   * `useAfterStateCommit`'s does, since a client a Suspense boundary hides
-   * cannot commit.
+   * Resolves once the thread list's reported state passes `reported`. The wait
+   * ends after `COMMIT_TIMEOUT_MS` anyway, as `useAfterStateCommit`'s does,
+   * since a client a Suspense boundary hides cannot commit.
    */
-  private untilItemReports(
-    threadId: string,
-    reports: (item: ThreadListItemCoreState) => boolean,
-  ) {
+  private untilReported(reported: () => boolean) {
     return new Promise<void>((resolve) => {
       let settled = false;
       let unsubscribe: Unsubscribe | undefined;
@@ -303,8 +298,7 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
         resolve();
       };
       const check = () => {
-        const item = this.getItemById(threadId);
-        if (!item || reports(item)) settle();
+        if (reported()) settle();
       };
       const timeout = setTimeout(settle, COMMIT_TIMEOUT_MS);
       unsubscribe = this.handle.subscribe(check);
