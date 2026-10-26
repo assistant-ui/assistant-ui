@@ -1575,6 +1575,7 @@ export class AgUiThreadController {
     let pendingError: Error | null = null;
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
+    let snapshotAssistantId: string | undefined;
     let replayInterruptMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
@@ -1746,10 +1747,20 @@ export class AgUiThreadController {
         | Map<string, ThreadAssistantMessage["content"][number][]>
         | undefined;
       let contentOwnerIds: Set<string> | undefined;
+      const hasStreamContent =
+        Array.isArray(update.content) &&
+        update.content.some((part) => part.type !== "data");
       if (!replayEnded && assistantMessageId === undefined) {
         if (!update.status || update.status.type === "running") return;
         // No matching producer identity arrived: retain native regeneration.
         replayEnded = true;
+        if (
+          replayContexts.size === 0 &&
+          snapshotAssistantId !== undefined &&
+          this.session.headId === snapshotAssistantId &&
+          !hasStreamContent
+        )
+          return;
       }
       const streamMessageId = assistantMessageId;
       let primaryMessageId = streamMessageId;
@@ -1820,9 +1831,6 @@ export class AgUiThreadController {
         settlingRun && terminalStatus && terminalStatus.type !== "running"
           ? settleHeldMessages(terminalStatus)
           : [];
-      const hasStreamContent =
-        Array.isArray(update.content) &&
-        update.content.some((part) => part.type !== "data");
       const frameMessageId = ensureAssistant(hasStreamContent);
       const messageId = primaryMessageId ?? frameMessageId;
       let primaryUpdate = update;
@@ -2053,6 +2061,11 @@ export class AgUiThreadController {
             }
           }
           assistantMessageId = nextAssistantMessageId;
+          if (!replayEnded && assistantMessageId === undefined) {
+            const tail = this.session.getMessages().at(-1);
+            snapshotAssistantId =
+              tail?.role === "assistant" ? tail.id : undefined;
+          }
         }
       } finally {
         settlingRun = false;

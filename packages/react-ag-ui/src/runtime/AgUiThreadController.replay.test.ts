@@ -769,6 +769,78 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(contents(core, "b")).toEqual([{ type: "text", text: "replayed B" }]);
   });
 
+  it.each([
+    ["same ID after complete assistant", "a", "complete"],
+    ["same ID after partial assistant", "a", "partial"],
+    ["fresh ID after complete assistant", "snapshot-answer", "complete"],
+    ["fresh ID after partial assistant", "snapshot-answer", "partial"],
+  ] as const)(
+    "uses a snapshot-only completion without appending an empty assistant (%s)",
+    async (_scenario, answerId, previousStatus) => {
+      const oldStatus: ThreadAssistantMessage["status"] =
+        previousStatus === "complete"
+          ? { type: "complete", reason: "unknown" }
+          : { type: "incomplete", reason: "error", error: "disconnected" };
+      const core = await loaded(
+        [
+          user("u"),
+          assistant(
+            "a",
+            [
+              {
+                type: "text",
+                text: previousStatus === "complete" ? "old answer" : "partial",
+              },
+            ],
+            oldStatus,
+          ),
+        ],
+        async (input, subscriber) => {
+          emit(subscriber, {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u", role: "user", content: "question" },
+              {
+                id: answerId,
+                role: "assistant",
+                content: "snapshot answer",
+              },
+            ],
+          });
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+        },
+      );
+
+      await resume(core, "u");
+
+      const repository = core.getMessageRepository();
+      expect(ids(core)).toEqual(["u", answerId]);
+      expect(repository.headId).toBe(answerId);
+      expect(repository.messages).toHaveLength(answerId === "a" ? 2 : 3);
+      if (answerId !== "a") {
+        expect(
+          repository.messages.find(({ message }) => message.id === "a")
+            ?.message,
+        ).toMatchObject({
+          content: [
+            {
+              type: "text",
+              text: previousStatus === "complete" ? "old answer" : "partial",
+            },
+          ],
+          status: oldStatus,
+        });
+      }
+      expect(contents(core, answerId)).toEqual([
+        { type: "text", text: "snapshot answer" },
+      ]);
+      expect(core.getMessages().at(-1)).toMatchObject({
+        id: answerId,
+        status: { type: "complete" },
+      });
+    },
+  );
+
   it("parents an unmatched replay frame after the assistant tail in a snapshot", async () => {
     const core = await loaded(
       [
