@@ -5,41 +5,18 @@ import path from "node:path";
 import { isExecutedAsMain } from "./lib/main.mjs";
 
 // changesets/action@v2.1.2 pins the tags and releases it creates to the run's
-// GITHUB_SHA (pushTag uses context.sha, createRelease sets no target_commitish),
-// which differs from the checked-out release commit whenever the default branch
-// moved on. The workflow disables the action's own tag/release creation and
-// reconciles both here instead, at RELEASE_SHA.
+// GITHUB_SHA (pushTag uses context.sha, createRelease sets no
+// target_commitish), which differs from the checked-out release commit
+// whenever the default branch moved on. The workflow disables the action's
+// own tag/release creation and reconciles both here instead, at RELEASE_SHA.
 //
-// A version is only tagged/released here when its association with RELEASE_SHA
-// is proven, never inferred from timestamps:
-//  1. The publish job's own record. Its `published-packages` step output names
-//     exactly the versions it published, and its `checkout_sha` job output
-//     records the commit it actually checked out (git rev-parse HEAD, captured
-//     before the publish step ran). Both belong to the publish job, so GitHub
-//     keeps them when only failed jobs are re-run: a recovery rerun of this
-//     job still sees what the original publish did. The published list is
-//     trusted only when the recorded checkout equals RELEASE_SHA; a mismatch
-//     is contradictory evidence and fails the run instead of guessing.
-//     NOT verified: whether GitHub propagates step outputs through a FAILED
-//     job into needs.publish.outputs, so after a failed publish these values
-//     may be missing or empty - both are treated as "no fresh evidence" and
-//     fall through to (2), never to guessing.
-//  2. Otherwise (a release published before this mechanism existed, or a
-//     missing/empty publish output) the package's SLSA provenance attestation
-//     on the npm registry names the GITHUB_SHA its publishing run ran against
-//     (libnpmpublish writes digest.gitCommit from env.GITHUB_SHA, verified in
-//     the pinned source). That equals the checked-out commit for
-//     push-triggered publishes, but not for a dispatch at an older SHA - so
-//     this path can only recover releases whose publishing run itself ran at
-//     the release commit. Trust boundary: the registry response is trusted
-//     over TLS; the DSSE bundle is decoded but NOT signature-verified locally,
-//     so this is a registry-asserted binding, not a cryptographically
-//     verified one.
-// Anything else is ambiguous and skipped with a warning naming the manual
-// recovery path, instead of risking a tag pointed at the wrong commit.
-//
+// The only trusted evidence is the publish job's own record: its published
+// list plus the checkout it recorded, both kept across a "re-run failed
+// jobs" rerun. npm's provenance attestation names the publishing run's
+// GITHUB_SHA, which cannot prove the checked-out commit, so there is no
+// fallback: a release with no recorded list is left for manual tagging.
 // Existing tags are resolved to their commit (annotated tags peeled) and a
-// mismatch with RELEASE_SHA is a failure: published tags are never moved.
+// mismatch fails the run; published tags are never moved.
 
 // Port of getChangelogEntry from changesets/action@v2.1.2 (src/utils.ts), so
 // release bodies keep the changelog entry the action would have used.
@@ -111,66 +88,6 @@ const fetchNpmMetadata = async (packageName) => {
   }
 };
 
-// npm's SLSA provenance subjects use a purl with the scope's "@" percent
-// encoded and the "/" kept: pkg:npm/%40assistant-ui/core@0.3.31.
-const npmPurl = (packageName, version) =>
-  `pkg:npm/${packageName.replace(/^@/, "%40")}@${version}`;
-
-// Reads the SLSA provenance attestation npm stores for trusted publishing and
-// returns the GITHUB_SHA the publishing workflow run ran against, or null when
-// there is no usable attestation. The attestation is only accepted when its
-// subject names exactly this package@version, and matches the registry
-// tarball digest (dist.integrity) when one is supplied, so an attestation for
-// a different artifact is never applied here.
-export const fetchPublishCommit = async (
-  repository,
-  packageName,
-  version,
-  expectedIntegrity = null,
-) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  try {
-    const response = await fetch(
-      `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(packageName)}@${encodeURIComponent(version)}`,
-      { signal: controller.signal },
-    );
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      throw new Error(
-        `npm attestations HTTP ${response.status} for ${packageName}@${version}`,
-      );
-    }
-    const data = await response.json();
-    const attestation = (data.attestations ?? []).find(
-      (entry) => entry.predicateType === "https://slsa.dev/provenance/v1",
-    );
-    const payload = attestation?.bundle?.dsseEnvelope?.payload;
-    if (!payload) return null;
-    const statement = JSON.parse(
-      Buffer.from(payload, "base64").toString("utf8"),
-    );
-    const subject = (statement?.subject ?? []).find(
-      (entry) => entry?.name === npmPurl(packageName, version),
-    );
-    if (!subject) return null; // the attestation is for a different artifact
-    if (expectedIntegrity?.startsWith("sha512-")) {
-      const hex = Buffer.from(expectedIntegrity.slice(7), "base64").toString(
-        "hex",
-      );
-      if (subject.digest?.sha512 !== hex) return null;
-    }
-    const dependency = (
-      statement?.predicate?.buildDefinition?.resolvedDependencies ?? []
-    ).find((dep) =>
-      (dep.uri ?? "").startsWith(`git+https://github.com/${repository}@`),
-    );
-    return dependency?.digest?.gitCommit ?? null;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
 // Resolves the commit a tag ref points at. Annotated tag objects are peeled
 // until the underlying commit; returns null when the ref resolves to no
 // commit (a depth guard keeps a tag-of-tag cycle from looping forever).
@@ -193,16 +110,12 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // overall, inside the job's own timeout budget.
 const REGISTRY_RETRY_DELAYS = [10_000, 20_000, 30_000, 40_000];
 
-// publishedPackages: the publish job's list when it ran and published (fresh
-// evidence for this run), trusted only while publishCheckoutSha - the commit
-// the publish job recorded checking out - equals releaseSha. null or an empty
-// list carries no fresh evidence, and the attestation binding applies
-// instead; with a non-empty list, exactly the listed versions are tagged and
-// every other package is left alone (its tag/reconcile is its own publishing
-// run's job, not ours).
-// github: { getRef(ref), getTagObject(sha), createRef(ref, sha),
-//   getReleaseByTag(tag), createRelease(release) }
-// where getters reject with a { status: 404 } error when missing.
+// publishedPackages and publishCheckoutSha are the publish job's record of
+// what it did: exactly the listed versions are tagged, and only when the
+// recorded checkout equals releaseSha. With no list there is no evidence and
+// nothing is touched. github: { getRef(ref), getTagObject(sha),
+// createRef(ref, sha), getReleaseByTag(tag), createRelease(release) }, where
+// getters reject with a { status: 404 } error when missing.
 export const createReleaseTags = async ({
   packages,
   releaseSha,
@@ -210,14 +123,18 @@ export const createReleaseTags = async ({
   publishCheckoutSha = null,
   github,
   getNpmMetadata = fetchNpmMetadata,
-  getPublishCommit = null,
   sleep = defaultSleep,
   log = console.log,
 }) => {
   const problems = [];
 
-  const hasPublishList = Boolean(publishedPackages?.length);
-  if (hasPublishList && publishCheckoutSha !== releaseSha) {
+  if (!publishedPackages?.length) {
+    log(
+      "No published package list recorded for this release; nothing to reconcile. A release published before this mechanism existed is tagged by hand.",
+    );
+    return { problems };
+  }
+  if (publishCheckoutSha !== releaseSha) {
     // The list names versions, but only the job that recorded the release
     // commit can associate them with it. Anything else would be inference.
     problems.push(
@@ -231,19 +148,18 @@ export const createReleaseTags = async ({
   for (const pkg of packages) {
     const tag = `${pkg.name}@${pkg.version}`;
 
-    const publishedHere = hasPublishList
-      ? publishedPackages.some(
-          (entry) => entry.name === pkg.name && entry.version === pkg.version,
-        )
-      : false;
-    if (hasPublishList && !publishedHere) {
+    if (
+      !publishedPackages.some(
+        (entry) => entry.name === pkg.name && entry.version === pkg.version,
+      )
+    ) {
       log(`${tag} was not published by this run; skipping`);
       continue;
     }
 
     let metadata = await getNpmMetadata(pkg.name);
     let onRegistry = Boolean(metadata?.versions?.[pkg.version]);
-    if (!onRegistry && publishedHere) {
+    if (!onRegistry) {
       for (const delay of REGISTRY_RETRY_DELAYS) {
         log(
           `${tag} was published by this run but is not visible on npm yet; waiting`,
@@ -257,36 +173,10 @@ export const createReleaseTags = async ({
       }
     }
     if (!onRegistry) {
-      if (publishedHere) {
-        problems.push(
-          `${tag} was reported as published by the publish step but is still missing from the npm registry metadata; rerun this job once the registry settles.`,
-        );
-      } else {
-        log(`${tag} is not on npm; skipping`);
-      }
+      problems.push(
+        `${tag} was reported as published by the publish step but is still missing from the npm registry metadata; rerun this job once the registry settles.`,
+      );
       continue;
-    }
-
-    if (!hasPublishList) {
-      let publishCommit = null;
-      try {
-        publishCommit = await getPublishCommit(
-          pkg.name,
-          pkg.version,
-          metadata?.versions?.[pkg.version]?.dist?.integrity ?? null,
-        );
-      } catch (error) {
-        problems.push(
-          `Could not read the provenance attestation for ${tag}: ${error.message}`,
-        );
-        continue;
-      }
-      if (publishCommit !== releaseSha) {
-        log(
-          `::warning::${tag} is on npm but its provenance does not name the release commit; leaving its tag and release untouched. Recover by re-running the failed jobs of the original publish run, or create the tag and release manually at the commit that published it.`,
-        );
-        continue;
-      }
     }
 
     let tagCommit = null;
@@ -303,10 +193,7 @@ export const createReleaseTags = async ({
       if (isNotFound(error)) tagCommit = null;
       else throw error;
     }
-    if (tagCommit === null) {
-      await github.createRef(`refs/tags/${tag}`, releaseSha);
-      log(`Created tag ${tag} at ${releaseSha}`);
-    } else if (tagCommit !== releaseSha) {
+    if (tagCommit !== null && tagCommit !== releaseSha) {
       problems.push(
         `Tag ${tag} already points at ${tagCommit}, not the release commit ${releaseSha}; published tags are never moved. Repair the tag manually if it is wrong.`,
       );
@@ -325,17 +212,28 @@ export const createReleaseTags = async ({
       continue;
     }
 
-    if (!fs.existsSync(pkg.changelogPath)) {
-      // Matches changesets/action: no CHANGELOG.md means no GitHub release.
-      log(`No CHANGELOG.md for ${pkg.name}; skipping release ${tag}`);
-      continue;
+    // The changelog entry is read before the tag is created, so a missing
+    // heading fails the run without leaving a tag with no release. No
+    // CHANGELOG.md still gets the tag but no release, matching the action.
+    let body = null;
+    if (fs.existsSync(pkg.changelogPath)) {
+      body = getChangelogEntry(
+        fs.readFileSync(pkg.changelogPath, "utf8"),
+        pkg.version,
+      );
+      if (body == null) {
+        problems.push(`Could not find changelog entry for ${tag}`);
+        continue;
+      }
     }
-    const body = getChangelogEntry(
-      fs.readFileSync(pkg.changelogPath, "utf8"),
-      pkg.version,
-    );
-    if (body == null) {
-      problems.push(`Could not find changelog entry for ${tag}`);
+
+    if (tagCommit === null) {
+      await github.createRef(`refs/tags/${tag}`, releaseSha);
+      log(`Created tag ${tag} at ${releaseSha}`);
+    }
+
+    if (body === null) {
+      log(`No CHANGELOG.md for ${pkg.name}; skipping release ${tag}`);
       continue;
     }
 
@@ -422,8 +320,6 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
         owner,
         repo,
       }),
-      getPublishCommit: (name, version, integrity) =>
-        fetchPublishCommit(`${owner}/${repo}`, name, version, integrity),
     });
     if (result.problems.length > 0) {
       for (const problem of result.problems) console.log(`::error::${problem}`);
