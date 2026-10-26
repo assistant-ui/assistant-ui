@@ -716,6 +716,10 @@ jobs:
       # Set by the action even when the publish step fails partway through, so
       # the release-tags job knows exactly which versions this run published.
       published_packages: ${{ steps.changesets-publish.outputs.published-packages }}
+      # The commit this job actually checked out, captured before publishing.
+      # The release-tags job trusts the published list only for this commit,
+      # and a "re-run failed jobs" rerun still sees both outputs.
+      checkout_sha: ${{ steps.checkout-sha.outputs.sha }}
     permissions:
       contents: write
       # Required for npm trusted publishing (OIDC).
@@ -733,6 +737,10 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
+
+      - name: Record the checked-out release commit
+        id: checkout-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
@@ -805,6 +813,22 @@ jobs:
           ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
 
+      # The checkout is at RELEASE_SHA, but a recovery run for a release cut
+      # before this script existed has no script in that tree. The script is
+      # therefore loaded from the workflow's own revision, while package
+      # manifests and changelogs are still read from the RELEASE_SHA checkout
+      # (the script runs with the checkout as its working directory).
+      - name: Fetch the reconcile script from the workflow revision
+        env:
+          WORKFLOW_REVISION: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          dest="$RUNNER_TEMP/release-reconcile"
+          mkdir -p "$dest/lib"
+          base="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$WORKFLOW_REVISION"
+          curl -fsSL "$base/scripts/create-release-tags.mjs" -o "$dest/create-release-tags.mjs"
+          curl -fsSL "$base/scripts/lib/main.mjs" -o "$dest/lib/main.mjs"
+
       - name: Create git tags and GitHub releases at the release SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -814,7 +838,10 @@ jobs:
           # a failed job is not documented); the script then binds versions
           # via npm provenance instead, and skips what it cannot associate.
           PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published_packages }}
-        run: node scripts/create-release-tags.mjs
+          # The commit the publish job recorded checking out; the published
+          # list is only evidence for a release at that same commit.
+          PUBLISH_CHECKOUT_SHA: ${{ needs.publish.outputs.checkout_sha }}
+        run: node "$RUNNER_TEMP/release-reconcile/create-release-tags.mjs"
 
   registry-deploy:
     name: Deploy registry
