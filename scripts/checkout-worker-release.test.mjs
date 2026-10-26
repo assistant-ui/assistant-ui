@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   checkSetupAgentReleased,
   lookupNpmVersion,
+  newestReleasedCommit,
+  newestReleasedSince,
   pendingSetupAgentChangesets,
   retryDelays,
 } from "./checkout-worker-release.mjs";
@@ -134,5 +138,137 @@ test("holds back a tree whose setup-agent version is not on npm", async () => {
       released: false,
       reason: "setup-agent@0.0.9 is not on npm (HTTP 404)",
     },
+  );
+});
+
+test("walks past pending HEAD and selects the newest released commit", async () => {
+  const trees = {
+    H: releaseTree({ "cli.md": "---\nsetup-agent: patch\n---\n" }, "1.2.4"),
+    W: releaseTree({}, "1.2.3"),
+    A: releaseTree({}, "1.2.3"),
+  };
+  const npm = registry([200]);
+  assert.deepEqual(
+    await newestReleasedCommit(["H", "W", "A"], {
+      materialize: (sha) => trees[sha],
+      windowMs: 0,
+      fetch: npm.fetch,
+      sleep: noSleep,
+    }),
+    { sha: "W", reason: "setup-agent@1.2.3 is on npm" },
+  );
+  assert.equal(npm.calls.length, 1);
+});
+
+test("looks up each distinct version once across a walk and returns null when none is released", async () => {
+  const trees = {
+    H: releaseTree({}, "1.2.4"),
+    W: releaseTree({}, "1.2.4"),
+    B: releaseTree({}, "1.2.3"),
+    A: releaseTree({}, "1.2.3"),
+  };
+  const npm = registry([404]);
+  assert.equal(
+    await newestReleasedCommit(["H", "W", "B", "A"], {
+      materialize: (sha) => trees[sha],
+      windowMs: 0,
+      fetch: npm.fetch,
+      sleep: noSleep,
+    }),
+    null,
+  );
+  assert.deepEqual(npm.calls, [
+    "https://registry.npmjs.org/setup-agent/1.2.4",
+    "https://registry.npmjs.org/setup-agent/1.2.3",
+  ]);
+});
+
+test("newest-since writes the selected SHA, falls back, and rejects an absent boundary", async () => {
+  const root = releaseTree({}, "1.2.3");
+  const git = (...args) =>
+    execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
+  git("init", "-q");
+  git("config", "user.name", "Test");
+  git("config", "user.email", "test@example.com");
+  const commit = (message) => {
+    git("add", "--all");
+    git("commit", "-qm", message);
+    return git("rev-parse", "HEAD");
+  };
+  const a = commit("A");
+  writeFileSync(path.join(root, "version.txt"), "W\n");
+  const w = commit("W");
+  writeFileSync(
+    path.join(root, ".changeset", "cli.md"),
+    "---\nsetup-agent: patch\n---\n",
+  );
+  commit("H");
+
+  const output = path.join(root, "github-output");
+  const npm = registry([200]);
+  assert.deepEqual(
+    await newestReleasedSince(a, {
+      cwd: root,
+      windowMs: 0,
+      fetch: npm.fetch,
+      sleep: noSleep,
+      outputFile: output,
+    }),
+    { sha: w, reason: "setup-agent@1.2.3 is on npm" },
+  );
+  assert.match(
+    readFileSync(output, "utf8"),
+    new RegExp(`sha=${w}\\nreason=setup-agent@1\\.2\\.3 is on npm`),
+  );
+  assert.equal(npm.calls.length, 1);
+
+  assert.deepEqual(
+    await newestReleasedSince(w, {
+      cwd: root,
+      windowMs: 0,
+      fetch: npm.fetch,
+      sleep: noSleep,
+      outputFile: output,
+    }),
+    {
+      sha: w,
+      reason: `No released commit since ${w}; deploying the planned commit`,
+    },
+  );
+  assert.match(
+    readFileSync(output, "utf8"),
+    new RegExp(`sha=${w}\\nreason=No released commit since ${w}`),
+  );
+  assert.equal(npm.calls.length, 1);
+
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./checkout-worker-release.mjs", import.meta.url)),
+      `--newest-since=${w}`,
+      "--window-ms=0",
+    ],
+    {
+      cwd: root,
+      env: { ...process.env, GITHUB_OUTPUT: output },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(
+    stdout,
+    `No released commit since ${w}; deploying the planned commit\n`,
+  );
+
+  await assert.rejects(
+    newestReleasedSince("0".repeat(40), {
+      cwd: root,
+      windowMs: 0,
+      fetch: npm.fetch,
+    }),
+    /not on HEAD's first-parent chain/,
+  );
+  await assert.rejects(
+    newestReleasedSince("invalid", { cwd: root, windowMs: 0 }),
+    /full 40-character commit SHA/,
   );
 });

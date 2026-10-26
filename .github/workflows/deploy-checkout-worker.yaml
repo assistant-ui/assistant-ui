@@ -172,56 +172,41 @@ jobs:
       - name: Checkout default-branch HEAD
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          filter: blob:none
           ref: ${{ steps.head.outputs.sha }}
           persist-credentials: false
 
-      - name: Check setup-agent is released at HEAD
-        id: head-released
-        if: steps.head.outputs.sha != env.PLANNED_SHA
-        run: node scripts/checkout-worker-release.mjs . --window-ms=30000
+      - name: Find newest released commit
+        id: newest
+        run: node scripts/checkout-worker-release.mjs --newest-since="$PLANNED_SHA" --window-ms=30000
 
       - name: Choose deploy commit
         id: target
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         env:
           HEAD_SHA: ${{ steps.head.outputs.sha }}
-          HEAD_RELEASED: ${{ steps.head-released.outputs.released }}
-          HEAD_REASON: ${{ steps.head-released.outputs.reason }}
+          NEWEST_SHA: ${{ steps.newest.outputs.sha }}
+          NEWEST_REASON: ${{ steps.newest.outputs.reason }}
         with:
           script: |
             const {
               HEAD_SHA: headSha,
-              PLANNED_SHA: plannedSha,
+              NEWEST_SHA: sha,
+              NEWEST_REASON: reason,
               HISTORY_ENVIRONMENT: environment,
             } = process.env;
 
-            let sha = plannedSha;
-            if (headSha === plannedSha || process.env.HEAD_RELEASED === "true") {
-              sha = headSha;
-            } else {
-              core.notice(
-                `Deploying ${plannedSha} instead of HEAD ${headSha}: ${process.env.HEAD_REASON}`,
-              );
+            if (sha !== headSha) {
+              core.notice(`Deploying ${sha} instead of HEAD ${headSha}: ${reason}`);
             }
 
-            let lastSha;
             const deployments = await github.rest.repos.listDeployments({
               ...context.repo,
               environment,
-              per_page: 30,
+              per_page: 1,
             });
-            for (const deployment of deployments.data) {
-              const statuses = await github.rest.repos.listDeploymentStatuses({
-                ...context.repo,
-                deployment_id: deployment.id,
-                per_page: 100,
-              });
-              if (statuses.data.some((status) => status.state === "success")) {
-                lastSha = deployment.sha;
-                break;
-              }
-            }
+            const lastSha = deployments.data[0]?.sha;
 
             if (lastSha) {
               const { data } = await github.rest.repos.compareCommitsWithBasehead({

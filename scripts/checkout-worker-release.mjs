@@ -1,4 +1,6 @@
-import { appendFileSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseReleaseLine, readChangesetSource } from "./lib/changesets.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
@@ -75,13 +77,106 @@ export async function checkSetupAgentReleased(root, options) {
   const { version } = JSON.parse(
     readFileSync(path.join(root, "packages/setup-agent/package.json"), "utf8"),
   );
-  const result = await lookupNpmVersion(version, options);
+  const result = await (options.lookup ?? lookupNpmVersion)(version, options);
   return result === "HTTP 200"
     ? { released: true, reason: `setup-agent@${version} is on npm` }
     : {
         released: false,
         reason: `setup-agent@${version} is not on npm (${result})`,
       };
+}
+
+export async function newestReleasedCommit(
+  commits,
+  { materialize, windowMs, fetch, sleep },
+) {
+  const lookups = new Map();
+  const lookup = (version) => {
+    if (!lookups.has(version)) {
+      lookups.set(
+        version,
+        lookupNpmVersion(version, { windowMs, fetch, sleep }),
+      );
+    }
+    return lookups.get(version);
+  };
+  for (const sha of commits) {
+    const { released, reason } = await checkSetupAgentReleased(
+      await materialize(sha),
+      { lookup },
+    );
+    if (released) return { sha, reason };
+  }
+  return null;
+}
+
+export async function newestReleasedSince(
+  sinceSha,
+  {
+    cwd = process.cwd(),
+    windowMs,
+    fetch,
+    sleep,
+    outputFile = process.env.GITHUB_OUTPUT,
+  },
+) {
+  if (!/^[0-9a-f]{40}$/i.test(sinceSha)) {
+    throw new Error("--newest-since must be a full 40-character commit SHA.");
+  }
+  const since = sinceSha.toLowerCase();
+  const history = execFileSync(
+    "git",
+    ["-C", cwd, "rev-list", "--first-parent", "HEAD"],
+    { encoding: "utf8" },
+  )
+    .trim()
+    .split("\n");
+  const boundary = history.indexOf(since);
+  if (boundary < 0) {
+    throw new Error(`${since} is not on HEAD's first-parent chain.`);
+  }
+
+  const dirs = [];
+  let found;
+  try {
+    found = await newestReleasedCommit(history.slice(0, boundary), {
+      windowMs,
+      fetch,
+      sleep,
+      materialize: (sha) => {
+        const dir = mkdtempSync(path.join(tmpdir(), "aui-checkout-worker-"));
+        dirs.push(dir);
+        const archive = execFileSync(
+          "git",
+          [
+            "-C",
+            cwd,
+            "archive",
+            sha,
+            ".changeset",
+            "packages/setup-agent/package.json",
+          ],
+          { maxBuffer: 64 * 1024 * 1024 },
+        );
+        execFileSync("tar", ["-x", "-C", dir], { input: archive });
+        return dir;
+      },
+    });
+  } finally {
+    for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+  }
+
+  const sha = found?.sha ?? since;
+  const reason =
+    found?.reason ??
+    `No released commit since ${since}; deploying the planned commit`;
+  if (outputFile) {
+    appendFileSync(
+      outputFile,
+      `sha=${sha}\nreason=${reason.replaceAll("\n", " ")}\n`,
+    );
+  }
+  return { sha, reason };
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
@@ -92,14 +187,20 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
     throw new Error("--window-ms must be a non-negative integer.");
   }
 
-  const { released, reason } = await checkSetupAgentReleased(root, {
-    windowMs,
-  });
-  process.stdout.write(`${reason}\n`);
-  if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(
-      process.env.GITHUB_OUTPUT,
-      `released=${released}\nreason=${reason.replaceAll("\n", " ")}\n`,
-    );
+  const since = optionValues(args, "--newest-since").at(-1);
+  if (since !== undefined) {
+    const { reason } = await newestReleasedSince(since, { windowMs });
+    process.stdout.write(`${reason}\n`);
+  } else {
+    const { released, reason } = await checkSetupAgentReleased(root, {
+      windowMs,
+    });
+    process.stdout.write(`${reason}\n`);
+    if (process.env.GITHUB_OUTPUT) {
+      appendFileSync(
+        process.env.GITHUB_OUTPUT,
+        `released=${released}\nreason=${reason.replaceAll("\n", " ")}\n`,
+      );
+    }
   }
 }
