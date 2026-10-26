@@ -3,7 +3,7 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
-import { type AssistantClient, useAui } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
@@ -19,6 +19,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const model = { run: vi.fn(async () => ({ content: [] })) };
+
 const initializeAs = (remoteId: string) =>
   makeAdapter({
     initialize: vi.fn(async () => ({ remoteId, externalId: undefined })),
@@ -32,28 +34,16 @@ const listing = (remoteId: string) =>
     updateCustom: vi.fn(async () => {}),
   });
 
-const model = { run: vi.fn(async () => ({ content: [] })) };
-
 // Mounts the client path (an adapter without unstable_Provider) and keeps the
-// runtime, the client a thread runtime hook sees, the client a component under
-// the provider sees, and the item each thread runtime mounted on.
+// runtime and the item each thread runtime mounted on.
 const mount = (adapter: RemoteThreadListAdapter) => {
   const mounted: { remoteId: string | undefined; custom: unknown }[] = [];
-  const scopes: {
-    runtime?: AssistantRuntime;
-    hook?: AssistantClient;
-    surface?: AssistantClient;
-  } = {};
-  const Surface = () => {
-    scopes.surface = useAui();
-    return null;
-  };
+  let runtime: AssistantRuntime | undefined;
   const App = () => {
-    scopes.runtime = useRemoteThreadListRuntime({
+    runtime = useRemoteThreadListRuntime({
       adapter,
       runtimeHook: function useThreadRuntime() {
         const aui = useAui();
-        scopes.hook = aui;
         useState(() => {
           const { remoteId, custom } = aui.threadListItem.getState();
           mounted.push({ remoteId, custom });
@@ -62,65 +52,21 @@ const mount = (adapter: RemoteThreadListAdapter) => {
       },
     });
     return (
-      <AssistantRuntimeProvider runtime={scopes.runtime}>
-        <Surface />
+      <AssistantRuntimeProvider runtime={runtime}>
+        {null}
       </AssistantRuntimeProvider>
     );
   };
   render(<App />);
-  return { mounted, scopes };
+  return { mounted, runtime: () => runtime! };
 };
 
-describe("useRemoteThreadListRuntime writes resolve once getState() reports them", () => {
-  describe("initialize", () => {
-    it("through the runtime's item", async () => {
-      const { mounted, scopes } = mount(initializeAs("r1"));
+describe("useRemoteThreadListRuntime writes the thread list reports a commit later", () => {
+  describe("reloadMainThread", () => {
+    it("right after initialize, remounts the thread runtime on its remote ID", async () => {
+      const { mounted, runtime } = mount(initializeAs("r1"));
       await waitFor(() => expect(mounted).toHaveLength(1));
-      const item = scopes.runtime!.threads.mainItem;
-
-      const seen = await actSettled(() =>
-        item.initialize().then(() => item.getState().remoteId),
-      );
-
-      expect(seen).toBe("r1");
-    });
-
-    it("through the client a thread runtime hook sees", async () => {
-      const { mounted, scopes } = mount(initializeAs("r1"));
-      await waitFor(() => expect(mounted).toHaveLength(1));
-      const aui = scopes.hook!;
-
-      const seen = await actSettled(() =>
-        aui.threadListItem
-          .initialize()
-          .then(() => aui.threadListItem.getState().remoteId),
-      );
-
-      expect(seen).toBe("r1");
-    });
-
-    it("through the client a component under the provider sees", async () => {
-      const { mounted, scopes } = mount(initializeAs("r1"));
-      await waitFor(() => expect(mounted).toHaveLength(1));
-      const aui = scopes.surface!;
-
-      const seen = await actSettled(() =>
-        aui.threads
-          .item("main")
-          .initialize()
-          .then(() => [
-            aui.threads.item("main").getState().remoteId,
-            aui.threadListItem.getState().remoteId,
-          ]),
-      );
-
-      expect(seen).toEqual(["r1", "r1"]);
-    });
-
-    it("lets reloadMainThread remount the thread runtime on its remote ID", async () => {
-      const { mounted, scopes } = mount(initializeAs("r1"));
-      await waitFor(() => expect(mounted).toHaveLength(1));
-      const threads = scopes.runtime!.threads;
+      const threads = runtime().threads;
 
       await actSettled(async () => {
         await threads.mainItem.initialize();
@@ -130,13 +76,32 @@ describe("useRemoteThreadListRuntime writes resolve once getState() reports them
       expect(mounted).toHaveLength(2);
       expect(mounted[1]!.remoteId).toBe("r1");
     });
+
+    it("right after updateCustom, remounts the thread runtime on the new custom metadata", async () => {
+      const { mounted, runtime } = mount(listing("one"));
+      await waitFor(() =>
+        expect(runtime().threads.getState().threadIds).toContain("one"),
+      );
+      await actSettled(() => runtime().threads.switchToThread("one"));
+      await waitFor(() => expect(mounted.at(-1)!.remoteId).toBe("one"));
+      const count = mounted.length;
+      const threads = runtime().threads;
+
+      await actSettled(async () => {
+        await threads.mainItem.updateCustom({ mode: "b" });
+        await threads.reloadMainThread();
+      });
+
+      expect(mounted).toHaveLength(count + 1);
+      expect(mounted.at(-1)!.custom).toEqual({ mode: "b" });
+    });
   });
 
-  describe("updateCustom", () => {
-    it("on a new thread, through the runtime's item", async () => {
-      const { mounted, scopes } = mount(makeAdapter());
+  describe("updateCustom resolves once the item reports the new custom metadata", () => {
+    it("on a new thread", async () => {
+      const { mounted, runtime } = mount(makeAdapter());
       await waitFor(() => expect(mounted).toHaveLength(1));
-      const item = scopes.runtime!.threads.mainItem;
+      const item = runtime().threads.mainItem;
 
       const seen = await actSettled(() =>
         item.updateCustom({ mode: "b" }).then(() => item.getState().custom),
@@ -145,12 +110,12 @@ describe("useRemoteThreadListRuntime writes resolve once getState() reports them
       expect(seen).toEqual({ mode: "b" });
     });
 
-    it("on a listed thread, through the runtime's item", async () => {
-      const { scopes } = mount(listing("one"));
+    it("on a listed thread", async () => {
+      const { runtime } = mount(listing("one"));
       await waitFor(() =>
-        expect(scopes.runtime!.threads.getState().threadIds).toContain("one"),
+        expect(runtime().threads.getState().threadIds).toContain("one"),
       );
-      const item = scopes.runtime!.threads.getItemById("one");
+      const item = runtime().threads.getItemById("one");
 
       const seen = await actSettled(() =>
         item.updateCustom({ mode: "b" }).then(() => item.getState().custom),

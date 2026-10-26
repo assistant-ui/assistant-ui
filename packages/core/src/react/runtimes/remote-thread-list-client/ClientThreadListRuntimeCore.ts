@@ -57,6 +57,7 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
       source: readonly ThreadListItemCoreState[];
     }
   >();
+  private readonly unreportedInitializations = new Set<Promise<void>>();
 
   constructor(
     initialThreadIdSeed: string,
@@ -236,22 +237,26 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public delete(threadId: string) {
     return this.actions.delete(threadId);
   }
-  public async initialize(threadId: string) {
-    const result = await this.actions.initialize(threadId);
-    // The thread list reports the remote ID a commit after it stores it, and a caller awaiting initialize reads it back.
-    await this.untilItemReports(
-      threadId,
-      (item) => item.remoteId === result.remoteId,
+  public initialize(threadId: string) {
+    const initialization = this.actions.initialize(threadId);
+    // Every runtime's send path awaits initialize for the remote ID alone, so it
+    // resolves as the adapter answers, a commit before the thread list reports
+    // the remote ID. reloadMainThread, which remounts on the reported item,
+    // waits for that report; a reload while initialize is still pending does not.
+    void initialization.then(
+      (result) => {
+        const reported = this.untilItemReports(
+          threadId,
+          (item) => item.remoteId === result.remoteId,
+        );
+        this.unreportedInitializations.add(reported);
+        void reported.then(() =>
+          this.unreportedInitializations.delete(reported),
+        );
+      },
+      () => {},
     );
-    return result;
-  }
-  /**
-   * A hosted thread's first send waits on this one: its run needs only the
-   * remote ID the result carries, so it starts as soon as the adapter answers
-   * rather than a commit later.
-   */
-  public __internal_initializeForRun(threadId: string) {
-    return this.actions.initialize(threadId);
+    return initialization;
   }
   public generateTitle(threadId: string, options?: { automatic?: boolean }) {
     const id = this.getItemById(threadId)?.id ?? threadId;
@@ -262,6 +267,8 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   public async reloadMainThread() {
+    if (this.unreportedInitializations.size > 0)
+      await Promise.all(this.unreportedInitializations);
     const id = this.mainThreadId;
     if (this.getItemById(id)?.status === "new") return;
     const core = this.getMainThreadRuntimeCore();
