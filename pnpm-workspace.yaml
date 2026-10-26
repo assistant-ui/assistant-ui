@@ -16,6 +16,9 @@ strictDepBuilds: true
 overrides:
   '@google/adk>adm-zip': ^0.6.1
   '@vercel/container>tar': ^7.5.22
+  '@earendil-works/pi-coding-agent>undici': ^8.12.2
+  guarded-fetch>undici: ^7.30.1
+  miniflare>undici: ^7.30.1
 
 verifyDepsBeforeRun: install
 
