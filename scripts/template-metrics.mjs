@@ -13,6 +13,7 @@
 //   node scripts/template-metrics.mjs measure-base <rootDir> <outJson> [baseRef]
 //   node scripts/template-metrics.mjs check [rootDir] [baseRef]
 //   node scripts/template-metrics.mjs report <baseJson|""> <headJson> <outMd> [commentFile]
+//   BUNDLE_TEMPLATES="default minimal" node scripts/template-metrics.mjs bundle-inputs [rootDir] [baseRef]
 //
 // Bundle size depends on the CI toolchain, so it is measured per run and
 // never gated.
@@ -29,6 +30,7 @@ import {
 import { tmpdir } from "node:os";
 import { gzipSync } from "node:zlib";
 import { join, extname, dirname, resolve } from "node:path";
+import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const CODE_EXT = new Set([
   ".ts",
@@ -50,6 +52,61 @@ function listTemplates(root) {
     )
     .map((d) => d.name)
     .sort();
+}
+
+function bundleInputs(root, baseRef) {
+  const base = execFileSync("git", ["merge-base", baseRef, "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  const files = execFileSync(
+    "git",
+    ["diff", "--name-only", "--no-renames", "-z", base, "HEAD"],
+    { cwd: root, encoding: "utf8" },
+  )
+    .split("\0")
+    .filter(Boolean);
+  const templates = (process.env.BUNDLE_TEMPLATES ?? "")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (templates.length === 0) throw new Error("BUNDLE_TEMPLATES is empty");
+  const { manifests } = readWorkspaceManifestEntries(root);
+  const byName = new Map(manifests.map((entry) => [entry.pkg.name, entry]));
+  const queue = templates.map((name) => {
+    const entry = manifests.find(
+      ({ manifest }) => manifest === `templates/${name}/package.json`,
+    );
+    if (!entry) throw new Error(`Unknown bundle template: ${name}`);
+    return entry;
+  });
+  for (const name of [
+    "@assistant-ui/ui",
+    "@assistant-ui/react-devtools",
+    "@assistant-ui/x-buildutils",
+  ]) {
+    queue.push(byName.get(name));
+  }
+  const required = new Set();
+  for (const entry of queue) {
+    if (!entry || required.has(dirname(entry.manifest))) continue;
+    required.add(dirname(entry.manifest));
+    for (const name of Object.keys({
+      ...entry.pkg.dependencies,
+      ...entry.pkg.devDependencies,
+      ...entry.pkg.peerDependencies,
+      ...entry.pkg.optionalDependencies,
+      ...entry.pkg.optionalDevDependencies,
+    }))
+      queue.push(byName.get(name));
+  }
+  const unrelated = listTemplates(root)
+    .map((name) => `templates/${name}`)
+    .filter((dir) => !required.has(dir));
+  return files.some(
+    (file) =>
+      file.endsWith("/package.json") ||
+      !unrelated.some((dir) => file.startsWith(`${dir}/`)),
+  );
 }
 
 function trackedFiles(root, dir) {
@@ -329,7 +386,7 @@ function report(baseJson, headJson, outMd, commentFile) {
     "<!-- template-metrics -->",
     "## 📦 Template install footprint",
     "",
-    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). LOC cells show `current (Δ vs merge-base)`. Bundle = gzipped client JS from `next build`, measured per run for a representative subset.",
+    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). LOC cells show `current (Δ vs merge-base)`. Bundle = gzipped client JS from `next build`, measured for the representative subset when its inputs change.",
     "",
     "| Template | Own LOC | /ui LOC | Total LOC | Bundle (gz) | Status |",
     "| --- | ---: | ---: | ---: | ---: | --- |",
@@ -346,7 +403,7 @@ function report(baseJson, headJson, outMd, commentFile) {
     );
   } else {
     lines.push(
-      "_Within limits. Bundle measured for a representative subset; templates without a build show `n/a`._",
+      "_Within limits. Templates without a bundle build in this run show `n/a`._",
     );
   }
 
@@ -364,9 +421,11 @@ else if (cmd === "measure-base")
   measureBase(args[0] || ".", args[1], args[2] || "origin/main");
 else if (cmd === "check") check(args[0] || ".", args[1] || "origin/main");
 else if (cmd === "report") report(args[0] || "", args[1], args[2], args[3]);
+else if (cmd === "bundle-inputs")
+  console.log(bundleInputs(args[0] || ".", args[1] || "origin/main"));
 else {
   console.error(
-    "usage: template-metrics.mjs measure|measure-base|check|report ...",
+    "usage: template-metrics.mjs measure|measure-base|check|report|bundle-inputs ...",
   );
   process.exit(1);
 }
