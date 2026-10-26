@@ -213,6 +213,7 @@ describe("SimpleImageAttachmentAdapter", () => {
     expect(part.image).toBe(
       `data:image/png;base64,${originalBuffer.from("img").toString("base64")}`,
     );
+    expect(part.filename).toBe("a.png");
   });
 });
 

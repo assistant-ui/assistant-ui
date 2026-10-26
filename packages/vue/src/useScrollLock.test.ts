@@ -33,13 +33,29 @@ function createLock(animated: HTMLElement) {
   scopes.push(scope);
   const target = ref<HTMLElement | null>(animated);
   const lock = scope.run(() => useScrollLock(target, 200))!;
-  return { lock, target, scope };
+  return { lock, target, scope, dispose: () => scope.stop() };
 }
 
 function lockWithin(container: HTMLElement) {
   const animated = document.createElement("div");
   container.appendChild(animated);
   return createLock(animated).lock;
+}
+
+function createSharedScroller() {
+  const scroller = document.createElement("div");
+  scroller.style.overflowY = "auto";
+  scroller.style.borderWidth = "0px";
+  scroller.style.paddingRight = "4px";
+  document.body.appendChild(scroller);
+  Object.defineProperty(scroller, "offsetWidth", { value: 306 });
+  Object.defineProperty(scroller, "clientWidth", {
+    get: () => (scroller.style.scrollbarWidth === "none" ? 306 : 300),
+  });
+  const first = document.createElement("div");
+  const second = document.createElement("div");
+  scroller.append(first, second);
+  return { scroller, first: createLock(first), second: createLock(second) };
 }
 
 describe("useScrollLock", () => {
@@ -114,6 +130,55 @@ describe("useScrollLock", () => {
     expect(scroller.style.paddingRight).toBe("4px");
     expect(scroller.style.scrollbarWidth).toBe("");
   });
+
+  it("keeps overlapping animations locked until the last one finishes", () => {
+    vi.useFakeTimers();
+    const { scroller, first, second } = createSharedScroller();
+    scroller.scrollTop = 120;
+
+    first.lock();
+    vi.advanceTimersByTime(100);
+    second.lock();
+    expect(scroller.style.paddingRight).toBe("10px");
+
+    vi.advanceTimersByTime(100);
+    expect(scroller.style.scrollbarWidth).toBe("none");
+    expect(scroller.style.paddingRight).toBe("10px");
+    scroller.scrollTop = 90;
+    scroller.dispatchEvent(new Event("scroll"));
+    expect(scroller.scrollTop).toBe(120);
+
+    vi.advanceTimersByTime(100);
+    expect(scroller.style.scrollbarWidth).toBe("");
+    expect(scroller.style.paddingRight).toBe("4px");
+    scroller.scrollTop = 90;
+    scroller.dispatchEvent(new Event("scroll"));
+    expect(scroller.scrollTop).toBe(90);
+  });
+
+  it.each(["first", "second"] as const)(
+    "preserves a restarted shared lock when the %s owner is disposed first",
+    (disposedFirst) => {
+      vi.useFakeTimers();
+      const shared = createSharedScroller();
+      const { scroller, first, second } = shared;
+      first.lock();
+      second.lock();
+      vi.advanceTimersByTime(100);
+      first.lock();
+
+      shared[disposedFirst].dispose();
+      expect(scroller.style.scrollbarWidth).toBe("none");
+      expect(scroller.style.paddingRight).toBe("10px");
+
+      shared[disposedFirst === "first" ? "second" : "first"].dispose();
+      expect(scroller.style.scrollbarWidth).toBe("");
+      expect(scroller.style.paddingRight).toBe("4px");
+      scroller.style.scrollbarWidth = "thin";
+      vi.advanceTimersByTime(200);
+      expect(scroller.style.scrollbarWidth).toBe("thin");
+    },
+  );
 
   it("leaves the padding alone when no scrollbar takes space", () => {
     const scroller = document.createElement("div");

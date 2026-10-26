@@ -25,7 +25,7 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
 
 const flowControlButtonClass =
-  "aui-flow-control size-7 cursor-pointer bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground sm:size-8";
+  "aui-flow-control size-7 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground sm:size-8";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));

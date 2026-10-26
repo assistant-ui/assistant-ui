@@ -15,7 +15,7 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
   return (
     <div className="aui-attachment-root animate-in fade-in-0 zoom-in-95 relative duration-200 motion-reduce:animate-none">
       <div
-        className="aui-attachment-tile aui-attachment-tile-composer bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[14px] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-1 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10"
+        className="aui-attachment-tile aui-attachment-tile-composer bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 overflow-hidden rounded-[14px] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-1 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10"
         role="button"
         tabIndex={0}
         aria-label={`${attachmentType} attachment: ${name}`}

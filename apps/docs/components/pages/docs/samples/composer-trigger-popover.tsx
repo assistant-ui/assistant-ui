@@ -25,7 +25,7 @@ export function ComposerTriggerPopoverSample() {
             <button
               type="button"
               data-highlighted=""
-              className="data-[highlighted]:bg-accent flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
+              className="data-[highlighted]:bg-accent flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
             >
               <span className="flex items-center gap-2">
                 <WrenchIcon className="text-muted-foreground size-4" />
@@ -35,7 +35,7 @@ export function ComposerTriggerPopoverSample() {
             </button>
             <button
               type="button"
-              className="hover:bg-accent flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
+              className="hover:bg-accent flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
             >
               <span className="flex items-center gap-2">
                 <WrenchIcon className="text-muted-foreground size-4" />
@@ -62,7 +62,7 @@ export function ComposerTriggerPopoverSample() {
               <button
                 type="button"
                 data-highlighted=""
-                className="data-[highlighted]:bg-accent flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
+                className="data-[highlighted]:bg-accent flex w-full flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
                   <FileTextIcon className="text-primary size-3.5" />
@@ -74,7 +74,7 @@ export function ComposerTriggerPopoverSample() {
               </button>
               <button
                 type="button"
-                className="hover:bg-accent flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
+                className="hover:bg-accent flex w-full flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
                   <LanguagesIcon className="text-primary size-3.5" />
@@ -86,7 +86,7 @@ export function ComposerTriggerPopoverSample() {
               </button>
               <button
                 type="button"
-                className="hover:bg-accent flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
+                className="hover:bg-accent flex w-full flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
                   <GlobeIcon className="text-primary size-3.5" />

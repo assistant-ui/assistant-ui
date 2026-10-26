@@ -340,6 +340,15 @@ const useCheckoutHost = (restored: unknown) => {
       if (plan === undefined) {
         throw reject("no-plan", "the agent has not proposed a plan yet");
       }
+      if (
+        (params.id !== undefined && params.id !== state.id) ||
+        (params.revision !== undefined && params.revision !== plan.revision)
+      ) {
+        throw reject(
+          "stale-plan",
+          "review the current setup plan before deciding",
+        );
+      }
       if (plan.status !== "proposed") {
         throw reject("plan-decided", `the plan is already ${plan.status}`);
       }

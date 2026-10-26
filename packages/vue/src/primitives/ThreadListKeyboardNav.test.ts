@@ -143,6 +143,51 @@ describe("thread list keyboard navigation", () => {
     unmount();
   });
 
+  it("skips disabled triggers in both directions without wrapping", async () => {
+    const { runtime, onSwitchToThread } = createRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadListPrimitiveRoot, null, {
+          default: () =>
+            [0, 1, 2].map((index) =>
+              h(
+                ThreadListItemByIndexProvider,
+                { index, key: index },
+                {
+                  default: () =>
+                    h(ThreadListItemPrimitiveRoot, null, {
+                      default: () =>
+                        h(
+                          ThreadListItemPrimitiveTrigger,
+                          { disabled: index === 1 },
+                          { default: () => `item ${index}` },
+                        ),
+                    }),
+                },
+              ),
+            ),
+        }),
+    });
+    const { el, unmount } = mount(runtime, View);
+
+    try {
+      await nextTick();
+      const [first, , third] = buttons(el);
+      first!.focus();
+      expect(keydown(first!, "ArrowDown")).toBe(false);
+      expect(document.activeElement).toBe(third);
+      expect(keydown(third!, "ArrowDown")).toBe(true);
+      expect(document.activeElement).toBe(third);
+      expect(keydown(third!, "ArrowUp")).toBe(false);
+      expect(document.activeElement).toBe(first);
+      expect(keydown(first!, "ArrowUp")).toBe(true);
+      expect(document.activeElement).toBe(first);
+      expect(onSwitchToThread).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+
   it("lets a caller veto collection navigation", async () => {
     const { runtime } = createRuntime();
     const View = defineComponent({

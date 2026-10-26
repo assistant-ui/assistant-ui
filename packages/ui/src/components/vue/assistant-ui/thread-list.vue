@@ -225,7 +225,7 @@ const visibleThreadGroups = computed(
                       <DropdownMenuItem as-child>
                         <ThreadListItemPrimitiveArchive
                           data-slot="aui_thread-list-item-more-item"
-                          class="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+                          class="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
                         >
                           <ArchiveIcon class="size-4" />
                           Archive
@@ -234,7 +234,7 @@ const visibleThreadGroups = computed(
                       <DropdownMenuItem as-child>
                         <ThreadListItemPrimitiveDelete
                           data-slot="aui_thread-list-item-more-item"
-                          class="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+                          class="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
                         >
                           <TrashIcon class="size-4" />
                           Delete

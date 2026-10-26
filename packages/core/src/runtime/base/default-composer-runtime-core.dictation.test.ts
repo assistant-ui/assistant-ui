@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { DictationAdapter } from "../../adapters/speech";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
+import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import type { ThreadMessage } from "../../types/message";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { DefaultEditComposerRuntimeCore } from "./default-edit-composer-runtime-core";
@@ -44,6 +46,70 @@ const message: ThreadMessage = {
 };
 
 describe("default composer runtime core dictation", () => {
+  it.each(["local", "external"] as const)(
+    "cancels dictation and ignores late speech when an edit is cancelled in the %s runtime",
+    (kind) => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      let speech!: (result: DictationAdapter.Result) => void;
+      let listening = false;
+      const { adapter, session } = makeDictationAdapter();
+      adapter.listen.mockImplementation(() => {
+        listening = true;
+        return session;
+      });
+      session.onSpeech = (callback) => {
+        speech = callback;
+        return () => {};
+      };
+      vi.mocked(session.cancel).mockImplementation(() => {
+        listening = false;
+      });
+      const thread =
+        kind === "local"
+          ? new LocalRuntimeCore(
+              {
+                adapters: {
+                  chatModel: { run: async () => ({}) },
+                  dictation: adapter,
+                },
+              },
+              [message],
+            ).threads.getMainThreadRuntimeCore()
+          : new ExternalStoreThreadRuntimeCore(
+              { getModelContext: () => ({}) },
+              {
+                messages: [message],
+                onNew: async () => {},
+                onEdit: async () => {},
+                adapters: { dictation: adapter },
+              },
+            );
+      thread.beginEdit(message.id);
+      const edit = thread.getEditComposer(message.id)!;
+      onTestFinished(() => edit.stopDictation());
+      edit.startDictation();
+      speech({ transcript: "draft addition", isFinal: true });
+      expect(edit.text).toBe("hello draft addition");
+      expect(listening).toBe(true);
+
+      edit.cancel();
+      expect(thread.getEditComposer(message.id)).toBeUndefined();
+      expect(edit.text).toBe("");
+      const notify = vi.fn();
+      edit.subscribe(notify);
+      speech({ transcript: "late addition", isFinal: true });
+
+      expect.soft(listening).toBe(false);
+      expect.soft(edit.dictation).toBeUndefined();
+      expect.soft(edit.text).toBe("");
+      expect.soft(notify).not.toHaveBeenCalled();
+      expect(thread.messages[0]!.content).toEqual(message.content);
+    },
+  );
+
   it("does not start dictation on a disabled thread composer", () => {
     const { adapter, listen } = makeDictationAdapter();
     const composer = new DefaultThreadComposerRuntimeCore(

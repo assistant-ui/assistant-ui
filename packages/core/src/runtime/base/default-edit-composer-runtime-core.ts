@@ -11,6 +11,7 @@ import type { DictationAdapter } from "../../adapters/speech";
 import type { SendOptions } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+import { isMessageNotSentError } from "../../types/error";
 
 export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public get canCancel() {
@@ -68,6 +69,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       | undefined;
   };
   private endEditCallback: () => void;
+  private onMessageNotSent: ((message: AppendMessage) => void) | undefined;
   private _ended = false;
 
   constructor(
@@ -80,10 +82,19 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
         | undefined;
     },
     endEditCallback: () => void,
-    { parentId, message }: { parentId: string | null; message: ThreadMessage },
+    {
+      parentId,
+      message,
+      onMessageNotSent,
+    }: {
+      parentId: string | null;
+      message: ThreadMessage;
+      onMessageNotSent?: (message: AppendMessage) => void;
+    },
   ) {
     super();
     this.runtime = runtime;
+    this.onMessageNotSent = onMessageNotSent;
     let lastHasVoice = runtime.voice !== undefined;
     let lastIsDisabled = runtime.isDisabled;
     const unsubscribe = runtime.subscribe(() => {
@@ -142,16 +153,22 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
             ...this._nonTextPassthrough,
           ] as AppendMessage["content"])
         : message.content;
-    const appendTask = this.runtime.append({
+    const submitted: AppendMessage = {
       ...message,
       content,
       parentId: this._parentId,
       sourceId: this._sourceId,
       startRun: options?.startRun,
-    });
+    };
+    const appendTask = this.runtime.append(submitted);
 
     this.handleCancel();
-    return appendTask;
+    try {
+      await appendTask;
+    } catch (error) {
+      if (isMessageNotSentError(error)) this.onMessageNotSent?.(submitted);
+      throw error;
+    }
   }
 
   public handleCancel() {

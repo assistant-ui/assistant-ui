@@ -163,6 +163,70 @@ describe("CheckoutHost", () => {
 });
 
 describe("plans", () => {
+  it.each([
+    { decision: "approve" },
+    { decision: "revise", feedback: "Use pnpm" },
+  ] satisfies Checkout.PlanDecision[])(
+    "rejects a $decision decision for a superseded revision",
+    async (decision) => {
+      const host = mount();
+      await host.commands["checkout/create"](seed);
+      await host.commands["checkout/begin-plan"]();
+      await host.commands["agent/plan"]({ markdown: "Install chat" });
+      const pending = { ...decision, id: seed.id, revision: 1 };
+      await host.commands["agent/plan"]({ markdown: "Replace the API route" });
+
+      expect(await reason(host.commands["checkout/plan"](pending))).toEqual({
+        reason: "stale-plan",
+      });
+      expect(currentPlan(host.state)).toMatchObject({
+        revision: 2,
+        status: "proposed",
+      });
+      expect(host.state.status).toBe("planning");
+      expect(currentPlan(host.state)?.feedback).toBeUndefined();
+
+      await host.commands["checkout/plan"]({ ...pending, revision: 2 });
+      expect(currentPlan(host.state)?.status).toBe(
+        decision.decision === "approve" ? "approved" : "changes-requested",
+      );
+    },
+  );
+
+  it("rejects a decision from an earlier setup with the same plan revision", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    await host.commands["agent/plan"]({ markdown: "Install chat" });
+    await host.commands["checkout/cancel"]({ id: seed.id });
+    await host.commands["checkout/create"]({ ...seed, id: "replacement" });
+    await host.commands["checkout/begin-plan"]();
+    await host.commands["agent/plan"]({ markdown: "Install cloud" });
+
+    expect(
+      await reason(
+        host.commands["checkout/plan"]({
+          decision: "approve",
+          id: seed.id,
+          revision: 1,
+        }),
+      ),
+    ).toEqual({ reason: "stale-plan" });
+    expect(currentPlan(host.state)).toMatchObject({
+      revision: 1,
+      status: "proposed",
+    });
+    expect(host.state.status).toBe("planning");
+
+    await host.commands["checkout/plan"]({
+      decision: "approve",
+      id: "replacement",
+      revision: 1,
+    });
+    expect(currentPlan(host.state)?.status).toBe("approved");
+    expect(host.state.status).toBe("installing");
+  });
+
   it("refuses steps until the user approves a plan", async () => {
     const host = mount();
     await host.commands["checkout/create"](seed);

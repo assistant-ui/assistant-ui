@@ -311,7 +311,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
         data-slot="mermaid-zoom-trigger"
         aria-label="Expand diagram"
         onClick={() => setIsOpen(true)}
-        className="aui-mermaid-zoom-trigger text-muted-foreground hover:text-foreground hover:border-muted-foreground/70 border-border bg-background absolute top-2 right-2 cursor-pointer rounded-md border p-1.5 opacity-0 transition group-hover/mermaid:opacity-100 focus-visible:opacity-100"
+        className="aui-mermaid-zoom-trigger text-muted-foreground hover:text-foreground hover:border-muted-foreground/70 border-border bg-background absolute top-2 right-2 rounded-md border p-1.5 opacity-0 transition group-hover/mermaid:opacity-100 focus-visible:opacity-100"
       >
         <Maximize2 className="size-3.5" />
       </button>
@@ -352,7 +352,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
                 type="button"
                 aria-label="Zoom in"
                 onClick={() => zoomBy(1.25)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
+                className="text-muted-foreground hover:text-foreground rounded-sm p-1.5"
               >
                 <Plus className="size-4" />
               </button>
@@ -360,7 +360,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
                 type="button"
                 aria-label="Zoom out"
                 onClick={() => zoomBy(0.8)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
+                className="text-muted-foreground hover:text-foreground rounded-sm p-1.5"
               >
                 <Minus className="size-4" />
               </button>
@@ -368,7 +368,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
                 type="button"
                 aria-label="Reset zoom"
                 onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
+                className="text-muted-foreground hover:text-foreground rounded-sm p-1.5"
               >
                 <RotateCcw className="size-4" />
               </button>
@@ -377,7 +377,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
                 type="button"
                 aria-label="Close"
                 onClick={handleClose}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
+                className="text-muted-foreground hover:text-foreground rounded-sm p-1.5"
               >
                 <X className="size-4" />
               </button>

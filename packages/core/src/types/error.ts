@@ -67,8 +67,8 @@ const MESSAGE_NOT_SENT = Symbol.for("assistant-ui.message-not-sent");
  * and nothing is recoverable from the thread. A runtime adapter throws it from
  * `onNew` to hand the message back to the thread composer, which restores the
  * draft it cleared at dispatch time when nothing has claimed the composer
- * since. An edit composer closes at dispatch, so a rejected edit is not
- * restored.
+ * since. Throwing it from `onEdit` reopens the unsent edit if the source message
+ * is unchanged, no newer edit has started, and the thread is still current.
  */
 export class MessageNotSentError extends Error {
   readonly [MESSAGE_NOT_SENT] = true;
