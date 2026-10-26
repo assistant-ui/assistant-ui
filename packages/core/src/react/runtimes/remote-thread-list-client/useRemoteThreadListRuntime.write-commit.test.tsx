@@ -19,8 +19,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const model = { run: vi.fn(async () => ({ content: [] })) };
-
 const initializeAs = (remoteId: string) =>
   makeAdapter({
     initialize: vi.fn(async () => ({ remoteId, externalId: undefined })),
@@ -33,6 +31,8 @@ const listing = (remoteId: string) =>
     })),
     updateCustom: vi.fn(async () => {}),
   });
+
+const model = { run: vi.fn(async () => ({ content: [] })) };
 
 // Mounts the client path (an adapter without unstable_Provider) and keeps the
 // runtime, the client a thread runtime hook sees, the client a component under

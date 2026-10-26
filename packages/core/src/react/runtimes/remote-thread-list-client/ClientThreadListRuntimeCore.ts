@@ -4,6 +4,7 @@ import { createElement, useEffect, useId, type FC } from "react";
 import { RemoteThreadListHookInstanceManager } from "../RemoteThreadListHookInstanceManager";
 import type { RemoteThreadListHook } from "../RemoteThreadResource";
 import { useSubscribable } from "../../../store/runtime-clients/useSubscribable";
+import { COMMIT_TIMEOUT_MS } from "../../../store/runtime-clients/useAfterStateCommit";
 import type {
   ThreadListItemCoreState,
   ThreadListRuntimeCore,
@@ -235,7 +236,21 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public delete(threadId: string) {
     return this.actions.delete(threadId);
   }
-  public initialize(threadId: string) {
+  public async initialize(threadId: string) {
+    const result = await this.actions.initialize(threadId);
+    // The thread list reports the remote ID a commit after it stores it, and a caller awaiting initialize reads it back.
+    await this.untilItemReports(
+      threadId,
+      (item) => item.remoteId === result.remoteId,
+    );
+    return result;
+  }
+  /**
+   * A hosted thread's first send waits on this one: its run needs only the
+   * remote ID the result carries, so it starts as soon as the adapter answers
+   * rather than a commit later.
+   */
+  public __internal_initializeForRun(threadId: string) {
     return this.actions.initialize(threadId);
   }
   public generateTitle(threadId: string, options?: { automatic?: boolean }) {
@@ -258,6 +273,37 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
       if (id !== this.mainThreadId) return;
       throw error;
     }
+  }
+
+  /**
+   * Resolves once the thread list reports the thread passing `reports`, or no
+   * longer reports it. The wait ends after `COMMIT_TIMEOUT_MS` anyway, as
+   * `useAfterStateCommit`'s does, since a client a Suspense boundary hides
+   * cannot commit.
+   */
+  private untilItemReports(
+    threadId: string,
+    reports: (item: ThreadListItemCoreState) => boolean,
+  ) {
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      let unsubscribe: Unsubscribe | undefined;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        unsubscribe?.();
+        resolve();
+      };
+      const check = () => {
+        const item = this.getItemById(threadId);
+        if (!item || reports(item)) settle();
+      };
+      const timeout = setTimeout(settle, COMMIT_TIMEOUT_MS);
+      unsubscribe = this.handle.subscribe(check);
+      if (settled) unsubscribe();
+      else check();
+    });
   }
 
   public subscribe(callback: () => void): Unsubscribe {

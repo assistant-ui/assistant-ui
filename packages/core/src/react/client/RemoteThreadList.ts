@@ -2087,8 +2087,7 @@ const useRemoteThreadList = (
       delete: deleteThread,
       detach,
       generateTitle,
-      // Resolves once getState() reports the remote ID, for the runtime's item to read back.
-      initialize: (threadId: string) => afterStateCommit(initialize(threadId)),
+      initialize,
       reload,
       reloadMainThread,
       getLoadThreadsPromise,

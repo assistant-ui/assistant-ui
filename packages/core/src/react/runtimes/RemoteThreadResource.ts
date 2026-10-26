@@ -49,6 +49,7 @@ const useRemoteThreadBinder = ({
   runtimeHook,
   publish,
   itemRuntime,
+  initializeForRun,
   publishInCommit,
 }: {
   threadId: string;
@@ -56,6 +57,7 @@ const useRemoteThreadBinder = ({
   runtimeHook: RemoteThreadListHook;
   publish: RemoteThreadResourceProps["publish"];
   itemRuntime: ThreadListItemRuntime;
+  initializeForRun: ThreadListItemRuntime["initialize"];
   publishInCommit: boolean;
 }) => {
   const runtime = useRemoteThreadRuntimeHostProvider(runtimeHook);
@@ -106,7 +108,7 @@ const useRemoteThreadBinder = ({
     hasInitializedRef.current = true;
     bornNewRef.current = false;
 
-    const initPromise = itemRuntime.initialize();
+    const initPromise = initializeForRun();
     initPromiseRef.current = initPromise;
     void initPromise.then(
       ({ remoteId }) => {
@@ -188,6 +190,18 @@ const useRemoteThreadResource = ({
       ),
     [parentList, threadId],
   );
+  // The first send's run waits on this. A list whose initialize waits for its
+  // own report of the remote ID (ClientThreadListRuntimeCore) offers one that
+  // does not, since the run needs only the remote ID the result carries.
+  const initializeForRun = useMemo(() => {
+    const list = parentList as ThreadListRuntimeCore & {
+      __internal_initializeForRun?: (
+        threadId: string,
+      ) => ReturnType<ThreadListItemRuntime["initialize"]>;
+    };
+    if (!list.__internal_initializeForRun) return itemRuntime.initialize;
+    return () => list.__internal_initializeForRun!(itemRuntime.getState().id);
+  }, [parentList, itemRuntime]);
 
   const { client } = useConfiguredAui(parentClient, {
     threadListItem: ThreadListItemClient({ runtime: itemRuntime }),
@@ -202,6 +216,7 @@ const useRemoteThreadResource = ({
           runtimeHook,
           publish,
           itemRuntime,
+          initializeForRun,
           publishInCommit,
         });
       });

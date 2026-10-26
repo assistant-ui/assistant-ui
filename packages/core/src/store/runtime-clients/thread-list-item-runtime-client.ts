@@ -18,7 +18,7 @@ const useThreadListItemClient = ({
   mainThreadIsRunning?: boolean | undefined;
 }): ClientOutput<"threadListItem"> => {
   const runtimeState = useSubscribable(runtime);
-  // initialize resolves once this client reports the remote ID, as the thread list's own does.
+  // initialize resolves once this client, a commit behind the runtime, reports the remote ID too.
   const afterStateCommit = useAfterStateCommit(runtimeState, runtime.getState);
   const state = useMemo(() => {
     const isRunning =
