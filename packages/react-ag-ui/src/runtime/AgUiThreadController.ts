@@ -1759,8 +1759,15 @@ export class AgUiThreadController {
           snapshotAssistantId !== undefined &&
           this.session.headId === snapshotAssistantId &&
           !hasStreamContent
-        )
+        ) {
+          if (update.status.type !== "complete") {
+            this.updateAssistantMessage(snapshotAssistantId, {
+              status: update.status,
+              ...(update.metadata ? { metadata: update.metadata } : {}),
+            });
+          }
           return;
+        }
       }
       const streamMessageId = assistantMessageId;
       let primaryMessageId = streamMessageId;

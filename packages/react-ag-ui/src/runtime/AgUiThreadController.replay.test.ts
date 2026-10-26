@@ -841,6 +841,172 @@ describe("AgUiThreadController selected-turn replay", () => {
     },
   );
 
+  it("keeps a native interrupt after a snapshot-only assistant answer", async () => {
+    let attempts = 0;
+    const inputs: unknown[] = [];
+    const interrupt = {
+      id: "input-gate",
+      reason: "input_required",
+      message: "Provide a value",
+    };
+    const response = {
+      interruptId: "input-gate",
+      status: "resolved" as const,
+      payload: { answer: "42" },
+    };
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [{ type: "text", text: "partial answer" }], {
+          type: "incomplete",
+          reason: "error",
+          error: "disconnected",
+        }),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        inputs.push(input);
+        if (attempts > 1) {
+          text(subscriber, "continued", "input received");
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        emit(subscriber, {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "u", role: "user", content: "question" },
+            {
+              id: "snapshot-answer",
+              role: "assistant",
+              content: "snapshot answer",
+            },
+          ],
+        });
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "interrupt", interrupts: [interrupt] },
+        });
+      },
+    );
+    const submit = vi.spyOn(core, "submitInterruptResponses");
+
+    await resume(core, "u");
+
+    expect(attempts).toBe(1);
+    expect(submit).not.toHaveBeenCalled();
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "snapshot-answer",
+      interrupts: [interrupt],
+    });
+
+    await core.submitInterruptResponses([response]);
+    await vi.waitFor(() => expect(attempts).toBe(2));
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith([response]);
+    expect(inputs[1]).toMatchObject({ resume: [response] });
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it("keeps snapshot pending-call authority on an empty successful completion", async () => {
+    let attempts = 0;
+    const core = await loaded(
+      [user("u"), assistant("a", [{ type: "text", text: "partial" }])],
+      async (input, subscriber) => {
+        attempts++;
+        emit(subscriber, {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "u", role: "user", content: "question" },
+            {
+              id: "snapshot-answer",
+              role: "assistant",
+              content: "snapshot answer",
+              toolCalls: [
+                {
+                  id: "x",
+                  type: "function",
+                  function: { name: "lookup", arguments: "{}" },
+                },
+              ],
+            },
+          ],
+        });
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+    );
+    await resume(core, "u");
+    expect(ids(core)).toEqual(["u", "snapshot-answer"]);
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "snapshot-answer",
+      toolCallIds: ["x"],
+    });
+    expect(attempts).toBe(1);
+  });
+
+  it.each(["error", "cancelled"] as const)(
+    "preserves %s status for a snapshot-only assistant answer",
+    async (ending) => {
+      const core = await loaded(
+        [
+          user("u"),
+          assistant("a", [{ type: "text", text: "partial answer" }], {
+            type: "incomplete",
+            reason: "error",
+            error: "disconnected",
+          }),
+        ],
+        async (input, subscriber) => {
+          emit(subscriber, {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u", role: "user", content: "question" },
+              {
+                id: "snapshot-answer",
+                role: "assistant",
+                content: "snapshot answer",
+              },
+            ],
+          });
+          if (ending === "error") {
+            emit(subscriber, {
+              type: "RUN_ERROR",
+              runId: input.runId,
+              message: "snapshot stream failed",
+            });
+          } else {
+            emit(subscriber, {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: { type: "cancelled" },
+            });
+          }
+        },
+      );
+
+      if (ending === "error") {
+        await expect(resume(core, "u")).rejects.toThrow(
+          "snapshot stream failed",
+        );
+      } else {
+        await resume(core, "u");
+      }
+
+      expect(ids(core)).toEqual(["u", "snapshot-answer"]);
+      expect(core.getMessageRepository().headId).toBe("snapshot-answer");
+      expect(contents(core, "snapshot-answer")).toEqual([
+        { type: "text", text: "snapshot answer" },
+      ]);
+      expect(core.getMessages().at(-1)?.status).toMatchObject({
+        type: "incomplete",
+        reason: ending,
+        ...(ending === "error" ? { error: "snapshot stream failed" } : {}),
+      });
+    },
+  );
+
   it("parents an unmatched replay frame after the assistant tail in a snapshot", async () => {
     const core = await loaded(
       [
