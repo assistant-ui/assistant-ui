@@ -449,6 +449,49 @@ describe("AgUiThreadController deferred tool results", () => {
     );
   });
 
+  it("keeps a result when a stale snapshot moves its owner to a new parent", async () => {
+    const { core, runAgent, release } = openToolTurn();
+    const firstRun = core.append(userMessage);
+
+    try {
+      const captured = core.getMessages();
+      addResult(core, "assistant-a", "tool-a");
+      addResult(core, "assistant-b", "tool-b");
+      core.applyExternalMessages(
+        captured.filter((message) => message.id !== "assistant-a"),
+      );
+
+      expect(toolCallResults(core)).toEqual([
+        { toolCallId: "tool-b", result: "tool-b-result" },
+      ]);
+      expect(core.getPendingToolCalls()).toBeNull();
+    } finally {
+      release();
+      await firstRun;
+    }
+
+    await vi.waitFor(() => {
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+    });
+    const continuation = runAgent.mock.calls[1]?.[0].messages ?? [];
+    expect(
+      continuation.filter(
+        (message) =>
+          typeof message === "object" &&
+          message !== null &&
+          "role" in message &&
+          message.role === "tool",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        role: "tool",
+        toolCallId: "tool-b",
+        content: "tool-b-result",
+      }),
+    ]);
+  });
+
   it("does not continue when a snapshot removes every result owner", async () => {
     const { core, runAgent, release } = openToolTurn();
     const firstRun = core.append(userMessage);
