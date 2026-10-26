@@ -792,6 +792,7 @@ jobs:
     if: contains(fromJSON(needs.summary.outputs.targets_json).*.name, 'setup-agent')
     permissions:
       contents: read
+      deployments: write
     uses: ./.github/workflows/deploy-checkout-worker.yaml
     with:
       releaseSha: ${{ needs.approve.outputs.release_sha }}
