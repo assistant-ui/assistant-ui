@@ -114,7 +114,7 @@ function AssistantChainOfThought({ children }: PropsWithChildren) {
     <div className="border-border/80 bg-background/90 overflow-hidden rounded-xl border">
       <button
         type="button"
-        className="hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors"
+        className="hover:bg-muted/50 flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors"
         onClick={() => setOpen((value) => !value)}
       >
         {open ? (

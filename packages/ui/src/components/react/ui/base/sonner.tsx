@@ -44,11 +44,11 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
           description: "text-muted-foreground text-xs",
           icon: "relative grid size-4 shrink-0 place-items-center",
           actionButton:
-            "bg-background border-foreground/15 hover:border-foreground/30 ms-auto h-6 shrink-0 cursor-pointer rounded-md border px-2 text-xs font-medium transition-colors",
+            "bg-background border-foreground/15 hover:border-foreground/30 ms-auto h-6 shrink-0 rounded-md border px-2 text-xs font-medium transition-colors",
           cancelButton:
-            "text-muted-foreground hover:text-foreground ms-auto h-6 shrink-0 cursor-pointer rounded-md px-2 text-xs transition-colors",
+            "text-muted-foreground hover:text-foreground ms-auto h-6 shrink-0 rounded-md px-2 text-xs transition-colors",
           closeButton:
-            "text-muted-foreground hover:text-foreground order-last ms-2 grid size-5 shrink-0 cursor-pointer place-items-center rounded-md transition-colors",
+            "text-muted-foreground hover:text-foreground order-last ms-2 grid size-5 shrink-0 place-items-center rounded-md transition-colors",
           ...userClassNames,
         },
         ...toastOptionsRest,

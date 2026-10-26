@@ -191,7 +191,7 @@ export const TaskTray: FC<{ className?: string }> = ({ className }) => {
     >
       <PopoverTrigger
         className={cn(
-          "focus-visible:ring-ring/50 cursor-pointer appearance-none rounded-full border-0 bg-transparent p-0 text-start focus-visible:ring-[3px] focus-visible:outline-none",
+          "focus-visible:ring-ring/50 appearance-none rounded-full border-0 bg-transparent p-0 text-start focus-visible:ring-[3px] focus-visible:outline-none",
           className,
         )}
       >
