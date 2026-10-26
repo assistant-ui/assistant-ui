@@ -9,7 +9,7 @@ import json
 
 async def test_subgraph_chat():
     """Test the chat endpoint with task tool and subgraph streaming."""
-    url = "http://localhost:8000/assistant"
+    url = "http://localhost:8010/assistant"
 
     payload = {
         "commands": [
@@ -119,7 +119,7 @@ async def test_subgraph_chat():
 
 async def test_direct_tool_result():
     """Test sending a tool result back to the assistant."""
-    url = "http://localhost:8000/assistant"
+    url = "http://localhost:8010/assistant"
 
     # First create a state with a tool call
     initial_state = {
