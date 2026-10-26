@@ -1342,6 +1342,19 @@ export class AgUiThreadController {
       let lastAppliedId: string | null = null;
       let hardReplace = false;
       const seen = new Set<string>();
+      const retainToolResults = (
+        existing: ThreadMessage | undefined,
+        message: ThreadMessage,
+      ): ThreadMessage =>
+        existing?.role === "assistant" && message.role === "assistant"
+          ? {
+              ...message,
+              content: this.preserveToolResults(
+                existing.content,
+                message.content,
+              ),
+            }
+          : message;
 
       for (const message of messages) {
         if (seen.has(message.id)) continue;
@@ -1351,22 +1364,21 @@ export class AgUiThreadController {
           hardReplace = true;
           break;
         }
-        const retained =
-          existing?.message.role === "assistant" && message.role === "assistant"
-            ? {
-                ...message,
-                content: this.preserveToolResults(
-                  existing.message.content,
-                  message.content,
-                ),
-              }
-            : message;
-        this.session.addOrUpdateMessage(expectedParentId, retained);
+        this.session.addOrUpdateMessage(
+          expectedParentId,
+          retainToolResults(existing?.message, message),
+        );
         expectedParentId = message.id;
         lastAppliedId = message.id;
       }
 
       if (hardReplace) {
+        const previous = new Map(
+          this.getMessageRepository().messages.map(({ message }) => [
+            message.id,
+            message,
+          ]),
+        );
         this.session.clear();
         expectedParentId = null;
         lastAppliedId = null;
@@ -1374,17 +1386,18 @@ export class AgUiThreadController {
         for (const message of messages) {
           if (seen.has(message.id)) continue;
           seen.add(message.id);
-          this.session.addOrUpdateMessage(expectedParentId, message);
+          this.session.addOrUpdateMessage(
+            expectedParentId,
+            retainToolResults(previous.get(message.id), message),
+          );
           expectedParentId = message.id;
           lastAppliedId = message.id;
         }
       }
 
       this.session.resetHead(lastAppliedId);
-      if (!hardReplace) {
-        for (const messageId of seen) {
-          this.maybeCompleteAfterToolResults(messageId);
-        }
+      for (const messageId of seen) {
+        this.maybeCompleteAfterToolResults(messageId);
       }
     }
 

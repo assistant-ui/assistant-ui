@@ -39,6 +39,8 @@ on:
       - "scripts/check-pypi-dist.test.mjs"
       - "scripts/check-packed-release.mjs"
       - "scripts/check-packed-release.test.mjs"
+      - "scripts/create-release-tags.mjs"
+      - "scripts/create-release-tags.test.mjs"
       - "scripts/check-version-patch.mjs"
       - "scripts/check-version-patch.test.mjs"
       - "scripts/pending-changesets.mjs"
@@ -48,6 +50,8 @@ on:
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/checkout-worker-release.mjs"
+      - "scripts/checkout-worker-release.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
       - "scripts/*example-bundle*"
@@ -93,7 +97,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -120,7 +124,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -146,7 +150,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           install: false
@@ -165,6 +169,9 @@ jobs:
 
       - name: Test the packed release checker
         run: node --test scripts/check-packed-release.test.mjs
+
+      - name: Test the release tag reconciler
+        run: node --test scripts/create-release-tags.test.mjs
 
       - name: Test the version patch checker
         run: node --test scripts/check-version-patch.test.mjs scripts/pending-changesets.test.mjs
@@ -186,7 +193,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -215,7 +222,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           install: false
@@ -267,7 +274,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.package_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -362,6 +369,10 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run deploy-examples:test
 
+      - name: Test the checkout worker release check
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run checkout-worker-release:test
+
       - name: Test API surface generator
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run api-surface:test
@@ -449,7 +460,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.app_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -511,7 +522,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.api_ref.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -563,7 +574,7 @@ jobs:
           echo "CI_BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false

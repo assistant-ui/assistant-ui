@@ -104,7 +104,11 @@ const load = () => {
 
 const refresh = () => {
   const stored = readStored();
-  if (stored === undefined || stored?.id === session?.id) return;
+  if (
+    stored === undefined ||
+    JSON.stringify(stored) === JSON.stringify(normalize(session))
+  )
+    return;
   session = stored;
   notify();
 };

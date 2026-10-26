@@ -10,6 +10,66 @@ const findScrollableAncestor = (element: HTMLElement | null | undefined) => {
   return null;
 };
 
+const scrollLocks = new WeakMap<
+  HTMLElement,
+  { count: number; restore: () => void }
+>();
+
+const acquireScrollLock = (scrollContainer: HTMLElement) => {
+  const existing = scrollLocks.get(scrollContainer);
+  if (existing) {
+    existing.count++;
+    return existing;
+  }
+
+  const scrollPosition = scrollContainer.scrollTop;
+  const scrollbarWidth = scrollContainer.style.scrollbarWidth;
+  const computed = getComputedStyle(scrollContainer);
+  const paddingSide =
+    computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
+  const previousPadding = scrollContainer.style[paddingSide];
+  const elementScrollbarSize =
+    scrollContainer.offsetWidth -
+    scrollContainer.clientWidth -
+    parseFloat(computed.borderLeftWidth) -
+    parseFloat(computed.borderRightWidth);
+  // Root offsetWidth excludes the viewport scrollbar, so use the viewport
+  // width only when the element's own gutter is absent.
+  const ownerDocument = scrollContainer.ownerDocument;
+  const isRootScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.body;
+  const scrollbarSize =
+    isRootScroller && elementScrollbarSize <= 0
+      ? (ownerDocument.defaultView?.innerWidth ?? 0) -
+        ownerDocument.documentElement.clientWidth
+      : elementScrollbarSize;
+
+  scrollContainer.style.scrollbarWidth = "none";
+  if (scrollbarSize > 0) {
+    scrollContainer.style[paddingSide] = `${
+      parseFloat(computed[paddingSide]) + scrollbarSize
+    }px`;
+  }
+
+  const restoreStyles = () => {
+    scrollContainer.style.scrollbarWidth = scrollbarWidth;
+    scrollContainer.style[paddingSide] = previousPadding;
+  };
+  const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
+  scrollContainer.addEventListener("scroll", resetPosition);
+
+  const lock = {
+    count: 1,
+    restore: () => {
+      scrollContainer.removeEventListener("scroll", resetPosition);
+      restoreStyles();
+    },
+  };
+  scrollLocks.set(scrollContainer, lock);
+  return lock;
+};
+
 export const useScrollLock = (
   target: Ref<HTMLElement | null | undefined>,
   animationDuration: number,
@@ -27,53 +87,17 @@ export const useScrollLock = (
       return;
     }
 
-    const scrollPosition = scrollContainer.scrollTop;
-    const scrollbarWidth = scrollContainer.style.scrollbarWidth;
-    const computed = getComputedStyle(scrollContainer);
-    const paddingSide =
-      computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
-    const previousPadding = scrollContainer.style[paddingSide];
-    const elementScrollbarSize =
-      scrollContainer.offsetWidth -
-      scrollContainer.clientWidth -
-      parseFloat(computed.borderLeftWidth) -
-      parseFloat(computed.borderRightWidth);
-    // Root offsetWidth excludes the viewport scrollbar, so use the viewport
-    // width only when the element's own gutter is absent.
-    const ownerDocument = scrollContainer.ownerDocument;
-    const isRootScroller =
-      scrollContainer === ownerDocument.documentElement ||
-      scrollContainer === ownerDocument.body;
-    const scrollbarSize =
-      isRootScroller && elementScrollbarSize <= 0
-        ? (ownerDocument.defaultView?.innerWidth ?? 0) -
-          ownerDocument.documentElement.clientWidth
-        : elementScrollbarSize;
+    const lock = acquireScrollLock(scrollContainer);
 
-    scrollContainer.style.scrollbarWidth = "none";
-    if (scrollbarSize > 0) {
-      scrollContainer.style[paddingSide] = `${
-        parseFloat(computed[paddingSide]) + scrollbarSize
-      }px`;
-    }
-
-    const restoreStyles = () => {
-      scrollContainer.style.scrollbarWidth = scrollbarWidth;
-      scrollContainer.style[paddingSide] = previousPadding;
-    };
-    const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
-    scrollContainer.addEventListener("scroll", resetPosition);
-
-    const timeoutId = setTimeout(() => {
-      scrollContainer.removeEventListener("scroll", resetPosition);
-      restoreStyles();
-      cleanup = null;
-    }, animationDuration);
+    const timeoutId = setTimeout(() => cleanup?.(), animationDuration);
 
     cleanup = () => {
       clearTimeout(timeoutId);
-      scrollContainer.removeEventListener("scroll", resetPosition);
-      restoreStyles();
+      if (--lock.count === 0) {
+        lock.restore();
+        scrollLocks.delete(scrollContainer);
+      }
+      cleanup = null;
     };
   };
 };
