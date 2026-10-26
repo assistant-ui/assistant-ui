@@ -10,6 +10,7 @@ import { IncrementalJsonObjectParser } from "./incremental-json-object-parser";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json-value";
 
 const inputs = [
+  '{"n":2.5e+3,"m":0.25,"k":1E2}',
   '{"text":"brace } quote \\" slash \\\\ emoji 😀","nested":{"values":[1,-2.5e3,true,false,null]}}',
   '{"escaped":"line\\nfeed","unicode":"\\uD83D\\uDE00"}',
   '{"duplicate":"first","duplicate":"second","tail":0}',
@@ -40,6 +41,30 @@ const expectPrefixParity = (input: string) => {
 };
 
 const parserContract = () => {
+  it.each([false, true])(
+    "preserves caller-owned fallback objects before parsing starts (frozen=%s)",
+    (frozen) => {
+      const nested = { value: 1 };
+      const fallback = { nested };
+      if (frozen) {
+        Object.freeze(nested);
+        Object.freeze(fallback);
+      }
+      for (const text of ["", " "]) {
+        const parser = IncrementalJsonObjectParser.from(text, fallback);
+        expect(parser.currentArgs).toBe(fallback);
+        expect(fallback.nested).toBe(nested);
+        const next = parser.append(" \n");
+        expect(next.currentArgs).toBe(fallback);
+        expect(fallback.nested).toBe(nested);
+        expect(next.append('{"ready":true}').currentArgs).toMatchObject({
+          ready: true,
+        });
+        expect(fallback.nested).toBe(nested);
+      }
+    },
+  );
+
   it.each(inputs)(
     "matches parsePartialJsonObject for every prefix",
     (input) => {
@@ -65,6 +90,8 @@ const parserContract = () => {
 
   it.each([
     '{"value":01,"tail":1}',
+    '{"value":1,"tail":\f2}',
+    '\f{"value":1}',
     '{"value":"\\uZZ","tail":1}',
     '{"__proto__":{"polluted":true},"tail":1}',
     '{"constructor":{"prototype":{"polluted":true}},"tail":1}',

@@ -68,6 +68,7 @@ class StreamfoldParser implements JsonParserBackend {
       closed: false,
     };
     const parser = new StreamfoldParser(session, undefined, fallback);
+    parser.publishedArgs = fallback;
     return text.length ? parser.append(text) : parser;
   }
 
@@ -75,12 +76,8 @@ class StreamfoldParser implements JsonParserBackend {
     const session = this.session;
     if (session.closed || session.owner !== this.owner) return undefined;
     try {
-      // Streamfold 0.1.9 accepts form feeds and omits pending surrogate/minus patches.
-      if (
-        /[\uD800-\uDFFF]/u.test(delta) ||
-        delta.endsWith("-") ||
-        delta.includes("\f")
-      )
+      // Streamfold omits partial patches for a pending surrogate or minus sign.
+      if (/[\uD800-\uDFFF]/u.test(delta) || delta.endsWith("-"))
         throw new Error("Use native partial parsing");
       const update = session.scanner.push(delta);
       this.trackPaths(update);
@@ -108,6 +105,7 @@ class StreamfoldParser implements JsonParserBackend {
         },
         args,
       );
+      if (args === this.args) next.publishedArgs = this.currentArgs;
       if (update.complete) this.close();
       return next;
     } catch {
