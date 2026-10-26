@@ -53,13 +53,17 @@ export async function lookupNpmVersion(
     windowMs,
     fetch: fetchImpl = globalThis.fetch,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now = Date.now,
   },
 ) {
   const url = `https://registry.npmjs.org/setup-agent/${encodeURIComponent(version)}`;
+  const deadline = now() + windowMs;
   let result = await lookupOnce(url, fetchImpl);
   for (const delay of retryDelays(windowMs)) {
     if (result === "HTTP 200") break;
-    await sleep(delay);
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    await sleep(Math.min(delay, remaining));
     result = await lookupOnce(url, fetchImpl);
   }
   return result;

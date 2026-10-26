@@ -103,6 +103,28 @@ test("gives up with the last result once the window is spent", async () => {
   assert.equal(npm.calls.length, 6);
 });
 
+test("counts time spent in lookups against the window", async () => {
+  let clock = 0;
+  const calls = [];
+  const sleeps = [];
+  const result = await lookupNpmVersion("1.2.3", {
+    windowMs: 30_000,
+    fetch: async (url) => {
+      calls.push(url);
+      clock += 15_000;
+      throw new Error("The operation was aborted due to timeout");
+    },
+    sleep: async (ms) => {
+      sleeps.push(ms);
+      clock += ms;
+    },
+    now: () => clock,
+  });
+  assert.equal(result, "The operation was aborted due to timeout");
+  assert.deepEqual(sleeps, [2_000]);
+  assert.equal(calls.length, 2);
+});
+
 test("holds back a tree with a pending setup-agent changeset without asking npm", async () => {
   const npm = registry([200]);
   const result = await checkSetupAgentReleased(

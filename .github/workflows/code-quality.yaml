@@ -48,6 +48,8 @@ on:
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/checkout-worker-release.mjs"
+      - "scripts/checkout-worker-release.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
       - "scripts/*example-bundle*"
