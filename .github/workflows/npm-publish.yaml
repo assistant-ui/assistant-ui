@@ -716,9 +716,7 @@ jobs:
       # Set by the action even when the publish step fails partway through, so
       # the release-tags job knows exactly which versions this run published.
       published_packages: ${{ steps.changesets-publish.outputs.published-packages }}
-      # The commit this job actually checked out, captured before publishing.
-      # The release-tags job trusts the published list only for this commit,
-      # and a "re-run failed jobs" rerun still sees both outputs.
+      # Captured before publishing; a "re-run failed jobs" rerun still sees it.
       checkout_sha: ${{ steps.checkout-sha.outputs.sha }}
     permissions:
       contents: write
@@ -791,16 +789,17 @@ jobs:
       - approve
       - summary
       - publish
-    # Runs even when publish is skipped (everything already on npm, e.g. a rerun
-    # after a release-creation failure) or failed partway through: tags and
-    # releases are reconciled from npm registry truth at RELEASE_SHA. summary is
-    # required so the release commit always passed its ancestor validation.
+    # Runs even when publish is skipped or failed partway through, so a failed
+    # job rerun can still reconcile. summary is required so the release commit
+    # always passed its ancestor validation.
     if: ${{ always() && !cancelled() && needs.approve.result == 'success' && needs.summary.result == 'success' && needs.publish.result != 'cancelled' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     concurrency:
-      group: npm-publish-exec
+      # Scoped to the release commit: same-release runs serialize, and a run
+      # for one release never cancels another release's pending jobs.
+      group: npm-release-tags-${{ needs.approve.outputs.release_sha }}
       cancel-in-progress: false
     env:
       RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
@@ -813,35 +812,27 @@ jobs:
           ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
 
-      # The checkout is at RELEASE_SHA, but a recovery run for a release cut
-      # before this script existed has no script in that tree. The script is
-      # therefore loaded from the workflow's own revision, while package
-      # manifests and changelogs are still read from the RELEASE_SHA checkout
-      # (the script runs with the checkout as its working directory).
-      - name: Fetch the reconcile script from the workflow revision
-        env:
-          WORKFLOW_REVISION: ${{ github.workflow_sha }}
-        run: |
-          set -euo pipefail
-          dest="$RUNNER_TEMP/release-reconcile"
-          mkdir -p "$dest/lib"
-          base="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$WORKFLOW_REVISION"
-          curl -fsSL "$base/scripts/create-release-tags.mjs" -o "$dest/create-release-tags.mjs"
-          curl -fsSL "$base/scripts/lib/main.mjs" -o "$dest/lib/main.mjs"
+      # A recovery run for a release cut before this script existed has no
+      # script in the RELEASE_SHA tree, so the script comes from the
+      # workflow's own revision. Package manifests and changelogs still come
+      # from the RELEASE_SHA checkout above, which stays the working
+      # directory.
+      - name: Checkout the reconcile script from the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: release-reconcile
+          sparse-checkout: scripts
+          persist-credentials: false
 
       - name: Create git tags and GitHub releases at the release SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Empty when the publish job skipped or had nothing to publish, and
-          # possibly after a failed publish (the action sets the step output
-          # before throwing, but GitHub's propagation of step outputs through
-          # a failed job is not documented); the script then binds versions
-          # via npm provenance instead, and skips what it cannot associate.
           PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published_packages }}
-          # The commit the publish job recorded checking out; the published
-          # list is only evidence for a release at that same commit.
+          # The list is only evidence for a release at the commit the publish
+          # job recorded checking out.
           PUBLISH_CHECKOUT_SHA: ${{ needs.publish.outputs.checkout_sha }}
-        run: node "$RUNNER_TEMP/release-reconcile/create-release-tags.mjs"
+        run: node release-reconcile/scripts/create-release-tags.mjs
 
   registry-deploy:
     name: Deploy registry
