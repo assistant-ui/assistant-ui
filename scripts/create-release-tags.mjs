@@ -113,7 +113,7 @@ const fetchNpmMetadata = async (packageName) => {
 
 // npm's SLSA provenance subjects use a purl with the scope's "@" percent
 // encoded and the "/" kept: pkg:npm/%40assistant-ui/core@0.3.31.
-export const npmPurl = (packageName, version) =>
+const npmPurl = (packageName, version) =>
   `pkg:npm/${packageName.replace(/^@/, "%40")}@${version}`;
 
 // Reads the SLSA provenance attestation npm stores for trusted publishing and
@@ -174,7 +174,7 @@ export const fetchPublishCommit = async (
 // Resolves the commit a tag ref points at. Annotated tag objects are peeled
 // until the underlying commit; returns null when the ref resolves to no
 // commit (a depth guard keeps a tag-of-tag cycle from looping forever).
-export const resolveTagCommit = async (github, refObject) => {
+const resolveTagCommit = async (github, refObject) => {
   let object = refObject?.object;
   for (let depth = 0; depth < 5 && object?.type === "tag"; depth += 1) {
     object = (await github.getTagObject(object.sha))?.object;
