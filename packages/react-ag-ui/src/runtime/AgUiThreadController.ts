@@ -97,6 +97,14 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
+const hasResolvedToolCalls = (message: ThreadMessage): boolean => {
+  if (message.role !== "assistant") return false;
+  for (const part of iterateToolCallParts(message.content)) {
+    if (isResolvedToolCall(part)) return true;
+  }
+  return false;
+};
+
 const listedPendingToolCallIds = (
   assistant: Pick<ThreadAssistantMessage, "metadata">,
 ): ReadonlySet<string> | undefined => {
@@ -1373,23 +1381,29 @@ export class AgUiThreadController {
       }
 
       this.session.resetHead(lastAppliedId);
+      if (!hardReplace) {
+        for (const messageId of seen) {
+          this.maybeCompleteAfterToolResults(messageId);
+        }
+      }
     }
 
     this.snapshotHistoryIds.clear();
     for (const { message } of this.getMessageRepository().messages) {
       this.snapshotHistoryIds.add(message.id);
     }
-    // MESSAGES_SNAPSHOT re-appends the active assistant, so a parked
-    // continuation whose target survived the snapshot is still answerable.
-    // Membership is the head branch, not the repository: a soft merge leaves
-    // the messages it dropped behind as off-branch nodes.
+    // A soft merge leaves dropped messages off branch; only selected
+    // messages with resolved tool calls can still own a continuation.
     const pendingResume = this.state.pendingResume;
     if (pendingResume) {
-      const selectedIds = new Set(
-        this.session.getMessages().map((message) => message.id),
+      const selectedResultOwnerIds = new Set(
+        this.session
+          .getMessages()
+          .filter(hasResolvedToolCalls)
+          .map((message) => message.id),
       );
       const retained = pendingResume.messageIds.filter((id) =>
-        selectedIds.has(id),
+        selectedResultOwnerIds.has(id),
       );
       if (retained.length !== pendingResume.messageIds.length) {
         this.dispatch({ type: "resumeCleared" });
@@ -1994,14 +2008,12 @@ export class AgUiThreadController {
           turn.some((message) => {
             if (!messageIds.includes(message.id)) return false;
             const replay = replayContexts.get(message.id);
-            return (
-              !replay ||
-              Array.from(iterateToolCallParts(message.content)).some(
-                (part) =>
-                  isResolvedToolCall(part) &&
-                  replay.admittedToolCallIds.has(part.toolCallId) &&
-                  !accountedResultIds.has(part.toolCallId),
-              )
+            if (!replay) return hasResolvedToolCalls(message);
+            return Array.from(iterateToolCallParts(message.content)).some(
+              (part) =>
+                isResolvedToolCall(part) &&
+                replay.admittedToolCallIds.has(part.toolCallId) &&
+                !accountedResultIds.has(part.toolCallId),
             );
           })
         ) {
