@@ -12,9 +12,8 @@ import { isExecutedAsMain } from "./lib/main.mjs";
 //
 // The only trusted evidence is the publish job's own record: its published
 // list plus the checkout it recorded, both kept across a "re-run failed
-// jobs" rerun. npm's provenance attestation names the publishing run's
-// GITHUB_SHA, which cannot prove the checked-out commit, so there is no
-// fallback: a release with no recorded list is left for manual tagging.
+// jobs" rerun. npm provenance names a run's GITHUB_SHA, not the checked-out
+// commit, so there is no fallback; a release with no list is tagged by hand.
 
 // Port of getChangelogEntry from changesets/action@v2.1.2 (src/utils.ts), so
 // release bodies keep the changelog entry the action would have used.
