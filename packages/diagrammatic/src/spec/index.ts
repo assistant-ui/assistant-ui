@@ -195,8 +195,18 @@ const objectOf = (
 
 const stringArray = arrayOf(stringShape);
 const numberArray = arrayOf(numberShape);
-const itemArray = arrayOf(objectOf({ label: stringShape, value: numberShape }));
-const seriesArray = arrayOf(objectOf({ name: stringShape, data: numberArray }));
+const itemShape = objectOf({ label: stringShape, value: numberShape });
+const seriesShape = objectOf({ name: stringShape, data: numberArray });
+const matrixShape = objectOf({
+  rows: stringArray,
+  cols: stringArray,
+  values: arrayOf(numberArray),
+});
+const treeNodeOptional: Record<string, Shape> = { value: numberShape };
+const treeNodeShape = objectOf({ label: stringShape }, treeNodeOptional);
+treeNodeOptional["children"] = arrayOf(treeNodeShape);
+const itemArray = arrayOf(itemShape);
+const seriesArray = arrayOf(seriesShape);
 const pointArray = arrayOf(objectOf({ x: numberShape, y: numberShape }));
 const connectedPointArray = arrayOf(
   objectOf({ x: numberShape, y: numberShape }, { label: stringShape }),
@@ -250,8 +260,8 @@ const REGISTRY: Record<string, Descriptor> = {
   "stacked-area": entry(charts.StackedArea, [["series", "array", seriesArray]]),
   streamgraph: entry(charts.Streamgraph, [["series", "array", seriesArray]]),
   "mirrored-area": entry(charts.MirroredArea, [
-    ["down", "object"],
-    ["up", "object"],
+    ["down", "object", seriesShape],
+    ["up", "object", seriesShape],
   ]),
   slope: entry(charts.Slope, [
     [
@@ -287,7 +297,14 @@ const REGISTRY: Record<string, Descriptor> = {
       ),
     ],
   ]),
-  horizon: entry(charts.Horizon, []),
+  horizon: entry(
+    charts.Horizon,
+    [],
+    [
+      ["data", "array", numberArray],
+      ["series", "array", seriesArray],
+    ],
+  ),
   gantt: entry(charts.Gantt, [
     [
       "rows",
@@ -344,10 +361,12 @@ const REGISTRY: Record<string, Descriptor> = {
   "polar-area": entry(charts.PolarArea, [["items", "array", itemArray]]),
   pie: entry(charts.Pie, [["items", "array", itemArray]]),
   waffle: entry(charts.Waffle, [["items", "array", itemArray]]),
-  treemap: entry(charts.Treemap, [["root", "object"]]),
-  sunburst: entry(charts.Sunburst, [["root", "object"]]),
-  icicle: entry(charts.Icicle, [["root", "object"]]),
-  "circle-packing": entry(charts.CirclePacking, [["root", "object"]]),
+  treemap: entry(charts.Treemap, [["root", "object", treeNodeShape]]),
+  sunburst: entry(charts.Sunburst, [["root", "object", treeNodeShape]]),
+  icicle: entry(charts.Icicle, [["root", "object", treeNodeShape]]),
+  "circle-packing": entry(charts.CirclePacking, [
+    ["root", "object", treeNodeShape],
+  ]),
   marimekko: entry(charts.Marimekko, [
     [
       "columns",
@@ -411,8 +430,8 @@ const REGISTRY: Record<string, Descriptor> = {
   ]),
   "population-pyramid": entry(charts.PopulationPyramid, [
     ["bands", "array", stringArray],
-    ["left", "object"],
-    ["right", "object"],
+    ["left", "object", seriesShape],
+    ["right", "object", seriesShape],
   ]),
   scatter: entry(charts.Scatter, [
     [
@@ -440,7 +459,7 @@ const REGISTRY: Record<string, Descriptor> = {
   ),
   hexbin: entry(charts.Hexbin, [["points", "array", pointArray]]),
   contour: entry(charts.Contour, [["points", "array", pointArray]]),
-  heatmap: entry(charts.Heatmap, [["matrix", "object"]]),
+  heatmap: entry(charts.Heatmap, [["matrix", "object", matrixShape]]),
   quadrant: entry(charts.Quadrant, [
     [
       "points",
@@ -497,8 +516,8 @@ const REGISTRY: Record<string, Descriptor> = {
     ],
   ]),
   "difference-area": entry(charts.DifferenceArea, [
-    ["actual", "object"],
-    ["reference", "object"],
+    ["actual", "object", seriesShape],
+    ["reference", "object", seriesShape],
   ]),
   sankey: entry(charts.Sankey, [["graph", "object", graphShape]]),
   chord: entry(charts.Chord, [
@@ -529,7 +548,7 @@ const REGISTRY: Record<string, Descriptor> = {
   ]),
   network: entry(charts.Network, [["graph", "object", graphShape]]),
   "arc-diagram": entry(charts.ArcDiagram, [["graph", "object", graphShape]]),
-  tree: entry(charts.Tree, [["root", "object"]]),
+  tree: entry(charts.Tree, [["root", "object", treeNodeShape]]),
   dendrogram: entry(charts.Dendrogram, [
     ["leaves", "array", stringArray],
     [
@@ -541,8 +560,8 @@ const REGISTRY: Record<string, Descriptor> = {
     ],
   ]),
   venn: entry(charts.Venn, [
-    ["a", "object"],
-    ["b", "object"],
+    ["a", "object", itemShape],
+    ["b", "object", itemShape],
     ["overlap", "number"],
   ]),
   upset: entry(charts.Upset, [
@@ -571,7 +590,11 @@ const REGISTRY: Record<string, Descriptor> = {
     acceptsNumericUnit: true,
   },
   "flow-map": entry(charts.FlowMap, [
-    ["origin", "object"],
+    [
+      "origin",
+      "object",
+      objectOf({ col: numberShape, row: numberShape }, { label: stringShape }),
+    ],
     [
       "routes",
       "array",
@@ -595,7 +618,8 @@ const REGISTRY: Record<string, Descriptor> = {
     [],
     [
       ["items", "array", itemArray],
-      ["a", "object"],
+      ["a", "object", itemShape],
+      ["b", "object", itemShape],
     ],
   ),
 };
@@ -684,7 +708,7 @@ export function validateSpec(input: unknown): ChartSpec {
     if (value === undefined) return false;
     if (kindOf(value) !== kind) {
       throw new Error(
-        `Field "${key}" for type "${type}" must be ${kind === "array" ? "an array" : `a ${kind}`}.`,
+        `Field "${key}" for type "${type}" must be ${kind === "array" || kind === "object" ? `an ${kind}` : `a ${kind}`}.`,
       );
     }
     if (shape) {

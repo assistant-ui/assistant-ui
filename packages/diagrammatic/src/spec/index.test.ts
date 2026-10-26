@@ -123,6 +123,45 @@ describe("validateSpec", () => {
       'Field "graph.links[0].source" for type "sankey" must be a string.',
     ],
     [
+      { type: "mirrored-area", down: null, up: { name: "u", data: [1] } },
+      'Field "down" for type "mirrored-area" must be an object.',
+    ],
+    [
+      {
+        type: "difference-area",
+        actual: { name: "a" },
+        reference: { name: "r", data: [1] },
+      },
+      'Field "actual.data" for type "difference-area" must be an array.',
+    ],
+    [
+      {
+        type: "heatmap",
+        matrix: { rows: ["r"], cols: ["c"], values: [[null]] },
+      },
+      'Field "matrix.values[0][0]" for type "heatmap" must be a finite number.',
+    ],
+    [
+      { type: "venn", a: { label: "a", value: 1 }, b: {}, overlap: 1 },
+      'Field "b.label" for type "venn" must be a string.',
+    ],
+    [
+      { type: "flow-map", origin: { col: 0 }, routes: [] },
+      'Field "origin.row" for type "flow-map" must be a finite number.',
+    ],
+    [
+      { type: "split-bar", a: { label: "a", value: 1 }, b: 2 },
+      'Field "b" for type "split-bar" must be an object.',
+    ],
+    [
+      { type: "horizon", series: [null] },
+      'Field "series[0]" for type "horizon" must be an object.',
+    ],
+    [
+      { type: "treemap", root: { label: "r", children: [{ label: 1 }] } },
+      'Field "root.children[0].label" for type "treemap" must be a string.',
+    ],
+    [
       { type: "bullet", value: 5, target: 4, bands: [1, 2] },
       'Field "bands" for type "bullet" must be a tuple of 3 items.',
     ],
