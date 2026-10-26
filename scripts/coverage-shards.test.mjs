@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -83,3 +91,123 @@ test("the CLI emits the selected shard filters and rejects invalid shard indexes
     execFileSync(process.execPath, [script, "2"], { stdio: "pipe" }),
   );
 });
+
+for (const [shard, empty] of [
+  [0, false],
+  [1, false],
+  [1, true],
+]) {
+  test(`shard ${shard} prebuilds only its coverage and compiler prerequisites${empty ? " (empty graph)" : ""}`, (t) => {
+    const root = workspace(t, [
+      { name: "first", tests: 10 },
+      { name: "second", tests: 9 },
+      ...[
+        "shared",
+        "transitive",
+        "compiler",
+        "compiler-runtime",
+        "unrelated",
+      ].map((name) => ({ name, tests: 0, coverage: false })),
+    ]);
+    const repoRoot = fileURLToPath(new URL("../", import.meta.url));
+    mkdirSync(path.join(root, "scripts"));
+    for (const file of ["coverage-shards.mjs", "lib"]) {
+      cpSync(
+        path.join(repoRoot, "scripts", file),
+        path.join(root, "scripts", file),
+        { recursive: true },
+      );
+    }
+    writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({
+        name: "coverage-fixture",
+        private: true,
+        packageManager: "pnpm@12.14.0",
+        scripts: {
+          "test:coverage": "turbo test:coverage --concurrency=2",
+          "test:react-compiler": "turbo test:react-compiler --filter=compiler",
+        },
+      }),
+    );
+    writeFileSync(
+      path.join(root, "turbo.json"),
+      JSON.stringify({
+        tasks: {
+          build: { dependsOn: ["^build"], outputs: ["built"] },
+          "test:coverage": { dependsOn: empty ? [] : ["^build"] },
+          "test:react-compiler": { dependsOn: ["build"] },
+        },
+      }),
+    );
+    for (const [name, dependency] of Object.entries({
+      first: "shared",
+      second: "shared",
+      shared: "transitive",
+      transitive: null,
+      compiler: "compiler-runtime",
+      "compiler-runtime": null,
+      unrelated: null,
+    })) {
+      const manifest = path.join(root, "packages", name, "package.json");
+      const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+      pkg.scripts.build =
+        "node -e \"require('fs').writeFileSync('built', '')\"";
+      if (name === "compiler")
+        pkg.scripts["test:react-compiler"] = "node --test";
+      if (dependency) pkg.dependencies = { [dependency]: "workspace:*" };
+      writeFileSync(manifest, JSON.stringify(pkg));
+    }
+    writeFileSync(
+      path.join(root, "packages/second/turbo.json"),
+      JSON.stringify({
+        extends: ["//"],
+        tasks: {
+          "test:coverage": { dependsOn: empty ? [] : ["^build", "build"] },
+        },
+      }),
+    );
+    const workflow = readFileSync(
+      path.join(repoRoot, ".github/workflows/test-coverage.yaml"),
+      "utf8",
+    );
+    const step = workflow
+      .split("      - name: Build packages\n")[1]
+      .split("      - name:")[0];
+    const command = step
+      .split("        run: ")[1]
+      .trim()
+      .replace(/^\|\n/, "")
+      .replace(/^ {10}/gm, "")
+      .replaceAll("${{ matrix.shard }}", String(shard));
+    const options = {
+      cwd: root,
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        PATH: `${path.join(repoRoot, "node_modules/.bin")}${path.delimiter}${process.env.PATH}`,
+      },
+    };
+    execFileSync("pnpm", ["install", "--offline"], options);
+    execFileSync("bash", ["-e", "-o", "pipefail", "-c", command], options);
+    const built = [
+      "first",
+      "second",
+      "shared",
+      "transitive",
+      "compiler",
+      "compiler-runtime",
+      "unrelated",
+    ]
+      .filter((name) => existsSync(path.join(root, "packages", name, "built")))
+      .sort();
+    assert.deepEqual(
+      built,
+      empty
+        ? []
+        : shard === 0
+          ? ["compiler", "compiler-runtime", "shared", "transitive"]
+          : ["second", "shared", "transitive"],
+    );
+  });
+}
