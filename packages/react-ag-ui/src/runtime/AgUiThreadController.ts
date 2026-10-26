@@ -1731,58 +1731,62 @@ export class AgUiThreadController {
       if (!replayEnded && assistantMessageId === undefined) {
         if (!update.status || update.status.type === "running") return;
         assistantMessageId = replayTail;
-        if (replayTail !== undefined) {
-          const owners = this.getTrailingAssistantTurn().filter((message) =>
-            replayContexts.has(message.id),
-          );
-          // The aggregator's identity-less content can span retained owners.
-          const grouped = groupReplayToolContent(
-            owners,
-            update.content ?? [],
-            replayTail,
-          );
-          ownerParts = grouped;
-          if (
-            update.status.type === "requires-action" &&
-            update.status.reason === "interrupt"
-          ) {
-            const interrupts = (
-              update.metadata?.custom?.[AG_UI_METADATA_NAMESPACE] as
-                | AgUiCustomMetadata
-                | undefined
-            )?.interrupts;
-            const approvals = projectAgUiToolApprovals(interrupts);
-            for (const owner of owners) {
-              if (
-                Array.from(iterateToolCallParts(owner.content)).some((part) =>
-                  approvals.has(part.toolCallId),
-                )
+      }
+      const streamMessageId = assistantMessageId;
+      const terminalStatus = update.status;
+      const replayInterrupt =
+        replayContexts.size > 0 &&
+        terminalStatus?.type === "requires-action" &&
+        terminalStatus.reason === "interrupt";
+      if (
+        streamMessageId !== undefined &&
+        ((!replayEnded && update.content !== undefined) || replayInterrupt)
+      ) {
+        const owners = this.getTrailingAssistantTurn().filter((message) =>
+          replayContexts.has(message.id),
+        );
+        // Buffered calls keep their owners when a later text frame arrives.
+        const grouped =
+          !replayEnded && update.content !== undefined
+            ? groupReplayToolContent(owners, update.content, streamMessageId)
+            : new Map([[streamMessageId, [...(update.content ?? [])]]]);
+        ownerParts = grouped;
+        if (replayInterrupt) {
+          const interrupts = (
+            update.metadata?.custom?.[AG_UI_METADATA_NAMESPACE] as
+              | AgUiCustomMetadata
+              | undefined
+          )?.interrupts;
+          const approvals = projectAgUiToolApprovals(interrupts);
+          for (const owner of owners) {
+            if (
+              Array.from(iterateToolCallParts(owner.content)).some((part) =>
+                approvals.has(part.toolCallId),
               )
-                grouped.set(owner.id, grouped.get(owner.id) ?? []);
-            }
-            const anchor = owners.find(
-              (message) =>
-                projectAgUiToolApprovals(
-                  interrupts,
-                  new Set(
-                    Array.from(
-                      iterateToolCallParts([
-                        ...message.content,
-                        ...(grouped.get(message.id) ?? []),
-                      ]),
-                    ).map((part) => part.toolCallId),
-                  ),
-                ).size > 0,
-            );
-            if (anchor) {
-              assistantMessageId = anchor.id;
-              replayInterruptMessageId = anchor.id;
-              grouped.set(anchor.id, grouped.get(anchor.id) ?? []);
-            }
+            )
+              grouped.set(owner.id, grouped.get(owner.id) ?? []);
+          }
+          const anchor = owners.find(
+            (message) =>
+              projectAgUiToolApprovals(
+                interrupts,
+                new Set(
+                  Array.from(
+                    iterateToolCallParts([
+                      ...message.content,
+                      ...(grouped.get(message.id) ?? []),
+                    ]),
+                  ).map((part) => part.toolCallId),
+                ),
+              ).size > 0,
+          );
+          if (anchor) {
+            assistantMessageId = anchor.id;
+            replayInterruptMessageId = anchor.id;
+            grouped.set(anchor.id, grouped.get(anchor.id) ?? []);
           }
         }
       }
-      const terminalStatus = update.status;
       const pendingMessages =
         settlingRun && terminalStatus && terminalStatus.type !== "running"
           ? settleHeldMessages(terminalStatus)
@@ -1807,14 +1811,25 @@ export class AgUiThreadController {
           if (ownerId === messageId) continue;
           this.updateAssistantMessage(
             ownerId,
-            { content, ...(ownerStatus ? { status: ownerStatus } : {}) },
+            {
+              ...(update.content !== undefined &&
+              (ownerId === streamMessageId || content.length > 0)
+                ? { content }
+                : {}),
+              ...(ownerStatus ? { status: ownerStatus } : {}),
+            },
             replayContexts.get(ownerId),
             interrupt ? new Set<string>() : restrictedPendingToolCallIds,
           );
         }
+        const { content: _content, ...controlUpdate } = update;
+        const content = ownerParts.get(messageId) ?? [];
         primaryUpdate = {
-          ...update,
-          content: ownerParts.get(messageId) ?? [],
+          ...controlUpdate,
+          ...(update.content !== undefined &&
+          (messageId === streamMessageId || content.length > 0)
+            ? { content }
+            : {}),
           ...(ownerStatus && !interrupt ? { status: ownerStatus } : {}),
         };
       }
