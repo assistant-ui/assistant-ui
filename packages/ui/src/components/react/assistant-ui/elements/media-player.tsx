@@ -189,7 +189,7 @@ export function AudioPlayer({
             if (audioRef.current) audioRef.current.currentTime = resolvedTime;
             update({ currentTime: resolvedTime });
           }}
-          className="accent-foreground w-full cursor-pointer disabled:cursor-default"
+          className="accent-foreground w-full"
         />
       </div>
       <span className={cn(mono, "text-muted-foreground tabular-nums")}>
