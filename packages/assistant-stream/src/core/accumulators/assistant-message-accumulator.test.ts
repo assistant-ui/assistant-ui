@@ -131,6 +131,7 @@ describe("AssistantMessageAccumulator tool argument status", () => {
         result: "interim",
         isError: false,
         isPreliminary: true,
+        modelContent: [{ type: "text", text: "Search in progress" }],
       },
       { type: "part-finish", path: [0] },
       { type: "result", path: [0], result: "done", isError: false },
@@ -146,6 +147,7 @@ describe("AssistantMessageAccumulator tool argument status", () => {
       state: "call",
       result: "interim",
       isPreliminary: true,
+      modelContent: [{ type: "text", text: "Search in progress" }],
       status: { type: "running", isArgsComplete: true },
     });
     expect(messages.at(-1)?.parts[0]).toMatchObject({
@@ -154,6 +156,41 @@ describe("AssistantMessageAccumulator tool argument status", () => {
       status: { type: "complete" },
     });
     expect(messages.at(-1)?.parts[0]).not.toHaveProperty("isPreliminary");
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("modelContent");
+  });
+
+  it("clears model content when a later preliminary result omits it", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "searching",
+        isError: false,
+        isPreliminary: true,
+        modelContent: [{ type: "text", text: "Search in progress" }],
+      },
+      {
+        type: "result",
+        path: [0],
+        result: "one match so far",
+        isError: false,
+        isPreliminary: true,
+      },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "call",
+      result: "one match so far",
+      isPreliminary: true,
+      status: { type: "running", isArgsComplete: true },
+    });
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("modelContent");
   });
 
   it("ignores a preliminary result after the final one", async () => {

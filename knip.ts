@@ -56,7 +56,7 @@ const config: KnipConfig = {
     "api-surface",
   ],
   ignore: ["api-surface/**", "scripts/lib/*.d.mts"],
-  ignoreBinaries: ["expo", "vercel"],
+  ignoreBinaries: ["expo", "vercel", "wrangler"],
   ignoreUnresolved: ["aui-build", "browser-process", /[./]generated$/],
   workspaces: {
     ".": {

@@ -13,7 +13,7 @@ This app runs the [`@assistant-ui/react-ink`](https://www.assistant-ui.com/docs/
 2. Start the docs app, which serves the chat endpoint on [localhost:3000](http://localhost:3000)
 
    ```bash
-   pnpm --filter @assistant-ui/docs dev
+   pnpm --filter @assistant-ui/docs-site dev
    ```
 
 3. Start the app

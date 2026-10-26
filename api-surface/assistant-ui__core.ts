@@ -1738,6 +1738,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }, endEditCallback: () => void, _param3: {
     parentId: string | null;
     message: ThreadMessage;
+    onMessageNotSent?: (message: AppendMessage) => void;
   });
   get parentId(): string | null;
   get sourceId(): string | null;
@@ -6727,6 +6728,7 @@ declare const createMessageRepositorySession: (options?: MessageRepositorySessio
   tryDeleteMessage: (messageId: string) => boolean;
   switchToBranch: (messageId: string) => void;
   resetHead: (messageId: string | null) => void;
+  selectHead: (messageId: string) => void;
   clear: () => void;
   updateMessage: (messageId: string, updater: (message: ThreadMessage) => ThreadMessage) => boolean;
   applyExternalMessageRepository: (loaded: ExportedMessageRepository) => void;

@@ -89,6 +89,38 @@ describe("unstable_runPendingTools", () => {
     },
   );
 
+  it("keeps each pending call's result when tool call IDs are reused", async () => {
+    const message = await AssistantMessageStream.fromAssistantStream(
+      createAssistantStream(async (controller) => {
+        for (const city of ["Paris", "Tokyo"]) {
+          const call = controller.addToolCallPart({
+            toolCallId: "reused",
+            toolName: "lookup",
+          });
+          call.argsText.append(JSON.stringify({ city }));
+          await call.close();
+        }
+      }),
+    ).unstable_result();
+
+    const settled = await unstable_runPendingTools(
+      message,
+      {
+        lookup: {
+          parameters: { type: "object" },
+          execute: (args) => `weather for ${args.city}`,
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(settled.parts).toMatchObject([
+      { state: "result", result: "weather for Paris" },
+      { state: "result", result: "weather for Tokyo" },
+    ]);
+  });
+
   it("keeps provider messages when a pending tool settles", async () => {
     const settled = await unstable_runPendingTools(
       createPendingToolMessage("messages"),
@@ -114,8 +146,8 @@ describe("unstable_runPendingTools", () => {
     expect(settled.content).toEqual(settled.parts);
   });
 
-  it.each(["constructor", "toString", "__proto__"])(
-    "does not assign inherited results to a %s tool call ID",
+  it.each(["constructor", "toString", "__proto__", "executed"])(
+    "leaves an unavailable call with ID %s pending",
     async (toolCallId) => {
       const message = createPendingToolMessage("executed");
       const unavailablePart = {

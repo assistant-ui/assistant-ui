@@ -31,7 +31,9 @@ export const ThreadListItemPrimitiveRoot = defineComponent({
       ) {
         return;
       }
-      const triggers = collection?.getTriggers();
+      const triggers = collection
+        ?.getTriggers()
+        .filter((node) => !node.disabled);
       if (!triggers) return;
       const next =
         triggers[

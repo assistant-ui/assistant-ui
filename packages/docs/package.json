@@ -1,0 +1,92 @@
+{
+  "name": "@assistant-ui/docs",
+  "version": "0.0.1",
+  "description": "The assistant-ui documentation theme for Farming Labs Docs",
+  "license": "MIT",
+  "author": "AgentbaseAI Inc.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "default": "./dist/next.js"
+    },
+    "./provider": {
+      "types": "./dist/provider.d.ts",
+      "default": "./dist/provider.js"
+    },
+    "./styles.css": "./styles/theme.css"
+  },
+  "files": [
+    "dist",
+    "src",
+    "styles",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "aui-build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "pnpm build",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "lucide-react": "^1.27.0"
+  },
+  "peerDependencies": {
+    "@farming-labs/docs": "0.2.127",
+    "@farming-labs/theme": "0.2.127",
+    "fumadocs-ui": "16.17.1",
+    "next": "^16.0.0",
+    "next-themes": "^0.4.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "@farming-labs/docs": "0.2.127",
+    "@farming-labs/theme": "0.2.127",
+    "fumadocs-ui": "16.17.1",
+    "next": "^16.2.12",
+    "next-themes": "^0.4.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "@vitest/coverage-v8": "^5.0.3",
+    "jsdom": "^30.1.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/docs"
+  },
+  "private": true,
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    },
+    "next-themes": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  }
+}

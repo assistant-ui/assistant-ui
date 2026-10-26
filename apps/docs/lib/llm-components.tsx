@@ -15,6 +15,7 @@ import { InstallCommandLLM } from "@/components/pages/docs/fumadocs/install/inst
 import { ParametersTableLLM } from "@/components/pages/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/pages/docs/primitives-type-table";
 import { FlowLLM } from "@/components/assistant-ui/elements/flow";
+import { ThemeImageLLM } from "@/components/pages/docs/theme-image";
 import { TapTutorialSlideshowLLM } from "@/components/pages/docs/tap/tutorial-slideshow.llm";
 import {
   QuickLinksLLM,
@@ -94,6 +95,7 @@ export const LLM_COMPONENTS: MDXComponents = {
     <blockquote>{children}</blockquote>
   ),
   Quickstart: QuickstartLLM,
+  ThemeImage: ThemeImageLLM,
   SurfaceGrid: SurfaceGridLLM,
   RuntimeGrid: RuntimeGridLLM,
   QuickLinks: QuickLinksLLM,

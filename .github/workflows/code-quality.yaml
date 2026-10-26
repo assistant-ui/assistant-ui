@@ -93,7 +93,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -120,7 +120,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -146,7 +146,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           install: false
@@ -186,7 +186,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -215,7 +215,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           install: false
@@ -267,7 +267,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.package_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -412,8 +412,6 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
-    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
-    needs: build
     if: ${{ !cancelled() }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
@@ -455,7 +453,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.app_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -475,7 +473,7 @@ jobs:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
-          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*"
           pnpm turbo build --filter="{./examples/*}[$BASE]"
 
       - name: Verify standalone example bundle contracts
@@ -517,7 +515,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.api_ref.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -525,7 +523,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs..." --filter="@assistant-ui/eve..."
+        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs-site..." --filter="@assistant-ui/eve..."
 
       - name: Generate API reference (strict)
         if: steps.api_ref.outputs.run == 'true'
@@ -545,8 +543,6 @@ jobs:
 
   typecheck:
     name: Typecheck Changed Packages
-    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
-    needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -571,7 +567,7 @@ jobs:
           echo "CI_BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false

@@ -26,7 +26,7 @@ Implement the change in its own git worktree, open a PR, monitor CI and reviews,
 10. Monitor checks and review threads until the merge gate is satisfied, committing and pushing follow-up fixes from the same worktree.
 11. Stop the monitor, then finish per the mode: in default mode, report the PR as ready; in `auto` mode, merge with `gh pr merge <n> --squash --admin`, then clean up.
 
-Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` are exempt.
+Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs-site` and `@assistant-ui/shadcn-registry` are exempt.
 
 ## Changes in the main worktree
 

@@ -376,7 +376,7 @@ test(
     );
     assert.ok(graph.tasks.length > 0);
     assert.ok(
-      !graph.tasks.some((task) => task.package === "@assistant-ui/docs"),
+      !graph.tasks.some((task) => task.package === "@assistant-ui/docs-site"),
     );
     for (const example of examples) {
       const task = graph.tasks.find(
@@ -406,12 +406,12 @@ test(
     const graph = JSON.parse(
       execFileSync(
         turbo,
-        ["run", "build", "--filter=@assistant-ui/docs", "--dry=json"],
+        ["run", "build", "--filter=@assistant-ui/docs-site", "--dry=json"],
         { cwd: root, encoding: "utf8", timeout: 30_000 },
       ),
     );
     const docs = graph.tasks.find(
-      (task) => task.taskId === "@assistant-ui/docs#build",
+      (task) => task.taskId === "@assistant-ui/docs-site#build",
     );
     assert.ok(docs, "Missing documentation build task");
     const outputs = docs.resolvedTaskDefinition.outputs;
@@ -546,12 +546,12 @@ test(
       const graph = JSON.parse(
         execFileSync(
           turbo,
-          ["run", "build", "--filter=@assistant-ui/docs", "--dry=json"],
+          ["run", "build", "--filter=@assistant-ui/docs-site", "--dry=json"],
           { cwd: root, encoding: "utf8", timeout: 30_000 },
         ),
       );
       const docs = graph.tasks.find(
-        (task) => task.taskId === "@assistant-ui/docs#build",
+        (task) => task.taskId === "@assistant-ui/docs-site#build",
       );
       assert.ok(docs);
       assert.ok(

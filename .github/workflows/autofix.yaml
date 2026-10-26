@@ -32,7 +32,7 @@ jobs:
           echo "BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -60,7 +60,7 @@ jobs:
 
       - name: Install API reference dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --ignore-scripts --filter="@assistant-ui/docs..."
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter="@assistant-ui/docs-site..."
 
       - name: Update API surface snapshots
         env:
