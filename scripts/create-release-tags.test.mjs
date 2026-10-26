@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 import {
   createReleaseTags,
-  fetchPublishCommit,
   getChangelogEntry,
   readPublishablePackages,
 } from "./create-release-tags.mjs";
@@ -275,26 +274,43 @@ test("a version not published by this run is not retried against the registry", 
   assert.deepEqual(registryReads, ["assistant-ui"]); // widget never probed
 });
 
-test("rerun reconciles from the provenance attestation when the publish job skipped", async () => {
+test("no recorded published list is a no-op, even for packages on npm", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+  ]);
+  const github = makeGithub();
+  const registryReads = [];
+  for (const publishedPackages of [null, []]) {
+    const result = await createReleaseTags({
+      packages: readPublishablePackages(packagesDir),
+      releaseSha: RELEASE_SHA,
+      publishedPackages,
+      github,
+      getNpmMetadata: npmMetadata(["assistant-ui"], registryReads),
+      log: () => {},
+    });
+    assert.deepEqual(result.problems, []);
+  }
+  assert.deepEqual(mutating(github), []);
+  assert.deepEqual(registryReads, []); // nothing probed without fresh evidence
+});
+
+test("a rerun with no recorded list leaves a missing release alone", async () => {
   const packagesDir = makeWorkspace([
     ["cli", { name: "assistant-ui", version: "0.0.126" }],
   ]);
   const github = makeGithub();
   github.addTag("assistant-ui@0.0.126", RELEASE_SHA); // tag from the first run
-  await createReleaseTags({
+  const result = await createReleaseTags({
     packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    publishedPackages: null,
+    publishedPackages: null, // publish job skipped; its outputs are gone
     github,
     getNpmMetadata: npmMetadata(["assistant-ui"]),
-    getPublishCommit: async () => RELEASE_SHA,
     log: () => {},
   });
-  // Missing release retried; existing tag kept.
-  assert.deepEqual(
-    mutating(github).map(([kind]) => kind),
-    ["createRelease"],
-  );
+  assert.deepEqual(result.problems, []);
+  assert.deepEqual(mutating(github), []); // the release is recreated by hand
 });
 
 test("an existing tag at the release SHA is kept, not recreated", async () => {
@@ -382,61 +398,28 @@ test("an annotated tag is peeled to its commit before comparing", async () => {
   );
 });
 
-test("back-to-back releases: a version published by another run's SHA is never retargeted", async () => {
+test("a missing changelog heading fails without leaving a partial tag", async () => {
   const packagesDir = makeWorkspace([
     ["cli", { name: "assistant-ui", version: "0.0.126" }],
   ]);
+  // The changelog has no section for 0.0.126.
+  writeFileSync(
+    path.join(packagesDir, "cli", "CHANGELOG.md"),
+    changelog("9.9.9"),
+  );
   const github = makeGithub();
   const result = await createReleaseTags({
     packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
-    publishedPackages: null,
+    publishedPackages: [{ name: "assistant-ui", version: "0.0.126" }],
+    publishCheckoutSha: RELEASE_SHA,
     github,
     getNpmMetadata: npmMetadata(["assistant-ui"]),
-    // The attestation names the earlier run's commit, not this RELEASE_SHA.
-    getPublishCommit: async () => OTHER_SHA,
     log: () => {},
   });
-  assert.deepEqual(mutating(github), []);
-  assert.deepEqual(result.problems, []);
-});
-
-test("a version without a usable attestation is skipped, not guessed", async () => {
-  const packagesDir = makeWorkspace([
-    ["cli", { name: "assistant-ui", version: "0.0.126" }],
-  ]);
-  const github = makeGithub();
-  await createReleaseTags({
-    packages: readPublishablePackages(packagesDir),
-    releaseSha: RELEASE_SHA,
-    publishedPackages: null,
-    github,
-    getNpmMetadata: npmMetadata(["assistant-ui"]),
-    getPublishCommit: async () => null,
-    log: () => {},
-  });
-  assert.deepEqual(mutating(github), []);
-});
-
-test("an unreadable attestation is a problem, not a silent skip", async () => {
-  const packagesDir = makeWorkspace([
-    ["cli", { name: "assistant-ui", version: "0.0.126" }],
-  ]);
-  const github = makeGithub();
-  const result = await createReleaseTags({
-    packages: readPublishablePackages(packagesDir),
-    releaseSha: RELEASE_SHA,
-    publishedPackages: null,
-    github,
-    getNpmMetadata: npmMetadata(["assistant-ui"]),
-    getPublishCommit: async () => {
-      throw new Error("npm attestations HTTP 502");
-    },
-    log: () => {},
-  });
-  assert.deepEqual(mutating(github), []);
   assert.equal(result.problems.length, 1);
-  assert.match(result.problems[0], /attestation/);
+  assert.match(result.problems[0], /changelog entry/);
+  assert.deepEqual(mutating(github), []); // no tag, no release
 });
 
 test("propagates release-creation errors instead of treating them as existing", async () => {
@@ -497,153 +480,4 @@ test("getChangelogEntry extracts exactly the version section", () => {
   assert.match(entry, /### Patch Changes/);
   assert.doesNotMatch(entry, /## 0\.0\.1/);
   assert.equal(getChangelogEntry(changelog("1.2.3"), "9.9.9"), null);
-});
-
-test("an empty publish output is no fresh evidence: provenance fallback applies", async () => {
-  const packagesDir = makeWorkspace([
-    ["cli", { name: "assistant-ui", version: "0.0.126" }],
-  ]);
-  const github = makeGithub();
-  await createReleaseTags({
-    packages: readPublishablePackages(packagesDir),
-    releaseSha: RELEASE_SHA,
-    publishedPackages: [], // rerun ran the publish job but had nothing to publish
-    github,
-    getNpmMetadata: npmMetadata(["assistant-ui"]),
-    getPublishCommit: async () => RELEASE_SHA,
-    log: () => {},
-  });
-  assert.deepEqual(
-    github.calls.filter(([kind]) => kind === "createRef"),
-    [["createRef", "assistant-ui@0.0.126", RELEASE_SHA]],
-  );
-});
-
-test("an empty publish output with non-matching provenance skips, never guesses", async () => {
-  const packagesDir = makeWorkspace([
-    ["cli", { name: "assistant-ui", version: "0.0.126" }],
-  ]);
-  const github = makeGithub();
-  await createReleaseTags({
-    packages: readPublishablePackages(packagesDir),
-    releaseSha: RELEASE_SHA,
-    publishedPackages: [],
-    github,
-    getNpmMetadata: npmMetadata(["assistant-ui"]),
-    getPublishCommit: async () => OTHER_SHA,
-    log: () => {},
-  });
-  assert.deepEqual(mutating(github), []);
-});
-
-// fetchPublishCommit attestation handling (registry responses are mocked; no
-// network and no GitHub writes).
-const SHA512_HEX = "ab".repeat(64);
-const sha512Integrity = (hex) =>
-  `sha512-${Buffer.from(hex, "hex").toString("base64")}`;
-
-const attestationBody = ({ subjectName, gitCommit }) => ({
-  attestations: [
-    {
-      predicateType: "https://slsa.dev/provenance/v1",
-      bundle: {
-        dsseEnvelope: {
-          payload: Buffer.from(
-            JSON.stringify({
-              subject: [{ name: subjectName, digest: { sha512: SHA512_HEX } }],
-              predicate: {
-                buildDefinition: {
-                  resolvedDependencies: [
-                    {
-                      uri: "git+https://github.com/assistant-ui/assistant-ui@refs/heads/main",
-                      digest: { gitCommit },
-                    },
-                  ],
-                },
-              },
-            }),
-          ).toString("base64"),
-        },
-      },
-    },
-  ],
-});
-
-const withMockRegistry = async (body, fn) => {
-  const original = globalThis.fetch;
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => body,
-  });
-  try {
-    return await fn();
-  } finally {
-    globalThis.fetch = original;
-  }
-};
-
-const fetchCommit = (integrity = null) =>
-  withMockRegistry(
-    attestationBody({
-      subjectName: "pkg:npm/assistant-ui@0.0.126",
-      gitCommit: RELEASE_SHA,
-    }),
-    () =>
-      fetchPublishCommit(
-        "assistant-ui/assistant-ui",
-        "assistant-ui",
-        "0.0.126",
-        integrity,
-      ),
-  );
-
-test("provenance: a matching subject yields the publishing commit", async () => {
-  assert.equal(await fetchCommit(), RELEASE_SHA);
-  assert.equal(await fetchCommit(sha512Integrity(SHA512_HEX)), RELEASE_SHA);
-});
-
-test("provenance: a scoped subject matches its encoded purl", async () => {
-  // npm encodes the scope's "@": pkg:npm/%40assistant-ui/core@0.3.31
-  const commit = await withMockRegistry(
-    attestationBody({
-      subjectName: "pkg:npm/%40assistant-ui/core@0.3.31",
-      gitCommit: RELEASE_SHA,
-    }),
-    () =>
-      fetchPublishCommit(
-        "assistant-ui/assistant-ui",
-        "@assistant-ui/core",
-        "0.3.31",
-      ),
-  );
-  assert.equal(commit, RELEASE_SHA);
-});
-
-test("provenance: an attestation for a different artifact is rejected", async () => {
-  const commit = await withMockRegistry(
-    attestationBody({
-      subjectName: "pkg:npm/some-other-package@9.9.9",
-      gitCommit: RELEASE_SHA,
-    }),
-    () =>
-      fetchPublishCommit(
-        "assistant-ui/assistant-ui",
-        "assistant-ui",
-        "0.0.126",
-      ),
-  );
-  assert.equal(commit, null);
-});
-
-test("provenance: a tarball digest mismatch is rejected", async () => {
-  const commit = await fetchCommit(sha512Integrity("cd".repeat(64)));
-  assert.equal(commit, null);
-});
-
-test("provenance: no SLSA attestation means no association", async () => {
-  const commit = await withMockRegistry({ attestations: [] }, () =>
-    fetchPublishCommit("assistant-ui/assistant-ui", "assistant-ui", "0.0.126"),
-  );
-  assert.equal(commit, null);
 });
