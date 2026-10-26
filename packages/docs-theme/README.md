@@ -1,4 +1,4 @@
-# @assistant-ui/docs
+# @assistant-ui/docs-theme
 
 The assistant-ui theme for Farming Labs Docs on Next.js. It includes the header,
 sidebar, search button, light/dark appearance, table of contents, page actions,
@@ -12,7 +12,7 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
 ```
 
 Use Farming Labs Docs, Next, and Theme 0.2.127 with Fumadocs UI 16.17.1.
@@ -36,7 +36,7 @@ this package supplies the appearance and navigation components.
 ```tsx
 // docs.config.tsx
 import { defineDocs } from "@farming-labs/docs";
-import { assistantUi, DocsBrand } from "@assistant-ui/docs";
+import { assistantUi, DocsBrand } from "@assistant-ui/docs-theme";
 
 export default defineDocs({
   entry: "docs",
@@ -62,7 +62,7 @@ Supply any React node as `nav.title` to use your own branding, or use
 
 ```tsx
 // app/docs/layout.tsx
-import { createDocsLayout, createDocsMetadata } from "@assistant-ui/docs/next";
+import { createDocsLayout, createDocsMetadata } from "@assistant-ui/docs-theme/next";
 import config from "../../docs.config";
 
 export const metadata = createDocsMetadata(config);
@@ -94,7 +94,7 @@ such as `https://github.com/my-org/my-project/edit/main/src/app{path}/page.mdx`.
 
 ```tsx
 // app/layout.tsx
-import { RootProvider } from "@assistant-ui/docs/provider";
+import { RootProvider } from "@assistant-ui/docs-theme/provider";
 import "./global.css";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -109,7 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```css
 /* app/global.css — replaces the direct Farming Labs theme CSS import */
 @import "tailwindcss";
-@import "@assistant-ui/docs/styles.css";
+@import "@assistant-ui/docs-theme/styles.css";
 ```
 
 Keep the framework's `withDocs` Next configuration and API routes. Set up
@@ -126,9 +126,9 @@ Harness-specific URLs.
 ## Development
 
 ```sh
-pnpm --filter @assistant-ui/docs typecheck
-pnpm --filter @assistant-ui/docs test
-pnpm --filter @assistant-ui/docs build
+pnpm --filter @assistant-ui/docs-theme typecheck
+pnpm --filter @assistant-ui/docs-theme test
+pnpm --filter @assistant-ui/docs-theme build
 ```
 
 Rebuild after changing package components; consumers import the compiled `dist`
@@ -136,6 +136,6 @@ exports. The `next` export stays on the server, while the header and page contro
 Import `provider` from the server root layout; it re-exports the framework's
 client provider without pulling server-only framework exports into the browser.
 
-In this workspace, use `"@assistant-ui/docs": "workspace:*"`. To test local
+In this workspace, use `"@assistant-ui/docs-theme": "workspace:*"`. To test local
 changes in another repository, run `pnpm pack` in this package and install the
 resulting archive with `pnpm add /path/to/package.tgz`.

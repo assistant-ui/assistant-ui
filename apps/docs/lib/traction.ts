@@ -241,7 +241,7 @@ export const PACKAGES: PackageInfo[] = [
     category: "platforms",
   },
   {
-    name: "@assistant-ui/docs",
+    name: "@assistant-ui/docs-theme",
     description: "Documentation theme for Farming Labs Docs.",
     category: "ui",
   },
