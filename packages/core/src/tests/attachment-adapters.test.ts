@@ -121,7 +121,11 @@ describe("SimpleImageAttachmentAdapter", () => {
 
     expect(complete.status).toEqual({ type: "complete" });
     expect(complete.content).toEqual([
-      { type: "image", image: "data:image/png;base64,iVBORw==" },
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw==",
+        filename: "pixel.png",
+      },
     ]);
   });
 });
