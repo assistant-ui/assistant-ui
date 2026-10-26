@@ -39,6 +39,8 @@ on:
       - "scripts/check-pypi-dist.test.mjs"
       - "scripts/check-packed-release.mjs"
       - "scripts/check-packed-release.test.mjs"
+      - "scripts/create-release-tags.mjs"
+      - "scripts/create-release-tags.test.mjs"
       - "scripts/check-version-patch.mjs"
       - "scripts/check-version-patch.test.mjs"
       - "scripts/pending-changesets.mjs"
@@ -167,6 +169,9 @@ jobs:
 
       - name: Test the packed release checker
         run: node --test scripts/check-packed-release.test.mjs
+
+      - name: Test the release tag reconciler
+        run: node --test scripts/create-release-tags.test.mjs
 
       - name: Test the version patch checker
         run: node --test scripts/check-version-patch.test.mjs scripts/pending-changesets.test.mjs

@@ -712,6 +712,12 @@ jobs:
     if: needs.summary.outputs.target_count != '0'
     environment: npm Publish
     runs-on: ubuntu-24.04
+    outputs:
+      # Set by the action even when the publish step fails partway through, so
+      # the release-tags job knows exactly which versions this run published.
+      published_packages: ${{ steps.changesets-publish.outputs.published-packages }}
+      # Captured before publishing; a "re-run failed jobs" rerun still sees it.
+      checkout_sha: ${{ steps.checkout-sha.outputs.sha }}
     permissions:
       contents: write
       # Required for npm trusted publishing (OIDC).
@@ -729,6 +735,10 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
+
+      - name: Record the checked-out release commit
+        id: checkout-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
@@ -754,12 +764,16 @@ jobs:
           TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
         run: node scripts/check-packed-release.mjs
 
-      - name: Publish to npm and create GitHub releases
+      - name: Publish to npm
         id: changesets-publish
         uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action/publish@v2.1.2
         with:
           script: node node_modules/@changesets/cli/bin.js publish --from-pack-dir ${{ runner.temp }}/changeset-pack
-          create-github-releases: true
+          # The action pins tags and releases to the run's GITHUB_SHA, which differs
+          # from RELEASE_SHA on dispatch runs; the release-tags job creates both at
+          # RELEASE_SHA instead.
+          push-git-tags: false
+          create-github-releases: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Recovery guidance
@@ -767,6 +781,54 @@ jobs:
         run: |
           echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
           echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  release-tags:
+    name: Create git tags and GitHub releases
+    needs:
+      - approve
+      - summary
+      - publish
+    # Runs even when publish is skipped or failed partway through, so a failed
+    # job rerun can still reconcile. summary is required so the release commit
+    # always passed its ancestor validation.
+    if: ${{ always() && !cancelled() && needs.approve.result == 'success' && needs.summary.result == 'success' && needs.publish.result != 'cancelled' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      # Scoped to the release commit so one release's run never cancels another's.
+      group: npm-release-tags-${{ needs.approve.outputs.release_sha }}
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      # A recovery run for a release cut before this script existed has no
+      # script in the RELEASE_SHA tree, so it comes from the workflow's own
+      # revision; packages and changelogs still come from the checkout above.
+      - name: Checkout the reconcile script from the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: release-reconcile
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Create git tags and GitHub releases at the release SHA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISHED_PACKAGES: ${{ needs.publish.outputs.published_packages }}
+          # The list is only evidence for a release at the commit the publish
+          # job recorded checking out.
+          PUBLISH_CHECKOUT_SHA: ${{ needs.publish.outputs.checkout_sha }}
+        run: node release-reconcile/scripts/create-release-tags.mjs
 
   registry-deploy:
     name: Deploy registry
