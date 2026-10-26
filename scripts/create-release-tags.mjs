@@ -15,8 +15,6 @@ import { isExecutedAsMain } from "./lib/main.mjs";
 // jobs" rerun. npm's provenance attestation names the publishing run's
 // GITHUB_SHA, which cannot prove the checked-out commit, so there is no
 // fallback: a release with no recorded list is left for manual tagging.
-// Existing tags are resolved to their commit (annotated tags peeled) and a
-// mismatch fails the run; published tags are never moved.
 
 // Port of getChangelogEntry from changesets/action@v2.1.2 (src/utils.ts), so
 // release bodies keep the changelog entry the action would have used.
@@ -105,17 +103,13 @@ const isNotFound = (error) => error && error.status === 404;
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// The registry can lag behind a successful publish; a version the publish
-// step reported is retried before it is declared missing. Roughly 100s
-// overall, inside the job's own timeout budget.
+// The registry can lag behind a successful publish, so a reported version is
+// retried (~100s, inside the job's timeout) before it is declared missing.
 const REGISTRY_RETRY_DELAYS = [10_000, 20_000, 30_000, 40_000];
 
-// publishedPackages and publishCheckoutSha are the publish job's record of
-// what it did: exactly the listed versions are tagged, and only when the
-// recorded checkout equals releaseSha. With no list there is no evidence and
-// nothing is touched. github: { getRef(ref), getTagObject(sha),
-// createRef(ref, sha), getReleaseByTag(tag), createRelease(release) }, where
-// getters reject with a { status: 404 } error when missing.
+// Exactly the publishedPackages versions are tagged, and only while the
+// recorded publish checkout equals releaseSha; with no list nothing is
+// touched. github getters reject with a { status: 404 } error when missing.
 export const createReleaseTags = async ({
   packages,
   releaseSha,
