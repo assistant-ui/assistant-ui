@@ -72,21 +72,23 @@ const parserContract = () => {
     },
   );
 
-  it("matches when initialized from an existing prefix", () => {
-    const input = inputs[0]!;
-    let expected = parsePartialJsonObject("")!;
+  it.each(inputs.slice(0, 2))(
+    "matches when initialized from an existing prefix",
+    (input) => {
+      let expected = parsePartialJsonObject("")!;
 
-    for (let cut = 0; cut <= input.length; cut++) {
-      const prefix = input.slice(0, cut);
-      expected = parsePartialJsonObject(prefix) ?? expected;
-      const parser = IncrementalJsonObjectParser.from(prefix);
+      for (let cut = 0; cut <= input.length; cut++) {
+        const prefix = input.slice(0, cut);
+        expected = parsePartialJsonObject(prefix) ?? expected;
+        const parser = IncrementalJsonObjectParser.from(prefix);
 
-      expect(parser.currentArgs, `prefix=${prefix}`).toEqual(expected);
-      expect(getPartialJsonObjectMeta(parser.currentArgs)).toEqual(
-        getPartialJsonObjectMeta(expected),
-      );
-    }
-  });
+        expect(parser.currentArgs, `prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(parser.currentArgs)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+      }
+    },
+  );
 
   it.each([
     '{"value":01,"tail":1}',

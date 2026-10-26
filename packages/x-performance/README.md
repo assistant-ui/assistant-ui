@@ -65,8 +65,8 @@ Nothing is recorded. The baseline is built from the merge base on every run, so 
 Benchmarks import only public package entry points so the react-compiler output is what gets measured. Rebuild the target packages (`pnpm turbo run build --filter=<pkg>`) before recording.
 
 To compare the optional Streamfold backend on the same tool-argument workloads,
-run `pnpm -C packages/x-performance bench tool-args` and then
-`AUI_PERF_STREAMFOLD=1 pnpm -C packages/x-performance bench tool-args`.
+run `pnpm -C packages/x-performance bench tool-args --reporter=json --outputFile=/tmp/tool-args-native.json` and then
+`AUI_PERF_STREAMFOLD=1 pnpm -C packages/x-performance bench tool-args --reporter=json --outputFile=/tmp/tool-args-streamfold.json`.
 The second command initializes `assistant-stream/streamfold` and fails if it is
 unavailable. Both runs include small deltas, large string chunks, dense values,
 and complete inputs; compare repeated alternating runs before claiming a gain.
