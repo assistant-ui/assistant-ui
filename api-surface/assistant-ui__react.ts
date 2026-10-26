@@ -1312,7 +1312,7 @@ type ChainOfThoughtPartsComponentConfig = {
 
 declare namespace ChainOfThoughtPrimitiveAccordionTrigger {
   type Element = ActionButtonElement;
-  type Props = ActionButtonProps<typeof useChainOfThoughtAccordionTrigger>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button>;
 }
 
 declare const ChainOfThoughtPrimitiveAccordionTrigger: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -6867,8 +6867,6 @@ declare function useAuiToolOverrides(overrides: AuiToolOverrides): void;
 declare const useBranchPickerNext: () => (() => void) | null;
 
 declare const useBranchPickerPrevious: () => (() => void) | null;
-
-declare const useChainOfThoughtAccordionTrigger: () => () => void;
 
 declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
