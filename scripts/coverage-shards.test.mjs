@@ -20,7 +20,7 @@ function workspace(t, packages) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   writeFileSync(
     path.join(root, "pnpm-workspace.yaml"),
-    'packages:\n  - "packages/*"\n',
+    'packages:\n  - "packages/*"\npmOnFail: ignore\ncacheDir: ".cache/pnpm"\n',
   );
   for (const { name, tests, coverage = true } of packages) {
     const dir = path.join(root, "packages", name);
