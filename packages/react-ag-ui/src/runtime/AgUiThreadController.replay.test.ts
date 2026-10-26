@@ -630,6 +630,74 @@ describe("AgUiThreadController selected-turn replay", () => {
     },
   );
 
+  it("removes an earlier A2UI surface after replay moves the frame to B", async () => {
+    let aContentAfterRemoval: ThreadAssistantMessage["content"] | undefined;
+    let bContentAfterRemoval: ThreadAssistantMessage["content"] | undefined;
+    const surfaceContent = {
+      a2ui_operations: [
+        { version: "v0.9", createSurface: { surfaceId: "surface" } },
+        {
+          version: "v0.9",
+          updateComponents: {
+            surfaceId: "surface",
+            components: [{ id: "root", component: "Text", text: "Ready" }],
+          },
+        },
+      ],
+    };
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [{ type: "text", text: "old A" }]),
+        assistant("b", [{ type: "text", text: "old B" }]),
+      ],
+      async (input, subscriber) => {
+        text(subscriber, "a", "replayed A");
+        emit(subscriber, {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          messageId: "activity",
+          content: surfaceContent,
+        });
+        expect(contents(core, "a")).toContainEqual(
+          expect.objectContaining({ toolCallId: "a2ui:surface" }),
+        );
+
+        text(subscriber, "b", "fresh B");
+        emit(subscriber, {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          messageId: "activity",
+          content: surfaceContent,
+        });
+        expect(contents(core, "a")).toContainEqual(
+          expect.objectContaining({ toolCallId: "a2ui:surface" }),
+        );
+        expect(contents(core, "b")).not.toContainEqual(
+          expect.objectContaining({ toolCallId: "a2ui:surface" }),
+        );
+        emit(subscriber, {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          messageId: "activity",
+          replace: true,
+          content: { a2ui_operations: [] },
+        });
+        aContentAfterRemoval = contents(core, "a");
+        bContentAfterRemoval = contents(core, "b");
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+    );
+
+    await resume(core, "u");
+    expect(aContentAfterRemoval).not.toContainEqual(
+      expect.objectContaining({ toolCallId: "a2ui:surface" }),
+    );
+    expect(bContentAfterRemoval).toEqual([{ type: "text", text: "fresh B" }]);
+    expect(contents(core, "a")).toEqual([{ type: "text", text: "replayed A" }]);
+    expect(contents(core, "b")).toEqual([{ type: "text", text: "fresh B" }]);
+  });
+
   it("continues ordered replay across a snapshot of the same selected turn", async () => {
     const core = await loaded(
       [
@@ -662,6 +730,53 @@ describe("AgUiThreadController selected-turn replay", () => {
       { type: "text", text: "replayed A suffix" },
     ]);
     expect(contents(core, "b")).toEqual([{ type: "text", text: "replayed B" }]);
+  });
+
+  it("parents an unmatched replay frame after the assistant tail in a snapshot", async () => {
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [{ type: "text", text: "old A" }]),
+        assistant("b", [{ type: "text", text: "old B" }]),
+      ],
+      async (input, subscriber) => {
+        emit(subscriber, {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "u", role: "user", content: "question" },
+            { id: "a", role: "assistant", content: "snapshot A" },
+            { id: "server-s", role: "assistant", content: "server S" },
+          ],
+        });
+        text(subscriber, "c", "fresh C");
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+    );
+
+    await resume(core, "u");
+
+    const repository = core.getMessageRepository();
+    expect(ids(core)).toEqual(["u", "a", "server-s", "c"]);
+    expect(repository.headId).toBe("c");
+    expect(repository.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          parentId: "a",
+          message: expect.objectContaining({
+            id: "server-s",
+            content: [{ type: "text", text: "server S" }],
+          }),
+        }),
+        expect.objectContaining({
+          parentId: "server-s",
+          message: expect.objectContaining({
+            id: "c",
+            content: [{ type: "text", text: "fresh C" }],
+          }),
+        }),
+      ]),
+    );
+    expect(ids(core)).not.toContain("b");
   });
 
   it.each(["error", "cancelled"] as const)(
@@ -1095,11 +1210,12 @@ describe("AgUiThreadController selected-turn replay", () => {
   });
 
   it.each([
-    ["tool-only replay", false],
-    ["late B text identity", true],
+    ["tool-only replay", null],
+    ["late B text identity", "b"],
+    ["first text identity on new C", "c"],
   ] as const)(
     "keeps an identity-less replayed call on its historical assistant owner after %s",
-    async (_scenario, replayBText) => {
+    async (_scenario, replayTextId) => {
       let attempts = 0;
       let continuationMessages: readonly unknown[] = [];
       const core = await loaded(
@@ -1130,7 +1246,12 @@ describe("AgUiThreadController selected-turn replay", () => {
             delta: "{}",
           });
           emit(subscriber, { type: "TOOL_CALL_END", toolCallId: "x" });
-          if (replayBText) text(subscriber, "b", "fresh B");
+          if (replayTextId)
+            text(
+              subscriber,
+              replayTextId,
+              replayTextId === "c" ? "fresh C" : "fresh B",
+            );
           emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
         },
       );
@@ -1138,11 +1259,73 @@ describe("AgUiThreadController selected-turn replay", () => {
       await resume(core, "u");
       const idsAfterReplay = ids(core);
       const headAfterReplay = core.getMessageRepository().headId;
-      const xCallsInA = contents(core, "a").filter(
-        (part) => part.type === "tool-call" && part.toolCallId === "x",
-      );
+      const freshTextOwnerId = replayTextId ?? "b";
+      const freshTextMessage = core
+        .getMessages()
+        .find((message) => message.id === freshTextOwnerId);
+      const freshTextContent = freshTextMessage?.content;
+      const freshTextParentId = core
+        .getMessageRepository()
+        .messages.find(
+          ({ message }) => message.id === freshTextOwnerId,
+        )?.parentId;
+      const aMessageAfterReplay = core
+        .getMessages()
+        .find((message) => message.id === "a");
+      const aContentAfterReplay =
+        aMessageAfterReplay?.role === "assistant"
+          ? aMessageAfterReplay.content
+          : undefined;
+      const xCallsInA =
+        aContentAfterReplay?.filter(
+          (part) => part.type === "tool-call" && part.toolCallId === "x",
+        ) ?? [];
       const pendingAfterReplay = core.getPendingToolCalls();
-      const bContentAfterReplay = contents(core, "b");
+      const bMessageAfterReplay = core
+        .getMessages()
+        .find((message) => message.id === "b");
+      const bContentAfterReplay =
+        bMessageAfterReplay?.role === "assistant"
+          ? bMessageAfterReplay.content
+          : undefined;
+
+      expect({
+        idsAfterReplay,
+        headAfterReplay,
+        freshTextOwnerId,
+        freshTextMessageExists: freshTextMessage !== undefined,
+        freshTextContent,
+        freshTextParentId,
+        xCallsInA: xCallsInA.length,
+        bContentAfterReplay,
+        pendingAfterReplay,
+      }).toEqual({
+        idsAfterReplay:
+          replayTextId === "c" ? ["u", "a", "b", "c"] : ["u", "a", "b"],
+        headAfterReplay: replayTextId === "c" ? "c" : "b",
+        freshTextOwnerId: replayTextId ?? "b",
+        freshTextMessageExists: true,
+        freshTextContent: [
+          {
+            type: "text",
+            text:
+              replayTextId === null
+                ? "old B"
+                : replayTextId === "c"
+                  ? "fresh C"
+                  : "fresh B",
+          },
+        ],
+        freshTextParentId: replayTextId === "c" ? "b" : "a",
+        xCallsInA: 1,
+        bContentAfterReplay: [
+          {
+            type: "text",
+            text: replayTextId === "b" ? "fresh B" : "old B",
+          },
+        ],
+        pendingAfterReplay: { messageId: "a", toolCallIds: ["x"] },
+      });
 
       core.addToolResult({
         messageId: "a",
@@ -1171,25 +1354,13 @@ describe("AgUiThreadController selected-turn replay", () => {
           message.role === "tool",
       );
       expect({
-        idsAfterReplay,
-        headAfterReplay,
-        xCallsInA: xCallsInA.length,
-        bContentAfterReplay,
-        pendingAfterReplay,
         xResultsInA,
         continuationParentId,
         attempts,
         continuationToolResults,
       }).toEqual({
-        idsAfterReplay: ["u", "a", "b"],
-        headAfterReplay: "b",
-        xCallsInA: 1,
-        bContentAfterReplay: [
-          { type: "text", text: replayBText ? "fresh B" : "old B" },
-        ],
-        pendingAfterReplay: { messageId: "a", toolCallIds: ["x"] },
         xResultsInA: [{ toolCallId: "x", result: "x result" }],
-        continuationParentId: "b",
+        continuationParentId: replayTextId === "c" ? "c" : "b",
         attempts: 2,
         continuationToolResults: [
           expect.objectContaining({
@@ -1198,6 +1369,99 @@ describe("AgUiThreadController selected-turn replay", () => {
             content: "x result",
           }),
         ],
+      });
+    },
+  );
+
+  it.each([
+    ["pending", { type: "requires-action", reason: "tool-calls" }],
+    ["complete/read-only", { type: "complete", reason: "unknown" }],
+  ] as const)(
+    "keeps an anonymous tool update on B across later A and B text frames when B starts %s",
+    async (_scenario, initialBStatus) => {
+      let attempts = 0;
+      let continuationMessages: readonly unknown[] = [];
+      const core = await loaded(
+        [
+          user("u"),
+          assistant("a", [{ type: "text", text: "old A" }]),
+          assistant(
+            "b",
+            [call("y"), { type: "text", text: "old B" }],
+            initialBStatus,
+          ),
+        ],
+        async (input, subscriber) => {
+          attempts++;
+          if (attempts > 1) {
+            continuationMessages = input.messages ?? [];
+            text(subscriber, "continued", "received y");
+            emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+            return;
+          }
+          streamToolCall(subscriber, "y", '{"query":"fresh y"}');
+          text(subscriber, "a", "fresh A");
+          text(subscriber, "b", "fresh B");
+          emit(subscriber, {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success", pendingToolCallIds: ["y"] },
+          });
+        },
+      );
+
+      await resume(core, "u");
+      const yCallsInA = contents(core, "a").filter(
+        (part) => part.type === "tool-call" && part.toolCallId === "y",
+      );
+      const yCallsInB = contents(core, "b")
+        .filter((part) => part.type === "tool-call" && part.toolCallId === "y")
+        .map((part) =>
+          part.type === "tool-call"
+            ? { toolCallId: part.toolCallId, args: part.args }
+            : undefined,
+        );
+      expect({
+        ids: ids(core),
+        headId: core.getMessageRepository().headId,
+        aContent: contents(core, "a"),
+        yCallsInA: yCallsInA.length,
+        bContent: contents(core, "b"),
+        yCallsInB,
+        pending: core.getPendingToolCalls(),
+      }).toEqual({
+        ids: ["u", "a", "b"],
+        headId: "b",
+        aContent: [{ type: "text", text: "fresh A" }],
+        yCallsInA: 0,
+        bContent: [
+          expect.objectContaining({
+            toolCallId: "y",
+            args: { query: "fresh y" },
+          }),
+          { type: "text", text: "fresh B" },
+        ],
+        yCallsInB: [{ toolCallId: "y", args: { query: "fresh y" } }],
+        pending: { messageId: "b", toolCallIds: ["y"] },
+      });
+
+      core.addToolResult({
+        messageId: "b",
+        toolCallId: "y",
+        toolName: "lookup",
+        result: "y result",
+        isError: false,
+      });
+      await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+      expect({
+        attempts,
+        continuationParentId: core.getMessageRepository().messages.at(-1)
+          ?.parentId,
+        continuationToolResults: toolResultCount(continuationMessages, "y"),
+      }).toEqual({
+        attempts: 2,
+        continuationParentId: "b",
+        continuationToolResults: 1,
       });
     },
   );

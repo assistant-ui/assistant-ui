@@ -70,6 +70,7 @@ import { createAgUiSubscriber } from "./adapter/subscriber";
 import {
   createReplayContentMerger,
   groupReplayToolContent,
+  indexReplayToolOwners,
   preserveToolResult,
 } from "./adapter/replay-content";
 import {
@@ -1580,6 +1581,7 @@ export class AgUiThreadController {
     // duplicate.
     let assistantCollided = false;
     const heldMessages = new Map<string, Set<string>>();
+    let frameOwnerIds = new Set<string>();
     let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
     let settlingRun = false;
     const ensureAssistant = (allowRecreate = false): string => {
@@ -1591,10 +1593,11 @@ export class AgUiThreadController {
       }
       const repositoryHeadId = this.session.headId;
       const shouldUseSelectedParent =
-        cached === undefined ||
-        (shouldEagerlyInsertAssistant &&
-          (repositoryHeadId === null ||
-            runStartMessageIds.has(repositoryHeadId)));
+        replayMessageIds.length === 0 &&
+        (cached === undefined ||
+          (shouldEagerlyInsertAssistant &&
+            (repositoryHeadId === null ||
+              runStartMessageIds.has(repositoryHeadId))));
       // Branch runs keep their selected parent unless the snapshot advanced to
       // a message introduced during this run.
       const parentId =
@@ -1721,18 +1724,24 @@ export class AgUiThreadController {
     };
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      if (replayContexts.size && update.content !== undefined)
+      if (
+        !assistantCollided &&
+        replayContexts.size &&
+        update.content !== undefined
+      )
         accountProducerResults(
           update.content as ThreadAssistantMessage["content"],
         );
       let ownerParts:
         | Map<string, ThreadAssistantMessage["content"][number][]>
         | undefined;
+      let contentOwnerIds: Set<string> | undefined;
       if (!replayEnded && assistantMessageId === undefined) {
         if (!update.status || update.status.type === "running") return;
         assistantMessageId = replayTail;
       }
       const streamMessageId = assistantMessageId;
+      let primaryMessageId = streamMessageId;
       const terminalStatus = update.status;
       const replayInterrupt =
         replayContexts.size > 0 &&
@@ -1740,16 +1749,25 @@ export class AgUiThreadController {
         terminalStatus.reason === "interrupt";
       if (
         streamMessageId !== undefined &&
-        ((!replayEnded && update.content !== undefined) || replayInterrupt)
+        !assistantCollided &&
+        replayContexts.size > 0 &&
+        (update.content !== undefined || replayInterrupt)
       ) {
         const owners = this.getTrailingAssistantTurn().filter((message) =>
           replayContexts.has(message.id),
         );
         // Buffered calls keep their owners when a later text frame arrives.
         const grouped =
-          !replayEnded && update.content !== undefined
+          update.content !== undefined
             ? groupReplayToolContent(owners, update.content, streamMessageId)
             : new Map([[streamMessageId, [...(update.content ?? [])]]]);
+        if (update.content !== undefined) {
+          const currentOwnerIds = new Set(grouped.keys());
+          for (const ownerId of frameOwnerIds)
+            grouped.set(ownerId, grouped.get(ownerId) ?? []);
+          contentOwnerIds = new Set(grouped.keys());
+          frameOwnerIds = currentOwnerIds;
+        }
         ownerParts = grouped;
         if (replayInterrupt) {
           const interrupts = (
@@ -1781,7 +1799,7 @@ export class AgUiThreadController {
               ).size > 0,
           );
           if (anchor) {
-            assistantMessageId = anchor.id;
+            primaryMessageId = anchor.id;
             replayInterruptMessageId = anchor.id;
             grouped.set(anchor.id, grouped.get(anchor.id) ?? []);
           }
@@ -1794,7 +1812,8 @@ export class AgUiThreadController {
       const hasStreamContent =
         Array.isArray(update.content) &&
         update.content.some((part) => part.type !== "data");
-      const messageId = ensureAssistant(hasStreamContent);
+      const frameMessageId = ensureAssistant(hasStreamContent);
+      const messageId = primaryMessageId ?? frameMessageId;
       let primaryUpdate = update;
       if (ownerParts) {
         const interrupt =
@@ -1812,10 +1831,7 @@ export class AgUiThreadController {
           this.updateAssistantMessage(
             ownerId,
             {
-              ...(update.content !== undefined &&
-              (ownerId === streamMessageId || content.length > 0)
-                ? { content }
-                : {}),
+              ...(contentOwnerIds?.has(ownerId) ? { content } : {}),
               ...(ownerStatus ? { status: ownerStatus } : {}),
             },
             replayContexts.get(ownerId),
@@ -1826,11 +1842,10 @@ export class AgUiThreadController {
         const content = ownerParts.get(messageId) ?? [];
         primaryUpdate = {
           ...controlUpdate,
-          ...(update.content !== undefined &&
-          (messageId === streamMessageId || content.length > 0)
-            ? { content }
+          ...(contentOwnerIds?.has(messageId) ? { content } : {}),
+          ...(ownerStatus && !interrupt && replayContexts.has(messageId)
+            ? { status: ownerStatus }
             : {}),
-          ...(ownerStatus && !interrupt ? { status: ownerStatus } : {}),
         };
       }
       const resolved = this.updateAssistantMessage(
@@ -1839,7 +1854,7 @@ export class AgUiThreadController {
         replayContexts.get(messageId),
         restrictedPendingToolCallIds,
       );
-      if (resolved !== assistantMessageId) {
+      if (messageId === frameMessageId && resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
       for (const messageId of pendingMessages) {
@@ -1944,8 +1959,29 @@ export class AgUiThreadController {
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
       },
-      onTextMessageStart: (serverId, openToolCallIds) =>
-        adoptServerMessageId(serverId, true, openToolCallIds),
+      onTextMessageStart: (serverId, openToolCallIds) => {
+        const owners = this.getTrailingAssistantTurn().filter((message) =>
+          replayContexts.has(message.id),
+        );
+        const toolOwners = indexReplayToolOwners(owners);
+        const frameOpenIds = openToolCallIds.filter((id) => {
+          const ownerId = toolOwners.get(id);
+          if (!ownerId || ownerId === assistantMessageId || assistantCollided)
+            return true;
+          const held = heldMessages.get(ownerId) ?? new Set<string>();
+          held.add(id);
+          heldMessages.set(ownerId, held);
+          return false;
+        });
+        // The native accumulator just reset; prior frame contributions are
+        // retained history, while removals within this frame remain authoritative.
+        for (const ownerId of frameOwnerIds) {
+          const replay = replayContexts.get(ownerId);
+          if (replay) replay.merge = createReplayContentMerger();
+        }
+        frameOwnerIds.clear();
+        adoptServerMessageId(serverId, true, frameOpenIds);
+      },
     });
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
@@ -1960,7 +1996,7 @@ export class AgUiThreadController {
             : undefined;
         restrictedPendingToolCallIds = ids?.length ? new Set(ids) : undefined;
       }
-      if (event.type === "TOOL_CALL_RESULT") {
+      if (event.type === "TOOL_CALL_RESULT" && !assistantCollided) {
         if (replayContexts.size) accountedResultIds.add(event.toolCallId);
         for (const openToolCallIds of heldMessages.values()) {
           openToolCallIds.delete(event.toolCallId);
@@ -1988,6 +2024,7 @@ export class AgUiThreadController {
             const current = this.session.tryGetMessage(message.id)?.message;
             if (context && current?.content !== message.content) {
               context.merge = createReplayContentMerger();
+              frameOwnerIds.delete(message.id);
             }
           }
           assistantMessageId = nextAssistantMessageId;

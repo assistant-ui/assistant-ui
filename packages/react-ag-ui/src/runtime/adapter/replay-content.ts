@@ -13,11 +13,9 @@ import { preserveToolApprovalDecision } from "./tool-approval";
 type Content = ThreadAssistantMessage["content"];
 type Part = Content[number];
 
-export function groupReplayToolContent(
+export function indexReplayToolOwners(
   owners: readonly ThreadAssistantMessage[],
-  content: Content,
-  fallbackMessageId: string,
-): Map<string, Part[]> {
+): ReadonlyMap<string, string> {
   const ownerByToolCallId = new Map<string, string>();
   for (const owner of owners) {
     for (const part of iterateToolCallParts(owner.content)) {
@@ -25,6 +23,15 @@ export function groupReplayToolContent(
         ownerByToolCallId.set(part.toolCallId, owner.id);
     }
   }
+  return ownerByToolCallId;
+}
+
+export function groupReplayToolContent(
+  owners: readonly ThreadAssistantMessage[],
+  content: Content,
+  fallbackMessageId: string,
+): Map<string, Part[]> {
+  const ownerByToolCallId = indexReplayToolOwners(owners);
   const grouped = new Map<string, Part[]>([[fallbackMessageId, []]]);
   for (const part of content) {
     const ownerId =
