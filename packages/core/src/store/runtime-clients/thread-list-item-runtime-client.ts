@@ -4,6 +4,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
 import { useThreadListItemSelectionEvents } from "../clients/thread-selection-events";
 import { useSubscribable } from "./useSubscribable";
+import { useAfterStateCommit } from "./useAfterStateCommit";
 import { handleThreadListAction } from "./handle-thread-list-action";
 
 const useThreadListItemClient = ({
@@ -17,6 +18,8 @@ const useThreadListItemClient = ({
   mainThreadIsRunning?: boolean | undefined;
 }): ClientOutput<"threadListItem"> => {
   const runtimeState = useSubscribable(runtime);
+  // initialize resolves once this client reports the remote ID, as the thread list's own does.
+  const afterStateCommit = useAfterStateCommit(runtimeState, runtime.getState);
   const state = useMemo(() => {
     const isRunning =
       runtimeState.isRunning || (runtimeState.isMain && mainThreadIsRunning);
@@ -43,7 +46,7 @@ const useThreadListItemClient = ({
       handleThreadListAction("generate title", () =>
         runtime.generateTitle(options),
       ),
-    initialize: runtime.initialize,
+    initialize: () => afterStateCommit(runtime.initialize()),
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,
   };

@@ -1894,7 +1894,9 @@ const useRemoteThreadList = (
       useAdapters: ensureThread ? undefined : adapter.unstable_useAdapters,
       onSwitchTo: (id, options) => switchToThread(id, options),
       onRename: (id, title) => rename(id, title),
-      onUpdateCustom: (id, custom) => updateCustom(id, custom),
+      // Like reload, a write resolves once getState() reports it, so its caller can read it back.
+      onUpdateCustom: (id, custom) =>
+        afterStateCommit(updateCustom(id, custom)),
       onArchive: (id) => archive(id),
       onUnarchive: (id) => unarchive(id),
       onDelete: (id) => deleteThread(id),
@@ -2085,7 +2087,8 @@ const useRemoteThreadList = (
       delete: deleteThread,
       detach,
       generateTitle,
-      initialize,
+      // Resolves once getState() reports the remote ID, for the runtime's item to read back.
+      initialize: (threadId: string) => afterStateCommit(initialize(threadId)),
       reload,
       reloadMainThread,
       getLoadThreadsPromise,
