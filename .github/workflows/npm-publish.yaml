@@ -797,8 +797,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      # Scoped to the release commit: same-release runs serialize, and a run
-      # for one release never cancels another release's pending jobs.
+      # Scoped to the release commit so one release's run never cancels another's.
       group: npm-release-tags-${{ needs.approve.outputs.release_sha }}
       cancel-in-progress: false
     env:
@@ -813,10 +812,8 @@ jobs:
           persist-credentials: false
 
       # A recovery run for a release cut before this script existed has no
-      # script in the RELEASE_SHA tree, so the script comes from the
-      # workflow's own revision. Package manifests and changelogs still come
-      # from the RELEASE_SHA checkout above, which stays the working
-      # directory.
+      # script in the RELEASE_SHA tree, so it comes from the workflow's own
+      # revision; packages and changelogs still come from the checkout above.
       - name: Checkout the reconcile script from the workflow revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
