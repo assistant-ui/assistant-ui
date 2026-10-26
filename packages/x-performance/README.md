@@ -64,6 +64,13 @@ Nothing is recorded. The baseline is built from the merge base on every run, so 
 
 Benchmarks import only public package entry points so the react-compiler output is what gets measured. Rebuild the target packages (`pnpm turbo run build --filter=<pkg>`) before recording.
 
+To compare the optional Streamfold backend on the same tool-argument workloads,
+run `pnpm -C packages/x-performance bench tool-args` and then
+`AUI_PERF_STREAMFOLD=1 pnpm -C packages/x-performance bench tool-args`.
+The second command initializes `assistant-stream/streamfold` and fails if it is
+unavailable. Both runs include small deltas, large string chunks, dense values,
+and complete inputs; compare repeated alternating runs before claiming a gain.
+
 ## What the contracts currently pin
 
 - A token appended to the streaming message re-renders only that message's text part. It commits twice (host state, then the adapter push through the store) on the external-store and AI SDK runtimes and once on the local runtime, in a 2-message and a 200-message thread alike; `convertMessage` runs once per token.
