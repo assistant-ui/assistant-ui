@@ -1,4 +1,8 @@
 import {
+  createJsonParserBackend,
+  type JsonParserBackend,
+} from "./json-parser-backend";
+import {
   getPartialJsonObjectMeta,
   parsePartialJsonObject,
 } from "./parse-partial-json-object";
@@ -128,7 +132,7 @@ const writeAtPath = (
   return update(root, 0) as MutableJSONObject;
 };
 
-const createArgsSnapshot = (
+export const createArgsSnapshot = (
   root: MutableJSONObject,
   state: "complete" | "partial",
   partialPath: JSONPath,
@@ -144,7 +148,7 @@ const createArgsSnapshot = (
   return result;
 };
 
-const materializeArgsSnapshot = (
+export const materializeArgsSnapshot = (
   args: ReadonlyJSONObject,
 ): ReadonlyJSONObject => {
   const pending: MutableJSONContainer[] = [args];
@@ -162,6 +166,7 @@ const materializeArgsSnapshot = (
 };
 
 export class IncrementalJsonObjectParser {
+  private backend: JsonParserBackend | undefined;
   private text: TextChunk | undefined;
   private mode: "start" | "parsing" | "complete" | "fallback" = "start";
   private root: MutableJSONObject = {};
@@ -180,6 +185,16 @@ export class IncrementalJsonObjectParser {
     text = "",
     fallback: ReadonlyJSONObject = parsePartialJsonObject("")!,
   ) {
+    const backend = createJsonParserBackend(text, fallback);
+    if (backend) {
+      const parser = new IncrementalJsonObjectParser(fallback);
+      parser.backend = backend;
+      return parser;
+    }
+    return IncrementalJsonObjectParser.fromNative(text, fallback);
+  }
+
+  private static fromNative(text: string, fallback: ReadonlyJSONObject) {
     const parser = new IncrementalJsonObjectParser(fallback);
     if (text.length !== 0) {
       parser.text = { length: text.length, previous: undefined, value: text };
@@ -202,19 +217,33 @@ export class IncrementalJsonObjectParser {
   }
 
   get currentTextLength() {
-    return this.text?.length ?? 0;
+    return this.backend?.currentTextLength ?? this.text?.length ?? 0;
   }
 
   get currentArgs() {
-    return (this.publishedArgs ??= materializeArgsSnapshot(this.args));
+    return (
+      this.backend?.currentArgs ??
+      (this.publishedArgs ??= materializeArgsSnapshot(this.args))
+    );
   }
 
   append(delta: string) {
     if (delta.length === 0) return this;
+    if (this.backend) {
+      const backend = this.backend.append(delta);
+      if (!backend)
+        return IncrementalJsonObjectParser.fromNative(
+          this.backend.text + delta,
+          this.currentArgs,
+        );
+      const parser = new IncrementalJsonObjectParser(this.args);
+      parser.backend = backend;
+      return parser;
+    }
     if (this.currentTextLength === 0)
-      return IncrementalJsonObjectParser.from(delta, this.args);
+      return IncrementalJsonObjectParser.fromNative(delta, this.args);
     if (this.mode === "complete") {
-      const parser = IncrementalJsonObjectParser.from(
+      const parser = IncrementalJsonObjectParser.fromNative(
         this.accumulatedText() + delta,
         this.args,
       );
