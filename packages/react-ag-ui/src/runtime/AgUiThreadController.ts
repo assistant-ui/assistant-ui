@@ -69,6 +69,7 @@ import {
 import { createAgUiSubscriber } from "./adapter/subscriber";
 import {
   createReplayContentMerger,
+  groupReplayToolContent,
   preserveToolResult,
 } from "./adapter/replay-content";
 import {
@@ -1569,6 +1570,7 @@ export class AgUiThreadController {
     let pendingError: Error | null = null;
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
+    let replayInterruptMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
     // emit keeps both the stream and the message identity. Status-only emits,
@@ -1617,13 +1619,18 @@ export class AgUiThreadController {
         terminalStatus.type === "requires-action";
       if (producerPending && canWaitForTools) {
         for (const message of this.getTrailingAssistantTurn()) {
+          const replay = replayContexts.get(message.id);
           if (
             message.id === assistantMessageId ||
             heldMessages.has(message.id) ||
-            !replayContexts.has(message.id)
+            !replay ||
+            (message.status?.type === "requires-action" &&
+              message.status.reason === "interrupt")
           )
             continue;
           if (
+            replay.admittedToolCallIds.size > 0 ||
+            actionableToolCallIds(message).size > 0 ||
             Array.from(iterateToolCallParts(message.content)).some(
               (part) =>
                 producerPending.has(part.toolCallId) &&
@@ -1634,6 +1641,9 @@ export class AgUiThreadController {
         }
       }
       for (const [messageId, openToolCallIds] of heldMessages) {
+        const existing = this.session.tryGetMessage(messageId);
+        if (existing)
+          this.markPendingAssistantHistory(messageId, existing.parentId);
         let requiresToolResult = false;
         const updated = this.session.updateMessage(messageId, (message) => {
           if (message.role !== "assistant") return message;
@@ -1715,9 +1725,62 @@ export class AgUiThreadController {
         accountProducerResults(
           update.content as ThreadAssistantMessage["content"],
         );
+      let ownerParts:
+        | Map<string, ThreadAssistantMessage["content"][number][]>
+        | undefined;
       if (!replayEnded && assistantMessageId === undefined) {
         if (!update.status || update.status.type === "running") return;
         assistantMessageId = replayTail;
+        if (replayTail !== undefined) {
+          const owners = this.getTrailingAssistantTurn().filter((message) =>
+            replayContexts.has(message.id),
+          );
+          // The aggregator's identity-less content can span retained owners.
+          const grouped = groupReplayToolContent(
+            owners,
+            update.content ?? [],
+            replayTail,
+          );
+          ownerParts = grouped;
+          if (
+            update.status.type === "requires-action" &&
+            update.status.reason === "interrupt"
+          ) {
+            const interrupts = (
+              update.metadata?.custom?.[AG_UI_METADATA_NAMESPACE] as
+                | AgUiCustomMetadata
+                | undefined
+            )?.interrupts;
+            const approvals = projectAgUiToolApprovals(interrupts);
+            for (const owner of owners) {
+              if (
+                Array.from(iterateToolCallParts(owner.content)).some((part) =>
+                  approvals.has(part.toolCallId),
+                )
+              )
+                grouped.set(owner.id, grouped.get(owner.id) ?? []);
+            }
+            const anchor = owners.find(
+              (message) =>
+                projectAgUiToolApprovals(
+                  interrupts,
+                  new Set(
+                    Array.from(
+                      iterateToolCallParts([
+                        ...message.content,
+                        ...(grouped.get(message.id) ?? []),
+                      ]),
+                    ).map((part) => part.toolCallId),
+                  ),
+                ).size > 0,
+            );
+            if (anchor) {
+              assistantMessageId = anchor.id;
+              replayInterruptMessageId = anchor.id;
+              grouped.set(anchor.id, grouped.get(anchor.id) ?? []);
+            }
+          }
+        }
       }
       const terminalStatus = update.status;
       const pendingMessages =
@@ -1728,9 +1791,36 @@ export class AgUiThreadController {
         Array.isArray(update.content) &&
         update.content.some((part) => part.type !== "data");
       const messageId = ensureAssistant(hasStreamContent);
+      let primaryUpdate = update;
+      if (ownerParts) {
+        const interrupt =
+          terminalStatus?.type === "requires-action" &&
+          terminalStatus.reason === "interrupt";
+        const ownerStatus: MessageStatus | undefined =
+          terminalStatus?.type === "requires-action"
+            ? { type: "complete", reason: "unknown" }
+            : terminalStatus;
+        for (const [ownerId, content] of ownerParts) {
+          const existing = this.session.tryGetMessage(ownerId);
+          if (existing)
+            this.markPendingAssistantHistory(ownerId, existing.parentId);
+          if (ownerId === messageId) continue;
+          this.updateAssistantMessage(
+            ownerId,
+            { content, ...(ownerStatus ? { status: ownerStatus } : {}) },
+            replayContexts.get(ownerId),
+            interrupt ? new Set<string>() : restrictedPendingToolCallIds,
+          );
+        }
+        primaryUpdate = {
+          ...update,
+          content: ownerParts.get(messageId) ?? [],
+          ...(ownerStatus && !interrupt ? { status: ownerStatus } : {}),
+        };
+      }
       const resolved = this.updateAssistantMessage(
         messageId,
-        update,
+        primaryUpdate,
         replayContexts.get(messageId),
         restrictedPendingToolCallIds,
       );
@@ -1843,7 +1933,6 @@ export class AgUiThreadController {
         adoptServerMessageId(serverId, true, openToolCallIds),
     });
     let runFinished = false;
-    let replayInterruptMessageId: string | undefined;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
       if (event.type === "RUN_FINISHED") {

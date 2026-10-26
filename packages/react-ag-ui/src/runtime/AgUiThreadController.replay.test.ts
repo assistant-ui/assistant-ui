@@ -85,6 +85,7 @@ async function loaded(
     subscriber: Subscriber,
   ) => Promise<void>,
   parentIds?: (string | null)[],
+  historyUpdate?: NonNullable<ThreadHistoryAdapter["update"]>,
 ) {
   const history: ThreadHistoryAdapter = {
     load: vi.fn().mockResolvedValue({
@@ -98,6 +99,7 @@ async function loaded(
       })),
     }),
     append: vi.fn().mockResolvedValue(undefined),
+    ...(historyUpdate ? { update: historyUpdate } : {}),
   };
   const agent = {
     runAgent: vi.fn(runAgent),
@@ -129,6 +131,20 @@ const toolResultCount = (messages: readonly unknown[], toolCallId: string) =>
   ).length;
 const resume = (core: AgUiThreadController, parentId: string) =>
   core.resume({ parentId, sourceId: null, runConfig: {} });
+
+function streamToolCall(
+  subscriber: Subscriber,
+  toolCallId: string,
+  args: string,
+) {
+  emit(subscriber, {
+    type: "TOOL_CALL_START",
+    toolCallId,
+    toolCallName: "lookup",
+  });
+  emit(subscriber, { type: "TOOL_CALL_ARGS", toolCallId, delta: args });
+  emit(subscriber, { type: "TOOL_CALL_END", toolCallId });
+}
 
 describe("AgUiThreadController selected-turn replay", () => {
   it.each(["user", "assistant"] as const)(
@@ -989,6 +1005,539 @@ describe("AgUiThreadController selected-turn replay", () => {
         isError: false,
       });
       await vi.waitFor(() => expect(attempts).toBe(2));
+    },
+  );
+
+  it("applies the producer pending-call list across earlier replay owners", async () => {
+    let attempts = 0;
+    let continuationMessages: readonly unknown[] = [];
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [call("x")], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+        assistant("b", [{ type: "text", text: "old B" }]),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        if (attempts > 1) {
+          continuationMessages = input.messages ?? [];
+          text(subscriber, "continued", "received y");
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        text(subscriber, "b", "replayed B");
+        emit(subscriber, {
+          type: "TOOL_CALL_START",
+          toolCallId: "y",
+          toolCallName: "lookup",
+        });
+        emit(subscriber, {
+          type: "TOOL_CALL_ARGS",
+          toolCallId: "y",
+          delta: "{}",
+        });
+        emit(subscriber, { type: "TOOL_CALL_END", toolCallId: "y" });
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success", pendingToolCallIds: ["y"] },
+        });
+      },
+    );
+
+    await resume(core, "u");
+    const pendingAfterReplay = core.getPendingToolCalls();
+    const xCallsInA = contents(core, "a").filter(
+      (part) => part.type === "tool-call" && part.toolCallId === "x",
+    );
+
+    core.addToolResult({
+      messageId: "b",
+      toolCallId: "y",
+      toolName: "lookup",
+      result: "y result",
+      isError: false,
+    });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    const yResultsInB = contents(core, "b")
+      .filter((part) => part.type === "tool-call" && part.toolCallId === "y")
+      .map((part) => (part.type === "tool-call" ? part.result : undefined));
+    const continuationToolResults = continuationMessages.filter(
+      (message) =>
+        typeof message === "object" &&
+        message !== null &&
+        "role" in message &&
+        message.role === "tool",
+    );
+    expect({
+      pendingAfterReplay,
+      xCallsInA: xCallsInA.length,
+      yResultsInB,
+      attempts,
+      continuationToolResults,
+    }).toEqual({
+      pendingAfterReplay: { messageId: "b", toolCallIds: ["y"] },
+      xCallsInA: 1,
+      yResultsInB: ["y result"],
+      attempts: 2,
+      continuationToolResults: [
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "y",
+          content: "y result",
+        }),
+      ],
+    });
+  });
+
+  it("keeps an identity-less replayed call on its historical assistant owner", async () => {
+    let attempts = 0;
+    let continuationMessages: readonly unknown[] = [];
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [call("x")], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+        assistant("b", [{ type: "text", text: "old B" }]),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        if (attempts > 1) {
+          continuationMessages = input.messages ?? [];
+          text(subscriber, "continued", "received x");
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        emit(subscriber, {
+          type: "TOOL_CALL_START",
+          toolCallId: "x",
+          toolCallName: "lookup",
+        });
+        emit(subscriber, {
+          type: "TOOL_CALL_ARGS",
+          toolCallId: "x",
+          delta: "{}",
+        });
+        emit(subscriber, { type: "TOOL_CALL_END", toolCallId: "x" });
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+    );
+
+    await resume(core, "u");
+    const idsAfterReplay = ids(core);
+    const xCallsInA = contents(core, "a").filter(
+      (part) => part.type === "tool-call" && part.toolCallId === "x",
+    );
+    const pendingAfterReplay = core.getPendingToolCalls();
+    const bContentAfterReplay = contents(core, "b");
+
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "x",
+      toolName: "lookup",
+      result: "x result",
+      isError: false,
+    });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    const xResultsInA = contents(core, "a")
+      .filter((part) => part.type === "tool-call" && part.toolCallId === "x")
+      .map((part) =>
+        part.type === "tool-call"
+          ? { toolCallId: part.toolCallId, result: part.result }
+          : undefined,
+      );
+    const continuationToolResults = continuationMessages.filter(
+      (message) =>
+        typeof message === "object" &&
+        message !== null &&
+        "role" in message &&
+        message.role === "tool",
+    );
+    expect({
+      idsAfterReplay,
+      xCallsInA: xCallsInA.length,
+      bContentAfterReplay,
+      pendingAfterReplay,
+      xResultsInA,
+      attempts,
+      continuationToolResults,
+    }).toEqual({
+      idsAfterReplay: ["u", "a", "b"],
+      xCallsInA: 1,
+      bContentAfterReplay: [{ type: "text", text: "old B" }],
+      pendingAfterReplay: { messageId: "a", toolCallIds: ["x"] },
+      xResultsInA: [{ toolCallId: "x", result: "x result" }],
+      attempts: 2,
+      continuationToolResults: [
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "x",
+          content: "x result",
+        }),
+      ],
+    });
+  });
+
+  it("groups identity-less tool updates by their retained top-level owner", async () => {
+    let attempts = 0;
+    let continuationMessages: readonly unknown[] = [];
+    const historyUpdate = vi.fn(
+      async (
+        _item: Parameters<NonNullable<ThreadHistoryAdapter["update"]>>[0],
+      ) => {},
+    );
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [call("x")], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+        assistant("b", [call("y"), { type: "text", text: "old B" }], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        if (attempts > 1) {
+          continuationMessages = input.messages ?? [];
+          text(subscriber, "continued", "received y");
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        streamToolCall(subscriber, "x", '{"query":"fresh x"}');
+        streamToolCall(subscriber, "y", '{"query":"fresh y"}');
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success", pendingToolCallIds: ["y"] },
+        });
+      },
+      undefined,
+      historyUpdate,
+    );
+
+    await resume(core, "u");
+    const pendingAfterReplay = core.getPendingToolCalls();
+    const headAfterReplay = core.getMessageRepository().headId;
+    const parentIdsAfterReplay = core
+      .getMessageRepository()
+      .messages.map(({ message, parentId }) => [message.id, parentId]);
+    const xCallsInA = contents(core, "a").flatMap((part) =>
+      part.type === "tool-call" && part.toolCallId === "x"
+        ? [{ toolCallId: part.toolCallId, args: part.args }]
+        : [],
+    );
+    const yCallsInB = contents(core, "b").flatMap((part) =>
+      part.type === "tool-call" && part.toolCallId === "y"
+        ? [{ toolCallId: part.toolCallId, args: part.args }]
+        : [],
+    );
+
+    core.addToolResult({
+      messageId: "b",
+      toolCallId: "y",
+      toolName: "lookup",
+      result: "y result",
+      isError: false,
+    });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    const historyUpdatedOwners = [
+      ...new Set(historyUpdate.mock.calls.map(([item]) => item.message.id)),
+    ].sort();
+    expect({
+      pendingAfterReplay,
+      headAfterReplay,
+      parentIdsAfterReplay,
+      xCallsInA,
+      yCallsInB,
+      attempts,
+      yResultCount: toolResultCount(continuationMessages, "y"),
+      historyUpdatedOwners,
+    }).toEqual({
+      pendingAfterReplay: { messageId: "b", toolCallIds: ["y"] },
+      headAfterReplay: "b",
+      parentIdsAfterReplay: [
+        ["u", null],
+        ["a", "u"],
+        ["b", "a"],
+      ],
+      xCallsInA: [{ toolCallId: "x", args: { query: "fresh x" } }],
+      yCallsInB: [{ toolCallId: "y", args: { query: "fresh y" } }],
+      attempts: 2,
+      yResultCount: 1,
+      historyUpdatedOwners: ["a", "b"],
+    });
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "continued")?.parentId,
+    ).toBe("b");
+    expect(continuationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "y",
+          content: "y result",
+        }),
+      ]),
+    );
+  });
+
+  it("updates an existing nested call in place during flat replay", async () => {
+    let attempts = 0;
+    let continuationMessages: readonly unknown[] = [];
+    const nestedOwner = assistant("sub-a", [call("x")], {
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [call("root", { messages: [nestedOwner] })], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+        assistant("b", [{ type: "text", text: "old B" }]),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        if (attempts > 1) {
+          continuationMessages = input.messages ?? [];
+          text(subscriber, "continued", "received x");
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        streamToolCall(subscriber, "x", '{"query":"fresh nested x"}');
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success", pendingToolCallIds: ["x"] },
+        });
+      },
+    );
+
+    await resume(core, "u");
+    const rootCalls = contents(core, "a").filter(
+      (part) => part.type === "tool-call" && part.toolCallId === "root",
+    );
+    const nestedCalls = rootCalls.flatMap((part) =>
+      part.type === "tool-call"
+        ? (part.messages ?? []).flatMap((message) =>
+            message.role === "assistant"
+              ? message.content.flatMap((nestedPart) =>
+                  nestedPart.type === "tool-call" &&
+                  nestedPart.toolCallId === "x"
+                    ? [
+                        {
+                          toolCallId: nestedPart.toolCallId,
+                          args: nestedPart.args,
+                        },
+                      ]
+                    : [],
+                )
+              : [],
+          )
+        : [],
+    );
+    const topLevelX = contents(core, "a").filter(
+      (part) => part.type === "tool-call" && part.toolCallId === "x",
+    );
+    expect({
+      ids: ids(core),
+      headId: core.getMessageRepository().headId,
+      rootCalls: rootCalls.length,
+      nestedCalls,
+      topLevelX: topLevelX.length,
+      pending: core.getPendingToolCalls(),
+      bContent: contents(core, "b"),
+    }).toEqual({
+      ids: ["u", "a", "b"],
+      headId: "b",
+      rootCalls: 1,
+      nestedCalls: [{ toolCallId: "x", args: { query: "fresh nested x" } }],
+      topLevelX: 0,
+      pending: { messageId: "a", toolCallIds: ["x"] },
+      bContent: [{ type: "text", text: "old B" }],
+    });
+
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "x",
+      toolName: "lookup",
+      result: "nested x result",
+      isError: false,
+    });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    expect(attempts).toBe(2);
+    expect(toolResultCount(continuationMessages, "x")).toBe(1);
+    expect(continuationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "x",
+          content: "nested x result",
+        }),
+      ]),
+    );
+  });
+
+  it("cancels every touched owner when identity-less replay ends cancelled", async () => {
+    let attempts = 0;
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [call("x")], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+        assistant("b", [call("y"), { type: "text", text: "old B" }], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        streamToolCall(subscriber, "x", '{"query":"cancelled x"}');
+        streamToolCall(subscriber, "y", '{"query":"cancelled y"}');
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "cancelled" },
+        });
+      },
+    );
+
+    await resume(core, "u");
+    const a = core.getMessages().find((message) => message.id === "a");
+    const b = core.getMessages().find((message) => message.id === "b");
+    expect({
+      attempts,
+      ids: ids(core),
+      headId: core.getMessageRepository().headId,
+      aStatus: a?.status,
+      bStatus: b?.status,
+      pending: core.getPendingToolCalls(),
+    }).toEqual({
+      attempts: 1,
+      ids: ["u", "a", "b"],
+      headId: "b",
+      aStatus: { type: "incomplete", reason: "cancelled" },
+      bStatus: { type: "incomplete", reason: "cancelled" },
+      pending: null,
+    });
+  });
+
+  it.each(["single-owner", "cross-owner", "cross-owner-retained"] as const)(
+    "keeps a %s interrupt batch on one owner and the selected head on B",
+    async (scope) => {
+      let attempts = 0;
+      const inputs: unknown[] = [];
+      const xInterrupt = {
+        id: "gate-x",
+        reason: "tool_call" as const,
+        toolCallId: "x",
+      };
+      const yInterrupt = {
+        id: "gate-y",
+        reason: "tool_call" as const,
+        toolCallId: "y",
+      };
+      const interrupts =
+        scope === "single-owner" ? [xInterrupt] : [xInterrupt, yInterrupt];
+      const anchorId = scope === "single-owner" ? "a" : "b";
+      const nonAnchorId = scope === "single-owner" ? "b" : "a";
+      const core = await loaded(
+        [
+          user("u"),
+          assistant("a", [call("x")], {
+            type: "requires-action",
+            reason: "tool-calls",
+          }),
+          assistant(
+            "b",
+            [call("y"), call("z"), { type: "text", text: "old B" }],
+            { type: "requires-action", reason: "tool-calls" },
+          ),
+        ],
+        async (input, subscriber) => {
+          attempts++;
+          inputs.push(input);
+          if (attempts > 1) {
+            emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+            return;
+          }
+          if (scope !== "cross-owner-retained") {
+            streamToolCall(subscriber, "x", '{"query":"fresh x"}');
+            streamToolCall(subscriber, "y", '{"query":"fresh y"}');
+          }
+          emit(subscriber, {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "interrupt", interrupts },
+          });
+        },
+      );
+
+      await resume(core, "u");
+      const pendingInterrupts = core.getPendingInterrupts();
+      const interruptOwners = core
+        .getMessages()
+        .filter(
+          (message) =>
+            message.role === "assistant" &&
+            message.status?.type === "requires-action" &&
+            message.status.reason === "interrupt",
+        );
+      const nonAnchor = core
+        .getMessages()
+        .find((message) => message.id === nonAnchorId);
+      const nonAnchorAgui = (
+        nonAnchor?.metadata.custom as Record<string, unknown> | undefined
+      )?.agui as Record<string, unknown> | undefined;
+      const pendingToolsBeforeResponse = core.getPendingToolCalls();
+
+      const responses = interrupts.map(({ id }) => ({
+        interruptId: id,
+        status: "resolved" as const,
+      }));
+      const selectedHeadBeforeResponse = core.getMessageRepository().headId;
+      await core.submitInterruptResponses(responses);
+      const continuationParentId = core
+        .getMessageRepository()
+        .messages.at(-1)?.parentId;
+
+      expect({
+        pendingInterrupts,
+        interruptOwnerIds: interruptOwners.map((message) => message.id),
+        selectedHeadBeforeResponse,
+        continuationParentId,
+        nonAnchorStatus: nonAnchor?.status,
+        nonAnchorInterrupts: nonAnchorAgui?.interrupts,
+        nonAnchorPendingIds: nonAnchorAgui?.pendingToolCallIds ?? [],
+        pendingToolsBeforeResponse,
+        attempts,
+      }).toEqual({
+        pendingInterrupts: { messageId: anchorId, interrupts },
+        interruptOwnerIds: [anchorId],
+        selectedHeadBeforeResponse: "b",
+        continuationParentId: "b",
+        nonAnchorStatus: { type: "complete", reason: "unknown" },
+        nonAnchorInterrupts: undefined,
+        nonAnchorPendingIds: [],
+        pendingToolsBeforeResponse: null,
+        attempts: 2,
+      });
+      expect(inputs[1]).toMatchObject({ resume: responses });
     },
   );
 
