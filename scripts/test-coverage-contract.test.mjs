@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { coverageShards } from "./coverage-shards.mjs";
 import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -27,6 +28,7 @@ const detectorStep = coverageSteps.find((step) =>
 assert(detectorStep);
 const detectorScript = detectorStep
   .split("        run: |\n")[1]
+  .split("\n  shards:")[0]
   .replace(/^ {10}/gm, "");
 
 function coverageFixture(t) {
@@ -84,6 +86,8 @@ for (const file of [
   "examples/minimal/app/page.tsx",
   "templates/default/app/api/chat/route.ts",
   "evals/src/runner.ts",
+  "scripts/coverage-shards.mjs",
+  "scripts/coverage-shards.test.mjs",
   "scripts/coverage-summary.mjs",
   "scripts/coverage-summary.test.mjs",
   "scripts/test-coverage-contract.test.mjs",
@@ -131,16 +135,15 @@ test("coverage reports for all PRs and merge groups while gating expensive steps
   assert.match(triggers, /merge_group:\s+types: \[checks_requested\]/);
   assert.match(coverageSteps[0], /fetch-depth:.*merge_group.*&& '0' \|\| '2'/);
   assert(coverageSteps.length > 2);
-  for (const step of coverageSteps.slice(2)) {
-    assert.match(
-      step,
-      /if: (?:always\(\) && )?steps\.inputs\.outputs\.run == 'true'/,
-      step.split("\n")[0],
-    );
-  }
   assert.match(
     coverageWorkflow,
-    /node --test scripts\/test-coverage-contract\.test\.mjs scripts\/coverage-summary\.test\.mjs/,
+    /needs: plan\n    if: needs\.plan\.outputs\.run == 'true'/,
+  );
+  assert.match(coverageWorkflow, /fail-fast: false/);
+  assert.match(coverageWorkflow, /needs: \[plan, shards\]\n    if: always\(\)/);
+  assert.match(
+    coverageWorkflow,
+    /node --test scripts\/test-coverage-contract\.test\.mjs scripts\/coverage-summary\.test\.mjs scripts\/coverage-shards\.test\.mjs/,
   );
 });
 
@@ -268,7 +271,7 @@ test(
   },
   () => {
     const docsBuild = executableTasks().find(
-      (task) => task.taskId === "@assistant-ui/docs#build",
+      (task) => task.taskId === "@assistant-ui/docs-site#build",
     );
     assert(docsBuild);
     for (const task of executableTasks().filter(
@@ -293,5 +296,73 @@ test(
         .replaceAll("\\", "/");
       assert(Object.hasOwn(docsBuild.inputs, input), config);
     }
+  },
+);
+
+test("the required coverage check rejects failed, cancelled, or missing shards", () => {
+  const step = coverageSteps.find((step) =>
+    step.startsWith("Verify coverage jobs\n"),
+  );
+  const script = step.split("        run: |\n")[1].replace(/^ {10}/gm, "");
+  for (const plan of ["success", "failure", "cancelled", "skipped"]) {
+    for (const run of ["true", "false", ""]) {
+      for (const shard of ["success", "failure", "cancelled", "skipped"]) {
+        const shouldPass =
+          plan === "success" &&
+          ((run === "true" && shard === "success") ||
+            (run === "false" && shard === "skipped"));
+        const execute = () =>
+          execFileSync("bash", ["-e", "-c", script], {
+            env: {
+              ...process.env,
+              PLAN_RESULT: plan,
+              RUN: run,
+              SHARD_RESULT: shard,
+            },
+            stdio: "pipe",
+          });
+        if (shouldPass) assert.doesNotThrow(execute);
+        else assert.throws(execute);
+      }
+    }
+  }
+});
+
+test(
+  "coverage shards preserve every executable Turbo coverage task exactly once",
+  {
+    skip: !turboReady && "Install dependencies before testing the Turbo graph",
+  },
+  () => {
+    const baseline = executableTasks()
+      .filter((task) => task.task === "test:coverage")
+      .map((task) => task.taskId)
+      .sort();
+    const selected = coverageShards(root)
+      .flatMap((names) =>
+        JSON.parse(
+          execFileSync(
+            turbo,
+            [
+              "run",
+              "test:coverage",
+              "--dry=json",
+              ...names.map((name) => `--filter=${name}`),
+            ],
+            {
+              cwd: root,
+              encoding: "utf8",
+              maxBuffer: 32 * 1024 * 1024,
+            },
+          ),
+        )
+          .tasks.filter(
+            (task) =>
+              task.task === "test:coverage" && task.command !== "<NONEXISTENT>",
+          )
+          .map((task) => task.taskId),
+      )
+      .sort();
+    assert.deepEqual(selected, baseline);
   },
 );

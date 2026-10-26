@@ -238,7 +238,7 @@ export async function unstable_runPendingTools(
       if (promiseOrUndefined) {
         const result = await promiseOrUndefined;
         return {
-          toolCallId: part.toolCallId,
+          part,
           result,
         };
       }
@@ -247,19 +247,19 @@ export async function unstable_runPendingTools(
 
   const toolCallResults = (await Promise.all(toolCallPromises)).filter(
     (result) => result !== null,
-  ) as { toolCallId: string; result: ToolResponse<ReadonlyJSONValue> }[];
+  ) as { part: ToolCallPart; result: ToolResponse<ReadonlyJSONValue> }[];
 
   if (toolCallResults.length === 0) {
     return message;
   }
 
-  const toolCallResultsById = new Map(
-    toolCallResults.map(({ toolCallId, result }) => [toolCallId, result]),
+  const toolCallResultsByPart = new Map(
+    toolCallResults.map(({ part, result }) => [part, result]),
   );
 
   const updatedParts = message.parts.map((p) => {
     if (isPendingToolCall(p)) {
-      const toolResponse = toolCallResultsById.get(p.toolCallId);
+      const toolResponse = toolCallResultsByPart.get(p);
       if (toolResponse) {
         return {
           ...p,

@@ -76,6 +76,11 @@ export const createMessageRepositorySession = (
     exportedRepository = undefined;
   };
 
+  const selectHead = (messageId: string): void => {
+    repository.import({ headId: messageId, messages: [] });
+    exportedRepository = undefined;
+  };
+
   const clear = (): void => {
     repository.clear();
     exportedRepository = undefined;
@@ -156,6 +161,7 @@ export const createMessageRepositorySession = (
     tryDeleteMessage,
     switchToBranch,
     resetHead,
+    selectHead,
     clear,
     updateMessage,
     applyExternalMessageRepository,

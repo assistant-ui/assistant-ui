@@ -112,6 +112,31 @@ describe("thread list keyboard navigation", () => {
     expect(document.activeElement).toBe(first);
   });
 
+  it("skips disabled triggers in both directions without wrapping", () => {
+    const { container } = render(
+      <ThreadListPrimitiveRoot>
+        {[0, 1, 2].map((i) => (
+          <ThreadListItemPrimitiveRoot key={i}>
+            <ThreadListItemPrimitiveTrigger disabled={i === 1}>
+              item {i}
+            </ThreadListItemPrimitiveTrigger>
+          </ThreadListItemPrimitiveRoot>
+        ))}
+      </ThreadListPrimitiveRoot>,
+    );
+    const [first, , third] = triggers(container);
+
+    first!.focus();
+    expect(fireEvent.keyDown(first!, { key: "ArrowDown" })).toBe(false);
+    expect(document.activeElement).toBe(third);
+    expect(fireEvent.keyDown(third!, { key: "ArrowDown" })).toBe(true);
+    expect(document.activeElement).toBe(third);
+    expect(fireEvent.keyDown(third!, { key: "ArrowUp" })).toBe(false);
+    expect(document.activeElement).toBe(first);
+    expect(fireEvent.keyDown(first!, { key: "ArrowUp" })).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+
   it("moves between an item and its More button with right/left arrows", () => {
     const { trigger, more } = renderItem();
 

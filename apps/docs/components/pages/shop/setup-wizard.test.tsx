@@ -45,6 +45,17 @@ vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
   abandonCheckout,
 }));
 
+vi.mock("../../../lib/checkout/session-store", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../../lib/checkout/session-store")
+  >()),
+  getCheckoutSession: () => ({
+    id: "test",
+    products: ["assistant-ui"],
+    startedAt: 1,
+  }),
+}));
+
 const scrollIntoView = vi.fn();
 Element.prototype.scrollIntoView = scrollIntoView;
 
@@ -1414,6 +1425,8 @@ describe("SetupWizard", () => {
     await waitFor(() =>
       expect(commands["checkout/plan"]).toHaveBeenCalledWith({
         decision: "approve",
+        id: "test",
+        revision: 1,
       }),
     );
   });
