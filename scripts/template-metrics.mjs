@@ -30,7 +30,6 @@ import {
 import { tmpdir } from "node:os";
 import { gzipSync } from "node:zlib";
 import { join, extname, dirname, resolve } from "node:path";
-import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const CODE_EXT = new Set([
   ".ts",
@@ -70,38 +69,14 @@ function bundleInputs(root, baseRef) {
     .split(/\s+/)
     .filter(Boolean);
   if (templates.length === 0) throw new Error("BUNDLE_TEMPLATES is empty");
-  const { manifests } = readWorkspaceManifestEntries(root);
-  const byName = new Map(manifests.map((entry) => [entry.pkg.name, entry]));
-  const queue = templates.map((name) => {
-    const entry = manifests.find(
-      ({ manifest }) => manifest === `templates/${name}/package.json`,
-    );
-    if (!entry) throw new Error(`Unknown bundle template: ${name}`);
-    return entry;
-  });
-  for (const name of [
-    "@assistant-ui/ui",
-    "@assistant-ui/react-devtools",
-    "@assistant-ui/x-buildutils",
-  ]) {
-    queue.push(byName.get(name));
+  const known = listTemplates(root);
+  for (const name of templates) {
+    if (!known.includes(name))
+      throw new Error(`Unknown bundle template: ${name}`);
   }
-  const required = new Set();
-  for (const entry of queue) {
-    if (!entry || required.has(dirname(entry.manifest))) continue;
-    required.add(dirname(entry.manifest));
-    for (const name of Object.keys({
-      ...entry.pkg.dependencies,
-      ...entry.pkg.devDependencies,
-      ...entry.pkg.peerDependencies,
-      ...entry.pkg.optionalDependencies,
-      ...entry.pkg.optionalDevDependencies,
-    }))
-      queue.push(byName.get(name));
-  }
-  const unrelated = listTemplates(root)
-    .map((name) => `templates/${name}`)
-    .filter((dir) => !required.has(dir));
+  const unrelated = known
+    .filter((name) => !templates.includes(name))
+    .map((name) => `templates/${name}`);
   return files.some(
     (file) =>
       file.endsWith("/package.json") ||

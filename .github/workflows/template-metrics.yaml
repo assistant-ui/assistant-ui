@@ -8,8 +8,6 @@ on:
       - "packages/ui/**"
       - "scripts/template-metrics.mjs"
       - "scripts/template-metrics-install.test.mjs"
-      - "scripts/lib/workspace.mjs"
-      - "scripts/lib/script-options.mjs"
       - ".github/workflows/template-metrics.yaml"
 
 permissions:
