@@ -719,7 +719,7 @@ jobs:
       # Captured before publishing; a "re-run failed jobs" rerun still sees it.
       checkout_sha: ${{ steps.checkout-sha.outputs.sha }}
     permissions:
-      contents: write
+      contents: read
       # Required for npm trusted publishing (OIDC).
       id-token: write
     concurrency:
