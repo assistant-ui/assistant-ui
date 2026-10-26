@@ -6,9 +6,11 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
+import { toAgUiMessages } from "./adapter/conversions";
 import { makeLogger } from "./logger";
 
 type Subscriber = {
+  onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
   onTextMessageStartEvent?: (payload: { event: unknown }) => void;
   onTextMessageEndEvent?: (payload: { event: unknown }) => void;
   onToolCallStartEvent?: (payload: { event: unknown }) => void;
@@ -24,6 +26,7 @@ const userMessage = {
 
 function openToolTurn() {
   let release!: () => void;
+  let onMessagesSnapshotEvent: Subscriber["onMessagesSnapshotEvent"];
   const transportClosed = new Promise<void>((resolve) => {
     release = resolve;
   });
@@ -38,6 +41,7 @@ function openToolTurn() {
         });
         return;
       }
+      onMessagesSnapshotEvent = subscriber.onMessagesSnapshotEvent;
       for (const [messageId, toolCallId] of [
         ["assistant-a", "tool-a"],
         ["assistant-b", "tool-b"],
@@ -70,7 +74,15 @@ function openToolTurn() {
     logger: makeLogger(),
     showThinking: false,
   });
-  return { core, runAgent, release };
+  const sendMessagesSnapshot = (messages: unknown[]) => {
+    if (!onMessagesSnapshotEvent) {
+      throw new Error("runAgent did not provide onMessagesSnapshotEvent");
+    }
+    onMessagesSnapshotEvent({
+      event: { type: "MESSAGES_SNAPSHOT", messages },
+    });
+  };
+  return { core, runAgent, release, sendMessagesSnapshot };
 }
 
 function addResult(
@@ -196,6 +208,161 @@ describe("AgUiThreadController deferred tool results", () => {
       );
     },
   );
+
+  it("does not requeue a resolved result after a stale MESSAGES_SNAPSHOT", async () => {
+    const { core, runAgent, release, sendMessagesSnapshot } = openToolTurn();
+    const firstRun = core.append(userMessage);
+    let snapshotStatuses: (string | undefined)[] = [];
+
+    try {
+      const staleSnapshot = toAgUiMessages(core.getMessages());
+      addResult(core, "assistant-a", "tool-a");
+      addResult(core, "assistant-b", "tool-b");
+      sendMessagesSnapshot(staleSnapshot);
+
+      expect(toolCallResults(core)).toEqual([
+        { toolCallId: "tool-a", result: "tool-a-result" },
+        { toolCallId: "tool-b", result: "tool-b-result" },
+      ]);
+      snapshotStatuses = core
+        .getMessages()
+        .filter(
+          (message): message is ThreadAssistantMessage =>
+            message.role === "assistant",
+        )
+        .map((message) => message.status?.type);
+    } finally {
+      release();
+      await firstRun;
+    }
+
+    await vi.waitFor(() => {
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+    });
+    const continuation = runAgent.mock.calls[1]?.[0].messages ?? [];
+    const continuationToolResults = continuation.filter(
+      (message) =>
+        typeof message === "object" &&
+        message !== null &&
+        "role" in message &&
+        message.role === "tool",
+    );
+    expect(continuationToolResults).toHaveLength(2);
+    expect(continuationToolResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "tool-a",
+          content: "tool-a-result",
+        }),
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "tool-b",
+          content: "tool-b-result",
+        }),
+      ]),
+    );
+
+    addResult(core, "assistant-a", "tool-a");
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(snapshotStatuses).toEqual(["complete", "complete"]);
+  });
+
+  it("does not continue a result owner whose snapshot keeps only its message id", async () => {
+    const { core, runAgent, release, sendMessagesSnapshot } = openToolTurn();
+    const firstRun = core.append(userMessage);
+
+    try {
+      const userSnapshot = toAgUiMessages(core.getMessages()).find(
+        (message) => message.role === "user",
+      );
+      if (!userSnapshot) throw new Error("missing user snapshot message");
+
+      addResult(core, "assistant-b", "tool-b");
+      expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["tool-a"]);
+
+      sendMessagesSnapshot([
+        userSnapshot,
+        { id: "assistant-b", role: "assistant", content: "snapshot text" },
+      ]);
+
+      expect(core.getMessages().map((message) => message.id)).toContain(
+        "assistant-b",
+      );
+      expect(toolCallResults(core)).toEqual([]);
+    } finally {
+      release();
+      await firstRun;
+    }
+
+    const continuation = runAgent.mock.calls[1]?.[0].messages ?? [];
+    expect(
+      continuation.filter(
+        (message) =>
+          typeof message === "object" &&
+          message !== null &&
+          "role" in message &&
+          message.role === "tool",
+      ),
+    ).toEqual([]);
+    expect(runAgent).toHaveBeenCalledOnce();
+  });
+
+  it("continues from an earlier resolved owner when the active call leaves the snapshot", async () => {
+    const { core, runAgent, release, sendMessagesSnapshot } = openToolTurn();
+    const firstRun = core.append(userMessage);
+
+    try {
+      addResult(core, "assistant-a", "tool-a");
+      addResult(core, "assistant-b", "tool-b");
+
+      const snapshot = toAgUiMessages(core.getMessages()).flatMap((message) => {
+        if (message.role === "tool" && message.toolCallId === "tool-b") {
+          return [];
+        }
+        if (message.role === "assistant" && message.id === "assistant-b") {
+          return [
+            {
+              id: message.id,
+              role: "assistant" as const,
+              content: "snapshot text",
+            },
+          ];
+        }
+        return [message];
+      });
+      sendMessagesSnapshot(snapshot);
+
+      expect(toolCallResults(core)).toEqual([
+        { toolCallId: "tool-a", result: "tool-a-result" },
+      ]);
+    } finally {
+      release();
+      await firstRun;
+    }
+
+    await vi.waitFor(() => {
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+    });
+    const continuation = runAgent.mock.calls[1]?.[0].messages ?? [];
+    const continuationToolResults = continuation.filter(
+      (message) =>
+        typeof message === "object" &&
+        message !== null &&
+        "role" in message &&
+        message.role === "tool",
+    );
+    expect(continuationToolResults).toEqual([
+      expect.objectContaining({
+        role: "tool",
+        toolCallId: "tool-a",
+        content: "tool-a-result",
+      }),
+    ]);
+  });
 
   it("continues a surviving owner after a snapshot removes another pending tool", async () => {
     const { core, runAgent, release } = openToolTurn();
