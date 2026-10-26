@@ -355,10 +355,14 @@ describe("projectOpenCodeThreadMessages", () => {
       throw new Error("Expected a task tool call");
     }
     expect(tool.messages?.[0]?.content).toEqual([
-      { type: "text", text: "Inspect the package" },
+      { type: "text", id: "child-user-text", text: "Inspect the package" },
     ]);
     expect(tool.messages?.[1]?.content).toEqual([
-      { type: "text", text: "The package is healthy." },
+      {
+        type: "text",
+        id: "child-assistant-text",
+        text: "The package is healthy.",
+      },
       expect.objectContaining({
         type: "tool-call",
         toolName: "task",
@@ -369,6 +373,7 @@ describe("projectOpenCodeThreadMessages", () => {
             content: [
               {
                 type: "text",
+                id: "grandchild-text",
                 text: "The nested dependency is healthy.",
               },
             ],
@@ -1190,7 +1195,9 @@ describe("user message projection", () => {
 
     const [message] = projectOpenCodeThreadMessages(state);
 
-    expect(message?.content).toEqual([{ type: "text", text: "look at this" }]);
+    expect(message?.content).toEqual([
+      { type: "text", id: "part-text", text: "look at this" },
+    ]);
     expect(message?.attachments).toEqual([
       {
         id: "part-file",
@@ -1201,6 +1208,7 @@ describe("user message projection", () => {
         content: [
           {
             type: "image",
+            id: "part-file",
             image: "data:image/png;base64,AA==",
             filename: "photo.png",
           },
@@ -1235,6 +1243,7 @@ describe("user message projection", () => {
         content: [
           {
             type: "file",
+            id: "part-file",
             filename: "report.pdf",
             data: "https://example.com/report.pdf",
             mimeType: "application/pdf",

@@ -280,11 +280,13 @@ const hasPendingInteractionForMessage = (
 };
 
 const makeDataPart = (
+  id: string,
   name: string,
   data: Record<string, unknown>,
   parentId?: string,
 ) => ({
   type: "data" as const,
+  id,
   name,
   data,
   ...(parentId ? { parentId } : {}),
@@ -292,6 +294,7 @@ const makeDataPart = (
 
 const makeUnsupportedPart = (part: Part, parentId?: string) =>
   makeDataPart(
+    part.id,
     "opencode-unsupported-part",
     {
       type: (part as { type?: string }).type ?? "unknown",
@@ -313,6 +316,7 @@ const convertFilePart = (part: Extract<Part, { type: "file" }>) => {
   if (mimeType.startsWith("image/")) {
     return {
       type: "image" as const,
+      id: part.id,
       image: part.url ?? "",
       ...(part.filename ? { filename: part.filename } : {}),
     };
@@ -320,6 +324,7 @@ const convertFilePart = (part: Extract<Part, { type: "file" }>) => {
 
   return {
     type: "file" as const,
+    id: part.id,
     filename: part.filename ?? "file",
     data: part.url ?? "",
     mimeType,
@@ -340,6 +345,7 @@ const projectAssistantContent = (
       case "text":
         content.push({
           type: "text",
+          id: part.id,
           text: part.text ?? "",
         });
         break;
@@ -351,6 +357,7 @@ const projectAssistantContent = (
           const timing = projectPartTiming(part.time);
           content.push({
             type: "reasoning",
+            id: part.id,
             text,
             ...(timing ? { timing } : {}),
             ...(currentStepId() ? { parentId: currentStepId() } : {}),
@@ -446,6 +453,7 @@ const projectAssistantContent = (
         stepStack.push(stepId);
         content.push(
           makeDataPart(
+            part.id,
             "opencode-step-start",
             {
               id: stepId,
@@ -467,7 +475,7 @@ const projectAssistantContent = (
           ("id" in part && typeof part.id === "string" ? part.id : undefined) ??
           `step-finish-${index}`;
         content.push(
-          makeDataPart("opencode-step-finish", {
+          makeDataPart(part.id, "opencode-step-finish", {
             id: stepId,
             reason: "reason" in part ? part.reason : undefined,
             cost: "cost" in part ? part.cost : undefined,
@@ -483,6 +491,7 @@ const projectAssistantContent = (
       case "patch":
         content.push(
           makeDataPart(
+            part.id,
             "opencode-patch",
             {
               id:
@@ -505,6 +514,7 @@ const projectAssistantContent = (
       case "snapshot":
         content.push(
           makeDataPart(
+            part.id,
             "opencode-snapshot",
             {
               id:
@@ -524,6 +534,7 @@ const projectAssistantContent = (
       case "subtask":
         content.push(
           makeDataPart(
+            part.id,
             `opencode-${part.type}`,
             {
               id:
@@ -606,7 +617,7 @@ const projectUserMessage = (
   const attachments: ProjectedAttachment[] = [];
   for (const part of message.parts) {
     if (part.type === "text") {
-      content.push({ type: "text", text: part.text ?? "" });
+      content.push({ type: "text", id: part.id, text: part.text ?? "" });
     } else if (part.type === "file") {
       attachments.push(projectUserFileAttachment(part));
     }
