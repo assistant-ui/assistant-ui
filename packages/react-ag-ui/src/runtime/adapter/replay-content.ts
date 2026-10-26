@@ -106,12 +106,10 @@ function mergeTool(
   next: ToolCallMessagePart,
 ): ToolCallMessagePart {
   const result = preserveToolResult(previous, next);
-  const approval = next.approval ?? previous.approval;
+  const approval = preserveToolApprovalDecision(previous, next);
   return {
     ...result,
-    ...(approval
-      ? { approval: preserveToolApprovalDecision(previous.approval, approval) }
-      : {}),
+    ...(approval ? { approval } : {}),
     ...(result.unstable_interactions === undefined &&
     previous.unstable_interactions !== undefined
       ? { unstable_interactions: previous.unstable_interactions }

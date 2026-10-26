@@ -228,19 +228,37 @@ export const projectAgUiToolApprovals = (
   );
 };
 
-/** Carries a recorded local decision only while the server names the same gate. */
+/** A recorded decision authorizes one exact call and gate, not a reused id. */
 export const preserveToolApprovalDecision = (
-  previous: ToolApproval | undefined,
-  next: ToolApproval,
-): ToolApproval => {
-  if (previous?.id !== next.id) return next;
+  previous: ToolCallMessagePart | undefined,
+  next: ToolCallMessagePart,
+): ToolApproval | undefined => {
+  const prior = previous?.approval;
+  let approval = next.approval;
+  if (!approval && prior) {
+    const {
+      approved: _approved,
+      reason: _reason,
+      resolution: _resolution,
+      ...pending
+    } = prior;
+    approval = pending;
+  }
+  if (!approval) return undefined;
+  // AG-UI may omit argument events for a no-argument call; both forms mean {}.
+  if (
+    !previous ||
+    prior?.id !== approval.id ||
+    previous.toolCallId !== next.toolCallId ||
+    previous.toolName !== next.toolName ||
+    (previous.argsText || "{}") !== (next.argsText || "{}")
+  )
+    return approval;
   return {
-    ...next,
-    ...(previous.approved !== undefined ? { approved: previous.approved } : {}),
-    ...(previous.reason !== undefined ? { reason: previous.reason } : {}),
-    ...(previous.resolution !== undefined
-      ? { resolution: previous.resolution }
-      : {}),
+    ...approval,
+    ...(prior.approved !== undefined ? { approved: prior.approved } : {}),
+    ...(prior.reason !== undefined ? { reason: prior.reason } : {}),
+    ...(prior.resolution !== undefined ? { resolution: prior.resolution } : {}),
   };
 };
 

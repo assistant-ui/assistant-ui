@@ -115,10 +115,12 @@ const listedPendingToolCallIds = (
       | AgUiCustomMetadata
       | undefined
   )?.pendingToolCallIds;
-  return ids?.length ? new Set(ids) : undefined;
+  return ids === undefined ? undefined : new Set(ids);
 };
 
 type ReplayContext = {
+  // Immutable history reference: partial argument frames cannot redefine consent.
+  readonly originalContent: ThreadAssistantMessage["content"];
   accountedResultIds: ReadonlySet<string>;
   admittedToolCallIds: ReadonlySet<string>;
   merge: ReturnType<typeof createReplayContentMerger>;
@@ -1549,22 +1551,24 @@ export class AgUiThreadController {
           : [],
       ),
     );
-    const replayContexts = new Map(
-      replayMessageIds.map((id) => [
-        id,
-        {
-          accountedResultIds,
-          admittedToolCallIds: actionableToolCallIds(
-            this.session.tryGetMessage(id)?.message,
-          ),
-          merge: createReplayContentMerger(),
-        },
-      ]),
-    );
+    const candidateContexts = new Map<string, ReplayContext>();
+    for (const message of selectedMessages) {
+      if (
+        message.role !== "assistant" ||
+        !replayMessageIds.includes(message.id)
+      )
+        continue;
+      candidateContexts.set(message.id, {
+        originalContent: message.content,
+        accountedResultIds,
+        admittedToolCallIds: actionableToolCallIds(message),
+        merge: createReplayContentMerger(),
+      });
+    }
+    let replayContexts = new Map<string, ReplayContext>();
     let lastReplayedIndex = -1;
     let replayEnded = replayMessageIds.length === 0;
     const replayTail = replayMessageIds.at(-1);
-    if (replayTail) this.session.selectHead(replayTail);
     const joinStrategy = this.joinStrategy;
     const hasRunUserBoundary = parent?.message.role === "user" && !resume;
 
@@ -1593,11 +1597,16 @@ export class AgUiThreadController {
       }
       const repositoryHeadId = this.session.headId;
       const shouldUseSelectedParent =
-        replayMessageIds.length === 0 &&
+        replayContexts.size === 0 &&
         (cached === undefined ||
           (shouldEagerlyInsertAssistant &&
             (repositoryHeadId === null ||
-              runStartMessageIds.has(repositoryHeadId))));
+              runStartMessageIds.has(repositoryHeadId)))) &&
+        // Replay candidates defer the placeholder; honor snapshots that advanced
+        // the head before the producer identified its first assistant message.
+        (replayMessageIds.length === 0 ||
+          repositoryHeadId === null ||
+          runStartMessageIds.has(repositoryHeadId));
       // Branch runs keep their selected parent unless the snapshot advanced to
       // a message introduced during this run.
       const parentId =
@@ -1704,20 +1713,21 @@ export class AgUiThreadController {
       snapshot,
       previous,
     ) => {
-      const replay = replayContexts.get(snapshot.id);
-      if (!replay) return snapshot;
       // Observe the producer before preserving any local frontend results.
       accountProducerResults(snapshot.content);
+      const replay = candidateContexts.get(snapshot.id);
+      if (!replay) return snapshot;
       replay.admittedToolCallIds = actionableToolCallIds(snapshot);
       if (heldMessages.has(snapshot.id))
         heldMessages.set(snapshot.id, new Set(replay.admittedToolCallIds));
+      if (!replayContexts.has(snapshot.id)) return snapshot;
       return previous
         ? {
             ...snapshot,
             content: this.preserveToolResults(
               previous.content,
               snapshot.content,
-              true,
+              replay.originalContent,
             ),
           }
         : snapshot;
@@ -1738,7 +1748,8 @@ export class AgUiThreadController {
       let contentOwnerIds: Set<string> | undefined;
       if (!replayEnded && assistantMessageId === undefined) {
         if (!update.status || update.status.type === "running") return;
-        assistantMessageId = replayTail;
+        // No matching producer identity arrived: retain native regeneration.
+        replayEnded = true;
       }
       const streamMessageId = assistantMessageId;
       let primaryMessageId = streamMessageId;
@@ -1878,6 +1889,18 @@ export class AgUiThreadController {
         replayIndex > lastReplayedIndex &&
         existing?.message.role === "assistant" &&
         this.session.getMessages().some((message) => message.id === serverId);
+      if (adoptsReplay && replayContexts.size === 0) {
+        replayContexts = candidateContexts;
+        const selected = this.session.getMessages();
+        let tailId = serverId;
+        for (const message of selected.slice(
+          selected.findIndex((message) => message.id === serverId) + 1,
+        )) {
+          if (message.role !== "assistant") break;
+          tailId = message.id;
+        }
+        this.session.selectHead(tailId);
+      }
       if (startNewMessage && assistantMessageId !== undefined) {
         let hasReplayCallsToHold = false;
         const replay = replayContexts.get(assistantMessageId);
@@ -1994,10 +2017,12 @@ export class AgUiThreadController {
           event.outcome?.type === "success"
             ? event.outcome.pendingToolCallIds
             : undefined;
-        restrictedPendingToolCallIds = ids?.length ? new Set(ids) : undefined;
+        restrictedPendingToolCallIds =
+          ids === undefined ? undefined : new Set(ids);
       }
-      if (event.type === "TOOL_CALL_RESULT" && !assistantCollided) {
-        if (replayContexts.size) accountedResultIds.add(event.toolCallId);
+      if (event.type === "TOOL_CALL_RESULT") {
+        if (!assistantCollided && candidateContexts.size)
+          accountedResultIds.add(event.toolCallId);
         for (const openToolCallIds of heldMessages.values()) {
           openToolCallIds.delete(event.toolCallId);
         }
@@ -2016,7 +2041,7 @@ export class AgUiThreadController {
           joinStrategy,
           runStartMessageIds,
           hasRunUserBoundary,
-          replayContexts.size ? reconcileReplaySnapshot : undefined,
+          candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
           for (const message of beforeSnapshot) {
@@ -2142,7 +2167,16 @@ export class AgUiThreadController {
           : null;
       if (responses) {
         this.clearDeferredContinuations(abortController);
-        await this.submitInterruptResponses(responses);
+        try {
+          await this.submitInterruptResponses(responses);
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          if (!this.reportedErrors.has(err)) {
+            this.reportError(err);
+            this.reportedErrors.add(err);
+          }
+          throw err;
+        }
         return;
       }
     }
@@ -2510,12 +2544,22 @@ export class AgUiThreadController {
           interrupts,
           new Set(calls.map((part) => part.toolCallId)),
         );
+        const originalCalls = new Map(
+          Array.from(iterateToolCallParts(replay.originalContent), (part) => [
+            part.toolCallId,
+            part,
+          ]),
+        );
         content = mapToolCallPartsDeep(content, (part) => {
           const approval = approvals.get(part.toolCallId);
           if (approval)
             return {
               ...part,
-              approval: preserveToolApprovalDecision(part.approval, approval),
+              approval:
+                preserveToolApprovalDecision(
+                  originalCalls.get(part.toolCallId),
+                  { ...part, approval },
+                ) ?? approval,
             };
           if (
             !part.approval ||
@@ -2591,31 +2635,33 @@ export class AgUiThreadController {
   private preserveToolResults(
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
-    preserveDecisions = false,
+    decisionSource?: ThreadAssistantMessage["content"],
   ): ThreadAssistantMessage["content"] {
     const preserved = new Map<string, ToolCallMessagePart>();
     for (const part of iterateToolCallParts(previous)) {
-      if (
-        isResolvedToolCall(part) ||
-        (preserveDecisions && part.approval?.approved !== undefined)
-      ) {
+      if (isResolvedToolCall(part)) {
         preserved.set(part.toolCallId, part);
       }
     }
-    if (preserved.size === 0) {
+    const decisions = new Map(
+      Array.from(iterateToolCallParts(decisionSource ?? []))
+        .filter((part) => part.approval?.approved !== undefined)
+        .map((part) => [part.toolCallId, part]),
+    );
+    if (preserved.size === 0 && decisions.size === 0) {
       return this.preserveToolInteractions(previous, next);
     }
 
     const { content: merged, changed } = mapToolCallPartsDeep(next, (part) => {
       const prior = preserved.get(part.toolCallId);
-      if (!prior) return part;
-      const result = preserveToolResult(prior, part);
-      if (preserveDecisions && result.approval) {
+      const result = prior ? preserveToolResult(prior, part) : part;
+      if (result.approval && decisions.has(part.toolCallId)) {
         const approval = preserveToolApprovalDecision(
-          prior.approval,
-          result.approval,
+          decisions.get(part.toolCallId),
+          result,
         );
-        if (approval !== result.approval) return { ...result, approval };
+        if (approval && approval !== result.approval)
+          return { ...result, approval };
       }
       return result;
     });

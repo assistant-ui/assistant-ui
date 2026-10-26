@@ -33,6 +33,11 @@ function text(subscriber: Subscriber, id: string, value: string) {
   emit(subscriber, { type: "TEXT_MESSAGE_END", messageId: id });
 }
 
+function identifyAssistantFrame(subscriber: Subscriber, id: string) {
+  emit(subscriber, { type: "TEXT_MESSAGE_START", messageId: id });
+  emit(subscriber, { type: "TEXT_MESSAGE_END", messageId: id });
+}
+
 function user(id: string): ThreadMessage {
   return {
     id,
@@ -86,6 +91,7 @@ async function loaded(
   ) => Promise<void>,
   parentIds?: (string | null)[],
   historyUpdate?: NonNullable<ThreadHistoryAdapter["update"]>,
+  onError?: (error: Error) => void,
 ) {
   const history: ThreadHistoryAdapter = {
     load: vi.fn().mockResolvedValue({
@@ -110,6 +116,7 @@ async function loaded(
     history,
     logger: makeLogger(),
     showThinking: true,
+    ...(onError ? { onError } : {}),
   });
   await core.__internal_load();
   return core;
@@ -544,6 +551,36 @@ describe("AgUiThreadController selected-turn replay", () => {
     });
   });
 
+  it("starts a fresh selected branch when replay assigns a new assistant ID", async () => {
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [{ type: "text", text: "partial" }], {
+          type: "incomplete",
+          reason: "error",
+          error: "disconnected",
+        }),
+      ],
+      async (input, subscriber) => {
+        text(subscriber, "fresh", "complete answer");
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+    );
+
+    await resume(core, "u");
+
+    expect(ids(core)).toEqual(["u", "fresh"]);
+    expect(contents(core, "fresh")).toEqual([
+      { type: "text", text: "complete answer" },
+    ]);
+    expect(core.getMessageRepository().headId).toBe("fresh");
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "fresh")?.parentId,
+    ).toBe("u");
+  });
+
   it.each(["none", "reintroduce", "preserve"] as const)(
     "honors replay removals and rebases ownership after snapshot=%s",
     async (snapshot) => {
@@ -780,7 +817,7 @@ describe("AgUiThreadController selected-turn replay", () => {
   });
 
   it.each(["error", "cancelled"] as const)(
-    "retains the selected turn when %s arrives before its first message ID",
+    "uses a native child when %s arrives before the first assistant message ID",
     async (ending) => {
       const core = await loaded(
         [
@@ -802,15 +839,32 @@ describe("AgUiThreadController selected-turn replay", () => {
       if (ending === "error")
         await expect(resume(core, "u")).rejects.toThrow("before identity");
       else await resume(core, "u");
-      expect(ids(core)).toEqual(["u", "a"]);
-      expect(contents(core, "a")).toEqual([
-        { type: "text", text: "retained" },
-        expect.objectContaining({ toolCallId: "done", result: false }),
-      ]);
-      expect(core.getMessages().at(-1)?.status).toMatchObject({
+      const repository = core.getMessageRepository();
+      const oldA = repository.messages.find(
+        ({ message }) => message.id === "a",
+      )?.message;
+      const newChild = repository.messages.find(
+        ({ message, parentId }) =>
+          parentId === "u" &&
+          message.role === "assistant" &&
+          message.id !== "a",
+      );
+      if (newChild?.message.role !== "assistant")
+        throw new Error("missing native assistant child");
+      expect(newChild.parentId).toBe("u");
+      expect(newChild.message.status).toMatchObject({
         type: "incomplete",
         reason: ending,
       });
+      expect(oldA).toMatchObject({
+        id: "a",
+        content: [
+          { type: "text", text: "retained" },
+          expect.objectContaining({ toolCallId: "done", result: false }),
+        ],
+        status: { type: "complete" },
+      });
+      expect(ids(core)).toEqual(["u", newChild.message.id]);
     },
   );
 
@@ -876,6 +930,34 @@ describe("AgUiThreadController selected-turn replay", () => {
       expect(attempts).toBe(1);
     },
   );
+  it("clears a retained call when replay success lists no pending calls", async () => {
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("a", [call("x")], {
+          type: "requires-action",
+          reason: "tool-calls",
+        }),
+      ],
+      async (input, subscriber) => {
+        text(subscriber, "a", "replayed answer");
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success", pendingToolCallIds: [] },
+        });
+      },
+    );
+
+    await resume(core, "u");
+
+    expect(core.getPendingToolCalls()).toBeNull();
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "a",
+      status: { type: "complete" },
+    });
+  });
+
   it.each(["fork", "interrupt"] as const)(
     "revalidates a deferred tool continuation after the stream changes to %s",
     async (scenario) => {
@@ -1051,9 +1133,10 @@ describe("AgUiThreadController selected-turn replay", () => {
     },
   );
 
-  it.each(["tool-only", "held"] as const)(
-    "rebases pending calls for a %s replay without activating excluded history",
+  it.each(["tool-only native branch", "matching-frame replay"] as const)(
+    "keeps %s pending calls separate from excluded historical state",
     async (scenario) => {
+      const hasMatchingFrame = scenario === "matching-frame replay";
       const historical = assistant("a", [call("x"), call("hidden")], {
         type: "requires-action",
         reason: "tool-calls",
@@ -1070,14 +1153,14 @@ describe("AgUiThreadController selected-turn replay", () => {
         [
           user("u"),
           stored,
-          ...(scenario === "held"
+          ...(hasMatchingFrame
             ? [assistant("b", [{ type: "text", text: "old B" }])]
             : []),
         ],
         async (input, subscriber) => {
           attempts++;
           if (attempts === 1) {
-            if (scenario === "held") text(subscriber, "a", "replayed A");
+            if (hasMatchingFrame) text(subscriber, "a", "replayed A");
             for (const toolCallId of ["x", "y"]) {
               emit(subscriber, {
                 type: "TOOL_CALL_START",
@@ -1086,22 +1169,41 @@ describe("AgUiThreadController selected-turn replay", () => {
               });
               emit(subscriber, { type: "TOOL_CALL_END", toolCallId });
             }
-            if (scenario === "held") text(subscriber, "b", "replayed B");
+            if (hasMatchingFrame) text(subscriber, "b", "replayed B");
           }
           emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
         },
       );
 
       await resume(core, "u");
-      expect(core.getPendingToolCalls()).toEqual({
-        messageId: "a",
-        toolCallIds: ["x", "y"],
-      });
-      expect(contents(core, "a")).toContainEqual(
-        expect.objectContaining({ toolCallId: "hidden" }),
+      const pending = core.getPendingToolCalls();
+      if (!pending) throw new Error("missing pending calls");
+      const repository = core.getMessageRepository();
+      const owner = repository.messages.find(
+        ({ message }) => message.id === pending.messageId,
       );
+      expect(pending.toolCallIds).toEqual(["x", "y"]);
+      expect(
+        repository.messages.find(({ message }) => message.id === "a")?.message,
+      ).toMatchObject({
+        content: expect.arrayContaining([
+          expect.objectContaining({ toolCallId: "hidden" }),
+        ]),
+      });
+      if (hasMatchingFrame) {
+        expect(pending.messageId).toBe("a");
+      } else {
+        expect(pending.messageId).not.toBe("a");
+        expect(ids(core)).toEqual(["u", pending.messageId]);
+        expect(owner?.parentId).toBe("u");
+        expect(owner?.message).not.toMatchObject({
+          content: expect.arrayContaining([
+            expect.objectContaining({ toolCallId: "hidden" }),
+          ]),
+        });
+      }
       core.addToolResult({
-        messageId: "a",
+        messageId: pending.messageId,
         toolCallId: "x",
         toolName: "lookup",
         result: "x result",
@@ -1109,11 +1211,11 @@ describe("AgUiThreadController selected-turn replay", () => {
       });
       expect(attempts).toBe(1);
       expect(core.getPendingToolCalls()).toEqual({
-        messageId: "a",
+        messageId: pending.messageId,
         toolCallIds: ["y"],
       });
       core.addToolResult({
-        messageId: "a",
+        messageId: pending.messageId,
         toolCallId: "y",
         toolName: "lookup",
         result: "y result",
@@ -1210,11 +1312,11 @@ describe("AgUiThreadController selected-turn replay", () => {
   });
 
   it.each([
-    ["tool-only replay", null],
-    ["late B text identity", "b"],
-    ["first text identity on new C", "c"],
+    ["tool-only native branch", null],
+    ["matching retained B identity", "b"],
+    ["new C native branch", "c"],
   ] as const)(
-    "keeps an identity-less replayed call on its historical assistant owner after %s",
+    "uses replay ownership only after a matching assistant ID arrives (%s)",
     async (_scenario, replayTextId) => {
       let attempts = 0;
       let continuationMessages: readonly unknown[] = [];
@@ -1258,7 +1360,8 @@ describe("AgUiThreadController selected-turn replay", () => {
 
       await resume(core, "u");
       const idsAfterReplay = ids(core);
-      const headAfterReplay = core.getMessageRepository().headId;
+      const repository = core.getMessageRepository();
+      const headAfterReplay = repository.headId;
       const freshTextOwnerId = replayTextId ?? "b";
       const freshTextMessage = core
         .getMessages()
@@ -1281,6 +1384,8 @@ describe("AgUiThreadController selected-turn replay", () => {
           (part) => part.type === "tool-call" && part.toolCallId === "x",
         ) ?? [];
       const pendingAfterReplay = core.getPendingToolCalls();
+      if (!pendingAfterReplay) throw new Error("missing pending call");
+      const ownerId = pendingAfterReplay.messageId;
       const bMessageAfterReplay = core
         .getMessages()
         .find((message) => message.id === "b");
@@ -1289,46 +1394,74 @@ describe("AgUiThreadController selected-turn replay", () => {
           ? bMessageAfterReplay.content
           : undefined;
 
-      expect({
-        idsAfterReplay,
-        headAfterReplay,
-        freshTextOwnerId,
-        freshTextMessageExists: freshTextMessage !== undefined,
-        freshTextContent,
-        freshTextParentId,
-        xCallsInA: xCallsInA.length,
-        bContentAfterReplay,
-        pendingAfterReplay,
-      }).toEqual({
-        idsAfterReplay:
-          replayTextId === "c" ? ["u", "a", "b", "c"] : ["u", "a", "b"],
-        headAfterReplay: replayTextId === "c" ? "c" : "b",
-        freshTextOwnerId: replayTextId ?? "b",
-        freshTextMessageExists: true,
-        freshTextContent: [
-          {
-            type: "text",
-            text:
-              replayTextId === null
-                ? "old B"
-                : replayTextId === "c"
-                  ? "fresh C"
-                  : "fresh B",
-          },
-        ],
-        freshTextParentId: replayTextId === "c" ? "b" : "a",
-        xCallsInA: 1,
-        bContentAfterReplay: [
-          {
-            type: "text",
-            text: replayTextId === "b" ? "fresh B" : "old B",
-          },
-        ],
-        pendingAfterReplay: { messageId: "a", toolCallIds: ["x"] },
-      });
+      if (replayTextId === "b") {
+        expect({
+          idsAfterReplay,
+          headAfterReplay,
+          freshTextOwnerId,
+          freshTextMessageExists: freshTextMessage !== undefined,
+          freshTextContent,
+          freshTextParentId,
+          xCallsInA: xCallsInA.length,
+          bContentAfterReplay,
+          pendingAfterReplay,
+        }).toEqual({
+          idsAfterReplay: ["u", "a", "b"],
+          headAfterReplay: "b",
+          freshTextOwnerId: "b",
+          freshTextMessageExists: true,
+          freshTextContent: [{ type: "text", text: "fresh B" }],
+          freshTextParentId: "a",
+          xCallsInA: 1,
+          bContentAfterReplay: [{ type: "text", text: "fresh B" }],
+          pendingAfterReplay: { messageId: "a", toolCallIds: ["x"] },
+        });
+      } else {
+        const ownerEntry = repository.messages.find(
+          ({ message }) => message.id === ownerId,
+        );
+        const ownerMessage = ownerEntry?.message;
+        const ownerHasX =
+          ownerMessage?.role === "assistant" &&
+          ownerMessage.content.some(
+            (part) => part.type === "tool-call" && part.toolCallId === "x",
+          );
+        const historicalA = repository.messages.find(
+          ({ message }) => message.id === "a",
+        )?.message;
+        const historicalB = repository.messages.find(
+          ({ message }) => message.id === "b",
+        )?.message;
+
+        expect(idsAfterReplay).toEqual(["u", ownerId]);
+        expect(headAfterReplay).toBe(ownerId);
+        expect(ownerId).not.toBe("a");
+        expect(ownerEntry?.parentId).toBe("u");
+        expect(pendingAfterReplay).toEqual({
+          messageId: ownerId,
+          toolCallIds: ["x"],
+        });
+        expect(ownerHasX).toBe(true);
+        expect(historicalA).toMatchObject({
+          content: [expect.objectContaining({ toolCallId: "x", args: {} })],
+        });
+        expect(historicalB).toMatchObject({
+          content: [{ type: "text", text: "old B" }],
+        });
+        if (replayTextId === "c") {
+          expect(ownerId).toBe("c");
+          expect(ownerMessage).toMatchObject({
+            content: expect.arrayContaining([
+              { type: "text", text: "fresh C" },
+            ]),
+          });
+        } else {
+          expect(freshTextMessage).toBeUndefined();
+        }
+      }
 
       core.addToolResult({
-        messageId: "a",
+        messageId: ownerId,
         toolCallId: "x",
         toolName: "lookup",
         result: "x result",
@@ -1336,7 +1469,7 @@ describe("AgUiThreadController selected-turn replay", () => {
       });
       await vi.waitFor(() => expect(core.isRunning()).toBe(false));
 
-      const xResultsInA = contents(core, "a")
+      const xResultsInOwner = contents(core, ownerId)
         .filter((part) => part.type === "tool-call" && part.toolCallId === "x")
         .map((part) =>
           part.type === "tool-call"
@@ -1354,13 +1487,13 @@ describe("AgUiThreadController selected-turn replay", () => {
           message.role === "tool",
       );
       expect({
-        xResultsInA,
+        xResultsInOwner,
         continuationParentId,
         attempts,
         continuationToolResults,
       }).toEqual({
-        xResultsInA: [{ toolCallId: "x", result: "x result" }],
-        continuationParentId: replayTextId === "c" ? "c" : "b",
+        xResultsInOwner: [{ toolCallId: "x", result: "x result" }],
+        continuationParentId: replayTextId === "b" ? "b" : ownerId,
         attempts: 2,
         continuationToolResults: [
           expect.objectContaining({
@@ -1496,6 +1629,7 @@ describe("AgUiThreadController selected-turn replay", () => {
         }
         streamToolCall(subscriber, "x", '{"query":"fresh x"}');
         streamToolCall(subscriber, "y", '{"query":"fresh y"}');
+        identifyAssistantFrame(subscriber, "b");
         emit(subscriber, {
           type: "RUN_FINISHED",
           runId: input.runId,
@@ -1599,6 +1733,7 @@ describe("AgUiThreadController selected-turn replay", () => {
           return;
         }
         streamToolCall(subscriber, "x", '{"query":"fresh nested x"}');
+        identifyAssistantFrame(subscriber, "a");
         emit(subscriber, {
           type: "RUN_FINISHED",
           runId: input.runId,
@@ -1690,6 +1825,7 @@ describe("AgUiThreadController selected-turn replay", () => {
         attempts++;
         streamToolCall(subscriber, "x", '{"query":"cancelled x"}');
         streamToolCall(subscriber, "y", '{"query":"cancelled y"}');
+        identifyAssistantFrame(subscriber, "b");
         emit(subscriber, {
           type: "RUN_FINISHED",
           runId: input.runId,
@@ -1772,6 +1908,8 @@ describe("AgUiThreadController selected-turn replay", () => {
             streamToolCall(subscriber, "x", '{"query":"fresh x"}');
             streamToolCall(subscriber, "y", '{"query":"fresh y"}');
           }
+          if (scope !== "single-owner-late-text")
+            identifyAssistantFrame(subscriber, "b");
           emit(subscriber, {
             type: "RUN_FINISHED",
             runId: input.runId,
@@ -2152,6 +2290,146 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(y.approval?.approved).toBeUndefined();
   });
 
+  it.each([true, false] as const)(
+    "keeps a fresh approval gate pending when replay changes tool arguments (approved=%s)",
+    async (approved) => {
+      let attempts = 0;
+      const core = await loaded(
+        [
+          user("u"),
+          assistant(
+            "a",
+            [
+              call("x", {
+                args: { target: "old" },
+                argsText: '{"target":"old"}',
+                approval: {
+                  id: "gate",
+                  approved,
+                  reason: "decision for old arguments",
+                },
+              }),
+            ],
+            { type: "incomplete", reason: "error", error: "disconnected" },
+          ),
+        ],
+        async (input, subscriber) => {
+          attempts++;
+          if (attempts > 1) {
+            emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+            return;
+          }
+          text(subscriber, "a", "replayed answer");
+          streamToolCall(subscriber, "x", '{"target":"new"}');
+          emit(subscriber, {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "gate", reason: "tool_call", toolCallId: "x" },
+              ],
+            },
+          });
+        },
+      );
+      const submit = vi.spyOn(core, "submitInterruptResponses");
+
+      await resume(core, "u");
+
+      expect(attempts).toBe(1);
+      expect(submit).not.toHaveBeenCalled();
+      expect(core.getPendingInterrupts()).toEqual({
+        messageId: "a",
+        interrupts: [{ id: "gate", reason: "tool_call", toolCallId: "x" }],
+      });
+      const part = contents(core, "a").find(
+        (item) => item.type === "tool-call" && item.toolCallId === "x",
+      );
+      if (part?.type !== "tool-call") throw new Error("missing replayed call");
+      expect(part.args).toEqual({ target: "new" });
+      expect(part.approval?.id).toBe("gate");
+      expect(part.approval?.approved).toBeUndefined();
+      expect(part.approval?.reason).toBeUndefined();
+    },
+  );
+
+  it("submits the original approval after matching replay arguments arrive in chunks", async () => {
+    let attempts = 0;
+    const inputs: unknown[] = [];
+    const core = await loaded(
+      [
+        user("u"),
+        assistant(
+          "a",
+          [
+            call("x", {
+              args: { target: "old" },
+              argsText: '{"target":"old"}',
+              approval: {
+                id: "gate",
+                approved: true,
+                reason: "approved before replay",
+              },
+            }),
+          ],
+          { type: "incomplete", reason: "error", error: "disconnected" },
+        ),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        inputs.push(input);
+        if (attempts > 1) {
+          text(subscriber, "continued", "approved call continued");
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        text(subscriber, "a", "replayed answer");
+        emit(subscriber, {
+          type: "TOOL_CALL_START",
+          toolCallId: "x",
+          toolCallName: "lookup",
+        });
+        emit(subscriber, {
+          type: "TOOL_CALL_ARGS",
+          toolCallId: "x",
+          delta: '{"target":',
+        });
+        emit(subscriber, {
+          type: "TOOL_CALL_ARGS",
+          toolCallId: "x",
+          delta: '"old"}',
+        });
+        emit(subscriber, { type: "TOOL_CALL_END", toolCallId: "x" });
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "gate", reason: "tool_call", toolCallId: "x" }],
+          },
+        });
+      },
+    );
+    const submit = vi.spyOn(core, "submitInterruptResponses");
+
+    await resume(core, "u");
+    await vi.waitFor(() => expect(attempts).toBe(2));
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(inputs[1]).toMatchObject({
+      resume: [
+        {
+          interruptId: "gate",
+          status: "resolved",
+          payload: { approved: true, reason: "approved before replay" },
+        },
+      ],
+    });
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
   it.each(["expired", "malformed"] as const)(
     "does not resubmit a stored decision for a %s replayed gate",
     async (expiry) => {
@@ -2160,7 +2438,7 @@ describe("AgUiThreadController selected-turn replay", () => {
           ? new Date(Date.now() - 60_000).toISOString()
           : "not-a-date";
       let attempts = 0;
-      let resumeError: unknown;
+      const onError = vi.fn((_error: Error) => {});
       const core = await loaded(
         [
           user("u"),
@@ -2197,20 +2475,17 @@ describe("AgUiThreadController selected-turn replay", () => {
             },
           });
         },
+        undefined,
+        undefined,
+        onError,
       );
 
-      try {
-        await resume(core, "u");
-      } catch (error) {
-        resumeError = error;
-      }
-
+      await expect(resume(core, "u")).rejects.toThrow(
+        expiry === "expired" ? /expired at/ : /malformed expiresAt/,
+      );
       expect(attempts).toBe(1);
-      if (resumeError !== undefined) {
-        expect(String(resumeError)).toMatch(
-          expiry === "expired" ? /expired at/ : /malformed expiresAt/,
-        );
-      }
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
     },
   );
 
@@ -2514,6 +2789,7 @@ describe("AgUiThreadController selected-turn replay", () => {
                 });
               }
             }
+            identifyAssistantFrame(subscriber, "a");
           } else {
             if (attempts === 2 && delivery === "frontend-results")
               text(subscriber, "continued", "continued");
@@ -2787,6 +3063,65 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(
       core.getMessages().find((message) => message.id === "a")?.status,
     ).toMatchObject({ type: "complete" });
+    expect(core.getPendingToolCalls()).toBeNull();
+    expect(attempts).toBe(1);
+  });
+
+  it("does not leave a resolved call pending after a normal append collides with an off-branch ID", async () => {
+    let attempts = 0;
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("off-branch", [{ type: "text", text: "old off branch" }]),
+        assistant("selected", [{ type: "text", text: "selected branch" }]),
+      ],
+      async (input, subscriber) => {
+        attempts++;
+        if (attempts > 1) {
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          return;
+        }
+        text(subscriber, "fresh-a", "answer A");
+        streamToolCall(subscriber, "t", "{}");
+        text(subscriber, "off-branch", "answer B");
+        emit(subscriber, {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "t",
+          messageId: "result-t",
+          content: "server result",
+        });
+        emit(subscriber, {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success", pendingToolCallIds: ["t"] },
+        });
+      },
+      [null, "u", "u"],
+    );
+
+    await core.append({
+      role: "user",
+      content: [{ type: "text", text: "new prompt" }],
+      attachments: [],
+      createdAt: new Date(1),
+      metadata: { custom: {} },
+      parentId: core.getMessageRepository().headId ?? null,
+      sourceId: null,
+      runConfig: {},
+      startRun: true,
+    });
+
+    const repository = core.getMessageRepository().messages;
+    expect(
+      repository.find(({ message }) => message.id === "off-branch")?.message,
+    ).toMatchObject({ content: [{ type: "text", text: "old off branch" }] });
+    expect(
+      repository.find(({ message }) => message.id === "fresh-a")?.message,
+    ).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({ toolCallId: "t", result: "server result" }),
+      ]),
+    });
     expect(core.getPendingToolCalls()).toBeNull();
     expect(attempts).toBe(1);
   });
