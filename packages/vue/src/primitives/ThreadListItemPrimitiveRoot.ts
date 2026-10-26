@@ -23,6 +23,8 @@ export const ThreadListItemPrimitiveRoot = defineComponent({
     const collection = useThreadListCollection();
     const onKeydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+        return;
       const trigger = focus.trigger.value;
       if (
         !trigger ||
