@@ -148,14 +148,6 @@ const config: NextConfig = {
                 key: "Origin-Agent-Cluster",
                 value: "?1",
               },
-              ...(process.env.WEBMCP_ORIGIN_TRIAL_TOKEN
-                ? [
-                    {
-                      key: "Origin-Trial",
-                      value: process.env.WEBMCP_ORIGIN_TRIAL_TOKEN,
-                    },
-                  ]
-                : []),
             ],
           },
         ]
