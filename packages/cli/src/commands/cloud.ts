@@ -117,9 +117,9 @@ const cloudJson = async <T>(
   const resource = value as Partial<SetupResource> | null;
   if (
     !resource ||
-    typeof resource.id !== "string" ||
-    typeof resource.slug !== "string" ||
-    typeof resource.name !== "string"
+    !(["id", "slug", "name"] as const).every(
+      (key) => typeof resource[key] === "string" && resource[key].trim() !== "",
+    )
   )
     return {
       ok: false,

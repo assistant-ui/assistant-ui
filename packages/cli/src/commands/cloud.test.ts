@@ -174,14 +174,17 @@ describe("cloud setup", () => {
     const directory = await fixture();
     fetchProjects.mockResolvedValue([]);
     sendCloudCommand.mockReset();
-    sendCloudCommand.mockResolvedValueOnce({
-      exitCode: 0,
-      stdout: JSON.stringify({ project: { id: "p" } }),
-    });
     const before = provisionCloudHarness.mock.calls.length;
-    await expect(
-      setupCloud(directory, { ...options, newProject: "chat-app" }),
-    ).rejects.toThrow(/Unexpected response from `projects create/);
+    for (const stdout of [
+      JSON.stringify({ project: { id: "p" } }),
+      JSON.stringify({ id: "", slug: "chat-app", name: "Chat" }),
+      "not json",
+    ]) {
+      sendCloudCommand.mockResolvedValueOnce({ exitCode: 0, stdout });
+      await expect(
+        setupCloud(directory, { ...options, newProject: "chat-app" }),
+      ).rejects.toThrow(/Unexpected response from `projects create/);
+    }
     expect(provisionCloudHarness.mock.calls.length).toBe(before);
   });
 
