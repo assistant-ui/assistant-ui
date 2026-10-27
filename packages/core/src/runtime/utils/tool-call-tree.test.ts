@@ -306,9 +306,14 @@ describe("mapToolCallPartsDeep", () => {
   it("allows sibling tool calls to share an acyclic message subtree", () => {
     const shared = [assistant("shared", [toolCall("nested")])];
     const content = [toolCall("a", shared), toolCall("b", shared)];
+    const visited: string[] = [];
 
-    const result = mapToolCallPartsDeep(content, (part) => part);
+    const result = mapToolCallPartsDeep(content, (part) => {
+      visited.push(part.toolCallId);
+      return part;
+    });
 
+    expect(visited).toEqual(["a", "nested", "b", "nested"]);
     expect(result).toEqual({ content, changed: false });
     expect(result.content).toBe(content);
     expect((result.content[0] as ToolCallMessagePart).messages).toBe(shared);

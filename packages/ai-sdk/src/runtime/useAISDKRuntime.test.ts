@@ -21,6 +21,7 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     })),
@@ -88,6 +89,7 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
@@ -842,6 +844,7 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      markRunCancelled: vi.fn(),
       persistToolInteractions,
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
@@ -970,6 +973,7 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage,
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
@@ -1011,6 +1015,7 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage,
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
@@ -1071,6 +1076,7 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage,
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });

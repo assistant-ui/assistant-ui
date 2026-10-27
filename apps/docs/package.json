@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/docs",
+  "name": "@assistant-ui/docs-site",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -67,6 +67,7 @@
     "cn": "^0.5.0",
     "codehike": "^1.1.0",
     "date-fns": "^4.4.0",
+    "diagrammatic": "workspace:*",
     "dotenv": "^18.0.8",
     "embla-carousel-react": "^8.6.0",
     "fast-glob": "^3.3.3",

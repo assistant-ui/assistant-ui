@@ -143,6 +143,51 @@ describe("thread list keyboard navigation", () => {
     unmount();
   });
 
+  it("skips disabled triggers in both directions without wrapping", async () => {
+    const { runtime, onSwitchToThread } = createRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadListPrimitiveRoot, null, {
+          default: () =>
+            [0, 1, 2].map((index) =>
+              h(
+                ThreadListItemByIndexProvider,
+                { index, key: index },
+                {
+                  default: () =>
+                    h(ThreadListItemPrimitiveRoot, null, {
+                      default: () =>
+                        h(
+                          ThreadListItemPrimitiveTrigger,
+                          { disabled: index === 1 },
+                          { default: () => `item ${index}` },
+                        ),
+                    }),
+                },
+              ),
+            ),
+        }),
+    });
+    const { el, unmount } = mount(runtime, View);
+
+    try {
+      await nextTick();
+      const [first, , third] = buttons(el);
+      first!.focus();
+      expect(keydown(first!, "ArrowDown")).toBe(false);
+      expect(document.activeElement).toBe(third);
+      expect(keydown(third!, "ArrowDown")).toBe(true);
+      expect(document.activeElement).toBe(third);
+      expect(keydown(third!, "ArrowUp")).toBe(false);
+      expect(document.activeElement).toBe(first);
+      expect(keydown(first!, "ArrowUp")).toBe(true);
+      expect(document.activeElement).toBe(first);
+      expect(onSwitchToThread).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+
   it("lets a caller veto collection navigation", async () => {
     const { runtime } = createRuntime();
     const View = defineComponent({
@@ -295,4 +340,61 @@ describe("thread list keyboard navigation", () => {
 
     unmount();
   });
+});
+
+describe("application shortcuts in Vue thread lists", () => {
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"] as const)(
+    "leaves %s + ArrowDown available to an ancestor shortcut",
+    async (modifier) => {
+      const { runtime } = createRuntime();
+      const handled = vi.fn();
+      const View = defineComponent({
+        setup: () => () =>
+          h("section", null, [
+            h(ThreadListPrimitiveRoot, null, {
+              default: () =>
+                [0, 1].map((index) =>
+                  h(
+                    ThreadListItemByIndexProvider,
+                    { index, key: index },
+                    {
+                      default: () =>
+                        h(ThreadListItemPrimitiveRoot, null, {
+                          default: () =>
+                            h(ThreadListItemPrimitiveTrigger, null, {
+                              default: () => `item ${index}`,
+                            }),
+                        }),
+                    },
+                  ),
+                ),
+            }),
+          ]),
+      });
+      const { el, unmount } = mount(runtime, View);
+      // Vue skips a listener attached in the same millisecond the event started, so the app shortcut is native.
+      el.querySelector("section")!.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented || !event[modifier]) return;
+        handled();
+        event.preventDefault();
+      });
+      try {
+        await nextTick();
+        const [first] = buttons(el);
+        first!.focus();
+        first!.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            bubbles: true,
+            cancelable: true,
+            key: "ArrowDown",
+            [modifier]: true,
+          }),
+        );
+        expect(handled).toHaveBeenCalledOnce();
+        expect(document.activeElement).toBe(first);
+      } finally {
+        unmount();
+      }
+    },
+  );
 });

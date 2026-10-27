@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { jsonSchema, type ModelMessage, type ToolSet } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 
@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
       }) => { toUIMessageStreamResponse: () => Response }
     >(),
   getMcpTools: vi.fn<() => Promise<ToolSet>>(),
+  getMcpClient:
+    vi.fn<() => Promise<{ listResources: () => Promise<unknown> }>>(),
   resume:
     vi.fn<
       (
@@ -36,6 +38,7 @@ vi.mock("ai", async (importOriginal) => ({
 
 vi.mock("../../../../../templates/mcp/app/api/mcp-client", () => ({
   getMcpTools: mocks.getMcpTools,
+  getMcpClient: mocks.getMcpClient,
 }));
 
 vi.mock("@/lib/resumable-context", () => ({
@@ -61,6 +64,9 @@ beforeEach(() => {
     toUIMessageStreamResponse: () => new Response("streamed answer"),
   }));
   mocks.getMcpTools.mockResolvedValue({});
+  mocks.getMcpClient.mockResolvedValue({
+    listResources: async () => ({ resources: [] }),
+  });
   mocks.resume.mockImplementation(async (_id, createStream) => createStream());
 });
 
@@ -97,6 +103,25 @@ const loadRoute = async (path: string) => {
   const POST: (request: Request) => Promise<Response> = route.POST;
   return POST;
 };
+
+const mcpRoutes = [
+  {
+    name: "chat",
+    path: "../../../../../templates/mcp/app/api/chat/route.ts",
+    body: { messages, tools },
+  },
+  {
+    name: "mcp-apps",
+    path: "../../../../../templates/mcp/app/api/mcp-apps/route.ts",
+    body: { method: "resources/list" },
+  },
+];
+
+beforeAll(async () => {
+  await Promise.all(
+    [...routes, ...mcpRoutes].map(({ path }) => loadRoute(path)),
+  );
+});
 
 const createRequest = (signal?: AbortSignal) =>
   new Request("http://localhost/api/chat", {
@@ -182,4 +207,35 @@ it("preserves MCP tools and lets frontend tools override matching names in both 
   expect(stream.tools?.serverOnly).toBe(serverTool);
   expect(stream.tools?.lookup).not.toBe(serverTool);
   expect(stream.tools?.lookup?.toModelOutput).toBeTypeOf("function");
+});
+
+describe.each(mcpRoutes)("mcp template $name route", ({ path, body }) => {
+  const request = (headers: Record<string, string>) =>
+    new Request("http://localhost/api/mcp", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+  it.each([
+    ["a cross-site fetch", { "sec-fetch-site": "cross-site" }],
+    ["a foreign Origin", { origin: "https://example.net" }],
+  ])("rejects %s before reaching the MCP server", async (_label, headers) => {
+    const POST = await loadRoute(path);
+    const response = await POST(request(headers));
+
+    expect(response.status).toBe(403);
+    expect(mocks.getMcpTools).not.toHaveBeenCalled();
+    expect(mocks.getMcpClient).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a same-origin fetch", { "sec-fetch-site": "same-origin" }],
+    ["its own Origin", { origin: "http://localhost" }],
+  ])("serves %s", async (_label, headers) => {
+    const POST = await loadRoute(path);
+    const response = await POST(request(headers));
+
+    expect(response.status).toBe(200);
+  });
 });

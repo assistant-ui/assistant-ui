@@ -94,6 +94,16 @@ import * as Interactive from "diagrammatic/interactive";
 
 Marks carry `data-part="mark"`, `data-i`, and `data-series`, so CSS hover emphasis (`[data-part="mark"]:hover`) and your own event delegation work without any of this.
 
+## Motion
+
+Charts that draw a direction or a live reading stamp inert motion layers: a trail along every connection in `Sankey`, `Chord`, `Network`, `ArcDiagram`, and `FlowMap` (`data-dg-flow`), ordered samples along each `DotWorldMap` flow (`data-dg-flow-step` with `--dg-t` from 0 at the source to 1 at the target), and a halo on the latest point of a one-series `Line` and of `Sparkline` (`data-dg-pulse`). They draw nothing until `diagrammatic/styles.css` is loaded and the figure or an ancestor carries `data-dg-motion`, and they stay still under `prefers-reduced-motion`. Every trail in a figure shares one sweep, so a `Sankey` crosses its columns stage by stage. `--dg-motion-duration` sets the period of one pass. Motion is CSS only, so the charts stay server components.
+
+```tsx
+<div data-dg-motion="">
+  <Sankey graph={graph} />
+</div>
+```
+
 ## AI-generated charts
 
 `diagrammatic/spec` renders serializable specs, so a model can emit JSON and you can draw it:

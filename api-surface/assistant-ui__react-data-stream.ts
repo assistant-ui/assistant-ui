@@ -151,6 +151,7 @@ type AssistantCloudRunReport = {
   status: "completed" | "error" | "incomplete";
   outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
+  user_message_id?: string;
   first_token_ms?: number;
   release?: string;
   environment?: string;
@@ -307,6 +308,7 @@ declare class AssistantCloudThreadMessages {
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
@@ -623,7 +625,7 @@ type ComposerRuntime = {
   readonly type: "edit" | "thread";
   getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
-  setText(text: string): void;
+  setText(text: string, options?: ComposerSetTextOptions): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   reset(): Promise<void>;
@@ -654,6 +656,10 @@ type ComposerRuntimeEventPayload = {
   attachmentAddError: AttachmentAddErrorEvent & {
     readonly contentType?: string | undefined;
   };
+  textChange: {
+    readonly text: string;
+    readonly origin: ComposerTextOrigin;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -666,6 +672,10 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
+type ComposerSetTextOptions = {
+  readonly origin?: ComposerTextOrigin;
+};
+
 type ComposerSubmission = {
   readonly id: string;
   readonly role: MessageRole;
@@ -673,6 +683,8 @@ type ComposerSubmission = {
   readonly quote: QuoteInfo | undefined;
   readonly attachments: readonly Attachment[];
 };
+
+type ComposerTextOrigin = "external" | "recall" | "reset" | "return" | "send" | "user";
 
 type CreateAppendMessage = string | {
   parentId?: string | null | undefined;
@@ -889,6 +901,8 @@ type GenericThreadHistoryAdapter<TMessage> = {
       end_ms: number;
     }[];
     message?: ThreadMessage;
+    userMessageId?: string;
+    persistenceError?: unknown;
   }): void;
 };
 

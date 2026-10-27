@@ -8,6 +8,7 @@ import {
   type UIMessage,
 } from "ai";
 import { getMcpTools } from "../mcp-client";
+import { isAllowedRequestContext } from "../request-context";
 
 export const maxDuration = 30;
 
@@ -21,6 +22,13 @@ async function getMCPTools(): Promise<ToolSet> {
 }
 
 export async function POST(req: Request) {
+  if (!isAllowedRequestContext(req)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const {
     messages,
     system,

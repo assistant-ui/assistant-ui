@@ -68,12 +68,34 @@ import {
   useContext,
   useLayoutEffect,
   useRef,
+  useState,
   type ComponentType,
   type FC,
   type PropsWithChildren,
 } from "react";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+
+const DefaultToolGroup: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({
+  group,
+  children,
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <ToolGroupRoot
+      variant="ghost"
+      open={open || group.counts.requiresAction > 0}
+      onOpenChange={setOpen}
+    >
+      <ToolGroupTrigger
+        count={group.indices.length}
+        active={group.status.type === "running"}
+      />
+      <ToolGroupContent>{children}</ToolGroupContent>
+    </ToolGroupRoot>
+  );
+};
 
 const shouldShowComposerResume = (s: AssistantState) =>
   !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
@@ -685,13 +707,7 @@ const AssistantMessage: FC = () => {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
                 return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
+                  <DefaultToolGroup group={part}>{children}</DefaultToolGroup>
                 );
               case "group-reasoning": {
                 if (ReasoningGroup) {
@@ -817,7 +833,7 @@ const AssistantActionBar: FC = () => {
           className="aui-action-bar-more-content bg-popover text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] overflow-hidden rounded-xl border p-1.5"
         >
           <ActionBarPrimitive.ExportMarkdown asChild>
-            <ActionBarMorePrimitive.Item className="aui-action-bar-more-item hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none">
+            <ActionBarMorePrimitive.Item className="aui-action-bar-more-item hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none">
               <DownloadIcon className="size-4" />
               Export as Markdown
             </ActionBarMorePrimitive.Item>

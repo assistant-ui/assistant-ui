@@ -141,13 +141,13 @@ import { AuiIf, ChainOfThoughtPrimitive } from "@assistant-ui/react";
 
 #### Chevron Indicators
 
-Use `AuiIf` to show directional icons that reflect the current state:
+The trigger exposes the current state to assistive technology through `aria-expanded`. Use `AuiIf` to show directional icons that reflect the same state:
 
 ```tsx
 import { AuiIf, ChainOfThoughtPrimitive } from "@assistant-ui/react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
-<ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm">
+<ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full items-center gap-2 px-4 py-2 text-sm">
   <AuiIf condition={(s) => s.chainOfThought.collapsed}>
     <ChevronRightIcon className="size-4" />
   </AuiIf>
@@ -245,7 +245,7 @@ Renders reasoning and tool-call parts. This component does not track collapsed s
 function ChainOfThought() {
   return (
     <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
-      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
       <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
@@ -270,7 +270,7 @@ function ChainOfThought() {
 function ChainOfThought() {
   return (
     <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
-      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
       <AuiIf condition={(s) => !s.chainOfThought.collapsed}>

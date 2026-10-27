@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import fs, { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import test from "node:test";
-import { openChromePage } from "./chrome.ts";
+import { findChrome, openChromePage } from "./chrome.ts";
 
 test(
   "reports how Chrome failed to start, with the end of its log",
@@ -36,3 +37,42 @@ test(
     );
   },
 );
+
+for (const prefix of ["", "42"]) {
+  test(
+    `waits for Chrome's port record after ${prefix ? "an incomplete" : "an empty"} read`,
+    { skip: findChrome() ? false : "no Chrome to render in" },
+    async (t) => {
+      const readFileSync = fs.readFileSync;
+      let injected = false;
+      const read = t.mock.method(
+        fs,
+        "readFileSync",
+        (...args: Parameters<typeof fs.readFileSync>) => {
+          if (
+            !injected &&
+            typeof args[0] === "string" &&
+            basename(args[0]) === "DevToolsActivePort"
+          ) {
+            injected = true;
+            return prefix;
+          }
+          return readFileSync(...args);
+        },
+      );
+      syncBuiltinESMExports();
+      t.after(() => {
+        read.mock.restore();
+        syncBuiltinESMExports();
+      });
+
+      const page = await openChromePage("about:blank", 680);
+      try {
+        assert.equal(injected, true);
+        assert.equal(await page.evaluate("1 + 1", 5_000), 2);
+      } finally {
+        await page.close();
+      }
+    },
+  );
+}

@@ -145,7 +145,7 @@ function Source({
       data-slot="source"
       className={cn(
         sourceVariants({ variant, size }),
-        "focus-visible:border-ring focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-1",
+        "focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-1",
         className,
       )}
       target={target}

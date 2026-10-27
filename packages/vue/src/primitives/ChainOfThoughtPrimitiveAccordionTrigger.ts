@@ -11,6 +11,7 @@ import { isAttrDisabled } from "./attrDisabled";
 
 /**
  * A button that toggles the collapsed state of the chain of thought accordion.
+ * Exposes the current disclosure state through `aria-expanded`.
  * Caller listeners run first and can veto the toggle via `preventDefault`.
  */
 export const ChainOfThoughtPrimitiveAccordionTrigger = defineComponent({
@@ -30,6 +31,7 @@ export const ChainOfThoughtPrimitiveAccordionTrigger = defineComponent({
         mergeProps(attrs, {
           type: "button",
           disabled: isAttrDisabled(attrs),
+          "aria-expanded": !collapsed.value,
           onClick,
         }),
         slots.default?.(),

@@ -1,10 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { Message as AgUiWireMessage } from "@ag-ui/client";
+import { MessageSchema, UserMessageSchema } from "@ag-ui/core/schemas";
 import {
-  MessageSchema,
-  UserMessageSchema,
-  type Message as AgUiWireMessage,
-} from "@ag-ui/client";
-import type { AppendMessage } from "@assistant-ui/core";
+  SimpleImageAttachmentAdapter,
+  type AppendMessage,
+} from "@assistant-ui/core";
 import {
   fromAgUiMessages,
   toAgUiMessages,
@@ -82,6 +82,62 @@ describe("toAgUiMessages data URLs", () => {
 });
 
 describe("toAgUiMessages content metadata", () => {
+  it("preserves an uploaded image's filename through a snapshot round trip", async () => {
+    const adapter = new SimpleImageAttachmentAdapter();
+    const pending = await adapter.add({
+      file: new File([new Uint8Array([137, 80, 78, 71])], "cat.png", {
+        type: "image/png",
+      }),
+    });
+    const attachment = await adapter.send(pending);
+    const sent = toAgUiMessages([userMessage([], [attachment])]);
+    const restored = fromAgUiMessages(sent);
+
+    expect(restored[0]?.attachments?.[0]?.name).toBe("cat.png");
+    expect(sent[0]?.content).toEqual([
+      {
+        type: "image",
+        source: { type: "data", value: "iVBORw==", mimeType: "image/png" },
+        metadata: { filename: "cat.png" },
+      },
+    ]);
+  });
+
+  it.each(["image", "document"] as const)(
+    "preserves a %s file source and its metadata through a snapshot round trip",
+    (type) => {
+      const part = {
+        type,
+        source: {
+          type: "file",
+          value: `${type}-handle`,
+          provider: "openai",
+          mimeType: type === "image" ? "image/png" : "application/pdf",
+        },
+        metadata: { filename: `${type}.bin`, file_id: `${type}-1` },
+      };
+      const original = {
+        id: "u-file",
+        role: "user",
+        content: [
+          { type: "text", text: "label" },
+          {
+            type: "image",
+            source: { type: "url", value: "https://example.com/other.png" },
+          },
+          part,
+        ],
+        metadata: { trace: "kept" },
+      };
+
+      const imported = fromAgUiMessages([original]);
+      const exported = toAgUiMessages(imported);
+
+      expect(MessageSchema.parse(exported[0])).toEqual(original);
+      expect(exported).toEqual([original]);
+    },
+  );
+
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
   });
@@ -372,4 +428,92 @@ describe("toAgUiMessages percent-encoded data URLs", () => {
     });
     expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
   });
+});
+
+describe("toAgUiMessages tool model content", () => {
+  const withModelContent = (modelContent: unknown): Message => ({
+    id: "a1",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "download",
+        args: {},
+        argsText: "{}",
+        result: { private: "not model-visible" },
+        modelContent,
+      },
+    ],
+  });
+
+  it.each([
+    ["image", "image/png"],
+    ["document", "application/pdf"],
+    ["audio", "audio/wav"],
+    ["video", "video/mp4"],
+  ])(
+    "keeps %s model content through a snapshot round trip",
+    (type, mediaType) => {
+      const exported = toAgUiMessages([
+        withModelContent([
+          { type: "text", text: "Before" },
+          { type: "file", data: "YWJj", mediaType, filename: "result.bin" },
+          { type: "text", text: "After" },
+        ]),
+      ]);
+      const expected = {
+        id: "call-1:tool",
+        role: "tool",
+        toolCallId: "call-1",
+        content: [
+          { type: "text", text: "Before" },
+          {
+            type,
+            source: { type: "data", value: "YWJj", mimeType: mediaType },
+            metadata: { filename: "result.bin" },
+          },
+          { type: "text", text: "After" },
+        ],
+      };
+
+      expect(MessageSchema.parse(exported[1])).toEqual(expected);
+      expect(toAgUiMessages(fromAgUiMessages(exported))[1]).toEqual(expected);
+    },
+  );
+
+  it("sends a file-only model result instead of an empty string", () => {
+    const exported = toAgUiMessages([
+      withModelContent([
+        {
+          type: "file",
+          data: "https://example.com/report.pdf",
+          mediaType: "application/pdf",
+        },
+      ]),
+    ]);
+
+    expect(exported[1]?.content).toEqual([
+      {
+        type: "document",
+        source: {
+          type: "url",
+          value: "https://example.com/report.pdf",
+          mimeType: "application/pdf",
+        },
+      },
+    ]);
+  });
+
+  it.each([
+    { modelContent: [], content: "" },
+    { modelContent: [{ type: "text", text: "public" }], content: "public" },
+  ])(
+    "keeps text-only model content as $content",
+    ({ modelContent, content }) => {
+      expect(toAgUiMessages([withModelContent(modelContent)])[1]?.content).toBe(
+        content,
+      );
+    },
+  );
 });

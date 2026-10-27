@@ -12,6 +12,7 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      markRunCancelled: vi.fn(),
       persistToolInteractions: vi.fn().mockResolvedValue(undefined),
       persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     })),

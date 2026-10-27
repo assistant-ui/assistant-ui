@@ -40,8 +40,10 @@ export const viewport = {
   maximumScale: 1,
 };
 
+const metadataBase = getMetadataBase();
+
 export const metadata = {
-  metadataBase: getMetadataBase(),
+  metadataBase,
   alternates: { canonical: "./" },
   title: {
     template: "%s · assistant-ui",
@@ -54,13 +56,23 @@ export const metadata = {
     description:
       "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
     siteName: "assistant-ui",
-    type: "website",
+    // Discord reads og:video only when og:type is video or video.*.
+    type: "video.other",
     images: [
       {
         url: "/api/og?variant=home",
         width: 1200,
         height: 630,
         alt: "assistant-ui",
+      },
+    ],
+    // Next resolves og:image against metadataBase but emits og:video as written.
+    videos: [
+      {
+        url: new URL("/og/home.mp4", metadataBase).href,
+        type: "video/mp4",
+        width: 2400,
+        height: 1260,
       },
     ],
   },

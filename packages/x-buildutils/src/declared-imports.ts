@@ -9,6 +9,16 @@ type Manifest = {
   imports?: Record<string, unknown>;
 };
 
+const WORKERD_MODULES = [
+  "cloudflare:durable-objects",
+  "cloudflare:email",
+  "cloudflare:node",
+  "cloudflare:pipelines",
+  "cloudflare:sockets",
+  "cloudflare:workers",
+  "cloudflare:workflows",
+];
+
 export const packageSpecifierName = (specifier: string) =>
   specifier
     .split("/")
@@ -19,7 +29,8 @@ export const packageSpecifierName = (specifier: string) =>
 // the emitted output may only import what the package depends on. tsdown
 // matches `deps.onlyImport` against the package name, exempts node builtins
 // only on `platform: "node"`, and knows nothing of the bare module a
-// `@types/*` package stands in for.
+// `@types/*` package stands in for, or of the `cloudflare:` modules workerd
+// provides and `@cloudflare/workers-types` types.
 export const declaredImports = (pkg: Manifest) => {
   const declared = Object.keys({
     ...pkg.dependencies,
@@ -35,6 +46,7 @@ export const declaredImports = (pkg: Manifest) => {
         const bare = name.slice("@types/".length);
         return bare.includes("__") ? `@${bare.replace("__", "/")}` : bare;
       }),
+    ...(declared.includes("@cloudflare/workers-types") ? WORKERD_MODULES : []),
     ...Object.keys(pkg.imports ?? {}).map(packageSpecifierName),
     ...builtinModules.flatMap((name) => [name, `node:${name}`]),
   ];

@@ -1,7 +1,11 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
-import type { ClientOutput } from "@assistant-ui/store";
-import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import type { AssistantClient, ClientOutput } from "@assistant-ui/store";
+import {
+  useAssistantClientDestroySignal,
+  useOptionalAssistantClientRef,
+  useOptionalAssistantEmit,
+} from "@assistant-ui/store/internal";
 import { useClientLookup } from "@assistant-ui/store/client";
 
 import type { AppendMessage } from "../../types/message";
@@ -17,7 +21,12 @@ import {
 } from "../../types/attachment";
 import type { QuoteInfo } from "../../types/quote";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
-import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
+import type {
+  AttachmentAddErrorReason,
+  ComposerSetTextOptions,
+  ComposerSubmission,
+  ComposerTextOrigin,
+} from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { QueueItemState } from "../scopes/queue-item";
 import type { ComposerSendOptions } from "../scopes/composer";
@@ -36,6 +45,19 @@ import type { ExternalThreadMessage } from "./external-thread";
 import { QueueItemClient } from "./queue-item-client";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
+
+type ComposerEventContext = {
+  readonly threadId: string;
+  readonly messageId?: string;
+};
+
+export const getEventThreadId = (
+  client: AssistantClient | null | undefined,
+) => {
+  const threads = client?.threads;
+  if (threads?.source == null) return "unknown";
+  return threads().getState().mainThreadId || "unknown";
+};
 
 type AttachmentResourceProps = {
   attachment: Attachment;
@@ -151,7 +173,7 @@ const useComposerClientResource = ({
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
   );
-  const [text, setText, textRef] = useLiveState("");
+  const [text, setTextState, textRef] = useLiveState("");
   const [role, setRole, roleRef] = useLiveState<
     "user" | "assistant" | "system"
   >("user");
@@ -173,6 +195,8 @@ const useComposerClientResource = ({
     readonly ExternalThreadMessage["content"][number][]
   >([]);
   const destroySignal = useAssistantClientDestroySignal();
+  const emit = useOptionalAssistantEmit();
+  const clientRef = useOptionalAssistantClientRef();
   const [submission, setSubmission, submissionRef] = useLiveState<
     ComposerSubmission | undefined
   >(undefined);
@@ -180,6 +204,7 @@ const useComposerClientResource = ({
     | {
         readonly options: ComposerSendOptions | undefined;
         readonly runConfig: Record<string, unknown>;
+        readonly eventContext: ComposerEventContext;
         readonly controller: AbortController;
       }
     | undefined
@@ -189,6 +214,57 @@ const useComposerClientResource = ({
   const messageKeysRef = useRef(messageKeys);
   const sendGeneration = useRef(0);
   const cleanupEpoch = useRef(0);
+  const messageId = message?.id;
+  const getEventContext = useCallback(
+    (): ComposerEventContext => ({
+      threadId: getEventThreadId(clientRef?.current),
+      ...(type === "edit" && messageId !== undefined
+        ? { messageId }
+        : undefined),
+    }),
+    [clientRef, messageId, type],
+  );
+  const writeText = useCallback(
+    (
+      next: string,
+      origin: ComposerTextOrigin,
+      eventContext: ComposerEventContext,
+    ) => {
+      if (next === textRef.current) return;
+      setTextState(next);
+      emit("composer.textChange", { ...eventContext, text: next, origin });
+    },
+    [emit, setTextState, textRef],
+  );
+  const setText = useCallback(
+    (next: string, options?: ComposerSetTextOptions) =>
+      writeText(next, options?.origin ?? "external", getEventContext()),
+    [getEventContext, writeText],
+  );
+  const emitAttachmentAdd = (
+    eventContext: ComposerEventContext,
+    contentType?: string,
+  ) => {
+    emit("composer.attachmentAdd", {
+      ...eventContext,
+      ...(contentType ? { contentType } : undefined),
+    });
+  };
+  const emitAttachmentAddError = (
+    eventContext: ComposerEventContext,
+    reason: AttachmentAddErrorReason,
+    message: string,
+    attachmentId?: string,
+    contentType?: string,
+  ) => {
+    emit("composer.attachmentAddError", {
+      ...eventContext,
+      ...(attachmentId !== undefined ? { attachmentId } : undefined),
+      reason,
+      message,
+      ...(contentType ? { contentType } : undefined),
+    });
+  };
 
   // A dispatched message stays on screen until the host shows it, so the two
   // never swap through an empty frame. Each new message of a send's role
@@ -490,7 +566,10 @@ const useComposerClientResource = ({
   // since. An edit composer kept its draft, so it only takes back the state
   // the attachments came back in, such as the reason one failed, and leaves
   // an attachment being removed to its removal.
-  const returnToDraft = (content: ComposerSubmission) => {
+  const returnToDraft = (
+    content: ComposerSubmission,
+    eventContext: ComposerEventContext = getEventContext(),
+  ) => {
     if (type !== "thread") {
       const returned = new Map(
         content.attachments.flatMap((attachment) => {
@@ -511,7 +590,11 @@ const useComposerClientResource = ({
       return restored ? [restored] : [];
     });
     setAttachments((prev) => [...returned, ...prev]);
-    setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
+    writeText(
+      [content.text, textRef.current].filter(Boolean).join("\n"),
+      "return",
+      eventContext,
+    );
     setQuote((prev) => prev ?? content.quote);
   };
 
@@ -546,13 +629,14 @@ const useComposerClientResource = ({
   ) => {
     const current = submissionRef.current;
     if (!current) return;
+    const eventContext = submissionSend.current?.eventContext;
     const attachments = attachmentSends.reconcileFailures(
       current.attachments,
       sent,
       settled,
     );
     endSubmission();
-    returnToDraft({ ...current, attachments });
+    returnToDraft({ ...current, attachments }, eventContext);
     console.error("Failed to send attachments", reason);
   };
 
@@ -562,6 +646,7 @@ const useComposerClientResource = ({
     context: {
       readonly options: ComposerSendOptions | undefined;
       readonly runConfig: Record<string, unknown>;
+      readonly eventContext: ComposerEventContext;
     },
     isSubmission: boolean,
   ) => {
@@ -637,9 +722,14 @@ const useComposerClientResource = ({
       console.error("[assistant-ui] Failed to send the message", failure.error);
       if (entry)
         setInTransit((prev) => prev.filter((candidate) => candidate !== entry));
-      returnToDraft(returned);
+      returnToDraft(returned, context.eventContext);
       return;
     }
+    emit("composer.send", {
+      ...context.eventContext,
+      chars: current.text.length,
+      attachments: attachments.length,
+    });
     if (isSubmission)
       for (const attachment of current.attachments)
         if (!isAttachmentComplete(attachment))
@@ -705,7 +795,7 @@ const useComposerClientResource = ({
     const submitted = submissionRef.current ?? current;
     if (!submitted.text.trim() && finalAttachments.length === 0) {
       endSubmission();
-      returnToDraft(submitted);
+      returnToDraft(submitted, context.eventContext);
       return;
     }
     dispatchMessage(submitted, finalAttachments, context, true);
@@ -717,6 +807,7 @@ const useComposerClientResource = ({
     setRole,
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
+      const eventContext = getEventContext();
       if (attachmentAdapter) {
         const file = isCreateAttachment(fileOrAttachment)
           ? {
@@ -724,17 +815,26 @@ const useComposerClientResource = ({
               type: fileOrAttachment.contentType ?? "",
             }
           : { name: fileOrAttachment.name, type: fileOrAttachment.type };
-        if (!fileMatchesAccept(file, attachmentAdapter.accept))
-          throw new Error(
-            `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`,
+        if (!fileMatchesAccept(file, attachmentAdapter.accept)) {
+          const message = `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`;
+          emitAttachmentAddError(
+            eventContext,
+            "not-accepted",
+            message,
+            undefined,
+            file.type,
           );
+          throw new Error(message);
+        }
       }
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
         const operation = attachmentAddOperations.start();
+        let lastAttachment: PendingAttachment | undefined;
         try {
           await drainAttachmentAdd(
             attachmentAdapter.add({ file: fileOrAttachment }),
             (attachment) => {
+              lastAttachment = attachment;
               if (!attachmentAddOperations.accept(operation, attachment))
                 return false;
               upsertAttachment(attachment);
@@ -744,7 +844,34 @@ const useComposerClientResource = ({
           attachmentAddOperations.finish(operation);
         } catch (error) {
           attachmentAddOperations.finish(operation);
-          if (!attachmentAddOperations.isCancelled(operation)) throw error;
+          if (attachmentAddOperations.isCancelled(operation)) return;
+          emitAttachmentAddError(
+            eventContext,
+            "adapter-error",
+            error instanceof Error ? error.message : String(error),
+            lastAttachment?.id,
+            lastAttachment?.contentType || fileOrAttachment.type,
+          );
+          throw error;
+        }
+        if (attachmentAddOperations.isCancelled(operation)) return;
+        if (
+          lastAttachment?.status.type === "incomplete" &&
+          lastAttachment.status.reason === "error"
+        ) {
+          emitAttachmentAddError(
+            eventContext,
+            "adapter-error",
+            lastAttachment.status.message ??
+              "Attachment upload did not complete successfully.",
+            lastAttachment.id,
+            lastAttachment.contentType || fileOrAttachment.type,
+          );
+        } else {
+          emitAttachmentAdd(
+            eventContext,
+            lastAttachment?.contentType || fileOrAttachment.type,
+          );
         }
       } else if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
@@ -757,6 +884,7 @@ const useComposerClientResource = ({
           content: [],
         };
         setAttachments((prev) => [...prev, newAttachment]);
+        emitAttachmentAdd(eventContext, newAttachment.contentType);
       } else {
         const newAttachment: Attachment = {
           id: fileOrAttachment.id ?? generateId(),
@@ -767,6 +895,7 @@ const useComposerClientResource = ({
           status: { type: "complete" },
         };
         setAttachments((prev) => [...prev, newAttachment]);
+        emitAttachmentAdd(eventContext, newAttachment.contentType);
       }
     },
     clearAttachments: async () => {
@@ -812,7 +941,7 @@ const useComposerClientResource = ({
       sendGeneration.current++;
       const discarded = discardSubmission();
       const removed = attachmentsRef.current;
-      setText("");
+      setText("", { origin: "reset" });
       setRole("user");
       setRunConfig({});
       setAttachments([]);
@@ -840,7 +969,11 @@ const useComposerClientResource = ({
         quote: quoteRef.current,
         attachments: currentAttachments,
       };
-      const context = { options: opts, runConfig: runConfigRef.current };
+      const context = {
+        options: opts,
+        runConfig: runConfigRef.current,
+        eventContext: getEventContext(),
+      };
       // Only a send whose attachments still need the adapter becomes a
       // submission; one with nothing left to prepare goes out right away, as
       // it always has, and never shows up as a row of its own.
@@ -856,7 +989,7 @@ const useComposerClientResource = ({
         setAttachments((prev) =>
           prev.filter((attachment) => !detached.has(attachment)),
         );
-        setText("");
+        setText("", { origin: "send" });
         setQuote(undefined);
       }
       const generation = ++sendGeneration.current;
@@ -868,6 +1001,11 @@ const useComposerClientResource = ({
       void prepareSubmission(generation).finally(release);
     },
     cancel: () => {
+      if (type === "thread" && (canCancel || submissionRef.current)) {
+        emit("composer.cancel", {
+          threadId: getEventThreadId(clientRef?.current),
+        });
+      }
       // Stopping takes a send still being prepared back into the draft and
       // still stops a run that is going, so the one control never loses either.
       if (type === "thread" && submissionRef.current) {

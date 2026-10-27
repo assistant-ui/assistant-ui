@@ -20,6 +20,8 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+The bridge runs MCP tools for any caller. Require authentication on the chat and MCP Apps routes before deployment, and limit which tools each user can call.
+
 ## How it's wired
 
 - `app/api/mcp-client.ts` — lazy-creates a single `@ai-sdk/mcp` client used by both routes below.

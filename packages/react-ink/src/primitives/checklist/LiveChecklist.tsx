@@ -4,6 +4,7 @@ import { ChecklistRoot } from "./ChecklistRoot";
 import { ChecklistItem } from "./ChecklistItem";
 import { ChecklistProgress } from "./ChecklistProgress";
 import { useToolCallChecklist } from "./useToolCallChecklist";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import type { ChecklistItemData } from "./types";
 
 export type LiveChecklistProps = ComponentProps<typeof Box> & {
@@ -32,7 +33,7 @@ const ChecklistView = ({
 
   return (
     <ChecklistRoot {...boxProps}>
-      {title ? <Text bold>{title}</Text> : null}
+      {title ? <Text bold>{sanitizeTerminalText(title)}</Text> : null}
       {items.map((item) => (
         <ChecklistItem key={item.id} item={item} maxDepth={maxDepth} />
       ))}

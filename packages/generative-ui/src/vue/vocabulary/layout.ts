@@ -2,7 +2,7 @@ import { defineComponent, h, ref, useId } from "vue";
 import { useSpecElement } from "generative-frame/spec/vue";
 import { layoutDefinitions } from "../../vocabulary/definitions/layout";
 import { collectFormValuesFromEvent } from "../../vocabulary/collectFormValues";
-import { boxStyle } from "../../vocabulary/layoutValues";
+import { boxStyle, safeBackground } from "../../vocabulary/layoutValues";
 import { tabLabels } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { textChildren } from "./textChildren";
@@ -22,7 +22,9 @@ export const layoutVocabulary = {
           const confirm = props.confirm as { label?: unknown } | undefined;
           const cancel = props.cancel as { label?: unknown } | undefined;
           const asForm = props.asForm === true;
-          const background = props.background as string | undefined;
+          const background = safeBackground(
+            props.background as string | undefined,
+          );
           const title = toTextContent(props.title);
           const footer =
             confirm || cancel

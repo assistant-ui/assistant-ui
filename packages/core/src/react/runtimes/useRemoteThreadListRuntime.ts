@@ -35,6 +35,7 @@ import {
   useIsomorphicLayoutEffect,
   useIsServerRender,
 } from "@assistant-ui/store/internal";
+import { isDevelopment } from "../../store/internal";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -114,6 +115,15 @@ const useLegacyRemoteThreadListRuntime = (
     () => new RemoteThreadListRuntimeCore(options, initialThreadIdSeed),
   );
   const [lifetime] = useState(() => ({ generation: 0 }));
+
+  const warnedDeprecatedProvider = useRef(false);
+  useEffect(() => {
+    if (!isDevelopment || warnedDeprecatedProvider.current) return;
+    warnedDeprecatedProvider.current = true;
+    console.warn(
+      "[assistant-ui] RemoteThreadListAdapter.unstable_Provider is deprecated and will be removed in a future minor release. Return the same adapters from unstable_useAdapters and drop unstable_Provider so useRemoteThreadListRuntime runs on the RemoteThreadList client.",
+    );
+  }, []);
 
   // Insertion-effect cleanup runs when React deletes the fiber, so a hidden <Activity> or a re-suspended boundary keeps the threads alive. Fast Refresh re-runs the effect of an edited host, cleanup then setup in the same commit, so a setup cancels the disposal its preceding cleanup queued. The disposal is deferred to a microtask because it notifies subscribers and React forbids scheduling updates from an insertion effect.
   useInsertionEffect(() => {

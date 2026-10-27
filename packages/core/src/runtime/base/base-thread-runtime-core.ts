@@ -1,5 +1,6 @@
 import type {
   AppendMessage,
+  RunConfig,
   ThreadAssistantMessage,
   ThreadMessage,
 } from "../../types/message";
@@ -37,7 +38,10 @@ import type { FeedbackAdapter } from "../../adapters/feedback";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import { VoiceSessionController } from "./voice-session";
-import type { ThreadMessageLike } from "../utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 import {
@@ -213,6 +217,7 @@ export abstract class BaseThreadRuntimeCore
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
+  private _editAttempts = new WeakMap<ThreadMessage, object>();
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
   }
@@ -241,15 +246,47 @@ export abstract class BaseThreadRuntimeCore
     if (this._editComposers.has(messageId))
       throw new Error("Edit already in progress");
 
-    this._editComposers.set(
-      messageId,
-      new DefaultEditComposerRuntimeCore(
+    const source = this.repository.getMessage(messageId);
+    const repository = this.repository;
+    const generation = captureThreadRuntimeGeneration(this);
+    const attempt = {};
+    this._editAttempts.set(source.message, attempt);
+    const open = (message: ThreadMessage, runConfig: RunConfig) => {
+      const composer = new DefaultEditComposerRuntimeCore(
         this,
         () => this._editComposers.delete(messageId),
-        this.repository.getMessage(messageId),
-      ),
-    );
-    this._notifySubscribers();
+        {
+          parentId: source.parentId,
+          message,
+          onMessageNotSent: (submitted) => {
+            const current = this.getMessageById(messageId);
+            if (
+              generation.aborted ||
+              this.repository !== repository ||
+              this._editAttempts.get(source.message) !== attempt ||
+              this._editComposers.has(messageId) ||
+              current?.message !== source.message ||
+              current.parentId !== source.parentId ||
+              !this.messages.includes(source.message) ||
+              this.voice
+            )
+              return;
+
+            open(
+              fromThreadMessageLike(submitted, messageId, {
+                type: "complete",
+                reason: "unknown",
+              }),
+              submitted.runConfig ?? {},
+            );
+          },
+        },
+      );
+      composer.setRunConfig(runConfig);
+      this._editComposers.set(messageId, composer);
+      this._notifySubscribers();
+    };
+    open(source.message, { ...this.composer.runConfig });
   }
 
   public getMessageById(messageId: string) {
@@ -344,6 +381,7 @@ export abstract class BaseThreadRuntimeCore
   }
 
   private _stopSpeaking: Unsubscribe | undefined;
+  private _replacingSpeech = false;
   public speech: SpeechState | undefined;
 
   public speak(messageId: string) {
@@ -354,10 +392,18 @@ export abstract class BaseThreadRuntimeCore
     if (!entry) throw new Error(`Message not found: ${messageId}`);
     const { message } = entry;
 
+    // A speak from inside the replaced utterance's cancel is superseded by
+    // this one, which would otherwise leave it playing untracked.
+    if (this._replacingSpeech) return;
     const previousStop = this._stopSpeaking;
     let utterance: SpeechSynthesisAdapter.Utterance;
     try {
-      previousStop?.();
+      this._replacingSpeech = true;
+      try {
+        previousStop?.();
+      } finally {
+        this._replacingSpeech = false;
+      }
       utterance = adapter.speak(getThreadMessageText(message));
     } catch (error) {
       if (previousStop && !this._stopSpeaking) {

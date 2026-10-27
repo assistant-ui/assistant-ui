@@ -51,7 +51,10 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         const triggers = getItems()
           .map((item) => item.ref.current)
-          .filter((node): node is HTMLButtonElement => node !== null);
+          .filter(
+            (node): node is HTMLButtonElement =>
+              node !== null && !node.disabled,
+          );
         const next =
           triggers[
             triggers.indexOf(trigger) + (event.key === "ArrowDown" ? 1 : -1)

@@ -1,6 +1,7 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "./AssistantCloud";
 import type { CloudMessage } from "./AssistantCloudThreadMessages";
+import { CloudAPIError } from "./AssistantCloudAPI";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
@@ -87,6 +88,44 @@ export class CloudMessagePersistence {
       return;
     }
     await cloud.threads.messages.update(threadId, remoteId, { content });
+  }
+
+  /**
+   * Delete mapped messages from the cloud and clear their local ID mappings.
+   */
+  async delete(threadId: string, messageIds: string[]): Promise<void> {
+    const cloud = this.getCloud();
+    const mapping = this.idMapping;
+    const resolved: {
+      localId: string;
+      entry: string | Promise<string>;
+      remoteId: string;
+    }[] = [];
+    for (const localId of messageIds) {
+      const entry = mapping.get(localId);
+      if (!entry) continue;
+      try {
+        resolved.push({ localId, entry, remoteId: await entry });
+      } catch {
+        continue;
+      }
+    }
+    if (resolved.length === 0) return;
+
+    try {
+      await cloud.threads.messages.delete(
+        threadId,
+        resolved.map(({ remoteId }) => remoteId),
+      );
+    } catch (error) {
+      if (!(error instanceof CloudAPIError && error.status === 404))
+        throw error;
+    }
+
+    for (const { localId, entry, remoteId } of resolved) {
+      const current = mapping.get(localId);
+      if (current === entry || current === remoteId) mapping.delete(localId);
+    }
   }
 
   /**

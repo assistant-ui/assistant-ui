@@ -161,6 +161,7 @@ type AssistantCloudRunReport = {
   status: "completed" | "error" | "incomplete";
   outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
+  user_message_id?: string;
   first_token_ms?: number;
   release?: string;
   environment?: string;
@@ -317,6 +318,7 @@ declare class AssistantCloudThreadMessages {
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
@@ -629,7 +631,7 @@ type ComposerRuntime = {
   readonly type: "edit" | "thread";
   getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
-  setText(text: string): void;
+  setText(text: string, options?: ComposerSetTextOptions): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   reset(): Promise<void>;
@@ -660,6 +662,10 @@ type ComposerRuntimeEventPayload = {
   attachmentAddError: AttachmentAddErrorEvent & {
     readonly contentType?: string | undefined;
   };
+  textChange: {
+    readonly text: string;
+    readonly origin: ComposerTextOrigin;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -672,6 +678,10 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
+type ComposerSetTextOptions = {
+  readonly origin?: ComposerTextOrigin;
+};
+
 type ComposerSubmission = {
   readonly id: string;
   readonly role: MessageRole;
@@ -679,6 +689,8 @@ type ComposerSubmission = {
   readonly quote: QuoteInfo | undefined;
   readonly attachments: readonly Attachment[];
 };
+
+type ComposerTextOrigin = "external" | "recall" | "reset" | "return" | "send" | "user";
 
 type ConvertedContentPart = ThreadUserMessage["content"][number] | ThreadAssistantMessage["content"][number];
 
@@ -1018,6 +1030,8 @@ type GenericThreadHistoryAdapter<TMessage> = {
       end_ms: number;
     }[];
     message?: ThreadMessage;
+    userMessageId?: string;
+    persistenceError?: unknown;
   }): void;
 };
 
@@ -1750,6 +1764,7 @@ type StreamingTimingAccessors<TMessage> = {
   readonly getAssistantMessageId: (messages: readonly TMessage[]) => string | undefined;
   readonly getTextLength: (messages: readonly TMessage[], messageId: string) => number;
   readonly getToolCallCount: (messages: readonly TMessage[], messageId: string) => number;
+  readonly getMessageContent?: (messages: readonly TMessage[], messageId: string) => unknown;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
@@ -2408,6 +2423,7 @@ declare const createLangChainStreamingTimingAccessors: <TMessage extends {
   id?: string | undefined;
   content?: unknown;
   tool_calls?: readonly unknown[] | undefined;
+  additional_kwargs?: unknown;
 }>(getType: (message: TMessage) => string) => StreamingTimingAccessors<TMessage>;
 
 declare const getCustomMetadata: (additionalKwargs: Record<string, unknown> | undefined) => Record<string, unknown>;

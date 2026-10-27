@@ -10,7 +10,7 @@ The project read API answers project wide observability and conversation reads f
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | string | The run identifier. |
-| `thread_id`, `message_id` | string or null | The thread and message associated with the run. |
+| `thread_id`, `message_id`, `user_message_id` | string or null | The thread, assistant reply and user prompt associated with the run. |
 | `created_by` | string or null | The identity that created the run. |
 | `status`, `outcome_type`, `error_code` | stored values | The run status, outcome classification and error code. |
 | `provider`, `model_id` | string or null | The provider and model used by the run. |
@@ -124,6 +124,7 @@ curl https://backend.assistant-api.com/v1/projects/runs/run_00000000000000000000
   "id": "run_000000000000000000000000",
   "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
   "message_id": null,
+  "user_message_id": null,
   "created_by": null,
   "status": null,
   "outcome_type": null,

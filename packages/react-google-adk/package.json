@@ -43,10 +43,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.30",
+    "@assistant-ui/core": "^0.3.31",
     "@assistant-ui/store": "^0.3.22",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.53"
+    "assistant-stream": "^0.3.54"
   },
   "peerDependencies": {
     "@google/adk": ">=0.5.0",

@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "./AssistantCloud";
+import { CloudRunReporter } from "./CloudRunReporter";
 import {
   createRunReport,
   createRunTelemetryToolCall,
@@ -75,6 +77,37 @@ describe("describeRunError", () => {
     expect(describeRunError(42)).toEqual({});
   });
 
+  it.each([
+    [429, "rate_limited"],
+    [400, "validation_failed"],
+    [422, "validation_failed"],
+    [500, "server_error"],
+    [503, "server_error"],
+  ] as const)(
+    "reads HTTP status %i as code and outcome %s",
+    (statusCode, outcome) => {
+      const error = Object.assign(new Error("Too many requests"), {
+        name: "AI_APICallError",
+        statusCode,
+      });
+      expect(describeRunError(error)).toEqual({
+        error: "Too many requests",
+        errorCode: String(statusCode),
+        outcome,
+      });
+    },
+  );
+
+  it("keeps an HTTP status it cannot classify as the code alone", () => {
+    expect(
+      describeRunError({
+        code: "AI_APICallError",
+        message: "no",
+        statusCode: 401,
+      }),
+    ).toEqual({ error: "no", errorCode: "401" });
+  });
+
   it("clamps the message and code to what the runs endpoint accepts", () => {
     const error = new Error("m".repeat(3000));
     error.name = "c".repeat(100);
@@ -86,6 +119,44 @@ describe("describeRunError", () => {
 });
 
 describe("createRunReport", () => {
+  it("serializes the user message ID only when supplied", async () => {
+    expect(
+      createRunReport({
+        threadId: "thread-1",
+        status: "error",
+        userMessageId: "remote-user-1",
+      }),
+    ).toEqual({
+      thread_id: "thread-1",
+      status: "error",
+      user_message_id: "remote-user-1",
+    });
+    for (const options of [{}, { userMessageId: undefined }]) {
+      expect(
+        createRunReport({ threadId: "thread-1", status: "error", ...options }),
+      ).not.toHaveProperty("user_message_id");
+    }
+    const report = vi.fn().mockResolvedValue({ run_id: "run-1" });
+    const reporter = new CloudRunReporter({
+      telemetry: { enabled: true },
+      runs: { report },
+    } as unknown as AssistantCloud);
+    await reporter.report({
+      threadId: "thread-1",
+      status: "error",
+      userMessageId: "remote-user-1",
+    });
+    await reporter.report({ threadId: "thread-1", status: "error" });
+    expect(report.mock.calls.map(([body]) => body)).toEqual([
+      {
+        thread_id: "thread-1",
+        status: "error",
+        user_message_id: "remote-user-1",
+      },
+      { thread_id: "thread-1", status: "error" },
+    ]);
+  });
+
   const toolCall = {
     tool_name: "weather",
     tool_call_id: "call-1",

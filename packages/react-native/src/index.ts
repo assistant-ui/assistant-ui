@@ -45,6 +45,7 @@ export type {
   EditComposerRuntime,
   ComposerRuntime,
   ComposerRuntimeState,
+  ComposerTextOrigin,
   ThreadListRuntime,
   ThreadListItemRuntime,
   ThreadListItemRuntimeState,

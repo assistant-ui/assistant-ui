@@ -26,6 +26,18 @@ const loadStore = async () => {
   return import("./session-store");
 };
 
+const dispatchSessionStorage = () => {
+  const listener = vi
+    .mocked(window.addEventListener)
+    .mock.calls.find(([type]) => type === "storage")![1] as (
+    event: StorageEvent,
+  ) => void;
+  listener({
+    key: storageKey,
+    storageArea: window.localStorage,
+  } as StorageEvent);
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -33,6 +45,78 @@ afterEach(() => {
 });
 
 describe("checkout session store", () => {
+  it("syncs another tab's product additions and intro before a later write", async () => {
+    const values = setupStorage();
+    const firstTab = await loadStore();
+    firstTab.startCheckout(["assistant-ui"]);
+    const secondTab = await loadStore();
+    secondTab.getCheckoutSession();
+    const listener = vi.fn();
+    const unsubscribe = secondTab.subscribeCheckoutSession(listener);
+    firstTab.acknowledgeSetupIntro();
+    firstTab.addCheckoutProducts(["cloud"]);
+    dispatchSessionStorage();
+    expect(secondTab.getCheckoutSession()).toMatchObject({
+      products: ["assistant-ui", "cloud"],
+      introSeen: true,
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+    secondTab.addCheckoutProducts(["statewire"]);
+    expect(JSON.parse(values.get(storageKey)!)).toMatchObject({
+      products: ["assistant-ui", "cloud", "statewire"],
+      introSeen: true,
+    });
+    unsubscribe();
+  });
+
+  it("keeps the snapshot and subscribers unchanged for equivalent stored sessions", async () => {
+    setupStorage();
+    const store = await loadStore();
+    store.startCheckout(["agent-tools"], "Use the existing backend", {
+      fromCart: true,
+      cartEntries: [
+        {
+          id: "lookup",
+          slug: "agent-tools",
+          name: "Lookup",
+          purpose: "Search records",
+        },
+      ],
+      cartInstructions: "Use the existing backend",
+    });
+    store.acknowledgeSetupIntro();
+    const snapshot = store.getCheckoutSession();
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeCheckoutSession(listener);
+    dispatchSessionStorage();
+    expect(store.getCheckoutSession()).toBe(snapshot);
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("follows replacement and removal of a session in another tab", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    store.startCheckout(["assistant-ui"]);
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeCheckoutSession(listener);
+    values.set(
+      storageKey,
+      JSON.stringify({ id: "replacement", products: ["cloud"], startedAt: 5 }),
+    );
+    dispatchSessionStorage();
+    expect(store.getCheckoutSession()).toEqual({
+      id: "replacement",
+      products: ["cloud"],
+      startedAt: 5,
+    });
+    values.delete(storageKey);
+    dispatchSessionStorage();
+    expect(store.getCheckoutSession()).toBeNull();
+    expect(listener).toHaveBeenCalledTimes(2);
+    unsubscribe();
+  });
+
   it("keeps the catalog and statewire out of the modules the root providers import", () => {
     for (const file of [
       "lib/checkout/session-store.ts",

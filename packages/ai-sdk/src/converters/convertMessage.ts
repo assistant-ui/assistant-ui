@@ -30,7 +30,11 @@ import {
   type Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
-import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
+import {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+  stableStringifyToolArgs,
+} from "@assistant-ui/core/internal";
 import { markPartialJsonObjectComplete } from "assistant-stream/internal";
 import {
   parsePartialJsonObject,
@@ -689,6 +693,9 @@ function convertParts(
           data: part.url,
           mimeType: part.mediaType ?? "unknown/unknown",
           ...(part.filename != null && { filename: part.filename }),
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata as PartProviderMetadata,
+          }),
         } satisfies FileMessagePart;
       }
 
@@ -726,6 +733,9 @@ function convertParts(
           type: "file",
           data: part.url,
           mimeType: part.mediaType ?? "unknown/unknown",
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata as PartProviderMetadata,
+          }),
         } satisfies FileMessagePart;
       }
 
@@ -752,84 +762,158 @@ function convertParts(
   });
 }
 
-export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
-    const createdAt = metadata.createdAtCache?.get(message.id) ?? new Date();
-    metadata.createdAtCache?.set(message.id, createdAt);
-    const content = convertParts(message, metadata);
+export const convertAISDKMessage: useExternalMessageConverter.Callback<
+  UIMessage
+> = (message, metadata: AISDKMessageConverterMetadata) => {
+  const createdAt = metadata.createdAtCache?.get(message.id) ?? new Date();
+  metadata.createdAtCache?.set(message.id, createdAt);
+  const content = convertParts(message, metadata);
 
-    switch (message.role) {
-      case "user":
-        return {
-          role: "user",
-          id: message.id,
-          createdAt,
-          content,
-          attachments: message.parts
-            ?.filter(
-              (p): p is FileUIPart =>
-                p?.type === "file" && typeof p.url === "string",
-            )
-            .map((part, idx) => {
-              const mediaType = part.mediaType ?? "unknown/unknown";
-              const isImage = mediaType.startsWith("image/");
-              return {
-                id: idx.toString(),
-                type: isImage ? "image" : "file",
-                name: part.filename ?? "file",
-                content: [
-                  isImage
-                    ? {
-                        type: "image",
-                        image: part.url,
-                        filename: part.filename!,
-                      }
-                    : {
-                        type: "file",
-                        filename: part.filename!,
-                        data: part.url,
-                        mimeType: mediaType,
-                      },
-                ],
-                contentType: mediaType,
-                status: { type: "complete" as const },
-              };
-            }),
-          metadata: toThreadMetadata(message.metadata),
-        };
+  switch (message.role) {
+    case "user":
+      return {
+        role: "user",
+        id: message.id,
+        createdAt,
+        content,
+        attachments: message.parts
+          ?.filter(
+            (p): p is FileUIPart =>
+              p?.type === "file" && typeof p.url === "string",
+          )
+          .map((part, idx) => {
+            const mediaType = part.mediaType ?? "unknown/unknown";
+            const isImage = mediaType.startsWith("image/");
+            return {
+              id: idx.toString(),
+              type: isImage ? "image" : "file",
+              name: part.filename ?? "file",
+              content: [
+                isImage
+                  ? {
+                      type: "image",
+                      image: part.url,
+                      ...(part.providerMetadata != null && {
+                        providerMetadata:
+                          part.providerMetadata as PartProviderMetadata,
+                      }),
+                      filename: part.filename!,
+                    }
+                  : {
+                      type: "file",
+                      filename: part.filename!,
+                      data: part.url,
+                      mimeType: mediaType,
+                      ...(part.providerMetadata != null && {
+                        providerMetadata:
+                          part.providerMetadata as PartProviderMetadata,
+                      }),
+                    },
+              ],
+              contentType: mediaType,
+              status: { type: "complete" as const },
+            };
+          }),
+        metadata: toThreadMetadata(message.metadata),
+      };
 
-      case "system":
-      case "assistant": {
-        const timing = metadata.messageTiming?.[message.id];
-        const isOptimistic =
-          message.role === "assistant" &&
-          message.id === metadata.optimisticMessageId;
-        return {
-          role: message.role,
-          id: message.id,
-          createdAt,
-          content:
-            message.role === "system" ? toSystemContent(content) : content,
-          ...(message.role === "assistant" &&
-          metadata.cancelledStatusMessageIds?.has(message.id)
-            ? {
-                status: {
-                  type: "incomplete" as const,
-                  reason: "cancelled" as const,
-                },
-              }
-            : undefined),
-          metadata: {
-            ...toThreadMetadata(message.metadata),
-            ...(timing && { timing }),
-            ...(isOptimistic && { isOptimistic: true }),
-          },
-        };
-      }
-
-      default:
-        console.warn(`Unsupported message role: ${message.role}`);
-        return [];
+    case "system":
+    case "assistant": {
+      const timing = metadata.messageTiming?.[message.id];
+      const isOptimistic =
+        message.role === "assistant" &&
+        message.id === metadata.optimisticMessageId;
+      return {
+        role: message.role,
+        id: message.id,
+        createdAt,
+        content: message.role === "system" ? toSystemContent(content) : content,
+        ...(message.role === "assistant" &&
+        metadata.cancelledStatusMessageIds?.has(message.id)
+          ? {
+              status: {
+                type: "incomplete" as const,
+                reason: "cancelled" as const,
+              },
+            }
+          : undefined),
+        metadata: {
+          ...toThreadMetadata(message.metadata),
+          ...(timing && { timing }),
+          ...(isOptimistic && { isOptimistic: true }),
+        },
+      };
     }
-  },
-);
+
+    default:
+      console.warn(`Unsupported message role: ${message.role}`);
+      return [];
+  }
+};
+
+export const AISDKMessageConverter =
+  unstable_createMessageConverter(convertAISDKMessage);
+
+const readMetadata = (metadata: useExternalMessageConverter.Metadata) =>
+  metadata as AISDKMessageConverterMetadata;
+
+const getToolCallMetadata = (
+  message: UIMessage,
+  metadata: AISDKMessageConverterMetadata,
+): readonly unknown[] => {
+  const values: unknown[] = [];
+  for (const part of message.parts ?? []) {
+    if (typeof part?.type !== "string" || !isToolUIPart(part)) continue;
+    const { toolCallId } = part;
+    const approval = (part as { approval?: { id?: unknown } }).approval;
+    const approvalId = approval?.id;
+    values.push(
+      metadata.toolStatuses?.[toolCallId],
+      metadata.toolArtifacts?.get(toolCallId),
+      metadata.toolInteractions?.get(toolCallId),
+      approval ? metadata.supportsRichToolApprovalResponses === true : false,
+      typeof approvalId === "string"
+        ? metadata.toolApprovalResponses?.get(approvalId)
+        : undefined,
+      typeof approvalId === "string" &&
+        metadata.cancelledToolApprovalIds?.has(approvalId) === true,
+    );
+  }
+  return values;
+};
+
+// Every metadata read in convertAISDKMessage needs a selector here, or a
+// change to it leaves the message it affects rendering stale output. The
+// metadata-key test has a case per metadata field, so a new field fails
+// typecheck until its invalidation is pinned.
+export const createAISDKMetadataKey =
+  (): useExternalMessageConverter.GetMetadataKey<UIMessage> =>
+    createExternalMessageMetadataKey<UIMessage>([
+      { select: (_, metadata) => readMetadata(metadata).createdAtCache },
+      { select: (_, metadata) => readMetadata(metadata).toolArgsKeyOrderCache },
+      { select: (_, metadata) => readMetadata(metadata).toolArgsTextCache },
+      { select: (_, metadata) => readMetadata(metadata).toolLastInputCache },
+      { select: (_, metadata) => readMetadata(metadata).mcpAppMetadataCache },
+      {
+        select: (message, metadata) =>
+          readMetadata(metadata).messageTiming?.[message.id],
+      },
+      {
+        select: (message, metadata) =>
+          message.id === readMetadata(metadata).optimisticMessageId,
+      },
+      {
+        select: (message, metadata) =>
+          readMetadata(metadata).cancelledStatusMessageIds?.has(message.id) ===
+          true,
+      },
+      {
+        select: (message, metadata) =>
+          getToolCallMetadata(message, readMetadata(metadata)),
+        isEqual: (previous, current) =>
+          shallowArrayEqual(
+            previous as readonly unknown[],
+            current as readonly unknown[],
+          ),
+      },
+    ]);

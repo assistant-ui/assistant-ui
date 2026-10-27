@@ -11,6 +11,7 @@ import { round } from "../../core/geometry";
 import { truncate } from "../../core/text";
 import { ACCENT, ink } from "../../core/theme";
 import { ChartSvg, frame } from "../svg";
+import { FlowTrail } from "../motion";
 import { TileMark } from "../tile-mark";
 
 export type FlowMapProps = BaseProps & {
@@ -104,6 +105,11 @@ export const FlowMap = forwardRef<SVGSVGElement, FlowMapProps>(
                   opacity="0.75"
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
+                />
+                <FlowTrail
+                  d={`M${originX} ${originY} Q${round(mx)} ${round(my)} ${x} ${y}`}
+                  color={ACCENT}
+                  width={round(width + 1)}
                 />
                 <path
                   d={`M${x} ${y} L${round(x + head * Math.cos(a1))} ${round(y + head * Math.sin(a1))} M${x} ${y} L${round(x + head * Math.cos(a2))} ${round(y + head * Math.sin(a2))}`}

@@ -44,6 +44,7 @@ function toSpecComponent(
   events: readonly string[],
   isVocabulary: boolean,
   positions: boolean,
+  imageOrigins: readonly string[] | undefined,
 ) {
   return function GenerativeUISpecElement({
     id,
@@ -111,6 +112,9 @@ function toSpecComponent(
             ...($bindings ? { $bindings } : {}),
             $status: "done",
             $dispatch,
+            ...(imageOrigins !== undefined
+              ? { $imageOrigins: imageOrigins }
+              : {}),
             ...(events[0] !== undefined && live.includes(events[0])
               ? { $action: { type: events[0] } }
               : {}),
@@ -158,6 +162,7 @@ export function buildSpecCatalog(
       events,
       isDefault,
       positions,
+      options.imageOrigins,
     );
   }
   return {

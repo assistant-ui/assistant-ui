@@ -155,6 +155,7 @@ type AssistantCloudRunReport = {
   status: "completed" | "error" | "incomplete";
   outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
+  user_message_id?: string;
   first_token_ms?: number;
   release?: string;
   environment?: string;
@@ -315,6 +316,7 @@ declare class AssistantCloudThreadMessages {
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
@@ -515,6 +517,7 @@ declare class CloudMessagePersistence {
   constructor(getCloud: () => AssistantCloud);
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
+  delete(threadId: string, messageIds: string[]): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
   getResolvedRemoteId(messageId: string): string | undefined;
@@ -703,6 +706,7 @@ type RunReportInit = {
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
+  userMessageId?: string | undefined;
   traceId?: string | undefined;
   rootSpanId?: string | undefined;
   modelId?: string | undefined;
@@ -730,7 +734,7 @@ type RunReportInit = {
   };
 };
 
-type RunReportOutcome = "aborted" | "content_filter" | "disconnected" | "length";
+type RunReportOutcome = "aborted" | "content_filter" | "disconnected" | "length" | "persistence_error" | "rate_limited" | "server_error" | "validation_failed";
 
 type RunReportStepInit = {
   usage?: RunTelemetryUsageInit | undefined;
@@ -812,6 +816,7 @@ declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence
   load: (threadId: string, format?: string) => Promise<any[]>;
   isPersisted: (messageId: string) => boolean;
   update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>;
+  delete?: (threadId: string, messageIds: string[]) => Promise<void>;
 }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => {
   append: (threadId: string, item: {
     parentId: string | null;
@@ -821,6 +826,10 @@ declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence
     parentId: string | null;
     message: TMessage;
   }, messageId: string) => Promise<void>) | undefined;
+  delete: ((threadId: string, items: {
+    parentId: string | null;
+    message: TMessage;
+  }[]) => Promise<void>) | undefined;
   load: (threadId: string) => Promise<{
     messages: {
       parentId: string | null;
@@ -853,6 +862,7 @@ declare function deriveRunOutcome(input: {
 declare function describeRunError(error: unknown): {
   error?: string;
   errorCode?: string;
+  outcome?: RunReportOutcome;
 };
 
 declare function extractAISDKRunTelemetry(messages: readonly AISDKMessageLike[]): RunMessageTelemetry | null;

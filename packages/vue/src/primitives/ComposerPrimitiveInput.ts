@@ -39,7 +39,9 @@ export const ComposerPrimitiveInput = defineComponent({
         target.value = text.value;
         return;
       }
-      flushTapSync(() => aui.composer.setText(target.value));
+      flushTapSync(() =>
+        aui.composer.setText(target.value, { origin: "user" }),
+      );
     };
     const onKeydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !props.submitOnEnter) return;

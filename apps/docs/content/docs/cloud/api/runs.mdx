@@ -22,6 +22,7 @@ POST /v1/runs
 | `thread_id` | string | yes | 1 to 255 characters. |
 | `status` | string | yes | `completed`, `incomplete`, or `error`. |
 | `message_id` | string | no | 1 to 48 characters. When present, it must belong to `thread_id`. |
+| `user_message_id` | string | no | 1 to 48 characters. The stored user message that started the turn. It must belong to `thread_id`. |
 | `outcome_type` | string | no | `rate_limited`, `validation_failed`, `provider_error`, `server_error`, `budget_denied`, `persistence_error`, `aborted`, `timeout`, `disconnected`, `length`, or `content_filter`. |
 | `error_code` | string | no | 1 to 64 characters. |
 | `error` | string | no | 1 to 2,048 characters. |
@@ -110,10 +111,12 @@ curl https://backend.assistant-api.com/v1/runs \
 | `201` | `{ "run_id": "run_…" }` | The report was recorded, including when it merged into a matching traced run. |
 | `400` | `{ "error": "Schema validation error", "details": […] }` | A field failed validation, including an attributes object over 16,384 bytes. |
 | `400` | `{ "error": "message_id must belong to thread_id" }` | `message_id` is not a message in `thread_id`. |
+| `400` | `{ "error": "user_message_id must belong to thread_id" }` | `user_message_id` is not a stored message in `thread_id`. |
+| `400` | `{ "error": "user_message_id must name a user message" }` | The stored message has a role other than `user`. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
-A valid 32 character lowercase hexadecimal `trace_id` is the idempotency key for a project. If a run with that project and trace id already exists, Assistant Cloud locks and merges it rather than inserting a second run. The report may overwrite `message_id` and `tags`; it may set `outcome_type` only to `aborted` or `disconnected`; it may set `thread_id` only when the server run has none; it may set the creator only when the server run has the unknown user; it may set `environment` or `release` only when each is absent; and it may set `first_token_ms` only when it is null. The reported `first_token_ms` is always also copied to `attributes["client.first_token_ms"]`.
+A valid 32 character lowercase hexadecimal `trace_id` is the idempotency key for a project. If a run with that project and trace id already exists, Assistant Cloud locks and merges it rather than inserting a second run. The report may overwrite `message_id` and `user_message_id` when the existing run has the same thread or no thread; it may overwrite `tags`; it may set `outcome_type` only to `aborted` or `disconnected`; it may set `thread_id` only when the server run has none; it may set the creator only when the server run has the unknown user; it may set `environment` or `release` only when each is absent; and it may set `first_token_ms` only when it is null. The reported `first_token_ms` is always also copied to `attributes["client.first_token_ms"]`.
 
 An inserted report creates the run, builds its spans from the report, increments the thread's run count, and applies the run's daily rollup. A merge reworks the daily rollup when its changes affect it. Assistant Cloud resolves model and provider pricing with per project price overrides, but caller supplied `cost_details` or `cost_usd` take precedence over the catalog. When `cost_details` is present and not empty, the run cost is its `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored.
 

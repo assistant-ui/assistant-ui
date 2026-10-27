@@ -1,0 +1,40 @@
+---
+title: Zoom
+description: Pan and scale a figure that holds more detail than its frame.
+---
+
+import { ZoomWorld } from "@/components/diagrammatic/samples-client";
+
+`Zoom` from `diagrammatic/interactive` pans and scales a figure. The wheel scales about the pointer, a drag pans, and a double click or `Escape` resets. The transform lives on the wrapper, so the chart inside stays a server component and is not redrawn by the wrapper itself.
+
+<ZoomWorld />
+
+## Two modes
+
+The child decides how the figure zooms.
+
+- **A node** is scaled as rendered. Stroke widths and type scale with it, which is what arbitrary content needs.
+- **A function** receives the `view` window and hands it to a chart, which redraws through it. Hairlines and labels keep their drawn size at any magnification, which is what a map wants.
+
+```tsx
+"use client";
+
+import { Zoom } from "diagrammatic/interactive";
+import { WorldMap } from "diagrammatic/world";
+
+<Zoom max={8}>{(view) => <WorldMap values={byCountry} view={view} />}</Zoom>;
+```
+
+`view` is a window in fractions of the box: `{ x: 0, y: 0, w: 1, h: 1 }` is the whole figure, and `w: 0.5` is twice the magnification. Fractions rather than pixels mean the same window at any `width`.
+
+## Props
+
+| Prop | Description | Default |
+| --- | --- | --- |
+| `min` / `max` | The scale range | `1` / `12` |
+| `transform` | A controlled `{ k, x, y }` transform | |
+| `defaultTransform` | The starting transform when uncontrolled | Identity |
+| `onChange` | Called with each new transform | |
+| `disabled` | Turns pan and zoom off | `false` |
+
+`viewOf`, `zoomAbout`, and `IDENTITY` are exported for a host that drives its own transform, such as zoom buttons or a minimap. Nest `Zoom` inside `Root` to keep tooltips and highlight working through the transform.

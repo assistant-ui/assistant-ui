@@ -51,6 +51,7 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
+  MENTION_JOINER,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
   PLACEHOLDER_TEXT_CAP,
@@ -159,8 +160,106 @@ const clampText = (
   return value.slice(0, cap);
 };
 
-const escapeMrkdwn = (value: string): string =>
+// Slack resolves these in raw text, even inside code spans and after punctuation, so every occurrence is joined except after a letter or digit, where an email address would break.
+const BROADCAST_MENTION =
+  /(^|[^A-Za-z0-9])@(here|channel|everyone)(?![A-Za-z0-9])/gi;
+
+const escapeMrkdwnEntities = (value: string): string =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const escapeMrkdwn = (value: string): string =>
+  escapeMrkdwnEntities(value).replace(
+    BROADCAST_MENTION,
+    `$1@${MENTION_JOINER}$2`,
+  );
+
+const SLACK_TOKEN_START = /<(?=[!@#]|[^<>\n]*\|[^<>\n]*>)/g;
+
+const escapeSlackTokens = (text: string): string =>
+  text.replace(SLACK_TOKEN_START, "&lt;");
+
+const closingBacktickRun = (
+  line: string,
+  from: number,
+  length: number,
+): number => {
+  let index = from;
+  while (index < line.length) {
+    if (line.charAt(index) !== "`") {
+      index += 1;
+      continue;
+    }
+    let end = index;
+    while (line.charAt(end) === "`") end += 1;
+    if (end - index === length) return index;
+    index = end;
+  }
+  return -1;
+};
+
+const escapeMarkdownLine = (line: string): string => {
+  let result = "";
+  let text = "";
+  let index = 0;
+  while (index < line.length) {
+    const char = line.charAt(index);
+    if (char === "\\") {
+      text += line.slice(index, index + 2);
+      index += 2;
+      continue;
+    }
+    if (char !== "`") {
+      text += char;
+      index += 1;
+      continue;
+    }
+    let runEnd = index;
+    while (line.charAt(runEnd) === "`") runEnd += 1;
+    const length = runEnd - index;
+    const close = closingBacktickRun(line, runEnd, length);
+    if (close === -1) {
+      text += line.slice(index, runEnd);
+      index = runEnd;
+      continue;
+    }
+    result += escapeSlackTokens(text) + line.slice(index, close + length);
+    text = "";
+    index = close + length;
+  }
+  return result + escapeSlackTokens(text);
+};
+
+const OPENING_FENCE = /^ {0,3}(`{3,})[^`]*$/;
+const CLOSING_FENCE = /^ {0,3}(`{3,})\s*$/;
+
+const closingFenceLine = (
+  lines: readonly string[],
+  from: number,
+  length: number,
+): number =>
+  lines.findIndex(
+    (line, index) =>
+      index >= from && (CLOSING_FENCE.exec(line)?.[1]?.length ?? 0) >= length,
+  );
+
+// A native markdown block resolves `<!here>`, `<@U…>`, `<#C…>`, and `<url|label>` outside code, while code shows an entity literally, so only text outside a closed code fence or a single-line code span is escaped.
+const escapeMarkdown = (value: string): string => {
+  const lines = value.split("\n");
+  const escaped: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const opening = OPENING_FENCE.exec(line)?.[1]?.length;
+    const closing =
+      opening === undefined ? -1 : closingFenceLine(lines, index + 1, opening);
+    if (closing === -1) {
+      escaped.push(escapeMarkdownLine(line));
+      continue;
+    }
+    escaped.push(...lines.slice(index, closing + 1));
+    index = closing;
+  }
+  return escaped.join("\n");
+};
 
 const clampEscapedMrkdwn = (
   value: string,
@@ -1793,12 +1892,17 @@ const convertElement = (
       return convertTable(element, context);
     case "Markdown": {
       const value = asString(props["value"]);
-      if (
+      const escaped =
         !context.markdownExhausted &&
         context.markdownCharacters + value.length <= MARKDOWN_TEXT_BUDGET
+          ? escapeMarkdown(value)
+          : undefined;
+      if (
+        escaped !== undefined &&
+        context.markdownCharacters + escaped.length <= MARKDOWN_TEXT_BUDGET
       ) {
-        context.markdownCharacters += value.length;
-        return [{ type: "markdown", text: value }];
+        context.markdownCharacters += escaped.length;
+        return [{ type: "markdown", text: escaped }];
       }
       context.markdownExhausted = true;
       warn(
@@ -1930,7 +2034,7 @@ const convertElement = (
       const target =
         href === undefined
           ? undefined
-          : escapeMrkdwn(href).replace(/\|/g, "%7C");
+          : escapeMrkdwnEntities(href).replace(/\|/g, "%7C");
       const linked =
         target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
       const title = clampEscapedMrkdwn(
@@ -2045,7 +2149,7 @@ const convertElement = (
         );
       return places.map((place) =>
         escapedSection(
-          `<${escapeMrkdwn(placeHref(place))}|${clampEscapedMrkdwn(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampEscapedMrkdwn(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
+          `<${escapeMrkdwnEntities(placeHref(place))}|${clampEscapedMrkdwn(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampEscapedMrkdwn(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
           "Map",
           context,
         ),

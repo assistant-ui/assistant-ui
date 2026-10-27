@@ -27,6 +27,8 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=stockbroker
 
 The proxy rejects browser requests marked same-site or cross-site so the example works without exposing `LANGCHAIN_API_KEY` to the client. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying with a cloud API key, require your application session in the proxy route and apply a durable rate limit.
 
+The route adds the server API key to every forwarded request. Before deployment, require authentication and enforce per-user thread ownership in front of the route.
+
 ### Run
 
 ```bash

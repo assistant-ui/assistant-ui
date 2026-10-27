@@ -69,6 +69,26 @@ describe("analytics distinct id", () => {
     ).toBe(getDistinctId(withIp("203.0.113.7")));
   });
 
+  it("uses the trusted client address despite a spoofed forwarded chain", () => {
+    vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "a-secret-with-enough-entropy");
+    vi.stubEnv("NODE_ENV", "production");
+
+    const withHeaders = (forwarded: string, trusted: string) =>
+      new Request("https://www.assistant-ui.com/api/chat", {
+        headers: {
+          "x-forwarded-for": forwarded,
+          "x-vercel-forwarded-for": trusted,
+        },
+      });
+
+    expect(getDistinctId(withHeaders("198.51.100.1", "203.0.113.7"))).toBe(
+      getDistinctId(withHeaders("198.51.100.2", "203.0.113.7")),
+    );
+    expect(getDistinctId(withHeaders("198.51.100.1", "203.0.113.8"))).not.toBe(
+      getDistinctId(withHeaders("198.51.100.1", "203.0.113.7")),
+    );
+  });
+
   it("stays anonymous when the platform sends no address", () => {
     vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "a-secret-with-enough-entropy");
 

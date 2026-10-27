@@ -1,0 +1,99 @@
+---
+title: Quickstart
+description: Install diagrammatic, draw a chart in a Server Component, theme it, and add a tooltip.
+---
+
+import { QuickstartChart } from "@/components/diagrammatic/samples";
+import { TooltipBar } from "@/components/diagrammatic/samples-client";
+
+<Steps>
+<Step>
+
+### Install
+
+<InstallCommand npm={["diagrammatic"]} />
+
+</Step>
+<Step>
+
+### Draw a chart
+
+Import a form and pass it data. The component is a pure function, so it can live in a Server Component.
+
+```tsx title="app/traffic/page.tsx"
+import { StackedArea } from "diagrammatic";
+
+const series = [
+  { name: "search", data: [42, 48, 51, 58, 61, 66, 64, 71, 77, 82] },
+  { name: "direct", data: [30, 29, 33, 35, 34, 38, 41, 40, 43, 45] },
+  { name: "referral", data: [12, 15, 14, 18, 22, 21, 25, 29, 28, 33] },
+  { name: "social", data: [8, 9, 13, 12, 11, 15, 14, 18, 21, 19] },
+];
+
+export default function Page() {
+  return (
+    <StackedArea
+      title="Weekly sessions by channel"
+      labels={["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8", "W9", "W10"]}
+      series={series}
+      yTicks={4}
+      format={(v) => `${v}k`}
+    />
+  );
+}
+```
+
+<QuickstartChart />
+
+</Step>
+<Step>
+
+### Match your theme
+
+Charts read their colors from `--dg-*` tokens with the shipped palette as the fallback, so this step is optional. A shadcn/ui app imports the bridge once and every chart takes its `--chart-*`, foreground, border, and background tokens:
+
+```css title="app/globals.css"
+@import "diagrammatic/styles.css";
+@import "diagrammatic/shadcn.css";
+```
+
+`styles.css` also carries the highlight styles that `Root` uses. See [Theming](/diagrammatic/docs/theming) for every token.
+
+</Step>
+<Step>
+
+### Add a tooltip
+
+Interaction lives in `diagrammatic/interactive`, a client entry that wraps the chart. The tooltip receives the address of the hovered mark, and you look the row up in data you already have.
+
+```tsx title="components/benchmark-chart.tsx"
+"use client";
+
+import { Bar } from "diagrammatic";
+import { Root, Tooltip } from "diagrammatic/interactive";
+
+export function BenchmarkChart({ items }: { items: { label: string; value: number }[] }) {
+  return (
+    <Root>
+      <Bar title="Benchmark score" items={items} format={(v) => v.toFixed(1)} />
+      <Tooltip side="top">
+        {({ datum }) => {
+          const item = items[datum.index ?? -1];
+          return item ? <div className="tooltip">{item.label} {item.value}</div> : null;
+        }}
+      </Tooltip>
+    </Root>
+  );
+}
+```
+
+<TooltipBar />
+
+</Step>
+</Steps>
+
+## Next
+
+- [All charts](/diagrammatic/docs/charts) to pick the chart for your question.
+- [Sizing](/diagrammatic/docs/sizing) for `width`, `aspect`, `fontSize`, and `Fit`.
+- [Interaction](/diagrammatic/docs/interaction) for highlight, clicks, and the mark address.

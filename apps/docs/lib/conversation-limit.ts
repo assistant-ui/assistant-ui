@@ -23,6 +23,8 @@ export type ConversationUsage = {
   limit: number;
   remaining: number;
   resetAt: number;
+  /** True when the visitor's network has used its shared allowance, not this visitor's own. */
+  sharedLimitReached?: boolean;
 };
 
 // Membership is checked before the count so a conversation already started
@@ -37,6 +39,23 @@ if used >= limit then return {0, used} end
 redis.call('SADD', key, threadId)
 redis.call('PEXPIRE', key, ttl)
 return {1, used + 1}
+`;
+
+const CLAIM_WITH_CAP_SCRIPT = `
+local sessionKey, capKey = KEYS[1], KEYS[2]
+local threadId, sessionLimit, ttl, capMember, capLimit = ARGV[1], tonumber(ARGV[2]), ARGV[3], ARGV[4], tonumber(ARGV[5])
+if redis.call('SISMEMBER', sessionKey, threadId) == 1 then
+  return {1, redis.call('SCARD', sessionKey), redis.call('SCARD', capKey), 0}
+end
+local sessionUsed = redis.call('SCARD', sessionKey)
+if sessionUsed >= sessionLimit then return {0, sessionUsed, redis.call('SCARD', capKey), 0} end
+local capUsed = redis.call('SCARD', capKey)
+if capUsed >= capLimit then return {0, sessionUsed, capUsed, 1} end
+redis.call('SADD', sessionKey, threadId)
+redis.call('SADD', capKey, capMember)
+redis.call('PEXPIRE', sessionKey, ttl)
+redis.call('PEXPIRE', capKey, ttl)
+return {1, sessionUsed + 1, redis.call('SCARD', capKey), 0}
 `;
 
 const MERGE_SCRIPT = `
@@ -100,6 +119,33 @@ export function createConversationCounter(
       return {
         allowed: Number(allowed) === 1,
         usage: usageOf(Number(reportedUsed), limit, now),
+      };
+    },
+
+    async claimWithCap(
+      identity: string,
+      threadId: string,
+      limit: number,
+      capIdentity: string,
+      capMember: string,
+      capLimit: number,
+      now: number = Date.now(),
+    ): Promise<{
+      allowed: boolean;
+      usage: ConversationUsage;
+      capUsed: number;
+      capRefused: boolean;
+    }> {
+      const [allowed, sessionUsed, capUsed, capRefused] = (await redis.eval(
+        CLAIM_WITH_CAP_SCRIPT,
+        [key(identity, now), key(capIdentity, now)],
+        [threadId, String(limit), String(TTL_MS), capMember, String(capLimit)],
+      )) as [unknown, unknown, unknown, unknown];
+      return {
+        allowed: Number(allowed) === 1,
+        usage: usageOf(Number(sessionUsed), limit, now),
+        capUsed: Number(capUsed),
+        capRefused: Number(capRefused) === 1,
       };
     },
 

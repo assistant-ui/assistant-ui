@@ -139,7 +139,7 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 `RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments come from `unstable_useAdapters`. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host, and `useRemoteThreadListRuntime` calls it for each hosted thread unless it mounts with an adapter that has `unstable_Provider`, in which case it renders that provider instead.
 
-`unstable_Provider` is an older React-component face for the same adapters. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. The store entry ignores it, so implement `unstable_useAdapters` instead.
+`unstable_Provider` is the deprecated React-component face for the same adapters and will be removed in a future minor release. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one, which also keeps that runtime on the deprecated class core, and a hook that mounts without it ignores it on later adapters. The store entry ignores it. Implement `unstable_useAdapters` instead: a provider that wraps `children` in `RuntimeAdapterProvider` becomes a hook that returns the same adapters object.
 
 On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
 
@@ -417,7 +417,7 @@ export function ThreadList() {
       name: "unstable_Provider",
       type: "RemoteThreadListProviderComponent",
       description:
-        "Older React-component face of unstable_useAdapters. useRemoteThreadListRuntime renders it around each active thread only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. It must render children synchronously on first commit. Prefer unstable_useAdapters.",
+        "Deprecated; will be removed in a future minor release. Older React-component face of unstable_useAdapters. useRemoteThreadListRuntime renders it around each active thread only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. It must render children synchronously on first commit. Prefer unstable_useAdapters.",
     },
     {
       name: "unstable_useAdapters",

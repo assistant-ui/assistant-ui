@@ -56,6 +56,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
       getState: () => threadState,
     },
     on: () => () => {},
+    subscribe: () => () => {},
   };
   type Selector<T> = (s: {
     composer: typeof composerState;

@@ -1,4 +1,5 @@
 import { getMcpClient, getMcpTools } from "../mcp-client";
+import { isAllowedRequestContext } from "../request-context";
 
 export const maxDuration = 30;
 
@@ -36,6 +37,13 @@ const findListedResource = async (
 };
 
 export async function POST(req: Request) {
+  if (!isAllowedRequestContext(req)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   let body: { method?: unknown; params?: Record<string, unknown> } = {};
   try {
     body = await req.json();

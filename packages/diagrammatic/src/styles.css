@@ -23,3 +23,57 @@
 [data-part="mark"][data-dg-muted] {
   opacity: 0.2;
 }
+
+/* Motion contract: charts stamp inert motion layers (data-dg-flow trails along directed connections, timed by --dg-flow-from and --dg-flow-to so every trail in a figure shares one sweep, data-dg-flow-step samples carrying their position --dg-t, data-dg-pulse halos on the latest point). They animate only under data-dg-motion on the figure or an ancestor, and never when the reader asks for reduced motion. --dg-motion-duration sets the period of one pass. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-dg-motion] [data-dg-flow] {
+    stroke-opacity: 0.85;
+    stroke-dasharray: 0.3 100;
+    animation: dg-flow var(--dg-motion-duration, 2.4s) linear infinite;
+  }
+  [data-dg-motion] [data-dg-flow-step] {
+    animation: dg-flow-step var(--dg-motion-duration, 2.4s) linear infinite;
+    animation-delay: calc(
+      (var(--dg-t, 0) - 1) * var(--dg-motion-duration, 2.4s)
+    );
+  }
+  [data-dg-motion] [data-dg-pulse] {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dg-pulse 1.8s ease-out infinite;
+  }
+  [data-dg-motion] [data-dg-muted] + [data-dg-flow],
+  [data-dg-motion] [data-dg-muted] [data-dg-flow] {
+    stroke-opacity: 0;
+  }
+}
+
+@keyframes dg-flow {
+  from {
+    stroke-dashoffset: var(--dg-flow-from, 0.3);
+  }
+  to {
+    stroke-dashoffset: var(--dg-flow-to, -0.7);
+  }
+}
+
+@keyframes dg-flow-step {
+  0% {
+    opacity: 1;
+  }
+  35%,
+  100% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes dg-pulse {
+  from {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}

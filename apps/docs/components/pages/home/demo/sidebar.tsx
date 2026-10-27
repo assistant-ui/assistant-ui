@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadListPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { ThreadListSearch } from "@/components/assistant-ui/elements/thread-list.aui";
 import { useDemoThreadListGroups } from "./thread-list-groups";
@@ -94,16 +94,17 @@ function ThreadList({ search }: { search: string }): ReactNode {
       ) : showLoadError ? (
         <div
           role="alert"
-          className="mt-1 flex h-8 shrink-0 items-center justify-between px-2 text-[13px]"
+          className="mt-4 flex flex-col items-start gap-2 px-2 text-[13px]"
         >
-          <span className="text-muted-foreground">
+          <p className="text-muted-foreground leading-5">
             Threads could not be loaded
-          </span>
+          </p>
           <button
             type="button"
             onClick={() => void aui.threads.reload()}
-            className="text-muted-foreground hover:text-foreground rounded-control -me-2 h-8 px-2 transition-colors"
+            className="border-foreground/10 bg-background hover:border-foreground/25 hover:bg-foreground/[0.04] focus-visible:outline-ring rounded-control inline-flex h-8 cursor-pointer items-center gap-1.5 border px-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
           >
+            <RotateCcwIcon aria-hidden className="size-3.5" />
             Retry
           </button>
         </div>

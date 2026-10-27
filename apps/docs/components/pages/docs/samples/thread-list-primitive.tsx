@@ -150,13 +150,13 @@ function ThreadListItemMore() {
         className="bg-popover text-popover-foreground z-50 min-w-36 rounded-lg border p-1"
       >
         <ThreadListItemPrimitive.Archive asChild>
-          <ThreadListItemMorePrimitive.Item className="hover:bg-accent focus:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none">
+          <ThreadListItemMorePrimitive.Item className="hover:bg-accent focus:bg-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none">
             <ArchiveIcon className="size-4" />
             Archive
           </ThreadListItemMorePrimitive.Item>
         </ThreadListItemPrimitive.Archive>
         <ThreadListItemPrimitive.Delete asChild>
-          <ThreadListItemMorePrimitive.Item className="text-destructive hover:bg-destructive/10 focus:bg-destructive/10 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none">
+          <ThreadListItemMorePrimitive.Item className="text-destructive hover:bg-destructive/10 focus:bg-destructive/10 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none">
             <TrashIcon className="size-4" />
             Delete
           </ThreadListItemMorePrimitive.Item>

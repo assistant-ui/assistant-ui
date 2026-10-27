@@ -45,6 +45,7 @@ export type McpServerResourceProps = {
   connectionTimeout?: number | undefined;
   cache?: { readonly defaultTtlMs?: number } | undefined;
   readonly elicitation?: boolean;
+  readonly requireApproval?: boolean;
   onRemove: () => Promise<void>;
 };
 
@@ -413,6 +414,7 @@ const useMcpServerResourceInstance = (
           pendingTransportRef.current = null;
           await closeQueuedTransports([transport]);
         }
+        if (!isCurrentConnection(generation)) return;
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
@@ -502,6 +504,8 @@ const useMcpServerResourceInstance = (
         throw createInterruptedAuthError(error);
 
       await closeTransports();
+      if (!isCurrentConnection(generation))
+        throw createInterruptedAuthError(error);
       setLastError({
         message: error.message,
       });
@@ -593,6 +597,7 @@ const useMcpServerResourceInstance = (
       tools,
       authorizationUrl,
       pendingElicitations,
+      requireApproval: props.requireApproval,
     }),
     [
       props.id,
@@ -605,6 +610,7 @@ const useMcpServerResourceInstance = (
       tools,
       authorizationUrl,
       pendingElicitations,
+      props.requireApproval,
     ],
   );
 

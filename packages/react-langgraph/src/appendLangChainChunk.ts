@@ -150,7 +150,11 @@ export const appendLangChainChunk = (
     typeof prev.content === "string"
       ? [{ type: "text" as const, text: prev.content }]
       : Array.isArray(prev.content)
-        ? [...prev.content]
+        ? prev.content.map((part) =>
+            typeof part === "string"
+              ? { type: "text" as const, text: part }
+              : part,
+          )
         : [];
 
   if (typeof curr?.content === "string") {
@@ -162,7 +166,9 @@ export const appendLangChainChunk = (
       newContent.push({ type: "text", text: curr.content });
     }
   } else if (Array.isArray(curr.content)) {
-    for (const item of curr.content) {
+    for (const part of curr.content) {
+      const item =
+        typeof part === "string" ? { type: "text" as const, text: part } : part;
       if (!("type" in item)) {
         continue;
       }

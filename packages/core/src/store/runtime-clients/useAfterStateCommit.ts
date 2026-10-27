@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
  * hook (a layout effect cleanup here ran only on unmount when tested). The
  * value is a bound on that wait, not a tuned delay.
  */
-const COMMIT_TIMEOUT_MS = 100;
+export const COMMIT_TIMEOUT_MS = 100;
 
 /**
  * Delays a promise until the client has committed a render of the source

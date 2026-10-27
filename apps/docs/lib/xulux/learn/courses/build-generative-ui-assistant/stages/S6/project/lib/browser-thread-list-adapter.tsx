@@ -5,12 +5,11 @@ import {
   type GenericThreadHistoryAdapter,
   type MessageFormatAdapter,
   type MessageStorageEntry,
-  RuntimeAdapterProvider,
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
   useAui,
 } from "@assistant-ui/react";
-import { useMemo, type PropsWithChildren } from "react";
+import { useMemo } from "react";
 
 type StoredThread = {
   remoteId: string;
@@ -63,8 +62,8 @@ function enqueueStorageWrite<T>(key: string, operation: () => T | Promise<T>) {
   return result;
 }
 
-function createHistoryProvider(prefix: string) {
-  return function BrowserHistoryProvider({ children }: PropsWithChildren) {
+function createHistoryAdapters(prefix: string) {
+  return function useBrowserHistoryAdapters() {
     const aui = useAui();
     const history = useMemo<ThreadHistoryAdapter>(() => {
       const key = () => {
@@ -140,12 +139,7 @@ function createHistoryProvider(prefix: string) {
         },
       };
     }, [aui]);
-    const adapters = useMemo(() => ({ history }), [history]);
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
+    return useMemo(() => ({ history }), [history]);
   };
 }
 
@@ -157,7 +151,7 @@ export function createBrowserThreadListAdapter(
   const saveThreads = (threads: StoredThread[]) => write(threadsKey, threads);
 
   return {
-    unstable_Provider: createHistoryProvider(prefix),
+    unstable_useAdapters: createHistoryAdapters(prefix),
     async list() {
       return { threads: loadThreads() };
     },

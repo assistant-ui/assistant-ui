@@ -21,7 +21,6 @@ export function SignupForm() {
     assistant: {
       tools: {
         set_form_field: { render: () => <FieldUpdated /> },
-        submit_form: { render: () => <FormSubmitted /> },
       },
     },
   });
@@ -30,7 +29,7 @@ export function SignupForm() {
 }
 ```
 
-The assistant gets two built-in tools: `set_form_field` to write values into fields and `submit_form` to call your submit handler.
+The assistant gets three built-in tools: `set_form_field` to write values into fields, `submit_form` to call your submit handler, and `reset_form` to restore initial values. Submitting and resetting ask the user for approval by default. A custom tool render must handle the pending interrupt and call `resume({ approved: true })` or `resume({ approved: false })`. Set `assistant.tools.submit_form.requireApproval` or `assistant.tools.reset_form.requireApproval` to `false` to run that tool without asking. A runtime without human-in-the-loop support needs `requireApproval: false` on these tools. The form state shared with the model omits password inputs and fields with `current-password`, `new-password`, `one-time-code`, or `cc-` autocomplete values. Use `assistant.sensitiveFields` to exclude fields that DOM detection cannot identify, including fields without a mounted input.
 
 ## See also
 

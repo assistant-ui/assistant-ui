@@ -5,7 +5,7 @@ import { layoutDefinitions } from "./definitions/layout";
 import { fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
 import { toTextContent } from "./toTextContent";
-import { boxStyle, footerAction } from "./layoutValues";
+import { boxStyle, footerAction, safeBackground } from "./layoutValues";
 import { tabLabels } from "./structureValues";
 
 function TabsRender({
@@ -103,6 +103,7 @@ export const layoutVocabulary = {
       $dispatch,
       children,
     }) => {
+      background = safeBackground(background);
       const Root = asForm ? "form" : "section";
       const submitAction = footerAction(confirm) ?? $action;
       const cardTitle = toTextContent(title);

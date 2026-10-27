@@ -1,0 +1,324 @@
+name: Deploy Checkout Worker
+
+# The worker and the setup-agent CLI share a wire protocol, so the worker deploys
+# only from a commit whose setup-agent is already on npm: after a release that
+# publishes setup-agent (npm-publish.yaml calls this workflow), or on a push that
+# leaves setup-agent released.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/checkout-worker/**
+  workflow_call:
+    inputs:
+      releaseSha:
+        description: "Release commit SHA to deploy"
+        required: true
+        type: string
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+  workflow_dispatch:
+    inputs:
+      releaseSha:
+        description: "Commit SHA to deploy (defaults to latest default-branch commit; a newer released HEAD deploys instead)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      sha: ${{ steps.deploy-sha.outputs.value }}
+      deploy: ${{ steps.decide.outputs.deploy }}
+    steps:
+      - name: Resolve deploy commit SHA
+        id: deploy-sha
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          REQUESTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.releaseSha }}
+        with:
+          script: |
+            const defaultBranch = context.payload.repository.default_branch;
+            let deploySha = (process.env.REQUESTED_SHA ?? "").trim().toLowerCase();
+
+            if (!deploySha) {
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${defaultBranch}`,
+              });
+              deploySha = ref.data.object.sha;
+            }
+
+            if (!/^[0-9a-f]{40}$/.test(deploySha)) {
+              core.setFailed(
+                `releaseSha must be a full 40-character commit SHA: ${deploySha}`,
+              );
+              return;
+            }
+
+            const { repository } = await github.graphql(
+              `query ($owner: String!, $repo: String!, $branch: String!, $sha: String!) {
+                repository(owner: $owner, name: $repo) {
+                  ref(qualifiedName: $branch) {
+                    compare(headRef: $sha) {
+                      status
+                    }
+                  }
+                }
+              }`,
+              { ...context.repo, branch: `refs/heads/${defaultBranch}`, sha: deploySha },
+            );
+            if (!["BEHIND", "IDENTICAL"].includes(repository.ref.compare.status)) {
+              core.setFailed(
+                `${deploySha} is not on ${defaultBranch}; refusing to deploy`,
+              );
+              return;
+            }
+
+            core.setOutput("value", deploySha);
+
+      # The release check comes from this workflow's revision, because the
+      # deploy commit may predate it.
+      - name: Checkout release check
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: Checkout deploy commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.deploy-sha.outputs.value }}
+          path: deploy-commit
+          persist-credentials: false
+          sparse-checkout: |
+            .changeset
+            packages/setup-agent
+
+      # A release or manual run polls npm for 15 minutes so a just-published
+      # version is visible; a push retries for 30 seconds.
+      - name: Check setup-agent is released
+        id: released
+        env:
+          WINDOW_MS: ${{ github.event_name == 'push' && '30000' || '900000' }}
+        run: node scripts/checkout-worker-release.mjs deploy-commit --window-ms="$WINDOW_MS"
+
+      # A push leaves an unreleased setup-agent to the release that publishes
+      # it; a release or manual deploy fails instead.
+      - name: Decide
+        id: decide
+        env:
+          DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value }}
+          IS_PUSH: ${{ github.event_name == 'push' }}
+          RELEASED: ${{ steps.released.outputs.released }}
+          REASON: ${{ steps.released.outputs.reason }}
+        run: |
+          if [ "$RELEASED" = "true" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ "$IS_PUSH" = "true" ]; then
+            echo "::notice::Skipping the deploy of ${DEPLOY_SHA}: ${REASON}; the worker deploys after that release"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Refusing to deploy ${DEPLOY_SHA}: ${REASON}"
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy
+    needs: plan
+    if: needs.plan.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: checkout-worker
+      url: https://setup.assistant-ui.com
+    # A literal group, because inside a workflow_call github.workflow names the
+    # caller, so a release deploy and a push deploy would not exclude each other.
+    # A newer pending run replaces an older one, so the commit to deploy is
+    # chosen only once the group is held.
+    concurrency:
+      group: deploy-checkout-worker
+      cancel-in-progress: false
+    env:
+      PLANNED_SHA: ${{ needs.plan.outputs.sha }}
+      HISTORY_ENVIRONMENT: checkout-worker-history
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Resolve default-branch HEAD
+        id: head
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        with:
+          script: |
+            const ref = await github.rest.git.getRef({
+              ...context.repo,
+              ref: `heads/${context.payload.repository.default_branch}`,
+            });
+            core.setOutput("sha", ref.data.object.sha);
+
+      - name: Checkout default-branch HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          ref: ${{ steps.head.outputs.sha }}
+          persist-credentials: false
+
+      - name: Find newest released commit
+        id: newest
+        run: node scripts/checkout-worker-release.mjs --newest-since="$PLANNED_SHA" --window-ms=30000
+
+      - name: Choose deploy commit
+        id: target
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          HEAD_SHA: ${{ steps.head.outputs.sha }}
+          NEWEST_SHA: ${{ steps.newest.outputs.sha }}
+          NEWEST_REASON: ${{ steps.newest.outputs.reason }}
+        with:
+          script: |
+            const {
+              HEAD_SHA: headSha,
+              NEWEST_SHA: sha,
+              NEWEST_REASON: reason,
+              HISTORY_ENVIRONMENT: environment,
+            } = process.env;
+
+            if (sha !== headSha) {
+              core.notice(`Deploying ${sha} instead of HEAD ${headSha}: ${reason}`);
+            }
+
+            const deployments = await github.rest.repos.listDeployments({
+              ...context.repo,
+              environment,
+              per_page: 1,
+            });
+            const lastSha = deployments.data[0]?.sha;
+
+            if (lastSha) {
+              const { data } = await github.rest.repos.compareCommitsWithBasehead({
+                ...context.repo,
+                basehead: `${lastSha}...${sha}`,
+                per_page: 1,
+              });
+              if (data.status === "behind") {
+                core.notice(
+                  `Skipping the deploy of ${sha}: ${lastSha}, which contains it, is already deployed`,
+                );
+                core.setOutput("deploy", "false");
+                return;
+              }
+              if (data.status === "diverged") {
+                core.setFailed(
+                  `Refusing to deploy ${sha}: it does not contain the deployed ${lastSha}`,
+                );
+                return;
+              }
+            }
+
+            core.setOutput("sha", sha);
+            core.setOutput("deploy", "true");
+
+      - name: Checkout deploy commit
+        if: steps.target.outputs.deploy == 'true' && steps.target.outputs.sha != steps.head.outputs.sha
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.target.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        if: steps.target.outputs.deploy == 'true'
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          runtime: node@24
+          install: false
+          # No cache (`cache` defaults to false) - this job holds the Cloudflare deploy token
+
+      - name: Install dependencies
+        if: steps.target.outputs.deploy == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace dependencies
+        if: steps.target.outputs.deploy == 'true'
+        run: pnpm turbo build --filter='checkout-worker^...'
+
+      - name: Dry run
+        if: steps.target.outputs.deploy == 'true'
+        working-directory: apps/checkout-worker
+        run: pnpm exec wrangler deploy --dry-run --outdir "$RUNNER_TEMP/checkout-worker"
+
+      # The deployed commits are recorded in their own environment, because the
+      # deployment GitHub creates for the job's environment carries the
+      # triggering commit rather than the deployed one.
+      - name: Record deployment
+        id: record
+        if: steps.target.outputs.deploy == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          DEPLOY_SHA: ${{ steps.target.outputs.sha }}
+        with:
+          script: |
+            const { data } = await github.rest.repos.createDeployment({
+              ...context.repo,
+              ref: process.env.DEPLOY_SHA,
+              environment: process.env.HISTORY_ENVIRONMENT,
+              auto_merge: false,
+              required_contexts: [],
+              production_environment: true,
+              transient_environment: false,
+              description: `Checkout worker at ${process.env.DEPLOY_SHA}`,
+            });
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: data.id,
+              state: "in_progress",
+              auto_inactive: false,
+            });
+            core.setOutput("id", data.id);
+
+      - name: Deploy to Cloudflare
+        id: wrangler
+        if: steps.target.outputs.deploy == 'true'
+        working-directory: apps/checkout-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy
+
+      - name: Record deployment result
+        if: always() && steps.record.outputs.id != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
+          OUTCOME: ${{ steps.wrangler.outcome }}
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: Number(process.env.DEPLOYMENT_ID),
+              state: process.env.OUTCOME === "success" ? "success" : "failure",
+              environment_url: "https://setup.assistant-ui.com",
+              auto_inactive: false,
+            });
+
+      - name: Recovery guidance
+        if: failure()
+        env:
+          DEPLOY_SHA: ${{ steps.target.outputs.sha || env.PLANNED_SHA }}
+        run: |
+          echo "::error::The checkout worker deploy failed for ${DEPLOY_SHA}, so setup.assistant-ui.com still serves the previous version."
+          echo "::error::Rerun this job, or run Deploy Checkout Worker via workflow_dispatch with releaseSha=${DEPLOY_SHA}."

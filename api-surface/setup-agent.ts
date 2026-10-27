@@ -69,6 +69,7 @@ declare namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional: boolean;
     status: InputStatus;
     answer?: string;
@@ -135,14 +136,18 @@ declare namespace Checkout {
     product?: string;
     default?: string;
     help?: InputHelp;
+    redeemKeyHash?: string;
     optional?: boolean;
   };
   type PlanDecision = {
+    id?: string;
+    revision?: number;
+  } & ({
     decision: "approve";
   } | {
     decision: "revise";
     feedback: string;
-  };
+  });
   type Commands = {
     "checkout/create": (params: {
       id: string;
@@ -213,7 +218,7 @@ declare namespace Checkout {
       preview?: string;
     }) => void;
   };
-  type RejectionReason = "already-created" | "closed" | "empty-message" | "empty-plan" | "feedback-required" | "finish-not-proposed" | "input-closed" | "invalid-answer" | "invalid-input" | "invalid-preview" | "no-plan" | "not-created" | "plan-decided" | "plan-required" | "planning-not-started" | "unknown-input" | "unknown-message" | "unknown-product" | "unknown-step";
+  type RejectionReason = "already-created" | "closed" | "empty-message" | "empty-plan" | "feedback-required" | "finish-not-proposed" | "input-closed" | "invalid-answer" | "invalid-input" | "invalid-preview" | "no-plan" | "not-created" | "plan-decided" | "plan-required" | "planning-not-started" | "stale-plan" | "unknown-input" | "unknown-message" | "unknown-product" | "unknown-step";
 }
 
 type CheckoutClient = StatewireClient<Checkout.State | undefined, Checkout.Commands>;
@@ -435,6 +440,6 @@ declare const upsertEnvLine: (content: string, key: string, value: string) => st
 
 declare const waitForStart: (client: Pick<CheckoutClient, "state" | "subscribe">) => Promise<Checkout.Status>;
 
-declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>) => Promise<void>;
+declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>, projectRoot?: string) => Promise<void>;
 
 export { entry_cli_exports as entry_cli, entry_host_exports as entry_host, entry_root_exports as entry_root };

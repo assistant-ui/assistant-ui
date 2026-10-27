@@ -7,6 +7,20 @@ import { MarkdownText } from "../MarkdownText";
 afterEach(cleanup);
 
 describe("MarkdownText", () => {
+  it("removes supplied terminal controls from rendered markdown", () => {
+    const highlighter = vi.fn((code: string) => code);
+    const { lastFrame } = render(
+      <MarkdownText
+        text={"```text\nsafe\u009d\x07 label\n```"}
+        highlighter={highlighter}
+      />,
+    );
+
+    expect(highlighter).toHaveBeenCalledWith("safe label", "text");
+    expect(lastFrame()).toContain("safe label");
+    expect(lastFrame()).not.toContain("\u009d");
+  });
+
   it.each([{ width: 40 }, { wrap: false }])(
     "does not reformat unchanged messages on resize with %j",
     async (options) => {

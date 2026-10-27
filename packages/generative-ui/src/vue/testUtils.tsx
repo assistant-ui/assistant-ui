@@ -137,6 +137,7 @@ export function renderReactSpec(
 export function renderVueSpec(
   spec: Spec,
   handlers: Record<string, (params: Record<string, unknown>) => unknown> = {},
+  setup: ReturnType<typeof toSpecCatalog> = vue,
 ): RenderedSpec {
   const container = document.createElement("div");
   document.body.append(container);
@@ -146,8 +147,8 @@ export function renderVueSpec(
     render: () =>
       h(VueSpecRenderer, {
         spec: source.value,
-        catalog: vue.catalog,
-        components: vue.components,
+        catalog: setup.catalog,
+        components: setup.components,
         state,
         handlers,
       }),

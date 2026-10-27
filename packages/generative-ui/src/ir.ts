@@ -168,6 +168,7 @@ const isLegacyNode = (
 /** Bounds recursion so a runaway or adversarial model response cannot overflow
  * the stack; past this depth (far beyond any real UI) we stop. */
 const MAX_DEPTH = 64;
+const MAX_NODES = 5_000;
 
 /**
  * Normalizes a generative-ui input to {@link NormalizedUINode}. The flat
@@ -191,13 +192,37 @@ export function normalizeUINode(
   partialPath?: readonly string[] | undefined,
   depth = 0,
 ): NormalizedUINode {
+  return normalizeNode(node, partialPath, depth, { remaining: MAX_NODES });
+}
+
+function normalizeNode(
+  node: unknown,
+  partialPath: readonly string[] | undefined,
+  depth: number,
+  budget: { remaining: number },
+): NormalizedUINode {
   if (depth > MAX_DEPTH) return null;
   if (node == null || typeof node === "boolean") return null;
-  if (typeof node === "string" || typeof node === "number") return node;
-  if (Array.isArray(node))
-    return node.map((child, index) =>
-      normalizeUINode(child, descend(partialPath, String(index)), depth + 1),
-    );
+  if (typeof node === "string" || typeof node === "number") {
+    if (budget.remaining === 0) return null;
+    budget.remaining--;
+    return node;
+  }
+  if (Array.isArray(node)) {
+    const children: NormalizedUINode[] = [];
+    const width = Math.min(node.length, MAX_NODES);
+    for (let index = 0; index < width && budget.remaining > 0; index++) {
+      children.push(
+        normalizeNode(
+          node[index],
+          descend(partialPath, String(index)),
+          depth + 1,
+          budget,
+        ),
+      );
+    }
+    return children;
+  }
   if (!isRecord(node)) return null;
 
   // The flat shape is the canonical form; detect it first so a flat node that
@@ -207,6 +232,8 @@ export function normalizeUINode(
   const type = node[typeKey];
   if (typeof type === "string") {
     if (partialPath?.length === 1 && partialPath[0] === typeKey) return null;
+    if (budget.remaining === 0) return null;
+    budget.remaining--;
     // A key still streaming in is a prefix of the final one, so the node stays keyless until it completes.
     const keyName = node["$key"] != null ? "$key" : MODEL_KEYS.key;
     const keyStreaming =
@@ -218,7 +245,7 @@ export function normalizeUINode(
     return {
       type,
       props: stripReservedProps(rest),
-      children: normalizeChildren(children, partialPath, depth),
+      children: normalizeChildren(children, partialPath, depth, budget),
       key: keyStreaming
         ? undefined
         : (readReserved(node, "key") as string | number | undefined),
@@ -227,13 +254,15 @@ export function normalizeUINode(
   }
 
   if (isLegacyNode(node)) {
+    if (budget.remaining === 0) return null;
+    budget.remaining--;
     const props = stripReservedProps(
       (node.props ?? {}) as Record<string, unknown>,
     );
     return {
       type: node.component,
       props,
-      children: normalizeChildren(node.children, partialPath, depth),
+      children: normalizeChildren(node.children, partialPath, depth, budget),
       key: node.key as string | undefined,
     };
   }
@@ -242,7 +271,9 @@ export function normalizeUINode(
   // Unwrapping waits for the complete root, since a model that streams `_type`
   // after `children` would otherwise flash the children unwrapped.
   if (depth === 0 && partialPath === undefined && "children" in node) {
-    return normalizeChildren(node["children"], undefined, depth) ?? null;
+    return (
+      normalizeChildren(node["children"], undefined, depth, budget) ?? null
+    );
   }
 
   return null;
@@ -265,9 +296,15 @@ function normalizeChildren(
   children: unknown,
   partialPath: readonly string[] | undefined,
   depth: number,
+  budget: { remaining: number },
 ): NormalizedUINode | undefined {
   if (children === undefined) return undefined;
-  return normalizeUINode(children, descend(partialPath, "children"), depth + 1);
+  return normalizeNode(
+    children,
+    descend(partialPath, "children"),
+    depth + 1,
+    budget,
+  );
 }
 
 /**
@@ -277,12 +314,5 @@ function normalizeChildren(
 export function normalizeSpec(spec: UISpec): {
   readonly root: NormalizedUINode | readonly NormalizedUINode[];
 } {
-  if (Array.isArray(spec)) {
-    return {
-      root: (spec as readonly UINode[]).map((node) =>
-        normalizeUINode(node, undefined, 1),
-      ),
-    };
-  }
   return { root: normalizeUINode(spec) };
 }

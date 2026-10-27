@@ -57,6 +57,7 @@ import { SingleThreadList } from "./single-thread-list";
 import {
   AttachmentResource,
   ComposerClientResource,
+  getEventThreadId,
   type CleanupOwner,
 } from "./external-composer";
 
@@ -468,12 +469,17 @@ const createSpeechController = (
   notify: (speech: SpeechState | undefined) => void,
 ) => {
   let session: { messageId: string; cancel: () => void } | undefined;
+  let replacing = false;
 
   const clear = () => {
-    if (!session) return;
-    session.cancel();
+    const current = session;
+    if (!current) return;
     session = undefined;
-    notify(undefined);
+    try {
+      current.cancel();
+    } finally {
+      if (!session) notify(undefined);
+    }
   };
 
   return {
@@ -481,12 +487,23 @@ const createSpeechController = (
       adapter: SpeechSynthesisAdapter,
       message: ExternalThreadMessage,
     ) => {
-      clear();
+      // A speak from inside the replaced utterance's cancel is superseded by
+      // this one, which would otherwise leave it playing untracked.
+      if (replacing) return;
+      replacing = true;
+      try {
+        clear();
+      } finally {
+        replacing = false;
+      }
 
       const utterance = adapter.speak(getThreadMessageText(message));
+      let active = true;
       let unsub: (() => void) | undefined;
       unsub = utterance.subscribe(() => {
+        if (!active) return;
         if (utterance.status.type === "ended") {
+          active = false;
           unsub?.();
           session = undefined;
           notify(undefined);
@@ -496,6 +513,7 @@ const createSpeechController = (
       });
 
       if (utterance.status.type === "ended") {
+        active = false;
         unsub();
         notify(undefined);
         return;
@@ -504,6 +522,7 @@ const createSpeechController = (
       session = {
         messageId: message.id,
         cancel: () => {
+          active = false;
           unsub!();
           utterance.cancel();
         },
@@ -562,9 +581,9 @@ const useExternalThread = ({
       if (!modelContext || modelContext.source == null) return;
 
       return modelContext().subscribe?.(() => {
-        const threadId =
-          clientRef?.current?.threads?.().getState().mainThreadId || "unknown";
-        emit("thread.modelContextUpdate", { threadId });
+        emit("thread.modelContextUpdate", {
+          threadId: getEventThreadId(clientRef?.current),
+        });
       });
     },
     [clientRef, emit],

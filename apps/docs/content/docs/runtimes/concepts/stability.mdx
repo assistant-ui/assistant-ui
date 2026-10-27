@@ -45,7 +45,7 @@ A non-exhaustive list of `unstable_` exports surfaced in the runtime docs.
 | `unstable_humanToolNames` | `@assistant-ui/react` | Tool names that pause the run until a result is added via `addResult`. Only available on LocalRuntime; not supported in DataStream. |
 | `unstable_threadListAdapter` | `@assistant-ui/react-langgraph` | LangGraph thread-list adapter slot on `useLangGraphRuntime`. |
 | `unstable_createLangGraphStream` | `@assistant-ui/react-langgraph` | End-to-end cancellation primitive. |
-| `unstable_Provider` | Various adapters | React-component face on `RemoteThreadListAdapter`. Must render children synchronously. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one; the `RemoteThreadList` store entry ignores it. Prefer `unstable_useAdapters`. |
+| `unstable_Provider` | Various adapters | Deprecated; will be removed in a future minor release. React-component face on `RemoteThreadListAdapter`. Must render children synchronously. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one; the `RemoteThreadList` store entry ignores it. Prefer `unstable_useAdapters`. |
 | `unstable_useAdapters` | Various adapters | Hook face on `RemoteThreadListAdapter`. The `RemoteThreadList` store entry calls it. `useRemoteThreadListRuntime` calls it except while it renders `unstable_Provider`. |
 | `unstable_capabilities` | `ExternalStoreRuntime` | Toggle copy and other thread capabilities. |
 | `unstable_state`, `unstable_annotations`, `unstable_data` | Message metadata | Runtime-internal fields exposed for advanced use cases. |

@@ -126,7 +126,7 @@ export function SettingsPanel({
           onChange={(event) =>
             onTemperatureChange?.(Number(event.target.value))
           }
-          className="accent-foreground/80 h-1 w-full cursor-pointer"
+          className="accent-foreground/80 h-1 w-full"
         />
       </div>
 

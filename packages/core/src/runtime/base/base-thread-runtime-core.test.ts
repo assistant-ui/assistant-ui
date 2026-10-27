@@ -281,6 +281,29 @@ describe("BaseThreadRuntimeCore speech lifecycle", () => {
     expect(second.unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it("supersedes a speak started from inside the replaced utterance's cancel", () => {
+    const first = createUtterance();
+    const second = createUtterance();
+    const speak = vi
+      .fn()
+      .mockReturnValueOnce(first.utterance)
+      .mockReturnValueOnce(second.utterance);
+    const thread = createThread({ speak });
+    thread.speak("first");
+    first.utterance.cancel = vi.fn(() => thread.speak("first"));
+
+    thread.speak("second");
+
+    expect(speak).toHaveBeenCalledTimes(2);
+    expect(thread.speech).toEqual({
+      messageId: "second",
+      status: { type: "running" },
+    });
+    thread.stopSpeaking();
+    expect(second.utterance.cancel).toHaveBeenCalledOnce();
+    expect(() => thread.stopSpeaking()).toThrow("No message is being spoken");
+  });
+
   it("clears state before synchronous cancellation callbacks", () => {
     const { utterance, unsubscribe, notify } = createUtterance();
     utterance.cancel = vi.fn(() => {
@@ -1563,27 +1586,64 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
-  it("finishes the reply being spoken before a typed turn", async () => {
-    const sendText = vi.fn();
-    const { thread, voiceAdapter } = await createLocalVoiceThread({
-      sendText,
-    });
+  it.each([false, true])(
+    "keeps an interrupted reply before a typed turn (provider finalizes: %s)",
+    async (finalized) => {
+      let acceptText!: () => void;
+      const sendText = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            acceptText = resolve;
+          }),
+      );
+      const { thread, voiceAdapter } = await createLocalVoiceThread({
+        sendText,
+      });
 
-    try {
-      voiceAdapter.emitTranscript({ role: "assistant", text: "Hel" });
-      expect(thread.messages[0]?.status?.type).toBe("running");
+      try {
+        voiceAdapter.emitTranscript({ role: "assistant", text: "Hel" });
+        expect(thread.messages[0]?.status?.type).toBe("running");
+        const replyId = thread.messages[0]!.id;
 
-      await thread.append(typedMessage(thread));
+        const sending = thread.append(typedMessage(thread));
+        voiceAdapter.emitTranscript({ role: "assistant", text: "Hello" });
+        expect(thread.messages[0]?.content).toEqual([
+          { type: "text", text: "Hello" },
+        ]);
+        if (finalized)
+          voiceAdapter.emitTranscript({
+            role: "assistant",
+            text: "Hello",
+            isFinal: true,
+          });
+        acceptText();
+        await sending;
+        voiceAdapter.emitTranscript({
+          role: "assistant",
+          text: "New answer",
+          isFinal: true,
+        });
 
-      expect(thread.messages.map((message) => message.role)).toEqual([
-        "assistant",
-        "user",
-      ]);
-      expect(thread.messages[0]?.status?.type).toBe("complete");
-    } finally {
-      thread.disconnectVoice();
-    }
-  });
+        expect(
+          thread.messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+        ).toEqual([
+          { role: "assistant", content: [{ type: "text", text: "Hello" }] },
+          { role: "user", content: [{ type: "text", text: "Text message" }] },
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "New answer" }],
+          },
+        ]);
+        expect(thread.messages[0]?.id).toBe(replyId);
+        expect(thread.messages[0]?.status?.type).toBe("complete");
+      } finally {
+        thread.disconnectVoice();
+      }
+    },
+  );
 
   it("hands the draft back when the session rejects the typed text", async () => {
     const failure = new Error("send failed");

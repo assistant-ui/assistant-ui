@@ -76,4 +76,36 @@ export const updateConfigSchema = z.object({
   customCSS: z.string().optional(),
 });
 
+export const registryConfigSchema = updateConfigSchema.superRefine(
+  (config, ctx) => {
+    if (config.components?.loadingText?.match(/[<{}]/)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["components", "loadingText"],
+        message: "Invalid loading text",
+      });
+    }
+    for (const [name, color] of Object.entries(config.styles?.colors ?? {})) {
+      for (const mode of ["light", "dark"] as const) {
+        if (color?.[mode]?.match(/[;{}<>\\\r\n]|\/\*/)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["styles", "colors", name, mode],
+            message: `Invalid ${name} color`,
+          });
+        }
+      }
+    }
+    for (const key of ["fontFamily", "maxWidth"] as const) {
+      if (config.styles?.[key]?.match(/["\\\r\n]/)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["styles", key],
+          message: `Invalid ${key}`,
+        });
+      }
+    }
+  },
+);
+
 export type PartialBuilderConfig = z.infer<typeof updateConfigSchema>;

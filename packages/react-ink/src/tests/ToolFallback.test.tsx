@@ -30,6 +30,28 @@ afterEach(() => {
 });
 
 describe("ToolFallback", () => {
+  it("removes terminal controls from tool name, arguments, and result", async () => {
+    const frame = await renderFrame(
+      <ToolFallback
+        expanded
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName={"search\x1b]8;;https://wrong.example\x07"}
+        args={{}}
+        argsText={"raw\x1b[2Jargs"}
+        result={"safe\x1b]52;c;YWJj\x07result"}
+        status={{ type: "complete" }}
+      />,
+    );
+
+    expect(frame).toContain("search");
+    expect(frame).toContain("rawargs");
+    expect(frame).toContain("saferesult");
+    expect(frame).not.toContain("\x1b]8");
+    expect(frame).not.toContain("\x1b]52");
+    expect(frame).not.toContain("\x1b[2J");
+  });
+
   it("truncates expanded error output with maxResultLines", async () => {
     const frame = await renderFrame(
       <ToolFallback

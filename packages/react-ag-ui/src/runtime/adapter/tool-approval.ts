@@ -228,6 +228,40 @@ export const projectAgUiToolApprovals = (
   );
 };
 
+/** A recorded decision authorizes one exact call and gate, not a reused id. */
+export const preserveToolApprovalDecision = (
+  previous: ToolCallMessagePart | undefined,
+  next: ToolCallMessagePart,
+): ToolApproval | undefined => {
+  const prior = previous?.approval;
+  let approval = next.approval;
+  if (!approval && prior) {
+    const {
+      approved: _approved,
+      reason: _reason,
+      resolution: _resolution,
+      ...pending
+    } = prior;
+    approval = pending;
+  }
+  if (!approval) return undefined;
+  // AG-UI may omit argument events for a no-argument call; both forms mean {}.
+  if (
+    !previous ||
+    prior?.id !== approval.id ||
+    previous.toolCallId !== next.toolCallId ||
+    previous.toolName !== next.toolName ||
+    (previous.argsText || "{}") !== (next.argsText || "{}")
+  )
+    return approval;
+  return {
+    ...approval,
+    ...(prior.approved !== undefined ? { approved: prior.approved } : {}),
+    ...(prior.reason !== undefined ? { reason: prior.reason } : {}),
+    ...(prior.resolution !== undefined ? { resolution: prior.resolution } : {}),
+  };
+};
+
 /**
  * Records a decision on the gated tool call. The decision is held on the part
  * until every gate in the batch is answered, because AG-UI resumes a run with
@@ -266,16 +300,20 @@ export const buildToolApprovalResume = (
   content: readonly ThreadAssistantMessagePart[],
   interrupts: readonly AgUiInterrupt[],
 ): AgUiResumeEntry[] | null => {
-  const open = new Set(interrupts.map((interrupt) => interrupt.id));
+  const calls = Array.from(iterateToolCallParts(content));
+  const gates = projectAgUiToolApprovals(
+    interrupts,
+    new Set(calls.map((part) => part.toolCallId)),
+  );
   // Decisions accumulate in a `Map` rather than in an object literal, because an
   // interrupt id of `__proto__` would otherwise write to the prototype chain
   // instead of recording a response, and `constructor` or `toString` would
   // report themselves as answered while undecided.
   const responses = new Map<string, { status: "resolved"; payload: unknown }>();
-  for (const part of iterateToolCallParts(content)) {
+  for (const part of calls) {
     const approval = part.approval;
     if (!approval || approval.approved === undefined) continue;
-    if (!open.has(approval.id)) continue;
+    if (gates.get(part.toolCallId)?.id !== approval.id) continue;
     responses.set(approval.id, {
       status: "resolved",
       payload: {

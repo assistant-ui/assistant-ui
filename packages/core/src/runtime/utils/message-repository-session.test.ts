@@ -41,6 +41,45 @@ describe("createMessageRepositorySession", () => {
     expect(session.export().headId).toBe("a1");
   });
 
+  it("selects a retained non-leaf head without pruning other messages", () => {
+    const session = createMessageRepositorySession();
+    const messageIds = ["u1", "a1", "u2", "a2", "a1b", "u2b", "a2b"];
+    session.applyExternalMessageRepository({
+      headId: "a2",
+      messages: [
+        { parentId: null, message: message("u1") },
+        { parentId: "u1", message: message("a1") },
+        { parentId: "a1", message: message("u2") },
+        { parentId: "u2", message: message("a2") },
+        { parentId: "u1", message: message("a1b") },
+        { parentId: "a1b", message: message("u2b") },
+        { parentId: "u2b", message: message("a2b") },
+      ],
+    });
+
+    session.selectHead("a1");
+
+    expect(session.headId).toBe("a1");
+    expect(session.getMessages().map((item) => item.id)).toEqual(["u1", "a1"]);
+    expect(session.export().headId).toBe("a1");
+    expect(session.export().messages.map((item) => item.message.id)).toEqual(
+      messageIds,
+    );
+
+    session.selectHead("a2");
+
+    expect(session.headId).toBe("a2");
+    expect(session.getMessages().map((item) => item.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+    expect(session.export().messages.map((item) => item.message.id)).toEqual(
+      messageIds,
+    );
+  });
+
   it("memoizes exports and invalidates them after every mutator", () => {
     const cases = [
       () => {
@@ -79,24 +118,35 @@ describe("createMessageRepositorySession", () => {
         return { session, mutate: () => session.resetHead("root") };
       },
       () => {
-        const session = createMessageRepositorySession();
-        session.addOrUpdateMessage(null, message("root"));
-        return { session, mutate: () => session.clear() };
+        const session = withRootAndChild();
+        return { session, mutate: () => session.selectHead("root") };
       },
       () => {
         const session = createMessageRepositorySession();
         session.addOrUpdateMessage(null, message("root"));
+        return { session, mutate: () => session.clear() };
+      },
+      ...["root", "child"].map((id) => () => {
+        const session = withRootAndChild();
         return {
           session,
-          mutate: () =>
+          mutate: () => {
             expect(
-              session.updateMessage("root", (current) => ({
+              session.updateMessage(id, (current) => ({
                 ...current,
                 content: [{ type: "text", text: "updated" }],
               })),
-            ).toBe(true),
+            ).toBe(true);
+            expect(session.getMessages().map((item) => item.id)).toEqual([
+              "root",
+              "child",
+            ]);
+            expect(
+              session.getMessages().find((item) => item.id === id)?.content,
+            ).toEqual([{ type: "text", text: "updated" }]);
+          },
         };
-      },
+      }),
       () => {
         const session = createMessageRepositorySession();
         session.addOrUpdateMessage(null, message("previous"));

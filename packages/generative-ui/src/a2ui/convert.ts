@@ -1152,10 +1152,14 @@ function convertComponent(
       const label = textLabel(node, children, context);
       if (label !== undefined) return { ...mapped, label };
     }
-    const listChildren =
-      component === "List" && mapped?.$type === "ListView"
-        ? children.map((child) => ({ $type: "ListViewItem", children: child }))
-        : children;
+    let listChildren = children;
+    if (component === "List" && mapped?.$type === "ListView") {
+      listChildren = [];
+      for (const child of children) {
+        if (!reserveNode(context)) break;
+        listChildren.push({ $type: "ListViewItem", children: child });
+      }
+    }
     if (
       cached?.result &&
       cached.children?.length === listChildren.length &&

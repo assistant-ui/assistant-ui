@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import { useDiffContext } from "./DiffContext";
 import { DiffStats } from "./DiffStats";
 
@@ -23,12 +24,12 @@ export const DiffHeader = ({ fileIndex = 0, ...boxProps }: DiffHeaderProps) => {
     <Box gap={1} {...boxProps}>
       {renamed ? (
         <>
-          <Text>{file.oldName}</Text>
+          <Text>{sanitizeTerminalText(file.oldName ?? "")}</Text>
           <Text>{"->"}</Text>
-          <Text>{file.newName}</Text>
+          <Text>{sanitizeTerminalText(file.newName ?? "")}</Text>
         </>
       ) : (
-        <Text>{displayName}</Text>
+        <Text>{sanitizeTerminalText(displayName ?? "")}</Text>
       )}
       <DiffStats fileIndex={fileIndex} />
     </Box>

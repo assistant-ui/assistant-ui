@@ -40,7 +40,7 @@ and changing the query or closing the palette cancels obsolete client work.
 Run the deterministic search, navigation, and rate-limit tests from the root:
 
 ```sh
-pnpm --filter @assistant-ui/docs test lib/search hooks/use-search-suggestions.test.tsx components/shared/search-dialog.test.tsx lib/rate-limit.test.ts app/api/search/suggest/route.test.ts
+pnpm --filter @assistant-ui/docs-site test lib/search hooks/use-search-suggestions.test.tsx components/shared/search-dialog.test.tsx lib/rate-limit.test.ts app/api/search/suggest/route.test.ts
 ```
 
 The optional live evaluation uses the published docs catalogue and makes paid

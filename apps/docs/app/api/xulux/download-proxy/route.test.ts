@@ -111,6 +111,28 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
     });
   });
 
+  it("serves a download as an attachment regardless of upstream content type", async () => {
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/zip");
+    expect(response.headers.get("content-disposition")).toBe(
+      'attachment; filename="template.zip"',
+    );
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   it("cuts off an archive that outgrows the ceiling mid-stream", async () => {
     mocks.requireSession.mockReturnValue(session);
     mocks.checkRateLimit.mockResolvedValue(null);

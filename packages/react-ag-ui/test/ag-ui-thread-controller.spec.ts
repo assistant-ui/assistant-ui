@@ -12,6 +12,7 @@ import type {
 } from "@assistant-ui/core";
 import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
+import { toAgUiMessages } from "../src/runtime/adapter/conversions";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 import type {
   AgUiResumeTranscript,
@@ -396,6 +397,7 @@ const notifyRunFinished = (
   subscriber?.onRunFinishedEvent?.({
     event,
     outcome: "success",
+    pendingToolCallIds: [],
     ...createAgentSubscriberParams(),
   });
 };
@@ -459,6 +461,7 @@ const createStreamingHttpAgent = () => {
     write: (event: object) =>
       controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)),
     fail: (error: Error) => controller.error(error),
+    close: () => controller.close(),
   };
 };
 
@@ -2266,6 +2269,54 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "unknown",
     });
     expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
+  it("renders a backend that still streams legacy THINKING_* and chunk events", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    http.write({ type: "THINKING_START" });
+    http.write({ type: "THINKING_TEXT_MESSAGE_START" });
+    http.write({ type: "THINKING_TEXT_MESSAGE_CONTENT", delta: "plan" });
+    http.write({ type: "THINKING_TEXT_MESSAGE_END" });
+    http.write({ type: "THINKING_END" });
+    http.write({
+      type: "TEXT_MESSAGE_CHUNK",
+      messageId: "m1",
+      role: "assistant",
+      delta: "answer",
+    });
+    http.write({
+      type: "TOOL_CALL_CHUNK",
+      toolCallId: "call-1",
+      toolCallName: "lookup",
+      parentMessageId: "m1",
+      delta: '{"q":1}',
+    });
+    http.write({
+      type: "TOOL_CALL_RESULT",
+      messageId: "tool-1",
+      toolCallId: "call-1",
+      content: "42",
+    });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run" });
+    http.close();
+    await run;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toEqual({ type: "complete", reason: "unknown" });
+    expect(assistant.content).toEqual([
+      expect.objectContaining({ type: "reasoning", text: "plan" }),
+      expect.objectContaining({ type: "text", text: "answer" }),
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: { q: 1 },
+        result: 42,
+      }),
+    ]);
   });
 
   it("reports an HttpAgent network failure once", async () => {
@@ -4722,6 +4773,538 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
+  it("waits only for listed tool calls across a run, reload, and resume", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length === 1) {
+        for (const id of ["A", "B"]) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: id,
+              toolCallName: "lookup",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: id },
+          });
+        }
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success", pendingToolCallIds: ["A"] },
+          },
+        });
+      } else {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["A"]);
+    const wire = toAgUiMessages(core.getMessages());
+    expect(
+      wire.find((message) => message.role === "assistant")?.metadata,
+    ).toBeUndefined();
+    const reloaded = createCore(agent);
+    reloaded.applyExternalMessages(core.getMessages());
+    expect(reloaded.getPendingToolCalls()?.toolCallIds).toEqual(["A"]);
+
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage;
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "A",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    const settled = core
+      .getMessages()
+      .find((message) => message.id === assistant.id) as ThreadAssistantMessage;
+    expect(settled.status).toMatchObject({ type: "complete" });
+    const callB = settled.content.find(
+      (part) => part.type === "tool-call" && part.toolCallId === "B",
+    );
+    expect(callB).toBeDefined();
+    expect(
+      callB && "result" in callB ? callB.result : undefined,
+    ).toBeUndefined();
+    expect(
+      (settled.metadata.custom.agui as any)?.pendingToolCallIds,
+    ).toBeUndefined();
+  });
+
+  const createSplitPendingAgent = (
+    options: {
+      pendingToolCallIds?: string[];
+      callInB?: boolean;
+      resultAfterSplit?: boolean;
+      error?: boolean;
+      thirdMessage?: boolean;
+      interrupt?: boolean;
+      beforeSplit?: () => void;
+      afterBStart?: () => void;
+      beforeFinish?: () => void;
+    } = {},
+  ) => {
+    const inputs: any[] = [];
+    const runAgent = vi.fn(async (input: any, subscriber: AgentSubscriber) => {
+      inputs.push(input);
+      if (inputs.length === 1) {
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: EventType.TEXT_MESSAGE_START,
+            messageId: "a",
+            role: "assistant",
+          },
+          ...createAgentSubscriberParams(),
+        });
+        notifyToolCallStarted(subscriber, "call-1", "lookup");
+        notifyToolCallEnded(subscriber, "call-1", "lookup");
+        options.beforeSplit?.();
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: EventType.TEXT_MESSAGE_START,
+            messageId: "b",
+            role: "assistant",
+          },
+          ...createAgentSubscriberParams(),
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: EventType.TEXT_MESSAGE_CONTENT,
+            messageId: "b",
+            delta: "Second",
+          },
+          textMessageBuffer: "Second",
+          ...createAgentSubscriberParams(),
+        });
+        options.afterBStart?.();
+        if (options.thirdMessage) {
+          subscriber.onTextMessageStartEvent?.({
+            event: {
+              type: EventType.TEXT_MESSAGE_START,
+              messageId: "c",
+              role: "assistant",
+            },
+            ...createAgentSubscriberParams(),
+          });
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: EventType.TEXT_MESSAGE_CONTENT,
+              messageId: "c",
+              delta: "Third",
+            },
+            textMessageBuffer: "Third",
+            ...createAgentSubscriberParams(),
+          });
+        }
+        if (options.callInB) {
+          notifyToolCallStarted(subscriber, "call-2", "lookup");
+          notifyToolCallEnded(subscriber, "call-2", "lookup");
+        }
+        if (options.resultAfterSplit) {
+          subscriber.onToolCallResultEvent?.({
+            event: {
+              type: EventType.TOOL_CALL_RESULT,
+              messageId: "result-1",
+              toolCallId: "call-1",
+              content: "done",
+              role: "tool",
+            },
+            ...createAgentSubscriberParams(),
+          });
+        }
+        if (options.error) {
+          subscriber.onRunErrorEvent?.({
+            event: { type: EventType.RUN_ERROR, message: "boom" },
+            ...createAgentSubscriberParams(),
+          });
+          return;
+        }
+        options.beforeFinish?.();
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: EventType.RUN_FINISHED,
+          threadId: "thread",
+          runId: input.runId,
+          outcome:
+            inputs.length === 1 && options.interrupt
+              ? {
+                  type: "interrupt",
+                  interrupts: [{ id: "int-1", reason: "tool_call" }],
+                }
+              : {
+                  type: "success",
+                  ...(inputs.length === 1 && options.pendingToolCallIds
+                    ? { pendingToolCallIds: options.pendingToolCallIds }
+                    : {}),
+                },
+        },
+        outcome: "success",
+        pendingToolCallIds: options.pendingToolCallIds ?? [],
+        ...createAgentSubscriberParams(),
+      });
+      notifyRunFinalized(subscriber);
+    });
+    return { inputs, runAgent };
+  };
+
+  it.each([
+    ["before the split", "beforeSplit"],
+    ["while b streams", "afterBStart"],
+  ] as const)(
+    "resumes from b when the frontend answers a held call %s",
+    async (_label, timing) => {
+      let core: ReturnType<typeof createCore>;
+      const answer = () =>
+        core.addToolResult({
+          messageId: "a",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          result: "done",
+          isError: false,
+        });
+      const { runAgent } = createSplitPendingAgent({ [timing]: answer });
+      core = createCore({ runAgent } as unknown as HttpAgent);
+      await core.append(createAppendMessage());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(
+        core.getMessages().find((message) => message.id === "a")?.status,
+      ).toMatchObject({ type: "complete" });
+      const continuation = core
+        .getMessageRepository()
+        .messages.find(
+          ({ message }) =>
+            message.role === "assistant" &&
+            message.id !== "a" &&
+            message.id !== "b",
+        );
+      expect(continuation?.parentId).toBe("b");
+    },
+  );
+
+  it("keeps an earlier open call running across later splits until RUN_FINISHED", async () => {
+    let core: ReturnType<typeof createCore>;
+    const { runAgent } = createSplitPendingAgent({
+      thirdMessage: true,
+      beforeFinish: () => {
+        expect(
+          core.getMessages().find((message) => message.id === "a")?.status,
+        ).toMatchObject({ type: "running" });
+        expect(core.getPendingToolCalls()).toBeNull();
+      },
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    expect(
+      core.getMessages().find((message) => message.id === "a")?.status,
+    ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+  });
+
+  it("waits for an interrupt response after answering an earlier held call", async () => {
+    const { runAgent } = createSplitPendingAgent({ interrupt: true });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    expect(core.getPendingInterrupts()?.messageId).toBe("b");
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      core.getMessages().find((message) => message.id === "a")?.status,
+    ).toMatchObject({ type: "complete" });
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved" },
+    ]);
+    expect(runAgent).toHaveBeenCalledTimes(2);
+  });
+
+  it("resumes a split assistant turn from its last message after an earlier tool result", async () => {
+    const { inputs, runAgent } = createSplitPendingAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const assistants = core
+      .getMessages()
+      .filter(
+        (message): message is ThreadAssistantMessage =>
+          message.role === "assistant",
+      );
+    expect(assistants.map((message) => message.id)).toEqual(["a", "b"]);
+    expect(assistants[0]?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(assistants[1]?.status).toMatchObject({ type: "complete" });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "done",
+      isError: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(inputs[1]?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "b",
+          role: "assistant",
+          content: "Second",
+        }),
+        expect.objectContaining({
+          role: "tool",
+          toolCallId: "call-1",
+          content: expect.stringContaining("done"),
+        }),
+      ]),
+    );
+    expect(core.getMessages().some((message) => message.id === "b")).toBe(true);
+  });
+
+  it("keeps an earlier split message pending when RUN_FINISHED lists its call", async () => {
+    const { runAgent } = createSplitPendingAgent({
+      pendingToolCallIds: ["call-1"],
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const [a, b] = core
+      .getMessages()
+      .filter(
+        (message): message is ThreadAssistantMessage =>
+          message.role === "assistant",
+      );
+    expect(a?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect((a?.metadata.custom.agui as any)?.pendingToolCallIds).toEqual([
+      "call-1",
+    ]);
+    expect(b?.status).toMatchObject({ type: "complete" });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+  });
+
+  it("completes an earlier split message when RUN_FINISHED lists only a later call", async () => {
+    const { runAgent } = createSplitPendingAgent({
+      callInB: true,
+      pendingToolCallIds: ["call-2"],
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const [a, b] = core
+      .getMessages()
+      .filter(
+        (message): message is ThreadAssistantMessage =>
+          message.role === "assistant",
+      );
+    expect(a?.status).toMatchObject({ type: "complete" });
+    expect(b?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "b",
+      toolCallIds: ["call-2"],
+    });
+  });
+
+  it("settles an earlier split message with the run error", async () => {
+    const { runAgent } = createSplitPendingAgent({ error: true });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await expect(core.append(createAppendMessage())).rejects.toThrow("boom");
+
+    const assistants = core
+      .getMessages()
+      .filter(
+        (message): message is ThreadAssistantMessage =>
+          message.role === "assistant",
+      );
+    expect(assistants.map((message) => message.status)).toEqual([
+      expect.objectContaining({
+        type: "incomplete",
+        reason: "error",
+        error: "boom",
+      }),
+      expect.objectContaining({
+        type: "incomplete",
+        reason: "error",
+        error: "boom",
+      }),
+    ]);
+  });
+
+  it("completes an earlier split message when its server tool result arrives after the split", async () => {
+    const { runAgent } = createSplitPendingAgent({ resultAfterSplit: true });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const [a, b] = core
+      .getMessages()
+      .filter(
+        (message): message is ThreadAssistantMessage =>
+          message.role === "assistant",
+      );
+    expect(a?.status).toMatchObject({ type: "complete" });
+    expect(b?.status).toMatchObject({ type: "complete" });
+    expect(a?.content).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "call-1",
+          result: "done",
+        }),
+      ]),
+    );
+    expect(core.getPendingToolCalls()).toBeNull();
+  });
+
+  it("waits for tool results from both messages of a split assistant turn", async () => {
+    const { runAgent, inputs } = createSplitPendingAgent({ callInB: true });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1", "call-2"],
+    });
+    core.addToolResult({
+      messageId: "a",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "one",
+      isError: false,
+    });
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "b",
+      toolCallIds: ["call-2"],
+    });
+    core.addToolResult({
+      messageId: "b",
+      toolCallId: "call-2",
+      toolName: "lookup",
+      result: "two",
+      isError: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(inputs[1]?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "b", role: "assistant" }),
+        expect.objectContaining({ role: "tool", toolCallId: "call-1" }),
+        expect.objectContaining({ role: "tool", toolCallId: "call-2" }),
+      ]),
+    );
+  });
+
+  it("keeps waiting on an earlier held call when the later call is answered before RUN_FINISHED", async () => {
+    let core: ReturnType<typeof createCore>;
+    const { runAgent } = createSplitPendingAgent({
+      callInB: true,
+      beforeFinish: () =>
+        core.addToolResult({
+          messageId: "b",
+          toolCallId: "call-2",
+          toolName: "lookup",
+          result: "two",
+          isError: false,
+        }),
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "a",
+      toolCallIds: ["call-1"],
+    });
+  });
+
+  it.each(["append", "steerAway"] as const)(
+    "%s cancels pending calls in every message of a split assistant turn",
+    async (method) => {
+      const { runAgent, inputs } = createSplitPendingAgent({ callInB: true });
+      const core = createCore({ runAgent } as unknown as HttpAgent);
+      await core.append(createAppendMessage());
+
+      if (method === "append") {
+        await core.append(createAppendMessage({ parentId: "b" }));
+      } else {
+        await core.steerAway("new question");
+      }
+
+      const [a, b] = core
+        .getMessages()
+        .filter(
+          (message): message is ThreadAssistantMessage =>
+            message.role === "assistant",
+        );
+      expect(a?.status).toMatchObject({ type: "complete" });
+      expect(b?.status).toMatchObject({ type: "complete" });
+      expect(a?.content).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ toolCallId: "call-1", isError: true }),
+        ]),
+      );
+      expect(b?.content).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ toolCallId: "call-2", isError: true }),
+        ]),
+      );
+      expect(inputs[1]?.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ role: "tool", toolCallId: "call-1" }),
+          expect.objectContaining({ role: "tool", toolCallId: "call-2" }),
+        ]),
+      );
+    },
+  );
+
   it("steerAway cancels a pending client-side tool call and starts one fresh run", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
@@ -6102,6 +6685,68 @@ describe("AGUIThreadRuntimeCore", () => {
     );
   });
 
+  it("keeps content parts from a cross-run TOOL_CALL_RESULT", async () => {
+    const parts = [
+      { type: "text", text: "Forecast: " },
+      { type: "text", text: "sunny" },
+    ];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "weather",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          messageId: "tool-msg-1",
+          toolCallId: "call-1",
+          content: parts,
+          role: "tool",
+        },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core.getMessages()[1] as ThreadAssistantMessage;
+    expect(first.content.find((p) => p.type === "tool-call")).toMatchObject({
+      toolCallId: "call-1",
+      result: parts,
+      isError: false,
+    });
+    expect(
+      first.content.find((p) => p.type === "tool-call"),
+    ).not.toHaveProperty("modelContent");
+  });
+
   it("attaches an mcp-apps ACTIVITY_SNAPSHOT for a restored tool call to its owning message", async () => {
     const callToolResult = {
       content: [{ type: "text", text: "22C" }],
@@ -6364,6 +7009,64 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart.modelContent).toEqual([
       { type: "text", text: '{"temperature":"22C"}' },
     ]);
+  });
+
+  it("sets empty model text for a textless cross-run MCP result on a snapshot part", async () => {
+    const snapshotResult = {
+      content: [{ type: "image", data: "aW1hZ2U=", mimeType: "image/png" }],
+    };
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "user-1", role: "user", content: "show image" },
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: { name: "image", arguments: "{}" },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            result: snapshotResult,
+            resourceUri: "ui://srv/image.html",
+          },
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          role: "tool",
+          content: snapshotResult.content,
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const part = assistant.content.find((p) => p.type === "tool-call") as any;
+    expect(part.result).toEqual(snapshotResult);
+    expect(part.modelContent).toEqual([{ type: "text", text: "" }]);
   });
 
   it("clears a stale cross-run error when the snapshot result succeeds", async () => {
@@ -7060,6 +7763,78 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "resolved" },
       ]),
     ).rejects.toThrow(/expired/);
+  });
+
+  it("submits a cancellation for an expired interrupt", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                {
+                  id: "int-1",
+                  reason: "input_required",
+                  expiresAt: new Date(Date.now() - 1000).toISOString(),
+                },
+              ],
+            },
+          },
+        });
+      } else {
+        expect(input.resume).toEqual([
+          { interruptId: "int-1", status: "cancelled" },
+        ]);
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "cancelled" },
+    ]);
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a server-cancelled run incomplete without answerable interrupts", async () => {
+    const onCancel = vi.fn();
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "partial" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "cancelled" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent, { onCancel });
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage;
+    expect(assistant.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(core.getPendingInterrupts()).toBeNull();
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("rejects resume responses with unknown interrupt ids", async () => {
@@ -8769,15 +9544,19 @@ describe("AGUIThreadRuntimeCore", () => {
       expect(reasoningOf(core, "assistant-2")).toEqual(["write the answer"]);
     });
 
-    it("keeps a carried anonymous reasoning block apart from later ones", async () => {
+    it("keeps a carried reasoning block apart from later ones", async () => {
+      let nextId = 0;
       const think = (subscriber: any, delta: string) => {
-        subscriber.onThinkingStartEvent?.({
-          event: { type: "THINKING_START" },
+        const messageId = `reason-${++nextId}`;
+        subscriber.onReasoningStartEvent?.({
+          event: { type: "REASONING_START", messageId },
         });
-        subscriber.onThinkingTextMessageContentEvent?.({
-          event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta },
+        subscriber.onReasoningMessageContentEvent?.({
+          event: { type: "REASONING_MESSAGE_CONTENT", messageId, delta },
         });
-        subscriber.onThinkingEndEvent?.({ event: { type: "THINKING_END" } });
+        subscriber.onReasoningEndEvent?.({
+          event: { type: "REASONING_END", messageId },
+        });
       };
       const runAgent = vi.fn(async (_input, subscriber) => {
         callTool(subscriber);
@@ -9038,22 +9817,26 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
-  it("signs reasoning that arrived on the legacy thinking channel", async () => {
+  it("signs a reasoning block", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
       runInputs.push(JSON.parse(JSON.stringify(input)));
       if (runInputs.length === 1) {
-        subscriber.onThinkingTextMessageStartEvent?.({
-          event: { type: "THINKING_TEXT_MESSAGE_START" },
+        subscriber.onReasoningMessageStartEvent?.({
+          event: { type: "REASONING_MESSAGE_START", messageId: "r-1" },
         });
-        subscriber.onThinkingTextMessageContentEvent?.({
-          event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta: "pondering" },
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r-1",
+            delta: "pondering",
+          },
         });
         subscriber.onReasoningEncryptedValueEvent?.({
           event: {
             type: "REASONING_ENCRYPTED_VALUE",
             subtype: "message",
-            entityId: "unmatched-entity",
+            entityId: "r-1",
             encryptedValue: "signed-blob",
           },
         });
@@ -9166,8 +9949,12 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onReasoningStartEvent?.({
           event: { type: "REASONING_START", messageId: "p-1" },
         });
-        subscriber.onThinkingTextMessageContentEvent?.({
-          event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta: "pondering" },
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "p-1",
+            delta: "pondering",
+          },
         });
         subscriber.onReasoningEncryptedValueEvent?.({
           event: {

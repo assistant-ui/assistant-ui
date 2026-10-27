@@ -18,6 +18,8 @@ export type JSONGenerativeUIOptions = {
    * read-only render where model-emitted actions degrade to a no-op.
    */
   actions?: ActionRegistry;
+  /** Origins allowed for vocabulary images. Omit to allow all sources. */
+  imageOrigins?: readonly string[];
 };
 
 /** Options for {@link JSONGenerativeUI.present}. */

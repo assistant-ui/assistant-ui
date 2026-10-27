@@ -14,6 +14,8 @@ on:
       - packages/store/**
       - packages/tap/**
       - packages/ui/**
+      - "!packages/ui/src/components/react/**"
+      - "!packages/ui/src/components/vue/**"
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
       - "!packages/**/*.test.ts"
@@ -38,6 +40,8 @@ on:
       - packages/store/**
       - packages/tap/**
       - packages/ui/**
+      - "!packages/ui/src/components/react/**"
+      - "!packages/ui/src/components/vue/**"
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
       - "!packages/**/*.test.ts"
@@ -72,7 +76,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false

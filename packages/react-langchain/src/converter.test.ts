@@ -1,7 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { convertLangChainContentBlock } from "./converter";
+import { AIMessage } from "@langchain/core/messages";
+import {
+  convertLangChainContentBlock,
+  createLangChainStreamingTimingAccessors,
+} from "./converter";
+
+describe("createLangChainStreamingTimingAccessors", () => {
+  it("distinguishes an absent assistant message from existing output", () => {
+    const accessors = createLangChainStreamingTimingAccessors<AIMessage>(
+      (message) => message.getType(),
+    );
+    const messages = [new AIMessage({ id: "a1", content: "Previous answer" })];
+
+    expect(accessors.getMessageContent?.(messages, "a1")).toMatchObject({
+      content: "Previous answer",
+    });
+    expect(accessors.getMessageContent?.(messages, "a2")).toBeUndefined();
+  });
+});
 
 describe("convertLangChainContentBlock standard content blocks", () => {
+  it.each([
+    [
+      { data: "ZmFrZQ==", mimeType: "image/png" },
+      "data:image/png;base64,ZmFrZQ==",
+    ],
+    [
+      { base64: "ZmFrZQ==", mime_type: "image/png" },
+      "data:image/png;base64,ZmFrZQ==",
+    ],
+    [{ url: "https://cdn.example/a.png" }, "https://cdn.example/a.png"],
+  ])("preserves the filename on an image block %j", (source, image) => {
+    expect(
+      convertLangChainContentBlock({
+        type: "image",
+        ...source,
+        metadata: { filename: "diagram.png" },
+      }),
+    ).toEqual({ type: "image", image, filename: "diagram.png" });
+  });
+
   it("converts a base64 image block to an image part", () => {
     expect(
       convertLangChainContentBlock({

@@ -35,11 +35,23 @@ on:
       - "knip-baseline.json"
       - "scripts/check-adapter-architecture.mjs"
       - "scripts/check-adapter-architecture.test.mjs"
+      - "scripts/check-pypi-dist.sh"
+      - "scripts/check-pypi-dist.test.mjs"
+      - "scripts/check-packed-release.mjs"
+      - "scripts/check-packed-release.test.mjs"
+      - "scripts/create-release-tags.mjs"
+      - "scripts/create-release-tags.test.mjs"
+      - "scripts/check-version-patch.mjs"
+      - "scripts/check-version-patch.test.mjs"
+      - "scripts/pending-changesets.mjs"
+      - "scripts/pending-changesets.test.mjs"
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/checkout-worker-release.mjs"
+      - "scripts/checkout-worker-release.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
       - "scripts/*example-bundle*"
@@ -85,7 +97,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -112,7 +124,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -138,7 +150,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           install: false
@@ -151,6 +163,18 @@ jobs:
 
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
+
+      - name: Test the PyPI distribution checker
+        run: node --test scripts/check-pypi-dist.test.mjs
+
+      - name: Test the packed release checker
+        run: node --test scripts/check-packed-release.test.mjs
+
+      - name: Test the release tag reconciler
+        run: node --test scripts/create-release-tags.test.mjs
+
+      - name: Test the version patch checker
+        run: node --test scripts/check-version-patch.test.mjs scripts/pending-changesets.test.mjs
 
       - name: Test the adapter architecture checker
         run: node --test scripts/check-adapter-architecture.test.mjs
@@ -169,7 +193,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -198,7 +222,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           install: false
@@ -250,7 +274,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.package_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -345,6 +369,10 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run deploy-examples:test
 
+      - name: Test the checkout worker release check
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run checkout-worker-release:test
+
       - name: Test API surface generator
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run api-surface:test
@@ -391,8 +419,6 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
-    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
-    needs: build
     if: ${{ !cancelled() }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
@@ -416,11 +442,15 @@ jobs:
           set -euo pipefail
           BASE=$(node scripts/prepare-ci-base.mjs --resolve)
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
-            run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/app-build-inputs.mjs)
+            git diff --name-only --no-renames -z "$BASE" HEAD > "$RUNNER_TEMP/app-build-changes"
+            run=$(node scripts/app-build-inputs.mjs < "$RUNNER_TEMP/app-build-changes")
+            bundles=$(node scripts/app-build-inputs.mjs --bundles < "$RUNNER_TEMP/app-build-changes")
           else
             run=true
+            bundles=true
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "bundles=$bundles" >> "$GITHUB_OUTPUT"
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Test app build input detector
@@ -433,15 +463,15 @@ jobs:
         run: node --test scripts/source-mapped-tsconfigs.test.mjs
 
       - name: Setup pnpm and node.js
-        if: steps.app_build_inputs.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: true
           install: false
 
       - name: Install dependencies
-        if: steps.app_build_inputs.outputs.run == 'true'
+        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
         run: pnpm install --frozen-lockfile
 
       # apps/docs is excluded: its build belongs to the Vercel deployment.
@@ -454,11 +484,11 @@ jobs:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
-          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*"
           pnpm turbo build --filter="{./examples/*}[$BASE]"
 
       - name: Verify standalone example bundle contracts
-        if: steps.app_build_inputs.outputs.run == 'true'
+        if: steps.app_build_inputs.outputs.bundles == 'true'
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
@@ -496,7 +526,7 @@ jobs:
 
       - name: Setup pnpm and node.js
         if: steps.api_ref.outputs.run == 'true'
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false
@@ -504,7 +534,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs..." --filter="@assistant-ui/eve..."
+        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs-site..." --filter="@assistant-ui/eve..."
 
       - name: Generate API reference (strict)
         if: steps.api_ref.outputs.run == 'true'
@@ -524,8 +554,6 @@ jobs:
 
   typecheck:
     name: Typecheck Changed Packages
-    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
-    needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -550,7 +578,7 @@ jobs:
           echo "CI_BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
           cache: false

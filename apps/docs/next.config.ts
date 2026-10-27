@@ -101,6 +101,7 @@ const config: NextConfig = {
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
+    "/[site]/docs/[[...slug]]": ["./components/diagrammatic/examples/**/*.tsx"],
     "/elements/[slug]": [
       "./components/demo/elements/*.tsx",
       "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",

@@ -1,5 +1,6 @@
 import { type ComponentProps, useMemo } from "react";
 import { Box, Text } from "ink";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import { DiffContent } from "./DiffContent";
 import { useDiffContext } from "./DiffContext";
 import { DiffRoot } from "./DiffRoot";
@@ -62,8 +63,8 @@ const createSegmentReader = (lines: ParsedLine[]): SegmentReader => {
     const del = line.type === "del" ? line : partner;
     const add = line.type === "add" ? line : partner;
     const { delSegments, addSegments } = buildIntraLineSegments(
-      del.content,
-      add.content,
+      sanitizeTerminalText(del.content),
+      sanitizeTerminalText(add.content),
     );
 
     segmentMap.set(del, delSegments);
@@ -119,11 +120,11 @@ const StyledLine = ({
       {segments && line.type !== "normal" ? (
         renderSegmentedLine(line, segments)
       ) : line.type === "add" ? (
-        <Text color="green">{`+ ${line.content}`}</Text>
+        <Text color="green">{`+ ${sanitizeTerminalText(line.content)}`}</Text>
       ) : line.type === "del" ? (
-        <Text color="red">{`- ${line.content}`}</Text>
+        <Text color="red">{`- ${sanitizeTerminalText(line.content)}`}</Text>
       ) : (
-        <Text>{`  ${line.content}`}</Text>
+        <Text>{`  ${sanitizeTerminalText(line.content)}`}</Text>
       )}
     </Box>
   );
@@ -166,13 +167,13 @@ const DiffViewInner = ({
               {renamed ? (
                 <>
                   <Text bold dimColor>
-                    {file.oldName}
+                    {sanitizeTerminalText(file.oldName ?? "")}
                   </Text>
                   <Text dimColor>{"->"}</Text>
-                  <Text bold>{file.newName}</Text>
+                  <Text bold>{sanitizeTerminalText(file.newName ?? "")}</Text>
                 </>
               ) : (
-                <Text bold>{displayName}</Text>
+                <Text bold>{sanitizeTerminalText(displayName ?? "")}</Text>
               )}
               <Text color="green">+{file.additions}</Text>
               <Text color="red">-{file.deletions}</Text>

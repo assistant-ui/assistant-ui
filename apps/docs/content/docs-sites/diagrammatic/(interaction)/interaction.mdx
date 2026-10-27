@@ -1,0 +1,87 @@
+---
+title: Interaction
+description: Tooltips, hover and controlled highlight, clicks, and the mark address every chart stamps.
+---
+
+import { HighlightSample, TooltipBar } from "@/components/diagrammatic/samples-client";
+
+Charts stay server components. Interaction lives in `diagrammatic/interactive`, a client entry whose components wrap a chart and read the addresses it stamps on its marks. A tooltip or a click handler receives an address, never the data: you look the row up in the data you already have.
+
+<HighlightSample />
+
+## The mark address
+
+Every drawn mark carries `data-part="mark"` and up to four address slots. Each form fills the slots its marks have (a parallel-coordinates record has a series but no index), and no form adds a fifth, so the interaction API never grows per form.
+
+| Slot | Attribute | Meaning |
+| --- | --- | --- |
+| `index` | `data-i` | The primary ordinal: the point, bar, or category |
+| `index2` | `data-i2` | The secondary ordinal: the row of a grid |
+| `series` | `data-series` | The identity: a series, a node, a country, or a flow's source |
+| `series2` | `data-series2` | The counterparty: a flow's or an edge's target |
+
+`getMarkDatum(element)` decodes an element into that address, plus the `element` itself. It is what `Root` uses, and it works on its own in any event handler you attach to the chart's root.
+
+## Root
+
+`Root` is a `div` that delegates pointer events to the marks inside it.
+
+| Prop | Description |
+| --- | --- |
+| `onMarkHover` | Called with the datum when the pointer enters a mark, and with `null` when it leaves |
+| `onMarkClick` | Called with the datum and the event on a mark click |
+| `highlightOnHover` | `true`, `"index"`, or `"series"`: what the hovered mark highlights. `true` tries `index`, then `series` |
+| `highlight` | A controlled `MarkQuery` or list of queries; while set, it wins over hover |
+
+A highlight stamps `data-dg-active` on matching marks and `data-dg-muted` on the rest. `diagrammatic/styles.css` fades muted marks; restyle either state with your own CSS. `applyHighlight(container, query)` is the same stamp as a pure function, for a host driving it without `Root`.
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { Line, type Series } from "diagrammatic";
+import { Root } from "diagrammatic/interactive";
+
+export function TrafficChart({ series, weeks }: { series: Series[]; weeks: string[] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <Root
+      {...(selected && { highlight: { series: selected } })}
+      highlightOnHover="series"
+      onMarkClick={(datum) => setSelected(datum.series ?? null)}
+    >
+      <Line series={series} labels={weeks} />
+    </Root>
+  );
+}
+```
+
+## Tooltip
+
+`Tooltip` renders inside `Root` and follows the pointer over the hovered mark. Its child is a render function that receives the datum.
+
+| Prop | Description | Default |
+| --- | --- | --- |
+| `side` | `"top"`, `"bottom"`, `"left"`, or `"right"` | `"top"` |
+| `sideOffset` | Distance from the pointer in pixels | `10` |
+| `collision` | Flip to the other side and clamp inside the container when it would overflow | `true` |
+
+Give the tooltip surface `width: max-content` (`w-max` in Tailwind), because an absolutely positioned box shrinks against its container's right edge and would change width as the pointer moves.
+
+<TooltipBar />
+
+`getSeriesColor(element, series)` returns the color a series is drawn in, read from the live figure, so a tooltip swatch matches the chart under any theme.
+
+## Without the wrapper
+
+Every native SVG attribute and event handler passes through to a chart's root element, and refs forward. CSS alone can do hover emphasis:
+
+```css
+svg[data-dg]:has([data-part="mark"]:hover) [data-part="mark"]:not(:hover) {
+  opacity: 0.35;
+}
+```
+
+## Accessibility
+
+Marks are pointer affordances. The accessible path to the numbers is the chart's `title` and `summary` plus a table you render beside it; see [Accessibility](/diagrammatic/docs/accessibility).

@@ -6,6 +6,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { analytics } from "@/lib/analytics";
 import { trackDemoSignInClick } from "@/lib/analytics-identity";
 import { refreshDemoUsage, useDemoUsage } from "@/lib/demo-usage-client";
+import { SIGNED_IN_CONVERSATIONS_PER_DAY } from "@/lib/conversation-limit";
 import { useSession } from "@/lib/session";
 
 // The gate unmounts with the composer whenever the visitor switches threads, so
@@ -79,8 +80,12 @@ export function ConversationBudget({
   return (
     <div className="border-foreground/10 bg-muted/30 rounded-thread flex flex-col gap-3 border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-[15px] leading-relaxed">
-        {`That is all ${limit} conversations for today.`}
-        {canSignIn ? " Sign in for ten a day." : null}
+        {state.usage.sharedLimitReached
+          ? "This network has used today's anonymous conversations."
+          : `That is all ${limit} conversations for today.`}
+        {canSignIn
+          ? ` Sign in for ${SIGNED_IN_CONVERSATIONS_PER_DAY} a day.`
+          : null}
         {session.status === "signed-in"
           ? ` The next one opens ${resetsIn(resetAt)}.`
           : null}

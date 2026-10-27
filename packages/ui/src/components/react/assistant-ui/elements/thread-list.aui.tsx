@@ -460,7 +460,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
       >
         <ThreadListItemMorePrimitive.Item
           data-slot="aui_thread-list-item-more-item"
-          className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+          className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
           onSelect={onRename}
         >
           <PencilIcon className="size-4" />
@@ -469,7 +469,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         <ThreadListItemPrimitive.Archive asChild>
           <ThreadListItemMorePrimitive.Item
             data-slot="aui_thread-list-item-more-item"
-            className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+            className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
           >
             <ArchiveIcon className="size-4" />
             Archive
@@ -478,7 +478,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         <ThreadListItemPrimitive.Delete asChild>
           <ThreadListItemMorePrimitive.Item
             data-slot="aui_thread-list-item-more-item"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
           >
             <TrashIcon className="size-4" />
             Delete

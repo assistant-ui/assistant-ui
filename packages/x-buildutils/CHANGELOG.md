@@ -1,5 +1,13 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.31
+
+### Patch Changes
+
+- [#9869](https://github.com/assistant-ui/assistant-ui/pull/9869) [`0a6d4cb`](https://github.com/assistant-ui/assistant-ui/commit/0a6d4cb49bd7749e7e708448708e325c88752531) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#10036](https://github.com/assistant-ui/assistant-ui/pull/10036) [`74546fc`](https://github.com/assistant-ui/assistant-ui/commit/74546fc0df817498fc35ee421688927da5ffa123) - A package that declares `@cloudflare/workers-types` may import the `cloudflare:` modules workerd provides. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.30
 
 ### Patch Changes

@@ -124,6 +124,35 @@ test("task marker followed by a tab is removed", () => {
   });
 });
 
+test.each([
+  String.raw`\[x] literal marker`,
+  String.raw`[x\] literal marker`,
+  "&#91;x] literal marker",
+  "[&#120;] literal marker",
+  "[x&#93; literal marker",
+  "[x]&#32;literal marker",
+])("%j stays literal instead of becoming a task", (source) => {
+  const list = parseMarkdown(`- ${source}`).children[0];
+  if (list?.type !== "list") throw new Error("Expected a list");
+  expect(list.children[0]).not.toHaveProperty("checked");
+  expect(list.children[0]?.children[0]).toEqual({
+    type: "paragraph",
+    lines: { start: 0, end: 1 },
+    children: [{ type: "text", value: "[x] literal marker" }],
+  });
+});
+
+test("a task marker leaves an encoded space in the label", () => {
+  const list = parseMarkdown("- [x] &#32;label").children[0];
+  if (list?.type !== "list") throw new Error("Expected a list");
+  expect(list.children[0]?.checked).toBe(true);
+  expect(list.children[0]?.children[0]).toEqual({
+    type: "paragraph",
+    lines: { start: 0, end: 1 },
+    children: [{ type: "text", value: " label" }],
+  });
+});
+
 test("task markers without following whitespace or at a later position stay text", () => {
   expect(parseMarkdown("- [x]done\n- prefix [x] done\n").children[0]).toEqual({
     type: "list",

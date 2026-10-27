@@ -38,7 +38,7 @@ export const layoutDefinitions = {
         .string()
         .optional()
         .describe(
-          "Background color or gradient (any CSS background value). Setting this also switches the card's own text to white, since a custom background makes the card a tinted surface; children can still opt into a different color explicitly.",
+          "Background color or gradient. Resource-loading functions and CSS escapes are ignored. Setting this also switches the card's own text to white, since a custom background makes the card a tinted surface; children can still opt into a different color explicitly.",
         ),
       asForm: z
         .boolean()
@@ -98,7 +98,7 @@ export const layoutDefinitions = {
   },
   Box: {
     description:
-      "A generic container for composition, e.g. a progress bar built from an outer track Box containing a partial-width fill Box. Size, radius, and background accept arbitrary values, so they render as inline styles rather than data-attribute hooks.",
+      "A generic container for composition, e.g. a progress bar built from an outer track Box containing a partial-width fill Box. Size and radius accept arbitrary values; background accepts colors and gradients. These render as inline styles rather than data-attribute hooks.",
     properties: z.object({
       width: z
         .union([z.string(), z.number()])
@@ -117,7 +117,9 @@ export const layoutDefinitions = {
       background: z
         .string()
         .optional()
-        .describe("Background color or gradient (any CSS background value)."),
+        .describe(
+          "Background color or gradient. Resource-loading functions and CSS escapes are ignored.",
+        ),
     }),
   },
   Tabs: {

@@ -12,6 +12,74 @@ const findScrollableAncestor = (element: HTMLElement | null) => {
   return null;
 };
 
+const scrollLocks = new WeakMap<
+  HTMLElement,
+  { count: number; restore: () => void }
+>();
+
+const acquireScrollLock = (scrollContainer: HTMLElement) => {
+  const existing = scrollLocks.get(scrollContainer);
+  if (existing) {
+    existing.count++;
+    return existing;
+  }
+
+  const scrollPosition = scrollContainer.scrollTop;
+  const scrollbarWidth = scrollContainer.style.scrollbarWidth;
+
+  // Hiding the scrollbar collapses its gutter on classic scrollbars, which
+  // shifts centered content horizontally; compensate with padding on the
+  // side the scrollbar occupies (the left side in RTL).
+  const computed = getComputedStyle(scrollContainer);
+  const paddingSide =
+    computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
+  const previousPadding = scrollContainer.style[paddingSide];
+  const elementScrollbarSize =
+    scrollContainer.offsetWidth -
+    scrollContainer.clientWidth -
+    parseFloat(computed.borderLeftWidth) -
+    parseFloat(computed.borderRightWidth);
+  // A root element's offsetWidth already excludes the viewport scrollbar, so
+  // the element formula reports zero once the scroll propagates to the
+  // viewport, and only then does the viewport measure apply. A body that
+  // scrolls in its own right is measured by the element formula like any
+  // other scroller, whether or not the viewport is scrolling too.
+  const ownerDocument = scrollContainer.ownerDocument;
+  const isRootScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.body;
+  const scrollbarSize =
+    isRootScroller && elementScrollbarSize <= 0
+      ? (ownerDocument.defaultView?.innerWidth ?? 0) -
+        ownerDocument.documentElement.clientWidth
+      : elementScrollbarSize;
+
+  scrollContainer.style.scrollbarWidth = "none";
+  if (scrollbarSize > 0) {
+    scrollContainer.style[paddingSide] = `${
+      parseFloat(computed[paddingSide]) + scrollbarSize
+    }px`;
+  }
+
+  const restoreStyles = () => {
+    scrollContainer.style.scrollbarWidth = scrollbarWidth;
+    scrollContainer.style[paddingSide] = previousPadding;
+  };
+
+  const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
+  scrollContainer.addEventListener("scroll", resetPosition);
+
+  const lock = {
+    count: 1,
+    restore: () => {
+      scrollContainer.removeEventListener("scroll", resetPosition);
+      restoreStyles();
+    },
+  };
+  scrollLocks.set(scrollContainer, lock);
+  return lock;
+};
+
 /**
  * Locks scroll position during collapsible/height animations and hides scrollbar.
  *
@@ -59,61 +127,20 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
       return;
     }
 
-    const scrollPosition = scrollContainer.scrollTop;
-    const scrollbarWidth = scrollContainer.style.scrollbarWidth;
+    const lock = acquireScrollLock(scrollContainer);
 
-    // Hiding the scrollbar collapses its gutter on classic scrollbars, which
-    // shifts centered content horizontally; compensate with padding on the
-    // side the scrollbar occupies (the left side in RTL).
-    const computed = getComputedStyle(scrollContainer);
-    const paddingSide =
-      computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
-    const previousPadding = scrollContainer.style[paddingSide];
-    const elementScrollbarSize =
-      scrollContainer.offsetWidth -
-      scrollContainer.clientWidth -
-      parseFloat(computed.borderLeftWidth) -
-      parseFloat(computed.borderRightWidth);
-    // A root element's offsetWidth already excludes the viewport scrollbar, so
-    // the element formula reports zero once the scroll propagates to the
-    // viewport, and only then does the viewport measure apply. A body that
-    // scrolls in its own right is measured by the element formula like any
-    // other scroller, whether or not the viewport is scrolling too.
-    const ownerDocument = scrollContainer.ownerDocument;
-    const isRootScroller =
-      scrollContainer === ownerDocument.documentElement ||
-      scrollContainer === ownerDocument.body;
-    const scrollbarSize =
-      isRootScroller && elementScrollbarSize <= 0
-        ? (ownerDocument.defaultView?.innerWidth ?? 0) -
-          ownerDocument.documentElement.clientWidth
-        : elementScrollbarSize;
-
-    scrollContainer.style.scrollbarWidth = "none";
-    if (scrollbarSize > 0) {
-      scrollContainer.style[paddingSide] = `${
-        parseFloat(computed[paddingSide]) + scrollbarSize
-      }px`;
-    }
-
-    const restoreStyles = () => {
-      scrollContainer.style.scrollbarWidth = scrollbarWidth;
-      scrollContainer.style[paddingSide] = previousPadding;
-    };
-
-    const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
-    scrollContainer.addEventListener("scroll", resetPosition);
-
-    const timeoutId = setTimeout(() => {
-      scrollContainer.removeEventListener("scroll", resetPosition);
-      restoreStyles();
-      cleanupRef.current = null;
-    }, animationDuration);
+    const timeoutId = setTimeout(
+      () => cleanupRef.current?.(),
+      animationDuration,
+    );
 
     cleanupRef.current = () => {
       clearTimeout(timeoutId);
-      scrollContainer.removeEventListener("scroll", resetPosition);
-      restoreStyles();
+      if (--lock.count === 0) {
+        lock.restore();
+        scrollLocks.delete(scrollContainer);
+      }
+      cleanupRef.current = null;
     };
   }, [animationDuration, animatedElementRef]);
 

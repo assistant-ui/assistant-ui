@@ -89,7 +89,7 @@ export function unstable_useComposerInput(
     (text: string) => {
       if (!aui.composer.getState().isEditing) return;
       flushTapSync(() => {
-        aui.composer.setText(text);
+        aui.composer.setText(text, { origin: "user" });
       });
     },
     [aui],

@@ -4,6 +4,6 @@ import { withFail } from "@/lib/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const GET = withFail(async () =>
+export const GET = withFail(async (_request: Request) =>
   Response.json(await piClient.getAvailableModels()),
 );

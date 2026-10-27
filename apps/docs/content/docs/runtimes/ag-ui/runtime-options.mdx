@@ -13,7 +13,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | --- | --- | --- |
 | `agent` | `AbstractAgent` | An AG-UI client agent from `@ag-ui/client`, such as `HttpAgent`. Required. |
 | `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
-| `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
+| `showThinking` | `boolean` | Whether to render `REASONING_*` events as visible reasoning. Defaults to `true`. |
 | `joinStrategy` | `"concat-content" \| "none"` | With `"concat-content"`, join assistant content from one run into a single message, including across `MESSAGES_SNAPSHOT` events. Defaults to `"none"`, which starts a new message for each new `TEXT_MESSAGE_START` id. |
 | `getRunContext` | `(input: { messages: readonly Message[]; runConfig: RunConfig \| undefined }) => readonly Context[]` | Return AG-UI context entries for each run using the messages and run config sent with that run. On resumes, `messages` follows `resumeTranscript`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
@@ -217,7 +217,7 @@ Because the protocol carries the outcome only on `RUN_FINISHED`, a registered fr
 
 Both methods are deprecated. Inside the runtime provider, use the `useAgUiInterrupts` and `useAgUiSubmitInterruptResponses` hooks, which return the same interrupts and the same submit function.
 
-`responses` must address every open interrupt; missing entries, unknown ids, or expired interrupts (`expiresAt`) reject before any network call. Each entry is `{ interruptId, status: "resolved" | "cancelled", payload? }`. The next `RunAgentInput` carries `resume: ResumeEntry[]`.
+`responses` must address every open interrupt; missing entries and unknown ids reject before any network call. An interrupt past `expiresAt` accepts a `cancelled` response but rejects a `resolved` response. Each entry is `{ interruptId, status: "resolved" | "cancelled", payload? }`. The next `RunAgentInput` carries `resume: ResumeEntry[]`.
 
 ```tsx
 const runtime = useAgUiRuntime({ agent });
@@ -299,16 +299,12 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 
 | Event | Effect |
 | --- | --- |
-| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. `RUN_FINISHED.outcome` is honored (success / interrupt). |
+| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved, and `getPendingToolCalls` then returns only the listed calls, so the run resumes once those are answered; with no list or an empty list, any unresolved call counts. |
 | `RUN_CANCELLED` | Marks the in-flight assistant message as cancelled. |
 | `RUN_ERROR` | Marks the message as errored; fires `onError`. |
 | `TEXT_MESSAGE_START` / `_CONTENT` / `_END` | Streams text content into an assistant message. |
-| `TEXT_MESSAGE_CHUNK` | Appends a delta without explicit lifecycle. |
-| `THINKING_START` / `_END` | Wraps reasoning blocks (when `showThinking` is on). |
-| `THINKING_TEXT_MESSAGE_*` | Streams thinking text deltas. |
 | `REASONING_START` / `_MESSAGE_*` / `_END` | Streams structured reasoning per message. |
 | `TOOL_CALL_START` / `_ARGS` / `_END` | Streams tool calls into the current assistant message. |
-| `TOOL_CALL_CHUNK` | Streams tool deltas without explicit lifecycle. |
 | `TOOL_CALL_RESULT` | Attaches a tool result to a tool call. |
 | `SUBAGENT_STARTED` | Opens a nested assistant message for the subagent run, attached to the tool call named by `parentToolCallId`. |
 | `SUBAGENT_FINISHED` | Completes the nested message and records `result`; a `suspended` outcome marks it `requires-action`. |

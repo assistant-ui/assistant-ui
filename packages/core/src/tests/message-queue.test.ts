@@ -471,6 +471,41 @@ describe("createMessageQueue", () => {
     },
   );
 
+  it.each(["steer", "move"] as const)(
+    "keeps a held %s pending until release, ahead of ordinary queued messages",
+    (mode) => {
+      const run = vi.fn(() => queue.notifyBusy());
+      const cancel = vi.fn();
+      const queue = createMessageQueue({ run, cancel });
+      const first = msg("current reply");
+      const ordinary = msg("ordinary request");
+      const urgent = msg("urgent request");
+      queue.adapter.enqueue(first);
+      queue.adapter.enqueue(ordinary);
+      if (mode === "move") queue.adapter.enqueue(urgent);
+      queue.hold();
+
+      if (mode === "steer") queue.adapter.steer(urgent);
+      else queue.adapter.move(queue.adapter.items[1]!.id, { lane: "steer" });
+
+      expect.soft(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+      expect.soft(cancel).not.toHaveBeenCalled();
+      expect
+        .soft(prompts(queue.adapter.steerItems))
+        .toEqual(["urgent request"]);
+      queue.notifyIdle();
+      expect.soft(run).toHaveBeenCalledTimes(1);
+
+      queue.release();
+      expect(run).toHaveBeenNthCalledWith(2, urgent, { steer: false });
+      expect(prompts(queue.adapter.items)).toEqual(["ordinary request"]);
+      queue.notifyIdle();
+      expect(run).toHaveBeenNthCalledWith(3, ordinary, { steer: false });
+      expect(queue.adapter.items).toEqual([]);
+      expect(queue.adapter.steerItems).toEqual([]);
+    },
+  );
+
   it.each(["steer", "move"])(
     "queues a reentrant %s until the reserved run settles",
     (mode) => {

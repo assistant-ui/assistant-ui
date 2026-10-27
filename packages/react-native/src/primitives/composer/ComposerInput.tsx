@@ -76,11 +76,11 @@ export const ComposerInput = ({
       if (Platform.OS === "web") {
         // Keep the controlled value in sync mid-IME so react-dom does not reset the textarea to a stale value
         flushTapSync(() => {
-          aui.composer.setText(value);
+          aui.composer.setText(value, { origin: "user" });
         });
         return;
       }
-      aui.composer.setText(value);
+      aui.composer.setText(value, { origin: "user" });
     },
     [aui, isInputDisabled],
   );

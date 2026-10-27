@@ -134,7 +134,7 @@ console.log(messages);
 | `cloud.runs.stream` | `(body: { thread_id: string; assistant_id: "system/thread_title"; messages: readonly unknown[] }) => Promise<AssistantStream>` | `POST /runs/stream` | `CloudAPIError`; `CloudResponseError` for no body or a content type whose first token is not `text/plain`. |
 | `cloud.runs.report` | `(body: AssistantCloudRunReport) => Promise<{ run_id: string }>` | `POST /runs` | Both. |
 
-`stream` is for `system/thread_title`. It sends `Accept: text/plain` and decodes a plain text `AssistantStream`.
+`stream` is for `system/thread_title`. It sends `Accept: text/plain` and decodes a plain text `AssistantStream`. A run report can include `message_id` for the stored assistant reply and `user_message_id` for the stored prompt. Each message must belong to the reported thread; `user_message_id` can be supplied without `message_id`.
 
 ```ts title="Runs"
 await cloud.runs.report({

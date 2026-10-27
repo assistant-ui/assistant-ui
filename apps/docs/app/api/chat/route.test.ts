@@ -221,11 +221,17 @@ describe("POST /api/chat conversation budget", () => {
       usage: { used: 1, limit: 3, remaining: 2, resetAt: Date.now() + 60_000 },
     });
 
-    await send({
-      messages: [message],
-      id: "thread_1",
-      countConversations: true,
-    }).catch(() => null);
+    await send(
+      {
+        messages: [message],
+        id: "thread_1",
+        countConversations: true,
+      },
+      {
+        "x-vercel-forwarded-for": "203.0.113.7",
+        "x-forwarded-for": "198.51.100.1",
+      },
+    ).catch(() => null);
 
     expect(mocks.resolveDemoIdentity).toHaveBeenCalledWith(
       "session_1234567890",
@@ -233,6 +239,7 @@ describe("POST /api/chat conversation budget", () => {
     expect(mocks.claimConversation).toHaveBeenCalledWith(
       { identity: "anon:session_1234567890", signedIn: false, limit: 3 },
       "thread_1",
+      "203.0.113.7",
     );
   });
 

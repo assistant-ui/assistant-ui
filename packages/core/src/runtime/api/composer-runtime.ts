@@ -16,6 +16,7 @@ import {
 import type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventType,
+  ComposerSetTextOptions,
   ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
@@ -186,8 +187,9 @@ export type ComposerRuntime = {
   /**
    * Set the text of the composer.
    * @param text The text to set in the composer.
+   * @param options `origin` labels the write in the `textChange` event; it defaults to `external`.
    */
-  setText(text: string): void;
+  setText(text: string, options?: ComposerSetTextOptions): void;
 
   /**
    * Set the role of the composer. For instance, if you'd like a specific message to have the 'assistant' role, you can do so here.
@@ -312,10 +314,10 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
 
   public abstract getState(): ComposerRuntimeState;
 
-  public setText(text: string) {
+  public setText(text: string, options?: ComposerSetTextOptions) {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.setText(text);
+    core.setText(text, options);
   }
 
   public setRunConfig(runConfig: RunConfig) {

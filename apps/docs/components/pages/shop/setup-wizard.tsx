@@ -71,7 +71,10 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 import { analytics } from "@/lib/analytics";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
-import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
+import {
+  acknowledgeSetupIntro,
+  getCheckoutSession,
+} from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { useElapsed } from "@/components/pages/shop/use-elapsed";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -107,7 +110,7 @@ function ConnectionNotice({
   return (
     <div
       role="status"
-      className="bg-muted flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm sm:px-6"
+      className="bg-muted/50 flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm sm:px-6"
     >
       {retrying ? (
         <LoaderCircleIcon className="size-4 shrink-0 animate-spin" />
@@ -123,7 +126,12 @@ function ConnectionNotice({
                 : "."
             }`}
       </span>
-      <Button size="sm" variant="outline" onClick={connection.reconnect}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="cursor-pointer"
+        onClick={connection.reconnect}
+      >
         Retry now
       </Button>
     </div>
@@ -770,6 +778,7 @@ export function SetupWizard({
     if (done) analytics.setup.installFinished();
   }, [done]);
   const exit = (finished: boolean) => {
+    if (getCheckoutSession()?.id !== checkout.session.id) return;
     onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
@@ -1005,8 +1014,15 @@ export function SetupWizard({
       </div>
       <footer
         ref={footer}
-        className="border-foreground/10 flex shrink-0 items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
+        className="border-foreground/10 flex shrink-0 flex-wrap items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
       >
+        {closed ? (
+          <Button variant="outline" disabled>
+            Cancel
+          </Button>
+        ) : (
+          <CancelButton checkout={checkout} onEnd={() => exit(false)} />
+        )}
         <AgentIndicator
           checkout={checkout}
           unread={unread}
@@ -1037,14 +1053,6 @@ export function SetupWizard({
               <ChevronRightIcon data-icon="inline-end" />
             )}
           </Button>
-          <span className="w-2" aria-hidden="true" />
-          {closed ? (
-            <Button variant="outline" disabled>
-              Cancel
-            </Button>
-          ) : (
-            <CancelButton checkout={checkout} onEnd={() => exit(false)} />
-          )}
         </div>
       </footer>
     </section>

@@ -430,6 +430,38 @@ describe("appendLangChainChunk content-less chunks", () => {
 });
 
 describe("appendLangChainChunk continuation content", () => {
+  it("accumulates string-array chunks from Python message tuples", () => {
+    let message: LangChainMessage | undefined;
+    for (const text of ["Hello ", "world"]) {
+      const tuple = normalizeLangGraphTupleMessage({
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [text],
+      });
+      if (tuple?.kind !== "chunk") throw new Error("Expected an AI chunk");
+      message = appendLangChainChunk(message, tuple.message);
+    }
+
+    expect(message?.content).toEqual([{ type: "text", text: "Hello world" }]);
+  });
+
+  it("continues text-array history without moving text across an image", () => {
+    const previous = JSON.parse(
+      '{"id":"ai-1","type":"ai","content":["Before",{"type":"image_url","image_url":{"url":"https://example.com/cat.png"}},"After"]}',
+    );
+    const message = appendLangChainChunk(previous, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: "!",
+    });
+
+    expect(convertLangChainMessages(message, {})).toHaveProperty("content", [
+      { type: "text", text: "Before" },
+      { type: "image", image: "https://example.com/cat.png" },
+      { type: "text", text: "After!" },
+    ]);
+  });
+
   it("keeps reasoning, files, audio, computer calls, and text deltas for conversion", () => {
     const first = appendLangChainChunk(undefined, {
       id: "ai-1",

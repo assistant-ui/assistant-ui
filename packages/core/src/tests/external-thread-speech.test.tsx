@@ -33,6 +33,7 @@ type FakeUtterance = {
   text: string;
   cancel: ReturnType<typeof vi.fn>;
   emit: (status: SpeechSynthesisAdapter.Status) => void;
+  queueNotification: () => () => void;
 };
 
 const createFakeAdapter = () => {
@@ -60,6 +61,12 @@ const createFakeAdapter = () => {
         emit: (status) => {
           utterance.status = status;
           for (const subscriber of subscribers) subscriber();
+        },
+        queueNotification: () => {
+          const queued = [...subscribers];
+          return () => {
+            for (const subscriber of queued) subscriber();
+          };
         },
       });
       return utterance;
@@ -158,13 +165,14 @@ describe("ExternalThread speech", () => {
     });
   });
 
-  it("cancels the previous utterance when a new speak starts", async () => {
+  it("keeps the new utterance stoppable when a queued callback from the previous one arrives", async () => {
     const { adapter, utterances } = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: adapter });
 
     await act(async () => {
       aui().thread.message({ id: "a1" }).speak();
     });
+    const notifyPrevious = utterances[0]!.queueNotification();
     await act(async () => {
       aui().thread.message({ id: "u1" }).speak();
     });
@@ -179,12 +187,18 @@ describe("ExternalThread speech", () => {
     });
 
     await act(async () => {
-      utterances[0]!.emit({ type: "ended", reason: "cancelled" });
+      notifyPrevious();
     });
     expect(aui().thread.getState().speech).toEqual({
       messageId: "u1",
       status: { type: "starting" },
     });
+
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+    expect(utterances[1]!.cancel).toHaveBeenCalledOnce();
+    expect(aui().thread.getState().speech).toBeUndefined();
   });
 
   it("stopSpeaking cancels the utterance and clears state", async () => {
@@ -205,6 +219,93 @@ describe("ExternalThread speech", () => {
     expect(() => aui().thread.stopSpeaking()).toThrow(
       "No message is being spoken",
     );
+  });
+
+  it("clears speech state when the adapter's cancel throws", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      throw new Error("cancel failed");
+    });
+    await act(async () => {
+      expect(() => aui().thread.stopSpeaking()).toThrow("cancel failed");
+    });
+
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toBeUndefined();
+    });
+    expect(() => aui().thread.stopSpeaking()).toThrow(
+      "No message is being spoken",
+    );
+
+    await act(async () => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+    expect(utterances[0]!.cancel).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+  });
+
+  it("keeps a replacement started from inside the adapter's cancel", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+
+    expect(utterances).toHaveLength(2);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+  });
+
+  it("supersedes a speak started from inside the replaced utterance's cancel", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    utterances[0]!.cancel.mockImplementationOnce(() => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    await act(async () => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+
+    expect(utterances.map((utterance) => utterance.text)).toEqual([
+      "hello there",
+      "hi",
+    ]);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+    await act(async () => {
+      aui().thread.stopSpeaking();
+    });
+    expect(utterances[1]!.cancel).toHaveBeenCalledOnce();
+    expect(aui().thread.getState().speech).toBeUndefined();
   });
 
   it("message stopSpeaking throws unless that message is being spoken", async () => {

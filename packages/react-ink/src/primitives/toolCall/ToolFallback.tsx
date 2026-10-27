@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useRef, useState } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import { useAuiState } from "@assistant-ui/store";
+import { sanitizeTerminalText } from "../../sanitizeTerminalText";
 import { Pressable } from "../internal/Pressable";
 import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
 import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
@@ -161,9 +162,12 @@ export const ToolFallback = ({
   const result = getDisplayResult(partResult, status);
   const resultStr =
     result !== undefined || displayStatus === "error"
-      ? formatResult(result)
+      ? sanitizeTerminalText(formatResult(result))
       : "";
-  const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
+  const argsDisplay = useMemo(
+    () => sanitizeTerminalText(prettyPrintArgs(argsText)),
+    [argsText],
+  );
   const canAnswer = useAuiState(
     (s) => s.optional.thread?.capabilities.answerToolCall !== false,
   );
@@ -196,7 +200,7 @@ export const ToolFallback = ({
         ) : (
           <>
             <StatusIcon status={displayStatus} />
-            <Text bold>{toolName}</Text>
+            <Text bold>{sanitizeTerminalText(toolName)}</Text>
             {!expanded && resultStr ? (
               <Text dimColor>{truncate(resultStr, maxResultPreviewLines)}</Text>
             ) : null}
@@ -252,7 +256,9 @@ export const ToolFallback = ({
             (approval.display === undefined ||
               approval.display === "decision") ? (
               <Box flexDirection="column">
-                {approval.prompt ? <Text>{approval.prompt}</Text> : null}
+                {approval.prompt ? (
+                  <Text>{sanitizeTerminalText(approval.prompt)}</Text>
+                ) : null}
                 <Box gap={1}>
                   <Pressable onPress={() => void handleApproval(true)}>
                     {({ isFocused }) => (
@@ -284,13 +290,15 @@ export const ToolFallback = ({
               approval.resolution === undefined &&
               approval.prompt ? (
               <Box flexDirection="column">
-                <Text>{approval.prompt}</Text>
+                <Text>{sanitizeTerminalText(approval.prompt)}</Text>
                 <Text color="cyan">Waiting for approval...</Text>
               </Box>
             ) : (
               <Text color="cyan">Waiting for approval...</Text>
             ))}
-          {approvalError ? <Text color="red">{approvalError}</Text> : null}
+          {approvalError ? (
+            <Text color="red">{sanitizeTerminalText(approvalError)}</Text>
+          ) : null}
         </Box>
       )}
     </Box>
