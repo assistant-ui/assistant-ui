@@ -79,7 +79,7 @@
     "ai": "^6.0.0 || ^7.0.0",
     "ioredis": "^5.10.1 || ^6.0.0",
     "redis": "^5.12.1",
-    "streamfold": "^0.1.10"
+    "streamfold": "^0.1.11"
   },
   "peerDependenciesMeta": {
     "ai": {
@@ -103,7 +103,7 @@
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.3.0",
     "vitest": "^5.0.5",
-    "streamfold": "^0.1.10"
+    "streamfold": "^0.1.11"
   },
   "publishConfig": {
     "access": "public",

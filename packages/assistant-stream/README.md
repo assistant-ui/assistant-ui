@@ -39,7 +39,7 @@ For tool execution, pipe through `ToolExecutionStream`; for resumable streams (c
 
 ## Streamfold parsing
 
-Install `streamfold` alongside `assistant-stream` to opt into its Rust/WASM
+Install `streamfold@^0.1.11` alongside `assistant-stream` to opt into its Rust/WASM
 parser. Initialize it once before starting streams in each browser or server
 bundle that should use it:
 
@@ -66,8 +66,7 @@ partial parsers are released through Streamfold's finalizer after collection.
 Streamfold is opt-in because performance depends on payload shape and chunk size;
 small chunks can be slower than the default incremental JavaScript parser.
 Measure representative payloads and chunk sizes in your runtime before enabling
-it. This entry adds Streamfold's
-WASM download and initialization cost only to bundles that import it.
+it. This entry adds Streamfold's WASM download and initialization cost only to bundles that import it.
 
 ## Sub-paths
 
