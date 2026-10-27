@@ -5,6 +5,7 @@ import {
 } from "assistant-stream/utils";
 import {
   AISDKMessageConverter,
+  convertAISDKMessage,
   type AISDKMessageConverterMetadata,
 } from "./convertMessage";
 
@@ -2323,6 +2324,105 @@ describe("AISDKMessageConverter", () => {
       type: "tool-call",
       toolCallId: "tc-1",
       toolName: "",
+    });
+  });
+});
+
+describe("convertAISDKMessage file provider metadata", () => {
+  const providerMetadata = { google: { thoughtSignature: "signature" } };
+
+  it("keeps provider metadata on user image and file attachments", () => {
+    expect(
+      convertAISDKMessage(
+        {
+          id: "user-1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/cat.png",
+              mediaType: "image/png",
+              filename: "cat.png",
+              providerMetadata,
+            },
+            {
+              type: "file",
+              url: "https://example.com/guide.pdf",
+              mediaType: "application/pdf",
+              filename: "guide.pdf",
+              providerMetadata,
+            },
+          ],
+        },
+        {},
+      ),
+    ).toMatchObject({
+      attachments: [
+        {
+          content: [
+            {
+              type: "image",
+              image: "https://example.com/cat.png",
+              filename: "cat.png",
+              providerMetadata,
+            },
+          ],
+        },
+        {
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/guide.pdf",
+              mimeType: "application/pdf",
+              filename: "guide.pdf",
+              providerMetadata,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("keeps provider metadata on assistant files and reasoning files", () => {
+    expect(
+      convertAISDKMessage(
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/guide.pdf",
+              mediaType: "application/pdf",
+              filename: "guide.pdf",
+              providerMetadata,
+            },
+            {
+              type: "reasoning-file",
+              url: "https://example.com/thinking.png",
+              mediaType: "image/png",
+              providerMetadata,
+            },
+          ],
+        },
+        {},
+      ),
+    ).toMatchObject({
+      content: [
+        {
+          type: "file",
+          data: "https://example.com/guide.pdf",
+          mimeType: "application/pdf",
+          filename: "guide.pdf",
+          providerMetadata,
+        },
+        {
+          type: "file",
+          data: "https://example.com/thinking.png",
+          mimeType: "image/png",
+          providerMetadata,
+        },
+      ],
     });
   });
 });
