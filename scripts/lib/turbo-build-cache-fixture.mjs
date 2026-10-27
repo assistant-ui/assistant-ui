@@ -14,6 +14,12 @@ import { dirname, join, resolve } from "node:path";
 
 const repo = resolve(import.meta.dirname, "../..");
 
+/**
+ * @param {import("node:test").TestContext} t
+ * @param {string} directory
+ * @param {string[]} artifacts
+ * @param {string[]} excluded
+ */
 export function assertBuildCacheRestores(
   t,
   directory,
@@ -22,13 +28,14 @@ export function assertBuildCacheRestores(
 ) {
   const fixture = mkdtempSync(join(tmpdir(), "aui-build-cache-"));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
+  /** @param {string} file @param {string | Uint8Array} content */
   const write = (file, content) => {
     mkdirSync(dirname(join(fixture, file)), { recursive: true });
     writeFileSync(join(fixture, file), content);
   };
   const source = join(repo, directory);
   const { packageManager } = JSON.parse(
-    readFileSync(join(repo, "package.json")),
+    readFileSync(join(repo, "package.json"), "utf8"),
   );
   write(
     "package.json",
@@ -66,6 +73,7 @@ for (const file of ${JSON.stringify([...artifacts, ...excluded])}) {
   writeFileSync(file, 'built: ' + file);
 }`,
   );
+  /** @param {string[]} args */
   const git = (...args) =>
     execFileSync("git", args, { cwd: fixture, stdio: "pipe" });
   git("init", "--quiet");
@@ -80,6 +88,7 @@ for (const file of ${JSON.stringify([...artifacts, ...excluded])}) {
     "-m",
     "fixture",
   );
+  /** @type {NodeJS.ProcessEnv} */
   const env = { ...process.env, TURBO_TELEMETRY_DISABLED: "1" };
   delete env.TURBO_TOKEN;
   delete env.TURBO_TEAM;
@@ -94,9 +103,14 @@ for (const file of ${JSON.stringify([...artifacts, ...excluded])}) {
       { cwd: fixture, env, stdio: "pipe", timeout: 30_000 },
     );
     const summary = readdirSync(summaries).find((file) => !previous.has(file));
-    return JSON.parse(readFileSync(join(summaries, summary))).tasks.find(
-      (task) => task.taskId === "cache-app#build",
+    assert.ok(summary, "Turbo writes a fresh run summary");
+    /** @type {{tasks: {taskId: string, hash: string, cache: {status: string}}[]}} */
+    const result = JSON.parse(readFileSync(join(summaries, summary), "utf8"));
+    const task = result.tasks.find(
+      (entry) => entry.taskId === "cache-app#build",
     );
+    assert.ok(task);
+    return task;
   };
   const warm = build();
   assert.equal(warm.cache.status, "MISS");
