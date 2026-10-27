@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": ["$TURBO_EXTENDS$", ".svelte-kit/output/**"]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs"
+      ]
+    },
+    "test:coverage": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs"
+      ]
+    }
+  }
+}
