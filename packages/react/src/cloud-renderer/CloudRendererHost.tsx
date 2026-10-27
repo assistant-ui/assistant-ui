@@ -1,7 +1,6 @@
 "use client";
 
-import {
-  Component,
+import React, {
   type ErrorInfo,
   type ReactNode,
   useEffect,
@@ -58,7 +57,7 @@ export type CloudRendererHostProps = {
   config?: AssistantRuntimeProvider.Props["config"];
 };
 
-class RenderBoundary extends Component<
+class RenderBoundary extends React.Component<
   { children: ReactNode; onError: (error: Error) => void },
   { failed: boolean }
 > {

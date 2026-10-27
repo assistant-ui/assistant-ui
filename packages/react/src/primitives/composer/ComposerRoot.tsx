@@ -3,7 +3,7 @@
 import { composeEventHandlers } from "radix-ui/internal";
 import { useAuiState } from "@assistant-ui/store";
 import { Primitive } from "../../utils/Primitive";
-import {
+import React, {
   type ComponentRef,
   type FormEvent,
   forwardRef,
@@ -11,7 +11,6 @@ import {
   type MouseEvent,
   useMemo,
   useState,
-  version,
 } from "react";
 import { useComposerSend } from "./ComposerSend";
 import { ComposerCompactContext } from "./ComposerCompactContext";
@@ -58,7 +57,7 @@ export namespace ComposerPrimitiveRoot {
 }
 
 // React 18 drops a boolean `inert`, so it receives the attribute's string form.
-const isReact18 = version.startsWith("18.");
+const isReact18 = React.version.startsWith("18.");
 
 /**
  * The root form container for message composition.
