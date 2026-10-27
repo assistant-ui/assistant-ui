@@ -34,6 +34,22 @@ it("uses Streamfold for new parsers and releases completed or rejected streams",
   expect(dispose).toHaveBeenCalledTimes(2);
 });
 
+it("keeps Streamfold active when string keys and values end a chunk with a hyphen", async () => {
+  expect(await initializeStreamfold()).toBe(true);
+  const push = vi.spyOn(IncrementalJsonScanner.prototype, "push");
+  const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+  const chunks = ['{"tag-', 'name":"well-', 'known"}'] as const;
+  const partial = IncrementalJsonObjectParser.from(chunks[0]).append(chunks[1]);
+
+  expect(partial.currentArgs).toMatchObject({ "tag-name": "well-" });
+  expect(dispose).not.toHaveBeenCalled();
+  expect(partial.append(chunks[2]).currentArgs).toMatchObject({
+    "tag-name": "well-known",
+  });
+  expect(push.mock.calls.map(([chunk]) => chunk)).toEqual(chunks);
+  expect(dispose).toHaveBeenCalledTimes(1);
+});
+
 it("parses accumulator snapshots and reader field completion through Streamfold", async () => {
   expect(await initializeStreamfold()).toBe(true);
   const push = vi.spyOn(IncrementalJsonScanner.prototype, "push");

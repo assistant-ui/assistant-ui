@@ -17,6 +17,7 @@ const inputs = [
   '{"constructor":1,"tail":"ok"}',
   '{"2":2,"1":1,"nested":{"10":"ten","0":"zero"}}',
   '{\n  "a" : [ 1 , { "b" : true } ] ,\n  "c" : "d"\n}\n',
+  '{"tag-name":"well-known","n":-2.5e-3}',
 ];
 
 const expectPrefixParity = (input: string) => {

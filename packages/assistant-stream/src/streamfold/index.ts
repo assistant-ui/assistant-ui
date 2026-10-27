@@ -75,9 +75,11 @@ class StreamfoldParser implements JsonParserBackend {
     if (session.closed || session.owner !== this.owner) return undefined;
     try {
       // Streamfold omits partial patches for a pending surrogate or minus sign.
-      if (/[\uD800-\uDFFF]/u.test(delta) || delta.endsWith("-"))
+      if (/[\uD800-\uDFFF]/u.test(delta))
         throw new Error("Use native partial parsing");
       const update = session.scanner.push(delta);
+      if (delta.endsWith("-") && !update.inString)
+        throw new Error("Use native partial parsing");
       this.trackPaths(update);
       const root = update.partialValue;
       if (
