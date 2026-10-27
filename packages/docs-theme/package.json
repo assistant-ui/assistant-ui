@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/docs",
+  "name": "@assistant-ui/docs-theme",
   "version": "0.0.1",
   "description": "The assistant-ui documentation theme for Farming Labs Docs",
   "license": "MIT",
@@ -75,9 +75,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/docs"
+    "directory": "packages/docs-theme"
   },
-  "private": true,
+  "private": false,
   "peerDependenciesMeta": {
     "next": {
       "optional": true
