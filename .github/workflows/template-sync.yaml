@@ -77,7 +77,7 @@ jobs:
       - name: Setup node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
         with:
-          node-version: 24
+          node-version-file: package.json
 
       - name: Test template sync workflow inputs
         run: node --test scripts/sync-templates.test.mjs
