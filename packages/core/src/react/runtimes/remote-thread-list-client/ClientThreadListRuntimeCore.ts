@@ -4,6 +4,7 @@ import { createElement, useEffect, useId, type FC } from "react";
 import { RemoteThreadListHookInstanceManager } from "../RemoteThreadListHookInstanceManager";
 import type { RemoteThreadListHook } from "../RemoteThreadResource";
 import { useSubscribable } from "../../../store/runtime-clients/useSubscribable";
+import { COMMIT_TIMEOUT_MS } from "../../../store/runtime-clients/useAfterStateCommit";
 import type {
   ThreadListItemCoreState,
   ThreadListRuntimeCore,
@@ -56,6 +57,7 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
       source: readonly ThreadListItemCoreState[];
     }
   >();
+  private mainReport: Promise<void> | undefined;
 
   constructor(
     initialThreadIdSeed: string,
@@ -246,7 +248,26 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     return this.actions.generateTitle(threadId, messages, options);
   }
 
+  /**
+   * The thread list announces the main thread's remote ID (onThreadIdChange)
+   * as it stores it, a commit before the main item reports it, so an
+   * initialize() that just resolved, from any entry point, leaves the item a
+   * commit behind. reloadMainThread, which remounts on the reported item,
+   * waits for that report; initialize itself does not, since every runtime's
+   * send path awaits it for the remote ID its result carries.
+   */
+  public __internal_announceMainRemoteId = (remoteId: string | undefined) => {
+    const report = this.untilReported(
+      () => this.getItemById(this.mainThreadId)?.remoteId === remoteId,
+    );
+    this.mainReport = report;
+    void report.then(() => {
+      if (this.mainReport === report) this.mainReport = undefined;
+    });
+  };
+
   public async reloadMainThread() {
+    if (this.mainReport) await this.mainReport;
     const id = this.mainThreadId;
     if (this.getItemById(id)?.status === "new") return;
     const core = this.getMainThreadRuntimeCore();
@@ -258,6 +279,32 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
       if (id !== this.mainThreadId) return;
       throw error;
     }
+  }
+
+  /**
+   * Resolves once the thread list's reported state passes `reported`. The wait
+   * ends after `COMMIT_TIMEOUT_MS` anyway, as `useAfterStateCommit`'s does,
+   * since a client a Suspense boundary hides cannot commit.
+   */
+  private untilReported(reported: () => boolean) {
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      let unsubscribe: Unsubscribe | undefined;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        unsubscribe?.();
+        resolve();
+      };
+      const check = () => {
+        if (reported()) settle();
+      };
+      const timeout = setTimeout(settle, COMMIT_TIMEOUT_MS);
+      unsubscribe = this.handle.subscribe(check);
+      if (settled) unsubscribe();
+      else check();
+    });
   }
 
   public subscribe(callback: () => void): Unsubscribe {

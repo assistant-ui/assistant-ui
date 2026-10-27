@@ -71,12 +71,22 @@ const useRemoteThreadListRuntimeThreads = ({
       .finally(() => setStartThread(true))
       .catch(() => {});
   }, [clientRef]);
+  // The thread list announces the main thread's remote ID as it stores it; the
+  // core's reloadMainThread waits until the main item reports it.
+  const optionsOnThreadIdChange = options.onThreadIdChange;
+  const onThreadIdChange = useCallback(
+    (threadId: string | undefined) => {
+      clientCore.__internal_announceMainRemoteId(threadId);
+      return optionsOnThreadIdChange?.(threadId);
+    },
+    [clientCore, optionsOnThreadIdChange],
+  );
   const threads = useResource(
     RemoteThreadList({
       adapter: options.adapter,
       thread,
       threadId: options.threadId,
-      onThreadIdChange: options.onThreadIdChange,
+      onThreadIdChange,
       backgroundThreads: true,
       __internal_ensureThread: clientCore.__internal_ensureThread,
       __internal_isThreadAttached: clientCore.__internal_isThreadAttached,
