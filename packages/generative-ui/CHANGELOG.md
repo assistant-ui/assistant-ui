@@ -1,5 +1,16 @@
 # @assistant-ui/generative-ui
 
+## 0.0.8
+
+### Patch Changes
+
+- [#10061](https://github.com/assistant-ui/assistant-ui/pull/10061) [`8a99840`](https://github.com/assistant-ui/assistant-ui/commit/8a99840fae250b92b77114128dd2105a9cfabb87) - fix: restrict generative ui image origins and resource backgrounds ([@okisdev](https://github.com/okisdev))
+
+- [#10048](https://github.com/assistant-ui/assistant-ui/pull/10048) [`e4564a4`](https://github.com/assistant-ui/assistant-ui/commit/e4564a484574ac74127bc905abdcb609a7418cd5) - fix: cap formatted A2UI text and normalized generative UI nodes. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`86040b7`](https://github.com/assistant-ui/assistant-ui/commit/86040b77b3a6c0929ac9ac6505d3012e8a9435e1), [`b8baa3d`](https://github.com/assistant-ui/assistant-ui/commit/b8baa3d7cefca13fbe30f57562c45ee541ac8852), [`f40d53f`](https://github.com/assistant-ui/assistant-ui/commit/f40d53fcb081cd4564803eadb884147e05ea017b)]:
+  - assistant-stream@0.3.55
+  - generative-frame@0.0.9
+
 ## 0.0.7
 
 ### Patch Changes

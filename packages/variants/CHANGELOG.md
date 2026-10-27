@@ -1,5 +1,11 @@
 # @assistant-ui/variants
 
+## 0.0.4
+
+### Patch Changes
+
+- [#10062](https://github.com/assistant-ui/assistant-ui/pull/10062) [`6d3af49`](https://github.com/assistant-ui/assistant-ui/commit/6d3af4965f10f6f1b89924826370ca0ad00d455f) - fix: refuse non-loopback vite clients unless `allowRemoteClients` is set. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.3
 
 ### Patch Changes
