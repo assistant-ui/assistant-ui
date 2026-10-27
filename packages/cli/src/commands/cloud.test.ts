@@ -293,4 +293,57 @@ describe("cloud remote forwarding", () => {
     expect(savedCloudAccessToken).toHaveBeenCalled();
     expect(cloudAccessToken).not.toHaveBeenCalled();
   });
+
+  it("answers help for a local command here, with its flags", async () => {
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    try {
+      await expect(forwarded(["help", "setup"])).resolves.toEqual([]);
+      const text = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      expect(text).toMatch(/--new-project <slug>/);
+      expect(text).toMatch(/--backend-url <url>/);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it("sends the directory defaults and the action handlers along", async () => {
+    runCloudCommand.mockImplementationOnce(async (_args, options) => {
+      expect(typeof options.defaults).toBe("function");
+      expect(typeof options.openUrl).toBe("function");
+      return 0;
+    });
+    await cloud.parseAsync(["projects", "show"], { from: "user" });
+    expect(runCloudCommand).toHaveBeenCalled();
+  });
+});
+
+describe("cloud --no-open", () => {
+  const sent = async (argv: string[]) => {
+    runCloudCommand.mockClear();
+    runCloudCommand.mockResolvedValue(0);
+    await cloud.parseAsync(argv, { from: "user" });
+    const [args, options] = runCloudCommand.mock.calls[0]!;
+    return { args, noOpen: options.noOpen };
+  };
+
+  it("is the client's flag before --, and the remote command's after it", async () => {
+    await expect(
+      sent(["projects", "list", "--no-open", "--json"]),
+    ).resolves.toEqual({
+      args: ["projects", "list", "--json"],
+      noOpen: true,
+    });
+    await expect(
+      sent(["projects", "show", "--", "--no-open"]),
+    ).resolves.toEqual({
+      args: ["projects", "show", "--no-open"],
+      noOpen: false,
+    });
+    await expect(sent(["projects", "list"])).resolves.toEqual({
+      args: ["projects", "list"],
+      noOpen: false,
+    });
+  });
 });

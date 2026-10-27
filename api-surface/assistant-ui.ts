@@ -333,7 +333,7 @@ export const cliSurface: CliSurfaceSnapshot = {
     {
       "name": "cloud",
       "description": "manage Assistant Cloud (run `assistant-ui cloud help`)",
-      "usage": "[command] [command...]",
+      "usage": "[options] [command] [command...]",
       "arguments": [
         {
           "syntax": "[command...]",
@@ -342,7 +342,12 @@ export const cliSurface: CliSurfaceSnapshot = {
           "variadic": true
         }
       ],
-      "options": [],
+      "options": [
+        {
+          "flags": "--no-open",
+          "description": "print dashboard links without opening a browser"
+        }
+      ],
       "commands": [
         {
           "name": "login",

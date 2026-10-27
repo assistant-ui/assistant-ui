@@ -217,8 +217,24 @@ Every other `cloud` subcommand runs on Assistant Cloud: the CLI sends it to the
 cloud management server (`ASSISTANT_UI_CLOUD_URL`, default
 `https://cloud.assistant-ui.com`) with the saved login and prints the answer,
 so new commands arrive without a CLI update. Run
-`npx assistant-ui@latest cloud help` for the current list, such as
-`cloud whoami` and `cloud projects list`.
+`npx assistant-ui@latest cloud help` for the current list and
+`cloud help <command>` for one command's options; `cloud help login`,
+`cloud help logout` and `cloud help setup` are answered locally with their
+flags. The commands cover organizations and projects (`orgs`, `projects list`,
+`show`, `set`, `create`), API keys, hosted harnesses (`harnesses list`, `show`,
+`live`, `create`, `update`) and Pinboard Workers (`workers`, `deployments`,
+`routes`). Every command takes `--json`, and exits 0 on success, 1 on an error
+and 2 on a usage error.
+
+Inside a directory set up with `cloud setup`, commands that take `--org` or
+`--project` default to the organization and project in the nearest
+`.assistant-ui/cloud.json`; pass the flags to act on another one.
+
+Agents never run destructive commands. Deleting a project or harness,
+shortening data retention and moving a Pinboard Worker's live traffic change
+nothing from the CLI: those commands print the dashboard link (or the API call)
+for a person to act on. In a terminal the CLI also opens the link; pass
+`--no-open` to only print it.
 
 In an active setup wizard, an agent can pass its setup-agent URL to `cloud login`
 or `cloud setup` with `--setup-url <url>`. The wizard displays the public code,
