@@ -8,7 +8,7 @@ import {
   compareVersions,
   findDriftedAllowBuilds,
   findDriftedMetroConfigPins,
-  findInconsistentNodePins,
+  findLiteralNodePins,
   findStaleCoursePins,
   findUnmarkedActionRefs,
   lowestSatisfying,
@@ -91,8 +91,8 @@ function createWorkspace({ problems = false } = {}) {
       problems
         ? `      - uses: actions/setup-node@${"b".repeat(40)}`
         : `      - uses: actions/setup-node@${"b".repeat(40)} # ratchet:actions/setup-node@v4`,
-      "    runtime: node@22",
-      `    node-version: ${problems ? "20" : "22"}`,
+      problems ? "    runtime: node@22" : "    node-version-file: package.json",
+      ...(problems ? ["    node-version: 20"] : []),
       "",
     ].join("\n"),
   );
@@ -209,54 +209,49 @@ test("findUnmarkedActionRefs rejects tag refs and unusable markers", () => {
   ]);
 });
 
-test("findInconsistentNodePins reports pins outside the most common major", () => {
+test("findLiteralNodePins reports every workflow Node pin with its text and line", () => {
   assert.deepEqual(
-    findInconsistentNodePins([
+    findLiteralNodePins([
       {
-        file: ".github/workflows/one.yaml",
-        source: ["runtime: node@22", "node-version: '22'"].join("\n"),
-      },
-      {
-        file: ".github/workflows/two.yaml",
-        source: "node-version: 20",
-      },
-    ]),
-    [
-      {
-        file: ".github/workflows/two.yaml",
-        line: 1,
-        major: 20,
-        dominant: 22,
-      },
-    ],
-  );
-  assert.deepEqual(
-    findInconsistentNodePins([
-      { file: ".github/workflows/only.yaml", source: "runtime: node@22" },
-    ]),
-    [],
-  );
-  assert.deepEqual(
-    findInconsistentNodePins([
-      {
-        file: ".github/workflows/dotted.yaml",
+        file: ".github/workflows/pins.yaml",
         source: [
-          "runtime: node@22",
-          "node-version: 20.x",
-          "node-version: lts/*",
-          "node-version-file: .nvmrc",
-          "node-version: ${{ matrix.node }}",
+          "steps:",
+          "  runtime: node@24",
+          "  node-version: 24",
+          '  node-version: "24.x"',
         ].join("\n"),
       },
     ]),
     [
+      { file: ".github/workflows/pins.yaml", line: 2, pin: "runtime: node@24" },
+      { file: ".github/workflows/pins.yaml", line: 3, pin: "node-version: 24" },
       {
-        file: ".github/workflows/dotted.yaml",
-        line: 2,
-        major: 20,
-        dominant: 22,
+        file: ".github/workflows/pins.yaml",
+        line: 4,
+        pin: 'node-version: "24.x"',
       },
     ],
+  );
+});
+
+test("findLiteralNodePins accepts workflows without Node pins", () => {
+  assert.deepEqual(
+    findLiteralNodePins([
+      {
+        file: ".github/workflows/empty.yaml",
+        source: "steps:\n  - run: node --version",
+      },
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    findLiteralNodePins([
+      {
+        file: ".github/workflows/from-file.yaml",
+        source: "node-version-file: package.json",
+      },
+    ]),
+    [],
   );
 });
 
@@ -521,7 +516,8 @@ test("the executable reports every seeded problem and exits 1", () => {
       result.stderr,
       /actions\/setup-node@b{40} — no ratchet marker/,
     );
-    assert.match(result.stderr, /node@20, not node@22/);
+    assert.match(result.stderr, /runtime: node@22/);
+    assert.match(result.stderr, /node-version: 20/);
     assert.match(result.stderr, /esbuild@0\.1\.0 is not installed/);
     assert.match(
       result.stderr,

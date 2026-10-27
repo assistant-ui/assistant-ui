@@ -97,23 +97,17 @@ export function findUnmarkedActionRefs(workflows) {
   return problems;
 }
 
-export function findInconsistentNodePins(workflows) {
-  const pins = [];
+export function findLiteralNodePins(workflows) {
+  const problems = [];
   for (const { file, source } of workflows) {
     source.split("\n").forEach((line, index) => {
-      const pin =
-        /^\s*runtime:\s*node@(\d+)/.exec(line) ??
-        /^\s*node-version:\s*["']?(\d+)(?:\.|["'\s]|$)/.exec(line);
-      if (pin) pins.push({ file, line: index + 1, major: Number(pin[1]) });
+      const pin = /^(?:runtime:\s*node@\S+|node-version:\s*.+)$/.exec(
+        line.replace(/\s+#.*$/, "").trim(),
+      );
+      if (pin) problems.push({ file, line: index + 1, pin: pin[0] });
     });
   }
-  const majors = [...new Set(pins.map(({ major }) => major))];
-  if (majors.length < 2) return [];
-  const count = (major) => pins.filter((pin) => pin.major === major).length;
-  const [dominant] = majors.sort((a, b) => count(b) - count(a) || b - a);
-  return pins
-    .filter(({ major }) => major !== dominant)
-    .map((pin) => ({ ...pin, dominant }));
+  return problems;
 }
 
 export function findDriftedAllowBuilds(allowBuilds, lockedIds) {
@@ -257,7 +251,7 @@ export function runCheck(root = repoRoot) {
     workflowCount: workflows.length,
     courseCount: courses.length,
     unmarked: findUnmarkedActionRefs(workflows),
-    nodePins: findInconsistentNodePins(workflows),
+    nodePins: findLiteralNodePins(workflows),
     allowBuilds: findDriftedAllowBuilds(
       parseIndentedBlock(source, "allowBuilds"),
       readLockedIds(root),
@@ -296,14 +290,15 @@ function main() {
 
   if (result.nodePins.length > 0) {
     failed = true;
-    console.error("Workflow Node.js pins disagree:\n");
-    for (const { file, line, major, dominant } of result.nodePins) {
-      console.error(`  ${file}:${line}: node@${major}, not node@${dominant}`);
+    console.error(
+      "Workflow Node.js versions must come from `devEngines.runtime` in the root package.json:\n",
+    );
+    for (const { file, line, pin } of result.nodePins) {
+      console.error(`  ${file}:${line}: ${pin}`);
     }
     console.error(
-      "\nNothing resolves these against each other, so a partial bump splits CI across two Node.js",
+      "\nUse pnpm/setup without `runtime`, and actions/setup-node with `node-version-file: package.json`.\n",
     );
-    console.error("majors without failing anything.\n");
   }
 
   if (result.allowBuilds.length > 0) {

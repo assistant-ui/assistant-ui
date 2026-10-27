@@ -244,7 +244,6 @@ jobs:
         if: steps.target.outputs.deploy == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           install: false
           # No cache (`cache` defaults to false) - this job holds the Cloudflare deploy token
 

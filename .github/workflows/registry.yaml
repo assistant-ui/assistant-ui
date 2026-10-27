@@ -149,7 +149,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 

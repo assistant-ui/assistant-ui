@@ -99,7 +99,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -126,7 +125,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -152,7 +150,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           install: false
 
       - name: Test the shared script helpers
@@ -195,7 +192,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -224,7 +220,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           install: false
 
       - name: Test the skills commit checker
@@ -276,7 +271,6 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -466,7 +460,6 @@ jobs:
         if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: true
           install: false
 
@@ -528,7 +521,6 @@ jobs:
         if: steps.api_ref.outputs.run == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -580,7 +572,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
