@@ -382,7 +382,7 @@ export const cloud = new Command()
   .helpOption(false)
   .helpCommand(false)
   // `cloud login --no-open` is login's own flag; `cloud <remote> --no-open`
-  // is this one, and after `--` it is the remote command's argument.
+  // is this one; Commander forwards tokens after `--` without the separator.
   .enablePositionalOptions()
   .option("--no-open", "print dashboard links without opening a browser")
   .argument("[command...]")
