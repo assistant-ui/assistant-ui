@@ -20,11 +20,13 @@ Use the Node.js and pnpm versions specified in the repository's root `package.js
 
 ```bash
 pnpm install
-pnpm turbo build --filter=with-external-store...
+pnpm turbo build --filter='with-external-store^...'
 pnpm --filter with-external-store dev
 ```
 
-The example depends on local packages through `workspace:*`. Install with pnpm to link those packages, then build the example and its dependencies so it can import their `dist` outputs. The Turbo filter avoids building unrelated apps in the repository.
+The example depends on local packages through `workspace:*`. Install with pnpm to link those packages, then build its dependencies so the example can import their `dist` outputs. The Turbo filter builds only the dependencies, not the example's production bundle or unrelated apps.
+
+If a Windows command wrapper strips `^` from the filter, replace the build command with `node node_modules/turbo/bin/turbo build --filter="with-external-store^..."`.
 
 Open the local URL printed by Next.js, usually [http://localhost:3000](http://localhost:3000). Send a message to see the simulated reply. Messages reset when the page reloads.
 
