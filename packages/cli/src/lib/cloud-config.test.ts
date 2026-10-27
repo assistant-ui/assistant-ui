@@ -190,10 +190,23 @@ describe("cloud environment", () => {
         path.join(root, "app", ".assistant-ui", "cloud.json"),
         JSON.stringify({ organizationId: "org_1", projectId: "proj_1" }),
       );
+      await mkdir(path.join(root, ".assistant-ui"));
+      await writeFile(
+        path.join(root, ".assistant-ui", "cloud.json"),
+        JSON.stringify({
+          organizationId: "org_outer",
+          projectId: "proj_outer",
+        }),
+      );
       await expect(findCloudProjectDefaults(nested)).resolves.toEqual({
         org: "org_1",
         project: "proj_1",
       });
+      await expect(findCloudProjectDefaults(root)).resolves.toEqual({
+        org: "org_outer",
+        project: "proj_outer",
+      });
+      await rm(path.join(root, ".assistant-ui"), { recursive: true });
       await expect(findCloudProjectDefaults(root)).resolves.toBeNull();
       await writeFile(
         path.join(root, "app", ".assistant-ui", "cloud.json"),

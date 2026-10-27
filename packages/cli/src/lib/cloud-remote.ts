@@ -165,19 +165,8 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
   },
 };
 
-/** Removes the client-side --no-open flag; the server never sees it. */
-export const takeNoOpen = (
-  args: readonly string[],
-): { args: string[]; noOpen: boolean } => {
-  const end = args.indexOf("--");
-  const head = end === -1 ? [...args] : args.slice(0, end);
-  const tail = end === -1 ? [] : args.slice(end);
-  const kept = head.filter((arg) => arg !== "--no-open");
-  return { args: [...kept, ...tail], noOpen: kept.length !== head.length };
-};
-
 export const runCloudCommand = async (
-  rawArgs: readonly string[],
+  args: readonly string[],
   deps: {
     cloudUrl: string;
     accessToken: () => Promise<string | null>;
@@ -188,10 +177,11 @@ export const runCloudCommand = async (
     defaults?: () => Promise<CloudCliDefaults | null>;
     /** Whether someone is at the terminal to see a browser open. */
     interactive?: boolean;
+    /** --no-open: print links without opening them. */
+    noOpen?: boolean;
     openUrl?: (url: string) => void;
   },
 ): Promise<number> => {
-  const { args, noOpen } = takeNoOpen(rawArgs);
   let response: CloudCliResponse;
   try {
     const defaults = deps.defaults
@@ -234,7 +224,7 @@ export const runCloudCommand = async (
   if (response.stderr) deps.stderr(response.stderr);
   const context: ActionContext = {
     cloudUrl: deps.cloudUrl,
-    open: !noOpen && !!deps.interactive && !!deps.openUrl,
+    open: !deps.noOpen && !!deps.interactive && !!deps.openUrl,
     openUrl: deps.openUrl ?? (() => {}),
     stderr: deps.stderr,
   };

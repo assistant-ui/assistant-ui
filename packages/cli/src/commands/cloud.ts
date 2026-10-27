@@ -381,10 +381,14 @@ export const cloud = new Command()
   .description("manage Assistant Cloud (run `assistant-ui cloud help`)")
   .helpOption(false)
   .helpCommand(false)
+  // `cloud login --no-open` is login's own flag; `cloud <remote> --no-open`
+  // is this one, and after `--` it is the remote command's argument.
+  .enablePositionalOptions()
+  .option("--no-open", "print dashboard links without opening a browser")
   .argument("[command...]")
   .allowUnknownOption()
   .allowExcessArguments()
-  .action(async (args: string[]) => {
+  .action(async (args: string[], options: { open?: boolean }) => {
     // The server's help knows the local commands only by name; their flags
     // live here, so `help <local command>` is answered on this machine.
     const local =
@@ -401,6 +405,7 @@ export const cloud = new Command()
       defaults: () => findCloudProjectDefaults(process.cwd()),
       interactive:
         !!process.stdin.isTTY && !!process.stderr.isTTY && !process.env.CI,
+      noOpen: options.open === false,
       openUrl: openBrowser,
       stdout: (text) => process.stdout.write(text),
       stderr: (text) => process.stderr.write(text),

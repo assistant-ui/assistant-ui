@@ -318,3 +318,32 @@ describe("cloud remote forwarding", () => {
     expect(runCloudCommand).toHaveBeenCalled();
   });
 });
+
+describe("cloud --no-open", () => {
+  const sent = async (argv: string[]) => {
+    runCloudCommand.mockClear();
+    runCloudCommand.mockResolvedValue(0);
+    await cloud.parseAsync(argv, { from: "user" });
+    const [args, options] = runCloudCommand.mock.calls[0]!;
+    return { args, noOpen: options.noOpen };
+  };
+
+  it("is the client's flag before --, and the remote command's after it", async () => {
+    await expect(
+      sent(["projects", "list", "--no-open", "--json"]),
+    ).resolves.toEqual({
+      args: ["projects", "list", "--json"],
+      noOpen: true,
+    });
+    await expect(
+      sent(["projects", "show", "--", "--no-open"]),
+    ).resolves.toEqual({
+      args: ["projects", "show", "--no-open"],
+      noOpen: false,
+    });
+    await expect(sent(["projects", "list"])).resolves.toEqual({
+      args: ["projects", "list"],
+      noOpen: false,
+    });
+  });
+});

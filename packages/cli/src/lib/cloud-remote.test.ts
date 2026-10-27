@@ -4,7 +4,6 @@ import {
   parseCloudCliResponse,
   runCloudCommand,
   sendCloudCommand,
-  takeNoOpen,
   type CloudCliResponse,
 } from "./cloud-remote";
 
@@ -192,21 +191,21 @@ describe("cloud remote commands", () => {
       actions: [{ type: "open_url", url }],
     });
     const dashboard = "https://cloud.example.com/o/acme";
-    const cases: [boolean, string[], string, boolean][] = [
-      [true, ["x"], dashboard, true],
-      [true, ["x", "--no-open"], dashboard, false],
-      [false, ["x"], dashboard, false],
-      [true, ["x"], "https://evil.example.org/", false],
+    const cases: [boolean, boolean, string, boolean][] = [
+      [true, false, dashboard, true],
+      [true, true, dashboard, false],
+      [false, false, dashboard, false],
+      [true, false, "https://evil.example.org/", false],
     ];
-    for (const [interactive, args, url, opens] of cases) {
+    for (const [interactive, noOpen, url, opens] of cases) {
       const openUrl = vi.fn();
-      const { run, send, output } = harness(reply(url), "token", {
+      const { run, output } = harness(reply(url), "token", {
         interactive,
+        noOpen,
         openUrl,
       });
-      await expect(run(args)).resolves.toBe(0);
+      await expect(run(["x"])).resolves.toBe(0);
       expect(output.stderr).toBe(`Open: ${url}\n`);
-      expect(send.mock.calls[0]![1]).toEqual(["x"]);
       expect(openUrl).toHaveBeenCalledTimes(opens ? 1 : 0);
     }
   });
@@ -222,14 +221,6 @@ describe("cloud remote commands", () => {
       expect(output.stdout).toBe("");
       expect(output.stderr).toMatch(/malformed "open_url"/);
     }
-  });
-
-  it("strips --no-open only before --", () => {
-    expect(takeNoOpen(["a", "--no-open", "--", "--no-open"])).toEqual({
-      args: ["a", "--", "--no-open"],
-      noOpen: true,
-    });
-    expect(takeNoOpen(["a"])).toEqual({ args: ["a"], noOpen: false });
   });
 
   it("passes the directory's default org and project to the server", async () => {
