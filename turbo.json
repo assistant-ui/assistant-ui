@@ -80,6 +80,9 @@
         "$TURBO_ROOT$/scripts/lib/script-options.mjs"
       ],
       "outputs": ["dist/**"]
+    },
+    "//#docs-source-inputs": {
+      "inputs": ["$TURBO_DEFAULT$"]
     }
   }
 }
