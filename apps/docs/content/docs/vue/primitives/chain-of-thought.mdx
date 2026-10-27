@@ -75,7 +75,7 @@ The iterator renders while the scope is collapsed. Wrap it in `AuiIf` with `!s.c
 
 ## Collapse and expand
 
-`ChainOfThoughtPrimitiveAccordionTrigger` renders a button that toggles `aui.chainOfThought.setCollapsed(...)`. The client starts with `collapsed: true`; you can also call `setCollapsed(true)` or `setCollapsed(false)` from a component inside the scope. A caller's click listener runs first and can prevent the toggle with `preventDefault()`. A `disabled` attribute also blocks it.
+`ChainOfThoughtPrimitiveAccordionTrigger` renders a button that toggles `aui.chainOfThought.setCollapsed(...)`. Its `aria-expanded` attribute follows the current state. The client starts with `collapsed: true`; you can also call `setCollapsed(true)` or `setCollapsed(false)` from a component inside the scope. A caller's click listener runs first and can prevent the toggle with `preventDefault()`. A `disabled` attribute also blocks it.
 
 `s.chainOfThought.status` describes the selected group. `ChainOfThoughtClient` returns `running` if any part is running; otherwise it takes the last part's status. An empty group reports `complete`. A tool call can report `requires-action`, so handle that status if you show a group status label.
 

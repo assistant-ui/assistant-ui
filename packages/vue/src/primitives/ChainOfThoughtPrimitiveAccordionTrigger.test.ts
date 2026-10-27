@@ -60,15 +60,18 @@ describe("ChainOfThoughtPrimitiveAccordionTrigger", () => {
     const button = el.querySelector<HTMLButtonElement>("button")!;
 
     expect(el.querySelector("span.collapsed")?.textContent).toBe("true");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
     button.click();
     await vi.waitFor(async () => {
       await nextTick();
       expect(el.querySelector("span.collapsed")?.textContent).toBe("false");
+      expect(button.getAttribute("aria-expanded")).toBe("true");
     });
     button.click();
     await vi.waitFor(async () => {
       await nextTick();
       expect(el.querySelector("span.collapsed")?.textContent).toBe("true");
+      expect(button.getAttribute("aria-expanded")).toBe("false");
     });
 
     unmount();

@@ -26,6 +26,7 @@ export const ChainOfThoughtAccordionTrigger = ({
       onPress={onPress}
       accessibilityRole="button"
       {...pressableProps}
+      aria-expanded={!collapsed}
     >
       {children}
     </Primitive.Pressable>
