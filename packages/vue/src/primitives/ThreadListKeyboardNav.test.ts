@@ -350,38 +350,34 @@ describe("application shortcuts in Vue thread lists", () => {
       const handled = vi.fn();
       const View = defineComponent({
         setup: () => () =>
-          h(
-            "section",
-            {
-              onKeydown: (event: KeyboardEvent) => {
-                if (event.defaultPrevented || !event[modifier]) return;
-                handled();
-                event.preventDefault();
-              },
-            },
-            [
-              h(ThreadListPrimitiveRoot, null, {
-                default: () =>
-                  [0, 1].map((index) =>
-                    h(
-                      ThreadListItemByIndexProvider,
-                      { index, key: index },
-                      {
-                        default: () =>
-                          h(ThreadListItemPrimitiveRoot, null, {
-                            default: () =>
-                              h(ThreadListItemPrimitiveTrigger, null, {
-                                default: () => `item ${index}`,
-                              }),
-                          }),
-                      },
-                    ),
+          h("section", null, [
+            h(ThreadListPrimitiveRoot, null, {
+              default: () =>
+                [0, 1].map((index) =>
+                  h(
+                    ThreadListItemByIndexProvider,
+                    { index, key: index },
+                    {
+                      default: () =>
+                        h(ThreadListItemPrimitiveRoot, null, {
+                          default: () =>
+                            h(ThreadListItemPrimitiveTrigger, null, {
+                              default: () => `item ${index}`,
+                            }),
+                        }),
+                    },
                   ),
-              }),
-            ],
-          ),
+                ),
+            }),
+          ]),
       });
       const { el, unmount } = mount(runtime, View);
+      // Vue skips a listener attached in the same millisecond the event started, so the app shortcut is native.
+      el.querySelector("section")!.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented || !event[modifier]) return;
+        handled();
+        event.preventDefault();
+      });
       try {
         await nextTick();
         const [first] = buttons(el);
