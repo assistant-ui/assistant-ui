@@ -1,12 +1,6 @@
 import { Command, Option } from "commander";
 import * as p from "@clack/prompts";
-import {
-  createProject,
-  fetchOrganizations,
-  fetchProjects,
-  type AccountsOrganization,
-  type AccountsProject,
-} from "aui-auth/accounts";
+import { fetchOrganizations, fetchProjects } from "aui-auth/accounts";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +13,7 @@ import {
   savedCloudAccessToken,
   validateCloudUrl,
 } from "../lib/cloud-auth";
-import { runCloudCommand } from "../lib/cloud-remote";
+import { runCloudCommand, sendCloudCommand } from "../lib/cloud-remote";
 import {
   findCloudProjectDefaults,
   readCloudProjectConfig,
@@ -96,6 +90,27 @@ const selectResource = async <
   return resources.find((resource) => resource.id === id)!;
 };
 
+type SetupResource = { id: string; slug: string; name: string };
+
+/**
+ * Runs a Cloud command for setup and returns its `--json` output, so setup
+ * creates organizations and projects with the same checks and audit rows as
+ * `assistant-ui cloud orgs create` and `projects create`.
+ */
+const cloudJson = async <T>(
+  apiUrl: string,
+  token: string,
+  args: string[],
+): Promise<{ ok: true; value: T } | { ok: false; message: string }> => {
+  const response = await sendCloudCommand(apiUrl, [...args, "--json"], token);
+  if (response.exitCode !== 0)
+    return {
+      ok: false,
+      message: (response.stderr ?? "").trim() || `${args.join(" ")} failed.`,
+    };
+  return { ok: true, value: JSON.parse(response.stdout ?? "null") as T };
+};
+
 const projectSlug = (value: string): string =>
   value
     .toLowerCase()
@@ -106,7 +121,7 @@ const organizationForSetup = async (
   issuer: string,
   token: string,
   options: SetupOptions,
-): Promise<AccountsOrganization> => {
+): Promise<SetupResource> => {
   const organizations = await fetchOrganizations({ issuer }, token);
   if (!options.newOrg) {
     const existing = await selectResource(
@@ -138,28 +153,25 @@ const organizationForSetup = async (
     (organization) => organization.slug === slug,
   );
   if (existing) return existing;
-  const response = await fetch(`${issuer}/api/oidc/organizations`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name: options.name ?? slug, slug }),
-    signal: AbortSignal.timeout(30_000),
-    redirect: "error",
-  });
-  if (!response.ok)
-    throw new Error(`Could not create organization (${response.status}).`);
-  return (await response.json()) as AccountsOrganization;
+  const created = await cloudJson<SetupResource>(options.apiUrl, token, [
+    "orgs",
+    "create",
+    slug,
+    "--name",
+    options.name ?? slug,
+  ]);
+  if (!created.ok)
+    throw new Error(`Could not create organization: ${created.message}`);
+  return created.value;
 };
 
 const projectForSetup = async (
   issuer: string,
   token: string,
-  organization: AccountsOrganization,
+  organization: SetupResource,
   directory: string,
   options: SetupOptions,
-): Promise<AccountsProject> => {
+): Promise<SetupResource> => {
   const projects = await fetchProjects({ issuer }, token, {
     id: organization.id,
   });
@@ -175,23 +187,25 @@ const projectForSetup = async (
   const slug = options.newProject ?? projectSlug(path.basename(directory));
   if (!slug)
     throw new Error("Choose a project slug with --new-project <slug>.");
-  const created = await createProject(
-    { issuer },
-    token,
-    { id: organization.id },
-    {
-      name: options.name ?? path.basename(directory),
-      slug,
-    },
-  );
-  if ("reason" in created) {
-    const existing = projects.find((project) => project.slug === slug);
-    if (existing) return existing;
-    throw new Error(
-      `Project slug "${slug}" already exists. Select it with --project or choose another slug.`,
-    );
+  const existing = projects.find((project) => project.slug === slug);
+  if (existing) return existing;
+  const created = await cloudJson<SetupResource>(options.apiUrl, token, [
+    "projects",
+    "create",
+    slug,
+    "--name",
+    options.name ?? path.basename(directory),
+    "--org",
+    organization.id,
+  ]);
+  if (!created.ok) {
+    if (/already exists/.test(created.message))
+      throw new Error(
+        `Project slug "${slug}" already exists. Select it with --project or choose another slug.`,
+      );
+    throw new Error(`Could not create project: ${created.message}`);
   }
-  return created;
+  return created.value;
 };
 
 const scaffoldCloudProject = async (
