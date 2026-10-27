@@ -4,6 +4,13 @@
   "engines": {
     "node": ">=24.11"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24",
+      "onFail": "ignore"
+    }
+  },
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs-site",
