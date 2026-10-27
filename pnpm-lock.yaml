@@ -6761,6 +6761,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -6840,6 +6843,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -7025,6 +7031,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -7174,6 +7183,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -7274,6 +7286,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -7490,6 +7505,9 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@assistant-ui/vscode':
         specifier: workspace:*
         version: link:../../packages/vscode

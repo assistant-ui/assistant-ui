@@ -16,6 +16,7 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@base-ui/react": "^1.9.0",
     "@clerk/nextjs": "^7.9.20",
     "@clerk/themes": "^2.4.57",
