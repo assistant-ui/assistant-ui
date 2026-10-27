@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@assistant-ui/tap": "^0.9.24",
-    "statewire": "^0.20.0"
+    "statewire": "^0.22.1"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

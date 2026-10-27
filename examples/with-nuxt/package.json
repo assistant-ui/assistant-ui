@@ -11,15 +11,15 @@
     "typecheck": "nuxi typecheck"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.96",
+    "@ai-sdk/openai": "^4.0.102",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.59.0",
-    "ai": "^7.0.143",
+    "@lucide/vue": "^1.61.0",
+    "ai": "^7.0.153",
     "markdown-it": "^15.0.3",
     "nuxt": "^4.6.2",
     "react": "^19.3.1",
