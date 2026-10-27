@@ -170,6 +170,21 @@ describe("cloud setup", () => {
     );
   });
 
+  it("refuses a creation answer without an id, slug and name", async () => {
+    const directory = await fixture();
+    fetchProjects.mockResolvedValue([]);
+    sendCloudCommand.mockReset();
+    sendCloudCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: JSON.stringify({ project: { id: "p" } }),
+    });
+    const before = provisionCloudHarness.mock.calls.length;
+    await expect(
+      setupCloud(directory, { ...options, newProject: "chat-app" }),
+    ).rejects.toThrow(/Unexpected response from `projects create/);
+    expect(provisionCloudHarness.mock.calls.length).toBe(before);
+  });
+
   it("stops with the Cloud command's error when creation is refused", async () => {
     const directory = await fixture();
     fetchProjects.mockResolvedValue([]);

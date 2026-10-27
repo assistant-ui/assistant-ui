@@ -108,7 +108,24 @@ const cloudJson = async <T>(
       ok: false,
       message: (response.stderr ?? "").trim() || `${args.join(" ")} failed.`,
     };
-  return { ok: true, value: JSON.parse(response.stdout ?? "null") as T };
+  let value: unknown;
+  try {
+    value = JSON.parse(response.stdout ?? "");
+  } catch {
+    value = null;
+  }
+  const resource = value as Partial<SetupResource> | null;
+  if (
+    !resource ||
+    typeof resource.id !== "string" ||
+    typeof resource.slug !== "string" ||
+    typeof resource.name !== "string"
+  )
+    return {
+      ok: false,
+      message: `Unexpected response from \`${args.join(" ")} --json\`. Update assistant-ui and try again.`,
+    };
+  return { ok: true, value: value as T };
 };
 
 const projectSlug = (value: string): string =>
