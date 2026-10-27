@@ -121,7 +121,7 @@ if (cjsEntries.length > 0) {
     // Build mode emits the whole tsconfig program in one pass instead of one
     // module at a time in rolldown's load order, which keeps the bundled
     // declarations identical between builds.
-    dts: isDev ? false : { sourcemap: true, build: true },
+    dts: isDev ? false : { sourcemap: true, tsc: { build: true } },
     sourcemap: true,
     watch: isDev,
     ...(onSuccess ? { onSuccess } : {}),
