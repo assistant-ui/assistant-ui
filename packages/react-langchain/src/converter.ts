@@ -155,7 +155,14 @@ const convertMediaBlock = (
   const mimeType = resolveMediaMimeType(part);
   if (part.type === "image") {
     const image = resolveImage(source, mimeType);
-    if (image) return { type: "image" as const, image };
+    if (image)
+      return {
+        type: "image" as const,
+        image,
+        ...(part.metadata?.filename != null && {
+          filename: part.metadata.filename,
+        }),
+      };
   }
 
   const resolvedMimeType =

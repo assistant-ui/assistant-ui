@@ -8,14 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "4.0.96",
+    "@ai-sdk/openai": "4.0.102",
     "@assistant-ui/ai-sdk": "0.0.2",
     "@assistant-ui/next": "0.0.17",
     "@assistant-ui/react": "0.15.16",
-    "ai": "7.0.143",
+    "ai": "7.0.153",
     "assistant-stream": "0.3.39",
-    "lucide-react": "1.59.0",
-    "next": "16.4.2",
+    "lucide-react": "1.61.0",
+    "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "4.6.7"

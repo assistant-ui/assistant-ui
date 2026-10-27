@@ -38,8 +38,7 @@
         "KV_*",
         "SENTRY_*",
         "ASSISTANT_*",
-        "AUIX_*",
-        "WEBMCP_ORIGIN_TRIAL_TOKEN"
+        "AUIX_*"
       ]
     },
     "lint": {},

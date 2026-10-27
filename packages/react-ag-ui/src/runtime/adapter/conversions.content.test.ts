@@ -429,3 +429,91 @@ describe("toAgUiMessages percent-encoded data URLs", () => {
     expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
   });
 });
+
+describe("toAgUiMessages tool model content", () => {
+  const withModelContent = (modelContent: unknown): Message => ({
+    id: "a1",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "download",
+        args: {},
+        argsText: "{}",
+        result: { private: "not model-visible" },
+        modelContent,
+      },
+    ],
+  });
+
+  it.each([
+    ["image", "image/png"],
+    ["document", "application/pdf"],
+    ["audio", "audio/wav"],
+    ["video", "video/mp4"],
+  ])(
+    "keeps %s model content through a snapshot round trip",
+    (type, mediaType) => {
+      const exported = toAgUiMessages([
+        withModelContent([
+          { type: "text", text: "Before" },
+          { type: "file", data: "YWJj", mediaType, filename: "result.bin" },
+          { type: "text", text: "After" },
+        ]),
+      ]);
+      const expected = {
+        id: "call-1:tool",
+        role: "tool",
+        toolCallId: "call-1",
+        content: [
+          { type: "text", text: "Before" },
+          {
+            type,
+            source: { type: "data", value: "YWJj", mimeType: mediaType },
+            metadata: { filename: "result.bin" },
+          },
+          { type: "text", text: "After" },
+        ],
+      };
+
+      expect(MessageSchema.parse(exported[1])).toEqual(expected);
+      expect(toAgUiMessages(fromAgUiMessages(exported))[1]).toEqual(expected);
+    },
+  );
+
+  it("sends a file-only model result instead of an empty string", () => {
+    const exported = toAgUiMessages([
+      withModelContent([
+        {
+          type: "file",
+          data: "https://example.com/report.pdf",
+          mediaType: "application/pdf",
+        },
+      ]),
+    ]);
+
+    expect(exported[1]?.content).toEqual([
+      {
+        type: "document",
+        source: {
+          type: "url",
+          value: "https://example.com/report.pdf",
+          mimeType: "application/pdf",
+        },
+      },
+    ]);
+  });
+
+  it.each([
+    { modelContent: [], content: "" },
+    { modelContent: [{ type: "text", text: "public" }], content: "public" },
+  ])(
+    "keeps text-only model content as $content",
+    ({ modelContent, content }) => {
+      expect(toAgUiMessages([withModelContent(modelContent)])[1]?.content).toBe(
+        content,
+      );
+    },
+  );
+});

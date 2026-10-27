@@ -114,7 +114,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -125,12 +124,12 @@ jobs:
         if: matrix.shard == 0
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs
 
-      # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
+      # Each vitest run already spreads its files across every core, so prebuild its prerequisites at turbo's default concurrency before coverage limits concurrency to two.
       - name: Build packages
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
-        run: pnpm turbo build --filter="./packages/*"
+        run: node scripts/coverage-shards.mjs "${{ matrix.shard }}" --build
 
       - name: Run React Compiler tests
         if: matrix.shard == 0

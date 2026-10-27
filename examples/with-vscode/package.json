@@ -158,9 +158,9 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/vscode": "workspace:*",
-    "ai": "^7.0.143",
+    "ai": "^7.0.153",
     "assistant-stream": "workspace:*",
-    "lucide-react": "^1.59.0",
+    "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"

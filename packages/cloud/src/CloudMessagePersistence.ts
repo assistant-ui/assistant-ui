@@ -94,6 +94,7 @@ export class CloudMessagePersistence {
    * Delete mapped messages from the cloud and clear their local ID mappings.
    */
   async delete(threadId: string, messageIds: string[]): Promise<void> {
+    const cloud = this.getCloud();
     const mapping = this.idMapping;
     const resolved: {
       localId: string;
@@ -112,7 +113,7 @@ export class CloudMessagePersistence {
     if (resolved.length === 0) return;
 
     try {
-      await this.getCloud().threads.messages.delete(
+      await cloud.threads.messages.delete(
         threadId,
         resolved.map(({ remoteId }) => remoteId),
       );

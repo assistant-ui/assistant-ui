@@ -42,7 +42,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.31",
     "@assistant-ui/store": "^0.3.22",
-    "markdansi": "^0.3.5"
+    "markdansi": "^0.3.7"
   },
   "peerDependencies": {
     "@assistant-ui/react-ink": "^0.0.53",

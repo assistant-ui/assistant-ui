@@ -38,6 +38,9 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         return {
           type: "text",
           text: part.text,
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata,
+          }),
         };
       case "image": {
         const mediaType = resolveImageMediaType(part.image, part.contentType);
@@ -46,6 +49,9 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           url: toMediaWireUrl(part.image, mediaType),
           ...(part.filename && { filename: part.filename }),
           mediaType,
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata,
+          }),
         };
       }
       case "file": {
@@ -64,6 +70,9 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
               : toMediaWireUrl(part.data, mediaType),
           mediaType,
           ...(part.filename && { filename: part.filename }),
+          ...(part.providerMetadata != null && {
+            providerMetadata: part.providerMetadata,
+          }),
         };
       }
       case "audio": {

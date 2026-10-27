@@ -15,8 +15,8 @@
     "@assistant-ui/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
-    "lucide-react": "^1.59.0",
-    "next": "^16.4.2",
+    "lucide-react": "^1.61.0",
+    "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"

@@ -146,8 +146,8 @@
     "react-dom": "^19.3.1",
     "react-native": "^0.88.0",
     "react-native-web": "^0.21.4",
-    "rolldown": "^1.2.14",
-    "vite": "^8.3.4",
+    "rolldown": "^1.2.15",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5",
     "vue": "^3.5.44"
   },

@@ -124,7 +124,10 @@ test("test-only changes still run coverage and affected typechecks", () => {
     coverage,
     /git diff --quiet "\$BASE" HEAD -- \\\n\s+packages \\/,
   );
-  assert.match(coverage, /pnpm turbo build --filter="\.\/packages\/\*"/);
+  assert.match(
+    coverage,
+    /node scripts\/coverage-shards\.mjs "\$\{\{ matrix\.shard \}\}" --build/,
+  );
   assert.match(coverage, /pnpm test:coverage --continue/);
   const turbo = JSON.parse(readFileSync(path.join(repoRoot, "turbo.json")));
   assert.ok(turbo.tasks.typecheck.dependsOn.includes("^build"));

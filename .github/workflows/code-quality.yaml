@@ -99,7 +99,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -126,7 +125,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -152,7 +150,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           install: false
 
       - name: Test the shared script helpers
@@ -195,7 +192,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -224,7 +220,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           install: false
 
       - name: Test the skills commit checker
@@ -276,7 +271,6 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -442,11 +436,15 @@ jobs:
           set -euo pipefail
           BASE=$(node scripts/prepare-ci-base.mjs --resolve)
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
-            run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/app-build-inputs.mjs)
+            git diff --name-only --no-renames -z "$BASE" HEAD > "$RUNNER_TEMP/app-build-changes"
+            run=$(node scripts/app-build-inputs.mjs < "$RUNNER_TEMP/app-build-changes")
+            bundles=$(node scripts/app-build-inputs.mjs --bundles < "$RUNNER_TEMP/app-build-changes")
           else
             run=true
+            bundles=true
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "bundles=$bundles" >> "$GITHUB_OUTPUT"
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Test app build input detector
@@ -459,15 +457,14 @@ jobs:
         run: node --test scripts/source-mapped-tsconfigs.test.mjs
 
       - name: Setup pnpm and node.js
-        if: steps.app_build_inputs.outputs.run == 'true'
+        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: true
           install: false
 
       - name: Install dependencies
-        if: steps.app_build_inputs.outputs.run == 'true'
+        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
         run: pnpm install --frozen-lockfile
 
       # apps/docs is excluded: its build belongs to the Vercel deployment.
@@ -484,7 +481,7 @@ jobs:
           pnpm turbo build --filter="{./examples/*}[$BASE]"
 
       - name: Verify standalone example bundle contracts
-        if: steps.app_build_inputs.outputs.run == 'true'
+        if: steps.app_build_inputs.outputs.bundles == 'true'
         env:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
@@ -524,7 +521,6 @@ jobs:
         if: steps.api_ref.outputs.run == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
@@ -576,7 +572,6 @@ jobs:
       - name: Setup pnpm and node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          runtime: node@24
           cache: false
           install: false
 
