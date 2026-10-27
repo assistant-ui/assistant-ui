@@ -59,10 +59,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+
       - name: Test template install selection
         run: node --test scripts/template-metrics-install.test.mjs
 
+      - name: Detect bundle inputs
+        id: bundles
+        run: |
+          run=$(node scripts/template-metrics.mjs bundle-inputs .)
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Setup pnpm and node.js
+        if: steps.bundles.outputs.run == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           runtime: node@24
@@ -70,6 +82,7 @@ jobs:
           install: false
 
       - name: Install dependencies
+        if: steps.bundles.outputs.run == 'true'
         run: |
           set -euo pipefail
           # Templates alias UI source files outside their manifest dependency graph.
@@ -80,6 +93,7 @@ jobs:
           pnpm install --frozen-lockfile "${filters[@]}"
 
       - name: Build templates (bundle subset)
+        if: steps.bundles.outputs.run == 'true'
         env:
           # next build needs these public vars defined; values are placeholders.
           NEXT_PUBLIC_ASSISTANT_BASE_URL: "https://example.com"
