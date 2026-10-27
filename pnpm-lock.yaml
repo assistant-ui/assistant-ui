@@ -4421,8 +4421,8 @@ importers:
         specifier: ^6.3.0
         version: 6.3.0(@opentelemetry/api@1.9.1)
       streamfold:
-        specifier: ^0.1.11
-        version: 0.1.11
+        specifier: ^0.1.13
+        version: 0.1.13
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -21401,8 +21401,8 @@ packages:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
 
-  streamfold@0.1.11:
-    resolution: {integrity: sha512-qta0NcsCRSvk/86hCnyOQv0TE7QI7lyeH6MJ1RCSM/GBAh4y57s6lOZ1Mw+hZmRLLCDNX15xESScEHJopBHbPA==}
+  streamfold@0.1.13:
+    resolution: {integrity: sha512-8Hl3h2Gr97PQUVIv574OnecfOwXmatjcM7PUVRnpa7qsWFE0IZRWDJUHh6ezURyix9CogFxubdQuearT/OF0dg==}
     engines: {node: '>=20'}
 
   streamx@2.28.1:
@@ -41063,7 +41063,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  streamfold@0.1.11: {}
+  streamfold@0.1.13: {}
 
   streamx@2.28.1:
     dependencies:

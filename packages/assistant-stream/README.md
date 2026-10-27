@@ -39,7 +39,7 @@ For tool execution, pipe through `ToolExecutionStream`; for resumable streams (c
 
 ## Streamfold parsing
 
-Install `streamfold@^0.1.11` alongside `assistant-stream` to opt into its Rust/WASM
+Install `streamfold@^0.1.13` alongside `assistant-stream` to opt into its Rust/WASM
 parser. Initialize it once before starting streams in each browser or server
 bundle that should use it:
 
