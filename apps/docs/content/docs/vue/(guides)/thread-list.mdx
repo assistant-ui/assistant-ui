@@ -106,7 +106,7 @@ import {
 
 `ThreadListPrimitiveItems` repeats its slot once per thread, keyed by thread id, and scopes `s.threadListItem` and `aui.threadListItem` to that thread. Everything in the slot acts on its own thread: the trigger switches to it, and the archive and delete buttons act on it.
 
-The selected thread's item root and trigger carry `data-active="true"` and `aria-current="true"`, so style the selection with a `data-[active=true]:` variant. When each trigger sits in a `ThreadListItemPrimitiveRoot` inside `ThreadListPrimitiveRoot`, ArrowUp and ArrowDown move focus between the triggers.
+The selected thread's item root and trigger carry `data-active="true"` and `aria-current="true"`, so style the selection with a `data-[active=true]:` variant. When each trigger sits in a `ThreadListItemPrimitiveRoot` inside `ThreadListPrimitiveRoot`, unmodified ArrowUp and ArrowDown move focus between the triggers.
 
 An in-memory list never has more pages, so `s.threads.hasMore` stays false and the `AuiIf` above keeps Load More hidden. A cloud list loads 20 threads per page.
 
