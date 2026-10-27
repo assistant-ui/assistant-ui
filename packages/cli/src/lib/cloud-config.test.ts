@@ -12,6 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  findCloudProjectDefaults,
   mergeCloudEnvironment,
   readCloudProjectConfig,
   writeCloudFile,
@@ -176,6 +177,31 @@ describe("cloud environment", () => {
         ).toBe(0o600);
     } finally {
       await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("finds the nearest cloud.json's org and project for remote commands", async () => {
+    const root = await tempDir();
+    try {
+      const nested = path.join(root, "app", "src", "deep");
+      await mkdir(nested, { recursive: true });
+      await mkdir(path.join(root, "app", ".assistant-ui"));
+      await writeFile(
+        path.join(root, "app", ".assistant-ui", "cloud.json"),
+        JSON.stringify({ organizationId: "org_1", projectId: "proj_1" }),
+      );
+      await expect(findCloudProjectDefaults(nested)).resolves.toEqual({
+        org: "org_1",
+        project: "proj_1",
+      });
+      await expect(findCloudProjectDefaults(root)).resolves.toBeNull();
+      await writeFile(
+        path.join(root, "app", ".assistant-ui", "cloud.json"),
+        "{not json",
+      );
+      await expect(findCloudProjectDefaults(nested)).resolves.toBeNull();
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   });
 });

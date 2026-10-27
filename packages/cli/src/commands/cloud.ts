@@ -15,11 +15,13 @@ import {
   cloudAuthConfig,
   loginToCloud,
   logoutFromCloud,
+  openBrowser,
   savedCloudAccessToken,
   validateCloudUrl,
 } from "../lib/cloud-auth";
 import { runCloudCommand } from "../lib/cloud-remote";
 import {
+  findCloudProjectDefaults,
   readCloudProjectConfig,
   mergeCloudEnvironment,
   readOptionalFile,
@@ -383,9 +385,23 @@ export const cloud = new Command()
   .allowUnknownOption()
   .allowExcessArguments()
   .action(async (args: string[]) => {
+    // The server's help knows the local commands only by name; their flags
+    // live here, so `help <local command>` is answered on this machine.
+    const local =
+      args[0] === "help" && args.length === 2
+        ? cloud.commands.find((command) => command.name() === args[1])
+        : undefined;
+    if (local) {
+      process.stdout.write(local.helpInformation());
+      return;
+    }
     process.exitCode = await runCloudCommand(args, {
       cloudUrl: process.env.ASSISTANT_UI_CLOUD_URL ?? DEFAULT_CLOUD_URL,
       accessToken: () => savedCloudAccessToken(cloudAuthConfig()),
+      defaults: () => findCloudProjectDefaults(process.cwd()),
+      interactive:
+        !!process.stdin.isTTY && !!process.stderr.isTTY && !process.env.CI,
+      openUrl: openBrowser,
       stdout: (text) => process.stdout.write(text),
       stderr: (text) => process.stderr.write(text),
     });
