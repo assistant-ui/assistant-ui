@@ -14,7 +14,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.59.0",
+    "@lucide/vue": "^1.61.0",
     "vue": "^3.5.44"
   },
   "devDependencies": {
@@ -23,7 +23,7 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vue-tsc": "^3.3.13"
   }
 }

@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.96",
+    "@ai-sdk/openai": "^4.0.102",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -18,15 +18,15 @@
     "@openuidev/react-headless": "^0.18.1",
     "@openuidev/react-lang": "^1.0.1",
     "@openuidev/react-ui": "^0.18.1",
-    "ai": "^7.0.143",
+    "ai": "^7.0.153",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
-    "lucide-react": "^1.59.0",
-    "next": "^16.4.2",
+    "lucide-react": "^1.61.0",
+    "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
