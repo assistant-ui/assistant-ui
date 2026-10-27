@@ -25,7 +25,6 @@ const samePath = (left: Path, right: Path) =>
 
 class StreamfoldParser implements JsonParserBackend {
   private readonly owner = Symbol();
-  private publishedArgs: ReadonlyJSONObject | undefined;
 
   private readonly session: Session;
   private readonly chunks: Chunk | undefined;
@@ -46,7 +45,7 @@ class StreamfoldParser implements JsonParserBackend {
     return this.chunks?.length ?? 0;
   }
   get currentArgs() {
-    return (this.publishedArgs ??= materializeArgsSnapshot(this.args));
+    return this.args;
   }
   get text() {
     const values: string[] = [];
@@ -68,7 +67,6 @@ class StreamfoldParser implements JsonParserBackend {
       closed: false,
     };
     const parser = new StreamfoldParser(session, undefined, fallback);
-    parser.publishedArgs = fallback;
     return text.length ? parser.append(text) : parser;
   }
 
@@ -91,10 +89,12 @@ class StreamfoldParser implements JsonParserBackend {
       const args =
         root === undefined
           ? this.args
-          : createArgsSnapshot(
-              root as ReadonlyJSONObject,
-              update.complete ? "complete" : "partial",
-              [...(session.token ?? session.containers.at(-1) ?? [])],
+          : materializeArgsSnapshot(
+              createArgsSnapshot(
+                root as ReadonlyJSONObject,
+                update.complete ? "complete" : "partial",
+                [...(session.token ?? session.containers.at(-1) ?? [])],
+              ),
             );
       const next = new StreamfoldParser(
         session,
@@ -105,7 +105,6 @@ class StreamfoldParser implements JsonParserBackend {
         },
         args,
       );
-      if (args === this.args) next.publishedArgs = this.currentArgs;
       if (update.complete) this.close();
       return next;
     } catch {
@@ -165,8 +164,7 @@ export async function initializeStreamfold(): Promise<boolean> {
     const { createStructuredStream, prepareStreamfold } =
       await import("streamfold");
     await prepareStreamfold();
-    const createScanner = () =>
-      createStructuredStream({ snapshots: "immutable" });
+    const createScanner = () => createStructuredStream({ snapshots: "live" });
     const probe = createScanner();
     probe.dispose();
     setJsonParserBackend((text, fallback) => {

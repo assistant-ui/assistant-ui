@@ -63,9 +63,10 @@ parsing. Complete inputs initialized in one call keep the native JSON fast
 path. Completed and rejected WASM parsers are disposed immediately; abandoned
 partial parsers are released through Streamfold's finalizer after collection.
 
-Streamfold is opt-in because current measurements do not establish a speedup
-over the default incremental JavaScript parser. Measure representative payloads
-and chunk sizes in your runtime before enabling it. This entry adds Streamfold's
+Streamfold is opt-in because performance depends on payload shape and chunk size;
+small chunks can be slower than the default incremental JavaScript parser.
+Measure representative payloads and chunk sizes in your runtime before enabling
+it. This entry adds Streamfold's
 WASM download and initialization cost only to bundles that import it.
 
 ## Sub-paths
