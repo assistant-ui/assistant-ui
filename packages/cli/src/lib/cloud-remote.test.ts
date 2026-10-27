@@ -142,7 +142,7 @@ describe("cloud remote commands", () => {
     expect(init.headers).toMatchObject({ Authorization: "Bearer tok" });
     expect(JSON.parse(init.body as string)).toMatchObject({
       command: "help 'a b'",
-      client: { name: "assistant-ui" },
+      client: { name: "assistant-ui", actions: ["print_url", "open_url"] },
     });
   });
 

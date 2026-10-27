@@ -85,6 +85,8 @@ export const sendCloudCommand = async (
           name: "assistant-ui",
           version: cliVersion,
           platform: `${process.platform}-${process.arch}`,
+          // The server sends only the actions listed here.
+          actions: Object.keys(ACTION_HANDLERS),
         },
         ...(defaults && (defaults.org || defaults.project) ? { defaults } : {}),
       }),
@@ -139,8 +141,8 @@ const printUrl = (action: CloudCliAction, context: ActionContext): void => {
   context.stderr(`${label}: ${action["url"] as string}\n`);
 };
 
-// A response naming an action this client lacks fails before printing, so the
-// server can roll a new action out behind the client version it is sent.
+// The request lists these (`client.actions`) and the server sends no others;
+// a response naming one this client lacks still fails before printing.
 const ACTION_HANDLERS: Record<string, ActionHandler> = {
   print_url: {
     valid: urlAction,
