@@ -17,7 +17,7 @@ By default the explainer exposes a registered tool to the page itself, to same-o
 
 ## Browser support
 
-Chrome exposes `document.modelContext` behind the `chrome://flags/#enable-webmcp-testing` flag. Enable it and relaunch Chrome to turn the API on for every origin, including `localhost`. The [WebMCP origin trial](https://developer.chrome.com/origintrials/#/view_trial/4163014905550602241) covers Chrome 149 to 156 only, so from Chrome 157 a deployed site cannot turn the API on for its visitors. Without the flag, Chrome provides no `modelContext`, so `status` is `"unsupported"` unless an extension injects one.
+Chrome exposes `document.modelContext` behind the `chrome://flags/#enable-webmcp-testing` flag. Enable it and relaunch Chrome to turn the API on for every origin, including `localhost`. The [WebMCP origin trial](https://developer.chrome.com/origintrials/#/view_trial/4163014905550602241) covers Chrome 149 to 156 only, so from Chrome 157 a deployed site cannot turn the API on for its visitors. On Chrome 157 and later without the flag, Chrome provides no `modelContext`, so `status` is `"unsupported"` unless an extension injects one.
 
 Chrome's [WebMCP guide](https://developer.chrome.com/docs/ai/webmcp) covers the API and links to the trial's current status.
 
