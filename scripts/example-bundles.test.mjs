@@ -610,6 +610,10 @@ test(
             resolve(root, "examples", example.package, file),
           ),
         );
+        assert.ok(
+          inputs.has(join(root, "examples", example.package, example.entry)),
+          `${task.taskId} must hash its own entry source`,
+        );
         for (const file of [
           "scripts/example-bundles.json",
           "scripts/build-example-bundle.mjs",
