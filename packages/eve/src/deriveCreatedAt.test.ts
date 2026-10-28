@@ -152,6 +152,42 @@ describe("collectTurnTimestamps", () => {
     );
     expect(timestamps.get(TURN)?.assistant).toBe(undefined);
   });
+
+  it("ignores empty deliveries and stamps the first later delivery with parts", () => {
+    const empty = {
+      ...deliveryConsumed("2026-01-02T10:00:01.000Z"),
+      data: { deliveryId: "delivery_1", turnId: TURN, parts: [] },
+    } satisfies SessionStreamEvent;
+    const timestamps = collectTurnTimestamps(
+      [empty, deliveryConsumed("2026-01-02T10:00:02.000Z")],
+      createTurnTimestampCache(),
+    );
+
+    expect(timestamps.get(TURN)?.user).toEqual(
+      new Date("2026-01-02T10:00:02.000Z"),
+    );
+  });
+
+  it("resumes after an event without a timestamp and keeps the first valid assistant time", () => {
+    const cache = createTurnTimestampCache();
+    const missingTime = {
+      ...contentDelta("2026-01-02T10:01:00.000Z"),
+      meta: { position: { line: 4, index: 0 } },
+    } as unknown as SessionStreamEvent;
+    const firstEvents = [missingTime];
+    const first = collectTurnTimestamps(firstEvents, cache);
+
+    expect(first.get(TURN)).toBeUndefined();
+    expect(collectTurnTimestamps(firstEvents, cache)).toBe(first);
+
+    const appended = [...firstEvents, modelStarted("2026-01-02T10:02:00.000Z")];
+    const second = collectTurnTimestamps(appended, cache);
+
+    expect(second.get(TURN)?.assistant).toEqual(
+      new Date("2026-01-02T10:02:00.000Z"),
+    );
+    expect(collectTurnTimestamps(appended, cache)).toBe(second);
+  });
 });
 
 describe("collectTurnTimestamps prototype-inherited event types", () => {

@@ -8,6 +8,7 @@ import {
 } from "eve/client";
 import {
   collectInterruptedTurnEvents,
+  convertEveMessage,
   convertEveMessages,
   type InterruptedTurnEventCache,
   findEveInputRequest,
@@ -38,7 +39,7 @@ const toolPart = (
     name?: string;
     label?: string;
   } = {},
-): EveToolPart => ({
+): Exclude<EveToolPart, { state: "streaming" }> => ({
   type: "tool",
   callId: "call_1",
   stepIndex: 0,
@@ -132,6 +133,21 @@ const signInOpened = (
 });
 
 describe("convertEveMessages", () => {
+  it("converts a single completed message with default options", () => {
+    const message = {
+      id: "a1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Hello" }],
+    } as const satisfies MessageData["messages"][number];
+
+    expect(convertEveMessage(message, 0, [message])).toMatchObject({
+      id: "a1",
+      role: "assistant",
+      content: [{ type: "text", text: "Hello" }],
+      status: { type: "complete", reason: "stop" },
+    });
+  });
+
   it("converts text and reasoning parts", () => {
     const data = {
       messages: [
@@ -535,6 +551,161 @@ describe("convertEveMessages", () => {
           isError: true,
         },
       ],
+    });
+  });
+
+  it.each([
+    ["completed", { answer: "sent" }, { answer: "sent" }, false],
+    ["failed", undefined, { error: "Tool call failed" }, true],
+    ["cancelled", undefined, { error: "Tool call cancelled" }, true],
+  ] as const)(
+    "maps a %s tool call to its result and error state",
+    (state, output, result, isError) => {
+      const [message] = convertEveMessages({
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [{ ...toolPart(), state, output }],
+          },
+        ],
+      });
+
+      expect(message?.content[0]).toMatchObject({ type: "tool-call", result });
+      expect(Object.hasOwn(message?.content[0] ?? {}, "isError")).toBe(isError);
+      expect(message?.content[0]).toMatchObject(isError ? { isError } : {});
+    },
+  );
+
+  it("uses a failed tool's error before its interaction reason", () => {
+    const [message] = convertEveMessages({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              ...toolPart({
+                interaction: { ...approvalInteraction(), reason: "Denied" },
+              }),
+              state: "failed",
+              error: { code: "internal", message: "Service unavailable" },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(message?.content[0]).toMatchObject({
+      result: { error: "Service unavailable" },
+      isError: true,
+    });
+  });
+
+  it("exposes preliminary tool output before the call settles", () => {
+    const [message] = convertEveMessages({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ ...toolPart({ input: ["first"] }), output: "partial" }],
+        },
+      ],
+    });
+
+    expect(message?.content[0]).toMatchObject({
+      args: { value: ["first"] },
+      argsText: '["first"]',
+      result: "partial",
+      isPreliminary: true,
+    });
+  });
+
+  it.each([
+    [
+      "accepted",
+      { approved: true, optionId: "approve", text: "Proceed" },
+      false,
+    ],
+    ["declined", { approved: false, optionId: "deny", text: "Later" }, true],
+    ["expired", { resolution: "expired" }, true],
+    ["withdrawn", { resolution: "cancelled" }, true],
+  ] as const)(
+    "projects a settled %s interaction with its answer or resolution",
+    (outcome, approval, isError) => {
+      const interaction = signInPart(
+        { kind: "question", prompt: "Proceed?", options: approveCancel },
+        {
+          status: "settled",
+          outcome,
+          reason: "Session finished",
+          ...(outcome === "accepted" || outcome === "declined"
+            ? {
+                answer: {
+                  interactionId: "auth_1",
+                  optionId: outcome === "accepted" ? "approve" : "deny",
+                  text: outcome === "accepted" ? "Proceed" : "Later",
+                },
+              }
+            : {}),
+        },
+      );
+      const [message] = convertEveMessages({
+        messages: [{ id: "a1", role: "assistant", parts: [interaction] }],
+      });
+
+      expect(message?.content[0]).toMatchObject({
+        type: "tool-call",
+        toolName: "question",
+        approval: { ...approval, reason: "Session finished" },
+      });
+      expect(Object.hasOwn(message?.content[0] ?? {}, "isError")).toBe(isError);
+      expect(message?.content[0]).toMatchObject(isError ? { isError } : {});
+      expect(message?.content[0]).toHaveProperty(
+        "result",
+        outcome === "accepted" || outcome === "declined"
+          ? {
+              interactionId: "auth_1",
+              optionId: outcome === "accepted" ? "approve" : "deny",
+              text: outcome === "accepted" ? "Proceed" : "Later",
+            }
+          : { outcome, reason: "Session finished" },
+      );
+    },
+  );
+
+  it.each([
+    ["declined", "declined"],
+    ["invalid", "declined"],
+    ["expired", "timed-out"],
+    ["failed", "failed"],
+    ["withdrawn", "cancelled"],
+  ] as const)("maps a %s sign-in to %s", (outcome, mapped) => {
+    const [message] = convertEveMessages({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            signInPart(
+              { kind: "sign-in", prompt: "Connect", title: "Account" },
+              { status: "settled", outcome, reason: "Session finished" },
+            ),
+          ],
+        },
+      ],
+    });
+
+    expect(message?.content[0]).toEqual({
+      type: "data",
+      name: "authorization",
+      data: {
+        state: "completed",
+        name: "Account",
+        description: "Connect",
+        outcome: mapped,
+        reason: "Session finished",
+      },
     });
   });
 
@@ -1119,6 +1290,101 @@ describe("convertEveMessages", () => {
 
       expect(message?.status).toEqual({ type: "incomplete", reason: "error" });
     });
+
+    it("keeps a failed turn incomplete when the event has no error detail", () => {
+      const failure = {
+        type: "turn.settled",
+        data: { turnId: "turn_1", outcome: "failed" },
+        meta: eventMeta(1),
+      } as const satisfies SessionStreamEvent;
+      const [message] = convertEveMessages(
+        {
+          messages: [
+            {
+              id: "a1",
+              role: "assistant",
+              metadata: { turnId: "turn_1", status: "complete" },
+              parts: [{ type: "text", text: "Partial response" }],
+            },
+          ],
+        },
+        { events: [failure] },
+      );
+
+      expect(message?.status).toEqual({ type: "incomplete", reason: "error" });
+    });
+
+    it("scopes session failures to their turn and gives them precedence over turn cancellation", () => {
+      const events = [
+        {
+          type: "turn.settled",
+          data: { turnId: "turn_1", outcome: "cancelled" },
+          meta: eventMeta(1),
+        },
+        {
+          type: "session.ended",
+          data: { outcome: "failed", cause: { turnId: "turn_1" } },
+          meta: eventMeta(2),
+        },
+      ] as const satisfies readonly SessionStreamEvent[];
+      const messages = convertEveMessages(
+        {
+          messages: [
+            {
+              id: "a1",
+              role: "assistant",
+              metadata: { turnId: "turn_1" },
+              parts: [{ type: "text", text: "First" }],
+            },
+            {
+              id: "a2",
+              role: "assistant",
+              metadata: { turnId: "turn_2" },
+              parts: [{ type: "text", text: "Second" }],
+            },
+          ],
+        },
+        { events, isRunning: false },
+      );
+
+      expect(messages.map((message) => message.status)).toEqual([
+        { type: "incomplete", reason: "error" },
+        { type: "complete", reason: "stop" },
+      ]);
+    });
+
+    it.each([
+      ["completed", { outcome: "completed" }],
+      ["failed without a cause", { outcome: "failed" }],
+      [
+        "failed outside a turn",
+        { outcome: "failed", cause: { deliveryId: "delivery_1" } },
+      ],
+    ] as const)(
+      "does not assign a %s session ending to a turn",
+      (_label, data) => {
+        const event = {
+          type: "session.ended",
+          data,
+          meta: eventMeta(1),
+        } as const satisfies SessionStreamEvent;
+        const [message] = convertEveMessages(
+          {
+            messages: [
+              {
+                id: "a1",
+                role: "assistant",
+                metadata: { turnId: "turn_1" },
+                parts: [{ type: "text", text: "Done" }],
+              },
+            ],
+          },
+          { events: [event], isRunning: false },
+        );
+
+        expect(message?.status).toEqual({ type: "complete", reason: "stop" });
+      },
+    );
 
     it("keeps requires-action for pending approvals when not running", () => {
       const data = {
@@ -1738,6 +2004,37 @@ describe("getEveMessageContent", () => {
     expect(getEveMessageContent(message)).toBe("Hello");
   });
 
+  it("preserves multiple text parts without attachments", () => {
+    const message = {
+      role: "user",
+      createdAt: new Date(),
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      metadata: { custom: {} },
+      content: [
+        { type: "text", text: "First" },
+        { type: "text", text: "Second" },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      { type: "text", text: "First" },
+      { type: "text", text: "Second" },
+    ]);
+  });
+
+  it("rejects an unsupported append part instead of sending it to Eve", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [{ type: "reasoning", text: "Private reasoning" }],
+    } as AppendMessage;
+
+    expect(() => getEveMessageContent(message)).toThrow(
+      "Unsupported eve append message part type: reasoning",
+    );
+  });
+
   it("declares the data URL subtype of an image part", () => {
     const message = {
       ...baseAppendMessage,
@@ -2150,6 +2447,35 @@ describe("toEveInputResponse", () => {
     ).toEqual({ interactionId: "req_1", optionId: "staging" });
   });
 
+  it("preserves explanatory text with an explicitly selected option", () => {
+    expect(
+      toEveInputResponse(
+        {
+          approvalId: "req_1",
+          approved: true,
+          optionId: "staging",
+          text: "Use the safe environment",
+        },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toEqual({
+      interactionId: "req_1",
+      optionId: "staging",
+      text: "Use the safe environment",
+    });
+  });
+
+  it("explains that an optionless request cannot accept an explicit option", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "staging" },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toThrow(
+      'Eve interaction "req_1" has no option with id "staging"; respond with one of: (the request carries no options)',
+    );
+  });
+
   it.each([
     ["a text display", { display: "text", allowFreeform: true }],
     ["allowFreeform and no options", { allowFreeform: true }],
@@ -2348,6 +2674,19 @@ describe("findEveInputRequest", () => {
     } satisfies MessageData;
     expect(findEveInputRequest(bare, "req_1")).toBeUndefined();
   });
+
+  it("finds a standalone interaction by its approval id", () => {
+    expect(
+      findEveInputRequest(
+        {
+          messages: [
+            { id: "a1", role: "assistant", parts: [signInPart(request)] },
+          ],
+        },
+        "auth_1",
+      ),
+    ).toEqual(request);
+  });
 });
 
 describe("collectInterruptedTurnEvents", () => {
@@ -2401,5 +2740,30 @@ describe("collectInterruptedTurnEvents", () => {
     };
     collectInterruptedTurnEvents([started("t1", 0), failed("t1", 1)], cache);
     expect(collectInterruptedTurnEvents([started("t2", 0)], cache)).toEqual([]);
+  });
+
+  it("records failed session endings and ignores completed endings", () => {
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
+    const completed = {
+      type: "session.ended",
+      data: { outcome: "completed" },
+      meta: eventMeta(1),
+    } as const satisfies SessionStreamEvent;
+    const failedSession = {
+      type: "session.ended",
+      data: { outcome: "failed", cause: { turnId: "t1" } },
+      meta: eventMeta(2),
+    } as const satisfies SessionStreamEvent;
+    const events = [completed, failedSession];
+
+    expect(collectInterruptedTurnEvents(events, cache)).toEqual([
+      failedSession,
+    ]);
+    expect(collectInterruptedTurnEvents(events, cache)).toBe(
+      cache.interruptions,
+    );
   });
 });
