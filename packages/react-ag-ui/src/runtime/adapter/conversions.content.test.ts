@@ -138,6 +138,135 @@ describe("toAgUiMessages content metadata", () => {
     },
   );
 
+  it("restores each of two file sources that share a handle", () => {
+    const original = {
+      id: "u-shared",
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: {
+            type: "file",
+            value: "shared",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "a.pdf" },
+        },
+        {
+          type: "document",
+          source: {
+            type: "file",
+            value: "shared",
+            provider: "openai",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "b.pdf" },
+        },
+      ],
+    };
+
+    expect(toAgUiMessages(fromAgUiMessages([original]))).toEqual([original]);
+  });
+
+  it.each(["image", "audio", "video"])(
+    "exports a %s file source without a mime type once",
+    (type) => {
+      const original = {
+        id: "u-untyped",
+        role: "user",
+        content: [{ type, source: { type: "file", value: `${type}-handle` } }],
+      };
+
+      expect(toAgUiMessages(fromAgUiMessages([original]))).toEqual([original]);
+    },
+  );
+
+  it("restores a file source a message carries only in its import metadata", () => {
+    const original = {
+      id: "u-legacy",
+      role: "user",
+      content: [
+        { type: "text", text: "label" },
+        {
+          type: "image",
+          source: { type: "url", value: "https://example.com/other.png" },
+        },
+        {
+          type: "document",
+          source: { type: "file", value: "doc-handle", provider: "openai" },
+        },
+      ],
+    };
+    const [imported] = fromAgUiMessages([original]);
+    const withoutHandles = {
+      ...imported!,
+      attachments: imported!.attachments?.filter((attachment) =>
+        attachment.content?.every(
+          (part) => part.type !== "file" || part.sourceType !== "id",
+        ),
+      ),
+    };
+
+    expect(withoutHandles.attachments).toHaveLength(1);
+    expect(toAgUiMessages([withoutHandles])).toEqual([original]);
+  });
+
+  describe.each(["content", "attachment"])("%s file handles", (location) => {
+    it.each([
+      ["document", "application/pdf", "file-pdf"],
+      ["image", "image/png", "https://provider.example/files/image"],
+      ["audio", "audio/wav", "file-audio"],
+      ["video", "video/mp4", "file-video"],
+    ])(
+      "preserves a %s handle instead of sending bytes",
+      (type, mimeType, data) => {
+        const part = {
+          type: "file",
+          data,
+          mimeType,
+          sourceType: "id",
+          filename: "upload.bin",
+          providerMetadata: { agui: { trace: "kept" } },
+        };
+        const message =
+          location === "content"
+            ? userMessage([part])
+            : userMessage([], [{ name: "upload.bin", content: [part] }]);
+        const exported = toAgUiMessages([message]);
+        const expected = {
+          id: "u1",
+          role: "user",
+          content: [
+            {
+              type,
+              source: { type: "file", value: data, mimeType },
+              metadata: { trace: "kept", filename: "upload.bin" },
+            },
+          ],
+        };
+
+        const imported = fromAgUiMessages(exported);
+
+        expect(MessageSchema.parse(exported[0])).toEqual(expected);
+        expect(imported[0]?.attachments).toEqual([
+          expect.objectContaining({
+            content: [
+              {
+                type: "file",
+                data,
+                mimeType,
+                sourceType: "id",
+                filename: "upload.bin",
+                providerMetadata: { agui: { trace: "kept" } },
+              },
+            ],
+          }),
+        ]);
+        expect(toAgUiMessages(imported)).toEqual([expected]);
+      },
+    );
+  });
+
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
   });
