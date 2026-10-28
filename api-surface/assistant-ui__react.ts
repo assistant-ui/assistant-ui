@@ -1719,13 +1719,13 @@ declare namespace ComposerPrimitiveRoot {
   };
 }
 
-declare const ComposerPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLFormElement> & import("react").FormHTMLAttributes<HTMLFormElement> & {
+declare const ComposerPrimitiveRoot: React.ForwardRefExoticComponent<Omit<Omit<React.ClassAttributes<HTMLFormElement> & React.FormHTMLAttributes<HTMLFormElement> & {
   asChild?: boolean | undefined;
 }, "ref"> & {
-  render?: import("react").ReactElement | undefined;
-} & import("react").RefAttributes<HTMLFormElement>, "ref"> & {
+  render?: React.ReactElement | undefined;
+} & React.RefAttributes<HTMLFormElement>, "ref"> & {
   compact?: boolean | undefined;
-} & import("react").RefAttributes<HTMLFormElement>>;
+} & React.RefAttributes<HTMLFormElement>>;
 
 declare namespace ComposerPrimitiveSend {
   type Element = ActionButtonElement;
