@@ -105,6 +105,11 @@ it("invalidates docs test caches for external contract sources without building 
   expectInvalidated(manifest);
   write(manifest, original);
 
+  const ignore = readFileSync(join(root, ".gitignore"), "utf8");
+  write(".gitignore", `${ignore}\nfixture-only-ignore\n`);
+  expectInvalidated(".gitignore");
+  write(".gitignore", ignore);
+
   const added = "examples/with-expo/app/showcase/new-component.tsx";
   write(added, "export const component = true;\n");
   git("add", added);
