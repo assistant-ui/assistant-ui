@@ -443,3 +443,49 @@ it("keeps a send queued after an Activity re-show behind the turn still in fligh
   expect(agent.send).toHaveBeenNthCalledWith(2, "second", undefined);
   view.unmount();
 });
+
+it("keeps the composer empty when a reset ends a send Eve already accepted", async () => {
+  const agent = makeAgent(async () => {});
+  agent.send.mockImplementation(async () => {
+    const receipt = createEveDelivery();
+    return {
+      ...receipt,
+      result: (options?: { readonly signal?: AbortSignal }) =>
+        new Promise<never>((_, reject) => {
+          options?.signal?.addEventListener("abort", () =>
+            reject(options.signal?.reason),
+          );
+        }),
+    };
+  });
+  mockUseEveAgent.mockReturnValue(agent);
+  let runtime!: ReturnType<typeof useEveAgentRuntime>;
+  let reset!: () => void;
+  const Probe = () => {
+    reset = useEveReset();
+    return null;
+  };
+  const Host = () => {
+    runtime = useEveAgentRuntime();
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <Probe />
+      </AssistantRuntimeProvider>
+    );
+  };
+  const view = render(<Host />);
+
+  act(() => {
+    runtime.thread.composer.setText("sent");
+    runtime.thread.composer.send();
+  });
+  await waitFor(() =>
+    expect(agent.send).toHaveBeenCalledWith("sent", undefined),
+  );
+  act(() => reset());
+  await act(async () => {});
+
+  expect(agent.newSession).toHaveBeenCalledTimes(1);
+  expect(runtime.thread.composer.getState().text).toBe("");
+  view.unmount();
+});

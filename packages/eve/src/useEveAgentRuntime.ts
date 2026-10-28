@@ -345,9 +345,9 @@ const useEveThreadRuntime = (
         lastDeliveryFailedRef.current = result.status === "failed";
       }
     } catch (error) {
-      if (signal.aborted) {
-        throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
-      }
+      // Only a reset aborts these reads, and the delivery already reached the
+      // old session, so it settles instead of handing its draft back.
+      if (signal.aborted) return;
       throw error;
     }
   };
