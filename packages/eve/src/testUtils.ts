@@ -1,4 +1,4 @@
-import { ClientSession, type MessageStreamEvent } from "eve/client";
+import { Client, type SessionStreamEvent } from "eve/client";
 import { vi } from "vitest";
 
 export const createEveSessionFixture = ({
@@ -6,14 +6,14 @@ export const createEveSessionFixture = ({
   tailIndex = events.length - 1,
   onSend,
 }: {
-  events?: readonly MessageStreamEvent[];
+  events?: readonly SessionStreamEvent[];
   tailIndex?: number;
   onSend?: () => void;
 }) => {
   const encoder = new TextEncoder();
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
   const pending = [...events];
-  const push = (events: readonly MessageStreamEvent[]) => {
+  const push = (events: readonly SessionStreamEvent[]) => {
     if (controller === undefined) {
       pending.push(...events);
       return;
@@ -49,9 +49,9 @@ export const createEveSessionFixture = ({
     );
   });
   vi.stubGlobal("fetch", fetch);
-  const session = new ClientSession(
-    { host: "http://localhost", resolveHeaders: async () => new Headers() },
-    { sessionId: "session_resumed", streamIndex: 0 },
+  const session = new Client({ baseUrl: "http://localhost" }).sessions.attach(
+    "session_resumed",
+    { streamIndex: 0 },
   );
   return { fetch, push, session };
 };

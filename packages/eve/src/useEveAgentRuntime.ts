@@ -33,12 +33,9 @@ import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
-import {
-  useEveAgent,
-  type EveMessageData,
-  type UseEveAgentOptions,
-  type UseEveAgentStatus,
-} from "eve/react";
+import { useEveAgent, type UseEveAgentOptions } from "eve/react";
+import { activeTurn, idle, type JsonObject } from "eve/events";
+import type { Delivery } from "eve/sessions";
 import {
   collectInterruptedTurnEvents,
   convertEveMessages,
@@ -79,39 +76,14 @@ const hasRunConfig = (
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
   runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
-type EveJsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly EveJsonValue[]
-  | { readonly [key: string]: EveJsonValue };
-
-/**
- * Structural equivalent of eve's `JsonObject`. Eve demoted its public send
- * payload type once already (`SendTurnPayload`, public through 0.30, internal
- * from 0.31), so the helpers declare the shapes they forward instead of
- * re-exporting eve's option types, and assignability is checked at the send
- * call sites against the installed version.
- */
-type EveClientContext = { readonly [key: string]: EveJsonValue };
-
-/**
- * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
- * namespace and serializes it into a model-visible context message, so sending
- * the assistant-ui envelope would surface a literal `"custom"` key in the
- * prompt and to every eve-side handler.
- */
 const toEveSendOptions = (
   runConfig: AppendMessage["runConfig"],
-): { readonly clientContext: EveClientContext } | undefined =>
+): { readonly clientContext: JsonObject } | undefined =>
   hasRunConfig(runConfig)
-    ? { clientContext: runConfig.custom as EveClientContext }
+    ? { clientContext: runConfig.custom as JsonObject }
     : undefined;
 
-type EveAgentOptions = Omit<UseEveAgentOptions<EveMessageData>, "reducer">;
-
-export type UseEveAgentRuntimeOptions = EveAgentOptions &
+export type UseEveAgentRuntimeOptions = UseEveAgentOptions &
   ExternalStoreSharedOptions & {
     readonly adapters?:
       | {
@@ -122,9 +94,6 @@ export type UseEveAgentRuntimeOptions = EveAgentOptions &
           readonly feedback?: FeedbackAdapter | undefined;
         }
       | undefined;
-    /**
-     * Backs the thread list with Assistant Cloud. Each cloud thread keeps one Eve session as its external id, saved once the thread's first turn creates the session, and opening a thread resumes it, so `session`, `initialSession`, `initialEvents`, and `resume` are not used. Pass it from the first render: adding or removing it later throws, so remount the runtime, for example with a `key`, to switch.
-     */
     readonly cloud?: AssistantCloud | undefined;
   };
 
@@ -142,9 +111,9 @@ const withCloudThreadSession = (
     resume: _resume,
     session: _session,
     ...options
-  }: EveAgentOptions,
+  }: UseEveAgentOptions,
   sessionId: string | undefined,
-): EveAgentOptions =>
+): UseEveAgentOptions =>
   sessionId === undefined
     ? options
     : {
@@ -193,7 +162,6 @@ const useEveThreadRuntime = (
     cloudThread.sessionId === undefined;
 
   const { onError, onEvent, onFinish, onSessionChange } = agentOptions;
-  const lastFinishStatusRef = useRef<UseEveAgentStatus | null>(null);
   const agent = useEveAgent({
     ...(cloudThread
       ? withCloudThreadSession(agentOptions, cloudThread.sessionId)
@@ -221,7 +189,6 @@ const useEveThreadRuntime = (
         }
       : {}),
     onFinish: (snapshot) => {
-      lastFinishStatusRef.current = snapshot.status;
       void invokeUserCallback(
         "assistant-ui/eve",
         "onFinish",
@@ -239,7 +206,6 @@ const useEveThreadRuntime = (
               );
             } else if (cloudThread?.isNew && session !== undefined) {
               cloudThread.sessions.resolve(cloudThread.id, session.sessionId);
-              // A first message staged without a run leaves the thread unsaved, so the run that creates the session saves it.
               if (aui.threadListItem.getState().status === "new")
                 aui.threadListItem.initialize().catch(() => {});
             }
@@ -253,11 +219,6 @@ const useEveThreadRuntime = (
         }
       : {}),
   });
-  if (cloudThread && !("resume" in agent)) {
-    throw new Error(
-      "useEveAgentRuntime needs eve 0.44.1 or later for `cloud`, because opening a cloud thread resumes its session.",
-    );
-  }
   const runtimeAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -277,11 +238,11 @@ const useEveThreadRuntime = (
     (status) => status?.type === "executing",
   );
   const providerIsRunning =
-    agent.status === "submitted" || agent.status === "streaming";
+    agent.status === "busy" ||
+    (agent.status !== "resuming" &&
+      activeTurn(agent.view) !== undefined &&
+      !idle(agent.view));
   const isRunning = providerIsRunning || hasExecutingTools;
-
-  // Kept apart from the message memo so events that teach no timestamp keep
-  // the map identity and skip rebuilding every ThreadMessage.
   const turnTimestampCacheRef = useRef(createTurnTimestampCache());
   const turnTimestamps = useMemo(
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
@@ -299,60 +260,74 @@ const useEveThreadRuntime = (
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
-    const messageIds = new Set(
-      agent.data.messages.map((message) => message.id),
-    );
+    const messageIds = new Set(agent.messages.map((message) => message.id));
     for (const messageId of createdAtByMessageId.keys()) {
       if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
     }
 
-    return convertEveMessages(agent.data, {
-      isRunning,
-      error: agent.error,
-      events: interruptionEvents,
-      getCreatedAt: (message) => {
-        const turnId = message.metadata?.turnId;
-        const durable =
-          turnId === undefined
-            ? undefined
-            : turnTimestamps.get(turnId)?.[message.role];
-        if (durable !== undefined) return durable;
+    return convertEveMessages(
+      { messages: agent.messages },
+      {
+        isRunning,
+        error: agent.error,
+        events: interruptionEvents,
+        getCreatedAt: (message) => {
+          const turnId = message.metadata?.turnId;
+          const durable =
+            turnId === undefined
+              ? undefined
+              : turnTimestamps.get(turnId)?.[message.role];
+          if (durable !== undefined) return durable;
 
-        const existing = createdAtByMessageId.get(message.id);
-        if (existing) return existing;
+          const existing = createdAtByMessageId.get(message.id);
+          if (existing) return existing;
 
-        const createdAt = new Date();
-        createdAtByMessageId.set(message.id, createdAt);
-        return createdAt;
+          const createdAt = new Date();
+          createdAtByMessageId.set(message.id, createdAt);
+          return createdAt;
+        },
       },
-    });
-  }, [agent.data, agent.error, interruptionEvents, isRunning, turnTimestamps]);
+    );
+  }, [
+    agent.messages,
+    agent.error,
+    interruptionEvents,
+    isRunning,
+    turnTimestamps,
+  ]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   const agentRef = useRef(agent);
-  // Descendant layout effects can dispatch against these refs synchronously;
-  // this matches useA2ARuntime's commit-scoped ref publication.
   useInsertionEffect(() => {
     messagesRef.current = messages;
     agentRef.current = agent;
   }, [agent, messages]);
-
-  // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
-  // flight and only resolve once the turn's stream parks, so a pending chain
-  // link is exactly an active turn; chaining every dispatch serializes them
-  // without watching status.
+  const deliveryReadsRef = useRef(new AbortController());
+  const lastDeliveryFailedRef = useRef(false);
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
   const sendEpochRef = useRef(0);
-  // A cancel drops the queued send but keeps its draft for a later promotion;
-  // only a reset discards the draft with the session, so the two need separate
-  // counters. A queued read has no draft and outlives a cancel, so it waits on
-  // the reset counter instead.
   const resetEpochRef = useRef(0);
   const isMountedRef = useRef(true);
   const runtimeRef = useRef<ReturnType<typeof useExternalStoreRuntime> | null>(
     null,
   );
+
+  const settleDelivery = async (pending: Promise<Delivery>) => {
+    const signal = deliveryReadsRef.current.signal;
+    const receipt = await pending;
+    try {
+      const result = await receipt.result({ signal });
+      if (!signal.aborted) {
+        lastDeliveryFailedRef.current = result.status === "failed";
+      }
+    } catch (error) {
+      if (signal.aborted) {
+        throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
+      }
+      throw error;
+    }
+  };
 
   const enqueueSend = useCallback(
     (
@@ -370,32 +345,24 @@ const useEveThreadRuntime = (
     },
     [],
   );
-
-  // The store outlives the component (useEveAgent holds it in a ref with no
-  // cleanup), so queued sends must not fire server turns after unmount. The
-  // flag separates that teardown from a user cancel, and is re-armed in setup
-  // for a remounted tree.
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
   }, []);
-
-  // A replay (Fast Refresh, StrictMode) must not cancel the sends queued behind the active turn.
   useReplaySafeEffect(
     () => () => {
       sendEpochRef.current += 1;
+      deliveryReadsRef.current.abort();
     },
     [],
   );
-
-  // A replay rides the send chain because `resume()` rejects during a turn and upstream refuses sends while it runs; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
   const enqueueResume = useCallback(
     () =>
       enqueueSend(async () => {
         const live = agentRef.current;
-        if (live.session === undefined || !("resume" in live)) return;
+        if (live.session === undefined) return;
         await live.resume();
       }, resetEpochRef),
     [enqueueSend],
@@ -403,7 +370,6 @@ const useEveThreadRuntime = (
 
   useEffect(() => {
     if (!resumesOnMount) return;
-    // StrictMode's second setup queues the replay again, so only the setup that survives queues it.
     let active = true;
     queueMicrotask(() => {
       if (active) enqueueResume().catch(() => {});
@@ -460,23 +426,21 @@ const useEveThreadRuntime = (
   };
 
   const reset = useCallback(() => {
-    // A cloud thread keeps the session its external id names, so a fresh session starts a new thread and leaves this one in the list.
     if (cloudThread) {
       aui.threads.switchToNewThread();
       return;
     }
     runtimeRef.current?.thread.unstable_notifySessionReset();
-    // Sends parked behind an active turn captured the pre-reset epoch, so the
-    // epoch has to advance before the session is torn down or they dispatch
-    // into the new one; `lastFinishStatusRef` is run-scoped for the same
-    // reason.
     sendEpochRef.current += 1;
     resetEpochRef.current += 1;
-    lastFinishStatusRef.current = null;
+    lastDeliveryFailedRef.current = false;
+    deliveryReadsRef.current.abort();
+    deliveryReadsRef.current = new AbortController();
+    sendChainRef.current = Promise.resolve();
     setStagedMessages(null);
     stagedInputsRef.current.clear();
     setToolStatuses({});
-    agent.reset();
+    agent.newSession();
   }, [agent, aui, cloudThread]);
 
   const extras = useMemo(
@@ -511,7 +475,6 @@ const useEveThreadRuntime = (
           "This thread has no eve session to send to.",
         );
       if (!(message.startRun ?? message.role === "user")) {
-        // Saving a new cloud thread waits for its first session, which a staged message never creates.
         if (cloudThread?.isNew)
           cloudThread.sessions.reject(
             cloudThread.id,
@@ -522,15 +485,14 @@ const useEveThreadRuntime = (
       }
       try {
         await enqueueSend(() =>
-          agent.send(
-            getEveMessageContent(message),
-            toEveSendOptions(message.runConfig),
+          settleDelivery(
+            agent.send(
+              getEveMessageContent(message),
+              toEveSendOptions(message.runConfig),
+            ),
           ),
         );
       } catch (error) {
-        // A cancelled send never reached the session, so it rethrows for the
-        // composer to take the draft back; an unmounted one has no composer
-        // left to restore.
         if (error === sendAbandonedError) return;
         throw error;
       }
@@ -554,24 +516,20 @@ const useEveThreadRuntime = (
               setStagedMessages(
                 stagedInputsRef.current.size > 0 ? nextMessages : null,
               );
-              // The reload config belongs to the message being reloaded; the
-              // drafts promoted ahead of it keep the config they were staged
-              // with, or reloading the tail would rewrite their context too.
               const runConfig =
                 stagedMessage.id === parentId && hasRunConfig(config.runConfig)
                   ? config.runConfig
                   : input.runConfig;
               try {
                 await enqueueSend(() =>
-                  agent.send(
-                    getEveMessageContent(input.message),
-                    toEveSendOptions(runConfig),
+                  settleDelivery(
+                    agent.send(
+                      getEveMessageContent(input.message),
+                      toEveSendOptions(runConfig),
+                    ),
                   ),
                 );
               } catch (error) {
-                // A reset discarded the draft along with the session, so
-                // restoring it here would refloat a message the thread no
-                // longer has. A cancel still restores.
                 if (resetEpoch !== resetEpochRef.current) return;
                 stagedInputsRef.current.set(stagedMessage.id, input);
                 messagesRef.current = previousMessages;
@@ -579,47 +537,26 @@ const useEveThreadRuntime = (
                 if (isDroppedSend(error)) return;
                 throw error;
               }
-              if (lastFinishStatusRef.current === "error") return;
+              if (lastDeliveryFailedRef.current) return;
             }
           },
         }
       : {}),
     onCancel: async () => {
       sendEpochRef.current += 1;
-      // Eve 0.38 replaced the binding's local-abort `stop()` with the durable
-      // `cancel()`, so the adapter detects which side of that break the host's
-      // eve provides instead of pinning the peer range to one of them.
-      const controls = agent as
-        | { readonly cancel: () => Promise<unknown> }
-        | { readonly stop: () => void };
-      if ("cancel" in controls) {
-        await controls.cancel();
-      } else {
-        controls.stop();
-      }
+      await agent.cancel();
     },
-    // Hosts below eve 0.44.1 expose no `resume`; leaving the capability absent
-    // keeps `threads.reloadMainThread()` on core's no-capability no-op.
-    ...("resume" in agent
-      ? {
-          onRefetchThread: () =>
-            enqueueResume().catch((error) => {
-              if (isDroppedSend(error)) return;
-              throw error;
-            }),
-        }
-      : {}),
+    onRefetchThread: () =>
+      enqueueResume().catch((error) => {
+        if (isDroppedSend(error)) return;
+        throw error;
+      }),
     onRespondToToolApproval: (response) => {
-      // Eve resolves a request the moment any response for it arrives, and an
-      // empty one is recorded as an answer with no content. Mapping before the
-      // send is enqueued keeps an unmappable response unsent, so the request
-      // stays answerable; the mapper's error reaches the caller as the seam's
-      // rejection.
-      const inputResponse = toEveInputResponse(
+      const answer = toEveInputResponse(
         response,
-        findEveInputRequest(agent.data, response.approvalId),
+        findEveInputRequest(agent, response.approvalId),
       );
-      return enqueueSend(() => agent.respond([inputResponse])).catch(
+      return enqueueSend(() => settleDelivery(agent.respond([answer]))).catch(
         (error) => {
           if (!isDroppedSend(error)) throw error;
         },
@@ -651,13 +588,6 @@ const useEveCloudRuntime = (
   });
 };
 
-/**
- * Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.
- *
- * The runtime renders Eve messages, forwards new user messages to the Eve
- * session, supports cancellation, and maps Eve input requests to assistant-ui
- * tool approval UI.
- */
 export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [hasCloud] = useState(options.cloud !== undefined);
   if ((options.cloud !== undefined) !== hasCloud) {

@@ -27,7 +27,7 @@
     "@radix-ui/react-primitive": "^2.2.0",
     "@standard-schema/spec": "^1.1.0",
     "ai": "^7.0.153",
-    "eve": "^0.83.3",
+    "eve": "^0.84.0",
     "fumadocs-ui": "16.17.1",
     "ink": "^8.0.0",
     "ink-spinner": "^5.0.0",
