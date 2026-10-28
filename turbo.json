@@ -16,6 +16,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        ".env*",
         "!**/*.test.{ts,tsx}",
         "!**/*.spec.{ts,tsx}",
         "!**/__tests__/**",
