@@ -465,9 +465,12 @@ type SnapshotAttachment = NonNullable<
 
 const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
 
-function partSourceToString(
-  value: unknown,
-): { value: string; mimeType?: string; isUrl?: boolean } | null {
+function partSourceToString(value: unknown): {
+  value: string;
+  mimeType?: string;
+  isUrl?: boolean;
+  isId?: boolean;
+} | null {
   if (!isObject(value)) return null;
   const sourceValue = getString(value, "value");
   if (sourceValue === undefined) return null;
@@ -477,6 +480,13 @@ function partSourceToString(
     return {
       value: sourceValue,
       isUrl: true,
+      ...(mimeType !== undefined && { mimeType }),
+    };
+  }
+  if (type === "file") {
+    return {
+      value: sourceValue,
+      isId: true,
       ...(mimeType !== undefined && { mimeType }),
     };
   }
@@ -546,15 +556,11 @@ function toUserContentLayout(content: unknown): {
     }
     const part = normalizeInputPart(rawPart);
     if (!part || !mediaInputTypes.has(getString(part, "type") ?? "")) continue;
-    if (
-      isObject(part.source) &&
-      part.source.type === "file" &&
-      typeof part.source.value === "string"
-    ) {
-      fileSourceParts.push({ index: mediaIndex++, part });
-    } else if (partSourceToString(part.source)) {
-      mediaIndex++;
+    if (!partSourceToString(part.source)) continue;
+    if (isObject(part.source) && part.source.type === "file") {
+      fileSourceParts.push({ index: mediaIndex, part });
     }
+    mediaIndex++;
   }
 
   const leadingText =
@@ -581,7 +587,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
     const { filename, providerMetadata } = readPartMetadata(part.metadata);
     const id = attachments.length.toString();
 
-    if (type === "image") {
+    if (type === "image" && !source.isId) {
       attachments.push({
         id,
         type: "image",
@@ -613,6 +619,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
           data: source.value,
           mimeType,
           ...(source.isUrl && { sourceType: "url" as const }),
+          ...(source.isId && { sourceType: "id" as const }),
           ...(filename !== undefined && { filename }),
           ...(providerMetadata && { providerMetadata }),
         },
@@ -684,15 +691,28 @@ function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
       isObject(part.source) &&
       part.source.type === "file" &&
       typeof part.source.value === "string"
-        ? [{ index, part: part as ContentPart }]
+        ? [{ index, part: part as ContentPart, value: part.source.value }]
         : [],
   );
   const ordered = restoresText
     ? converted.filter((part) => part.type !== "text")
     : converted;
-  for (const { index, part } of fileSourceSlots.sort(
+  for (const { index, part, value } of fileSourceSlots.sort(
     (a, b) => a.index - b.index,
   )) {
+    // A snapshot also imports the handle as an attachment; the slot replaces
+    // it in place to restore fields the attachment cannot hold.
+    const attached = ordered.findIndex(
+      (contentPart) =>
+        contentPart.type !== "text" &&
+        contentPart.source.type === "file" &&
+        contentPart.source.value === value &&
+        !fileSourceSlots.some((slot) => slot.part === contentPart),
+    );
+    if (attached !== -1) {
+      ordered[attached] = part;
+      continue;
+    }
     const mediaPositions = ordered.flatMap((contentPart, position) =>
       contentPart.type !== "text" ? [position] : [],
     );

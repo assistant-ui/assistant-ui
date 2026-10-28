@@ -172,8 +172,24 @@ describe("toAgUiMessages content metadata", () => {
           ],
         };
 
+        const imported = fromAgUiMessages(exported);
+
         expect(MessageSchema.parse(exported[0])).toEqual(expected);
-        expect(toAgUiMessages(fromAgUiMessages(exported))).toEqual([expected]);
+        expect(imported[0]?.attachments).toEqual([
+          expect.objectContaining({
+            content: [
+              {
+                type: "file",
+                data,
+                mimeType,
+                sourceType: "id",
+                filename: "upload.bin",
+                providerMetadata: { agui: { trace: "kept" } },
+              },
+            ],
+          }),
+        ]);
+        expect(toAgUiMessages(imported)).toEqual([expected]);
       },
     );
   });
