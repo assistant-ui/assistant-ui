@@ -799,8 +799,9 @@ export const findEveInputRequest = (
 /**
  * Converts an assistant-ui tool approval response into an Eve `Answer`.
  *
- * When `inputRequest` is known, every returned answer carries either an option
- * the request declares or a free-form answer. A literal option match wins,
+ * When `inputRequest` is known, every returned answer carries an option the
+ * request declares, the literal `"approve"` / `"deny"` for an approval that
+ * declares no options, or a free-form answer. A literal option match wins,
  * then the `"approve"` / `"deny"` option the response's boolean decision
  * names, then the response's `text` (or its `reason`, for a caller that
  * predates the first-class answer field) when the request takes a free-form

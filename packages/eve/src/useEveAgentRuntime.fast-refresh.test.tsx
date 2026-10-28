@@ -393,3 +393,53 @@ it("reads Eve delivery results again after an Activity hides and shows the runti
   expect(runtime.thread.composer.getState().text).toBe("");
   view.unmount();
 });
+
+it("keeps a send queued after an Activity re-show behind the turn still in flight", async () => {
+  let releaseFirst!: () => void;
+  const agent = makeAgent(
+    vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined),
+  );
+  mockUseEveAgent.mockReturnValue(agent);
+  let runtime!: ReturnType<typeof useEveAgentRuntime>;
+  const Host = () => {
+    runtime = useEveAgentRuntime();
+    return null;
+  };
+  const view = render(
+    <Activity mode="visible">
+      <Host />
+    </Activity>,
+  );
+
+  await act(async () => runtime.thread.append("first"));
+  await waitFor(() => expect(agent.send).toHaveBeenCalledTimes(1));
+  view.rerender(
+    <Activity mode="hidden">
+      <Host />
+    </Activity>,
+  );
+  await act(async () => {});
+  view.rerender(
+    <Activity mode="visible">
+      <Host />
+    </Activity>,
+  );
+  await act(async () => {});
+
+  await act(async () => runtime.thread.append("second"));
+  await act(async () => {});
+  expect(agent.send).toHaveBeenCalledTimes(1);
+
+  await act(async () => releaseFirst());
+  await waitFor(() => expect(agent.send).toHaveBeenCalledTimes(2));
+  expect(agent.send).toHaveBeenNthCalledWith(2, "second", undefined);
+  view.unmount();
+});
