@@ -705,7 +705,6 @@ function buildUserContent(message: ThreadMessageLike): string | ContentPart[] {
     const attached = ordered.findIndex(
       (contentPart) =>
         contentPart.type !== "text" &&
-        contentPart.type === part.type &&
         contentPart.source.type === "file" &&
         contentPart.source.value === value &&
         !fileSourceSlots.some((slot) => slot.part === contentPart),

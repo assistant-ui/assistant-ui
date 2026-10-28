@@ -168,6 +168,19 @@ describe("toAgUiMessages content metadata", () => {
     expect(toAgUiMessages(fromAgUiMessages([original]))).toEqual([original]);
   });
 
+  it.each(["image", "audio", "video"])(
+    "exports a %s file source without a mime type once",
+    (type) => {
+      const original = {
+        id: "u-untyped",
+        role: "user",
+        content: [{ type, source: { type: "file", value: `${type}-handle` } }],
+      };
+
+      expect(toAgUiMessages(fromAgUiMessages([original]))).toEqual([original]);
+    },
+  );
+
   it("restores a file source a message carries only in its import metadata", () => {
     const original = {
       id: "u-legacy",

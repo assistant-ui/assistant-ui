@@ -496,7 +496,7 @@ In the adapter's `add`, call Uploadthing's client upload and read `url` from the
 
 ### Opaque file references (LangGraph / LangChain)
 
-When the backend resolves stored files itself and the browser never holds a usable URL, send the storage id instead: set `sourceType: "id"` on the file part in `send()`; the LangChain-family runtimes emit a `source_type: "id"` block with the value in the `id` key, and AG-UI sends it as a `file` source. `sourceType: "url"` similarly forces a url reference for non-http data and is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes. `sourceType: "id"` is honored by the LangChain-family and AG-UI runtimes; runtimes without the concept ignore the field.
+When the backend resolves stored files itself and the browser never holds a usable URL, send the storage id instead: set `sourceType: "id"` on the file part in `send()`; the LangChain-family runtimes emit a `source_type: "id"` block with the value in the `id` key, AG-UI sends it as a `file` source, and Eve passes it through unchanged. `sourceType: "url"` similarly forces a url reference for non-http data and is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes. `sourceType: "id"` is honored by the LangChain-family, AG-UI, and Eve runtimes; runtimes without the concept ignore the field.
 
 ```ts
 const content = [
