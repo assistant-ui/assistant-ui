@@ -407,7 +407,12 @@ test(
       execFileSync(
         turbo,
         ["run", "build", "--filter=@assistant-ui/docs-site", "--dry=json"],
-        { cwd: root, encoding: "utf8", timeout: 30_000 },
+        {
+          cwd: root,
+          encoding: "utf8",
+          timeout: 30_000,
+          maxBuffer: 32 * 1024 * 1024,
+        },
       ),
     );
     const docs = graph.tasks.find(
@@ -547,7 +552,12 @@ test(
         execFileSync(
           turbo,
           ["run", "build", "--filter=@assistant-ui/docs-site", "--dry=json"],
-          { cwd: root, encoding: "utf8", timeout: 30_000 },
+          {
+            cwd: root,
+            encoding: "utf8",
+            timeout: 30_000,
+            maxBuffer: 32 * 1024 * 1024,
+          },
         ),
       );
       const docs = graph.tasks.find(

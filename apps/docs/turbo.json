@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "generate:type-docs"],
+      "dependsOn": ["^build", "generate:type-docs", "//#docs-source-inputs"],
       "inputs": [
         "$TURBO_EXTENDS$",
         ".env*",
