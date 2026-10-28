@@ -89,6 +89,58 @@ describe("sanitizeForMessage", () => {
     expect(sanitizeForMessage(value)).toBe("[Unserializable]");
   });
 
+  it("preserves undefined array entries and their positions", () => {
+    const result = sanitizeForMessage([
+      undefined,
+      "first",
+      undefined,
+      "last",
+      undefined,
+    ]);
+
+    expect(result).toStrictEqual([
+      undefined,
+      "first",
+      undefined,
+      "last",
+      undefined,
+    ]);
+    expect(JSON.stringify(result)).toBe('[null,"first",null,"last",null]');
+    expect(structuredClone(result)).toStrictEqual(result);
+  });
+
+  it("preserves sparse array length and empty positions", () => {
+    const value = new Array<unknown>(5);
+    value[1] = "first";
+    value[3] = "last";
+
+    const result = sanitizeForMessage(value) as unknown[];
+
+    expect(result).toHaveLength(5);
+    expect(Object.keys(result)).toEqual(["1", "3"]);
+    expect(result[1]).toBe("first");
+    expect(result[3]).toBe("last");
+    expect(JSON.stringify(result)).toBe('[null,"first",null,"last",null]');
+    expect(structuredClone(result)).toStrictEqual(result);
+  });
+
+  it("keeps an unreadable array entry at its index after an empty position", () => {
+    const value = new Array<unknown>(3);
+    Object.defineProperty(value, 1, {
+      get: () => {
+        throw new Error("getter failed");
+      },
+    });
+    value[2] = "last";
+
+    const result = sanitizeForMessage(value) as unknown[];
+
+    expect(result).toHaveLength(3);
+    expect(Object.keys(result)).toEqual(["1", "2"]);
+    expect(result[1]).toBe("[Unserializable]");
+    expect(result[2]).toBe("last");
+  });
+
   it("preserves readable array entries when an indexed getter throws", () => {
     const value = ["first", "second", "third"];
     Object.defineProperty(value, 1, {
