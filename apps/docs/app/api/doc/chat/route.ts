@@ -9,6 +9,7 @@ import {
 import { source, examples as examplesSource } from "@/lib/source";
 import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createRepoSandbox } from "@/lib/repo-sandbox";
 import {
@@ -423,11 +424,13 @@ export async function POST(req: Request): Promise<Response> {
               }
               return messageMetadata({ part });
             },
+            onError: toPublicStreamError,
           }),
         )) {
           writer.write(chunk);
         }
       },
+      onError: toPublicStreamError,
     });
 
     return createUIMessageStreamResponse({ stream });

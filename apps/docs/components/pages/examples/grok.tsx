@@ -5,6 +5,7 @@ import {
   AuiIf,
   AttachmentPrimitive,
   ComposerPrimitive,
+  ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
@@ -224,6 +225,11 @@ const ChatMessage: FC = () => {
                 }}
               </MessagePrimitive.Parts>
             </div>
+            <MessagePrimitive.Error>
+              <ErrorPrimitive.Root className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                <ErrorPrimitive.Message className="line-clamp-3" />
+              </ErrorPrimitive.Root>
+            </MessagePrimitive.Error>
           </div>
           <div className="mt-1 flex h-8 w-full items-center justify-start gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Root className="-ml-2 flex items-center gap-0.5">

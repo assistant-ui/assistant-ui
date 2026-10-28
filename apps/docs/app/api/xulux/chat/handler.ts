@@ -23,6 +23,7 @@ import {
 } from "@/lib/xulux/turn-outcome";
 import type { XuluxAgentDefinition } from "./agents";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 
 type SelectedTemplateRequestContext = {
   id?: unknown;
@@ -398,6 +399,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       return result.toUIMessageStreamResponse({
         sendReasoning: modelConfig.reasoning,
+        onError: toPublicStreamError,
         originalMessages: uiMessages,
         messageMetadata: ({ part }) => {
           if (part.type === "finish-step") {

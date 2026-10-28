@@ -21,6 +21,7 @@ import {
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
 import { searchImagesTool } from "@/lib/ai/search-images";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
@@ -193,9 +194,11 @@ export async function POST(req: Request) {
             originalMessages: messages,
             sendReasoning: true,
             messageMetadata: withAssistantCloudTraceMetadata(messageMetadata),
+            onError: toPublicStreamError,
           }),
         );
       },
+      onError: toPublicStreamError,
     });
 
     const response = createUIMessageStreamResponse({ stream });

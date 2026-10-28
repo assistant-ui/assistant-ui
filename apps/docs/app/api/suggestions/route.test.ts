@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { APICallError } from "ai";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -6,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   resolveChatModel: vi.fn(),
   getDistinctId: vi.fn(),
   generateText: vi.fn(),
+  recordFailure: vi.fn(),
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -31,6 +33,11 @@ vi.mock("@/lib/posthog-server", async (importOriginal) => ({
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal()),
   generateText: mocks.generateText,
+}));
+
+vi.mock("@/lib/ai/model-provider-errors", async (importOriginal) => ({
+  ...(await importOriginal()),
+  recordModelProviderFailure: mocks.recordFailure,
 }));
 
 import { POST } from "./route";
@@ -135,5 +142,52 @@ describe("POST /api/suggestions", () => {
         maxOutputTokens: 1024,
       }),
     );
+  });
+
+  const allowModelCall = () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.getDistinctId.mockReturnValue("distinct_1234567890");
+  };
+
+  it("returns no suggestions instead of failing when the provider is out of quota", async () => {
+    allowModelCall();
+    mocks.recordFailure.mockClear();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.generateText.mockRejectedValue(
+      new APICallError({
+        message: "Error 429: You have reached your weekly Clinepass limit.",
+        url: "https://gateway.example.test/v1/responses",
+        requestBodyValues: {},
+        statusCode: 429,
+      }),
+    );
+
+    const response = await POST(request("Explain thread state"));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(JSON.parse(body)).toEqual({ suggestions: [] });
+    expect(body).not.toMatch(/clinepass|gateway/i);
+    expect(mocks.recordFailure).toHaveBeenCalledTimes(1);
+    error.mockRestore();
+  });
+
+  it("returns no suggestions for any other model failure without marking the provider", async () => {
+    allowModelCall();
+    mocks.recordFailure.mockClear();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.generateText.mockRejectedValue(new Error("unexpected"));
+
+    const response = await POST(request("Explain thread state"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ suggestions: [] });
+    expect(mocks.recordFailure).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });
