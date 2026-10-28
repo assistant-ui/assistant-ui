@@ -278,6 +278,7 @@ export type AgUiEvent =
       content: string | ContentPart[];
       role?: "tool";
       mcpResult?: McpToolCallResult;
+      metadata?: Record<string, unknown>;
       subagentRunId?: string;
     }
   | {

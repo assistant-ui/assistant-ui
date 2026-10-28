@@ -344,6 +344,9 @@ export const parseAgUiEvent = (
           messageId: getString("messageId"),
           role: payload.role === "tool" ? "tool" : undefined,
           mcpResult: parseMcpToolCallResult(payload, content),
+          metadata: isPlainObject(payload.metadata)
+            ? payload.metadata
+            : undefined,
           subagentRunId: getString("subagentRunId"),
         },
       );

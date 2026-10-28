@@ -212,7 +212,7 @@ function withAgUiMessageMetadata(metadata: unknown): {
   return messageMetadata !== undefined ? { metadata: messageMetadata } : {};
 }
 
-function withAgUiPartMessageMetadata(
+export function withAgUiPartMessageMetadata(
   providerMetadata: PartProviderMetadata | undefined,
   messageMetadata: Record<string, unknown> | undefined,
 ): PartProviderMetadata {
@@ -222,11 +222,17 @@ function withAgUiPartMessageMetadata(
   const namespaced = isObject(existing[AG_UI_METADATA_NAMESPACE])
     ? existing[AG_UI_METADATA_NAMESPACE]
     : {};
+  const previousMessageMetadata = isObject(namespaced.messageMetadata)
+    ? namespaced.messageMetadata
+    : {};
   return {
     ...existing,
     [AG_UI_METADATA_NAMESPACE]: {
       ...namespaced,
-      messageMetadata: messageMetadata as ReadonlyJSONObject,
+      messageMetadata: {
+        ...previousMessageMetadata,
+        ...messageMetadata,
+      } as ReadonlyJSONObject,
     },
   };
 }
