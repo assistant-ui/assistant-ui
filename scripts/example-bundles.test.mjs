@@ -573,3 +573,79 @@ test(
     }
   },
 );
+
+test(
+  "regular and preview bundle builds track shared sources and build tooling",
+  {
+    skip: !turboReady && "Install dependencies before testing the Turbo graph",
+  },
+  async () => {
+    const sharedInput = join(
+      root,
+      "examples/bundle-shared",
+      `cache-input-${process.pid}.txt`,
+    );
+    const plan = () =>
+      JSON.parse(
+        execFileSync(
+          turbo,
+          ["run", "build", "preview:build", "--filter=bundle-*", "--dry=json"],
+          {
+            cwd: root,
+            encoding: "utf8",
+            timeout: 30_000,
+            maxBuffer: 32 * 1024 * 1024,
+          },
+        ),
+      ).tasks;
+    const before = plan();
+    for (const example of examples) {
+      for (const taskName of ["build", "preview:build"]) {
+        const task = before.find(
+          (entry) => entry.taskId === `${example.package}#${taskName}`,
+        );
+        assert.ok(task);
+        const inputs = new Set(
+          Object.keys(task.inputs).map((file) =>
+            resolve(root, "examples", example.package, file),
+          ),
+        );
+        assert.ok(
+          inputs.has(join(root, "examples", example.package, example.entry)),
+          `${task.taskId} must hash its own entry source`,
+        );
+        for (const file of [
+          "scripts/example-bundles.json",
+          "scripts/build-example-bundle.mjs",
+          "scripts/lib/script-options.mjs",
+          "examples/bundle-shared/build.mjs",
+          "examples/bundle-shared/chat.tsx",
+          "examples/bundle-shared/styles.css",
+          "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+        ])
+          assert.ok(
+            inputs.has(join(root, file)),
+            `${task.taskId} must hash ${file}`,
+          );
+      }
+    }
+    await writeFile(sharedInput, "first shared source", { flag: "wx" });
+    try {
+      const first = plan();
+      await writeFile(sharedInput, "changed shared source");
+      const changed = plan();
+      for (const example of examples) {
+        for (const taskName of ["build", "preview:build"]) {
+          const id = `${example.package}#${taskName}`;
+          assert.notEqual(
+            changed.find((entry) => entry.taskId === id).hash,
+            first.find((entry) => entry.taskId === id).hash,
+            id,
+          );
+        }
+      }
+    } finally {
+      await rm(sharedInput);
+    }
+  },
+);
