@@ -342,8 +342,6 @@ function extractText(content: unknown): string {
     .join("\n");
 }
 
-type EncodedPartSource = Extract<PartSource, { type: "data" | "url" }>;
-
 type MediaInputType = "image" | "audio" | "video" | "document";
 
 function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
@@ -363,7 +361,14 @@ function buildPartSource(
   value: string,
   declaredMimeType: string | undefined,
   sourceType?: string,
-): EncodedPartSource {
+): PartSource {
+  if (sourceType === "id") {
+    return {
+      type: "file",
+      value,
+      ...(declaredMimeType !== undefined && { mimeType: declaredMimeType }),
+    };
+  }
   const source = resolveFilePartSource({
     data: value,
     mimeType: declaredMimeType ?? "application/octet-stream",

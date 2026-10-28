@@ -138,6 +138,46 @@ describe("toAgUiMessages content metadata", () => {
     },
   );
 
+  describe.each(["content", "attachment"])("%s file handles", (location) => {
+    it.each([
+      ["document", "application/pdf", "file-pdf"],
+      ["image", "image/png", "https://provider.example/files/image"],
+      ["audio", "audio/wav", "file-audio"],
+      ["video", "video/mp4", "file-video"],
+    ])(
+      "preserves a %s handle instead of sending bytes",
+      (type, mimeType, data) => {
+        const part = {
+          type: "file",
+          data,
+          mimeType,
+          sourceType: "id",
+          filename: "upload.bin",
+          providerMetadata: { agui: { trace: "kept" } },
+        };
+        const message =
+          location === "content"
+            ? userMessage([part])
+            : userMessage([], [{ name: "upload.bin", content: [part] }]);
+        const exported = toAgUiMessages([message]);
+        const expected = {
+          id: "u1",
+          role: "user",
+          content: [
+            {
+              type,
+              source: { type: "file", value: data, mimeType },
+              metadata: { trace: "kept", filename: "upload.bin" },
+            },
+          ],
+        };
+
+        expect(MessageSchema.parse(exported[0])).toEqual(expected);
+        expect(toAgUiMessages(fromAgUiMessages(exported))).toEqual([expected]);
+      },
+    );
+  });
+
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
   });

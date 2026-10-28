@@ -126,7 +126,7 @@ The optional `id` on text, reasoning, data, file, and image parts keys the part 
 
 With the `components` API, group wrappers use the group's kind and its first part's identity, or its start index when that part has no unique identity. Appending parts keeps the wrapper mounted. Reordering later identified parts preserves their state, but replacing the first member with a different identity remounts the group.
 
-`file` is the media carrier. Audio, video, PDFs and everything else are `{ type: "file", mimeType: "audio/mpeg" }` rather than part types of their own, so one renderer and one converter branch handle them all. The payload can be inline base64 or a URL; `sourceType` additionally allows an opaque storage id, which the LangChain-family runtimes honor and other adapters ignore.
+`file` is the media carrier. Audio, video, PDFs and everything else are `{ type: "file", mimeType: "audio/mpeg" }` rather than part types of their own, so one renderer and one converter branch handle them all. The payload can be inline base64 or a URL; `sourceType` additionally allows an opaque storage id, which the LangChain-family and AG-UI runtimes honor and other adapters ignore.
 
 Anything that is not a modality the model consumes or a channel it emits is a `data` part, routed by `name`:
 
