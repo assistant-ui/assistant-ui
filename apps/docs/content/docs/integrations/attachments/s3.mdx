@@ -49,7 +49,11 @@ AWS_SECRET_ACCESS_KEY=...
 
 ### CORS
 
-{/* TODO: explain each field; production origins only, no wildcard. */}
+The browser uploads directly to the bucket, so the bucket needs a CORS rule for your app's origin. List each origin exactly (scheme, host, and port); avoid `"*"`. `PUT` covers uploads, and `content-type` must be an allowed header because the presigned URL is signed with it. `ETag` is exposed so the client can read it after an upload. Add `GET` only if the browser fetches objects from presigned `GET` URLs.
+
+```sh
+aws s3api put-bucket-cors --bucket my-chat-attachments --cors-configuration "{\"CORSRules\": $(cat cors.json)}"
+```
 
 ```json title="cors.json"
 [
