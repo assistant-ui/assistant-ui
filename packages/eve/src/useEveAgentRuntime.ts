@@ -338,8 +338,8 @@ const useEveThreadRuntime = (
 
   const settleDelivery = async (pending: Promise<Delivery>) => {
     const signal = deliveryReadsRef.current.signal;
-    const receipt = await pending;
     try {
+      const receipt = await pending;
       const result = await receipt.result({ signal });
       if (!signal.aborted) {
         lastDeliveryFailedRef.current = result.status === "failed";
@@ -380,13 +380,15 @@ const useEveThreadRuntime = (
   }, []);
 
   // A replay (Fast Refresh, StrictMode) must not cancel the sends queued behind the active turn.
-  useReplaySafeEffect(
-    () => () => {
+  useReplaySafeEffect(() => {
+    if (deliveryReadsRef.current.signal.aborted) {
+      deliveryReadsRef.current = new AbortController();
+    }
+    return () => {
       sendEpochRef.current += 1;
       deliveryReadsRef.current.abort();
-    },
-    [],
-  );
+    };
+  }, []);
 
   // A replay rides the send chain so it waits for the active turn to settle; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
   const enqueueResume = useCallback(

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, type ReactNode } from "react";
+import { Activity, act, type ReactNode } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import { emptySessionView } from "eve/events";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
@@ -343,5 +343,53 @@ it("keeps a first Eve session wait alive when a nested runtimeHook refreshes", a
   expect(rendered).toBe("after");
   act(() => onSessionChange?.({ sessionId: "session-1", streamIndex: 0 }));
   await expect(waiting).resolves.toBe("session-1");
+  view.unmount();
+});
+
+it("reads Eve delivery results again after an Activity hides and shows the runtime", async () => {
+  const agent = makeAgent(async () => {});
+  agent.send.mockImplementation(async () => {
+    const receipt = createEveDelivery();
+    return {
+      ...receipt,
+      result: (options?: { readonly signal?: AbortSignal }) =>
+        options?.signal?.aborted
+          ? Promise.reject(options.signal.reason)
+          : receipt.result(),
+    };
+  });
+  mockUseEveAgent.mockReturnValue(agent);
+  let runtime!: ReturnType<typeof useEveAgentRuntime>;
+  const Host = () => {
+    runtime = useEveAgentRuntime();
+    return null;
+  };
+  const view = render(
+    <Activity mode="visible">
+      <Host />
+    </Activity>,
+  );
+  view.rerender(
+    <Activity mode="hidden">
+      <Host />
+    </Activity>,
+  );
+  await act(async () => {});
+  view.rerender(
+    <Activity mode="visible">
+      <Host />
+    </Activity>,
+  );
+  await act(async () => {});
+
+  act(() => {
+    runtime.thread.composer.setText("after show");
+    runtime.thread.composer.send();
+  });
+  await waitFor(() =>
+    expect(agent.send).toHaveBeenCalledWith("after show", undefined),
+  );
+  await act(async () => {});
+  expect(runtime.thread.composer.getState().text).toBe("");
   view.unmount();
 });
