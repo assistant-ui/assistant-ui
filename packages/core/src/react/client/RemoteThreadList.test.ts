@@ -3386,6 +3386,42 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("refetches the initialized main thread when initialize resolves", async () => {
+    let handle: ReturnType<typeof createAssistantClient> | undefined;
+    const requests: {
+      id: string;
+      remoteId: string | undefined;
+      status: string;
+    }[] = [];
+    const refetch = vi.fn(async () => {
+      const { id, remoteId, status } = handle!
+        .getClient()
+        .threads.item("main")
+        .getState();
+      requests.push({ id, remoteId, status });
+    });
+    const adapter = makeAdapter({
+      initialize: vi.fn(async () => ({
+        remoteId: "saved",
+        externalId: undefined,
+      })),
+    });
+    const mounted = mountList(adapter, undefined, refetch);
+    handle = mounted.handle;
+
+    try {
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      const id = threads.getState().mainThreadId;
+      await threads.item("main").initialize();
+      await threads.reloadMainThread();
+
+      expect(requests).toEqual([{ id, remoteId: "saved", status: "regular" }]);
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("keeps the selected thread when config callbacks are recreated", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

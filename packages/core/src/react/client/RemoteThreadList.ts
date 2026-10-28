@@ -1902,7 +1902,8 @@ const useRemoteThreadList = (
       onDelete: (id) => deleteThread(id),
       onGenerateTitle: (id, messages, options, afterRun) =>
         generateTitle(id, messages, options, afterRun),
-      onInitialize: async (id) => toInitializeResult(await initialize(id)),
+      onInitialize: (id) =>
+        afterStateCommit(initialize(id)).then(toInitializeResult),
       onDetach: (id) => detach(id),
     });
 
