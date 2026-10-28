@@ -859,6 +859,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   }));
 
+  const restoreToolApprovalResponses = useCallback(() => {
+    for (const [id, entry] of ownedApprovals ?? []) {
+      toolApprovalResponsesRef.current.set(id, entry.response);
+    }
+    hostApprovalIdsRef.current = new Set(
+      toolApprovalResponsesRef.current.keys(),
+    );
+    setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
+  }, [ownedApprovals]);
+
   const {
     isLoading,
     deleteMessage: deleteHistoryMessage,
@@ -881,15 +891,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getToolInteractions,
     restoreToolInteractions,
     toolApprovalResponsesRef.current,
-    () => {
-      for (const [id, entry] of ownedApprovals ?? []) {
-        toolApprovalResponsesRef.current.set(id, entry.response);
-      }
-      hostApprovalIdsRef.current = new Set(
-        toolApprovalResponsesRef.current.keys(),
-      );
-      setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
-    },
+    restoreToolApprovalResponses,
   );
 
   const {
