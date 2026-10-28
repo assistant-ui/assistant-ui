@@ -1,0 +1,254 @@
+---
+title: Amazon S3
+description: Store chat attachments in an Amazon S3 bucket with presigned upload URLs and an S3AttachmentAdapter.
+---
+
+<Callout type="warn">
+  Work in progress. This page is an outline: sections marked TODO are not written yet, and the code is a skeleton to be completed and tested.
+</Callout>
+
+This guide stores chat attachments in your own S3 bucket. The browser uploads each file straight to S3 with a presigned `PUT` URL issued by your backend, the attachment keeps the object key, and the message sends the model a URL to the file instead of its bytes.
+
+For the general presigned-URL pattern across storage providers, see [Custom attachment uploads](/docs/integrations/attachments/custom-adapter). For the adapter contract, see [adapters](/docs/runtimes/concepts/adapters#attachment-adapter).
+
+## Overview
+
+{/* TODO: diagram (composer add → POST /api/attachments/presign → PUT to S3 → send → content part with a GET URL → model). */}
+
+1. `add` asks your backend for a presigned `PUT` URL, uploads the file to S3, and reports progress while it does.
+2. The pending attachment holds the object key. The key is the durable reference; URLs are derived from it.
+3. `send` completes the attachment with an `image` or `file` content part pointing at a presigned `GET` URL or at your own proxy route.
+4. `remove` deletes the object if the user drops the attachment before sending.
+
+## Prerequisites
+
+{/* TODO: versions, auth assumption, link to AWS docs for creating a bucket and an IAM user or role. */}
+
+- An S3 bucket and AWS credentials your server can use.
+- A server that can run route handlers. The examples use the Next.js App Router.
+- An authenticated user on the server, so only signed-in users can mint upload URLs.
+
+```sh
+npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+```
+
+```sh title=".env.local"
+AWS_REGION=us-east-1
+S3_BUCKET=my-chat-attachments
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+## Bucket setup
+
+{/* TODO: step-by-step console and CLI instructions. */}
+
+### Block public access
+
+{/* TODO: keep all four Block Public Access settings on; objects are read through presigned GET URLs or a proxy, never public ACLs. */}
+
+### CORS
+
+{/* TODO: explain each field; production origins only, no wildcard. */}
+
+```json title="cors.json"
+[
+  {
+    "AllowedOrigins": ["https://your-app.example.com"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+### IAM policy
+
+{/* TODO: least-privilege policy scoped to the upload prefix; drop DeleteObject if remove() is not used. */}
+
+```json title="policy.json"
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::my-chat-attachments/chat-uploads/*"
+    }
+  ]
+}
+```
+
+## Backend route that issues presigned URLs
+
+{/* TODO: size and content-type validation, delete route with ownership check, auth helper explanation. */}
+
+```ts title="app/api/attachments/presign/route.ts"
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { auth } from "@/auth";
+
+const s3 = new S3Client({ region: process.env.AWS_REGION });
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return new Response(null, { status: 401 });
+
+  const { name, contentType } = (await req.json()) as {
+    name: string;
+    contentType: string;
+  };
+
+  const key = `chat-uploads/${session.user.id}/${crypto.randomUUID()}-${name}`;
+  const uploadUrl = await getSignedUrl(
+    s3,
+    new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: key,
+      ContentType: contentType,
+    }),
+    { expiresIn: 60 },
+  );
+
+  return Response.json({ key, uploadUrl });
+}
+```
+
+## The adapter
+
+{/* TODO: error states (incomplete), abort handling, React Native and Ink variants. */}
+
+`add` is an async generator so the composer can show upload progress: it yields a `running` state for each progress event, then a `requires-action` state once the upload finishes. Every yield keeps the same `id`.
+
+```ts title="lib/s3-attachment-adapter.ts"
+import type {
+  Attachment,
+  AttachmentAdapter,
+  CompleteAttachment,
+  PendingAttachment,
+} from "@assistant-ui/react";
+
+type S3PendingAttachment = PendingAttachment & { key: string };
+
+type Presign = { key: string; uploadUrl: string };
+
+export class S3AttachmentAdapter implements AttachmentAdapter {
+  public accept = "image/*,application/pdf";
+
+  public async *add({
+    file,
+  }: {
+    file: File;
+  }): AsyncGenerator<PendingAttachment, void> {
+    const presign = (await fetch("/api/attachments/presign", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: file.name, contentType: file.type }),
+    }).then((r) => r.json())) as Presign;
+
+    const base = {
+      id: presign.key,
+      key: presign.key,
+      type: file.type.startsWith("image/") ? "image" : "document",
+      name: file.name,
+      contentType: file.type,
+      file,
+    };
+
+    yield {
+      ...base,
+      status: { type: "running", reason: "uploading", progress: 0 },
+    } satisfies S3PendingAttachment;
+
+    // TODO: report progress from XMLHttpRequest upload events.
+    const put = await fetch(presign.uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": file.type },
+      body: file,
+    });
+    if (!put.ok) throw new Error(`S3 upload failed: ${put.status}`);
+
+    yield {
+      ...base,
+      status: { type: "requires-action", reason: "composer-send" },
+    } satisfies S3PendingAttachment;
+  }
+
+  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const { key } = attachment as S3PendingAttachment;
+    const url = `/api/attachments/${encodeURIComponent(key)}`;
+
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content:
+        attachment.type === "image"
+          ? [{ type: "image", image: url, filename: attachment.name }]
+          : [
+              {
+                type: "file",
+                filename: attachment.name,
+                mimeType: attachment.contentType ?? "application/octet-stream",
+                data: url,
+              },
+            ],
+    };
+  }
+
+  public async remove(attachment: Attachment): Promise<void> {
+    const { key } = attachment as S3PendingAttachment;
+    await fetch(`/api/attachments/${encodeURIComponent(key)}`, {
+      method: "DELETE",
+    });
+  }
+}
+```
+
+## Wiring it into the runtime
+
+{/* TODO: other runtimes (useLocalRuntime, LangGraph). */}
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import type { ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { S3AttachmentAdapter } from "@/lib/s3-attachment-adapter";
+
+const attachments = new S3AttachmentAdapter();
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useChatRuntime({ adapters: { attachments } });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Serving files to the model
+
+{/* TODO: compare the two options with code; recommend the proxy for persisted threads. */}
+
+- **Presigned `GET` URL.** The backend signs a short-lived read URL for the key. Simple, but the URL expires, so a thread reloaded later points at a dead link unless the history adapter re-signs URLs on load.
+- **Proxy route.** The message stores a URL on your own domain (`/api/attachments/<key>`) that checks the user and streams or redirects to S3. It never expires, but the model provider must be able to reach it, so a relative URL has to be resolved to an absolute, reachable one on the server before the model call.
+- **Expiry.** Never persist a presigned URL in a message row; persist the key.
+
+## S3-compatible stores
+
+{/* TODO: tested snippets per provider. */}
+
+The same adapter works with S3-compatible storage by changing the `S3Client` config: Cloudflare R2 (`region: "auto"`, account endpoint), MinIO (`endpoint` plus `forcePathStyle: true`), and others that support presigned URLs.
+
+## Security notes
+
+{/* TODO: expand each point. */}
+
+- Authenticate the presign, proxy, and delete routes.
+- Scope keys to the user (`chat-uploads/<userId>/...`) and check the prefix before reading or deleting.
+- Validate content type and size on the server; the client controls what it sends. Consider a presigned `POST` policy with `content-length-range` to enforce size at S3.
+- Keep presigned URL expiry short.
+- Never trust the client-supplied file name as a key on its own.

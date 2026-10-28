@@ -1,5 +1,5 @@
 {
   "title": "Attachments",
   "description": "Attachment integration guides for uploading and storing chat files with assistant-ui attachment adapters.",
-  "pages": ["custom-adapter"]
+  "pages": ["custom-adapter", "s3"]
 }
