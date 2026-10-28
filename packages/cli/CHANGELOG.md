@@ -1,5 +1,19 @@
 # assistant-ui
 
+## 0.0.127
+
+### Patch Changes
+
+- [#10145](https://github.com/assistant-ui/assistant-ui/pull/10145) [`d83eada`](https://github.com/assistant-ui/assistant-ui/commit/d83eada338d396a8968fb37b51680260570ea4d9) - the agent skill the CLI installs now comes from the skills commit that describes WebMCP through the testing flag, since the origin trial covers Chrome 149 to 156 only ([@okisdev](https://github.com/okisdev))
+
+- [#10148](https://github.com/assistant-ui/assistant-ui/pull/10148) [`8a280e0`](https://github.com/assistant-ui/assistant-ui/commit/8a280e0af3191950f84fe283cdc17303a54a66c7) - feat(cli): `assistant-ui cloud` remote commands use the org and project from `.assistant-ui/cloud.json` when no `--org` or `--project` is given, print (and in a terminal, open) dashboard links the server hands back, and `cloud help <login|logout|setup>` lists their flags ([@Yonom](https://github.com/Yonom))
+
+- [#10149](https://github.com/assistant-ui/assistant-ui/pull/10149) [`6838833`](https://github.com/assistant-ui/assistant-ui/commit/683883388a7a4c6d084a40948e10c376560abcbe) - feat(cli): `assistant-ui cloud setup` creates organizations and projects through Assistant Cloud's `orgs create` and `projects create` commands, so they get the same checks and audit records as the dashboard ([@Yonom](https://github.com/Yonom))
+
+- [#10063](https://github.com/assistant-ui/assistant-ui/pull/10063) [`297b607`](https://github.com/assistant-ui/assistant-ui/commit/297b6077eacb2ccebb37386dc1f9d9e2a61cc8ca) - fix: refuse symbolic links and project paths that resolve outside the project when writing configuration. ([@okisdev](https://github.com/okisdev))
+
+- [#10128](https://github.com/assistant-ui/assistant-ui/pull/10128) [`8e4a469`](https://github.com/assistant-ui/assistant-ui/commit/8e4a46935e30207121b192885fcdaef31c437b41) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.126
 
 ### Patch Changes
