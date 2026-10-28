@@ -1851,17 +1851,16 @@ describe("convertEveMessages", () => {
       });
 
       it("a failed session keeps its streaming marker and converts to error", () => {
-        const state = replay([
-          ...midStreamEvents,
-          {
-            type: "session.ended",
-            data: {
-              outcome: "failed",
-              cause: { turnId: "turn_1" },
-              error: { code: "internal", message: "boom" },
-            },
+        const sessionFailure = {
+          type: "session.ended",
+          meta: eventMeta(midStreamEvents.length),
+          data: {
+            outcome: "failed",
+            cause: { turnId: "turn_1" },
+            error: { code: "internal", message: "boom" },
           },
-        ]);
+        } as const satisfies SessionStreamEvent;
+        const state = replay([...midStreamEvents, sessionFailure]);
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.metadata?.status).toBe("streaming");
         expect(
@@ -1873,6 +1872,16 @@ describe("convertEveMessages", () => {
           type: "incomplete",
           reason: "error",
           error: { code: "unknown", message: "boom" },
+        });
+        expect(
+          convertEveMessages(state, {
+            isRunning: false,
+            events: [sessionFailure],
+          }).at(-1)?.status,
+        ).toEqual({
+          type: "incomplete",
+          reason: "error",
+          error: { code: "internal", message: "boom" },
         });
       });
 
