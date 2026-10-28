@@ -138,6 +138,66 @@ describe("toAgUiMessages content metadata", () => {
     },
   );
 
+  it("restores each of two file sources that share a handle", () => {
+    const original = {
+      id: "u-shared",
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: {
+            type: "file",
+            value: "shared",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "a.pdf" },
+        },
+        {
+          type: "document",
+          source: {
+            type: "file",
+            value: "shared",
+            provider: "openai",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "b.pdf" },
+        },
+      ],
+    };
+
+    expect(toAgUiMessages(fromAgUiMessages([original]))).toEqual([original]);
+  });
+
+  it("restores a file source a message carries only in its import metadata", () => {
+    const original = {
+      id: "u-legacy",
+      role: "user",
+      content: [
+        { type: "text", text: "label" },
+        {
+          type: "image",
+          source: { type: "url", value: "https://example.com/other.png" },
+        },
+        {
+          type: "document",
+          source: { type: "file", value: "doc-handle", provider: "openai" },
+        },
+      ],
+    };
+    const [imported] = fromAgUiMessages([original]);
+    const withoutHandles = {
+      ...imported!,
+      attachments: imported!.attachments?.filter((attachment) =>
+        attachment.content?.every(
+          (part) => part.type !== "file" || part.sourceType !== "id",
+        ),
+      ),
+    };
+
+    expect(withoutHandles.attachments).toHaveLength(1);
+    expect(toAgUiMessages([withoutHandles])).toEqual([original]);
+  });
+
   describe.each(["content", "attachment"])("%s file handles", (location) => {
     it.each([
       ["document", "application/pdf", "file-pdf"],
