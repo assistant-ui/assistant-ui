@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
 import { act, type ReactNode } from "react";
-import type { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud } from "assistant-cloud";
+import { emptySessionView } from "eve/events";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { EveCloudSessions } from "./eveCloudSessions";
+import { createEveDelivery, createEveDeliveryAfter } from "./testUtils";
 
 const { mockUseEveAgent, directRuntimeHook, sessionInstances } = vi.hoisted(
   () => ({
@@ -121,24 +123,23 @@ const refresh = async (Before: unknown, After: unknown) => {
 };
 
 const makeAgent = (send: (content: string) => Promise<void>) => ({
-  data: {
-    messages: [
-      { id: "u1", role: "user", parts: [{ type: "text", text: "earlier" }] },
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [{ type: "text", text: "earlier answer" }],
-      },
-    ],
-  },
+  messages: [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "earlier" }] },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [{ type: "text", text: "earlier answer" }],
+    },
+  ],
+  view: emptySessionView(),
   error: undefined,
   events: [],
   session: undefined,
-  status: "ready",
-  send: vi.fn(send),
-  respond: vi.fn(async () => {}),
-  cancel: vi.fn(async () => ({ status: "no_active_turn" })),
-  reset: vi.fn(),
+  status: "idle",
+  send: vi.fn(async (content: string) => createEveDeliveryAfter(send(content))),
+  respond: vi.fn(async () => createEveDelivery()),
+  cancel: vi.fn(async () => createEveDelivery()),
+  newSession: vi.fn(),
   resume: vi.fn(async () => {}),
 });
 
@@ -214,25 +215,29 @@ it("abandons an Eve send still queued when the runtime unmounts", async () => {
 });
 
 const makeCloud = () => {
-  const create = vi.fn(async () => ({ thread_id: "cloud-1" }));
-  const cloud = {
-    threads: {
-      list: vi.fn(async () => ({ threads: [] })),
-      create,
-      update: vi.fn(async () => {}),
-      delete: vi.fn(async () => {}),
-      get: vi.fn(),
-      messages: {
-        list: vi.fn(async () => ({ messages: [] })),
-        create: vi.fn(async () => ({ message_id: "cloud-message" })),
-        update: vi.fn(async () => {}),
-      },
-    },
-    events: { track: vi.fn() },
-    telemetry: { enabled: false },
-    runs: { report: vi.fn(async () => {}) },
-    registerSdk: vi.fn(),
-  } as unknown as AssistantCloud;
+  const cloud = new AssistantCloud({
+    baseUrl: "http://localhost",
+    apiKey: "test-key",
+    userId: "test-user",
+    workspaceId: "test-workspace",
+    telemetry: false,
+  });
+  let created = 0;
+  vi.spyOn(cloud.threads, "list").mockResolvedValue({ threads: [] });
+  const create = vi
+    .spyOn(cloud.threads, "create")
+    .mockImplementation(async () => ({
+      thread_id: `cloud-${++created}`,
+    }));
+  vi.spyOn(cloud.threads, "update").mockResolvedValue(undefined);
+  vi.spyOn(cloud.threads, "delete").mockResolvedValue(undefined);
+  vi.spyOn(cloud.threads.messages, "list").mockResolvedValue({ messages: [] });
+  vi.spyOn(cloud.threads.messages, "create").mockResolvedValue({
+    message_id: "cloud-message",
+  });
+  vi.spyOn(cloud.events, "track").mockImplementation(() => {});
+  vi.spyOn(cloud.runs, "report").mockResolvedValue({ run_id: "test-run" });
+  vi.spyOn(cloud, "registerSdk").mockImplementation(() => {});
   return { cloud, create };
 };
 
@@ -242,7 +247,7 @@ it("resolves a pending first Eve session after Fast Refresh", async () => {
     | ((session: { sessionId: string; streamIndex: number }) => void)
     | undefined;
   const agent = makeAgent(async () => {});
-  agent.data.messages = [];
+  agent.messages = [];
   mockUseEveAgent.mockImplementation((options) => {
     onSessionChange = options.onSessionChange;
     return agent;
