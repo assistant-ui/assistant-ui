@@ -1,5 +1,5 @@
 import type { ReadonlyJSONValue } from "../utils/json/json-value";
-import type { PartProviderMetadata } from "./utils/types";
+import type { PartProviderMetadata, ToolCallApproval } from "./utils/types";
 import type { AssistantTransportStateOperation } from "./gorp/types";
 import type { ToolModelContentPart } from "./tool/tool-types";
 
@@ -70,6 +70,11 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
   | {
       /** Marks streamed tool-call argument text as complete. */
       readonly type: "tool-call-args-text-finish";
+    }
+  | {
+      /** Sets the approval gate of the tool-call part at `path`, replacing any earlier one. */
+      readonly type: "tool-call-approval";
+      readonly approval: ToolCallApproval;
     }
   | {
       /** Appends text to a text, reasoning, or tool-call argument part. */

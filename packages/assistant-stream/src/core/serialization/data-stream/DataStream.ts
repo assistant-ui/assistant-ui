@@ -441,6 +441,9 @@ export class DataStreamEncoder
               finishToolCallArgs(controller, chunk.meta.toolCallId);
               break;
             }
+            // The data stream wire format has no approval frame.
+            case "tool-call-approval":
+              break;
             case "part-finish": {
               if (chunk.meta.type === "tool-call") {
                 finishToolCallArgs(controller, chunk.meta.toolCallId);

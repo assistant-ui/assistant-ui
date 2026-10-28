@@ -11,6 +11,7 @@ import { generateId } from "../../utils/generateId";
 import { createToolCallPartRegistry } from "../tool-call-part-registry";
 import { createChunkNormalizer } from "./chunk-normalizer";
 import type { TextStreamController } from "../../modules/text";
+import type { ToolCallApproval } from "../../utils/types";
 
 export type { UIMessageStreamChunk, UIMessageStreamDataChunk };
 
@@ -56,6 +57,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       };
       let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
+      const approvalsByToolCallId = new Map<string, ToolCallApproval>();
 
       const transform = new AssistantTransformStream<UIMessageStreamChunk>({
         transform(chunk, controller) {
@@ -215,6 +217,49 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 ...(chunk.messages !== undefined
                   ? { messages: chunk.messages }
                   : {}),
+              });
+              break;
+            }
+
+            // A call opened by an earlier response is not in the registry; its
+            // approval chunks belong to that response's message and are dropped.
+            case "tool-approval-request": {
+              const toolCallController = toolCallPartRegistry.tryGet(
+                chunk.toolCallId,
+              );
+              if (!toolCallController) break;
+              approvalsByToolCallId.set(chunk.toolCallId, chunk.approval);
+              toolCallController.setApproval(chunk.approval);
+              break;
+            }
+
+            case "tool-approval-response": {
+              const entry = [...approvalsByToolCallId].find(
+                ([, approval]) => approval.id === chunk.approvalId,
+              );
+              if (!entry) break;
+              const [toolCallId, approval] = entry;
+              const decided = {
+                ...approval,
+                approved: chunk.approved,
+                ...(chunk.reason !== undefined && { reason: chunk.reason }),
+              };
+              approvalsByToolCallId.set(toolCallId, decided);
+              toolCallPartRegistry.tryGet(toolCallId)?.setApproval(decided);
+              break;
+            }
+
+            case "tool-output-denied": {
+              const toolCallController = toolCallPartRegistry.tryGet(
+                chunk.toolCallId,
+              );
+              if (!toolCallController) break;
+              const reason = approvalsByToolCallId.get(
+                chunk.toolCallId,
+              )?.reason;
+              toolCallPartRegistry.setResponse(toolCallController, {
+                result: { error: reason || "Tool approval denied" },
+                isError: true,
               });
               break;
             }

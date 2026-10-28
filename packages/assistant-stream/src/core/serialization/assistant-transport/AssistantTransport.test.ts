@@ -469,6 +469,29 @@ describe("AssistantTransportDecoder", () => {
     warn.mockRestore();
   });
 
+  it("carries a tool-call approval and drops one without an id", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"tool-call-approval","approval":{"id":"a1","signature":"sig"},"path":[0]}',
+        '{"type":"tool-call-approval","approval":{"signature":"sig"},"path":[0]}',
+        '{"type":"tool-call-approval","path":[0]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      {
+        type: "tool-call-approval",
+        approval: { id: "a1", signature: "sig" },
+        path: [0],
+      },
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("(invalid-fields:tool-call-approval)"),
+    );
+    warn.mockRestore();
+  });
+
   it("round-trips error chunks with code and severity", async () => {
     const originalChunks: AssistantStreamChunk[] = [
       {

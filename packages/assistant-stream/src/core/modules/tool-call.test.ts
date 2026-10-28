@@ -258,4 +258,23 @@ describe("ToolCallStreamController", () => {
     expect(chunks.filter((c) => c.type === "result")).toHaveLength(0);
     expect(chunks.at(-1)?.type).toBe("part-finish");
   });
+
+  it("emits an approval until the part closes", async () => {
+    const [stream, controller] = createToolCallStreamController();
+    controller.setApproval({ id: "a1" });
+    controller.setApproval({ id: "a1", approved: false });
+    controller.close();
+    controller.setApproval({ id: "a1", approved: true });
+
+    const chunks = await collectChunks(stream);
+
+    expect(chunks.filter((c) => c.type === "tool-call-approval")).toEqual([
+      { type: "tool-call-approval", path: [], approval: { id: "a1" } },
+      {
+        type: "tool-call-approval",
+        path: [],
+        approval: { id: "a1", approved: false },
+      },
+    ]);
+  });
 });

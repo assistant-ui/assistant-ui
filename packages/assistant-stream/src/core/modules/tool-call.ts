@@ -2,6 +2,7 @@ import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
+import type { ToolCallApproval } from "../utils/types";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { TextStreamControllerImpl, type TextStreamController } from "./text";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
@@ -18,6 +19,8 @@ export type ToolCallStreamController = {
    * response closes it automatically and subsequent calls are ignored.
    */
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
+  /** Sets the call's approval gate, replacing any earlier one. Ignored once the part is closed. */
+  setApproval(approval: ToolCallApproval): void;
   close(): void;
 };
 
@@ -117,6 +120,14 @@ export class ToolCallStreamControllerImpl implements ToolCallStreamController {
     } else {
       await this.close();
     }
+  }
+
+  setApproval(approval: ToolCallApproval) {
+    enqueueIfOpen(this._controller, {
+      type: "tool-call-approval",
+      path: [],
+      approval,
+    });
   }
 
   async close() {

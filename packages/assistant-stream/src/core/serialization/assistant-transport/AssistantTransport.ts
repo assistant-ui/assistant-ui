@@ -31,6 +31,12 @@ const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
   "part-start": { kind: "message", valid: requiredObject("part") },
   "part-finish": { kind: "part-addressed", valid: noFields },
   "tool-call-args-text-finish": { kind: "part-addressed", valid: noFields },
+  "tool-call-approval": {
+    kind: "part-addressed",
+    valid: (c) =>
+      requiredObject("approval")(c) &&
+      typeof (c["approval"] as ChunkFields)["id"] === "string",
+  },
   "text-delta": { kind: "part-addressed", valid: requiredString("textDelta") },
   annotations: { kind: "message", valid: requiredArray("annotations") },
   data: { kind: "message", valid: requiredArray("data") },

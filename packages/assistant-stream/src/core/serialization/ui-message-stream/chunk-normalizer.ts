@@ -203,6 +203,60 @@ export const createChunkNormalizer = (): {
         return;
       }
 
+      if (chunk.type === "tool-approval-request") {
+        if (
+          typeof chunk.toolCallId !== "string" ||
+          typeof chunk.approvalId !== "string"
+        )
+          return;
+        // Mirrors the approval the AI SDK keeps on its tool UI part, which it
+        // expects back with the decision; `prompt` repeats the reason for renderers.
+        controller.enqueue({
+          type: "tool-approval-request",
+          toolCallId: chunk.toolCallId,
+          approval: {
+            id: chunk.approvalId,
+            ...(chunk.approvalDescriptor != null && {
+              descriptor: chunk.approvalDescriptor,
+            }),
+            ...(Object.hasOwn(chunk, "inputSchemaInput") && {
+              inputSchemaInput: chunk.inputSchemaInput,
+            }),
+            ...(typeof chunk.reason === "string" && {
+              prompt: chunk.reason,
+              requestReason: chunk.reason,
+            }),
+            ...(chunk.isAutomatic === true && { isAutomatic: true }),
+            ...(typeof chunk.signature === "string" && {
+              signature: chunk.signature,
+            }),
+          },
+        });
+        return;
+      }
+      if (chunk.type === "tool-approval-response") {
+        if (
+          typeof chunk.approvalId !== "string" ||
+          typeof chunk.approved !== "boolean"
+        )
+          return;
+        controller.enqueue({
+          type: "tool-approval-response",
+          approvalId: chunk.approvalId,
+          approved: chunk.approved,
+          ...(typeof chunk.reason === "string" && { reason: chunk.reason }),
+        });
+        return;
+      }
+      if (chunk.type === "tool-output-denied") {
+        if (typeof chunk.toolCallId !== "string") return;
+        controller.enqueue({
+          type: "tool-output-denied",
+          toolCallId: chunk.toolCallId,
+        });
+        return;
+      }
+
       controller.enqueue(chunk as UIMessageStreamChunk);
     },
     flush(controller) {
