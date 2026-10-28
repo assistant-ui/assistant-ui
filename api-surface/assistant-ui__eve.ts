@@ -1,8 +1,10 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { InputResponse, MessageStreamEvent } from "eve/client";
+import { ConversationState, SessionStreamEvent } from "eve/client";
 
-import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, EveMessageInputRequest, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
+import { Answer } from "eve/events";
+
+import { EveMessage, Interaction, UseEveAgentOptions, UseEveAgentReturn } from "eve/react";
 
 import { JSONSchema7 } from "json-schema";
 
@@ -698,7 +700,7 @@ type ConvertEveMessagesOptions = {
   readonly isRunning?: boolean | undefined;
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
-  readonly events?: readonly MessageStreamEvent[] | undefined;
+  readonly events?: readonly SessionStreamEvent[] | undefined;
 };
 
 type CreateAppendMessage = string | {
@@ -804,10 +806,8 @@ type EditComposerState = BaseComposerState & {
   readonly sourceId: string | null;
 };
 
-type EveAgentOptions = Omit<UseEveAgentOptions<EveMessageData>, "reducer">;
-
 type EveAuthorizationData = {
-  readonly state: EveAuthorizationPart["state"];
+  readonly state: "completed" | "required";
   readonly name: string;
   readonly displayName?: string;
   readonly description?: string;
@@ -815,7 +815,7 @@ type EveAuthorizationData = {
   readonly userCode?: string;
   readonly instructions?: string;
   readonly expiresAt?: string;
-  readonly outcome?: EveAuthorizationOutcome;
+  readonly outcome?: "authorized" | "cancelled" | "declined" | "failed" | "timed-out";
   readonly reason?: string;
 };
 
@@ -829,7 +829,9 @@ type EveMessageContent = string | ({
   readonly filename?: string;
 })[];
 
-type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
+type EveRuntimeExtras = Pick<UseEveAgentReturn, "error" | "events" | "session"> & {
+  readonly reset: UseEveAgentReturn["newSession"];
+};
 
 type ExportedMessageRepository = {
   headId?: string | null;
@@ -2155,7 +2157,7 @@ type Unstable_ToolInteractionLog = {
 
 type Unsubscribe = () => void;
 
-type UseEveAgentRuntimeOptions = EveAgentOptions & ExternalStoreSharedOptions & {
+type UseEveAgentRuntimeOptions = UseEveAgentOptions & ExternalStoreSharedOptions & {
   readonly adapters?: {
     readonly attachments?: AttachmentAdapter | undefined;
     readonly speech?: SpeechSynthesisAdapter | undefined;
@@ -2175,7 +2177,7 @@ type VoiceSessionState = {
 
 declare const convertEveMessage: (message: EveMessage, index: number, messages: readonly EveMessage[], options?: ConvertEveMessagesOptions) => ThreadMessage;
 
-declare const convertEveMessages: (data: EveMessageData, options?: ConvertEveMessagesOptions) => ThreadMessage[];
+declare const convertEveMessages: (data: Pick<ConversationState, "messages">, options?: ConvertEveMessagesOptions) => ThreadMessage[];
 
 declare const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 
@@ -2190,7 +2192,7 @@ declare namespace entry_root_exports {
   export { ConvertEveMessagesOptions, EveAuthorizationData, EveMessageContent, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
 }
 
-declare const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;
+declare const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: Interaction["request"]) => Answer;
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
 
