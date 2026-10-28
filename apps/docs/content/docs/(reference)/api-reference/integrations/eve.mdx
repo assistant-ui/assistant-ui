@@ -16,11 +16,15 @@ import { eve_useEveAgentRuntime } from "@/generated/integrationTypeDocs";
 
 ### convertEveMessage
 
+Converts a single Eve message into an assistant-ui thread message.
+
 ```ts
 const convertEveMessage: (message: EveMessage, index: number, messages: readonly EveMessage[], options?: ConvertEveMessagesOptions) => ThreadMessage;
 ```
 
 ### convertEveMessages
+
+Converts Eve's conversation messages into assistant-ui thread messages.
 
 ```ts
 const convertEveMessages: (data: Pick<ConversationState, "messages">, options?: ConvertEveMessagesOptions) => ThreadMessage[];
@@ -28,11 +32,34 @@ const convertEveMessages: (data: Pick<ConversationState, "messages">, options?: 
 
 ### getEveMessageContent
 
+Converts an assistant-ui append message into the message payload accepted by
+Eve's `send` API.
+
 ```ts
 const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 ```
 
 ### toEveInputResponse
+
+Converts an assistant-ui tool approval response into an Eve `Answer`.
+
+When `inputRequest` is known, every returned answer carries either an option
+the request declares or a free-form answer. A literal option match wins,
+then the `"approve"` / `"deny"` option the response's boolean decision
+names, then the response's `text` (or its `reason`, for a caller that
+predates the first-class answer field) when the request takes a free-form
+answer (`display: "text"`, `allowFreeform`, or no options at all, and never
+`display: "confirmation"`) and the response is not a refusal.
+
+A response the known request cannot record as the answer it asked for throws
+instead of being submitted, because Eve resolves an interaction the moment
+any answer for it arrives, and an empty one is recorded as an answer with no
+content. Not sending leaves the interaction open, so the caller can retry or
+the user can answer it as an ordinary message.
+
+With no request to map against, a one-argument call forwards a caller
+`optionId` as is and otherwise maps the decision to the literal `"approve"` /
+`"deny"` option every Eve approval declares.
 
 ```ts
 const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: Interaction["request"]) => Answer;
@@ -67,9 +94,10 @@ const useEveEvents: () => EveRuntimeExtras["events"];
 
 ### useEveReset
 
-Returns a function that resets the Eve session: aborts any in-flight turn,
-recreates the owned session, and clears events and projected data. Pending
-staged messages and tool execution state are discarded. Safe to render
+Returns a function that starts a new Eve session: it stops reading the
+current session and clears its events and messages, without cancelling a
+turn still running on the server. Pending staged messages and tool execution
+state are discarded. Safe to render
 outside an Eve runtime; invoking the returned function there throws.
 
 With `cloud`, it starts a new thread instead, leaving the current thread and its session in the list.

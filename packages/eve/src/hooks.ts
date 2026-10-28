@@ -27,9 +27,10 @@ export const useEveEvents = (): EveRuntimeExtras["events"] =>
   eveExtras.use((e) => e.events, EMPTY_EVENTS);
 
 /**
- * Returns a function that resets the Eve session: aborts any in-flight turn,
- * recreates the owned session, and clears events and projected data. Pending
- * staged messages and tool execution state are discarded. Safe to render
+ * Returns a function that starts a new Eve session: it stops reading the
+ * current session and clears its events and messages, without cancelling a
+ * turn still running on the server. Pending staged messages and tool execution
+ * state are discarded. Safe to render
  * outside an Eve runtime; invoking the returned function there throws.
  *
  * With `cloud`, it starts a new thread instead, leaving the current thread and its session in the list.

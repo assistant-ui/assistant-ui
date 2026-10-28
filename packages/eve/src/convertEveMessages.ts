@@ -521,6 +521,9 @@ const toUserAttachments = (
   return attachments;
 };
 
+/**
+ * Converts a single Eve message into an assistant-ui thread message.
+ */
 export const convertEveMessage = (
   message: EveMessage,
   index: number,
@@ -645,6 +648,9 @@ const getInterruptedTurns = (
   return interrupted;
 };
 
+/**
+ * Converts Eve's conversation messages into assistant-ui thread messages.
+ */
 export const convertEveMessages = (
   data: Pick<ConversationState, "messages">,
   options: ConvertEveMessagesOptions = {},
@@ -661,6 +667,11 @@ export const convertEveMessages = (
   );
 };
 
+/**
+ * Structural subset of the message content Eve's `send` API accepts. The
+ * helpers declare the shapes they produce and leave assignability to the send
+ * call site, checked against the installed version.
+ */
 export type EveMessageContent =
   | string
   | (
@@ -677,6 +688,10 @@ type OutboundPart = AppendMessage["content"][number] & {
   readonly contentType?: string | undefined;
 };
 
+/**
+ * Converts an assistant-ui append message into the message payload accepted by
+ * Eve's `send` API.
+ */
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
@@ -759,6 +774,10 @@ export const getEveMessageContent = (
   return parts;
 };
 
+/**
+ * Finds the request of the interaction answered by the given approval id, so
+ * the answer mapping can honor the request's display mode.
+ */
 export const findEveInputRequest = (
   data: Pick<ConversationState, "messages">,
   approvalId: string,
@@ -777,6 +796,27 @@ export const findEveInputRequest = (
   return undefined;
 };
 
+/**
+ * Converts an assistant-ui tool approval response into an Eve `Answer`.
+ *
+ * When `inputRequest` is known, every returned answer carries either an option
+ * the request declares or a free-form answer. A literal option match wins,
+ * then the `"approve"` / `"deny"` option the response's boolean decision
+ * names, then the response's `text` (or its `reason`, for a caller that
+ * predates the first-class answer field) when the request takes a free-form
+ * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
+ * `display: "confirmation"`) and the response is not a refusal.
+ *
+ * A response the known request cannot record as the answer it asked for throws
+ * instead of being submitted, because Eve resolves an interaction the moment
+ * any answer for it arrives, and an empty one is recorded as an answer with no
+ * content. Not sending leaves the interaction open, so the caller can retry or
+ * the user can answer it as an ordinary message.
+ *
+ * With no request to map against, a one-argument call forwards a caller
+ * `optionId` as is and otherwise maps the decision to the literal `"approve"` /
+ * `"deny"` option every Eve approval declares.
+ */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
   inputRequest?: Interaction["request"],
