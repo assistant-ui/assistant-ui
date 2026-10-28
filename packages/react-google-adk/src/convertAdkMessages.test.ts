@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import {
   convertAdkMessage,
   createAdkMessageConverter,
@@ -31,6 +32,63 @@ describe("createAdkMessageConverter - queued replies", () => {
       ],
     });
     expect(sent).not.toHaveProperty("content.0.responseDeliveryStatus");
+  });
+});
+
+describe("convertAdkMessage - tool results", () => {
+  const convertResult = (content: string) =>
+    convertAdkMessage(
+      {
+        id: "tool-1",
+        type: "tool",
+        tool_call_id: "call-1",
+        name: "search",
+        content,
+      },
+      {},
+    );
+
+  it.each(["agent", "user"] as const)(
+    "passes %s-authored ADK object responses to tool renderers",
+    (author) => {
+      const toolMessage = new AdkEventAccumulator()
+        .processEvent({
+          id: `${author}-event`,
+          author,
+          content: {
+            parts: [
+              {
+                functionResponse: {
+                  name: "search",
+                  id: "call-1",
+                  response: { results: [1] },
+                },
+              },
+            ],
+          },
+        })
+        .find((message) => message.type === "tool");
+
+      expect(toolMessage).toBeDefined();
+      expect(convertAdkMessage(toolMessage!, {})).toMatchObject({
+        role: "tool",
+        result: { results: [1] },
+      });
+    },
+  );
+
+  it("preserves string-valued results", () => {
+    expect(convertResult('"ready"')).toMatchObject({
+      role: "tool",
+      result: "ready",
+    });
+  });
+
+  it("passes through content that is not serialized JSON", () => {
+    expect(convertResult("plain text")).toMatchObject({
+      role: "tool",
+      result: "plain text",
+    });
   });
 });
 
@@ -636,7 +694,7 @@ describe("convertAdkMessage - tool messages", () => {
       role: "tool",
       toolCallId: "tc-1",
       toolName: "search",
-      result: '{"results":[]}',
+      result: { results: [] },
       isError: false,
     });
   });
