@@ -3,10 +3,12 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
-import type { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud } from "assistant-cloud";
 import type { ClientSessionState } from "eve/client";
-import type { EveMessageData, UseEveAgentOptions } from "eve/react";
-import { Component, StrictMode, useState, type ReactNode } from "react";
+import { emptySessionView } from "eve/events";
+import type { EveMessage, UseEveAgentOptions } from "eve/react";
+import type { Delivery } from "eve/sessions";
+import { StrictMode, useState } from "react";
 import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -19,26 +21,29 @@ vi.mock("eve/react", async (importOriginal) => ({
 }));
 
 import { useEveReset } from "./hooks";
+import { createEveDelivery } from "./testUtils";
 import {
   useEveAgentRuntime,
   type UseEveAgentRuntimeOptions,
 } from "./useEveAgentRuntime";
 
-type AgentOptions = UseEveAgentOptions<EveMessageData>;
+type AgentOptions = UseEveAgentOptions;
 
-type FakeSnapshot = { data: EveMessageData; status: string };
+type FakeSnapshot = {
+  messages: readonly EveMessage[];
+  status: "idle" | "busy" | "resuming";
+};
 
 type FakeAgent = {
   readonly initialOptions: AgentOptions;
   options: AgentOptions;
   update: (next: Partial<FakeSnapshot>) => void;
-  readonly send: Mock<() => Promise<void>>;
-  readonly reset: Mock<() => void>;
+  readonly send: Mock<() => Promise<Delivery>>;
+  readonly newSession: Mock<() => void>;
   readonly resume: Mock<() => Promise<void>>;
 };
 
 const agents: FakeAgent[] = [];
-let withResume = true;
 
 const createdSession = (sessionId: string): ClientSessionState => ({
   sessionId,
@@ -53,30 +58,31 @@ mockUseEveAgent.mockImplementation(function useFakeEveAgent(
       initialOptions: options,
       options,
       update: () => {},
-      send: vi.fn(async () => {}),
-      reset: vi.fn(),
+      send: vi.fn(async () => createEveDelivery()),
+      newSession: vi.fn(),
       resume: vi.fn(async () => {}),
     };
     agents.push(created);
     return created;
   });
   const [snapshot, setSnapshot] = useState<FakeSnapshot>({
-    data: { messages: [] },
-    status: "ready",
+    messages: [],
+    status: "idle",
   });
   agent.options = options;
   agent.update = (next) => setSnapshot((current) => ({ ...current, ...next }));
   return {
-    data: snapshot.data,
+    messages: snapshot.messages,
+    view: emptySessionView(),
     error: undefined,
     events: [],
     session: agent.initialOptions.initialSession,
     status: snapshot.status,
     send: agent.send,
-    respond: vi.fn(async () => {}),
-    cancel: vi.fn(async () => ({ status: "no_active_turn" })),
-    reset: agent.reset,
-    ...(withResume ? { resume: agent.resume } : {}),
+    respond: vi.fn(async () => createEveDelivery()),
+    cancel: vi.fn(async () => createEveDelivery()),
+    newSession: agent.newSession,
+    resume: agent.resume,
   };
 });
 
@@ -87,47 +93,50 @@ const makeCloud = (
   telemetry: { enabled: boolean } = { enabled: false },
 ) => {
   let created = 0;
-  return {
-    threads: {
-      list: vi.fn(async ({ is_archived }: { is_archived?: boolean } = {}) => ({
-        threads: is_archived
-          ? []
-          : rows.map((row) => ({
-              ...row,
-              title: row.id,
-              is_archived: false,
-              last_message_at: new Date(0),
-              metadata: null,
-            })),
-      })),
-      create: vi.fn(async () => ({ thread_id: `cloud-${++created}` })),
-      update: vi.fn(async () => {}),
-      delete: vi.fn(async () => {}),
-      get: vi.fn(),
-      messages: {
-        list: vi.fn(async () => ({ messages: [] })),
-        create: vi.fn(async () => ({ message_id: "cloud-message" })),
-        update: vi.fn(async () => {}),
-      },
-    },
-    events: { track: vi.fn() },
+  const cloud = new AssistantCloud({
+    baseUrl: "http://localhost",
+    apiKey: "test-key",
+    userId: "test-user",
+    workspaceId: "test-workspace",
     telemetry,
-    runs: {
-      report: vi.fn(async () => {}),
-      stream: vi.fn(
-        async () =>
-          new ReadableStream({
-            start(controller) {
-              controller.close();
-            },
-          }),
-      ),
-    },
-    registerSdk: vi.fn(),
-  } as unknown as AssistantCloud & {
-    threads: { create: Mock; list: Mock; messages: { create: Mock } };
-    registerSdk: Mock;
-  };
+  });
+  const list = vi
+    .spyOn(cloud.threads, "list")
+    .mockImplementation(async ({ is_archived } = {}) => ({
+      threads: is_archived
+        ? []
+        : rows.map((row) => ({
+            ...row,
+            title: row.id,
+            is_archived: false,
+            last_message_at: new Date(0),
+            created_at: new Date(0),
+            updated_at: new Date(0),
+            project_id: "test-project",
+            workspace_id: "test-workspace",
+            metadata: null,
+          })),
+    }));
+  const create = vi
+    .spyOn(cloud.threads, "create")
+    .mockImplementation(async () => ({
+      thread_id: `cloud-${++created}`,
+    }));
+  vi.spyOn(cloud.threads, "update").mockResolvedValue(undefined);
+  vi.spyOn(cloud.threads, "delete").mockResolvedValue(undefined);
+  vi.spyOn(cloud.threads.messages, "list").mockResolvedValue({ messages: [] });
+  const messagesCreate = vi
+    .spyOn(cloud.threads.messages, "create")
+    .mockResolvedValue({ message_id: "cloud-message" });
+  vi.spyOn(cloud.threads.messages, "update").mockResolvedValue(undefined);
+  vi.spyOn(cloud.events, "track").mockImplementation(() => {});
+  vi.spyOn(cloud.runs, "report").mockResolvedValue({ run_id: "test-run" });
+  const registerSdk = vi
+    .spyOn(cloud, "registerSdk")
+    .mockImplementation(() => {});
+  return Object.assign(cloud, {
+    mocks: { list, create, messagesCreate, registerSdk },
+  });
 };
 
 const settle = () =>
@@ -187,7 +196,6 @@ const lastAgent = () => {
 
 afterEach(() => {
   agents.length = 0;
-  withResume = true;
 });
 
 describe("useEveAgentRuntime with cloud", () => {
@@ -203,7 +211,7 @@ describe("useEveAgentRuntime with cloud", () => {
     const agent = lastAgent();
     expect(agent.initialOptions.initialSession).toBeUndefined();
     expect(agent.initialOptions.resume).toBeUndefined();
-    expect(cloud.registerSdk).toHaveBeenCalledWith({
+    expect(cloud.mocks.registerSdk).toHaveBeenCalledWith({
       name: "@assistant-ui/eve",
       version: expect.any(String),
     });
@@ -211,10 +219,10 @@ describe("useEveAgentRuntime with cloud", () => {
     let acceptTurn!: () => void;
     agent.send.mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
+        new Promise<Delivery>((resolve) => {
           acceptTurn = () => {
             agent.options.onSessionChange?.(createdSession("session-1"));
-            resolve();
+            resolve(createEveDelivery());
           };
         }),
     );
@@ -222,11 +230,11 @@ describe("useEveAgentRuntime with cloud", () => {
     await settle();
 
     expect(agent.send).toHaveBeenCalledOnce();
-    expect(cloud.threads.create).not.toHaveBeenCalled();
+    expect(cloud.mocks.create).not.toHaveBeenCalled();
 
     await act(async () => acceptTurn());
     await waitFor(() =>
-      expect(cloud.threads.create).toHaveBeenCalledExactlyOnceWith({
+      expect(cloud.mocks.create).toHaveBeenCalledExactlyOnceWith({
         last_message_at: expect.any(Date),
         external_id: "session-1",
         upsert: true,
@@ -249,20 +257,22 @@ describe("useEveAgentRuntime with cloud", () => {
 
     agent.send.mockImplementationOnce(async () => {
       agent.options.onSessionChange?.(undefined);
+      return createEveDelivery();
     });
     act(() => app.runtime().thread.append("hi"));
     await settle();
 
-    expect(cloud.threads.create).not.toHaveBeenCalled();
+    expect(cloud.mocks.create).not.toHaveBeenCalled();
     expect(app.runtime().threads.mainItem.getState().status).toBe("new");
 
     agent.send.mockImplementationOnce(async () => {
       agent.options.onSessionChange?.(createdSession("session-2"));
+      return createEveDelivery();
     });
     act(() => app.runtime().thread.append("again"));
 
     await waitFor(() =>
-      expect(cloud.threads.create).toHaveBeenCalledExactlyOnceWith({
+      expect(cloud.mocks.create).toHaveBeenCalledExactlyOnceWith({
         last_message_at: expect.any(Date),
         external_id: "session-2",
         upsert: true,
@@ -286,7 +296,7 @@ describe("useEveAgentRuntime with cloud", () => {
     await settle();
 
     expect(agent.send).not.toHaveBeenCalled();
-    expect(cloud.threads.create).not.toHaveBeenCalled();
+    expect(cloud.mocks.create).not.toHaveBeenCalled();
     expect(app.runtime().threads.mainItem.getState().status).toBe("new");
     const switched = await act(() =>
       Promise.race([
@@ -303,11 +313,12 @@ describe("useEveAgentRuntime with cloud", () => {
     if (!staged) throw new Error("the staged message is missing");
     agent.send.mockImplementationOnce(async () => {
       agent.options.onSessionChange?.(createdSession("session-3"));
+      return createEveDelivery();
     });
     await act(() => app.runtime().thread.startRun({ parentId: staged.id }));
 
     await waitFor(() =>
-      expect(cloud.threads.create).toHaveBeenCalledExactlyOnceWith({
+      expect(cloud.mocks.create).toHaveBeenCalledExactlyOnceWith({
         last_message_at: expect.any(Date),
         external_id: "session-3",
         upsert: true,
@@ -317,22 +328,23 @@ describe("useEveAgentRuntime with cloud", () => {
 
   it("retries a lost save with the same session and upsert, so the cloud answers the thread it already stored", async () => {
     const cloud = makeCloud();
-    cloud.threads.create.mockRejectedValueOnce(new Error("response lost"));
+    cloud.mocks.create.mockRejectedValueOnce(new Error("response lost"));
     const app = setup({ cloud });
     await settle();
     const agent = lastAgent();
     agent.send.mockImplementation(async () => {
       agent.options.onSessionChange?.(createdSession("session-1"));
+      return createEveDelivery();
     });
 
     act(() => app.runtime().thread.append("hi"));
-    await waitFor(() => expect(cloud.threads.create).toHaveBeenCalledOnce());
+    await waitFor(() => expect(cloud.mocks.create).toHaveBeenCalledOnce());
     await settle();
     expect(app.runtime().threads.mainItem.getState().status).toBe("new");
 
     act(() => app.runtime().thread.append("again"));
-    await waitFor(() => expect(cloud.threads.create).toHaveBeenCalledTimes(2));
-    for (const [body] of cloud.threads.create.mock.calls) {
+    await waitFor(() => expect(cloud.mocks.create).toHaveBeenCalledTimes(2));
+    for (const [body] of cloud.mocks.create.mock.calls) {
       expect(body).toEqual({
         last_message_at: expect.any(Date),
         external_id: "session-1",
@@ -402,6 +414,7 @@ describe("useEveAgentRuntime with cloud", () => {
     const agent = lastAgent();
     agent.send.mockImplementationOnce(async () => {
       agent.options.onSessionChange?.(createdSession("session-1"));
+      return createEveDelivery();
     });
     act(() => app.runtime().thread.append("hi"));
     await waitFor(() =>
@@ -414,7 +427,7 @@ describe("useEveAgentRuntime with cloud", () => {
     act(() => app.reset());
     await settle();
 
-    expect(agent.reset).not.toHaveBeenCalled();
+    expect(agent.newSession).not.toHaveBeenCalled();
     expect(app.runtime().threads.mainItem.getState()).toMatchObject({
       status: "new",
     });
@@ -431,38 +444,37 @@ describe("useEveAgentRuntime with cloud", () => {
     const agent = lastAgent();
     agent.send.mockImplementationOnce(async () => {
       agent.options.onSessionChange?.(createdSession("session-1"));
+      return createEveDelivery();
     });
     act(() => app.runtime().thread.append("hi"));
-    await waitFor(() => expect(cloud.threads.create).toHaveBeenCalledOnce());
+    await waitFor(() => expect(cloud.mocks.create).toHaveBeenCalledOnce());
 
-    act(() => agent.update({ status: "streaming" }));
+    act(() => agent.update({ status: "busy" }));
     act(() =>
       agent.update({
-        status: "ready",
-        data: {
-          messages: [
-            {
-              id: "turn_1:user",
-              role: "user",
-              parts: [{ type: "text", text: "hi" }],
-              metadata: { turnId: "turn_1" },
-            },
-            {
-              id: "turn_1:assistant",
-              role: "assistant",
-              parts: [{ type: "text", text: "hello" }],
-              metadata: { turnId: "turn_1" },
-            },
-          ],
-        } as never,
+        status: "idle",
+        messages: [
+          {
+            id: "turn_1:user",
+            role: "user",
+            parts: [{ type: "text", text: "hi" }],
+            metadata: { turnId: "turn_1" },
+          },
+          {
+            id: "turn_1:assistant",
+            role: "assistant",
+            parts: [{ type: "text", text: "hello" }],
+            metadata: { turnId: "turn_1" },
+          },
+        ],
       }),
     );
     await settle();
 
     await waitFor(() =>
-      expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2),
+      expect(cloud.mocks.messagesCreate).toHaveBeenCalledTimes(2),
     );
-    expect(cloud.threads.messages.create.mock.calls).toMatchObject([
+    expect(cloud.mocks.messagesCreate.mock.calls).toMatchObject([
       ["cloud-1", { format: "aui/v0", external_id: "turn_1:user" }],
       [
         "cloud-1",
@@ -473,49 +485,6 @@ describe("useEveAgentRuntime with cloud", () => {
         },
       ],
     ]);
-  });
-
-  it("requires an eve that can resume a session", async () => {
-    withResume = false;
-    const errors: unknown[] = [];
-    class Boundary extends Component<{ children: ReactNode }> {
-      override state = { failed: false };
-      static getDerivedStateFromError() {
-        return { failed: true };
-      }
-      override componentDidCatch(error: unknown) {
-        errors.push(error);
-      }
-      override render() {
-        return this.state.failed ? null : this.props.children;
-      }
-    }
-    const cloud = makeCloud();
-    const App = () => {
-      const runtime = useEveAgentRuntime({ cloud });
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          {null}
-        </AssistantRuntimeProvider>
-      );
-    };
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    render(
-      <Boundary>
-        <App />
-      </Boundary>,
-    );
-    await settle();
-
-    expect(errors).toContainEqual(
-      expect.objectContaining({
-        message: expect.stringContaining("eve 0.44.1 or later"),
-      }),
-    );
-    consoleError.mockRestore();
   });
 });
 

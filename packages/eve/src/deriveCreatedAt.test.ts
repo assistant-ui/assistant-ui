@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MessageStreamEvent } from "eve/client";
+import type { SessionStreamEvent } from "eve/client";
 
 import {
   collectTurnTimestamps,
@@ -11,59 +11,53 @@ const TURN = "turn_1";
 const turnStarted = (at: string, turnId = TURN) =>
   ({
     type: "turn.started",
-    data: { sequence: 1, turnId },
-    meta: { at, id: `evt_${at}` },
-  }) as const satisfies MessageStreamEvent;
+    data: { turnId, cause: { deliveryId: "delivery_1" }, follows: null },
+    meta: { at, position: { line: 1, index: 0 } },
+  }) as const satisfies SessionStreamEvent;
 
-const messageReceived = (at: string, turnId = TURN) =>
+const deliveryConsumed = (at: string, turnId = TURN) =>
   ({
-    type: "message.received",
-    data: { message: "hi", sequence: 2, turnId },
-    meta: { at, id: `evt_${at}` },
-  }) as const satisfies MessageStreamEvent;
-
-const compactionRequested = (at: string, turnId = TURN) =>
-  ({
-    type: "compaction.requested",
+    type: "delivery.consumed",
     data: {
-      modelId: "m",
-      sequence: 3,
-      sessionId: "s",
-      stepIndex: 0,
-      turnId,
-      usageInputTokens: null,
-    },
-    meta: { at, id: `evt_${at}` },
-  }) as const satisfies MessageStreamEvent;
-
-const messageAppended = (at: string, turnId = TURN) =>
-  ({
-    type: "message.appended",
-    data: {
-      messageDelta: "he",
-      sequence: 4,
-      stepIndex: 0,
+      deliveryId: "delivery_1",
+      parts: [{ kind: "text", text: "hi" }],
       turnId,
     },
-    meta: { at, id: `evt_${at}` },
-  }) as const satisfies MessageStreamEvent;
+    meta: { at, position: { line: 2, index: 0 } },
+  }) as const satisfies SessionStreamEvent;
 
-const stepStarted = (at: string, turnId = TURN) =>
+const contextStarted = (at: string, turnId = TURN) =>
   ({
-    type: "step.started",
-    data: { modelId: "m", sequence: 4, stepIndex: 0, turnId },
-    meta: { at, id: `evt_${at}` },
-  }) as const satisfies MessageStreamEvent;
+    type: "context.started",
+    data: { changeId: "change_1", kind: "compaction", turnId },
+    meta: { at, position: { line: 3, index: 0 } },
+  }) as const satisfies SessionStreamEvent;
+
+const contentDelta = (at: string, turnId = TURN) =>
+  ({
+    type: "content.delta",
+    scope: { turnId },
+    data: { partId: "part_1", kind: "text", delta: "he" },
+    meta: { at, position: { line: 4, index: 0 } },
+  }) as const satisfies SessionStreamEvent;
+
+const modelStarted = (at: string, turnId = TURN) =>
+  ({
+    type: "model.started",
+    scope: { turnId },
+    data: { runId: "run_1", modelId: "m", attempt: 0 },
+    meta: { at, position: { line: 4, index: 0 } },
+  }) as const satisfies SessionStreamEvent;
 
 describe("collectTurnTimestamps", () => {
-  it("stamps the user at message.received and the assistant at step.started, skipping the turn's other events", () => {
+  it("stamps the user at delivery.consumed and the assistant at model.started, skipping the turn's other events", () => {
     const timestamps = collectTurnTimestamps(
       [
         turnStarted("2026-01-02T10:00:00.000Z"),
-        messageReceived("2026-01-02T10:00:01.000Z"),
-        compactionRequested("2026-01-02T10:00:02.000Z"),
-        stepStarted("2026-01-02T10:02:00.000Z"),
-        stepStarted("2026-01-02T10:03:00.000Z"),
+        deliveryConsumed("2026-01-02T10:00:01.000Z"),
+        contextStarted("2026-01-02T10:00:02.000Z"),
+        modelStarted("2026-01-02T10:02:00.000Z"),
+        modelStarted("2026-01-02T10:03:00.000Z"),
       ],
       createTurnTimestampCache(),
     );
@@ -81,7 +75,7 @@ describe("collectTurnTimestamps", () => {
     const cache = createTurnTimestampCache();
     const events = [
       turnStarted("2026-01-02T10:00:00.000Z"),
-      messageReceived("2026-01-02T10:00:01.000Z"),
+      deliveryConsumed("2026-01-02T10:00:01.000Z"),
     ];
     const first = collectTurnTimestamps(events, cache);
     expect(first.get(TURN)?.assistant).toBe(undefined);
@@ -93,7 +87,7 @@ describe("collectTurnTimestamps", () => {
     expect(collectTurnTimestamps(quiet, cache)).toBe(first);
 
     const timestamps = collectTurnTimestamps(
-      [...quiet, stepStarted("2026-01-02T10:02:00.000Z")],
+      [...quiet, modelStarted("2026-01-02T10:02:00.000Z")],
       cache,
     );
     expect(timestamps.get(TURN)?.user).toEqual(
@@ -104,31 +98,13 @@ describe("collectTurnTimestamps", () => {
     );
   });
 
-  it("stamps an assistant created by a turn ending before its first step", () => {
-    const timestamps = collectTurnTimestamps(
-      [
-        messageReceived("2026-01-02T10:00:01.000Z"),
-        {
-          type: "turn.cancelled",
-          data: { sequence: 3, turnId: TURN },
-          meta: { at: "2026-01-02T10:00:05.000Z", id: "evt_cancel" },
-        },
-      ],
-      createTurnTimestampCache(),
-    );
-
-    expect(timestamps.get(TURN)?.assistant).toEqual(
-      new Date("2026-01-02T10:00:05.000Z"),
-    );
-  });
-
-  it("stamps the assistant from the turn's first message-creating event when no step.started precedes it", () => {
+  it("stamps the assistant from the turn's first content event when no model.started precedes it", () => {
     const timestamps = collectTurnTimestamps(
       [
         turnStarted("2026-01-02T10:00:00.000Z"),
-        messageReceived("2026-01-02T10:00:01.000Z"),
-        compactionRequested("2026-01-02T10:00:02.000Z"),
-        messageAppended("2026-01-02T10:02:00.000Z"),
+        deliveryConsumed("2026-01-02T10:00:01.000Z"),
+        contextStarted("2026-01-02T10:00:02.000Z"),
+        contentDelta("2026-01-02T10:02:00.000Z"),
       ],
       createTurnTimestampCache(),
     );
@@ -139,22 +115,11 @@ describe("collectTurnTimestamps", () => {
   });
 
   it("skips malformed events without throwing", () => {
-    const events = [
-      { type: "message.received", data: null, meta: { at: "x", id: "e1" } },
-      { type: "step.started", meta: { at: "2026-01-01T00:00:00Z", id: "e2" } },
-      {
-        type: "message.received",
-        data: { turnId: 42 },
-        meta: { at: "x", id: "e3" },
-      },
-      {
-        type: "message.received",
-        data: { message: "hi", sequence: 2, turnId: TURN },
-        meta: { at: "not a date", id: "e4" },
-      },
-      { type: "step.started", data: { stepIndex: 0, turnId: TURN } },
-      stepStarted("2026-01-02T10:02:00.000Z"),
-    ] as never as readonly MessageStreamEvent[];
+    const events: readonly SessionStreamEvent[] = [
+      deliveryConsumed("not a date"),
+      { ...modelStarted("2026-01-02T10:01:00.000Z"), scope: {} },
+      modelStarted("2026-01-02T10:02:00.000Z"),
+    ];
 
     const timestamps = collectTurnTimestamps(
       events,
@@ -171,14 +136,14 @@ describe("collectTurnTimestamps", () => {
     const cache = createTurnTimestampCache();
     collectTurnTimestamps(
       [
-        messageReceived("2026-01-02T10:00:01.000Z"),
-        stepStarted("2026-01-02T10:02:00.000Z"),
+        deliveryConsumed("2026-01-02T10:00:01.000Z"),
+        modelStarted("2026-01-02T10:02:00.000Z"),
       ],
       cache,
     );
 
     const timestamps = collectTurnTimestamps(
-      [messageReceived("2026-03-01T09:00:01.000Z")],
+      [deliveryConsumed("2026-03-01T09:00:01.000Z")],
       cache,
     );
 
@@ -187,11 +152,45 @@ describe("collectTurnTimestamps", () => {
     );
     expect(timestamps.get(TURN)?.assistant).toBe(undefined);
   });
+
+  it("ignores empty deliveries and stamps the first later delivery with parts", () => {
+    const empty = {
+      ...deliveryConsumed("2026-01-02T10:00:01.000Z"),
+      data: { deliveryId: "delivery_1", turnId: TURN, parts: [] },
+    } satisfies SessionStreamEvent;
+    const timestamps = collectTurnTimestamps(
+      [empty, deliveryConsumed("2026-01-02T10:00:02.000Z")],
+      createTurnTimestampCache(),
+    );
+
+    expect(timestamps.get(TURN)?.user).toEqual(
+      new Date("2026-01-02T10:00:02.000Z"),
+    );
+  });
+
+  it("resumes after an event without a timestamp and keeps the first valid assistant time", () => {
+    const cache = createTurnTimestampCache();
+    const missingTime = {
+      ...contentDelta("2026-01-02T10:01:00.000Z"),
+      meta: { position: { line: 4, index: 0 } },
+    } as unknown as SessionStreamEvent;
+    const firstEvents = [missingTime];
+    const first = collectTurnTimestamps(firstEvents, cache);
+
+    expect(first.get(TURN)).toBeUndefined();
+    expect(collectTurnTimestamps(firstEvents, cache)).toBe(first);
+
+    const appended = [...firstEvents, modelStarted("2026-01-02T10:02:00.000Z")];
+    const second = collectTurnTimestamps(appended, cache);
+
+    expect(second.get(TURN)?.assistant).toEqual(
+      new Date("2026-01-02T10:02:00.000Z"),
+    );
+    expect(collectTurnTimestamps(appended, cache)).toBe(second);
+  });
 });
 
 describe("collectTurnTimestamps prototype-inherited event types", () => {
-  // `type` arrives off the wire, so a lookup on a plain object literal can
-  // resolve an inherited member instead of missing.
   it.each(["__proto__", "constructor", "toString"])(
     "ignores an event whose type is %s",
     (type) => {
@@ -199,10 +198,13 @@ describe("collectTurnTimestamps prototype-inherited event types", () => {
       const events = [
         {
           type,
-          data: { sequence: 1, turnId: TURN },
-          meta: { at: "2026-01-01T00:00:00.000Z", id: "evt_x" },
+          data: {},
+          meta: {
+            at: "2026-01-01T00:00:00.000Z",
+            position: { line: 1, index: 0 },
+          },
         },
-      ] as unknown as MessageStreamEvent[];
+      ] as SessionStreamEvent[];
 
       const timestamps = collectTurnTimestamps(events, cache);
 

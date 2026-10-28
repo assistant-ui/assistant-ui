@@ -24,10 +24,10 @@ const convertEveMessage: (message: EveMessage, index: number, messages: readonly
 
 ### convertEveMessages
 
-Converts the full Eve message data object into assistant-ui thread messages.
+Converts Eve's conversation messages into assistant-ui thread messages.
 
 ```ts
-const convertEveMessages: (data: EveMessageData, options?: ConvertEveMessagesOptions) => ThreadMessage[];
+const convertEveMessages: (data: Pick<ConversationState, "messages">, options?: ConvertEveMessagesOptions) => ThreadMessage[];
 ```
 
 ### getEveMessageContent
@@ -41,32 +41,29 @@ const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 
 ### toEveInputResponse
 
-Converts an assistant-ui tool approval response into an Eve input response.
+Converts an assistant-ui tool approval response into an Eve `Answer`.
 
-When `inputRequest` is known, every returned response carries either an
-option the request declares or a free-form answer. A literal option match
-wins, then the `"approve"` / `"cancel"` option the response's boolean decision
+When `inputRequest` is known, every returned answer carries an option the
+request declares, the literal `"approve"` / `"deny"` for an approval that
+declares no options, or a free-form answer. A literal option match wins,
+then the `"approve"` / `"deny"` option the response's boolean decision
 names, then the response's `text` (or its `reason`, for a caller that
 predates the first-class answer field) when the request takes a free-form
 answer (`display: "text"`, `allowFreeform`, or no options at all, and never
 `display: "confirmation"`) and the response is not a refusal.
-A one-argument call, or a part with no request, still forwards a caller
-`optionId` as it always has, including ids the request never declared.
 
 A response the known request cannot record as the answer it asked for throws
-instead of being submitted, because eve resolves a request the moment any
-response for it arrives, and an empty one is recorded as an answer with no
-content. Not sending leaves the request pending, so the caller can retry or
+instead of being submitted, because Eve resolves an interaction the moment
+any answer for it arrives, and an empty one is recorded as an answer with no
+content. Not sending leaves the interaction open, so the caller can retry or
 the user can answer it as an ordinary message.
 
-With no request to map against — a one-argument call, or a part carrying no
-`toolMetadata.eve.inputRequest` — the response maps as it always has, to the
-literal `"approve"` / `"cancel"` option every eve approval declares. Guessing
-a display mode is what this mapper stopped doing; an unknown request is not
-a guess about one.
+With no request to map against, a one-argument call forwards a caller
+`optionId` as is and otherwise maps the decision to the literal `"approve"` /
+`"deny"` option every Eve approval declares.
 
 ```ts
-const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;
+const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: Interaction["request"]) => Answer;
 ```
 
 ### useEveAgentRuntime
@@ -74,7 +71,7 @@ const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?
 Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.
 
 The runtime renders Eve messages, forwards new user messages to the Eve
-session, supports cancellation, and maps Eve input requests to assistant-ui
+session, supports cancellation, and maps Eve interactions to assistant-ui
 tool approval UI.
 
 <ParametersTable {...eve_useEveAgentRuntime} />
@@ -98,9 +95,10 @@ const useEveEvents: () => EveRuntimeExtras["events"];
 
 ### useEveReset
 
-Returns a function that resets the Eve session: aborts any in-flight turn,
-recreates the owned session, and clears events and projected data. Pending
-staged messages and tool execution state are discarded. Safe to render
+Returns a function that starts a new Eve session: it stops reading the
+current session and clears its events and messages, without cancelling a
+turn still running on the server. Pending staged messages and tool execution
+state are discarded. Safe to render
 outside an Eve runtime; invoking the returned function there throws.
 
 With `cloud`, it starts a new thread instead, leaving the current thread and its session in the list.
