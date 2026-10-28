@@ -338,8 +338,8 @@ const useEveThreadRuntime = (
 
   const settleDelivery = async (pending: Promise<Delivery>) => {
     const signal = deliveryReadsRef.current.signal;
+    const receipt = await pending;
     try {
-      const receipt = await pending;
       const result = await receipt.result({ signal });
       if (!signal.aborted) {
         lastDeliveryFailedRef.current = result.status === "failed";
