@@ -10,6 +10,13 @@ export type TurnTimestampCache = {
   timestamps: ReadonlyMap<string, TurnTimestamps>;
 };
 
+/**
+ * The facts eve projects into a message: a `delivery.consumed` carrying parts
+ * opens the turn's user message, and the model, content, call, and interaction
+ * facts open its assistant message. A fact eve adds to the creating set later
+ * is absent here and falls back to the wall clock instead of stamping a wrong
+ * time.
+ */
 const ROLE_BY_EVENT_TYPE: Partial<
   Record<SessionStreamEvent["type"], keyof TurnTimestamps>
 > = {
@@ -31,6 +38,14 @@ export const createTurnTimestampCache = (): TurnTimestampCache => ({
   timestamps: new Map(),
 });
 
+/**
+ * Eve appends to its log, so a snapshot that keeps the previous scan's last
+ * element by identity shares the whole prefix and the scan resumes there. Any
+ * other snapshot is re-derived into a fresh map: turn ids are per-session
+ * sequence numbers that recur after `newSession()`, so entries must not
+ * outlive the log that produced them. Re-derivation is also what makes the
+ * render-phase cache writes safe when React discards a render.
+ */
 export const collectTurnTimestamps = (
   events: readonly SessionStreamEvent[],
   cache: TurnTimestampCache,
@@ -50,6 +65,9 @@ export const collectTurnTimestamps = (
   }
   for (let i = resumesScan ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
+    // `type` arrives off the wire, so an inherited member such as
+    // `__proto__` would resolve here instead of missing, and be used as a
+    // timestamp key. Only the table's own entries count.
     if (!Object.prototype.hasOwnProperty.call(ROLE_BY_EVENT_TYPE, event.type))
       continue;
     const role = ROLE_BY_EVENT_TYPE[event.type];

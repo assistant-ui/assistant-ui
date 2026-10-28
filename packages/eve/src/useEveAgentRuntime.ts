@@ -76,6 +76,12 @@ const hasRunConfig = (
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
   runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
+/**
+ * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
+ * namespace and serializes it into a model-visible context message, so sending
+ * the assistant-ui envelope would surface a literal `"custom"` key in the
+ * prompt and to every eve-side handler.
+ */
 const toEveSendOptions = (
   runConfig: AppendMessage["runConfig"],
 ): { readonly clientContext: JsonObject } | undefined =>
@@ -94,6 +100,9 @@ export type UseEveAgentRuntimeOptions = UseEveAgentOptions &
           readonly feedback?: FeedbackAdapter | undefined;
         }
       | undefined;
+    /**
+     * Backs the thread list with Assistant Cloud. Each cloud thread keeps one Eve session as its external id, saved once the thread's first turn creates the session, and opening a thread resumes it, so `session`, `initialSession`, `initialEvents`, and `resume` are not used. Pass it from the first render: adding or removing it later throws, so remount the runtime, for example with a `key`, to switch.
+     */
     readonly cloud?: AssistantCloud | undefined;
   };
 
@@ -206,6 +215,7 @@ const useEveThreadRuntime = (
               );
             } else if (cloudThread?.isNew && session !== undefined) {
               cloudThread.sessions.resolve(cloudThread.id, session.sessionId);
+              // A first message staged without a run leaves the thread unsaved, so the run that creates the session saves it.
               if (aui.threadListItem.getState().status === "new")
                 aui.threadListItem.initialize().catch(() => {});
             }
@@ -243,6 +253,9 @@ const useEveThreadRuntime = (
       activeTurn(agent.view) !== undefined &&
       !idle(agent.view));
   const isRunning = providerIsRunning || hasExecutingTools;
+
+  // Kept apart from the message memo so events that teach no timestamp keep
+  // the map identity and skip rebuilding every ThreadMessage.
   const turnTimestampCacheRef = useRef(createTurnTimestampCache());
   const turnTimestamps = useMemo(
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
@@ -299,14 +312,24 @@ const useEveThreadRuntime = (
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   const agentRef = useRef(agent);
+  // Descendant layout effects can dispatch against these refs synchronously;
+  // this matches useA2ARuntime's commit-scoped ref publication.
   useInsertionEffect(() => {
     messagesRef.current = messages;
     agentRef.current = agent;
   }, [agent, messages]);
+
+  // Eve commands resolve on acceptance, so each dispatch also waits for its
+  // delivery to settle; a pending chain link is exactly an unsettled turn, and
+  // chaining every dispatch serializes them without watching status.
   const deliveryReadsRef = useRef(new AbortController());
   const lastDeliveryFailedRef = useRef(false);
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
   const sendEpochRef = useRef(0);
+  // A cancel drops the queued send but keeps its draft for a later promotion;
+  // only a reset discards the draft with the session, so the two need separate
+  // counters. A queued read has no draft and outlives a cancel, so it waits on
+  // the reset counter instead.
   const resetEpochRef = useRef(0);
   const isMountedRef = useRef(true);
   const runtimeRef = useRef<ReturnType<typeof useExternalStoreRuntime> | null>(
@@ -345,12 +368,18 @@ const useEveThreadRuntime = (
     },
     [],
   );
+
+  // Queued sends must not fire server turns after unmount. The flag separates
+  // that teardown from a user cancel, and is re-armed in setup for a remounted
+  // tree.
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  // A replay (Fast Refresh, StrictMode) must not cancel the sends queued behind the active turn.
   useReplaySafeEffect(
     () => () => {
       sendEpochRef.current += 1;
@@ -358,6 +387,8 @@ const useEveThreadRuntime = (
     },
     [],
   );
+
+  // A replay rides the send chain so it waits for the active turn to settle; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
   const enqueueResume = useCallback(
     () =>
       enqueueSend(async () => {
@@ -370,6 +401,7 @@ const useEveThreadRuntime = (
 
   useEffect(() => {
     if (!resumesOnMount) return;
+    // StrictMode's second setup queues the replay again, so only the setup that survives queues it.
     let active = true;
     queueMicrotask(() => {
       if (active) enqueueResume().catch(() => {});
@@ -426,11 +458,15 @@ const useEveThreadRuntime = (
   };
 
   const reset = useCallback(() => {
+    // A cloud thread keeps the session its external id names, so a fresh session starts a new thread and leaves this one in the list.
     if (cloudThread) {
       aui.threads.switchToNewThread();
       return;
     }
     runtimeRef.current?.thread.unstable_notifySessionReset();
+    // Sends parked behind an active turn captured the pre-reset epoch, so the
+    // epoch has to advance before the session is torn down or they dispatch
+    // into the new one.
     sendEpochRef.current += 1;
     resetEpochRef.current += 1;
     lastDeliveryFailedRef.current = false;
@@ -475,6 +511,7 @@ const useEveThreadRuntime = (
           "This thread has no eve session to send to.",
         );
       if (!(message.startRun ?? message.role === "user")) {
+        // Saving a new cloud thread waits for its first session, which a staged message never creates.
         if (cloudThread?.isNew)
           cloudThread.sessions.reject(
             cloudThread.id,
@@ -493,6 +530,9 @@ const useEveThreadRuntime = (
           ),
         );
       } catch (error) {
+        // A cancelled send never reached the session, so it rethrows for the
+        // composer to take the draft back; an unmounted one has no composer
+        // left to restore.
         if (error === sendAbandonedError) return;
         throw error;
       }
@@ -516,6 +556,9 @@ const useEveThreadRuntime = (
               setStagedMessages(
                 stagedInputsRef.current.size > 0 ? nextMessages : null,
               );
+              // The reload config belongs to the message being reloaded; the
+              // drafts promoted ahead of it keep the config they were staged
+              // with, or reloading the tail would rewrite their context too.
               const runConfig =
                 stagedMessage.id === parentId && hasRunConfig(config.runConfig)
                   ? config.runConfig
@@ -530,6 +573,9 @@ const useEveThreadRuntime = (
                   ),
                 );
               } catch (error) {
+                // A reset discarded the draft along with the session, so
+                // restoring it here would refloat a message the thread no
+                // longer has. A cancel still restores.
                 if (resetEpoch !== resetEpochRef.current) return;
                 stagedInputsRef.current.set(stagedMessage.id, input);
                 messagesRef.current = previousMessages;
@@ -552,6 +598,11 @@ const useEveThreadRuntime = (
         throw error;
       }),
     onRespondToToolApproval: (response) => {
+      // Eve resolves an interaction the moment any answer for it arrives, and
+      // an empty one is recorded as an answer with no content. Mapping before
+      // the send is enqueued keeps an unmappable response unsent, so the
+      // interaction stays answerable; the mapper's error reaches the caller as
+      // the seam's rejection.
       const answer = toEveInputResponse(
         response,
         findEveInputRequest(agent, response.approvalId),
@@ -588,6 +639,13 @@ const useEveCloudRuntime = (
   });
 };
 
+/**
+ * Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.
+ *
+ * The runtime renders Eve messages, forwards new user messages to the Eve
+ * session, supports cancellation, and maps Eve interactions to assistant-ui
+ * tool approval UI.
+ */
 export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [hasCloud] = useState(options.cloud !== undefined);
   if ((options.cloud !== undefined) !== hasCloud) {

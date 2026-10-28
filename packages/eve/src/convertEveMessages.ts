@@ -58,9 +58,23 @@ const USER_FALLBACK_STATUS = {
 } satisfies MessageStatus;
 
 export type ConvertEveMessagesOptions = {
+  /**
+   * Marks the last assistant message as running while Eve has a turn in
+   * flight. When omitted, a message carrying Eve's `"streaming"` marker is
+   * treated as running; pass `false` to settle interrupted messages to a
+   * terminal status.
+   */
   readonly isRunning?: boolean | undefined;
+  /**
+   * The Eve session error, mapped onto the assistant message it interrupted.
+   */
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
+  /**
+   * The session's stream events. A failed or cancelled turn marks its
+   * assistant message as incomplete, with a failure's code and message as its
+   * error.
+   */
   readonly events?: readonly SessionStreamEvent[] | undefined;
 };
 
@@ -108,6 +122,8 @@ const toMessageStatus = (
     (interaction) =>
       interaction.status === "open" && interaction.request.kind !== "sign-in",
   );
+  // Scoped to the stale-marker case so a terminalized or errored turn keeps its
+  // own status; the hold only claims the fall-through that reads as cancelled.
   const hasPendingAuthorization =
     message.metadata?.status === "streaming" &&
     (!isLast || options.error === undefined) &&
@@ -119,6 +135,9 @@ const toMessageStatus = (
   if (hasPendingApproval) {
     return { type: "requires-action", reason: "tool-calls" };
   }
+
+  // A sign-in is answered outside the thread, so the turn is held on external
+  // input rather than on a tool call awaiting a result.
   if (hasPendingAuthorization) {
     return { type: "requires-action", reason: "interrupt" };
   }
@@ -166,6 +185,13 @@ const toolApprovalOptionsFromInputRequest = (
   }));
 };
 
+/**
+ * Eve resolves an interaction the moment any answer for it arrives, so the
+ * answer shapes it accepts decide both what the renderer may offer and what
+ * {@link toEveInputResponse} may submit. A request with no options and no
+ * `display` takes a typed answer, which is why the absence of both is not the
+ * same as a confirmation.
+ */
 const isDroppedOptionApproval = (inputRequest: Interaction["request"]) =>
   inputRequest.kind === "approval" && !inputRequest.options?.length;
 
@@ -179,6 +205,9 @@ const acceptsFreeformAnswer = (inputRequest: Interaction["request"]): boolean =>
 const toolApprovalDisplay = (
   inputRequest: Interaction["request"],
 ): ToolApprovalDisplay => {
+  // The mapper answers this shape through its approve/cancel branch whatever
+  // the request declares, so the projection has to agree: presenting it as a
+  // question would offer an answer the mapper turns into a decision.
   if (isDroppedOptionApproval(inputRequest)) return "decision";
 
   switch (inputRequest.display) {
@@ -299,6 +328,14 @@ const convertToolPart = (
   }
 };
 
+/**
+ * Payload of the `authorization` data part the Eve runtime emits for a sign-in
+ * interaction. `state` discriminates a pending sign-in from a settled one;
+ * every other field is present only when Eve projected it. This converter
+ * drops a `url` whose scheme is not `http(s)`, so a renderer can link to it
+ * without checking the scheme itself; Eve itself passes through whatever the
+ * connector supplied.
+ */
 export type EveAuthorizationData = {
   readonly state: "required" | "completed";
   readonly name: string;

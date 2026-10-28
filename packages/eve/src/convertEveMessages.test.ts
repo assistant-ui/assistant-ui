@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { EveMessageData, EveMessageInputRequest } from "eve/react";
+import type { EveInteractionPart, EveToolPart, Interaction } from "eve/react";
 import {
-  defaultMessageReducer,
-  type EveAgentReducerEvent,
-  type MessageStreamEvent,
+  conversationOf,
+  type ConversationState,
+  type SessionEvent,
+  type SessionStreamEvent,
 } from "eve/client";
 import {
   collectInterruptedTurnEvents,
@@ -15,33 +16,119 @@ import {
 } from "./convertEveMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 
-const withApprovalPart = (eve?: {
-  kind: "tool-call";
-  name: string;
-  inputRequest?: EveMessageInputRequest;
-}): EveMessageData => ({
+type MessageData = Pick<ConversationState, "messages">;
+type InputRequest = Interaction["request"];
+
+const approvalInteraction = (
+  request: InputRequest = { kind: "approval", prompt: "Send the email?" },
+): Interaction => ({
+  interactionId: "req_1",
+  turnId: "turn_1",
+  stepIndex: 0,
+  status: "open",
+  request,
+  call: { callId: "call_1", name: "send_email", input: {} },
+});
+
+const toolPart = (
+  overrides: {
+    state?: "requested" | "approval" | "rejected";
+    input?: unknown;
+    interaction?: Interaction;
+    name?: string;
+    label?: string;
+  } = {},
+): EveToolPart => ({
+  type: "tool",
+  callId: "call_1",
+  stepIndex: 0,
+  kind: "tool",
+  name: "send_email",
+  label: "send_email",
+  state: overrides.interaction ? "approval" : "requested",
+  input: {},
+  ...overrides,
+});
+
+const signInPart = (
+  request: InputRequest,
+  overrides: Partial<Interaction> = {},
+): EveInteractionPart => ({
+  type: "interaction",
+  interactionId: "auth_1",
+  turnId: "turn_1",
+  stepIndex: 0,
+  status: "open",
+  request,
+  ...overrides,
+});
+
+const withApprovalPart = (request?: InputRequest): MessageData => ({
   messages: [
     {
       id: "a1",
       role: "assistant",
-      parts: [
-        {
-          type: "dynamic-tool",
-          state: "approval-requested",
-          toolCallId: "call_1",
-          toolName: "send_email",
-          input: {},
-          approval: { id: "req_1" },
-          ...(eve && { toolMetadata: { eve } }),
-        },
-      ],
+      parts: [toolPart({ interaction: approvalInteraction(request) })],
     },
   ],
 });
 
 const eventMeta = (sequence: number) => ({
   at: "2026-01-01T00:00:00.000Z",
-  id: `evt_${sequence}`,
+  position: { line: sequence, index: 0 },
+});
+
+const replay = (events: readonly SessionEvent[]) =>
+  conversationOf(
+    events.map((event, index) => ({ ...event, meta: eventMeta(index) })),
+  );
+
+const initialTurnEvents = [
+  { type: "session.started", data: {} },
+  { type: "delivery.admitted", data: { deliveryId: "delivery_1" } },
+  {
+    type: "turn.started",
+    data: {
+      turnId: "turn_1",
+      cause: { deliveryId: "delivery_1" },
+      follows: null,
+    },
+  },
+  {
+    type: "delivery.consumed",
+    data: {
+      deliveryId: "delivery_1",
+      turnId: "turn_1",
+      parts: [{ kind: "text", text: "hi" }],
+    },
+  },
+  {
+    type: "model.requested",
+    scope: { turnId: "turn_1" },
+    data: { runId: "run_1", owner: { turnId: "turn_1" } },
+  },
+  {
+    type: "model.started",
+    scope: { turnId: "turn_1", runId: "run_1" },
+    data: { runId: "run_1", modelId: "test-model", attempt: 0 },
+  },
+] as const satisfies readonly SessionEvent[];
+
+const signInOpened = (
+  name: string,
+  signIn: Partial<NonNullable<InputRequest["signIn"]>> = {},
+): SessionEvent => ({
+  type: "interaction.opened",
+  scope: { turnId: "turn_1" },
+  data: {
+    interactionId: `auth_${name}`,
+    subject: { turnId: "turn_1" },
+    request: {
+      kind: "sign-in",
+      prompt: `Authorization required for ${signIn.displayName ?? name}`,
+      signIn: { name, ...signIn },
+    },
+  },
 });
 
 describe("convertEveMessages", () => {
@@ -63,7 +150,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const messages = convertEveMessages(data, { isRunning: true });
 
@@ -97,7 +184,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const messages = convertEveMessages(data, { isRunning: true });
 
@@ -119,7 +206,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const messages = convertEveMessages(data);
 
@@ -144,7 +231,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const messages = convertEveMessages(data);
 
@@ -153,42 +240,30 @@ describe("convertEveMessages", () => {
     }
   });
 
-  it("converts dynamic tool parts with approval options", () => {
+  it("converts tool parts with approval options", () => {
     const data = {
       messages: [
         {
           id: "a1",
           role: "assistant",
           parts: [
-            {
-              type: "dynamic-tool",
-              state: "approval-requested",
-              toolCallId: "call_1",
-              toolName: "send_email",
+            toolPart({
               input: { to: "dev@example.com" },
-              approval: { id: "req_1" },
-              toolMetadata: {
-                eve: {
-                  kind: "tool-call",
-                  name: "send_email",
-                  inputRequest: {
-                    requestId: "req_1",
-                    kind: "tool-approval",
-                    prompt: "Send the email?",
-                    display: "confirmation",
-                    options: [
-                      { id: "approve", label: "Approve" },
-                      { id: "cancel", label: "Cancel", style: "danger" },
-                      { id: "escalate", label: "Escalate" },
-                    ],
-                  },
-                },
-              },
-            },
+              interaction: approvalInteraction({
+                kind: "approval",
+                prompt: "Send the email?",
+                display: "confirmation",
+                options: [
+                  { id: "approve", label: "Approve" },
+                  { id: "cancel", label: "Cancel", style: "danger" },
+                  { id: "escalate", label: "Escalate" },
+                ],
+              }),
+            }),
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -204,7 +279,7 @@ describe("convertEveMessages", () => {
             id: "req_1",
             options: [
               { id: "approve", kind: "allow-once", label: "Approve" },
-              { id: "cancel", kind: "reject-once", label: "Cancel" },
+              { id: "cancel", kind: "_cancel", label: "Cancel" },
               { id: "escalate", kind: "_escalate", label: "Escalate" },
             ],
           },
@@ -213,7 +288,7 @@ describe("convertEveMessages", () => {
     });
   });
 
-  it("keeps streaming dynamic tool args incomplete until input is available", () => {
+  it("keeps streaming tool args incomplete until input is available", () => {
     const streamingData = {
       messages: [
         {
@@ -221,17 +296,19 @@ describe("convertEveMessages", () => {
           role: "assistant",
           parts: [
             {
-              type: "dynamic-tool",
-              state: "input-streaming",
-              toolCallId: "call_1",
-              toolName: "search",
-              input: undefined,
+              type: "tool",
+              state: "streaming",
+              callId: "call_1",
+              stepIndex: 0,
+              kind: "tool",
+              name: "search",
+              label: "search",
               inputText: "",
             },
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [streamingMessage] = convertEveMessages(streamingData);
 
@@ -247,17 +324,15 @@ describe("convertEveMessages", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            {
-              type: "dynamic-tool",
-              state: "input-available",
-              toolCallId: "call_1",
-              toolName: "search",
+            toolPart({
+              name: "search",
+              label: "search",
               input: { query: "badge" },
-            },
+            }),
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [availableMessage] = convertEveMessages(availableData);
 
@@ -272,8 +347,7 @@ describe("convertEveMessages", () => {
     [
       "a confirmation request",
       {
-        requestId: "req_1",
-        kind: "tool-approval",
+        kind: "approval",
         prompt: "Send the email?",
         display: "confirmation",
         options: [
@@ -286,7 +360,6 @@ describe("convertEveMessages", () => {
     [
       "a select question that also takes a typed answer",
       {
-        requestId: "req_1",
         kind: "question",
         prompt: "Which environment?",
         display: "select",
@@ -302,7 +375,6 @@ describe("convertEveMessages", () => {
     [
       "a text question",
       {
-        requestId: "req_1",
         kind: "question",
         prompt: "What should the subject line be?",
         display: "text",
@@ -315,19 +387,13 @@ describe("convertEveMessages", () => {
     ],
     [
       "a question with neither a display nor options",
-      { requestId: "req_1", kind: "question", prompt: "Anything else?" },
+      { kind: "question", prompt: "Anything else?" },
       { prompt: "Anything else?", display: "text", allowFreeform: true },
     ],
-  ] satisfies [string, EveMessageInputRequest, object][])(
+  ] satisfies [string, InputRequest, object][])(
     "describes %s on the approval itself",
     (_label, inputRequest, expected) => {
-      const [message] = convertEveMessages(
-        withApprovalPart({
-          kind: "tool-call",
-          name: "send_email",
-          inputRequest,
-        }),
-      );
+      const [message] = convertEveMessages(withApprovalPart(inputRequest));
 
       expect(message!.content[0]).toMatchObject({ approval: expected });
     },
@@ -342,14 +408,9 @@ describe("convertEveMessages", () => {
     (_label, display) => {
       const [message] = convertEveMessages(
         withApprovalPart({
-          kind: "tool-call",
-          name: "send_email",
-          inputRequest: {
-            requestId: "req_1",
-            kind: "tool-approval",
-            prompt: "Send the email?",
-            ...(display && { display }),
-          },
+          kind: "approval",
+          prompt: "Send the email?",
+          ...(display && { display }),
         }),
       );
 
@@ -365,13 +426,8 @@ describe("convertEveMessages", () => {
   it("does not offer a typed answer on a tool approval whose options were dropped", () => {
     const [message] = convertEveMessages(
       withApprovalPart({
-        kind: "tool-call",
-        name: "send_email",
-        inputRequest: {
-          requestId: "req_1",
-          kind: "tool-approval",
-          prompt: "Send the email?",
-        },
+        kind: "approval",
+        prompt: "Send the email?",
       }),
     );
 
@@ -385,18 +441,13 @@ describe("convertEveMessages", () => {
   it("does not offer a typed answer on a confirmation request", () => {
     const [message] = convertEveMessages(
       withApprovalPart({
-        kind: "tool-call",
-        name: "send_email",
-        inputRequest: {
-          requestId: "req_1",
-          kind: "tool-approval",
-          prompt: "Send the email?",
-          display: "confirmation",
-          options: [
-            { id: "approve", label: "Approve" },
-            { id: "cancel", label: "Cancel" },
-          ],
-        },
+        kind: "approval",
+        prompt: "Send the email?",
+        display: "confirmation",
+        options: [
+          { id: "approve", label: "Approve" },
+          { id: "cancel", label: "Cancel" },
+        ],
       }),
     );
 
@@ -409,7 +460,6 @@ describe("convertEveMessages", () => {
     [
       "the full input request",
       {
-        requestId: "req_1",
         prompt: "Which environment?",
         kind: "question",
         display: "select",
@@ -423,40 +473,29 @@ describe("convertEveMessages", () => {
     [
       "only the fields the request defines",
       {
-        requestId: "req_1",
         prompt: "What should the subject line be?",
         kind: "question",
       },
     ],
-  ] satisfies [string, EveMessageInputRequest][])(
+  ] satisfies [string, InputRequest][])(
     "projects %s onto providerMetadata.eve",
     (_label, inputRequest) => {
-      const [message] = convertEveMessages(
-        withApprovalPart({
-          kind: "tool-call",
-          name: "send_email",
-          inputRequest,
-        }),
-      );
+      const [message] = convertEveMessages(withApprovalPart(inputRequest));
       const part = message!.content[0];
 
       expect(part).toMatchObject({ type: "tool-call" });
       expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual(
         {
-          eve: { inputRequest },
+          eve: { interaction: { interactionId: "req_1", ...inputRequest } },
         },
       );
     },
   );
 
-  it.each([
-    [
-      "eve metadata without an input request",
-      { kind: "tool-call" as const, name: "send_email" },
-    ],
-    ["no eve metadata at all", undefined],
-  ])("omits providerMetadata for a tool part with %s", (_label, eve) => {
-    const [message] = convertEveMessages(withApprovalPart(eve));
+  it("omits providerMetadata for a tool part without an interaction", () => {
+    const [message] = convertEveMessages({
+      messages: [{ id: "a1", role: "assistant", parts: [toolPart()] }],
+    });
 
     expect(message!.content[0]).not.toHaveProperty("providerMetadata");
   });
@@ -469,17 +508,20 @@ describe("convertEveMessages", () => {
           role: "assistant",
           parts: [
             {
-              type: "dynamic-tool",
-              state: "output-denied",
-              toolCallId: "call_1",
-              toolName: "send_email",
-              input: { to: "dev@example.com" },
-              approval: { id: "req_1", approved: false },
+              ...toolPart({
+                state: "rejected",
+                input: { to: "dev@example.com" },
+                interaction: {
+                  ...approvalInteraction(),
+                  status: "settled",
+                  outcome: "declined",
+                },
+              }),
             },
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -509,7 +551,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -526,7 +568,7 @@ describe("convertEveMessages", () => {
           parts: [{ type: "text", text: "Hello" }],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -543,7 +585,7 @@ describe("convertEveMessages", () => {
           parts: [{ type: "text", text: "Hello" }],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -559,7 +601,7 @@ describe("convertEveMessages", () => {
           parts: [{ type: "file", mediaType: "image/png" }],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -579,7 +621,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -604,7 +646,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -647,7 +689,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -685,7 +727,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -729,65 +771,13 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
     expect(message?.attachments?.map((a) => [a.id, a.type])).toEqual([
       ["0", "file"],
       ["1", "image"],
-    ]);
-  });
-
-  it("defaults a file part with a missing mediaType to application/octet-stream", () => {
-    const data = {
-      messages: [
-        {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "file", url: "https://example.com/blob" }],
-        },
-      ],
-    } as unknown as EveMessageData;
-
-    const [message] = convertEveMessages(data);
-
-    expect(message?.content).toEqual([]);
-    expect(message?.attachments).toEqual([
-      {
-        id: "0",
-        type: "file",
-        name: "file",
-        content: [
-          {
-            type: "file",
-            data: "https://example.com/blob",
-            mimeType: "application/octet-stream",
-            sourceType: "url",
-          },
-        ],
-        contentType: "application/octet-stream",
-        status: { type: "complete" },
-      },
-    ]);
-  });
-
-  it("reads the media type from a data URL when eve omits mediaType", () => {
-    const data = {
-      messages: [
-        {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "file", url: "data:image/png;base64,iVBORw0KGgo=" }],
-        },
-      ],
-    } as unknown as EveMessageData;
-
-    const [message] = convertEveMessages(data);
-
-    expect(message?.content).toEqual([]);
-    expect(message?.attachments?.map((a) => [a.type, a.contentType])).toEqual([
-      ["image", "image/png"],
     ]);
   });
 
@@ -806,7 +796,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -833,7 +823,7 @@ describe("convertEveMessages", () => {
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -849,6 +839,25 @@ describe("convertEveMessages", () => {
     ]);
   });
 
+  it("drops a URL-less assistant file part while retaining text", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "file", mediaType: "application/pdf" },
+            { type: "text", text: "Done" },
+          ],
+        },
+      ],
+    } satisfies MessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+  });
+
   it("drops non-convertible part types instead of throwing", () => {
     const data = {
       messages: [
@@ -856,14 +865,12 @@ describe("convertEveMessages", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            { type: "step-start" },
             { type: "future-part", payload: {} },
-            { type: "file", mediaType: "application/pdf" },
             { type: "text", text: "Done" },
           ],
         },
       ],
-    } as unknown as EveMessageData;
+    } as unknown as MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -877,26 +884,22 @@ describe("convertEveMessages", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            {
-              type: "authorization",
-              state: "required",
-              name: "github",
-              description: "Sign in to GitHub",
-              displayName: "GitHub",
-              stepIndex: 0,
-              turnId: "turn_1",
-              authorization: {
+            signInPart({
+              kind: "sign-in",
+              prompt: "Sign in to GitHub",
+              signIn: {
+                name: "github",
                 displayName: "GitHub",
                 instructions: "Enter the code on the device page",
                 url: "https://github.com/login/device",
                 userCode: "ABCD-1234",
                 expiresAt: "2026-01-01T00:00:00Z",
               },
-            },
+            }),
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -925,15 +928,15 @@ describe("convertEveMessages", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            {
-              type: "authorization",
-              state: "required",
-              name: "github",
-            },
+            signInPart({
+              kind: "sign-in",
+              prompt: "",
+              signIn: { name: "github" },
+            }),
           ],
         },
       ],
-    } as unknown as EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -941,7 +944,7 @@ describe("convertEveMessages", () => {
       {
         type: "data",
         name: "authorization",
-        data: { state: "required", name: "github" },
+        data: { state: "required", name: "github", description: "" },
       },
     ]);
   });
@@ -953,19 +956,19 @@ describe("convertEveMessages", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            {
-              type: "authorization",
-              state: "required",
-              name: "github",
-              authorization: {
+            signInPart({
+              kind: "sign-in",
+              prompt: "",
+              signIn: {
+                name: "github",
                 url: "javascript:alert(1)",
                 userCode: "ABCD-1234",
               },
-            },
+            }),
           ],
         },
       ],
-    } as unknown as EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -973,7 +976,12 @@ describe("convertEveMessages", () => {
       {
         type: "data",
         name: "authorization",
-        data: { state: "required", name: "github", userCode: "ABCD-1234" },
+        data: {
+          state: "required",
+          name: "github",
+          description: "",
+          userCode: "ABCD-1234",
+        },
       },
     ]);
   });
@@ -985,20 +993,18 @@ describe("convertEveMessages", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            {
-              type: "authorization",
-              state: "completed",
-              name: "github",
-              description: "Sign in to GitHub",
-              displayName: "GitHub",
-              stepIndex: 0,
-              turnId: "turn_1",
-              outcome: "authorized",
-            },
+            signInPart(
+              {
+                kind: "sign-in",
+                prompt: "Sign in to GitHub",
+                signIn: { name: "github", displayName: "GitHub" },
+              },
+              { status: "settled", outcome: "accepted" },
+            ),
           ],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data);
 
@@ -1020,7 +1026,7 @@ describe("convertEveMessages", () => {
   describe("assistant message status mapping", () => {
     const withStatus = (
       status: "streaming" | "complete" | "failed",
-    ): EveMessageData => ({
+    ): MessageData => ({
       messages: [
         {
           id: "a1",
@@ -1084,7 +1090,7 @@ describe("convertEveMessages", () => {
             parts: [{ type: "text", text: "Try again" }],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
       const [assistant] = convertEveMessages(data, {
         isRunning: true,
@@ -1121,21 +1127,12 @@ describe("convertEveMessages", () => {
             id: "a1",
             role: "assistant",
             metadata: { status: "streaming" },
-            parts: [
-              {
-                type: "dynamic-tool",
-                state: "approval-requested",
-                toolCallId: "call_1",
-                toolName: "send_email",
-                input: {},
-                approval: { id: "req_1" },
-              },
-            ],
+            parts: [toolPart({ interaction: approvalInteraction() })],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
-      const [message] = convertEveMessages(data, { isRunning: false });
+      const message = convertEveMessages(data, { isRunning: false }).at(-1);
 
       expect(message?.status).toEqual({
         type: "requires-action",
@@ -1151,19 +1148,15 @@ describe("convertEveMessages", () => {
             role: "assistant",
             metadata: { status: "streaming" },
             parts: [
-              {
-                type: "authorization",
-                state: "required",
-                name: "github",
-                description: "Sign in to GitHub",
-                displayName: "GitHub",
-                stepIndex: 0,
-                turnId: "turn_1",
-              },
+              signInPart({
+                kind: "sign-in",
+                prompt: "Sign in to GitHub",
+                signIn: { name: "github", displayName: "GitHub" },
+              }),
             ],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
       const [message] = convertEveMessages(data, { isRunning: false });
 
@@ -1181,27 +1174,16 @@ describe("convertEveMessages", () => {
             role: "assistant",
             metadata: { status: "streaming" },
             parts: [
-              {
-                type: "dynamic-tool",
-                state: "approval-requested",
-                toolCallId: "call_1",
-                toolName: "send_email",
-                input: {},
-                approval: { id: "req_1" },
-              },
-              {
-                type: "authorization",
-                state: "required",
-                name: "github",
-                description: "Sign in to GitHub",
-                displayName: "GitHub",
-                stepIndex: 0,
-                turnId: "turn_1",
-              },
+              toolPart({ interaction: approvalInteraction() }),
+              signInPart({
+                kind: "sign-in",
+                prompt: "Sign in to GitHub",
+                signIn: { name: "github", displayName: "GitHub" },
+              }),
             ],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
       const [message] = convertEveMessages(data, { isRunning: false });
 
@@ -1212,52 +1194,26 @@ describe("convertEveMessages", () => {
     });
 
     it("settles a cancelled turn with a pending authorization", () => {
-      const reducer = defaultMessageReducer();
-      const events: readonly EveAgentReducerEvent[] = [
-        {
-          type: "authorization.required",
-          meta: eventMeta(0),
-          data: {
-            turnId: "turn_1",
-            stepIndex: 0,
-            sequence: 0,
-            name: "github",
-            description: "Sign in to GitHub",
-          },
-        },
-        {
-          type: "turn.cancelled",
-          meta: eventMeta(1),
-          data: { turnId: "turn_1", sequence: 1 },
-        },
-      ];
-      const pendingData = events
-        .slice(0, 1)
-        .reduce(
-          (state, event) => reducer.reduce(state, event),
-          reducer.initial(),
-        );
+      const events = [...initialTurnEvents, signInOpened("github")];
+      const pendingData = replay(events);
       const pendingAssistant = pendingData.messages.find(
         (message) => message.role === "assistant",
       );
       expect(pendingAssistant?.metadata?.status).toBe("streaming");
       expect(
         convertEveMessages(pendingData, { isRunning: false }).at(-1)?.status,
-      ).toEqual({
-        type: "requires-action",
-        reason: "interrupt",
-      });
+      ).toEqual({ type: "requires-action", reason: "interrupt" });
 
-      const data = events
-        .slice(1)
-        .reduce((state, event) => reducer.reduce(state, event), pendingData);
+      const data = replay([
+        ...events,
+        {
+          type: "turn.settled",
+          data: { turnId: "turn_1", outcome: "cancelled" },
+        },
+      ]);
+      const message = convertEveMessages(data, { isRunning: false }).at(-1);
 
-      const [message] = convertEveMessages(data, { isRunning: false });
-
-      expect(message?.status).toEqual({
-        type: "complete",
-        reason: "stop",
-      });
+      expect(message?.status).toEqual({ type: "complete", reason: "stop" });
     });
 
     it("reports a failed turn with a pending authorization", () => {
@@ -1268,19 +1224,15 @@ describe("convertEveMessages", () => {
             role: "assistant",
             metadata: { status: "streaming" },
             parts: [
-              {
-                type: "authorization",
-                state: "required",
-                name: "github",
-                description: "Sign in to GitHub",
-                displayName: "GitHub",
-                stepIndex: 0,
-                turnId: "turn_1",
-              },
+              signInPart({
+                kind: "sign-in",
+                prompt: "Sign in to GitHub",
+                signIn: { name: "github", displayName: "GitHub" },
+              }),
             ],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
       const error = new Error("authorization failed");
       const [message] = convertEveMessages(data, {
@@ -1306,15 +1258,11 @@ describe("convertEveMessages", () => {
             role: "assistant",
             metadata: { status: "streaming" },
             parts: [
-              {
-                type: "authorization",
-                state: "required",
-                name: "github",
-                description: "Sign in to GitHub",
-                displayName: "GitHub",
-                stepIndex: 0,
-                turnId: "turn_1",
-              },
+              signInPart({
+                kind: "sign-in",
+                prompt: "Sign in to GitHub",
+                signIn: { name: "github", displayName: "GitHub" },
+              }),
             ],
           },
           {
@@ -1324,7 +1272,7 @@ describe("convertEveMessages", () => {
             parts: [{ type: "text", text: "Later turn" }],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
       const [authorization] = convertEveMessages(data, {
         isRunning: false,
@@ -1345,93 +1293,70 @@ describe("convertEveMessages", () => {
             role: "assistant",
             metadata: { status: "complete" },
             parts: [
-              {
-                type: "authorization",
-                state: "completed",
-                name: "github",
-                description: "Sign in to GitHub",
-                displayName: "GitHub",
-                stepIndex: 0,
-                turnId: "turn_1",
-                outcome: "authorized",
-              },
+              signInPart(
+                {
+                  kind: "sign-in",
+                  prompt: "Sign in to GitHub",
+                  signIn: { name: "github", displayName: "GitHub" },
+                },
+                { status: "settled", outcome: "accepted" },
+              ),
               { type: "text", text: "Done" },
             ],
           },
         ],
-      } satisfies EveMessageData;
+      } satisfies MessageData;
 
       const [message] = convertEveMessages(data, { isRunning: false });
 
       expect(message?.status).toEqual({ type: "complete", reason: "stop" });
     });
 
-    describe("contract with eve's default reducer", () => {
-      const replay = (events: readonly EveAgentReducerEvent[]) => {
-        const reducer = defaultMessageReducer();
-        return events.reduce(
-          (state, event) => reducer.reduce(state, event),
-          reducer.initial(),
-        );
-      };
-
-      const midStreamEvents: readonly EveAgentReducerEvent[] = [
+    describe("contract with eve's conversation projection", () => {
+      const midStreamEvents: readonly SessionEvent[] = [
+        ...initialTurnEvents,
         {
-          type: "client.message.submitted",
-          data: { submissionId: "sub_1", message: "hi", createdAt: 0 },
-        },
-        {
-          type: "turn.started",
-          meta: eventMeta(0),
-          data: { turnId: "turn_1", sequence: 0 },
-        },
-        {
-          type: "step.started",
-          meta: eventMeta(1),
-          data: {
-            turnId: "turn_1",
-            stepIndex: 0,
-            sequence: 1,
-            modelId: "test-model",
-          },
-        },
-        {
-          type: "message.appended",
-          meta: eventMeta(2),
-          data: {
-            turnId: "turn_1",
-            stepIndex: 0,
-            sequence: 2,
-            messageDelta: "Let me th",
-          },
+          type: "content.delta",
+          scope: { turnId: "turn_1", runId: "run_1" },
+          data: { partId: "part_1", kind: "text", delta: "Let me th" },
         },
       ];
+
+      const completedContent = (
+        kind: "text" | "reasoning",
+        partId: string,
+        value: string,
+        runId = "run_1",
+      ): SessionEvent => ({
+        type: "content.completed",
+        scope: { turnId: "turn_1", runId },
+        data: { partId, runId, kind, value, phase: "narration" },
+      });
+
+      const callRequested = {
+        type: "call.requested",
+        scope: { turnId: "turn_1", runId: "run_1" },
+        data: {
+          callId: "call_1",
+          owner: { runId: "run_1" },
+          capability: { kind: "tool", name: "search" },
+          input: {},
+        },
+      } as const satisfies SessionEvent;
 
       it("carries the challenge Eve projects onto an authorization part", () => {
         const state = replay([
           ...midStreamEvents,
-          {
-            type: "authorization.required",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              name: "github",
-              description: "Authorization required for github",
-              authorization: {
-                displayName: "GitHub",
-                instructions: "Enter the code on the device page",
-                url: "https://github.com/login/device",
-                userCode: "ABCD-1234",
-                expiresAt: "2026-01-01T00:00:00Z",
-              },
-            },
-          },
+          signInOpened("github", {
+            displayName: "GitHub",
+            instructions: "Enter the code on the device page",
+            url: "https://github.com/login/device",
+            userCode: "ABCD-1234",
+            expiresAt: "2026-01-01T00:00:00Z",
+          }),
         ]);
 
         const converted = convertEveMessages(state, { isRunning: false });
-
         expect(converted.at(-1)?.content).toContainEqual({
           type: "data",
           name: "authorization",
@@ -1451,39 +1376,19 @@ describe("convertEveMessages", () => {
       it("releases the hold when Eve settles the authorization part in place", () => {
         const state = replay([
           ...midStreamEvents,
+          signInOpened("github"),
           {
-            type: "authorization.required",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              name: "github",
-              description: "Authorization required for github",
-            },
-          },
-          {
-            type: "authorization.completed",
-            meta: eventMeta(4),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 4,
-              name: "github",
-              outcome: "authorized",
-            },
+            type: "interaction.settled",
+            data: { interactionId: "auth_github", outcome: "accepted" },
           },
         ]);
 
         const assistant = state.messages.find((m) => m.role === "assistant");
         const authorizationParts = assistant?.parts.filter(
-          (part) => part.type === "authorization",
+          (part) => part.type === "interaction",
         );
         expect(authorizationParts).toHaveLength(1);
-        expect(authorizationParts?.[0]).toMatchObject({ state: "completed" });
-
-        // Eve leaves the streaming marker set, so the released turn falls back
-        // to the stale-marker mapping rather than to a terminal status.
+        expect(authorizationParts?.[0]).toMatchObject({ status: "settled" });
         expect(
           convertEveMessages(state, { isRunning: false }).at(-1)?.status,
         ).toEqual({ type: "incomplete", reason: "cancelled" });
@@ -1492,38 +1397,11 @@ describe("convertEveMessages", () => {
       it("keeps the hold while another connector is still required", () => {
         const state = replay([
           ...midStreamEvents,
+          signInOpened("github"),
+          signInOpened("slack"),
           {
-            type: "authorization.required",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              name: "github",
-              description: "Authorization required for github",
-            },
-          },
-          {
-            type: "authorization.required",
-            meta: eventMeta(4),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 4,
-              name: "slack",
-              description: "Authorization required for slack",
-            },
-          },
-          {
-            type: "authorization.completed",
-            meta: eventMeta(5),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 5,
-              name: "github",
-              outcome: "authorized",
-            },
+            type: "interaction.settled",
+            data: { interactionId: "auth_github", outcome: "accepted" },
           },
         ]);
 
@@ -1533,51 +1411,41 @@ describe("convertEveMessages", () => {
       });
 
       it("projects the input request onto the approval part it gates", () => {
-        const events: readonly EveAgentReducerEvent[] = [
+        const events: readonly SessionEvent[] = [
           ...midStreamEvents,
           {
-            type: "input.requested",
+            ...callRequested,
             data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              requests: [
-                {
-                  requestId: "req_1",
-                  prompt: "What should the subject line be?",
-                  kind: "question",
-                  display: "text",
-                  action: {
-                    kind: "tool-call",
-                    callId: "call_1",
-                    toolName: "ask_question",
-                    input: {},
-                  },
-                },
-              ],
+              ...callRequested.data,
+              capability: { kind: "tool", name: "ask_question" },
             },
-            meta: eventMeta(3),
+          },
+          {
+            type: "interaction.opened",
+            scope: { turnId: "turn_1" },
+            data: {
+              interactionId: "req_1",
+              subject: { callId: "call_1" },
+              request: {
+                kind: "question",
+                prompt: "What should the subject line be?",
+                display: "text",
+              },
+            },
           },
         ];
-
-        // Rehydration replays the *stored* event log, which has been through
-        // the wire and back, so the reloaded case is the serialized payload
-        // rather than the same objects a second time.
-        const rehydrated = JSON.parse(
-          JSON.stringify(events),
-        ) as readonly EveAgentReducerEvent[];
+        const rehydrated = JSON.parse(JSON.stringify(events)) as SessionEvent[];
 
         for (const state of [replay(events), replay(rehydrated)]) {
           const part = state.messages
             .find((message) => message.role === "assistant")
-            ?.parts.find((candidate) => candidate.type === "dynamic-tool");
+            ?.parts.find((candidate) => candidate.type === "tool");
 
           expect(part).toMatchObject({
-            state: "approval-requested",
-            approval: { id: "req_1" },
+            type: "tool",
+            interaction: { interactionId: "req_1", status: "open" },
           });
           expect(findEveInputRequest(state, "req_1")).toMatchObject({
-            requestId: "req_1",
             prompt: "What should the subject line be?",
             display: "text",
           });
@@ -1586,188 +1454,110 @@ describe("convertEveMessages", () => {
 
       it("leaves a reasoning part unsettled when a tool call follows it", () => {
         const state = replay([
-          ...midStreamEvents.slice(0, 3),
+          ...initialTurnEvents,
           {
-            type: "reasoning.appended",
-            meta: eventMeta(2),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 2,
-              reasoningDelta: "Think",
-            },
+            type: "content.delta",
+            scope: { turnId: "turn_1", runId: "run_1" },
+            data: { partId: "reason_1", kind: "reasoning", delta: "Think" },
           },
-          {
-            type: "actions.requested",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              actions: [
-                {
-                  kind: "tool-call",
-                  callId: "call_1",
-                  toolName: "search",
-                  input: {},
-                },
-              ],
-            },
-          },
+          callRequested,
         ]);
 
         const message = state.messages.find((m) => m.role === "assistant");
         expect(message?.parts).toEqual(
           expect.arrayContaining([
             expect.objectContaining({ type: "reasoning", state: "streaming" }),
-            expect.objectContaining({ type: "dynamic-tool" }),
+            expect.objectContaining({ type: "tool" }),
           ]),
         );
-
         const content = convertEveMessages(state, { isRunning: true }).at(
           -1,
         )?.content;
         expect(content).toEqual([
-          expect.objectContaining({ type: "reasoning" }),
           expect.objectContaining({ type: "tool-call" }),
+          expect.objectContaining({ type: "reasoning" }),
         ]);
-        expect(content?.[0]).not.toHaveProperty("status");
+        expect(content?.[1]).not.toHaveProperty("status");
       });
 
       it("settles leftover reasoning after the model stream completes a tool call", () => {
         const state = replay([
-          ...midStreamEvents.slice(0, 3),
+          ...initialTurnEvents,
           {
-            type: "reasoning.appended",
-            meta: eventMeta(2),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 2,
-              reasoningDelta: "Think",
-            },
+            type: "content.delta",
+            scope: { turnId: "turn_1", runId: "run_1" },
+            data: { partId: "reason_1", kind: "reasoning", delta: "Think" },
           },
-          {
-            type: "actions.requested",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              actions: [
-                {
-                  kind: "tool-call",
-                  callId: "call_1",
-                  toolName: "search",
-                  input: {},
-                },
-              ],
-            },
-          },
-          {
-            type: "reasoning.completed",
-            meta: eventMeta(4),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 4,
-              reasoning: "Think",
-            },
-          },
+          callRequested,
+          completedContent("reasoning", "reason_1", "Think"),
         ]);
 
         const message = state.messages.find((m) => m.role === "assistant");
         expect(message?.parts).toEqual(
           expect.arrayContaining([
             expect.objectContaining({ type: "reasoning", state: "done" }),
-            expect.objectContaining({ type: "dynamic-tool" }),
+            expect.objectContaining({ type: "tool" }),
           ]),
         );
-
         const content = convertEveMessages(state, { isRunning: true }).at(
           -1,
         )?.content;
         expect(content).toEqual([
+          expect.objectContaining({ type: "tool-call" }),
           expect.objectContaining({
             type: "reasoning",
             status: { type: "complete" },
           }),
-          expect.objectContaining({ type: "tool-call" }),
         ]);
       });
 
       it("keeps a later step's live text part unsettled after an earlier step completed", () => {
         const state = replay([
-          ...midStreamEvents.slice(0, 3),
+          ...initialTurnEvents,
           {
-            type: "message.appended",
-            meta: eventMeta(2),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 2,
-              messageDelta: "First",
-            },
+            type: "content.delta",
+            scope: { turnId: "turn_1", runId: "run_1" },
+            data: { partId: "part_1", kind: "text", delta: "First" },
           },
+          completedContent("text", "part_1", "First"),
           {
-            type: "message.completed",
-            meta: eventMeta(3),
+            type: "model.settled",
             data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
-              finishReason: "tool-calls",
-              message: "First",
-            },
-          },
-          {
-            type: "step.completed",
-            meta: eventMeta(4),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 4,
+              runId: "run_1",
+              outcome: "completed",
               finishReason: "tool-calls",
             },
           },
           {
-            type: "step.started",
-            meta: eventMeta(5),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 1,
-              sequence: 5,
-              modelId: "test-model",
-            },
+            type: "model.requested",
+            scope: { turnId: "turn_1" },
+            data: { runId: "run_2", owner: { turnId: "turn_1" } },
           },
           {
-            type: "message.appended",
-            meta: eventMeta(6),
-            data: {
-              turnId: "turn_1",
-              stepIndex: 1,
-              sequence: 6,
-              messageDelta: "Sec",
-            },
+            type: "model.started",
+            scope: { turnId: "turn_1", runId: "run_2" },
+            data: { runId: "run_2", modelId: "test-model", attempt: 0 },
+          },
+          {
+            type: "content.delta",
+            scope: { turnId: "turn_1", runId: "run_2" },
+            data: { partId: "part_2", kind: "text", delta: "Sec" },
           },
         ]);
 
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.parts).toEqual([
-          expect.objectContaining({ type: "step-start" }),
           expect.objectContaining({
             type: "text",
             text: "First",
             state: "done",
           }),
-          expect.objectContaining({ type: "step-start" }),
           expect.objectContaining({
             type: "text",
             text: "Sec",
             state: "streaming",
           }),
         ]);
-
         const content = convertEveMessages(state, { isRunning: true }).at(
           -1,
         )?.content;
@@ -1784,12 +1574,11 @@ describe("convertEveMessages", () => {
 
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);
-
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.metadata?.status).toBe("streaming");
-
-        const converted = convertEveMessages(state, { isRunning: false });
-        expect(converted.at(-1)?.status).toEqual({
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({
           type: "incomplete",
           reason: "cancelled",
         });
@@ -1799,20 +1588,22 @@ describe("convertEveMessages", () => {
         const state = replay([
           ...midStreamEvents,
           {
-            type: "session.failed",
-            meta: eventMeta(3),
-            data: { sessionId: "session_1", code: "internal", message: "boom" },
+            type: "session.ended",
+            data: {
+              outcome: "failed",
+              cause: { turnId: "turn_1" },
+              error: { code: "internal", message: "boom" },
+            },
           },
         ]);
-
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.metadata?.status).toBe("streaming");
-
-        const converted = convertEveMessages(state, {
-          isRunning: false,
-          error: new Error("boom"),
-        });
-        expect(converted.at(-1)?.status).toEqual({
+        expect(
+          convertEveMessages(state, {
+            isRunning: false,
+            error: new Error("boom"),
+          }).at(-1)?.status,
+        ).toEqual({
           type: "incomplete",
           reason: "error",
           error: { code: "unknown", message: "boom" },
@@ -1821,22 +1612,21 @@ describe("convertEveMessages", () => {
 
       it("a failed turn stays incomplete after Eve settles its message", () => {
         const failureEvent = {
-          type: "turn.failed",
-          meta: eventMeta(3),
+          type: "turn.settled",
+          meta: eventMeta(8),
           data: {
             turnId: "turn_1",
-            sequence: 3,
-            code: "internal",
-            message: "boom",
+            outcome: "failed",
+            error: { code: "internal", message: "boom" },
           },
-        } as const satisfies MessageStreamEvent;
+        } as const satisfies SessionStreamEvent;
         const state = replay([...midStreamEvents, failureEvent]);
-
-        const converted = convertEveMessages(state, {
-          isRunning: false,
-          events: [failureEvent],
-        });
-        expect(converted.at(-1)?.status).toEqual({
+        expect(
+          convertEveMessages(state, {
+            isRunning: false,
+            events: [failureEvent],
+          }).at(-1)?.status,
+        ).toEqual({
           type: "incomplete",
           reason: "error",
           error: { code: "internal", message: "boom" },
@@ -1845,44 +1635,45 @@ describe("convertEveMessages", () => {
 
       it("a cancelled turn stays cancelled after Eve settles its message", () => {
         const cancelEvent = {
-          type: "turn.cancelled",
-          meta: eventMeta(3),
-          data: { turnId: "turn_1", sequence: 3 },
-        } as const satisfies MessageStreamEvent;
+          type: "turn.settled",
+          meta: eventMeta(8),
+          data: { turnId: "turn_1", outcome: "cancelled" },
+        } as const satisfies SessionStreamEvent;
         const state = replay([...midStreamEvents, cancelEvent]);
-
         expect(
           convertEveMessages(state, { isRunning: false }).at(-1)?.status,
-        ).toEqual({ type: "complete", reason: "stop" });
+        ).toEqual({
+          type: "complete",
+          reason: "stop",
+        });
         expect(
           convertEveMessages(state, {
             isRunning: false,
             events: [cancelEvent],
           }).at(-1)?.status,
-        ).toEqual({ type: "incomplete", reason: "cancelled" });
+        ).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
       });
 
       it("a completed turn terminalizes the streaming marker and converts to complete", () => {
         const state = replay([
           ...midStreamEvents,
+          completedContent("text", "part_1", "Let me think"),
           {
-            type: "message.completed",
-            meta: eventMeta(3),
+            type: "model.settled",
             data: {
-              turnId: "turn_1",
-              stepIndex: 0,
-              sequence: 3,
+              runId: "run_1",
+              outcome: "completed",
               finishReason: "stop",
-              message: "Let me think",
             },
           },
           {
-            type: "turn.completed",
-            meta: eventMeta(4),
-            data: { turnId: "turn_1", sequence: 4 },
+            type: "turn.settled",
+            data: { turnId: "turn_1", outcome: "completed", reply: ["part_1"] },
           },
         ]);
-
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.metadata?.status).toBe("complete");
         expect(assistant?.parts).toEqual(
@@ -1890,7 +1681,6 @@ describe("convertEveMessages", () => {
             expect.objectContaining({ type: "text", state: "done" }),
           ]),
         );
-
         const converted = convertEveMessages(state, { isRunning: false });
         expect(converted.at(-1)?.status).toEqual({
           type: "complete",
@@ -1918,7 +1708,7 @@ describe("convertEveMessages", () => {
           parts: [{ type: "text", text: "Hello" }],
         },
       ],
-    } satisfies EveMessageData;
+    } satisfies MessageData;
 
     const [message] = convertEveMessages(data, {
       getCreatedAt: () => createdAt,
@@ -1952,7 +1742,7 @@ describe("getEveMessageContent", () => {
     const message = {
       ...baseAppendMessage,
       content: [{ type: "image", image: "data:image/jpeg;base64,/9j/4AAQ" }],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -1973,7 +1763,7 @@ describe("getEveMessageContent", () => {
             "data:application/octet-stream;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -1994,7 +1784,7 @@ describe("getEveMessageContent", () => {
           filename: "photo",
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2020,7 +1810,7 @@ describe("getEveMessageContent", () => {
           status: { type: "complete" },
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2120,7 +1910,7 @@ describe("getEveMessageContent", () => {
     const message = {
       ...baseAppendMessage,
       content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2135,7 +1925,7 @@ describe("getEveMessageContent", () => {
     const message = {
       ...baseAppendMessage,
       content: [{ type: "audio", audio: { data: "QUJD", format: "wav" } }],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2155,7 +1945,7 @@ describe("getEveMessageContent", () => {
           audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2175,7 +1965,7 @@ describe("getEveMessageContent", () => {
           audio: { data: "data:;base64,QUJD", format: "mp3" },
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2195,7 +1985,7 @@ describe("getEveMessageContent", () => {
           audio: { data: "https://cdn.example.com/memo.mp3", format: "mp3" },
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2226,7 +2016,7 @@ describe("getEveMessageContent", () => {
           status: { type: "complete" },
         },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toEqual([
       {
@@ -2253,7 +2043,7 @@ describe("getEveMessageContent", () => {
           ],
         },
       ],
-    } satisfies EveMessageData);
+    } satisfies MessageData);
 
     expect(echoed?.content).toEqual([]);
     expect(echoed?.attachments?.map((a) => a.content)).toEqual([
@@ -2276,7 +2066,7 @@ describe("getEveMessageContent", () => {
         { type: "text", text: "hi" },
         { type: "data", name: "chart", data: { x: 1 } },
       ],
-    } as unknown as AppendMessage;
+    } as AppendMessage;
 
     expect(getEveMessageContent(message)).toBe("hi");
   });
@@ -2284,7 +2074,7 @@ describe("getEveMessageContent", () => {
 
 const approveCancel = [
   { id: "approve", label: "Approve" },
-  { id: "cancel", label: "Cancel" },
+  { id: "deny", label: "Cancel" },
 ];
 const environments = [
   { id: "staging", label: "Staging" },
@@ -2292,9 +2082,8 @@ const environments = [
 ];
 
 const withInputRequest = (
-  overrides: Partial<EveMessageInputRequest> = {},
-): EveMessageInputRequest => ({
-  requestId: "req_1",
+  overrides: Partial<InputRequest> = {},
+): InputRequest => ({
   prompt: "Send the email?",
   kind: "question",
   ...overrides,
@@ -2312,8 +2101,8 @@ describe("toEveInputResponse", () => {
         withInputRequest({ display: "confirmation", options: approveCancel }),
       ),
     ).toEqual({
-      requestId: "req_1",
-      optionId: "cancel",
+      interactionId: "req_1",
+      optionId: "deny",
       text: "Not yet",
     });
   });
@@ -2321,7 +2110,7 @@ describe("toEveInputResponse", () => {
   it("keeps the shipped one-argument mapping when no request is available", () => {
     expect(toEveInputResponse({ approvalId: "req_1", approved: true })).toEqual(
       {
-        requestId: "req_1",
+        interactionId: "req_1",
         optionId: "approve",
       },
     );
@@ -2332,7 +2121,7 @@ describe("toEveInputResponse", () => {
         approved: false,
         reason: "Not yet",
       }),
-    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "Not yet" });
+    ).toEqual({ interactionId: "req_1", optionId: "deny", text: "Not yet" });
 
     expect(
       toEveInputResponse({
@@ -2340,7 +2129,7 @@ describe("toEveInputResponse", () => {
         approved: true,
         optionId: "staging",
       }),
-    ).toEqual({ requestId: "req_1", optionId: "staging" });
+    ).toEqual({ interactionId: "req_1", optionId: "staging" });
   });
 
   it("keeps the confirmation mapping when the request carries approve/cancel options", () => {
@@ -2349,7 +2138,7 @@ describe("toEveInputResponse", () => {
         { approvalId: "req_1", approved: true },
         withInputRequest({ display: "confirmation", options: approveCancel }),
       ),
-    ).toEqual({ requestId: "req_1", optionId: "approve" });
+    ).toEqual({ interactionId: "req_1", optionId: "approve" });
   });
 
   it("maps a select response to the chosen option id", () => {
@@ -2358,7 +2147,7 @@ describe("toEveInputResponse", () => {
         { approvalId: "req_1", approved: true, optionId: "staging" },
         withInputRequest({ display: "select", options: environments }),
       ),
-    ).toEqual({ requestId: "req_1", optionId: "staging" });
+    ).toEqual({ interactionId: "req_1", optionId: "staging" });
   });
 
   it.each([
@@ -2369,7 +2158,7 @@ describe("toEveInputResponse", () => {
       "a select display that allows freeform",
       { display: "select", allowFreeform: true, options: environments },
     ],
-  ] satisfies [string, Partial<EveMessageInputRequest>][])(
+  ] satisfies [string, Partial<InputRequest>][])(
     "answers a request with %s as free-form text, not a fabricated option id",
     (_label, overrides) => {
       const response = toEveInputResponse(
@@ -2378,7 +2167,7 @@ describe("toEveInputResponse", () => {
       );
 
       expect(response).toEqual({
-        requestId: "req_1",
+        interactionId: "req_1",
         text: "Quarterly results",
       });
       expect(response).not.toHaveProperty("optionId");
@@ -2400,7 +2189,7 @@ describe("toEveInputResponse", () => {
         { approvalId: "req_1", approved: true, text: "staging" },
         withInputRequest({ display: "text" }),
       ),
-    ).toEqual({ requestId: "req_1", text: "staging" });
+    ).toEqual({ interactionId: "req_1", text: "staging" });
   });
 
   it("prefers the response text over the reason it used to be smuggled in", () => {
@@ -2414,7 +2203,7 @@ describe("toEveInputResponse", () => {
         },
         withInputRequest({ display: "text" }),
       ),
-    ).toEqual({ requestId: "req_1", text: "staging" });
+    ).toEqual({ interactionId: "req_1", text: "staging" });
   });
 
   it("never fabricates approve for a text-display request without an answer", () => {
@@ -2443,9 +2232,6 @@ describe("toEveInputResponse", () => {
       ),
     ).toThrow(/no option with id "sandbox".*staging, production/s);
 
-    // A named option the request does not carry outranks the decision, even
-    // when the decision names an option the request does carry: substituting
-    // the literal deny here would discard the choice the caller made.
     expect(() =>
       toEveInputResponse(
         { approvalId: "req_1", approved: false, optionId: "schedule-later" },
@@ -2462,7 +2248,7 @@ describe("toEveInputResponse", () => {
 
     expect(
       toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
-    ).toEqual({ requestId: "req_1", optionId: "approve" });
+    ).toEqual({ interactionId: "req_1", optionId: "approve" });
 
     expect(
       toEveInputResponse(
@@ -2470,7 +2256,7 @@ describe("toEveInputResponse", () => {
         inputRequest,
       ),
     ).toEqual({
-      requestId: "req_1",
+      interactionId: "req_1",
       optionId: "approve",
       text: "Quarterly results",
     });
@@ -2478,25 +2264,25 @@ describe("toEveInputResponse", () => {
 
   it("answers a tool-approval by kind even when its options are missing", () => {
     const inputRequest = withInputRequest({
-      kind: "tool-approval",
+      kind: "approval",
       display: "confirmation",
     });
 
     expect(
       toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
-    ).toEqual({ requestId: "req_1", optionId: "approve" });
+    ).toEqual({ interactionId: "req_1", optionId: "approve" });
 
     expect(
       toEveInputResponse(
         { approvalId: "req_1", approved: false, reason: "not now" },
         inputRequest,
       ),
-    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "not now" });
+    ).toEqual({ interactionId: "req_1", optionId: "deny", text: "not now" });
   });
 
   it("still requires a declared option when a tool-approval carries its own", () => {
     const inputRequest = withInputRequest({
-      kind: "tool-approval",
+      kind: "approval",
       display: "confirmation",
       options: [{ id: "schedule-later", label: "Schedule later" }],
     });
@@ -2510,7 +2296,7 @@ describe("toEveInputResponse", () => {
         { approvalId: "req_1", approved: true, optionId: "schedule-later" },
         inputRequest,
       ),
-    ).toEqual({ requestId: "req_1", optionId: "schedule-later" });
+    ).toEqual({ interactionId: "req_1", optionId: "schedule-later" });
   });
 
   it("never answers an optionless confirmation as free-form text", () => {
@@ -2529,41 +2315,25 @@ describe("toEveInputResponse", () => {
 });
 
 describe("findEveInputRequest", () => {
+  const request = {
+    kind: "question",
+    prompt: "What should the subject line be?",
+    display: "text",
+    allowFreeform: true,
+  } as const satisfies InputRequest;
   const data = {
     messages: [
       {
         id: "a1",
         role: "assistant",
-        parts: [
-          {
-            type: "dynamic-tool",
-            state: "approval-requested",
-            toolCallId: "call_1",
-            toolName: "ask_question",
-            input: {},
-            approval: { id: "req_1" },
-            toolMetadata: {
-              eve: {
-                kind: "tool-call",
-                name: "ask_question",
-                inputRequest: {
-                  requestId: "req_1",
-                  prompt: "What should the subject line be?",
-                  kind: "question",
-                  display: "text",
-                  allowFreeform: true,
-                },
-              },
-            },
-          },
-        ],
+        parts: [toolPart({ interaction: approvalInteraction(request) })],
       },
     ],
-  } satisfies EveMessageData;
+  } satisfies MessageData;
 
   it("finds the input request by approval id", () => {
     expect(findEveInputRequest(data, "req_1")).toMatchObject({
-      requestId: "req_1",
+      prompt: "What should the subject line be?",
       display: "text",
     });
   });
@@ -2572,16 +2342,11 @@ describe("findEveInputRequest", () => {
     expect(findEveInputRequest(data, "req_404")).toBeUndefined();
   });
 
-  it.each([
-    ["carries no input request", { eve: { kind: "tool-call", name: "ask" } }],
-    ["carries no eve tool metadata at all", undefined],
-  ])("returns undefined when the matching part %s", (_label, toolMetadata) => {
-    const part = { ...data.messages[0]!.parts[0]!, toolMetadata };
-    const bare = { messages: [{ ...data.messages[0]!, parts: [part] }] };
-
-    expect(
-      findEveInputRequest(bare as EveMessageData, "req_1"),
-    ).toBeUndefined();
+  it("returns undefined when the matching tool has no interaction", () => {
+    const bare = {
+      messages: [{ id: "a1", role: "assistant", parts: [toolPart()] }],
+    } satisfies MessageData;
+    expect(findEveInputRequest(bare, "req_1")).toBeUndefined();
   });
 });
 
@@ -2590,20 +2355,28 @@ describe("collectInterruptedTurnEvents", () => {
     ({
       type: "turn.started",
       meta: eventMeta(sequence),
-      data: { turnId, sequence },
-    }) as const satisfies MessageStreamEvent;
+      data: {
+        turnId,
+        cause: { deliveryId: `delivery_${turnId}` },
+        follows: null,
+      },
+    }) as const satisfies SessionStreamEvent;
   const failed = (turnId: string, sequence: number) =>
     ({
-      type: "turn.failed",
+      type: "turn.settled",
       meta: eventMeta(sequence),
-      data: { turnId, sequence, code: "internal", message: "boom" },
-    }) as const satisfies MessageStreamEvent;
+      data: {
+        turnId,
+        outcome: "failed",
+        error: { code: "internal", message: "boom" },
+      },
+    }) as const satisfies SessionStreamEvent;
   const cancelled = (turnId: string, sequence: number) =>
     ({
-      type: "turn.cancelled",
+      type: "turn.settled",
       meta: eventMeta(sequence),
-      data: { turnId, sequence },
-    }) as const satisfies MessageStreamEvent;
+      data: { turnId, outcome: "cancelled" },
+    }) as const satisfies SessionStreamEvent;
 
   it("scans only appended events and keeps the array until an interruption arrives", () => {
     const cache: InterruptedTurnEventCache = {
