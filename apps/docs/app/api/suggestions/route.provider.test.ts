@@ -122,10 +122,10 @@ describe("POST /api/suggestions with the real OpenAI provider", () => {
 
     const response = await POST(request());
 
-    expect(response.status).toBe(500);
-    expect(await response.text()).toBe("Request failed");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ suggestions: [] });
     expect(console.error).toHaveBeenCalledWith(
-      "[api/suggestions]",
+      "[api/suggestions] model call failed",
       expect.any(Error),
     );
   });
@@ -137,7 +137,7 @@ describe("POST /api/suggestions with the real OpenAI provider", () => {
       }),
     );
 
-    expect((await POST(request())).status).toBe(500);
+    expect(await (await POST(request())).json()).toEqual({ suggestions: [] });
   });
 
   it("preserves an upstream HTTP error even when its body resembles a success", async () => {
@@ -145,7 +145,23 @@ describe("POST /api/suggestions with the real OpenAI provider", () => {
       Response.json({ success: true, data: completion }, { status: 400 }),
     );
 
-    expect((await POST(request())).status).toBe(500);
+    expect(await (await POST(request())).json()).toEqual({ suggestions: [] });
     expect(mocks.fetch).toHaveBeenCalledOnce();
+  });
+
+  it("returns no suggestions when the gateway is out of quota", async () => {
+    mocks.fetch.mockImplementation(async () =>
+      Response.json(
+        { error: "You have reached your weekly Clinepass limit" },
+        { status: 429, headers: { "retry-after-ms": "0" } },
+      ),
+    );
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(JSON.parse(body)).toEqual({ suggestions: [] });
+    expect(body).not.toMatch(/clinepass|gateway/i);
   });
 });

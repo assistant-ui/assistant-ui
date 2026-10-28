@@ -435,3 +435,38 @@ describe("POST /api/chat generative UI", () => {
     expect(await response.text()).toBe("Single message too long");
   });
 });
+
+describe("POST /api/chat model provider failures", () => {
+  it("streams the usage limit notice instead of the provider's error", async () => {
+    const { APICallError, streamText } = await import("ai");
+    const { MockLanguageModelV4 } = await import("ai/test");
+    const { MODEL_PROVIDER_LIMIT_MESSAGE } =
+      await import("@/lib/public-assistant-errors");
+    allowed();
+    mocks.streamDocsChat.mockImplementation(() => ({
+      result: streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            throw new APICallError({
+              message:
+                "Error 429: You have reached your weekly Clinepass limit.",
+              url: "https://gateway.example.test/v1/responses",
+              requestBodyValues: {},
+              statusCode: 429,
+            });
+          },
+        }),
+        prompt: "hello",
+        maxRetries: 0,
+        onError: () => {},
+      }),
+      messageMetadata: () => undefined,
+    }));
+
+    const body = await (await send({ messages: [message] })).text();
+
+    expect(body).toContain(JSON.stringify(MODEL_PROVIDER_LIMIT_MESSAGE));
+    expect(body).not.toMatch(/clinepass|gateway\.example/i);
+    expect(body).not.toContain("An error occurred.");
+  });
+});

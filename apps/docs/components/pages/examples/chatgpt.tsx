@@ -8,6 +8,7 @@ import {
   AttachmentPrimitive,
   BranchPickerPrimitive,
   ComposerPrimitive,
+  ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
   useAui,
@@ -284,6 +285,11 @@ const AssistantMessage: FC = () => {
             return null;
           }}
         </MessagePrimitive.Parts>
+        <MessagePrimitive.Error>
+          <ErrorPrimitive.Root className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+            <ErrorPrimitive.Message className="line-clamp-3" />
+          </ErrorPrimitive.Root>
+        </MessagePrimitive.Error>
       </div>
 
       <div className="-ml-2 flex items-center pt-1">

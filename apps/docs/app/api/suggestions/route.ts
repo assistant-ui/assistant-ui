@@ -2,6 +2,10 @@ import { getDistinctId } from "@/lib/posthog-server";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { checkFollowUpSuggestionRateLimit } from "@/lib/rate-limit";
 import { resolveChatModel } from "@/lib/ai/provider";
+import {
+  classifyModelProviderError,
+  recordModelProviderFailure,
+} from "@/lib/ai/model-provider-errors";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { parseFollowUpSuggestions } from "@/lib/follow-ups";
 import { generateText } from "ai";
@@ -35,17 +39,26 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const { model, providerOptions } = resolveChatModel();
-    const { text } = await generateText({
-      model,
-      ...(providerOptions ? { providerOptions } : {}),
-      prompt: boundPrompt(prompt),
-      maxOutputTokens: 1024,
-      ...posthogTelemetry({
-        distinctId: getDistinctId(req),
-        spanName: "follow_up_suggestions",
-        source: "follow_up_suggestions",
-      }),
-    });
+    let text: string;
+    try {
+      ({ text } = await generateText({
+        model,
+        ...(providerOptions ? { providerOptions } : {}),
+        prompt: boundPrompt(prompt),
+        maxOutputTokens: 1024,
+        ...posthogTelemetry({
+          distinctId: getDistinctId(req),
+          spanName: "follow_up_suggestions",
+          source: "follow_up_suggestions",
+        }),
+      }));
+    } catch (e) {
+      // Suggestions are optional, so a failed model call shows none rather
+      // than an error next to a reply that may have streamed fine.
+      console.error("[api/suggestions] model call failed", e);
+      if (classifyModelProviderError(e)) recordModelProviderFailure();
+      return Response.json({ suggestions: [] });
+    }
 
     return Response.json({ suggestions: parseFollowUpSuggestions(text, 3) });
   } catch (e) {
