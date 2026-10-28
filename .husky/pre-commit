@@ -1,2 +1,3 @@
+#!/bin/sh
 . "$(dirname "$0")/global-hook"
 CI=true pnpm exec lint-staged
