@@ -62,6 +62,7 @@ const config: KnipConfig = {
     ".": {
       entry: [
         "scripts/build-example-bundle.mjs",
+        "scripts/lib/turbo-build-cache-fixture.mjs",
         "scripts/package-cloud-harness-template.mjs",
         "scripts/prepare-example-bundles.mjs",
       ],
