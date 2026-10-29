@@ -448,8 +448,7 @@ describe("POST /api/chat model provider failures", () => {
         model: new MockLanguageModelV4({
           doStream: async () => {
             throw new APICallError({
-              message:
-                "Error 429: You have reached your weekly Clinepass limit.",
+              message: "Error 429: You have reached your weekly plan limit.",
               url: "https://gateway.example.test/v1/responses",
               requestBodyValues: {},
               statusCode: 429,
@@ -466,7 +465,7 @@ describe("POST /api/chat model provider failures", () => {
     const body = await (await send({ messages: [message] })).text();
 
     expect(body).toContain(JSON.stringify(MODEL_PROVIDER_LIMIT_MESSAGE));
-    expect(body).not.toMatch(/clinepass|gateway\.example/i);
+    expect(body).not.toMatch(/plan limit|gateway\.example/i);
     expect(body).not.toContain("An error occurred.");
   });
 });

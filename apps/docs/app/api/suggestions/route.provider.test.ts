@@ -93,6 +93,9 @@ describe("POST /api/suggestions with the real OpenAI provider", () => {
     expect(mocks.fetch.mock.calls[0]![0]).toBe(
       "https://gateway.test/v1/chat/completions",
     );
+    expect(JSON.parse(String(mocks.fetch.mock.calls[0]![1]?.body)).model).toBe(
+      "deepseek/deepseek-flash",
+    );
   });
 
   it.each([
@@ -152,7 +155,7 @@ describe("POST /api/suggestions with the real OpenAI provider", () => {
   it("returns no suggestions when the gateway is out of quota", async () => {
     mocks.fetch.mockImplementation(async () =>
       Response.json(
-        { error: "You have reached your weekly Clinepass limit" },
+        { error: "You have reached your weekly plan limit" },
         { status: 429, headers: { "retry-after-ms": "0" } },
       ),
     );
@@ -162,6 +165,6 @@ describe("POST /api/suggestions with the real OpenAI provider", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(JSON.parse(body)).toEqual({ suggestions: [] });
-    expect(body).not.toMatch(/clinepass|gateway/i);
+    expect(body).not.toMatch(/plan limit|gateway/i);
   });
 });

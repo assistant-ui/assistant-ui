@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { XULUX_MODEL_ID } from "@/lib/xulux/usage-budget-codes";
 import type { XuluxAgentDefinition } from "./agents";
 
 const mocks = vi.hoisted(() => ({
@@ -329,7 +328,7 @@ describe("createXuluxChatHandler access boundary", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.resolveChatModel).toHaveBeenLastCalledWith({
-      modelName: XULUX_MODEL_ID,
+      modelName: "deepseek/deepseek-flash",
     });
   });
 });
