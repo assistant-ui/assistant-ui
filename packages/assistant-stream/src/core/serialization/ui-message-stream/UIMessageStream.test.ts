@@ -1690,6 +1690,7 @@ describe("UIMessageStreamDecoder tool approvals", () => {
         reason: "Deletes a file",
         approvalDescriptor: { kind: "destructive" },
         inputSchemaInput: { path: "a.txt" },
+        isAutomatic: false,
         signature: "sig",
       },
       { type: "finish", finishReason: "tool-calls" },
@@ -1701,6 +1702,7 @@ describe("UIMessageStreamDecoder tool approvals", () => {
       requestReason: "Deletes a file",
       descriptor: { kind: "destructive" },
       inputSchemaInput: { path: "a.txt" },
+      isAutomatic: false,
       signature: "sig",
     });
   });

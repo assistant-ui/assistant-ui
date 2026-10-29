@@ -35,7 +35,8 @@ const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
     kind: "part-addressed",
     valid: (c) =>
       requiredObject("approval")(c) &&
-      typeof (c["approval"] as ChunkFields)["id"] === "string",
+      requiredString("id")(c["approval"] as ChunkFields) &&
+      optionalBoolean("approved")(c["approval"] as ChunkFields),
   },
   "text-delta": { kind: "part-addressed", valid: requiredString("textDelta") },
   annotations: { kind: "message", valid: requiredArray("annotations") },
