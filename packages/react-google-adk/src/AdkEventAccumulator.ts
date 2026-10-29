@@ -426,10 +426,17 @@ export class AdkEventAccumulator {
         lastAiMessageId !== null
           ? this.messagesMap.get(lastAiMessageId)
           : undefined;
-      this.setErrorStatus(
-        target?.type === "ai" ? target : this.getOrCreateAiMessage(event),
-        errorText,
-      );
+      const message =
+        target?.type === "ai" ? target : this.getOrCreateAiMessage(event);
+      const finishReasonStatus = finishReasonToStatus(event.finishReason);
+      if (
+        finishReasonStatus.type === "incomplete" &&
+        finishReasonStatus.reason !== "error"
+      ) {
+        this.setMessageStatus(message, finishReasonStatus);
+      } else {
+        this.setErrorStatus(message, errorText);
+      }
       this.finalizeCurrentMessage();
       return this.getMessages();
     }
@@ -592,10 +599,17 @@ export class AdkEventAccumulator {
   }
 
   private setErrorStatus(msg: InProgressMessage, error: string): void {
+    this.setMessageStatus(msg, { type: "incomplete", reason: "error", error });
+  }
+
+  private setMessageStatus(
+    msg: InProgressMessage,
+    status: MessageStatus,
+  ): void {
     this.messagesMap.set(msg.id, {
       ...msg,
       content: [...this.getContentArray(msg)],
-      status: { type: "incomplete", reason: "error", error },
+      status,
     });
   }
 

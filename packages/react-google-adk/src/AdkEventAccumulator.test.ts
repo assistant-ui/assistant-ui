@@ -847,6 +847,50 @@ describe("AdkEventAccumulator - finish reasons", () => {
     });
   });
 
+  it.each([
+    {
+      finishReason: "MAX_TOKENS",
+      errorCode: "MAX_TOKENS",
+      errorMessage: "Output token limit reached.",
+      expectedStatus: { type: "incomplete", reason: "length" },
+    },
+    {
+      finishReason: "SAFETY",
+      errorCode: "SAFETY",
+      errorMessage: "Response blocked by safety settings.",
+      expectedStatus: {
+        type: "incomplete",
+        reason: "content-filter",
+        error: "Content filtered: SAFETY",
+      },
+    },
+  ])(
+    "classifies a streamed $finishReason response like its non-streamed form",
+    ({ finishReason, errorCode, errorMessage, expectedStatus }) => {
+      const content = {
+        role: "model",
+        parts: [{ text: "truncated answer" }],
+      };
+      const accumulator = new AdkEventAccumulator();
+      accumulator.processEvent(makeTextEvent("truncated", true));
+      const streamed = accumulator.processEvent(
+        makeEvent({
+          author: "agent",
+          finishReason,
+          errorCode,
+          errorMessage,
+          content,
+        }),
+      );
+      const unstreamed = new AdkEventAccumulator().processEvent(
+        makeEvent({ author: "agent", finishReason, content }),
+      );
+
+      expect(streamed).toEqual(unstreamed);
+      expect(streamed[0]).toMatchObject({ status: expectedStatus });
+    },
+  );
+
   it("sets incomplete/content-filter for SAFETY", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
@@ -872,6 +916,28 @@ describe("AdkEventAccumulator - finish reasons", () => {
     );
     expect(msgs[0]).toMatchObject({
       status: { type: "incomplete", reason: "error" },
+    });
+  });
+
+  it("keeps unrelated content errors even when finishReason is STOP", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        finishReason: "STOP",
+        errorCode: "SERVER_ERROR",
+        errorMessage: "Service unavailable",
+        content: { role: "model", parts: [{ text: "partial" }] },
+      }),
+    );
+
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "partial" }],
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: "Service unavailable",
+      },
     });
   });
 });
