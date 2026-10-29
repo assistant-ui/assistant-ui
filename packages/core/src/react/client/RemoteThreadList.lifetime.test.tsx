@@ -452,9 +452,14 @@ describe("RemoteThreadList body lifetimes", () => {
     },
   );
 
-  it.each([true, false])(
-    "initializes a carried draft on the replacement adapter (backgroundThreads=%s)",
-    async (backgroundThreads) => {
+  it.each([
+    [true, "resolves"],
+    [true, "rejects"],
+    [false, "resolves"],
+    [false, "rejects"],
+  ] as const)(
+    "initializes a carried draft once on the replacement adapter for every caller (backgroundThreads=%s, replaced initialize %s)",
+    async (backgroundThreads, replacedOutcome) => {
       const replaced = deferred<{ remoteId: string }>();
       const setup = mount(
         makeAdapter({ initialize: vi.fn(() => replaced.promise) }),
@@ -463,7 +468,10 @@ describe("RemoteThreadList body lifetimes", () => {
       const threads = setup.handle.getClient().threads;
       await threads.getLoadThreadsPromise();
       const draftId = threads.getState().mainThreadId;
-      const initialization = threads.item({ id: draftId }).initialize();
+      const initializations = [
+        threads.item({ id: draftId }).initialize(),
+        threads.item({ id: draftId }).initialize(),
+      ];
 
       const replacement = makeAdapter({
         initialize: vi.fn(async () => ({ remoteId: "replacement-remote" })),
@@ -474,12 +482,17 @@ describe("RemoteThreadList body lifetimes", () => {
         await setup.handle.getClient().threads.reload();
         expect(replacement.list).toHaveBeenCalled();
       });
-      replaced.resolve({ remoteId: "replaced-remote" });
+      if (replacedOutcome === "resolves") {
+        replaced.resolve({ remoteId: "replaced-remote" });
+      } else {
+        replaced.reject(new Error("replaced backend unavailable"));
+      }
 
-      await expect(initialization).resolves.toEqual({
-        remoteId: "replacement-remote",
-        externalId: undefined,
-      });
+      await expect(Promise.all(initializations)).resolves.toEqual([
+        { remoteId: "replacement-remote", externalId: undefined },
+        { remoteId: "replacement-remote", externalId: undefined },
+      ]);
+      expect(replacement.initialize).toHaveBeenCalledTimes(1);
       expect(replacement.initialize).toHaveBeenCalledWith(draftId);
       await vi.waitFor(() =>
         expect(

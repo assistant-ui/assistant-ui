@@ -1428,10 +1428,17 @@ const useRemoteThreadList = (
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
       // A replacement adapter keeps the thread being initialized as its own
-      // draft, so the caller's send continues on the replacement.
-      const carriedToReplacement = () =>
-        adapterGeneration !== session.adapterGeneration &&
-        store.value.newThreadId === threadId;
+      // draft, which another caller may already be initializing there, so
+      // every caller continues on the replacement. A slot still holding the
+      // awaited task belongs to the replaced adapter.
+      const carriedToReplacement = (task: Promise<unknown>) => {
+        if (adapterGeneration === session.adapterGeneration) return false;
+        const current = getThreadData(store.value, threadId);
+        return (
+          current !== undefined &&
+          (current.status === "new" || current.initializeTask !== task)
+        );
+      };
       if (store.value.newThreadId !== threadId) {
         const data = getThreadData(store.value, threadId);
         if (!data) throw threadNotFoundError(threadId, "initializing it");
@@ -1442,10 +1449,14 @@ const useRemoteThreadList = (
         try {
           result = toInitializeResult(await data.initializeTask);
         } catch (error) {
-          if (carriedToReplacement()) return initializeThread(threadId);
+          if (carriedToReplacement(data.initializeTask)) {
+            return initializeThread(threadId);
+          }
           throw error;
         }
-        if (carriedToReplacement()) return initializeThread(threadId);
+        if (carriedToReplacement(data.initializeTask)) {
+          return initializeThread(threadId);
+        }
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
@@ -1494,10 +1505,14 @@ const useRemoteThreadList = (
         result = await initialization;
       } catch (error) {
         session.pendingAutomaticTitles.delete(threadId);
-        if (carriedToReplacement()) return initializeThread(threadId);
+        if (carriedToReplacement(initializeTask)) {
+          return initializeThread(threadId);
+        }
         throw error;
       }
-      if (carriedToReplacement()) return initializeThread(threadId);
+      if (carriedToReplacement(initializeTask)) {
+        return initializeThread(threadId);
+      }
       requireAdapterGeneration(adapterGeneration);
       if (removedMappingId !== undefined) {
         session.startedIds.delete(removedMappingId);

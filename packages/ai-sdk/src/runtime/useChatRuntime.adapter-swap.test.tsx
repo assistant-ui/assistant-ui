@@ -4,6 +4,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type { AssistantCloud } from "assistant-cloud";
+import { useAui } from "@assistant-ui/store";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
@@ -12,7 +13,8 @@ import { useChatRuntime } from "./useChatRuntime";
 
 const mocks = vi.hoisted(() => {
   const adapters = new Map<object, RemoteThreadListAdapter>();
-  const initializers = new Map<object, () => void>();
+  const initializers = new Map<object, Array<() => void>>();
+  const historyRemoteIds: string[] = [];
   const adapterFor = (cloud: object) => {
     let adapter = adapters.get(cloud);
     if (adapter) return adapter;
@@ -21,12 +23,14 @@ const mocks = vi.hoisted(() => {
       list: async () => ({ threads: [] }),
       initialize: (threadId: string) =>
         new Promise((resolve) => {
-          initializers.set(cloud, () =>
-            resolve({
-              remoteId: `${threadId}-${remoteSuffix}`,
-              externalId: undefined,
-            }),
-          );
+          initializers.set(cloud, [
+            ...(initializers.get(cloud) ?? []),
+            () =>
+              resolve({
+                remoteId: `${threadId}-${remoteSuffix}`,
+                externalId: undefined,
+              }),
+          ]);
         }),
       rename: async () => {},
       archive: async () => {},
@@ -39,12 +43,14 @@ const mocks = vi.hoisted(() => {
         externalId: undefined,
         title: id,
       }),
+      unstable_useAdapters: useCloudHistory,
     };
     adapters.set(cloud, adapter);
     return adapter;
   };
   return {
     initializers,
+    historyRemoteIds,
     useCloudThreadListAdapter: vi.fn(({ cloud }: { cloud: object }) =>
       adapterFor(cloud),
     ),
@@ -55,6 +61,29 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
   useCloudThreadListAdapter: mocks.useCloudThreadListAdapter,
 }));
+
+// Cloud history appends initialize the thread too, so a send has two callers.
+function useCloudHistory() {
+  const aui = useAui();
+  const history = {
+    load: async () => ({ messages: [] }),
+    append: async () => {},
+    withFormat: () => ({
+      load: async () => ({ messages: [] }),
+      append: async () => {
+        const { remoteId } = await aui.threadListItem().initialize();
+        mocks.historyRemoteIds.push(remoteId);
+      },
+      delete: async () => {},
+      reportTelemetry: () => {},
+    }),
+  };
+  return { history };
+}
+
+const resolveInitializers = (cloud: object) => {
+  for (const resolve of mocks.initializers.get(cloud)!) resolve();
+};
 
 const sse = (...chunks: object[]) =>
   new Response(
@@ -98,9 +127,9 @@ describe("useChatRuntime cloud swap", () => {
     await waitFor(() => expect(mocks.initializers.has(anonymous)).toBe(true));
 
     await act(async () => setCloud(account));
-    await act(async () => mocks.initializers.get(anonymous)!());
+    await act(async () => resolveInitializers(anonymous));
     await waitFor(() => expect(mocks.initializers.has(account)).toBe(true));
-    await act(async () => mocks.initializers.get(account)!());
+    await act(async () => resolveInitializers(account));
 
     await waitFor(() =>
       expect(client().thread.getState().isRunning).toBe(false),
@@ -108,6 +137,10 @@ describe("useChatRuntime cloud swap", () => {
     const [, init] = fetch.mock.calls[0]!;
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(JSON.parse(String(init!.body)).id).toMatch(/-1$/);
+    await waitFor(() =>
+      expect(mocks.historyRemoteIds.length).toBeGreaterThan(0),
+    );
+    expect(mocks.historyRemoteIds.every((id) => id.endsWith("-1"))).toBe(true);
     const reply = client().thread.getState().messages.at(-1)!;
     expect(reply.status?.type).toBe("complete");
     expect(reply.content).toMatchObject([{ type: "text", text: "hi" }]);
