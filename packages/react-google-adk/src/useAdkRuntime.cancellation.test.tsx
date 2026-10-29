@@ -397,7 +397,7 @@ describe("useAdkRuntime cancellation", () => {
     await waitFor(() =>
       expect(capture.runtime!.thread.getState().messages.at(-1)).toMatchObject({
         role: "assistant",
-        content: [{ type: "tool-call", result: '{"result":"found"}' }],
+        content: [{ type: "tool-call", result: { result: "found" } }],
       }),
     );
 

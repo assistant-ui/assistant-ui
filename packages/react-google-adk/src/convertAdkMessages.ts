@@ -123,6 +123,14 @@ const contentToParts = (
 
 const EMPTY_APPROVALS: ReadonlyMap<string, AdkToolApproval> = new Map();
 
+const decodeToolResult = (content: string): unknown => {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return content;
+  }
+};
+
 export const createAdkMessageConverter = (
   approvals: ReadonlyMap<string, AdkToolApproval>,
   bufferedReplyIds: ReadonlySet<string> = new Set(),
@@ -212,7 +220,7 @@ export const createAdkMessageConverter = (
           role: "tool",
           toolCallId: message.tool_call_id,
           toolName: message.name,
-          result: message.content,
+          result: decodeToolResult(message.content),
           isError: message.status === "error",
         };
       }

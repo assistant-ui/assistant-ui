@@ -225,7 +225,9 @@ describe("useAdkRuntime tool ownership", () => {
 
     await settle();
 
-    expect(toolCalls(capture.runtime!)[0]!.result).toBe('{"server":"deleted"}');
+    expect(toolCalls(capture.runtime!)[0]!.result).toEqual({
+      server: "deleted",
+    });
     expect(execute).not.toHaveBeenCalled();
   });
 
