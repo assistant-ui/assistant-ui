@@ -54,9 +54,31 @@
       "persistent": true
     },
     "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/examples/with-langgraph/app/api/**/*.ts",
+        "$TURBO_ROOT$/examples/with-nuxt/server/api/**/*.ts",
+        "$TURBO_ROOT$/templates/nuxt/server/api/**/*.ts",
+        "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
+        "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
+        "$TURBO_ROOT$/README.md"
+      ],
       "env": ["REDIS_*"]
     },
     "test:coverage": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/examples/with-langgraph/app/api/**/*.ts",
+        "$TURBO_ROOT$/examples/with-nuxt/server/api/**/*.ts",
+        "$TURBO_ROOT$/templates/nuxt/server/api/**/*.ts",
+        "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
+        "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
+        "$TURBO_ROOT$/README.md"
+      ],
       "env": ["REDIS_*"]
     }
   }
