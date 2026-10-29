@@ -7,7 +7,7 @@ import {
   supportsReasoningEffort,
 } from "@/lib/model";
 
-// Every route behind this resolver is anonymous and rate limited per request,
+// Every route behind this resolver is public and rate limited per request,
 // so the effort a caller may buy with one request stops at medium.
 const MAX_PUBLIC_EFFORT_INDEX = REASONING_EFFORTS.indexOf("medium");
 
@@ -17,9 +17,12 @@ export const openai = createOpenAI({
   fetch: fetchOpenAI,
 });
 
-function resolveRequestedModelId(modelId?: string) {
+function resolveRequestedModelId(
+  modelId: string | undefined,
+  signedIn: boolean,
+) {
   const raw = typeof modelId === "string" ? modelId.trim() : undefined;
-  const id = resolveModelId(raw);
+  const id = resolveModelId(raw, signedIn);
 
   if (raw && raw !== id) {
     console.warn(
@@ -42,7 +45,10 @@ export type ChatModelRequestConfig = {
  * runs at low; one that names an effort also streams reasoning summaries to the
  * client. Other models stay on Chat Completions.
  */
-export function resolveChatModel(config?: unknown) {
+export function resolveChatModel(
+  config?: unknown,
+  { signedIn = false }: { signedIn?: boolean } = {},
+) {
   const requestConfig =
     config && typeof config === "object" && !Array.isArray(config)
       ? (config as ChatModelRequestConfig)
@@ -51,6 +57,7 @@ export function resolveChatModel(config?: unknown) {
     typeof requestConfig?.modelName === "string"
       ? requestConfig.modelName
       : undefined,
+    signedIn,
   );
   const requestedEffort = isReasoningEffort(requestConfig?.reasoningEffort)
     ? requestConfig.reasoningEffort

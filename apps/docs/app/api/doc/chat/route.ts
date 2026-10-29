@@ -9,6 +9,7 @@ import {
 import { source, examples as examplesSource } from "@/lib/source";
 import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { getSession } from "@/lib/accounts-auth";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createRepoSandbox } from "@/lib/repo-sandbox";
@@ -310,9 +311,11 @@ export async function POST(req: Request): Promise<Response> {
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
 
-    const modelConfig = resolveChatModel({
-      modelName: config?.modelName,
-    });
+    const signedIn = (await getSession().catch(() => null)) !== null;
+    const modelConfig = resolveChatModel(
+      { modelName: config?.modelName },
+      { signedIn },
+    );
 
     const repoTools = createRepoTools();
 

@@ -18,8 +18,10 @@ import {
   DEFAULT_MODEL_ID,
   getContextWindow,
   isAvailableModelId,
+  isModelAllowed,
   supportsReasoningEffort,
 } from "@/lib/model";
+import { useSession } from "@/lib/session";
 import {
   createPersistedPreference,
   usePersistedPreference,
@@ -54,14 +56,18 @@ export function Composer(): ReactNode {
   });
   const model = usePersistedPreference(homeModelPreference);
   const effort = usePersistedPreference(homeEffortPreference);
+  const signedIn = useSession().status === "signed-in";
+  const selectedModel = isModelAllowed(model, signedIn)
+    ? model
+    : DEFAULT_MODEL_ID;
   const models = useMemo(
     () =>
-      docsModelOptions().map((option) =>
+      docsModelOptions({ signedIn }).map((option) =>
         supportsReasoningEffort(option.id)
           ? { ...option, efforts: HOME_EFFORT_OPTIONS }
           : option,
       ),
-    [],
+    [signedIn],
   );
 
   return (
@@ -102,7 +108,7 @@ export function Composer(): ReactNode {
                 </ComposerPrimitive.AddAttachment>
                 <ModelSelector
                   models={models}
-                  value={model}
+                  value={selectedModel}
                   onValueChange={homeModelPreference.set}
                   effort={effort}
                   onEffortChange={homeEffortPreference.set}
@@ -113,7 +119,7 @@ export function Composer(): ReactNode {
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <ContextDisplay.Text
-                  modelContextWindow={getContextWindow(model)}
+                  modelContextWindow={getContextWindow(selectedModel)}
                   side="top"
                   className="text-muted-foreground hover:text-foreground rounded-control h-7 px-2 text-[11px] hover:bg-transparent"
                 />
