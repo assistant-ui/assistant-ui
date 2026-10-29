@@ -22,6 +22,7 @@ import {
 import jsonpatch, { type Operation } from "fast-json-patch";
 import { readMcpAppResourceUri, toolContentText } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
+import { withAgUiPartMessageMetadata } from "./conversions";
 import {
   AG_UI_METADATA_NAMESPACE,
   A2UI_SURFACE_ACTIVITY_TYPE,
@@ -93,6 +94,7 @@ type ToolCallState = {
   mcpAppServerId?: string;
   artifact?: unknown;
   modelContent?: ToolModelContentPart[];
+  resultMetadata?: Record<string, unknown>;
   snapshotResultApplied: boolean;
   subagentRunId?: string;
 };
@@ -494,6 +496,7 @@ export class RunAggregator {
               : undefined,
           event.messageId,
           event.mcpResult,
+          event.metadata,
         );
         this.emit();
         break;
@@ -1098,6 +1101,7 @@ export class RunAggregator {
     isError?: boolean,
     toolMessageId?: string,
     mcpResult?: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
   ) {
     if (!id) return;
     const modelText = toolContentText(content);
@@ -1148,6 +1152,9 @@ export class RunAggregator {
     }
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
+    }
+    if (metadata !== undefined) {
+      entry.resultMetadata = { ...entry.resultMetadata, ...metadata };
     }
     this.lastResolvedToolCallIdByScope.set(scope, id);
   }
@@ -1298,6 +1305,14 @@ export class RunAggregator {
           ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
           ...(entry.toolMessageId
             ? { unstable_toolMessageId: entry.toolMessageId }
+            : {}),
+          ...(entry.resultMetadata !== undefined
+            ? {
+                providerMetadata: withAgUiPartMessageMetadata(
+                  undefined,
+                  entry.resultMetadata,
+                ),
+              }
             : {}),
           ...(nestedMessages.length > 0 ? { messages: nestedMessages } : {}),
         } as ToolCallMessagePart & { unstable_toolMessageId?: string };

@@ -1,9 +1,9 @@
 ---
 title: Audit log
-description: See the configuration and data changes made in a project, who made them and the fields that changed.
+description: See the configuration and data changes made in a project, who viewed or exported conversations, and when.
 ---
 
-The audit log records project configuration and data changes made through the dashboard and the API. **Settings › Audit log** is available to owners and admins. Each entry preserves the actor and the change even when the resource it refers to has later been deleted.
+The audit log records project configuration and data changes made through the dashboard and the API, and who viewed or exported conversation content. **Settings › Audit log** is available to owners and admins. Each entry preserves the actor and the change even when the resource it refers to has later been deleted.
 
 ## What an entry records
 
@@ -35,7 +35,9 @@ Values whose field name matches `api_key`, `credentials`, `secret`, `sha256` or 
 | `intelligence_request` | `intelligence.request` |
 | `task` | `task.skill.create`, `task.skill.publish`, `task.skill.update`, `task.skill.unpublish` |
 | `score` | `score.create`, `score.update` |
-| `user` | `user.erase` |
+| `user` | `user.erase`, `user.exported` |
+| `thread` | `thread.viewed`, `thread.exported` |
+| `run` | `run.exported` |
 
 Dashboard changes made by a signed in person are recorded with actor type `user`, their session user id and their email when it is available, otherwise their name. The log stores that label at write time. It can also hold `api_key` and `system` actor types.
 
@@ -44,6 +46,24 @@ Dashboard changes made by a signed in person are recorded with actor type `user`
 Use the resource filter to choose one of the resource types above. The actor filter is a single choice list of actors with their captured labels and entry counts. The page reads the selected resource from the URL and validates it before loading results.
 
 Entries are newest first. Each page returns 50 entries and uses a keyset cursor of the last entry's creation time and id. **Load more** asks for the next page only when a 51st entry exists.
+
+## Views and exports
+
+Reads of conversation content are recorded so you can tell who saw a thread and when:
+
+| Action | Written when | Actor |
+|---|---|---|
+| `thread.viewed` | A person opens a thread's messages in the dashboard: the thread page, a run's thread, the dashboard assistant, or loading more messages | The person |
+| `thread.viewed` | An API key reads a thread's messages through `GET /v1/projects/threads/{thread_id}/messages` or the MCP `get_thread` tool | The API key's id and name |
+| `thread.exported`, `run.exported`, `user.exported` | Someone downloads the Threads, Runs or Users export: one entry per page of the download, written before that page is sent | The person |
+
+A `thread.viewed` entry names the thread as its resource id, and its after value says where the read came from: `dashboard`, `api` or `mcp`. Reads of one thread by the same actor within five minutes share one entry whatever channel they came through, so paging through messages, refreshing or polling the API leaves one row. That entry keeps the channel of the first read: an API key that reads a thread through `api` and then `mcp` within five minutes has one entry with `api`. A read after that adds another.
+
+An export entry's after value holds the ids of the threads, runs or users on its page (`ids`), the format, the filters used (including any search text), the page number, and an `export_id` shared by every page of one download. A cancelled download is recorded up to the page it reached, and an export that matched nothing still writes one entry with no ids.
+
+Lists of threads, runs or users show titles and counts, not message content, and are not recorded. Your end users reading their own threads through the client API are not recorded either.
+
+The resource filter selects a resource type, so filtering by `thread` lists views and exports for every thread in the project. To see who viewed one thread, look for its id as the resource id of a `thread.viewed` entry, or in the `ids` of a `thread.exported` entry.
 
 ## User erasure
 
@@ -60,4 +80,5 @@ The Overview chart uses a separate configuration marker read, not the full audit
 | An entry records a change you did not make. | The entry records the authenticated actor and the changed fields at the time of the operation. | Filter by the resource and actor, then compare the actor label, action and before and after values. |
 | A secret or API key value is missing. | Fields named `api_key`, `credentials`, `secret`, `sha256` or `suffix` are redacted. | Use the audit log to confirm the operation, not to recover the secret. |
 | An actor appears as an email address. | Dashboard user actions use the session email as the actor label when one is available. | Treat the email as the identity label captured for that entry. |
+| Opening a thread twice shows one `thread.viewed` entry. | Reads of the same thread by the same actor within five minutes share an entry. | Look at the entry time; a read after five minutes adds another entry. |
 | A change appears on Overview but not in the current audit log results. | Overview reads configuration markers separately, and the audit log may be filtered or on a later page. | Clear the resource or actor filter, then load more entries. |

@@ -8,6 +8,7 @@ import {
   type KnownModelId,
 } from "@/lib/model";
 import { analytics } from "@/lib/analytics";
+import { useSession } from "@/lib/session";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
   AuiIf,
@@ -81,21 +82,24 @@ export function useSharedDocsModelSelection(): {
 } {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
+  const sessionStatus = useSession().status;
+  const signedIn = sessionStatus === "signed-in";
 
   useEffect(() => {
-    if (!threadId) return;
+    if (!threadId || sessionStatus === "loading") return;
 
     let nextModelName = DEFAULT_MODEL_ID;
     try {
       nextModelName = resolveModelId(
         aui.thread.getModelContext()?.config?.modelName,
+        signedIn,
       );
     } catch {
       // ignore
     }
 
     setSharedDocsModelName(nextModelName);
-  }, [aui, threadId]);
+  }, [aui, threadId, sessionStatus, signedIn]);
 
   const modelValue = useSyncExternalStore(
     subscribeModelStore,
@@ -103,9 +107,12 @@ export function useSharedDocsModelSelection(): {
     () => DEFAULT_MODEL_ID,
   );
 
-  const onModelChange = useCallback((value: string) => {
-    setSharedDocsModelName(resolveModelId(value));
-  }, []);
+  const onModelChange = useCallback(
+    (value: string) => {
+      setSharedDocsModelName(resolveModelId(value, signedIn));
+    },
+    [signedIn],
+  );
 
   return { modelValue, onModelChange };
 }

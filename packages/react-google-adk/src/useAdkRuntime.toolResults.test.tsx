@@ -259,7 +259,7 @@ describe("useAdkRuntime tool result batching", () => {
     );
     expect(requests).toHaveLength(1);
     expect(call()).toMatchObject({
-      result: '{"value":"c1"}',
+      result: { value: "c1" },
       responseDeliveryStatus: "queued",
     });
 
@@ -559,7 +559,7 @@ describe("useAdkRuntime tool result batching", () => {
         )
         .find((part) => part.type === "tool-call" && part.toolCallId === "c1");
     await waitFor(() =>
-      expect(heldResult()).toMatchObject({ result: '{"value":"c1"}' }),
+      expect(heldResult()).toMatchObject({ result: { value: "c1" } }),
     );
 
     act(() =>
@@ -581,7 +581,7 @@ describe("useAdkRuntime tool result batching", () => {
           ),
       ).toBe(true),
     );
-    expect(heldResult()).toMatchObject({ result: '{"value":"c1"}' });
+    expect(heldResult()).toMatchObject({ result: { value: "c1" } });
   });
 
   it("sends a buffered answer before a new user message", async () => {

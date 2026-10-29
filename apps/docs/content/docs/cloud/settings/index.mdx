@@ -20,7 +20,7 @@ Settings apply per project and are grouped on the left of **Settings** into Proj
 | Features | Intelligence | The analysis of conversations into topics, tasks and signals | [Intelligence](/docs/cloud/intelligence) |
 | Features | Evaluators | Model judges that score a sample of new conversations | [Evaluators](/docs/cloud/evaluators) |
 | Features | Alerts | Rules that watch one metric an hour and deliver a signed webhook | [Alerts](/docs/cloud/settings/alerts) |
-| Record | Audit log | Every change, who made it and the fields before and after | [Audit log](/docs/cloud/settings/audit-log) |
+| Record | Audit log | Every change, who made it and the fields before and after; who viewed or exported threads, runs and users | [Audit log](/docs/cloud/settings/audit-log) |
 
 **Billing** and **Usage** sit under Project in the sidebar rather than under Settings; they are on [Billing](/docs/cloud/settings/billing). **LLM providers**, **Assistants** and **Harnesses** are under Build and have their own pages in [Cloud features](/docs/cloud/llm-providers).
 
@@ -34,4 +34,4 @@ A change on the demo project is refused with *The demo is read only*.
 
 ## What the audit log records
 
-Every write made through the dashboard writes one audit entry: the actor, the action, the resource and the fields that changed, before and after. Credentials, secrets and key material are redacted by name before the entry is written, so an API key, a provider credential or a webhook secret never appears in the log. A user erasure made through the API with a key is recorded there too, with the key as the actor. [Audit log](/docs/cloud/settings/audit-log) lists every resource and action.
+Every write made through the dashboard writes one audit entry: the actor, the action, the resource and the fields that changed, before and after. Credentials, secrets and key material are redacted by name before the entry is written, so an API key, a provider credential or a webhook secret never appears in the log. A user erasure made through the API with a key is recorded there too, with the key as the actor. Reads of conversation content are recorded as well: a thread viewed in the dashboard or read with an API key, and every page of a Threads, Runs or Users export. [Audit log](/docs/cloud/settings/audit-log) lists every resource and action.

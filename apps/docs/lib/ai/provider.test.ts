@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   chat: vi.fn((id: string) => ({ api: "chat", id })),
   responses: vi.fn((id: string) => ({ api: "responses", id })),
-  reasoningModelId: "reasoning-model",
 }));
 
 vi.mock("@ai-sdk/openai", async (importOriginal) => ({
@@ -11,21 +10,10 @@ vi.mock("@ai-sdk/openai", async (importOriginal) => ({
   createOpenAI: () => ({ chat: mocks.chat, responses: mocks.responses }),
 }));
 
-vi.mock("../model", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../model")>();
-  return {
-    ...actual,
-    resolveModelId: (input: string | undefined) =>
-      input === mocks.reasoningModelId ? input : actual.resolveModelId(input),
-    supportsReasoningEffort: (id: string) =>
-      id === mocks.reasoningModelId || actual.supportsReasoningEffort(id),
-  };
-});
-
 import { DEFAULT_MODEL_ID } from "../model";
 import { resolveChatModel } from "./provider";
 
-const REASONING_MODEL_ID = mocks.reasoningModelId;
+const REASONING_MODEL_ID = "gpt-6-luna";
 
 describe("resolveChatModel", () => {
   it("runs the default model on Chat Completions", () => {
@@ -37,7 +25,9 @@ describe("resolveChatModel", () => {
   });
 
   it("runs a reasoning model through the Responses API when no effort is requested", () => {
-    expect(resolveChatModel({ modelName: REASONING_MODEL_ID })).toEqual({
+    expect(
+      resolveChatModel({ modelName: REASONING_MODEL_ID }, { signedIn: true }),
+    ).toEqual({
       model: { api: "responses", id: REASONING_MODEL_ID },
       providerOptions: {
         openai: {
@@ -52,10 +42,13 @@ describe("resolveChatModel", () => {
 
   it("runs a reasoning model through the Responses API at the requested effort", () => {
     expect(
-      resolveChatModel({
-        modelName: REASONING_MODEL_ID,
-        reasoningEffort: "medium",
-      }),
+      resolveChatModel(
+        {
+          modelName: REASONING_MODEL_ID,
+          reasoningEffort: "medium",
+        },
+        { signedIn: true },
+      ),
     ).toEqual({
       model: { api: "responses", id: REASONING_MODEL_ID },
       providerOptions: {
@@ -72,10 +65,13 @@ describe("resolveChatModel", () => {
   it("clamps the effort a public caller can request to medium", () => {
     for (const effort of ["high", "xhigh"]) {
       expect(
-        resolveChatModel({
-          modelName: REASONING_MODEL_ID,
-          reasoningEffort: effort,
-        }).providerOptions?.openai.reasoningEffort,
+        resolveChatModel(
+          {
+            modelName: REASONING_MODEL_ID,
+            reasoningEffort: effort,
+          },
+          { signedIn: true },
+        ).providerOptions?.openai.reasoningEffort,
       ).toBe("medium");
     }
   });
@@ -89,11 +85,11 @@ describe("resolveChatModel", () => {
   it("keeps models without reasoning on Chat Completions", () => {
     expect(
       resolveChatModel({
-        modelName: "moonshotai/kimi-k3",
+        modelName: "deepseek/deepseek-flash",
         reasoningEffort: "high",
       }),
     ).toEqual({
-      model: { api: "chat", id: "moonshotai/kimi-k3" },
+      model: { api: "chat", id: "deepseek/deepseek-flash" },
       providerOptions: undefined,
       reasoning: false,
     });
@@ -109,6 +105,14 @@ describe("resolveChatModel", () => {
     expect(resolveChatModel({ modelName: "gpt-4.1-mini" }).model).toEqual({
       api: "chat",
       id: DEFAULT_MODEL_ID,
+    });
+  });
+
+  it("uses the default on Chat Completions for an anonymous gated request", () => {
+    expect(resolveChatModel({ modelName: REASONING_MODEL_ID })).toEqual({
+      model: { api: "chat", id: DEFAULT_MODEL_ID },
+      providerOptions: undefined,
+      reasoning: false,
     });
   });
 

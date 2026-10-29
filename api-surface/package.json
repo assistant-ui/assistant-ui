@@ -32,7 +32,7 @@
     "ink": "^8.0.0",
     "ink-spinner": "^5.0.0",
     "ioredis": "^6.0.0",
-    "lexical": "^0.52.0",
+    "lexical": "^0.53.0",
     "markdansi": "^0.3.7",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",

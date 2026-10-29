@@ -1,35 +1,38 @@
 export const MODELS = [
   {
     name: "DeepSeek V4.1 Flash",
-    value: "deepseek-v4.1-flash",
+    value: "deepseek/deepseek-flash",
     provider: "DeepSeek",
     icon: "/icons/deepseek.svg",
     disabled: false,
     contextWindow: 1_000_000,
   },
   {
-    name: "Kimi K3",
-    value: "moonshotai/kimi-k3",
-    provider: "Moonshot AI",
-    icon: "/icons/kimi.svg",
+    name: "GPT-6 Luna",
+    value: "gpt-6-luna",
+    provider: "OpenAI",
+    icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 1_048_576,
+    contextWindow: 1_050_000,
+    reasoning: true,
+    signInRequired: true,
   },
   {
-    name: "GLM-5.3",
-    value: "z-ai/glm-5.3",
+    name: "Claude Haiku 5.5",
+    value: "anthropic/claude-haiku-5-5",
+    provider: "Anthropic",
+    icon: "/icons/anthropic.svg",
+    disabled: false,
+    contextWindow: 1_000_000,
+    signInRequired: true,
+  },
+  {
+    name: "GLM-5.3-Flash",
+    value: "zai/glm-5.3-flash",
     provider: "Z.ai",
     icon: "/icons/zai.svg",
     disabled: false,
-    contextWindow: 1_048_576,
-  },
-  {
-    name: "MiMo-V2.6-Pro",
-    value: "xiaomi/mimo-v2.6-pro",
-    provider: "Xiaomi",
-    icon: "/icons/xiaomimimo.svg",
-    disabled: false,
-    contextWindow: 1_050_000,
+    contextWindow: 1_000_000,
   },
 ] as const;
 
@@ -79,7 +82,22 @@ export function isAvailableModelId(id: string): id is KnownModelId {
   return AVAILABLE_MODEL_IDS.has(id as KnownModelId);
 }
 
-export function resolveModelId(input: string | undefined): KnownModelId {
+export function isModelAllowed(
+  id: string,
+  signedIn: boolean,
+): id is KnownModelId {
+  if (!isAvailableModelId(id)) return false;
+  const model = MODELS.find((model) => model.value === id);
+  return (
+    model !== undefined &&
+    (!("signInRequired" in model) || !model.signInRequired || signedIn)
+  );
+}
+
+export function resolveModelId(
+  input: string | undefined,
+  signedIn: boolean,
+): KnownModelId {
   const raw = typeof input === "string" ? input.trim() : "";
-  return raw && isAvailableModelId(raw) ? raw : DEFAULT_MODEL_ID;
+  return raw && isModelAllowed(raw, signedIn) ? raw : DEFAULT_MODEL_ID;
 }

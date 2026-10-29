@@ -65,6 +65,7 @@ import {
   fromAgUiMessages,
   toAgUiMessages,
   toAgUiTools,
+  withAgUiPartMessageMetadata,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 import {
@@ -2140,7 +2141,7 @@ export class AgUiThreadController {
         try {
           runAgentInstance.messages = input.messages;
           runAgentInstance.threadId = input.threadId;
-          runAgentInstance.state = input.state ?? null;
+          runAgentInstance.state = input.state;
         } catch {
           // ignore
         }
@@ -2355,7 +2356,8 @@ export class AgUiThreadController {
     const input = {
       threadId,
       runId,
-      state: this.state.stateSnapshot ?? null,
+      state:
+        this.state.stateSnapshot === undefined ? {} : this.state.stateSnapshot,
       messages,
       tools: toAgUiTools(context?.tools),
       context: [
@@ -3027,6 +3029,14 @@ export class AgUiThreadController {
             ...(event.messageId
               ? { unstable_toolMessageId: event.messageId }
               : {}),
+            ...(event.metadata !== undefined
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    part.providerMetadata,
+                    event.metadata,
+                  ),
+                }
+              : {}),
           };
         }
         const { modelContent: _modelContent, ...partWithoutModelContent } =
@@ -3052,6 +3062,14 @@ export class AgUiThreadController {
             : {}),
           ...(event.messageId
             ? { unstable_toolMessageId: event.messageId }
+            : {}),
+          ...(event.metadata !== undefined
+            ? {
+                providerMetadata: withAgUiPartMessageMetadata(
+                  part.providerMetadata,
+                  event.metadata,
+                ),
+              }
             : {}),
         };
       });
