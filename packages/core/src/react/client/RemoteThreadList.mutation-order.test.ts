@@ -239,6 +239,61 @@ describe("RemoteThreadList thread mutations", () => {
     }
   });
 
+  it("shows the server status after archive, unarchive, archive", async () => {
+    let server: "regular" | "archived" = "regular";
+    const calls: string[] = [];
+    const firstArchive = deferred();
+    const firstArchiveStarted = deferred();
+    const { handle, threads } = await mount({
+      list: vi.fn(async () => ({
+        threads: [{ remoteId: "a", status: "regular" as const, title: "a" }],
+      })),
+      archive: vi.fn(async () => {
+        calls.push("archive");
+        if (calls.length === 1) {
+          firstArchiveStarted.resolve();
+          await firstArchive.promise;
+        }
+        server = "archived";
+      }),
+      unarchive: vi.fn(async () => {
+        calls.push("unarchive");
+        server = "regular";
+      }),
+    });
+    const actions = threads.__internal_getRawActions!();
+    try {
+      const first = actions.archive("a");
+      let unarchived: Promise<void> | undefined;
+      let resolveUnarchiveScheduled!: () => void;
+      const unarchiveScheduled = new Promise<void>((resolve) => {
+        resolveUnarchiveScheduled = resolve;
+      });
+      queueMicrotask(() => {
+        unarchived = actions.unarchive("a");
+        resolveUnarchiveScheduled();
+      });
+      const second = actions.archive("a");
+      await unarchiveScheduled;
+      await firstArchiveStarted.promise;
+      firstArchive.resolve();
+      await Promise.all([first, second, unarchived!]);
+      flushTapSync(() => {});
+      expect(calls).toEqual(["archive", "archive", "unarchive"]);
+      expect({
+        shown: threads.item({ id: "a" }).getState().status,
+        server,
+        calls,
+      }).toEqual({
+        shown: "regular",
+        server: "regular",
+        calls: ["archive", "archive", "unarchive"],
+      });
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("sends mutations for different threads concurrently", async () => {
     const first = deferred();
     const { adapter, handle, threads } = await mount({
