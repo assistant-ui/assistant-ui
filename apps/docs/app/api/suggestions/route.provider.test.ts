@@ -50,7 +50,7 @@ const completion = {
   id: "chatcmpl-test",
   object: "chat.completion",
   created: 1_700_000_000,
-  model: "deepseek-v4.1-flash",
+  model: "deepseek/deepseek-flash",
   choices: [
     {
       index: 0,
