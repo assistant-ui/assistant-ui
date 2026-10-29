@@ -317,6 +317,7 @@ export class AdkEventAccumulator {
     if (errorText !== undefined && !parts?.length) {
       this.finalizeCurrentMessage();
       this.setErrorStatus(this.getOrCreateAiMessage(event), errorText);
+      this.finalizeCurrentMessage();
       return this.getMessages();
     }
 
@@ -410,8 +411,10 @@ export class AdkEventAccumulator {
         });
       }
     }
+    let lastAiMessageId: string | null = null;
     for (const [index, part] of parts.entries()) {
       this.processPart(part, event, index);
+      if (this.currentMessageId) lastAiMessageId = this.currentMessageId;
     }
 
     // Track per-message metadata (grounding, citation, usage)
@@ -419,7 +422,14 @@ export class AdkEventAccumulator {
 
     // An error event that carries content is the final response it cut off, so its parts settle the streamed message like any final response.
     if (errorText !== undefined) {
-      this.setErrorStatus(this.getOrCreateAiMessage(event), errorText);
+      const target =
+        lastAiMessageId !== null
+          ? this.messagesMap.get(lastAiMessageId)
+          : undefined;
+      this.setErrorStatus(
+        target?.type === "ai" ? target : this.getOrCreateAiMessage(event),
+        errorText,
+      );
       this.finalizeCurrentMessage();
       return this.getMessages();
     }
