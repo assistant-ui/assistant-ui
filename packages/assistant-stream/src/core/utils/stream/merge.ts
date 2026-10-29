@@ -173,21 +173,25 @@ export const createMergeStream = () => {
   };
 
   const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
-    // A step or message boundary, or an error, waits for the part chunks
-    // written before it; everything enqueued or added after it waits in turn.
-    const isMessageLevel =
+    // Part starts and message-level boundaries wait for earlier writes; later chunks wait for them.
+    const waitForPartWrites =
+      chunk.type === "part-start" ||
       chunk.type === "step-finish" ||
       chunk.type === "message-finish" ||
       chunk.type === "error";
     // Active child reads split raw batches to preserve microtask ordering.
-    if (list.length > 0 || isMessageLevel) rawChunkBatch = undefined;
+    if (list.length > 0 || waitForPartWrites) {
+      rawChunkBatch = undefined;
+    }
 
     if (!rawChunkBatch) {
       const batch: AssistantStreamChunk[] = [];
       rawChunkBatch = batch;
       pendingRawBatches++;
       const previous = rawBarrier;
-      const parts = isMessageLevel ? list.filter((item) => item.written) : [];
+      const parts = waitForPartWrites
+        ? list.filter((item) => item.written)
+        : [];
       const flushed =
         previous || parts.length > 0 ? promiseWithResolvers<void>() : undefined;
       const reached = flushed
@@ -221,7 +225,7 @@ export const createMergeStream = () => {
     }
 
     rawChunkBatch.push(chunk);
-    if (isMessageLevel) rawChunkBatch = undefined;
+    if (waitForPartWrites) rawChunkBatch = undefined;
   };
 
   const addStream = (
