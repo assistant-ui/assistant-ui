@@ -97,6 +97,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
       {
         type: "MESSAGES_SNAPSHOT",
         messages: [
+          { id: "history", role: "assistant", content: "previous answer" },
           { id: "answer", role: "assistant", content: "snapshot answer" },
         ],
       },
@@ -108,7 +109,10 @@ describe("AgUiThreadController HTTP stream closure", () => {
     expect(core.getMessages().at(-1)).toMatchObject({
       id: "answer",
       content: [{ type: "text", text: "snapshot answer" }],
+      status: { type: "incomplete", reason: "error" },
     });
-    expect(core.getMessages().at(-1)?.status?.type).not.toBe("running");
+    expect(
+      core.getMessages().find((message) => message.id === "history")?.status,
+    ).toMatchObject({ type: "complete" });
   });
 });

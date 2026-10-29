@@ -634,7 +634,7 @@ describe("AGUIThreadRuntimeCore", () => {
             ],
           },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
       }),
     } as unknown as HttpAgent;
 

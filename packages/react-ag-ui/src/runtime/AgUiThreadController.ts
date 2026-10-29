@@ -3185,8 +3185,16 @@ export class AgUiThreadController {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
+          const previous = message.id
+            ? this.session.tryGetMessage(message.id)?.message
+            : undefined;
+          const fallbackStatus =
+            previous?.role === "assistant" &&
+            previous.status?.type === "running"
+              ? previous.status
+              : FALLBACK_USER_STATUS;
           converted.push(
-            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
+            fromThreadMessageLike(message, generateId(), fallbackStatus),
           );
         } catch (error) {
           this.logger.error?.(
