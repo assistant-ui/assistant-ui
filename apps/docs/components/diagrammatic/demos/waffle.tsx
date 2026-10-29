@@ -30,4 +30,22 @@ export const examples: DemoExample[] = [
       </FigTooltip>
     ),
   },
+  {
+    title: "A budget split on a hex waffle",
+    setup:
+      "A household divides every budget dollar among spending, money still available, and savings. Each hexagon represents one percent of the budget.",
+    read: "Of 100 cells, 52 are spent, 33 remain available, and 15 are saved.",
+    chart: (
+      <Waffle
+        mark="hex"
+        title="Budget split"
+        items={[
+          { label: "spent", value: 52 },
+          { label: "remaining", value: 33 },
+          { label: "saved", value: 15 },
+        ]}
+      />
+    ),
+    source: "Illustrative household budget.",
+  },
 ];
