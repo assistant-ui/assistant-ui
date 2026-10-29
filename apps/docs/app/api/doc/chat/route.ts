@@ -311,7 +311,7 @@ export async function POST(req: Request): Promise<Response> {
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
 
-    const signedIn = (await getSession()) !== null;
+    const signedIn = (await getSession().catch(() => null)) !== null;
     const modelConfig = resolveChatModel(
       { modelName: config?.modelName },
       { signedIn },

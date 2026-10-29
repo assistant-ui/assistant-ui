@@ -185,6 +185,50 @@ describe("POST /api/doc/chat access boundary", () => {
       { signedIn: true },
     );
   });
+
+  const askThread = (config?: { modelName: string }) =>
+    POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "How do I use Thread?" }],
+            },
+          ],
+          tools: {},
+          ...(config ? { config } : {}),
+        }),
+      }),
+    );
+
+  it.each([
+    ["without an account session", () => undefined],
+    [
+      "when the account session read fails",
+      () =>
+        mocks.getSession.mockRejectedValueOnce(
+          new Error("accounts unavailable"),
+        ),
+    ],
+  ])("selects the model as signed out %s", async (_name, arrange) => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    arrange();
+
+    await askThread({ modelName: "gpt-6-luna" });
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: false },
+    );
+  });
 });
 
 describe("withReadDocSources", () => {

@@ -118,7 +118,7 @@ export async function POST(req: Request) {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return withCors(req, toolsError);
 
-    const signedIn = (await getSession()) !== null;
+    const signedIn = (await getSession().catch(() => null)) !== null;
     const modelConfig = resolveChatModel(config, { signedIn });
     const origin = new URL(req.url).origin;
 

@@ -314,6 +314,41 @@ describe("POST /api/chat generative UI", () => {
     );
   });
 
+  it("selects the model as signed out without an account session", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send({
+        messages: [message],
+        config: { modelName: "gpt-6-luna" },
+      })
+    ).text();
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: false },
+    );
+  });
+
+  it("selects the model as signed out when the account session read fails", async () => {
+    allowed();
+    streamed();
+    mocks.getSession.mockRejectedValueOnce(new Error("accounts unavailable"));
+
+    const response = await send({
+      messages: [message],
+      config: { modelName: "gpt-6-luna" },
+    });
+    await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: false },
+    );
+  });
+
   it("gives image search only to a client that renders specs", async () => {
     allowed();
     streamed();

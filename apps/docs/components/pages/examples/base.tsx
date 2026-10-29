@@ -86,7 +86,7 @@ import {
 import Image from "next/image";
 import { Suspense, useState, type FC, type ReactNode } from "react";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
-import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
+import { useDocsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/lib/model";
 
 const Logo: FC<{ collapsed?: boolean }> = ({ collapsed = false }) => {
@@ -109,9 +109,8 @@ const Logo: FC<{ collapsed?: boolean }> = ({ collapsed = false }) => {
   );
 };
 
-const models = docsModelOptions({ signedIn: true });
-
 const ModelPicker: FC = () => {
+  const models = useDocsModelOptions();
   return (
     <ModelSelector
       models={models}

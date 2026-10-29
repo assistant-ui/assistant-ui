@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import Image from "next/image";
 import { MODELS } from "@/lib/model";
+import { useSession } from "@/lib/session";
 
 export function docsModelOptions({ signedIn }: { signedIn: boolean }) {
   return MODELS.map((model) => {
@@ -21,4 +23,9 @@ export function docsModelOptions({ signedIn }: { signedIn: boolean }) {
       ...(locked ? { description: "Sign in to use" } : undefined),
     };
   });
+}
+
+export function useDocsModelOptions() {
+  const signedIn = useSession().status === "signed-in";
+  return useMemo(() => docsModelOptions({ signedIn }), [signedIn]);
 }
