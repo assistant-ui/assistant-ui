@@ -425,11 +425,6 @@ const handleStepStart = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "step-start" },
 ): AssistantMessage => {
-  // The UI message stream opens its first step twice under one message id,
-  // once for `start` and once for `start-step`.
-  const lastStep = message.metadata.steps.at(-1);
-  if (lastStep?.state === "started" && lastStep.messageId === chunk.messageId)
-    return message;
   return {
     ...message,
     metadata: {

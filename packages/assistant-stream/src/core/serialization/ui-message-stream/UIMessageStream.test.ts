@@ -439,6 +439,35 @@ describe("UIMessageStreamDecoder", () => {
     expect(stepFinish?.isContinued).toBe(false);
   });
 
+  it("records the step `start` opens once and each later step on its own", async () => {
+    const textFrames = (id: string) => [
+      { type: "text-start", id },
+      { type: "text-delta", id, delta: id },
+      { type: "text-end", id },
+    ];
+    const events = [
+      { type: "start", messageId: "msg_1" },
+      { type: "start-step" },
+      ...textFrames("a"),
+      { type: "finish-step" },
+      { type: "start-step" },
+      ...textFrames("b"),
+      { type: "finish-step" },
+      { type: "finish", finishReason: "stop" },
+    ].map((event) => JSON.stringify(event));
+
+    const messages = await collectChunks(
+      createUIMessageStream([...events, "[DONE]"])
+        .pipeThrough(new UIMessageStreamDecoder())
+        .pipeThrough(new AssistantMessageAccumulator()),
+    );
+
+    expect(messages.at(-1)!.metadata.steps).toEqual([
+      expect.objectContaining({ state: "finished", messageId: "msg_1" }),
+      expect.objectContaining({ state: "finished", messageId: "msg_1" }),
+    ]);
+  });
+
   it("should handle the stock v6 lifecycle with bare step chunks", async () => {
     const events = [
       JSON.stringify({ type: "start" }),
@@ -459,9 +488,8 @@ describe("UIMessageStreamDecoder", () => {
       (c): c is AssistantStreamChunk & { type: "step-start" } =>
         c.type === "step-start",
     );
-    expect(stepStarts).toHaveLength(2);
+    expect(stepStarts).toHaveLength(1);
     expect(stepStarts[0]?.messageId).toBeTruthy();
-    expect(stepStarts[1]?.messageId).toBe(stepStarts[0]?.messageId);
 
     const stepFinish = chunks.find(
       (c): c is AssistantStreamChunk & { type: "step-finish" } =>
