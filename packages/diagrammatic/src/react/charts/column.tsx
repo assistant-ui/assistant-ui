@@ -34,6 +34,9 @@ export type ColumnProps = BaseProps & {
 /** The widest a column grows, in pixels, so a figure with two items is not two slabs. */
 const MAX_COLUMN = 48;
 
+/** The narrowest column, in pixels, still drawn as dots; thinner columns fall back to bars. */
+const MIN_DOT_COLUMN = 4;
+
 /**
  * `categorical` colors each item as its own entity from the token palette;
  * `values` prints every value, not only the highlighted one.
@@ -62,8 +65,13 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
     },
     ref,
   ) => {
+    const fit =
+      trend && yScale !== "log" && items.length > 1
+        ? linearFit(items.map((row, i) => ({ x: i, y: row.value })))
+        : undefined;
     const yValues = [
       ...items.map((r) => r.value),
+      ...(fit ? [fit(0), fit(items.length - 1)] : []),
       ...tickValues(yTicks),
       ...(target ? [target.at] : []),
       ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
@@ -98,10 +106,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
     const X = (i: number) => left + (i + 0.5) * step;
     const columnW = Math.min(MAX_COLUMN, step * 0.62);
     const pitch = Math.min(columnW, Math.max(6, (bottom - top) / 24));
-    const fit =
-      trend && yScale !== "log" && items.length > 1
-        ? linearFit(items.map((row, i) => ({ x: i, y: row.value })))
-        : undefined;
+    const dots = mark === "dot" && columnW >= MIN_DOT_COLUMN;
     return (
       <ChartSvg
         ref={ref}
@@ -187,11 +192,10 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
             (row.value < 0 ? bottom - zeroY : zeroY - top) / pitch,
           );
           const dotY = (dot: number) => zeroY + direction * (dot + 0.5) * pitch;
-          const labelY =
-            mark === "dot" ? zeroY + direction * dotCount * pitch : valueY;
+          const labelY = dots ? zeroY + direction * dotCount * pitch : valueY;
           return (
             <g key={`${row.label}-${i}`} data-part="mark" data-i={i}>
-              {mark === "dot" ? (
+              {dots ? (
                 <>
                   {Array.from(
                     { length: Math.max(0, trackCount - dotCount) },

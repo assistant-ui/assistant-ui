@@ -118,12 +118,19 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
     const showLegend = legend ?? names.length > 1;
     const colorOf = (name: string | undefined, fallback: string) =>
       name === undefined ? fallback : cat(names.indexOf(name));
+    const fit = linearFit(points);
+    const linearAxes =
+      (xScale ?? "linear") === "linear" && (yScale ?? "linear") === "linear";
+    const [xLo, xHi] = extent(points.map((p) => p.x));
     const domain = scatterDomain(points, {
       x: [
         ...tickValues(xTicks),
         ...(guides?.filter((g) => g.axis === "x").map((g) => g.at) ?? []),
       ],
       y: [
+        ...(trend && linearAxes && points.length > 0
+          ? [fit(xLo), fit(xHi)]
+          : []),
         ...tickValues(yTicks),
         ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
           []),
@@ -154,8 +161,6 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
     const { X, Y, xScale: xs, yScale: ys } = scatterFrame(F, domain);
     const sized = points.some((p) => p.size !== undefined);
     const maxSize = Math.max(...points.map((p) => p.size ?? 0), 1);
-    const fit = linearFit(points);
-    const [xLo, xHi] = extent(points.map((p) => p.x));
     const xText = xLabel
       ? `${xLabel} →${sized ? " · size = value" : ""}`
       : undefined;

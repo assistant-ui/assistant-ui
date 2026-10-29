@@ -156,4 +156,36 @@ describe("Column variants", () => {
     expect(implicit).toBe(explicit);
     finite(implicit);
   });
+
+  it("keeps a trend that overshoots the columns inside the value axis", () => {
+    const items = [
+      { label: "a", value: 0 },
+      { label: "b", value: 100 },
+      { label: "c", value: 100 },
+    ];
+    const barTop = (markup: string) =>
+      Math.min(
+        ...tags(markup, "rect")
+          .filter((tag) => attr(tag, "data-part") !== "mark")
+          .map((tag) => Number(attr(tag, "y"))),
+      );
+    const plain = renderToStaticMarkup(<Column items={items} />);
+    const html = renderToStaticMarkup(<Column items={items} trend />);
+    const trend = tags(html, "line").find(
+      (tag) => attr(tag, "data-part") === "trend",
+    )!;
+    expect(Math.min(Number(attr(trend, "y1")), Number(attr(trend, "y2")))).toBe(
+      barTop(plain),
+    );
+  });
+
+  it("falls back to bars when columns are too thin for dots", () => {
+    const items = Array.from({ length: 400 }, (_, i) => ({
+      label: String(i),
+      value: (i % 7) + 1,
+    }));
+    const html = renderToStaticMarkup(<Column mark="dot" items={items} />);
+    expect(tags(html, "circle")).toHaveLength(0);
+    expect(html).toBe(renderToStaticMarkup(<Column items={items} />));
+  });
 });

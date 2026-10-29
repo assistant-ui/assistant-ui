@@ -201,4 +201,42 @@ describe("Line variants", () => {
     finite(html);
     finite(single);
   });
+
+  it("keeps a trend that overshoots the data inside the value axis", () => {
+    const hitTop = (markup: string) =>
+      Math.min(
+        ...tags(markup, "circle")
+          .filter((tag) => attribute(tag, "data-dg-hit-target") === "point")
+          .map((tag) => Number(attribute(tag, "cy"))),
+      );
+    const plain = renderToStaticMarkup(<Line data={[0, 100, 100]} />);
+    const html = renderToStaticMarkup(<Line data={[0, 100, 100]} trend />);
+    const trend = trends(html)[0]!;
+    expect(
+      Math.min(Number(attribute(trend, "y1")), Number(attribute(trend, "y2"))),
+    ).toBe(hitTop(plain));
+  });
+
+  it("ends each series' trend at that series' own first and last points", () => {
+    const series = [
+      { name: "short", data: [1, 2, 3] },
+      { name: "long", data: [3, 1, 4, 1, 5, 9] },
+    ];
+    const html = renderToStaticMarkup(<Line series={series} trend />);
+    for (const name of ["short", "long"]) {
+      const hits = tags(html, "circle").filter(
+        (tag) =>
+          attribute(tag, "data-dg-hit-target") === "point" &&
+          attribute(tag, "data-series") === name,
+      );
+      const trend = trends(html).find(
+        (tag) => attribute(tag, "data-series") === name,
+      )!;
+      expect([attribute(trend, "x1"), attribute(trend, "x2")]).toEqual([
+        attribute(hits[0]!, "cx"),
+        attribute(hits[hits.length - 1]!, "cx"),
+      ]);
+    }
+    finite(html);
+  });
 });

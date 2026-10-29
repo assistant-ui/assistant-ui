@@ -88,6 +88,17 @@ function linePoints(
   }));
 }
 
+function trendEnds(points: Pt[]): [Pt, Pt] | undefined {
+  if (points.length === 0) return undefined;
+  const fit = linearFit(points);
+  const x0 = Math.min(...points.map((p) => p.x));
+  const x1 = Math.max(...points.map((p) => p.x));
+  return [
+    { x: x0, y: fit(x0) },
+    { x: x1, y: fit(x1) },
+  ];
+}
+
 function lineRangePath(pts: Pt[], from: number, to: number, step: boolean) {
   const start = pts[from]!;
   let d = `M${round(start.x)} ${round(start.y)}`;
@@ -140,12 +151,21 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
     const all: Series[] = series ?? [{ name: "", data: data ?? [] }];
     const multi = all.length > 1;
     const showLegend = legend ?? multi;
+    const showTrend = Boolean(trend && xScale !== "log" && yScale !== "log");
     const yValues = [
       ...all.flatMap((s) => s.data),
       ...(bands?.flatMap((band) => [...band.lower, ...band.upper]) ?? []),
       ...tickValues(yTicks),
       ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
         []),
+      ...(showTrend
+        ? all.flatMap(
+            (s) =>
+              trendEnds(
+                s.data.map((value, i) => ({ x: xs?.[i] ?? i, y: value })),
+              )?.map((p) => p.y) ?? [],
+          )
+        : []),
     ];
     const [yLo0, yHi0] =
       yScale === "log"
@@ -296,30 +316,22 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
             {...stroke.hair}
           />
         )}
-        {trend &&
-          xScale !== "log" &&
-          yScale !== "log" &&
-          all.map((s, k) => {
-            if (s.data.length === 0) return null;
-            const samples = s.data.map((value, i) => ({
-              x: xs?.[i] ?? i,
-              y: value,
-            }));
-            const x0 = Math.min(...samples.map((p) => p.x));
-            const x1 = Math.max(...samples.map((p) => p.x));
-            const fit = linearFit(samples);
+        {showTrend &&
+          grids.map((pts, k) => {
+            const ends = trendEnds(pts);
+            if (!ends) return null;
             return (
               <line
                 key={k}
-                x1={round(X(x0))}
-                y1={round(Y(fit(x0)))}
-                x2={round(X(x1))}
-                y2={round(Y(fit(x1)))}
+                x1={round(ends[0].x)}
+                y1={round(ends[0].y)}
+                x2={round(ends[1].x)}
+                y2={round(ends[1].y)}
                 stroke={multi ? cat(k) : ACCENT}
                 strokeDasharray="3 4"
                 opacity="0.7"
                 data-part="trend"
-                data-series={s.name}
+                data-series={all[k]!.name}
                 {...stroke.hair}
               />
             );
