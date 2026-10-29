@@ -316,10 +316,7 @@ export class AdkEventAccumulator {
         event.errorMessage ?? event.errorCode ?? "Unknown error";
       const updated: InProgressMessage = {
         ...errorMsg,
-        content: [
-          ...this.getContentArray(errorMsg),
-          { type: "text", text: errorText },
-        ],
+        content: [...this.getContentArray(errorMsg)],
         status: { type: "incomplete", reason: "error", error: errorText },
       };
       this.messagesMap.set(updated.id, updated);

@@ -688,7 +688,7 @@ describe("AdkEventAccumulator - code execution", () => {
 });
 
 describe("AdkEventAccumulator - error handling", () => {
-  it("creates an error message with text and incomplete status", () => {
+  it("stores error text in status without adding it to message content", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -699,7 +699,7 @@ describe("AdkEventAccumulator - error handling", () => {
     );
     expect(msgs[0]).toMatchObject({
       type: "ai",
-      content: [{ type: "text", text: "Server error" }],
+      content: [],
       status: { type: "incomplete", reason: "error", error: "Server error" },
     });
   });
@@ -710,8 +710,25 @@ describe("AdkEventAccumulator - error handling", () => {
       makeEvent({ author: "agent", errorCode: "UNKNOWN_ERROR" }),
     );
     expect(msgs[0]).toMatchObject({
-      content: [{ type: "text", text: "UNKNOWN_ERROR" }],
+      content: [],
       status: { type: "incomplete", reason: "error", error: "UNKNOWN_ERROR" },
+    });
+  });
+
+  it("preserves streamed text when a later event fails", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeTextEvent("Partial answer", true));
+    const msgs = acc.processEvent(
+      makeEvent({ author: "agent", errorMessage: "Server error" }),
+    );
+
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "Partial answer" }],
+    });
+    expect(msgs[1]).toMatchObject({
+      content: [],
+      status: { type: "incomplete", reason: "error", error: "Server error" },
     });
   });
 });

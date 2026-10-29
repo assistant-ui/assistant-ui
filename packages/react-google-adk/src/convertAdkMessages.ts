@@ -193,6 +193,10 @@ export const createAdkMessageConverter = (
           id: message.id,
           content: [...contentParts, ...toolCallParts],
           ...(message.status && { status: message.status }),
+          ...(message.status?.type === "incomplete" &&
+            message.status.reason === "error" && {
+              convertConfig: { joinStrategy: "none" as const },
+            }),
           ...(message.author && {
             metadata: {
               custom: { author: message.author, branch: message.branch },
