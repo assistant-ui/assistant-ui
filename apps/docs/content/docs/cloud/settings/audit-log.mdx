@@ -55,15 +55,15 @@ Reads of conversation content are recorded so you can tell who saw a thread and 
 |---|---|---|
 | `thread.viewed` | A person opens a thread's messages in the dashboard: the thread page, a run's thread, the dashboard assistant, or loading more messages | The person |
 | `thread.viewed` | An API key reads a thread's messages through `GET /v1/projects/threads/{thread_id}/messages` or the MCP `get_thread` tool | The API key's id and name |
-| `thread.exported`, `run.exported`, `user.exported` | Someone downloads the Threads, Runs or Users export | The person |
+| `thread.exported`, `run.exported`, `user.exported` | Someone downloads the Threads, Runs or Users export: one entry per page of the download, written before that page is sent | The person |
 
 A `thread.viewed` entry names the thread as its resource id, and its after value says where the read came from: `dashboard`, `api` or `mcp`. Reads of one thread by the same actor within five minutes share one entry, so paging through messages, refreshing or polling the API leaves one row. A read after that adds another.
 
-An export entry is written before the download starts, so a cancelled download is still recorded. Its after value holds the format and the filters used, including any search text.
+An export entry's after value holds the ids of the threads, runs or users on its page (`ids`), the format, the filters used (including any search text), the page number, and an `export_id` shared by every page of one download. A cancelled download is recorded up to the page it reached, and an export that matched nothing still writes one entry with no ids.
 
 Lists of threads, runs or users show titles and counts, not message content, and are not recorded. Your end users reading their own threads through the client API are not recorded either.
 
-To see who viewed a thread, filter the log by the `thread` resource.
+The resource filter selects a resource type, so filtering by `thread` lists views and exports for every thread in the project. To see who viewed one thread, look for its id as the resource id of a `thread.viewed` entry, or in the `ids` of a `thread.exported` entry.
 
 ## User erasure
 
