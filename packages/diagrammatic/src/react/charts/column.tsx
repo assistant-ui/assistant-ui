@@ -8,12 +8,20 @@ import {
 } from "../../core/scale";
 import type { Guide, Item, ScaleKind } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { positiveExtent, project, round, stroke } from "../../core/geometry";
+import {
+  linearFit,
+  positiveExtent,
+  project,
+  round,
+  stroke,
+} from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
 import { ChartSvg, Guides, TickGrid, frame } from "../svg";
 
 export type ColumnProps = BaseProps & {
   items: Item[];
+  trend?: boolean;
+  mark?: "bar" | "dot";
   highlight?: "max" | "last" | string;
   categorical?: boolean;
   values?: boolean;
@@ -34,6 +42,8 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
   (
     {
       items,
+      trend,
+      mark = "bar",
       highlight = "last",
       categorical,
       values,
@@ -87,6 +97,11 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
     const step = (right - left) / Math.max(1, items.length);
     const X = (i: number) => left + (i + 0.5) * step;
     const columnW = Math.min(MAX_COLUMN, step * 0.62);
+    const pitch = Math.min(columnW, Math.max(6, (bottom - top) / 24));
+    const fit =
+      trend && yScale !== "log" && items.length > 1
+        ? linearFit(items.map((row, i) => ({ x: i, y: row.value })))
+        : undefined;
     return (
       <ChartSvg
         ref={ref}
@@ -132,6 +147,19 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           bottom={bottom}
           type={T.axis}
         />
+        {fit && (
+          <line
+            x1={round(X(0))}
+            y1={round(Y(fit(0)))}
+            x2={round(X(items.length - 1))}
+            y2={round(Y(fit(items.length - 1)))}
+            stroke={ACCENT}
+            strokeDasharray="3 4"
+            opacity="0.7"
+            data-part="trend"
+            {...stroke.hair}
+          />
+        )}
         {items.map((_, i) => (
           <rect
             key={`hit-${i}`}
@@ -150,20 +178,58 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           const valueY = Y(row.value);
           const h = Math.abs(zeroY - valueY);
           const accent = isAccent(row, i);
+          const fill = categorical ? cat(i) : accent ? ACCENT : ink(0.3);
+          const opacity = categorical ? 0.9 : 1;
+          const direction = row.value < 0 ? 1 : -1;
+          const dotCount =
+            row.value === 0 ? 0 : Math.max(1, Math.round(h / pitch));
+          const trackCount = Math.floor(
+            (row.value < 0 ? bottom - zeroY : zeroY - top) / pitch,
+          );
+          const dotY = (dot: number) => zeroY + direction * (dot + 0.5) * pitch;
+          const labelY =
+            mark === "dot" ? zeroY + direction * dotCount * pitch : valueY;
           return (
             <g key={`${row.label}-${i}`} data-part="mark" data-i={i}>
-              <rect
-                x={round(x)}
-                y={round(Math.min(zeroY, valueY))}
-                width={round(columnW)}
-                height={round(h)}
-                fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
-                opacity={categorical ? 0.9 : 1}
-              />
+              {mark === "dot" ? (
+                <>
+                  {Array.from(
+                    { length: Math.max(0, trackCount - dotCount) },
+                    (_, dot) => (
+                      <circle
+                        key={`track-${dot}`}
+                        cx={round(X(i))}
+                        cy={round(dotY(dotCount + dot))}
+                        r={round(pitch * 0.38)}
+                        fill={ink(0.08)}
+                      />
+                    ),
+                  )}
+                  {Array.from({ length: dotCount }, (_, dot) => (
+                    <circle
+                      key={dot}
+                      cx={round(X(i))}
+                      cy={round(dotY(dot))}
+                      r={round(pitch * 0.38)}
+                      fill={fill}
+                      opacity={opacity}
+                    />
+                  ))}
+                </>
+              ) : (
+                <rect
+                  x={round(x)}
+                  y={round(Math.min(zeroY, valueY))}
+                  width={round(columnW)}
+                  height={round(h)}
+                  fill={fill}
+                  opacity={opacity}
+                />
+              )}
               {(values || (!categorical && accent)) && (
                 <text
                   x={round(X(i))}
-                  y={round(row.value < 0 ? valueY + 5 : valueY - 5)}
+                  y={round(row.value < 0 ? labelY + 5 : labelY - 5)}
                   textAnchor="middle"
                   dominantBaseline={row.value < 0 ? "hanging" : undefined}
                   {...T.value.attrs}
