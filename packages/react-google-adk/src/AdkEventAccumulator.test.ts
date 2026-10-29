@@ -715,6 +715,50 @@ describe("AdkEventAccumulator - error handling", () => {
     });
   });
 
+  it("keeps content carried by an error event", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorCode: "MAX_TOKENS",
+        content: {
+          role: "model",
+          parts: [{ text: "partial answer" }],
+        },
+      }),
+    );
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "partial answer" }],
+      status: { type: "incomplete", reason: "error", error: "MAX_TOKENS" },
+    });
+  });
+
+  it("reconciles streamed parts with the final content of an error event", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeTextEvent("Partial answer", true));
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorMessage: "Server error",
+        content: {
+          role: "model",
+          parts: [{ text: "Partial answer" }, { text: "Final detail" }],
+        },
+      }),
+    );
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      content: [
+        { type: "text", text: "Partial answer" },
+        { type: "text", text: "Final detail" },
+      ],
+      status: { type: "incomplete", reason: "error", error: "Server error" },
+    });
+  });
+
   it("preserves streamed text when a later event fails", () => {
     const acc = new AdkEventAccumulator();
     acc.processEvent(makeTextEvent("Partial answer", true));

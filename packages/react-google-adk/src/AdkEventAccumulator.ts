@@ -308,12 +308,12 @@ export class AdkEventAccumulator {
       return this.getMessages();
     }
 
-    // Handle error events
-    if (event.errorCode || event.errorMessage) {
+    const isErrorEvent = Boolean(event.errorCode || event.errorMessage);
+    const errorText = event.errorMessage ?? event.errorCode ?? "Unknown error";
+
+    if (isErrorEvent && !event.content?.parts?.length) {
       this.finalizeCurrentMessage();
       const errorMsg = this.getOrCreateAiMessage(event);
-      const errorText =
-        event.errorMessage ?? event.errorCode ?? "Unknown error";
       const updated: InProgressMessage = {
         ...errorMsg,
         content: [...this.getContentArray(errorMsg)],
@@ -331,11 +331,11 @@ export class AdkEventAccumulator {
       return this.getMessages();
     }
 
-    // User-authored events → create human message, not AI.
+    // User-authored non-error events → create human message, not AI.
     // Without this, user events fall through to processPart →
     // getOrCreateAiMessage, producing type:"ai" messages that
     // convertAdkMessage maps to role:"assistant".
-    if (event.author === "user") {
+    if (event.author === "user" && !isErrorEvent) {
       this.finalizeCurrentMessage();
       const humanParts: AdkMessageContentPart[] = [];
       const toolMessages: AdkMessage[] = [];
@@ -423,7 +423,19 @@ export class AdkEventAccumulator {
     this.trackMessageMetadata(event);
 
     // Check isFinalResponse (can be true even for partial events via skipSummarization/longRunningToolIds)
-    if (isFinalResponse(event) && this.currentMessageId) {
+    if (isErrorEvent) {
+      const current = this.currentMessageId
+        ? this.messagesMap.get(this.currentMessageId)
+        : undefined;
+      const errorMsg =
+        current?.type === "ai" ? current : this.getOrCreateAiMessage(event);
+      const updated: InProgressMessage = {
+        ...errorMsg,
+        content: [...this.getContentArray(errorMsg)],
+        status: { type: "incomplete", reason: "error", error: errorText },
+      };
+      this.messagesMap.set(updated.id, updated);
+    } else if (isFinalResponse(event) && this.currentMessageId) {
       const msg = this.messagesMap.get(this.currentMessageId);
       // Skip manual "complete" when longRunningToolIds is the sole reason for
       // isFinalResponse — let auto-status apply requires-action for pending tool calls.
@@ -442,8 +454,7 @@ export class AdkEventAccumulator {
       }
     }
 
-    // Non-partial event finalizes the current message
-    if (!event.partial || isFinalResponse(event)) {
+    if (isErrorEvent || !event.partial || isFinalResponse(event)) {
       this.finalizeCurrentMessage();
     }
 
