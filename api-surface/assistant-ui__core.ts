@@ -1094,7 +1094,6 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   unmuteVoice(): void;
   protected ensureInitialized(): boolean;
   export(): ExportedMessageRepository;
-  protected _beforeImportNotify(): void;
   import(data: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -2125,7 +2124,6 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   loadEarlier(): Promise<void>;
   get isRunning(): boolean | undefined;
   protected _getBaseMessages(): readonly ThreadMessage[];
-  protected _beforeImportNotify(): void;
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
   get adapters(): {
     attachments?: AttachmentAdapter | undefined;

@@ -210,10 +210,6 @@ export class ExternalStoreThreadRuntimeCore
     return this._messages;
   }
 
-  protected override _beforeImportNotify(): void {
-    this._syncRepositoryMessages();
-  }
-
   public override get state() {
     return this._store.state ?? super.state;
   }
@@ -1368,13 +1364,9 @@ export class ExternalStoreThreadRuntimeCore
   // Notifies even when the visible messages are unchanged: deleting an
   // off-branch message still changes the branch counts subscribers read.
   private _publishRepositoryMessages() {
-    this._syncRepositoryMessages();
-    this._notifySubscribers();
-  }
-
-  private _syncRepositoryMessages() {
     const messages = this.repository.getMessages();
     if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
+    this._notifySubscribers();
   }
 
   public getQueueItems() {
@@ -1759,7 +1751,10 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
-    super.import(data);
+    this.ensureInitialized();
+    this.repository.clear();
+    this.repository.import(data);
+    this._publishRepositoryMessages();
     this._clearPendingResume(pendingResume);
     const messages = this.repository.getMessages();
     this._importedMessageIds = messages.map((message) => message.id);
