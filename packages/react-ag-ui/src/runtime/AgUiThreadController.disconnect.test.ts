@@ -90,29 +90,44 @@ describe("AgUiThreadController HTTP stream closure", () => {
     },
   );
 
-  it("preserves snapshot content when the stream closes without a terminal event", async () => {
-    const core = createController([
-      start,
-      ...text,
-      {
-        type: "MESSAGES_SNAPSHOT",
-        messages: [
-          { id: "history", role: "assistant", content: "previous answer" },
-          { id: "answer", role: "assistant", content: "snapshot answer" },
-        ],
-      },
-    ]);
+  it.each(["eof", "finished", "error"])(
+    "preserves snapshot content when the stream closes (%s)",
+    async (terminal) => {
+      const core = createController([
+        start,
+        ...text,
+        { type: "TEXT_MESSAGE_END", messageId: "answer" },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "history", role: "assistant", content: "previous answer" },
+            { id: "answer", role: "assistant", content: "snapshot answer" },
+          ],
+        },
+        ...(terminal === "finished"
+          ? [{ type: "RUN_FINISHED", threadId: "thread", runId: "run" }]
+          : terminal === "error"
+            ? [{ type: "RUN_ERROR", message: "provider failed" }]
+            : []),
+      ]);
 
-    await core.append(userMessage);
+      const run = core.append(userMessage);
+      if (terminal === "error")
+        await expect(run).rejects.toThrow("provider failed");
+      else await run;
 
-    expect(core.isRunning()).toBe(false);
-    expect(core.getMessages().at(-1)).toMatchObject({
-      id: "answer",
-      content: [{ type: "text", text: "snapshot answer" }],
-      status: { type: "incomplete", reason: "error" },
-    });
-    expect(
-      core.getMessages().find((message) => message.id === "history")?.status,
-    ).toMatchObject({ type: "complete" });
-  });
+      expect(core.isRunning()).toBe(false);
+      expect(core.getMessages().at(-1)).toMatchObject({
+        id: "answer",
+        content: [{ type: "text", text: "snapshot answer" }],
+        status:
+          terminal === "finished"
+            ? { type: "complete" }
+            : { type: "incomplete", reason: "error" },
+      });
+      expect(
+        core.getMessages().find((message) => message.id === "history")?.status,
+      ).toMatchObject({ type: "complete" });
+    },
+  );
 });

@@ -2138,7 +2138,6 @@ describe("RunAggregator", () => {
     const aggregator = createAggregator(false);
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => aggregator.handle(evt),
-      runId: "r1",
     });
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -2157,7 +2156,6 @@ describe("RunAggregator", () => {
     const aggregator = createAggregator(false);
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => aggregator.handle(evt),
-      runId: "r1",
     });
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -3959,7 +3957,6 @@ describe("RunAggregator", () => {
     });
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => aggregator.handle(evt),
-      runId: "r1",
     });
 
     // Plain, untyped objects with string `type` fields — the shape a JSON.parse

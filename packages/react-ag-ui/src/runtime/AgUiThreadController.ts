@@ -1590,6 +1590,7 @@ export class AgUiThreadController {
     let frameOwnerIds = new Set<string>();
     let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
     let settlingRun = false;
+    let latestSnapshot: ThreadAssistantMessage | undefined;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -1994,7 +1995,38 @@ export class AgUiThreadController {
       showThinking: this.showThinking,
       joinStrategy,
       logger: this.logger,
-      emit: applyUpdate,
+      emit: (update) => {
+        if (
+          settlingRun &&
+          latestSnapshot &&
+          latestSnapshot.id === assistantMessageId &&
+          update.status &&
+          update.status.type !== "running" &&
+          update.status.type !== "requires-action"
+        ) {
+          // A terminal event changes status, not the authoritative snapshot text.
+          const status = update.status;
+          const content = mapToolCallPartsDeep(
+            latestSnapshot.content,
+            (part) =>
+              part.messages
+                ? {
+                    ...part,
+                    messages: part.messages.map((message) =>
+                      message.role === "assistant" &&
+                      message.status?.type === "running"
+                        ? { ...message, status }
+                        : message,
+                    ),
+                  }
+                : part,
+          ).content;
+          applyUpdate({ ...update, content });
+        } else {
+          applyUpdate(update);
+        }
+        latestSnapshot = undefined;
+      },
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
       },
@@ -2069,6 +2101,11 @@ export class AgUiThreadController {
             }
           }
           assistantMessageId = nextAssistantMessageId;
+          const imported = assistantMessageId
+            ? this.session.tryGetMessage(assistantMessageId)?.message
+            : undefined;
+          latestSnapshot =
+            imported?.role === "assistant" ? imported : undefined;
           if (!replayEnded && assistantMessageId === undefined) {
             const tail = this.session.getMessages().at(-1);
             snapshotAssistantId =
@@ -2130,7 +2167,6 @@ export class AgUiThreadController {
         );
         const subscriber = createAgUiSubscriber({
           dispatch,
-          runId,
           logger: this.logger,
           onRunFailed: (error) => {
             if (abortSignal.aborted) return;
@@ -2733,7 +2769,7 @@ export class AgUiThreadController {
   }
 
   // A snapshot built from user, assistant, and tool records alone carries no
-  // reasoning or activity of its own, so the parts streamed locally would be
+  // reasoning, activity, or custom data of its own, so locally streamed parts would be
   // lost on every refresh; keep the local ones where they streamed when the
   // snapshot has none of that kind, matching the merge rule of @ag-ui/client.
   private mergeSnapshotAssistantContent(
@@ -2745,7 +2781,12 @@ export class AgUiThreadController {
     const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
       part.type === "reasoning"
         ? this.showThinking && !snapshotHasReasoning
-        : isActivityPart(part) && !snapshotHasActivity;
+        : part.type === "data" && !isActivityPart(part)
+          ? !next.some(
+              (incoming) =>
+                incoming.type === "data" && incoming.name === part.name,
+            )
+          : isActivityPart(part) && !snapshotHasActivity;
     const kept = previous.filter(shouldKeep);
     const merged = this.reconcileSnapshotNestedContent(
       previous,

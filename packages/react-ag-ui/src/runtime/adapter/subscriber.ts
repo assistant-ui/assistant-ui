@@ -60,7 +60,6 @@ const ensureEvent = (
 
 type SubscriberOptions = {
   dispatch: Dispatch;
-  runId: string;
   logger?: Logger;
   onRunFailed?: (error: Error) => void;
 };
