@@ -731,6 +731,84 @@ describe("AdkEventAccumulator - error handling", () => {
       status: { type: "incomplete", reason: "error", error: "Server error" },
     });
   });
+  it("keeps the content an error event carries", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorCode: "MAX_TOKENS",
+        content: { role: "model", parts: [{ text: "partial answer" }] },
+      }),
+    );
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "partial answer" }],
+      status: { type: "incomplete", reason: "error", error: "MAX_TOKENS" },
+    });
+  });
+
+  it("settles streamed text with the content of the error event that ends it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeTextEvent("partial", true));
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorCode: "MAX_TOKENS",
+        content: { role: "model", parts: [{ text: "partial answer" }] },
+      }),
+    );
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "partial answer" }],
+      status: { type: "incomplete", reason: "error", error: "MAX_TOKENS" },
+    });
+
+    const next = acc.processEvent(makeTextEvent("retry", false));
+    expect(next).toHaveLength(2);
+    expect(next[1]).toMatchObject({
+      content: [{ type: "text", text: "retry" }],
+    });
+  });
+  it("starts a new message for the answer after a contentless error", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeEvent({ author: "agent", errorMessage: "boom" }));
+    const msgs = acc.processEvent(makeTextEvent("retry", false));
+
+    expect(msgs).toHaveLength(2);
+    expect(msgs[1]).toMatchObject({
+      content: [{ type: "text", text: "retry" }],
+      status: { type: "complete" },
+    });
+  });
+
+  it("puts the error status on the text an error event carries before a tool result", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorCode: "MAX_TOKENS",
+        content: {
+          role: "model",
+          parts: [
+            { text: "partial answer" },
+            {
+              functionResponse: { id: "call-1", name: "search", response: {} },
+            },
+          ],
+        },
+      }),
+    );
+
+    const aiMessages = msgs.filter((msg) => msg.type === "ai");
+    expect(aiMessages).toHaveLength(1);
+    expect(aiMessages[0]).toMatchObject({
+      content: [{ type: "text", text: "partial answer" }],
+      status: { type: "incomplete", reason: "error", error: "MAX_TOKENS" },
+    });
+  });
 });
 
 describe("AdkEventAccumulator - interrupted events", () => {
