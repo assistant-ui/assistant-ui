@@ -57,7 +57,7 @@ Reads of conversation content are recorded so you can tell who saw a thread and 
 | `thread.viewed` | An API key reads a thread's messages through `GET /v1/projects/threads/{thread_id}/messages` or the MCP `get_thread` tool | The API key's id and name |
 | `thread.exported`, `run.exported`, `user.exported` | Someone downloads the Threads, Runs or Users export: one entry per page of the download, written before that page is sent | The person |
 
-A `thread.viewed` entry names the thread as its resource id, and its after value says where the read came from: `dashboard`, `api` or `mcp`. Reads of one thread by the same actor within five minutes share one entry, so paging through messages, refreshing or polling the API leaves one row. A read after that adds another.
+A `thread.viewed` entry names the thread as its resource id, and its after value says where the read came from: `dashboard`, `api` or `mcp`. Reads of one thread by the same actor within five minutes share one entry whatever channel they came through, so paging through messages, refreshing or polling the API leaves one row. That entry keeps the channel of the first read: an API key that reads a thread through `api` and then `mcp` within five minutes has one entry with `api`. A read after that adds another.
 
 An export entry's after value holds the ids of the threads, runs or users on its page (`ids`), the format, the filters used (including any search text), the page number, and an `export_id` shared by every page of one download. A cancelled download is recorded up to the page it reached, and an export that matched nothing still writes one entry with no ids.
 
