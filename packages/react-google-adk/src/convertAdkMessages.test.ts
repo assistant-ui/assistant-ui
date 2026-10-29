@@ -92,6 +92,49 @@ describe("convertAdkMessage - tool results", () => {
   });
 });
 
+describe("createAdkMessageConverter - ADK confirmations", () => {
+  it("renders approval on the gated tool and omits its synthetic request", () => {
+    const gatedCall: AdkMessage = {
+      id: "ai-gated",
+      type: "ai",
+      content: [],
+      tool_calls: [{ id: "gated", name: "delete_file", args: {} }],
+    };
+    const confirmationCall: AdkMessage = {
+      id: "ai-confirmation",
+      type: "ai",
+      content: [],
+      tool_calls: [
+        {
+          id: "confirmation",
+          name: "adk_request_confirmation",
+          args: {
+            originalFunctionCall: { id: "gated", name: "delete_file" },
+          },
+        },
+      ],
+    };
+    const approval = { id: "confirmation" };
+    const convert = createAdkMessageConverter(
+      new Map([
+        ["confirmation", approval],
+        ["gated", approval],
+      ]),
+    );
+
+    expect(convert(gatedCall, {})).toMatchObject({
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "gated",
+          approval: { id: "confirmation" },
+        },
+      ],
+    });
+    expect(convert(confirmationCall, {})).toEqual([]);
+  });
+});
+
 describe("convertAdkMessage - human messages", () => {
   it("converts a human message with string content to user role", () => {
     const msg: AdkMessage = { id: "m1", type: "human", content: "Hello" };
