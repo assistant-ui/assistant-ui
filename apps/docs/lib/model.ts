@@ -15,6 +15,7 @@ export const MODELS = [
     disabled: false,
     contextWindow: 1_050_000,
     reasoning: true,
+    signInRequired: true,
   },
   {
     name: "Claude Haiku 5.5",
@@ -23,6 +24,7 @@ export const MODELS = [
     icon: "/icons/anthropic.svg",
     disabled: false,
     contextWindow: 1_000_000,
+    signInRequired: true,
   },
   {
     name: "GLM-5.3-Flash",
@@ -80,7 +82,22 @@ export function isAvailableModelId(id: string): id is KnownModelId {
   return AVAILABLE_MODEL_IDS.has(id as KnownModelId);
 }
 
-export function resolveModelId(input: string | undefined): KnownModelId {
+export function isModelAllowed(
+  id: string,
+  signedIn: boolean,
+): id is KnownModelId {
+  if (!isAvailableModelId(id)) return false;
+  const model = MODELS.find((model) => model.value === id);
+  return (
+    model !== undefined &&
+    (!("signInRequired" in model) || !model.signInRequired || signedIn)
+  );
+}
+
+export function resolveModelId(
+  input: string | undefined,
+  signedIn: boolean,
+): KnownModelId {
   const raw = typeof input === "string" ? input.trim() : "";
-  return raw && isAvailableModelId(raw) ? raw : DEFAULT_MODEL_ID;
+  return raw && isModelAllowed(raw, signedIn) ? raw : DEFAULT_MODEL_ID;
 }

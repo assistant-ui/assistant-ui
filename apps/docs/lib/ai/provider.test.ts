@@ -25,7 +25,9 @@ describe("resolveChatModel", () => {
   });
 
   it("runs a reasoning model through the Responses API when no effort is requested", () => {
-    expect(resolveChatModel({ modelName: REASONING_MODEL_ID })).toEqual({
+    expect(
+      resolveChatModel({ modelName: REASONING_MODEL_ID }, { signedIn: true }),
+    ).toEqual({
       model: { api: "responses", id: REASONING_MODEL_ID },
       providerOptions: {
         openai: {
@@ -40,10 +42,13 @@ describe("resolveChatModel", () => {
 
   it("runs a reasoning model through the Responses API at the requested effort", () => {
     expect(
-      resolveChatModel({
-        modelName: REASONING_MODEL_ID,
-        reasoningEffort: "medium",
-      }),
+      resolveChatModel(
+        {
+          modelName: REASONING_MODEL_ID,
+          reasoningEffort: "medium",
+        },
+        { signedIn: true },
+      ),
     ).toEqual({
       model: { api: "responses", id: REASONING_MODEL_ID },
       providerOptions: {
@@ -60,10 +65,13 @@ describe("resolveChatModel", () => {
   it("clamps the effort a public caller can request to medium", () => {
     for (const effort of ["high", "xhigh"]) {
       expect(
-        resolveChatModel({
-          modelName: REASONING_MODEL_ID,
-          reasoningEffort: effort,
-        }).providerOptions?.openai.reasoningEffort,
+        resolveChatModel(
+          {
+            modelName: REASONING_MODEL_ID,
+            reasoningEffort: effort,
+          },
+          { signedIn: true },
+        ).providerOptions?.openai.reasoningEffort,
       ).toBe("medium");
     }
   });
@@ -97,6 +105,14 @@ describe("resolveChatModel", () => {
     expect(resolveChatModel({ modelName: "gpt-4.1-mini" }).model).toEqual({
       api: "chat",
       id: DEFAULT_MODEL_ID,
+    });
+  });
+
+  it("uses the default on Chat Completions for an anonymous gated request", () => {
+    expect(resolveChatModel({ modelName: REASONING_MODEL_ID })).toEqual({
+      model: { api: "chat", id: DEFAULT_MODEL_ID },
+      providerOptions: undefined,
+      reasoning: false,
     });
   });
 

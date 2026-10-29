@@ -4,7 +4,10 @@ const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
   resolveChatModel: vi.fn(),
+  getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
 }));
+
+vi.mock("@/lib/accounts-auth", () => ({ getSession: mocks.getSession }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -156,6 +159,7 @@ describe("POST /api/doc/chat access boundary", () => {
       expiresAt: Date.now() + 60_000,
     });
     mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.getSession.mockResolvedValueOnce({ user: { id: "user_1" } });
 
     await POST(
       new Request("https://www.assistant-ui.com/api/doc/chat", {
@@ -176,6 +180,10 @@ describe("POST /api/doc/chat access boundary", () => {
     );
 
     expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: undefined },
+      { signedIn: true },
+    );
   });
 });
 

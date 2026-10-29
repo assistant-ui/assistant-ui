@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
   resolveDemoIdentity: vi.fn(),
   claimConversation: vi.fn(),
   streamDocsChat: vi.fn(),
+  getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
 }));
+
+vi.mock("@/lib/accounts-auth", () => ({ getSession: mocks.getSession }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -292,6 +295,24 @@ describe("POST /api/chat generative UI", () => {
       system?: string;
       tools: Record<string, unknown>;
     };
+
+  it("passes account session status to model selection", async () => {
+    allowed();
+    streamed();
+    mocks.getSession.mockResolvedValueOnce({ user: { id: "user_1" } });
+
+    await (
+      await send({
+        messages: [message],
+        config: { modelName: "gpt-6-luna" },
+      })
+    ).text();
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: true },
+    );
+  });
 
   it("gives image search only to a client that renders specs", async () => {
     allowed();

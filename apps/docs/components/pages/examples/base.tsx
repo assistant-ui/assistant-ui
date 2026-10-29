@@ -109,7 +109,7 @@ const Logo: FC<{ collapsed?: boolean }> = ({ collapsed = false }) => {
   );
 };
 
-const models = docsModelOptions();
+const models = docsModelOptions({ signedIn: true });
 
 const ModelPicker: FC = () => {
   return (
