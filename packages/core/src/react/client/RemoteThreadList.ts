@@ -1422,16 +1422,30 @@ const useRemoteThreadList = (
   );
 
   const initialize = useCallback(
-    async (threadId: string) => {
+    async function initializeThread(
+      threadId: string,
+    ): Promise<ReturnType<typeof toInitializeResult>> {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
+      // A replacement adapter keeps the thread being initialized as its own
+      // draft, so the caller's send continues on the replacement.
+      const carriedToReplacement = () =>
+        adapterGeneration !== session.adapterGeneration &&
+        store.value.newThreadId === threadId;
       if (store.value.newThreadId !== threadId) {
         const data = getThreadData(store.value, threadId);
         if (!data) throw threadNotFoundError(threadId, "initializing it");
         if (data.status === "new") {
           throw threadStatusError(threadId, data.status, "be initialized here");
         }
-        const result = toInitializeResult(await data.initializeTask);
+        let result: ReturnType<typeof toInitializeResult>;
+        try {
+          result = toInitializeResult(await data.initializeTask);
+        } catch (error) {
+          if (carriedToReplacement()) return initializeThread(threadId);
+          throw error;
+        }
+        if (carriedToReplacement()) return initializeThread(threadId);
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
@@ -1480,8 +1494,10 @@ const useRemoteThreadList = (
         result = await initialization;
       } catch (error) {
         session.pendingAutomaticTitles.delete(threadId);
+        if (carriedToReplacement()) return initializeThread(threadId);
         throw error;
       }
+      if (carriedToReplacement()) return initializeThread(threadId);
       requireAdapterGeneration(adapterGeneration);
       if (removedMappingId !== undefined) {
         session.startedIds.delete(removedMappingId);
