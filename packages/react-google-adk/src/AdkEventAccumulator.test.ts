@@ -731,6 +731,47 @@ describe("AdkEventAccumulator - error handling", () => {
       status: { type: "incomplete", reason: "error", error: "Server error" },
     });
   });
+  it("keeps the content an error event carries", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorCode: "MAX_TOKENS",
+        content: { role: "model", parts: [{ text: "partial answer" }] },
+      }),
+    );
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "partial answer" }],
+      status: { type: "incomplete", reason: "error", error: "MAX_TOKENS" },
+    });
+  });
+
+  it("settles streamed text with the content of the error event that ends it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeTextEvent("partial", true));
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        errorCode: "MAX_TOKENS",
+        content: { role: "model", parts: [{ text: "partial answer" }] },
+      }),
+    );
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "partial answer" }],
+      status: { type: "incomplete", reason: "error", error: "MAX_TOKENS" },
+    });
+
+    const next = acc.processEvent(makeTextEvent("retry", false));
+    expect(next).toHaveLength(2);
+    expect(next[1]).toMatchObject({
+      content: [{ type: "text", text: "retry" }],
+    });
+  });
 });
 
 describe("AdkEventAccumulator - interrupted events", () => {

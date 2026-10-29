@@ -308,23 +308,18 @@ export class AdkEventAccumulator {
       return this.getMessages();
     }
 
-    // Handle error events
-    if (event.errorCode || event.errorMessage) {
+    const errorText =
+      event.errorCode || event.errorMessage
+        ? (event.errorMessage ?? event.errorCode ?? "Unknown error")
+        : undefined;
+    const parts = event.content?.parts;
+
+    if (errorText !== undefined && !parts?.length) {
       this.finalizeCurrentMessage();
-      const errorMsg = this.getOrCreateAiMessage(event);
-      const errorText =
-        event.errorMessage ?? event.errorCode ?? "Unknown error";
-      const updated: InProgressMessage = {
-        ...errorMsg,
-        content: [...this.getContentArray(errorMsg)],
-        status: { type: "incomplete", reason: "error", error: errorText },
-      };
-      this.messagesMap.set(updated.id, updated);
-      this.currentMessageId = null;
+      this.setErrorStatus(this.getOrCreateAiMessage(event), errorText);
       return this.getMessages();
     }
 
-    const parts = event.content?.parts;
     if (!parts?.length) {
       // Track metadata even for content-less events (e.g. turnComplete)
       this.trackMessageMetadata(event);
@@ -421,6 +416,13 @@ export class AdkEventAccumulator {
 
     // Track per-message metadata (grounding, citation, usage)
     this.trackMessageMetadata(event);
+
+    // An error event that carries content is the final response it cut off, so its parts settle the streamed message like any final response.
+    if (errorText !== undefined) {
+      this.setErrorStatus(this.getOrCreateAiMessage(event), errorText);
+      this.finalizeCurrentMessage();
+      return this.getMessages();
+    }
 
     // Check isFinalResponse (can be true even for partial events via skipSummarization/longRunningToolIds)
     if (isFinalResponse(event) && this.currentMessageId) {
@@ -577,6 +579,14 @@ export class AdkEventAccumulator {
       content.push(part);
     }
     this.messagesMap.set(msg.id, { ...msg, content });
+  }
+
+  private setErrorStatus(msg: InProgressMessage, error: string): void {
+    this.messagesMap.set(msg.id, {
+      ...msg,
+      content: [...this.getContentArray(msg)],
+      status: { type: "incomplete", reason: "error", error },
+    });
   }
 
   private finalizeCurrentMessage(): void {
