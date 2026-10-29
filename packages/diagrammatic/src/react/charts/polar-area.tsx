@@ -22,10 +22,10 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
     const { left, right, top, bottom, T: frameType } = F;
     const cx = (left + right) / 2;
     const cy = (top + bottom) / 2;
-    const labelGap = 6;
+    const labelGap = Math.max(6, frameType.axis.px / 2 + 1);
     const labelAllowance = Math.max(
       frameType.axis.px + labelGap,
-      labelW / 2 + labelGap,
+      labelW + labelGap,
     );
     const outer = Math.max(
       0,
@@ -69,14 +69,30 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
         })}
         {items.map((item, i) => {
           const angle = i * slice + slice / 2 - Math.PI / 2;
+          const side = Math.cos(angle);
+          const centeredExtent =
+            (textWidth(item.label, frameType.axis.px) * Math.abs(side) +
+              frameType.axis.px * Math.abs(Math.sin(angle))) /
+            2;
+          const textAnchor =
+            Math.abs(side) < 0.35 && centeredExtent <= labelGap
+              ? "middle"
+              : side > 0
+                ? "start"
+                : "end";
           const p = polar(cx, cy, outer + labelGap, angle);
-          const fit = Math.max(0, 2 * Math.min(p.x - PAD, F.width - PAD - p.x));
+          const fit =
+            textAnchor === "start"
+              ? F.width - PAD - p.x
+              : textAnchor === "end"
+                ? p.x - PAD
+                : 2 * Math.min(p.x - PAD, F.width - PAD - p.x);
           return (
             <text
               key={item.label}
               x={round(p.x)}
               y={round(p.y)}
-              textAnchor="middle"
+              textAnchor={textAnchor}
               dominantBaseline="central"
               {...frameType.axis.attrs}
             >
