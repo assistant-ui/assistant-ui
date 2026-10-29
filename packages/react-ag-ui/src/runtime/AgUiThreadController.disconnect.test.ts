@@ -90,6 +90,40 @@ describe("AgUiThreadController HTTP stream closure", () => {
     },
   );
 
+  it("continues from authoritative snapshot text before completing", async () => {
+    const core = createController([
+      start,
+      ...text,
+      { type: "CUSTOM", name: "before", value: { retained: true } },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          { id: "answer", role: "assistant", content: "snapshot answer" },
+        ],
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "answer",
+        delta: " continued",
+      },
+      { type: "CUSTOM", name: "after", value: { retained: true } },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "RUN_FINISHED", threadId: "thread", runId: "run" },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "answer",
+      content: [
+        { type: "text", text: "snapshot answer continued" },
+        { type: "data", name: "before", data: { retained: true } },
+        { type: "data", name: "after", data: { retained: true } },
+      ],
+      status: { type: "complete" },
+    });
+  });
+
   it.each(["eof", "finished", "error"])(
     "preserves snapshot content when the stream closes (%s)",
     async (terminal) => {

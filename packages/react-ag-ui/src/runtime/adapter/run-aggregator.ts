@@ -284,6 +284,18 @@ export class RunAggregator {
         this.emit();
         break;
       }
+      case "MESSAGES_SNAPSHOT": {
+        for (const message of event.messages) {
+          if (
+            message.role !== "assistant" ||
+            typeof message.content !== "string"
+          )
+            continue;
+          const part = this.textParts.get(message.id);
+          if (part) part.buffer = message.content;
+        }
+        break;
+      }
       case "RUN_FINISHED": {
         if (event.outcome?.type === "cancelled") {
           this.interrupts = undefined;

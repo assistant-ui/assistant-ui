@@ -2962,6 +2962,7 @@ export class AgUiThreadController {
         break;
       }
       case "MESSAGES_SNAPSHOT": {
+        aggregator.handle(event);
         const previousHeadId = this.session.headId;
         const activeAssistant =
           activeAssistantId === undefined
