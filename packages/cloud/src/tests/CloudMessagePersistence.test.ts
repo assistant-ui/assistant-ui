@@ -89,6 +89,58 @@ describe("CloudMessagePersistence", () => {
     expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
   });
 
+  it("rejects a child append after its parent create fails", async () => {
+    const failure = new Error("parent create failed");
+    vi.mocked(cloud.threads.messages.create).mockRejectedValueOnce(failure);
+
+    await expect(
+      persistence.append("thread-1", "parent", null, "aui/v0", {}),
+    ).rejects.toBe(failure);
+    await expect(
+      persistence.append("thread-1", "child", "parent", "aui/v0", {}),
+    ).rejects.toBe(failure);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledOnce();
+  });
+
+  it("uses a retried parent's Cloud ID for a child append", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockRejectedValueOnce(new Error("parent create failed"))
+      .mockResolvedValueOnce({ message_id: "remote-parent" })
+      .mockResolvedValueOnce({ message_id: "remote-child" });
+
+    await expect(
+      persistence.append("thread-1", "parent", null, "aui/v0", {}),
+    ).rejects.toThrow("parent create failed");
+    await persistence.append("thread-1", "parent", null, "aui/v0", {});
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {});
+
+    expect(cloud.threads.messages.create).toHaveBeenNthCalledWith(
+      3,
+      "thread-1",
+      expect.objectContaining({ parent_id: "remote-parent" }),
+    );
+  });
+
+  it("preserves the fallback for an unmapped parent ID", async () => {
+    vi.mocked(cloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-child",
+    });
+
+    await persistence.append(
+      "thread-1",
+      "child",
+      "remote-parent",
+      "aui/v0",
+      {},
+    );
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ parent_id: "remote-parent" }),
+    );
+  });
+
   it("keeps a replacement mapping made during deletion", async () => {
     persistence.record("local-1", "msg_1");
     let resolveDelete!: () => void;

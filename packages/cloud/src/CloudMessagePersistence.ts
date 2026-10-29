@@ -12,6 +12,7 @@ const CLOUD_MESSAGE_PAGE_SIZE = 200;
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
+  private failedMessages = new Map<string, unknown>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -43,8 +44,12 @@ export class CloudMessagePersistence {
       return;
     }
 
+    this.failedMessages.delete(messageId);
     const task = (async () => {
       const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
+      if (parentId && !parentEntry && this.failedMessages.has(parentId)) {
+        throw this.failedMessages.get(parentId);
+      }
       const resolvedParentId = parentId
         ? ((await parentEntry) ?? parentId)
         : null;
@@ -65,6 +70,7 @@ export class CloudMessagePersistence {
     } catch (err) {
       if (this.idMapping.get(messageId) === task) {
         this.idMapping.delete(messageId);
+        this.failedMessages.set(messageId, err);
       }
       throw err;
     }
@@ -152,6 +158,7 @@ export class CloudMessagePersistence {
 
   record(localId: string, remoteId: string): void {
     this.idMapping.set(localId, remoteId);
+    this.failedMessages.delete(localId);
   }
 
   /**
@@ -201,13 +208,17 @@ export class CloudMessagePersistence {
         const entry = idMapping.get(m.id);
         if (entry === undefined) {
           idMapping.set(m.id, m.id);
+          this.failedMessages.delete(m.id);
         } else if (entry instanceof Promise) {
           void entry.catch(() => {
             const current = idMapping.get(m.id);
             if (current === undefined || current === entry) {
               idMapping.set(m.id, m.id);
+              this.failedMessages.delete(m.id);
             }
           });
+        } else {
+          this.failedMessages.delete(m.id);
         }
       }
     }
@@ -222,5 +233,6 @@ export class CloudMessagePersistence {
    */
   reset() {
     this.idMapping = new Map();
+    this.failedMessages.clear();
   }
 }
