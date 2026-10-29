@@ -68,7 +68,7 @@ type SubscriberOptions = {
 export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
-  const { dispatch, runId, logger, onRunFailed } = options;
+  const { dispatch, logger, onRunFailed } = options;
   let runFinishedDispatched = false;
   const dispatchIfValid = (raw: unknown, type: AgUiEvent["type"]) => {
     const event = ensureEvent(raw, type, logger);
@@ -140,10 +140,6 @@ export const createAgUiSubscriber = (
       logger?.debug?.("[agui] step boundary ignored", event),
     onStepFinishedEvent: ({ event }) =>
       logger?.debug?.("[agui] step boundary ignored", event),
-    onRunFinalized: () => {
-      if (runFinishedDispatched) return;
-      dispatch({ type: "RUN_FINISHED", runId });
-    },
     onRunFailed: ({ error }) => {
       if (runFinishedDispatched) return;
       runFinishedDispatched = true;

@@ -181,7 +181,7 @@ describe("createAgUiSubscriber", () => {
     });
   });
 
-  it("falls back to onRunFinalized when no RunFinishedEvent fires", () => {
+  it("does not infer success from transport finalization", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
@@ -190,10 +190,10 @@ describe("createAgUiSubscriber", () => {
 
     subscriber.onRunFinalized?.();
 
-    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+    expect(events).toEqual([]);
   });
 
-  it("falls back to onRunFinalized when RunFinishedEvent has no runId", () => {
+  it("does not infer success from an invalid RunFinishedEvent", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
@@ -205,7 +205,7 @@ describe("createAgUiSubscriber", () => {
     });
     subscriber.onRunFinalized?.();
 
-    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+    expect(events).toEqual([]);
   });
 
   it("ignores onRunFinishedEvent payloads that parse as a different event type", () => {
@@ -220,7 +220,7 @@ describe("createAgUiSubscriber", () => {
     });
     subscriber.onRunFinalized?.();
 
-    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+    expect(events).toEqual([]);
   });
 
   it("dispatches activity snapshots without duplication", () => {

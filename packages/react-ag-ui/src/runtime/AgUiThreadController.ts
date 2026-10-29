@@ -2159,6 +2159,24 @@ export class AgUiThreadController {
         pendingError = err;
       }
     } finally {
+      const current = assistantMessageId
+        ? this.session.tryGetMessage(assistantMessageId)?.message
+        : undefined;
+      if (
+        this.abortController === abortController &&
+        current?.role === "assistant" &&
+        current.status?.type === "running"
+      ) {
+        // Finalization is transport cleanup, not proof of a terminal event.
+        // Status-only settlement preserves content imported by snapshots.
+        const status: MessageStatus = {
+          type: "incomplete",
+          reason: "error",
+          error: "The connection ended before the answer finished.",
+        };
+        settleHeldMessages(status);
+        applyUpdate({ status });
+      }
       this.finishRun(abortController);
     }
 
