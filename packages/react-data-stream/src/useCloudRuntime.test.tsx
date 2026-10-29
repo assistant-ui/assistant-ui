@@ -243,20 +243,28 @@ describe("useCloudRuntime", () => {
       },
       approval: { approved: true },
       result: { deleted: true },
+      replayed: { result: { deleted: true }, isError: false },
     },
     {
       decision: { approved: false, reason: "not now" },
       toolChunk: { type: "tool-output-denied", toolCallId: "call_1" },
       approval: { approved: false, reason: "not now" },
       result: { error: "not now" },
+      replayed: {},
     },
   ])(
     "shows a server tool approval and sends back $decision",
-    async ({ decision, toolChunk, approval, result }) => {
+    async ({ decision, toolChunk, approval, result, replayed }) => {
       const fetchMock = vi
         .fn()
         .mockResolvedValueOnce(uiMessageStream(approvalRequest))
-        .mockResolvedValueOnce(uiMessageStream(continuation(toolChunk)));
+        .mockResolvedValueOnce(uiMessageStream(continuation(toolChunk)))
+        .mockResolvedValueOnce(
+          uiMessageStream([
+            { type: "start" },
+            { type: "finish", finishReason: "stop" },
+          ]),
+        );
       vi.stubGlobal("fetch", fetchMock);
       const runtime = await mountRuntime(makeCloud());
 
@@ -315,6 +323,29 @@ describe("useCloudRuntime", () => {
         }),
         expect.objectContaining({ type: "text", text: "ok" }),
       ]);
+
+      await act(async () => {
+        await runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "Thanks" }],
+        });
+      });
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(runtime.thread.getState().messages.at(-1)?.status?.type).toBe(
+          "complete",
+        );
+      });
+      const {
+        result: replayedResult,
+        isError,
+        ...replayedCall
+      } = requestOf(fetchMock.mock.calls[2]!).body.messages[1].content[0];
+      expect(replayedCall).toMatchObject({
+        toolCallId: "call_1",
+        approval: { id: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ", ...approval },
+      });
+      expect({ result: replayedResult, isError }).toEqual(replayed);
     },
   );
 });
