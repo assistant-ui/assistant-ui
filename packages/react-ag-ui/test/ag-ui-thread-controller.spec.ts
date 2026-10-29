@@ -1252,7 +1252,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getState()).toEqual({ count: 2 });
   });
 
-  it("resetState clears the snapshot so the next run sends null state", async () => {
+  it("resetState clears the snapshot so the next run sends empty state", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       if (runAgent.mock.calls.length === 1) {
         subscriber.onStateSnapshotEvent?.({
@@ -1279,7 +1279,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runConfig: {} as TestRunConfig,
     });
 
-    expect(runAgent.mock.calls[1]?.[0].state).toBeNull();
+    expect(runAgent.mock.calls[1]?.[0].state).toEqual({});
   });
 
   it("ignores state snapshots without a snapshot field", async () => {

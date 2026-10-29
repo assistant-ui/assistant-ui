@@ -123,12 +123,17 @@ const contentToParts = (
 
 const EMPTY_APPROVALS: ReadonlyMap<string, AdkToolApproval> = new Map();
 
-export const createAdkMessageConverter =
-  (
-    approvals: ReadonlyMap<string, AdkToolApproval>,
-    bufferedReplyIds: ReadonlySet<string> = new Set(),
-  ): useExternalMessageConverter.Callback<AdkMessage> =>
-  (message) => {
+export const createAdkMessageConverter = (
+  approvals: ReadonlyMap<string, AdkToolApproval>,
+  bufferedReplyIds: ReadonlySet<string> = new Set(),
+): useExternalMessageConverter.Callback<AdkMessage> => {
+  const confirmationIdsWithGatedCalls = new Set(
+    [...approvals].flatMap(([toolCallId, approval]) =>
+      toolCallId === approval.id ? [] : [approval.id],
+    ),
+  );
+
+  return (message) => {
     switch (message.type) {
       case "human":
         return {
@@ -138,9 +143,15 @@ export const createAdkMessageConverter =
         };
 
       case "ai": {
+        const contentParts = contentToParts(message.content, "assistant");
         const toolCallParts: ToolCallMessagePart[] =
           message.tool_calls?.flatMap((tc) => {
             if (typeof tc?.name !== "string" || tc.name.length === 0) return [];
+            if (
+              tc.name === ADK_REQUEST_CONFIRMATION &&
+              confirmationIdsWithGatedCalls.has(tc.id)
+            )
+              return [];
             const approval = approvals.get(tc.id);
             return {
               type: "tool-call",
@@ -156,13 +167,23 @@ export const createAdkMessageConverter =
             };
           }) ?? [];
 
+        if (
+          contentParts.length === 0 &&
+          toolCallParts.length === 0 &&
+          message.tool_calls !== undefined &&
+          message.tool_calls.length > 0 &&
+          message.tool_calls.every(
+            (tc) =>
+              tc?.name === ADK_REQUEST_CONFIRMATION &&
+              confirmationIdsWithGatedCalls.has(tc.id),
+          )
+        )
+          return [];
+
         return {
           role: "assistant",
           id: message.id,
-          content: [
-            ...contentToParts(message.content, "assistant"),
-            ...toolCallParts,
-          ],
+          content: [...contentParts, ...toolCallParts],
           ...(message.status && { status: message.status }),
           ...(message.status?.type === "incomplete" &&
             message.status.reason === "error" && {
@@ -205,6 +226,7 @@ export const createAdkMessageConverter =
         return [];
     }
   };
+};
 
 export const convertAdkMessage: useExternalMessageConverter.Callback<AdkMessage> =
   createAdkMessageConverter(EMPTY_APPROVALS);

@@ -2140,7 +2140,7 @@ export class AgUiThreadController {
         try {
           runAgentInstance.messages = input.messages;
           runAgentInstance.threadId = input.threadId;
-          runAgentInstance.state = input.state ?? null;
+          runAgentInstance.state = input.state;
         } catch {
           // ignore
         }
@@ -2355,7 +2355,8 @@ export class AgUiThreadController {
     const input = {
       threadId,
       runId,
-      state: this.state.stateSnapshot ?? null,
+      state:
+        this.state.stateSnapshot === undefined ? {} : this.state.stateSnapshot,
       messages,
       tools: toAgUiTools(context?.tools),
       context: [
