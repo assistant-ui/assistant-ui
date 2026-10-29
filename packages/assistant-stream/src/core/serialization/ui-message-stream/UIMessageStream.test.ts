@@ -1343,7 +1343,7 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.result).toEqual({ temp: 20 });
     });
 
-    it("ignores a tool-output for an id this decoder never saw", async () => {
+    it("opens a nameless call for a tool-output whose id this decoder never saw", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),
         JSON.stringify({
@@ -1361,11 +1361,22 @@ describe("UIMessageStreamDecoder", () => {
         createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
       );
 
-      expect(chunks.some((c) => c.type === "result")).toBe(false);
+      expect(chunks).toContainEqual({
+        type: "part-start",
+        path: [],
+        part: {
+          type: "tool-call",
+          toolCallId: "call_from_previous_response",
+          toolName: "",
+        },
+      });
+      expect(chunks).toContainEqual(
+        expect.objectContaining({ type: "result", result: { temp: 20 } }),
+      );
       const text = chunks
         .filter(
           (c): c is AssistantStreamChunk & { type: "text-delta" } =>
-            c.type === "text-delta",
+            c.type === "text-delta" && c.path[0] === 1,
         )
         .map((c) => c.textDelta)
         .join("");
@@ -1731,6 +1742,44 @@ describe("UIMessageStreamDecoder tool approvals", () => {
     expect(toolCallOf(messages)).not.toHaveProperty("approval");
     expect(toolCallOf(messages)).not.toHaveProperty("result");
   });
+
+  it.each([
+    {
+      output: { type: "tool-output-available", output: { deleted: true } },
+      result: { deleted: true },
+      isError: false,
+    },
+    {
+      output: { type: "tool-output-error", errorText: "An error occurred." },
+      result: "An error occurred.",
+      isError: true,
+    },
+  ])(
+    "carries a $output.type for a call an earlier response opened",
+    async ({ output, result, isError }) => {
+      // Recorded continuation after the client approved `call_1`.
+      const messages = await decodeMessages([
+        { type: "start" },
+        { ...output, toolCallId: "call_1" },
+        { type: "start-step" },
+        { type: "text-start", id: "t" },
+        { type: "text-delta", id: "t", delta: "ok" },
+        { type: "text-end", id: "t" },
+        { type: "finish-step" },
+        { type: "finish", finishReason: "stop" },
+      ]);
+
+      expect(messages.at(-1)!.parts).toEqual([
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "call_1",
+          result,
+          isError,
+        }),
+        expect.objectContaining({ type: "text", text: "ok" }),
+      ]);
+    },
+  );
 
   it("ignores approval chunks for a call an earlier response opened", async () => {
     // Recorded continuation after the client denied `call_1`.

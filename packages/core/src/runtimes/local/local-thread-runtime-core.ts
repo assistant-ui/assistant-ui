@@ -88,6 +88,47 @@ const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
   };
 };
 
+// A continuation that yields a tool call the message already holds unsettled,
+// such as an approved one the server then ran, settles that call in place: the
+// call keeps its own fields and takes the yielded result. A yielded call whose
+// id matches a settled call is a new call and is appended.
+const withContinuation = (
+  initial: readonly ThreadAssistantMessagePart[],
+  incoming: readonly ThreadAssistantMessagePart[],
+): ThreadAssistantMessagePart[] => {
+  const open = new Map<string, ToolCallMessagePart>();
+  for (const part of initial) {
+    if (
+      part.type === "tool-call" &&
+      (part.result === undefined || part.isPreliminary === true)
+    )
+      open.set(part.toolCallId, part);
+  }
+  if (open.size === 0) return [...initial, ...incoming];
+
+  const settled = new Map<ThreadAssistantMessagePart, ToolCallMessagePart>();
+  const appended = incoming.filter((part) => {
+    if (part.type !== "tool-call") return true;
+    const target = open.get(part.toolCallId);
+    if (!target) return true;
+    if (part.result !== undefined) {
+      const { isPreliminary: _, ...call } = target;
+      settled.set(target, {
+        ...call,
+        result: part.result,
+        isError: part.isError,
+        ...(part.isPreliminary === true && { isPreliminary: true }),
+        ...(part.artifact !== undefined && { artifact: part.artifact }),
+        ...(part.modelContent !== undefined && {
+          modelContent: part.modelContent,
+        }),
+      });
+    }
+    return false;
+  });
+  return [...initial.map((part) => settled.get(part) ?? part), ...appended];
+};
+
 // A run resumes by restarting from its message, which drops every turn after
 // it, so a message that a later turn follows can never resume: its open
 // approvals are cancelled and its run settles as cancelled.
@@ -1440,7 +1481,7 @@ export class LocalThreadRuntimeCore
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
       const content = m.content
-        ? withExternalResults([...initialContent, ...m.content])
+        ? withExternalResults(withContinuation(initialContent, m.content))
         : undefined;
 
       message = {

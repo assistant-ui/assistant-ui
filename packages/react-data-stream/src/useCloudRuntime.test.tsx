@@ -242,15 +242,17 @@ describe("useCloudRuntime", () => {
         output: { deleted: true },
       },
       approval: { approved: true },
+      result: { deleted: true },
     },
     {
       decision: { approved: false, reason: "not now" },
       toolChunk: { type: "tool-output-denied", toolCallId: "call_1" },
       approval: { approved: false, reason: "not now" },
+      result: { error: "not now" },
     },
   ])(
     "shows a server tool approval and sends back $decision",
-    async ({ decision, toolChunk, approval }) => {
+    async ({ decision, toolChunk, approval, result }) => {
       const fetchMock = vi
         .fn()
         .mockResolvedValueOnce(uiMessageStream(approvalRequest))
@@ -303,6 +305,16 @@ describe("useCloudRuntime", () => {
       });
       expect(sent).not.toHaveProperty("result");
       expect(sent).not.toHaveProperty("isError");
+
+      expect(runtime.thread.getState().messages.at(-1)?.content).toEqual([
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "call_1",
+          toolName: "delete_file",
+          result,
+        }),
+        expect.objectContaining({ type: "text", text: "ok" }),
+      ]);
     },
   );
 });
