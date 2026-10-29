@@ -33,8 +33,8 @@ const apiError = (
 const quotaError = () =>
   apiError(
     429,
-    "Error 429: You have reached your weekly Clinepass limit. Upgrade your plan.",
-    '{"error":"weekly Clinepass limit"}',
+    "Error 429: You have reached your weekly plan limit. Upgrade your plan.",
+    '{"error":"weekly plan limit"}',
   );
 
 // The shape the SDK throws once its retries give up.
@@ -105,7 +105,7 @@ describe("toPublicStreamError", () => {
   it("returns visitor copy without provider internals", () => {
     const text = toPublicStreamError(quotaError());
     expect(text).toBe(MODEL_PROVIDER_LIMIT_MESSAGE);
-    expect(text).not.toMatch(/clinepass|gateway|429/i);
+    expect(text).not.toMatch(/plan limit|gateway|429/i);
     expect(toPublicStreamError(apiError(500, "upstream exploded"))).toBe(
       MODEL_PROVIDER_UNAVAILABLE_MESSAGE,
     );

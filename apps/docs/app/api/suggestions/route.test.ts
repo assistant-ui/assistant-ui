@@ -160,7 +160,7 @@ describe("POST /api/suggestions", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.generateText.mockRejectedValue(
       new APICallError({
-        message: "Error 429: You have reached your weekly Clinepass limit.",
+        message: "Error 429: You have reached your weekly plan limit.",
         url: "https://gateway.example.test/v1/responses",
         requestBodyValues: {},
         statusCode: 429,
@@ -172,7 +172,7 @@ describe("POST /api/suggestions", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(JSON.parse(body)).toEqual({ suggestions: [] });
-    expect(body).not.toMatch(/clinepass|gateway/i);
+    expect(body).not.toMatch(/plan limit|gateway/i);
     expect(mocks.recordFailure).toHaveBeenCalledTimes(1);
     error.mockRestore();
   });

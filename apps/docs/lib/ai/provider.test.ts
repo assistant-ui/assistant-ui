@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   chat: vi.fn((id: string) => ({ api: "chat", id })),
   responses: vi.fn((id: string) => ({ api: "responses", id })),
-  reasoningModelId: "reasoning-model",
 }));
 
 vi.mock("@ai-sdk/openai", async (importOriginal) => ({
@@ -11,21 +10,10 @@ vi.mock("@ai-sdk/openai", async (importOriginal) => ({
   createOpenAI: () => ({ chat: mocks.chat, responses: mocks.responses }),
 }));
 
-vi.mock("../model", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../model")>();
-  return {
-    ...actual,
-    resolveModelId: (input: string | undefined) =>
-      input === mocks.reasoningModelId ? input : actual.resolveModelId(input),
-    supportsReasoningEffort: (id: string) =>
-      id === mocks.reasoningModelId || actual.supportsReasoningEffort(id),
-  };
-});
-
 import { DEFAULT_MODEL_ID } from "../model";
 import { resolveChatModel } from "./provider";
 
-const REASONING_MODEL_ID = mocks.reasoningModelId;
+const REASONING_MODEL_ID = "gpt-6-luna";
 
 describe("resolveChatModel", () => {
   it("runs the default model on Chat Completions", () => {
@@ -89,11 +77,11 @@ describe("resolveChatModel", () => {
   it("keeps models without reasoning on Chat Completions", () => {
     expect(
       resolveChatModel({
-        modelName: "moonshotai/kimi-k3",
+        modelName: "deepseek/deepseek-flash",
         reasoningEffort: "high",
       }),
     ).toEqual({
-      model: { api: "chat", id: "moonshotai/kimi-k3" },
+      model: { api: "chat", id: "deepseek/deepseek-flash" },
       providerOptions: undefined,
       reasoning: false,
     });
