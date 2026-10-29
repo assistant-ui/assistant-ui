@@ -93,10 +93,7 @@ describe("Column variants", () => {
       ].map(([tag]) => tag);
     const groups = groupsOf(html);
     const barGroups = groupsOf(bars);
-    const peak = tags(groups[0]!, "circle");
-    const pitch = Math.abs(
-      Number(attr(peak[1]!, "cy")) - Number(attr(peak[0]!, "cy")),
-    );
+    const EXPECTED_DOTS = [16, 6, 7, 3];
     expect(groups).toHaveLength(4);
     for (const [i, markup] of groups.entries()) {
       expect(tags(markup, "rect")).toHaveLength(0);
@@ -104,10 +101,7 @@ describe("Column variants", () => {
       const tracks = circles.filter((tag) => attr(tag, "fill") === ink(0.08));
       const filled = circles.filter((tag) => attr(tag, "fill") !== ink(0.08));
       const bar = tags(barGroups[i]!, "rect")[0]!;
-      expect(filled.length).toBeCloseTo(
-        Math.max(1, Number(attr(bar, "height")) / pitch),
-        -0.5,
-      );
+      expect(filled.length).toBe(EXPECTED_DOTS[i]);
       expect(
         filled.every(
           (tag) =>
@@ -187,5 +181,25 @@ describe("Column variants", () => {
     const html = renderToStaticMarkup(<Column mark="dot" items={items} />);
     expect(tags(html, "circle")).toHaveLength(0);
     expect(html).toBe(renderToStaticMarkup(<Column items={items} />));
+  });
+
+  it("draws no dots for a nonpositive value on log paper", () => {
+    const html = renderToStaticMarkup(
+      <Column
+        mark="dot"
+        yScale="log"
+        items={[
+          { label: "a", value: 10 },
+          { label: "b", value: -1 },
+        ]}
+      />,
+    );
+    const group = [
+      ...html.matchAll(
+        /<g[^>]*data-part="mark"[^>]*data-i="1"[^>]*>[\s\S]*?<\/g>/g,
+      ),
+    ][0]![0];
+    expect(tags(group, "circle")).toHaveLength(0);
+    finite(html);
   });
 });

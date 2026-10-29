@@ -41,4 +41,10 @@ describe("PolarArea inner radius", () => {
     for (const html of [small, large, capped, floor])
       expect(html).not.toMatch(/NaN|Infinity|undefined/);
   });
+
+  it("treats a NaN fraction as omitted", () => {
+    expect(
+      renderToStaticMarkup(<PolarArea items={items} inner={Number.NaN} />),
+    ).toBe(renderToStaticMarkup(<PolarArea items={items} />));
+  });
 });

@@ -186,11 +186,16 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           const fill = categorical ? cat(i) : accent ? ACCENT : ink(0.3);
           const opacity = categorical ? 0.9 : 1;
           const direction = row.value < 0 ? 1 : -1;
-          const dotCount =
-            row.value === 0 ? 0 : Math.max(1, Math.round(h / pitch));
           const trackCount = Math.floor(
             (row.value < 0 ? bottom - zeroY : zeroY - top) / pitch,
           );
+          const dotCount =
+            row.value === 0 || (yScale === "log" && row.value < 0)
+              ? 0
+              : Math.min(
+                  Math.max(1, Math.round(h / pitch)),
+                  Math.max(1, trackCount),
+                );
           const dotY = (dot: number) => zeroY + direction * (dot + 0.5) * pitch;
           const labelY = dots ? zeroY + direction * dotCount * pitch : valueY;
           return (

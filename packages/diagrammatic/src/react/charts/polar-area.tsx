@@ -42,7 +42,7 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
       Math.min(right - left, bottom - top) / 2 - labelAllowance,
     );
     const inner =
-      innerFraction === undefined
+      innerFraction === undefined || Number.isNaN(innerFraction)
         ? Math.max(2, outer * 0.12)
         : outer * Math.min(0.9, Math.max(0, innerFraction));
     const ringStroke = Math.max(1, Math.min(4, outer * 0.035));

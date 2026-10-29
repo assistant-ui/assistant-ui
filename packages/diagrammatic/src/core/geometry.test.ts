@@ -40,6 +40,17 @@ describe("linearFit", () => {
     expect(fit(3)).toBeCloseTo(7);
   });
 
+  it("fits least squares rather than the endpoints", () => {
+    const fit = linearFit([
+      { x: 0, y: 0 },
+      { x: 1, y: 3 },
+      { x: 2, y: 1 },
+      { x: 4, y: 4 },
+    ]);
+    expect(fit(0)).toBeCloseTo(0.6);
+    expect(fit(4)).toBeCloseTo(3.8);
+  });
+
   it("is flat at the mean when x has no spread", () => {
     const fit = linearFit([
       { x: 2, y: 1 },

@@ -45,7 +45,9 @@ describe("Waffle hex mark", () => {
       paths.every((tag) => (attr(tag, "d")?.match(/L/g) ?? []).length === 5),
     ).toBe(true);
     const firstX = Number(/^M([\d.]+)/.exec(attr(paths[0]!, "d")!)?.[1]);
+    const secondX = Number(/^M([\d.]+)/.exec(attr(paths[1]!, "d")!)?.[1]);
     const nextRowX = Number(/^M([\d.]+)/.exec(attr(paths[10]!, "d")!)?.[1]);
+    expect(secondX).toBeGreaterThan(firstX);
     expect(nextRowX).toBeGreaterThan(firstX);
     expect(hex).not.toMatch(/NaN|Infinity|undefined/);
     expect(square).not.toMatch(/NaN|Infinity|undefined/);
