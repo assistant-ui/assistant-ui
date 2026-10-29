@@ -65,6 +65,7 @@ import {
   fromAgUiMessages,
   toAgUiMessages,
   toAgUiTools,
+  withAgUiPartMessageMetadata,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 import {
@@ -3028,6 +3029,14 @@ export class AgUiThreadController {
             ...(event.messageId
               ? { unstable_toolMessageId: event.messageId }
               : {}),
+            ...(event.metadata !== undefined
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    part.providerMetadata,
+                    event.metadata,
+                  ),
+                }
+              : {}),
           };
         }
         const { modelContent: _modelContent, ...partWithoutModelContent } =
@@ -3053,6 +3062,14 @@ export class AgUiThreadController {
             : {}),
           ...(event.messageId
             ? { unstable_toolMessageId: event.messageId }
+            : {}),
+          ...(event.metadata !== undefined
+            ? {
+                providerMetadata: withAgUiPartMessageMetadata(
+                  part.providerMetadata,
+                  event.metadata,
+                ),
+              }
             : {}),
         };
       });
