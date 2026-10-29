@@ -1,6 +1,6 @@
 import type { BaseProps } from "../svg";
 import { Pulse } from "../motion";
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import {
   type TickSpec,
   resolveTicks,
@@ -11,7 +11,9 @@ import type { Guide, Pt, ScaleKind, Series } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import {
   bandPath,
+  lineCubicSegment,
   linePath,
+  linearFit,
   positiveExtent,
   project,
   round,
@@ -19,7 +21,7 @@ import {
   stroke,
 } from "../../core/geometry";
 import { textWidth } from "../../core/text";
-import { ACCENT, GRID, cat, ink } from "../../core/theme";
+import { ACCENT, GRID, NEG, POS, cat, ink } from "../../core/theme";
 import {
   AxisLabels,
   ChartSvg,
@@ -49,6 +51,9 @@ export type LineProps = BaseProps & {
   xTicks?: TickSpec;
   yTicks?: TickSpec;
   step?: boolean;
+  signed?: boolean;
+  forecastFrom?: number;
+  trend?: boolean;
   regions?: { from: number; to: number; label?: string }[];
   bands?: readonly { lower: number[]; upper: number[] }[];
   marks?: readonly LineMark[];
@@ -83,6 +88,34 @@ function linePoints(
   }));
 }
 
+function trendEnds(points: Pt[]): [Pt, Pt] | undefined {
+  if (points.length === 0) return undefined;
+  const fit = linearFit(points);
+  const x0 = Math.min(...points.map((p) => p.x));
+  const x1 = Math.max(...points.map((p) => p.x));
+  return [
+    { x: x0, y: fit(x0) },
+    { x: x1, y: fit(x1) },
+  ];
+}
+
+function lineRangePath(pts: Pt[], from: number, to: number, step: boolean) {
+  const start = pts[from]!;
+  let d = `M${round(start.x)} ${round(start.y)}`;
+  for (let i = from; i < to; i += 1) {
+    const next = pts[i + 1]!;
+    if (step) {
+      d += ` H${round(next.x)} V${round(next.y)}`;
+    } else if (pts.length < 3) {
+      d += ` L${round(next.x)} ${round(next.y)}`;
+    } else {
+      const { control1, control2 } = lineCubicSegment(pts, i);
+      d += ` C${round(control1.x)} ${round(control1.y)} ${round(control2.x)} ${round(control2.y)} ${round(next.x)} ${round(next.y)}`;
+    }
+  }
+  return d;
+}
+
 export const Line = forwardRef<SVGSVGElement, LineProps>(
   (
     {
@@ -95,6 +128,9 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
       xTicks,
       yTicks,
       step,
+      signed,
+      forecastFrom,
+      trend,
       regions,
       bands,
       marks,
@@ -115,12 +151,21 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
     const all: Series[] = series ?? [{ name: "", data: data ?? [] }];
     const multi = all.length > 1;
     const showLegend = legend ?? multi;
+    const showTrend = Boolean(trend && xScale !== "log" && yScale !== "log");
     const yValues = [
       ...all.flatMap((s) => s.data),
       ...(bands?.flatMap((band) => [...band.lower, ...band.upper]) ?? []),
       ...tickValues(yTicks),
       ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
         []),
+      ...(showTrend
+        ? all.flatMap(
+            (s) =>
+              trendEnds(
+                s.data.map((value, i) => ({ x: xs?.[i] ?? i, y: value })),
+              )?.map((p) => p.y) ?? [],
+          )
+        : []),
     ];
     const [yLo0, yHi0] =
       yScale === "log"
@@ -151,6 +196,13 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
     const first = grids[0] ?? [];
     const last = first[first.length - 1];
     const lastValue = all[0]?.data[all[0].data.length - 1] ?? 0;
+    const signedSingle = Boolean(signed && !multi && yScale !== "log");
+    const clipId = useId();
+    const endColor = signedSingle ? (lastValue < 0 ? NEG : POS) : ACCENT;
+    const forecastIndex =
+      forecastFrom === undefined || Number.isNaN(forecastFrom)
+        ? undefined
+        : Math.round(forecastFrom);
     const count = Math.max(1, (all[0]?.data.length ?? 1) - 1);
     const span = right - left;
     const RX = (i: number) =>
@@ -238,32 +290,113 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {grids.map((pts, k) => (
-          <path
-            key={k}
-            d={step ? stepPath(pts) : linePath(pts)}
-            fill="none"
-            stroke={multi ? cat(k) : ink(0.75)}
-            opacity={multi ? 0.85 : 1}
-            strokeLinejoin="round"
-            data-part="mark"
-            data-series={all[k]!.name}
-            {...stroke.line}
+        {signedSingle && (
+          <defs>
+            <clipPath id={`${clipId}-pos`}>
+              <rect x={0} y={0} width={F.width} height={round(Y(0))} />
+            </clipPath>
+            <clipPath id={`${clipId}-neg`}>
+              <rect
+                x={0}
+                y={round(Y(0))}
+                width={F.width}
+                height={round(Math.max(0, F.height - Y(0)))}
+              />
+            </clipPath>
+          </defs>
+        )}
+        {signedSingle && yLo0 < 0 && (
+          <line
+            x1={left}
+            y1={round(Y(0))}
+            x2={right}
+            y2={round(Y(0))}
+            stroke={GRID}
+            data-part="grid"
+            {...stroke.hair}
           />
-        ))}
+        )}
+        {showTrend &&
+          grids.map((pts, k) => {
+            const ends = trendEnds(pts);
+            if (!ends) return null;
+            return (
+              <line
+                key={k}
+                x1={round(ends[0].x)}
+                y1={round(ends[0].y)}
+                x2={round(ends[1].x)}
+                y2={round(ends[1].y)}
+                stroke={multi ? cat(k) : ACCENT}
+                strokeDasharray="3 4"
+                opacity="0.7"
+                data-part="trend"
+                data-series={all[k]!.name}
+                {...stroke.hair}
+              />
+            );
+          })}
+        {grids.map((pts, k) => {
+          const lastIndex = pts.length - 1;
+          const cut =
+            forecastIndex === undefined
+              ? undefined
+              : Math.max(0, Math.min(lastIndex, forecastIndex));
+          const paths =
+            cut !== undefined && cut > 0 && cut < lastIndex
+              ? [
+                  {
+                    d: lineRangePath(pts, 0, cut, Boolean(step)),
+                    dashed: false,
+                  },
+                  {
+                    d: lineRangePath(pts, cut, lastIndex, Boolean(step)),
+                    dashed: true,
+                  },
+                ]
+              : [
+                  {
+                    d: step ? stepPath(pts) : linePath(pts),
+                    dashed: lastIndex > 0 && cut === 0,
+                  },
+                ];
+          const strokes = signedSingle
+            ? [
+                { color: POS, clip: `url(#${clipId}-pos)` },
+                { color: NEG, clip: `url(#${clipId}-neg)` },
+              ]
+            : [{ color: multi ? cat(k) : ink(0.75), clip: undefined }];
+          return strokes.flatMap((line, j) =>
+            paths.map((path, i) => (
+              <path
+                key={`${k}-${j}-${i}`}
+                d={path.d}
+                fill="none"
+                stroke={line.color}
+                clipPath={line.clip}
+                strokeDasharray={path.dashed ? "4 4" : undefined}
+                opacity={multi ? 0.85 : 1}
+                strokeLinejoin="round"
+                data-part="mark"
+                data-series={all[k]!.name}
+                {...stroke.line}
+              />
+            )),
+          );
+        })}
         {!multi && last && (
           <g>
             <Pulse
               cx={round(last.x)}
               cy={round(last.y)}
               r={3.5}
-              color={ACCENT}
+              color={endColor}
             />
             <circle
               cx={round(last.x)}
               cy={round(last.y)}
               r={3.5}
-              fill={ACCENT}
+              fill={endColor}
               data-part="mark"
             />
             <text
@@ -271,6 +404,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
               y={round(last.y - 8)}
               textAnchor="middle"
               {...T.value.attrs}
+              fill={signedSingle ? endColor : T.value.attrs.fill}
             >
               {endLabel}
             </text>

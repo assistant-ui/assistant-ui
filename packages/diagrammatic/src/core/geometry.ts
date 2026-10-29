@@ -245,6 +245,17 @@ export function hexPath(cx: number, cy: number, r: number): string {
   return `M${pts.map((p) => `${round(p.x)} ${round(p.y)}`).join(" L")} Z`;
 }
 
+/** Least-squares line through the points, as a function of x. */
+export function linearFit(points: readonly Pt[]): (x: number) => number {
+  const n = points.length || 1;
+  const mx = points.reduce((s, p) => s + p.x, 0) / n;
+  const my = points.reduce((s, p) => s + p.y, 0) / n;
+  const slope =
+    points.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) /
+    (points.reduce((s, p) => s + (p.x - mx) ** 2, 0) || 1);
+  return (x) => my + slope * (x - mx);
+}
+
 export const stroke = {
   line: { strokeWidth: 2, vectorEffect: "non-scaling-stroke" },
   medium: { strokeWidth: 1.5, vectorEffect: "non-scaling-stroke" },
