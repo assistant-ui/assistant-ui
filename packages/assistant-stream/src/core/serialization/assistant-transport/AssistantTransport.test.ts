@@ -469,12 +469,13 @@ describe("AssistantTransportDecoder", () => {
     warn.mockRestore();
   });
 
-  it("carries a tool-call approval and drops one without an id", async () => {
+  it("carries a tool-call approval and drops malformed ones", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const decodedChunks = await collectChunks(
       sseStream([
         '{"type":"tool-call-approval","approval":{"id":"a1","signature":"sig"},"path":[0]}',
         '{"type":"tool-call-approval","approval":{"signature":"sig"},"path":[0]}',
+        '{"type":"tool-call-approval","approval":{"id":"a2","approved":"false"},"path":[0]}',
         '{"type":"tool-call-approval","path":[0]}',
       ]),
     );

@@ -95,12 +95,12 @@ type AssistantMetaStreamChunk = (AssistantStreamChunk & {
   type: "part-finish" | "text-delta";
   meta: PartInit;
 }) | (AssistantStreamChunk & {
-  type: "result" | "tool-call-args-text-finish";
+  type: "result" | "tool-call-approval" | "tool-call-args-text-finish";
   meta: PartInit & {
     type: "tool-call";
   };
 }) | (AssistantStreamChunk & {
-  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "tool-call-args-text-finish">;
+  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "tool-call-approval" | "tool-call-args-text-finish">;
 });
 
 declare class AssistantMetaTransformStream extends TransformStream<AssistantStreamChunk, AssistantMetaStreamChunk> {

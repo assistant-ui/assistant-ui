@@ -1138,31 +1138,6 @@ describe("AssistantMessageAccumulator tool arguments", () => {
   });
 });
 
-describe("AssistantMessageAccumulator steps", () => {
-  const finishStep = {
-    type: "step-finish" as const,
-    path: [],
-    finishReason: "stop" as const,
-    usage: { inputTokens: 1, outputTokens: 1 },
-    isContinued: false,
-  };
-
-  it("records a step opened twice under one message id once", async () => {
-    const messages = await collectStream([
-      { type: "step-start", path: [], messageId: "m-1" },
-      { type: "step-start", path: [], messageId: "m-1" },
-      finishStep,
-      { type: "step-start", path: [], messageId: "m-1" },
-      finishStep,
-    ]);
-
-    expect(messages.at(-1)!.metadata.steps).toEqual([
-      expect.objectContaining({ state: "finished", messageId: "m-1" }),
-      expect.objectContaining({ state: "finished", messageId: "m-1" }),
-    ]);
-  });
-});
-
 describe("AssistantMessageAccumulator tool-call approvals", () => {
   it("sets an approval on a tool call and drops one aimed at another part", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

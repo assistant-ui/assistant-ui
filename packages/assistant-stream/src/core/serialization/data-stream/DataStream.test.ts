@@ -852,6 +852,47 @@ describe("file parts on the data stream", () => {
   });
 });
 
+describe("tool-call approvals on the data stream", () => {
+  const approvalChunks: AssistantStreamChunk[] = [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "t1", toolName: "deploy" },
+    },
+    {
+      type: "tool-call-approval",
+      path: [0],
+      approval: { id: "a1", signature: "sig" },
+    },
+  ];
+
+  it("carries the approval on the wire", async () => {
+    const lines = await encodeChunks(approvalChunks);
+
+    expect(lines).toContain(
+      'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","signature":"sig"}}',
+    );
+  });
+
+  it("puts a round-tripped approval on its tool call", async () => {
+    const part = await roundTripFirstPart(approvalChunks);
+
+    expect(part).toMatchObject({
+      type: "tool-call",
+      toolCallId: "t1",
+      approval: { id: "a1", signature: "sig" },
+    });
+  });
+
+  it("throws on an approval for an unknown tool call by default", async () => {
+    await expect(
+      decodeLines([
+        'aui-tool-call-approval:{"toolCallId":"missing","approval":{"id":"a1"}}',
+      ]),
+    ).rejects.toThrow("unknown id: missing");
+  });
+});
+
 type ResultChunk = Extract<AssistantStreamChunk, { type: "result" }>;
 
 describe.each([
@@ -1009,6 +1050,7 @@ describe("DataStreamDecoder strict: false", () => {
       [
         'c:{"toolCallId":"missing","argsTextDelta":"{}"}',
         'a:{"toolCallId":"missing","result":{}}',
+        'aui-tool-call-approval:{"toolCallId":"missing","approval":{"id":"a1"}}',
         '0:"hello"',
       ],
       { strict: false },
@@ -1023,7 +1065,8 @@ describe("DataStreamDecoder strict: false", () => {
       ),
     ).toBe(false);
     expect(chunks.some((c) => c.type === "result")).toBe(false);
-    expect(error).toHaveBeenCalledTimes(2);
+    expect(chunks.some((c) => c.type === "tool-call-approval")).toBe(false);
+    expect(error).toHaveBeenCalledTimes(3);
   });
 
   it("drops duplicate tool call starts", async () => {
@@ -1090,6 +1133,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     "aui-text-delta:null",
     "aui-reasoning-delta:null",
     "aui-reasoning-part-start:null",
+    "aui-tool-call-approval:null",
     '2:{"a":1}',
     "8:null",
     'aui-state:"x"',
@@ -1107,6 +1151,8 @@ describe("DataStreamDecoder malformed frame values", () => {
     "aui-state:[{}]",
     'aui-state:[{"type":"set","path":"x","value":1}]',
     'aui-state:[{"type":"append-text","path":["a"],"value":1}]',
+    'aui-tool-call-approval:{"toolCallId":"t1","approval":{}}',
+    'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","approved":"false"}}',
   ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(

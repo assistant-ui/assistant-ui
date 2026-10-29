@@ -234,7 +234,9 @@ export const createChunkNormalizer = (): {
               prompt: chunk.reason,
               requestReason: chunk.reason,
             }),
-            ...(chunk.isAutomatic === true && { isAutomatic: true }),
+            ...(typeof chunk.isAutomatic === "boolean" && {
+              isAutomatic: chunk.isAutomatic,
+            }),
             ...(typeof chunk.signature === "string" && {
               signature: chunk.signature,
             }),

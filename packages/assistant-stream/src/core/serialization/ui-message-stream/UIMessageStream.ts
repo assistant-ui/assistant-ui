@@ -57,6 +57,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       };
       let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
+      // `start` opens the first step, and AI SDK streams follow it with a
+      // `start-step` for that same step.
+      let stepOpenedByStart = false;
       const approvalsByToolCallId = new Map<string, ToolCallApproval>();
 
       const transform = new AssistantTransformStream<UIMessageStreamChunk>({
@@ -90,6 +93,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           switch (type) {
             case "start":
               currentMessageId = chunk.messageId;
+              stepOpenedByStart = true;
               controller.enqueue({
                 type: "step-start",
                 path: [],
@@ -264,15 +268,19 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case "start-step":
-              controller.enqueue({
-                type: "step-start",
-                path: [],
-                messageId: chunk.messageId ?? currentMessageId ?? generateId(),
-              });
+            case "start-step": {
+              const messageId =
+                chunk.messageId ?? currentMessageId ?? generateId();
+              const isOpenStep =
+                stepOpenedByStart && messageId === currentMessageId;
+              stepOpenedByStart = false;
+              if (isOpenStep) break;
+              controller.enqueue({ type: "step-start", path: [], messageId });
               break;
+            }
 
             case "finish-step":
+              stepOpenedByStart = false;
               closeTextParts();
               controller.enqueue({
                 type: "step-finish",
