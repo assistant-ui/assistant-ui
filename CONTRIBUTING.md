@@ -2,6 +2,8 @@
 
 A big welcome and thank you for considering contributing to assistant-ui! It’s people like you that make it a reality for users in our community.
 
+> TraceHub end-to-end test line (throwaway, do not merge).
+
 You can contribute by opening an issue, or by making a pull request. [Opening an issue](#opening-an-issue) says what an issue needs, and [Opening a pull request](#opening-a-pull-request) says when to open one first.
 
 Project conventions live in [`AGENTS.md`](./AGENTS.md) and in the `AGENTS.md` of the directory you change, such as [`packages/AGENTS.md`](./packages/AGENTS.md) for package code and runtime adapters; please read and follow them.
@@ -135,5 +137,7 @@ If you forget to add a changeset before merging, create a new PR and run `pnpm c
 You can also add changesets on open PRs directly from GitHub using the changeset bot's link in PR comments.
 
 ### Releasing
+
+<!-- TraceHub test: this comment exists only to give the per-line gutter a second hunk. -->
 
 Our CI checks for changesets in `.changeset/` on `main` and will create an "update versions" PR which versions the packages, updates the changelog, and publishes the packages to npm on merge.
