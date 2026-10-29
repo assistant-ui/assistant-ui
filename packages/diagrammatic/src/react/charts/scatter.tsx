@@ -10,6 +10,7 @@ import {
 import type { Guide, Pt, ScaleKind } from "../../core/types";
 import {
   extent,
+  linearFit,
   positiveExtent,
   project,
   round,
@@ -153,12 +154,7 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
     const { X, Y, xScale: xs, yScale: ys } = scatterFrame(F, domain);
     const sized = points.some((p) => p.size !== undefined);
     const maxSize = Math.max(...points.map((p) => p.size ?? 0), 1);
-    const n = points.length || 1;
-    const mx = points.reduce((s, p) => s + p.x, 0) / n;
-    const my = points.reduce((s, p) => s + p.y, 0) / n;
-    const slope =
-      points.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) /
-      (points.reduce((s, p) => s + (p.x - mx) ** 2, 0) || 1);
+    const fit = linearFit(points);
     const [xLo, xHi] = extent(points.map((p) => p.x));
     const xText = xLabel
       ? `${xLabel} →${sized ? " · size = value" : ""}`
@@ -223,9 +219,9 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
         {trend && xs === "linear" && ys === "linear" && (
           <line
             x1={round(X(xLo))}
-            y1={round(Y(my + slope * (xLo - mx)))}
+            y1={round(Y(fit(xLo)))}
             x2={round(X(xHi))}
-            y2={round(Y(my + slope * (xHi - mx)))}
+            y2={round(Y(fit(xHi)))}
             stroke={ACCENT}
             strokeDasharray="3 4"
             opacity="0.7"

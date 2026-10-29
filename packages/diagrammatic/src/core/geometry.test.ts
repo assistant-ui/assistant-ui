@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { linear, positiveExtent, project, rowMarkH, rowMid } from "./geometry";
+import {
+  linear,
+  linearFit,
+  positiveExtent,
+  project,
+  rowMarkH,
+  rowMid,
+} from "./geometry";
 
 describe("linear", () => {
   it("maps domain ends onto the range", () => {
@@ -20,6 +27,25 @@ describe("linear", () => {
     const X = linear(4, 4, 0, 10);
     expect(X(4)).toBe(0);
     expect(X(5)).toBe(10);
+  });
+});
+
+describe("linearFit", () => {
+  it("passes through collinear points", () => {
+    const fit = linearFit([
+      { x: 0, y: 1 },
+      { x: 1, y: 3 },
+      { x: 2, y: 5 },
+    ]);
+    expect(fit(3)).toBeCloseTo(7);
+  });
+
+  it("is flat at the mean when x has no spread", () => {
+    const fit = linearFit([
+      { x: 2, y: 1 },
+      { x: 2, y: 5 },
+    ]);
+    expect(fit(10)).toBe(3);
   });
 });
 
