@@ -796,6 +796,73 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("does not resume following after an inset shrink without message growth", () => {
+    const view = geometry(600, 100);
+    view.setTop(500);
+    const message = document.createElement("div");
+    message.dataset["messageId"] = "message-1";
+    Object.defineProperty(message, "getBoundingClientRect", {
+      value: () => ({ top: 0, bottom: 50, height: 50 }),
+    });
+    view.element.append(message);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    const inset = controller.registerContentInset();
+    inset.setHeight(30);
+    view.setTop(470);
+    expect(controller.isAtBottom).toBe(true);
+
+    view.scrollTo.mockClear();
+    inset.setHeight(10);
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    observers[0]!.trigger();
+
+    expect(view.element.scrollTop).toBe(470);
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("does not restore following after the reader scrolls up during an inset shrink", () => {
+    const view = geometry(600, 100);
+    view.setTop(500);
+    let messageHeight = 50;
+    const message = document.createElement("div");
+    message.dataset["messageId"] = "message-1";
+    Object.defineProperty(message, "getBoundingClientRect", {
+      value: () => ({
+        top: 0,
+        bottom: messageHeight,
+        height: messageHeight,
+      }),
+    });
+    view.element.append(message);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    const inset = controller.registerContentInset();
+    inset.setHeight(30);
+    view.setTop(470);
+    inset.setHeight(10);
+    view.setTop(400);
+
+    messageHeight = 60;
+    view.scrollTo.mockClear();
+    observers[0]!.trigger();
+
+    expect(view.element.scrollTop).toBe(400);
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
   it("sums registered insets and removes them on unregister", () => {
     const view = geometry(600, 100);
     const controller = createThreadViewportAutoScroll({

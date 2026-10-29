@@ -121,6 +121,11 @@ export const createThreadViewportAutoScroll = (input: {
   let lastScrollHeight = 0;
   let lastObservedScrollHeight = 0;
   let lastObservedClientHeight = 0;
+  let lastObservedMessageHeights = new Map<
+    HTMLElement,
+    { id: string | undefined; height: number }
+  >();
+  let restoreFollowOnNextResize = false;
   let frame: number | null = null;
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
@@ -188,6 +193,8 @@ export const createThreadViewportAutoScroll = (input: {
     const scrolledUp =
       element.scrollTop < lastScrollTop &&
       element.scrollHeight >= lastScrollHeight;
+    if (restoreFollowOnNextResize && scrolledUp && !newIsAtBottom)
+      restoreFollowOnNextResize = false;
     if (
       !holdFollow &&
       !newIsAtBottom &&
@@ -238,20 +245,58 @@ export const createThreadViewportAutoScroll = (input: {
     }
   };
 
+  const observeMessageGrowth = () => {
+    if (!element) return false;
+    let grew = false;
+    const current = new Map<
+      HTMLElement,
+      { id: string | undefined; height: number }
+    >();
+    for (const message of element.querySelectorAll<HTMLElement>(
+      MESSAGE_SELECTOR,
+    )) {
+      const id = message.dataset["messageId"];
+      const height = message.getBoundingClientRect().height;
+      const previous = lastObservedMessageHeights.get(message);
+      if (
+        previous === undefined ||
+        previous.id !== id ||
+        height > previous.height
+      ) {
+        grew = true;
+      }
+      current.set(message, { id, height });
+    }
+    lastObservedMessageHeights = current;
+    return grew;
+  };
+
   const onContentResize = () => {
     if (!element) return;
     const { scrollHeight, clientHeight } = element;
+    const geometryChanged =
+      scrollHeight !== lastObservedScrollHeight ||
+      clientHeight !== lastObservedClientHeight;
+    const messageGrew = observeMessageGrowth();
+    const restoreFollow = restoreFollowOnNextResize && messageGrew;
+    restoreFollowOnNextResize = false;
+    if (restoreFollow) followBottom = true;
+
+    if (geometryChanged) {
+      lastObservedScrollHeight = scrollHeight;
+      lastObservedClientHeight = clientHeight;
+    }
+
     if (
-      scrollHeight === lastObservedScrollHeight &&
-      clientHeight === lastObservedClientHeight
+      !geometryChanged &&
+      !restoreFollow &&
+      !(messageGrew && followBottom && input.getOptions().autoScroll)
     ) {
       return;
     }
-    lastObservedScrollHeight = scrollHeight;
-    lastObservedClientHeight = clientHeight;
 
     followGrowth();
-    handleScroll();
+    handleScroll({ preserveFollow: restoreFollow });
   };
 
   const cancelPendingScrollToBottom = () => {
@@ -314,6 +359,10 @@ export const createThreadViewportAutoScroll = (input: {
     for (const height of contentInsetEntries.values()) inset += height;
     if (contentInset === inset) return;
     const grew = inset > contentInset;
+    const { autoScroll } = input.getOptions();
+    const restoreFollow =
+      !grew && followBottom && (autoScroll || intent !== null);
+    restoreFollowOnNextResize = restoreFollow;
     contentInset = inset;
     input.onContentInsetChange?.(inset);
     // A growing inset obscures pinned content and follows like a resize; a shrinking inset reveals content without moving the viewport.
@@ -330,6 +379,9 @@ export const createThreadViewportAutoScroll = (input: {
       lastScrollHeight = el.scrollHeight;
       lastObservedScrollHeight = 0;
       lastObservedClientHeight = 0;
+      lastObservedMessageHeights = new Map();
+      restoreFollowOnNextResize = false;
+      observeMessageGrowth();
       initialized = false;
       followBottom = true;
       followPaused = false;
