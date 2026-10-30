@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocsSidebar, DocsSidebarProvider } from "../contexts/sidebar";
 import { PlatformProvider } from "../platform/context";
 import { DocsHeader } from "./docs-header";
@@ -39,6 +40,20 @@ vi.mock("@/components/shared/shop-entry", () => ({ CartButton: () => null }));
 
 const tree = { name: "Docs", children: [] };
 
+let media: EventTarget;
+
+beforeEach(() => {
+  vi.stubGlobal("innerWidth", 390);
+  media = new EventTarget();
+  vi.stubGlobal("matchMedia", () => ({
+    get matches() {
+      return window.innerWidth < 768;
+    },
+    addEventListener: media.addEventListener.bind(media),
+    removeEventListener: media.removeEventListener.bind(media),
+  }));
+});
+
 const renderHeader = () =>
   render(
     <PlatformProvider tree={tree}>
@@ -49,7 +64,10 @@ const renderHeader = () =>
     </PlatformProvider>,
   );
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("DocsHeader mobile panels", () => {
   it("keeps the closed site navigation out of the tab order", () => {
@@ -82,7 +100,7 @@ describe("DocsHeader mobile panels", () => {
     expect(document.activeElement).toBe(toggle);
   });
 
-  it("hides the closed sidebar below the breakpoint and only there", () => {
+  it("makes the mobile sidebar inert as soon as it closes", () => {
     renderHeader();
     const toggle = screen.getByRole("button", { name: "Toggle sidebar" });
     const sidebar = document.getElementById(
@@ -90,12 +108,35 @@ describe("DocsHeader mobile panels", () => {
     )!;
 
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(sidebar.classList.contains("max-md:invisible")).toBe(true);
-    expect(sidebar.classList.contains("invisible")).toBe(false);
+    expect(sidebar.hasAttribute("inert")).toBe(true);
 
     fireEvent.click(toggle);
 
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(sidebar.classList.contains("max-md:invisible")).toBe(false);
+    expect(sidebar.hasAttribute("inert")).toBe(false);
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(sidebar.hasAttribute("inert")).toBe(true);
+  });
+
+  it("keeps the desktop rail interactive and updates when the breakpoint changes", () => {
+    vi.stubGlobal("innerWidth", 1440);
+    renderHeader();
+    const sidebar = document.getElementById("docs-sidebar")!;
+    expect(sidebar.hasAttribute("inert")).toBe(false);
+
+    act(() => {
+      vi.stubGlobal("innerWidth", 390);
+      media.dispatchEvent(new Event("change"));
+    });
+    expect(sidebar.hasAttribute("inert")).toBe(true);
+
+    act(() => {
+      vi.stubGlobal("innerWidth", 1440);
+      media.dispatchEvent(new Event("change"));
+    });
+    expect(sidebar.hasAttribute("inert")).toBe(false);
   });
 });

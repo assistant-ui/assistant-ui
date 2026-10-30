@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DocsSidebarContextValue {
   open: boolean;
@@ -49,14 +50,16 @@ export const DOCS_SIDEBAR_ID = "docs-sidebar";
  */
 export function DocsSidebar({ children }: { children: ReactNode }) {
   const { open } = useDocsSidebar();
+  const isMobile = useIsMobile();
 
   return (
     <aside
       id={DOCS_SIDEBAR_ID}
+      inert={!open && isMobile}
       className={cn(
-        // mobile: fullscreen overlay that fades in. Visibility has no transition, so closing leaves the tab order at once.
+        // mobile: fullscreen overlay; inert removes focus without interrupting the fade.
         "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0 max-md:invisible",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
         // desktop: collapse to left rail, always visible
         "md:pointer-events-auto md:right-auto md:left-0 md:z-30 md:w-(--sidebar-width) md:opacity-100",
       )}
