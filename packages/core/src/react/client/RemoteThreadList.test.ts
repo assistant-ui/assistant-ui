@@ -3903,4 +3903,101 @@ describe("RemoteThreadList", () => {
       errorSpy.mockRestore();
     }
   });
+
+  it.each([false, true])(
+    "reloads the active adapter after an archive settles across an adapter change with hosted=%s",
+    async (hosted) => {
+      const backend = { status: "regular" as "regular" | "archived" };
+      const archiveRequest = deferred<void>();
+      const staleList = deferred<{ threads: RemoteThreadMetadata[] }>();
+      const adapterA = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "r0", title: "r0" },
+          ],
+        })),
+        archive: vi.fn(async () => {
+          await archiveRequest.promise;
+          backend.status = "archived";
+        }),
+      });
+      const adapterB = makeAdapter({
+        list: vi
+          .fn()
+          .mockReturnValueOnce(staleList.promise)
+          .mockImplementation(async () => ({
+            threads: [{ status: backend.status, remoteId: "r0", title: "r0" }],
+          })),
+      });
+      let adapter = adapterA;
+      const listeners = new Set<() => void>();
+      const handle = createAssistantClient({
+        getConfig: () =>
+          AuiConfig({
+            threads: RemoteThreadList({
+              adapter,
+              thread: (id) => StubThread({ threadId: id }) as never,
+              ...(hosted
+                ? {
+                    backgroundThreads: true,
+                    __internal_ensureThread: async () => {},
+                    __internal_isThreadAttached: () => true,
+                    __internal_preserveDraftOnAdapterChange: true,
+                    __internal_reopenControlledThreadOnAdapterChange: true,
+                  }
+                : {}),
+            }),
+          }),
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      });
+      handle.subscribe(() => {});
+      const threads = handle.getClient().threads;
+
+      try {
+        await threads.getLoadThreadsPromise();
+        const archiveTask = threads.item({ id: "r0" }).archive();
+        await waitFor(() => expect(adapterA.archive).toHaveBeenCalledOnce());
+        expect(threads.item({ id: "r0" }).getState().status).toBe("archived");
+
+        adapter = adapterB;
+        flushTapSync(() => listeners.forEach((listener) => listener()));
+        let replacementLoad: Promise<void> | undefined;
+        if (hosted) {
+          await waitFor(() => expect(adapterB.list).toHaveBeenCalledOnce());
+        } else {
+          replacementLoad = threads.reload();
+          await waitFor(() => expect(adapterB.list).toHaveBeenCalledOnce());
+        }
+        staleList.resolve({
+          threads: [{ status: "regular", remoteId: "r0", title: "r0" }],
+        });
+        await replacementLoad;
+        await waitFor(() =>
+          expect(threads.item({ id: "r0" }).getState().status).toBe("regular"),
+        );
+
+        archiveRequest.resolve();
+        await archiveTask;
+
+        expect(backend.status).toBe("archived");
+        expect(adapterB.list).toHaveBeenCalledTimes(2);
+        await waitFor(() => {
+          expect(
+            (
+              threads.getState().threadItems as readonly {
+                id: string;
+                status: string;
+              }[]
+            ).find((item) => item.id === "r0")?.status,
+          ).toBe("archived");
+          expect(threads.item({ id: "r0" }).getState().status).toBe("archived");
+        });
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
 });
