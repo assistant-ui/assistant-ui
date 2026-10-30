@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -53,11 +53,13 @@ jobs:
           if-no-files-found: warn
 
   report:
-    name: Report Failure
+    name: Report
     needs: lighthouse
-    if: failure() && github.event_name == 'schedule'
+    # Only scheduled runs report, so a dispatch never opens or closes the issue.
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
     permissions:
       issues: write
     uses: ./.github/workflows/scheduled-failure-issue.yaml
     with:
-      title: Docs Lighthouse check is failing
+      title: Docs Lighthouse workflow is failing
+      failed: ${{ needs.lighthouse.result != 'success' }}
