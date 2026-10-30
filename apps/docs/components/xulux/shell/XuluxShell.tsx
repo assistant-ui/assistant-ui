@@ -489,9 +489,12 @@ export function XuluxShell({
   if (mode === "learn") {
     if (!learnReady) {
       return (
-        <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+        <main
+          {...MAIN_CONTENT_PROPS}
+          className="text-muted-foreground flex h-full items-center justify-center text-sm"
+        >
           Loading course…
-        </div>
+        </main>
       );
     }
 

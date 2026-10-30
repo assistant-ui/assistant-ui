@@ -54,8 +54,8 @@ export function DocsSidebar({ children }: { children: ReactNode }) {
     <aside
       id={DOCS_SIDEBAR_ID}
       className={cn(
-        // mobile: fullscreen overlay, faded and hidden from focus when closed
-        "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-[opacity,visibility] duration-200",
+        // mobile: fullscreen overlay that fades in. Visibility has no transition, so closing leaves the tab order at once.
+        "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200",
         open ? "opacity-100" : "pointer-events-none opacity-0 max-md:invisible",
         // desktop: collapse to left rail, always visible
         "md:pointer-events-auto md:right-auto md:left-0 md:z-30 md:w-(--sidebar-width) md:opacity-100",
