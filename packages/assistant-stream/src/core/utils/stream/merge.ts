@@ -1,4 +1,6 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import { Counter } from "../Counter";
+import { createPathMergeMapper } from "./path-utils";
 import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 export type MergeStreamFinishOrder = {
@@ -21,20 +23,41 @@ type MergeStreamItem = {
   delivered: number;
   gate?: Promise<void> | undefined;
   holds: MergeStreamHold[];
+  pathMapper?:
+    | ((chunk: AssistantStreamChunk) => AssistantStreamChunk)
+    | undefined;
+};
+
+type PartIndexReference = {
+  value: number | undefined;
+  promise: Promise<number>;
+};
+
+type PartIndexReservation = {
+  reference: PartIndexReference;
+  resolve: (index: number) => void;
+};
+
+type RawChunkBatchItem = {
+  chunk: AssistantStreamChunk;
+  partIndex?: PartIndexReservation | undefined;
 };
 
 type MergeStreamOptions = {
   orderedFinish?: MergeStreamFinishOrder | undefined;
   written?: (() => number) | undefined;
+  pathTransform?: "merge" | undefined;
 };
 
 export const createMergeStream = () => {
   const list: MergeStreamItem[] = [];
+  const pendingPartIndexes = new Set<PartIndexReservation>();
+  const contentCounter = new Counter();
   let sealed = false;
   let cancelled = false;
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
-  let rawChunkBatch: AssistantStreamChunk[] | undefined;
+  let rawChunkBatch: RawChunkBatchItem[] | undefined;
   let rawBarrier: Promise<void> | undefined;
   let pendingRawBatches = 0;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
@@ -48,6 +71,11 @@ export const createMergeStream = () => {
   const cancelAllReaders = () => {
     // Repeated cancellation must wait for cleanup already in progress.
     rawChunkBatch = undefined;
+    for (const partIndex of pendingPartIndexes) {
+      partIndex.reference.value = -1;
+      partIndex.resolve(-1);
+    }
+    pendingPartIndexes.clear();
     if (!cleanupPromise) {
       const items = list.splice(0);
       for (const item of items) {
@@ -119,7 +147,7 @@ export const createMergeStream = () => {
               await item.orderedFinish.previous();
               if (cancelled || errored) return;
             }
-            controller.enqueue(value);
+            controller.enqueue(item.pathMapper?.(value) ?? value);
             item.delivered++;
             for (const hold of item.holds) {
               if (item.delivered >= hold.writtenBefore) hold.reached.resolve();
@@ -172,7 +200,10 @@ export const createMergeStream = () => {
     return hold.reached.promise;
   };
 
-  const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+  const enqueueRawChunk = (
+    chunk: AssistantStreamChunk,
+    partIndex?: PartIndexReservation,
+  ) => {
     // Part starts and message-level boundaries wait for earlier writes; later chunks wait for them.
     const waitForPartWrites =
       chunk.type === "part-start" ||
@@ -185,7 +216,7 @@ export const createMergeStream = () => {
     }
 
     if (!rawChunkBatch) {
-      const batch: AssistantStreamChunk[] = [];
+      const batch: RawChunkBatchItem[] = [];
       rawChunkBatch = batch;
       pendingRawBatches++;
       const previous = rawBarrier;
@@ -208,7 +239,17 @@ export const createMergeStream = () => {
           if (rawChunkBatch === batch) rawChunkBatch = undefined;
           if (cancelled || errored) return;
 
-          for (const rawChunk of batch) controller.enqueue(rawChunk);
+          for (const { chunk: rawChunk, partIndex } of batch) {
+            if (rawChunk.type === "part-start" && rawChunk.path.length === 0) {
+              const index = contentCounter.up();
+              if (partIndex) {
+                pendingPartIndexes.delete(partIndex);
+                partIndex.reference.value = index;
+                partIndex.resolve(index);
+              }
+            }
+            controller.enqueue(rawChunk);
+          }
           if (sealed && list.length === 0 && pendingRawBatches === 0) {
             controller.close();
           }
@@ -224,7 +265,7 @@ export const createMergeStream = () => {
         });
     }
 
-    rawChunkBatch.push(chunk);
+    rawChunkBatch.push({ chunk, partIndex });
     if (waitForPartWrites) rawChunkBatch = undefined;
   };
 
@@ -254,6 +295,10 @@ export const createMergeStream = () => {
       delivered: 0,
       gate: rawBarrier,
       holds: [],
+      pathMapper:
+        options?.pathTransform === "merge"
+          ? createPathMergeMapper(() => contentCounter.up())
+          : undefined,
     };
     list.push(item);
     handlePull(item);
@@ -276,6 +321,25 @@ export const createMergeStream = () => {
       if (list.length === 0 && pendingRawBatches === 0) controller.close();
     },
     addStream,
+    enqueuePartStart(chunk: AssistantStreamChunk) {
+      if (cancelled || errored)
+        return { value: -1, promise: Promise.resolve(-1) };
+      if (sealed) {
+        throw new Error(
+          "Cannot add streams after the run callback has settled.",
+        );
+      }
+
+      const deferred = promiseWithResolvers<number>();
+      const reference: PartIndexReference = {
+        value: undefined as number | undefined,
+        promise: deferred.promise,
+      };
+      const reservation = { reference, resolve: deferred.resolve };
+      pendingPartIndexes.add(reservation);
+      enqueueRawChunk(chunk, reservation);
+      return reference;
+    },
     enqueue(chunk: AssistantStreamChunk) {
       if (cancelled || errored) return;
       if (sealed) {

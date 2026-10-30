@@ -89,8 +89,36 @@ export const useImperativeHandle = (ref: any, create: any, deps?: any) =>
     ? useTapImperativeHandle(ref, create, deps)
     : ReactRuntime.useImperativeHandle(ref, create, deps);
 
-// Star re-exports of a CommonJS react lose named exports under some dev
-// servers; the names the package dists import are re-exported explicitly.
+// Bundlers that pre-bundle this module with esbuild (Vite dev's optimizeDeps)
+// drop the `export *` above because react is CommonJS, so every runtime export
+// of React 18 and 19 is re-exported explicitly. Reading them off the default
+// export leaves names a React version lacks undefined instead of failing to link.
+export const {
+  Activity,
+  Component,
+  Profiler,
+  PureComponent,
+  StrictMode,
+  ViewTransition,
+  act,
+  addTransitionType,
+  cache,
+  cacheSignal,
+  captureOwnerStack,
+  createFactory,
+  createRef,
+  startTransition,
+  unstable_act,
+  unstable_useCacheRefresh,
+  useActionState,
+  useOptimistic,
+  useTransition,
+  version,
+  __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+  __COMPILER_RUNTIME,
+  __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,
+} = ReactRuntime;
+
 export const forwardRef = (render: any) => ReactRuntime.forwardRef(render);
 
 export const memo = (type: any, compare?: any) =>
