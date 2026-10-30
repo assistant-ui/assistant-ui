@@ -48,6 +48,11 @@
         "generated/primitiveDocs.ts"
       ]
     },
+    "check:lighthouse": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["CHROME_PATH"]
+    },
     "dev": {
       "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,

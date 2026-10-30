@@ -1,0 +1,63 @@
+name: Docs Lighthouse
+
+# Building the docs is expensive, so this runs weekly and on demand instead of on pull requests.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: Docs Lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the docs and run Lighthouse
+        env:
+          NEXT_PUBLIC_AUI_AI_PLAYGROUND_ENABLED: "1"
+          NEXT_PUBLIC_WEBMCP_ENABLED: "1"
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm turbo run check:lighthouse --filter=@assistant-ui/docs-site
+
+      - name: Upload Lighthouse reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: lighthouse-reports
+          path: apps/docs/.lighthouseci/reports/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: warn
+
+  report:
+    name: Report Failure
+    needs: lighthouse
+    if: failure() && github.event_name == 'schedule'
+    permissions:
+      issues: write
+    uses: ./.github/workflows/scheduled-failure-issue.yaml
+    with:
+      title: Docs Lighthouse check is failing

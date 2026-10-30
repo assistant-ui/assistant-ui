@@ -16,6 +16,8 @@ strictDepBuilds: true
 overrides:
   '@google/adk>adm-zip': ^0.6.1
   '@vercel/container>tar': ^7.5.22
+  # @lhci/cli 0.15.1, the latest release, bundles Lighthouse 12.6.1, which returned no performance score (NO_LCP) on current Chrome.
+  lighthouse: ^13.5.0
   '@earendil-works/pi-coding-agent>undici': ^8.12.2
   guarded-fetch>undici: ^7.30.1
   miniflare>undici: ^7.30.1
