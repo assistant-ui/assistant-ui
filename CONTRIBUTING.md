@@ -38,7 +38,7 @@ pnpm dev
 To build the docs and check them for broken internal links (`LINKINATOR_EXTERNAL=1` adds external links, as the weekly run does):
 
 ```sh
-pnpm turbo run check:links --filter=@assistant-ui/docs-site
+NEXT_PUBLIC_AUI_AI_PLAYGROUND_ENABLED=1 NEXT_PUBLIC_WEBMCP_ENABLED=1 pnpm turbo run check:links --filter=@assistant-ui/docs-site
 ```
 
 To run the examples project in development mode:

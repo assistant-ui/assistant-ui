@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,11 +44,13 @@ jobs:
         run: pnpm turbo run check:links --filter=@assistant-ui/docs-site
 
   report:
-    name: Report Failure
+    name: Report
     needs: links
-    if: failure() && github.event_name == 'schedule'
+    # Only scheduled runs report, so a dispatch never opens or closes the issue.
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
     permissions:
       issues: write
     uses: ./.github/workflows/scheduled-failure-issue.yaml
     with:
-      title: Docs link check is failing
+      title: Docs Links workflow is failing
+      failed: ${{ needs.links.result != 'success' }}

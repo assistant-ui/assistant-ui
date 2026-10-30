@@ -1,6 +1,6 @@
 const port = 3331;
 const origin = `http://localhost:${port}`;
-const production = "https://www\\.assistant-ui\\.com";
+const production = "https://(?:www\\.)?assistant-ui\\.com";
 
 // Local runs check only links into this build, so they never load third-party
 // sites; the weekly and manual CI runs set LINKINATOR_EXTERNAL=1 to add them.
@@ -18,7 +18,7 @@ export default {
   skip: [
     // These render npm and GitHub API reads on every request, so crawling them
     // sends unauthenticated API traffic and fails on rate limits, not links.
-    `^${origin}/(packages|traction)\\b`,
+    `^(?:${origin}|${production})/(packages|traction)\\b`,
     ...(external
       ? [
           // Quickstarts point readers at their own dev server.
