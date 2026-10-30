@@ -4,7 +4,7 @@ import { linePath, polar, round, stroke } from "../../core/geometry";
 import { textWidth, truncate } from "../../core/text";
 import type { Series } from "../../core/types";
 import { C, GRID } from "../../core/theme";
-import { ChartSvg, SvgLegend, frame } from "../svg";
+import { ChartSvg, PAD, SvgLegend, frame } from "../svg";
 
 export type RadarProps = BaseProps & { axes: string[]; series: Series[] };
 
@@ -45,7 +45,11 @@ export const Radar = forwardRef<SVGSVGElement, RadarProps>(
       0,
       ...axisLabels.map((axis) => textWidth(axis, T.axis.px)),
     );
-    const labelAllowance = Math.max(T.axis.px + 6, widestLabel / 2 + 6);
+    const labelGap = Math.max(6, T.axis.px / 2 + 1);
+    const labelAllowance = Math.max(
+      T.axis.px + labelGap,
+      widestLabel + labelGap,
+    );
     const radius = Math.max(
       0,
       Math.min(right - left, bottom - top) / 2 - labelAllowance,
@@ -83,12 +87,26 @@ export const Radar = forwardRef<SVGSVGElement, RadarProps>(
         ))}
         {axisLabels.map((axis, i) => {
           const tip = vertex(1, i);
-          const label = polar(
-            cx,
-            cy,
-            radius + 6,
-            (i / Math.max(1, axes.length)) * Math.PI * 2 - Math.PI / 2,
-          );
+          const angle =
+            (i / Math.max(1, axes.length)) * Math.PI * 2 - Math.PI / 2;
+          const side = Math.cos(angle);
+          const centeredExtent =
+            (textWidth(axis, T.axis.px) * Math.abs(side) +
+              T.axis.px * Math.abs(Math.sin(angle))) /
+            2;
+          const textAnchor =
+            Math.abs(side) < 0.35 && centeredExtent <= labelGap
+              ? "middle"
+              : side > 0
+                ? "start"
+                : "end";
+          const label = polar(cx, cy, radius + labelGap, angle);
+          const fit =
+            textAnchor === "start"
+              ? F.width - PAD - label.x
+              : textAnchor === "end"
+                ? label.x - PAD
+                : 2 * Math.min(label.x - PAD, F.width - PAD - label.x);
           return (
             <g key={`${axis}-${i}`} data-part="axis">
               <line
@@ -101,11 +119,12 @@ export const Radar = forwardRef<SVGSVGElement, RadarProps>(
               />
               <text
                 x={round(label.x)}
-                y={round(label.y + T.axis.px * 0.15)}
-                textAnchor="middle"
+                y={round(label.y)}
+                textAnchor={textAnchor}
+                dominantBaseline="central"
                 {...T.axis.attrs}
               >
-                {axis}
+                {truncate(axis, T.axis.px, fit)}
               </text>
             </g>
           );
