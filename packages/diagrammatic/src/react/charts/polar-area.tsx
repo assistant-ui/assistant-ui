@@ -6,11 +6,21 @@ import { textWidth, truncate } from "../../core/text";
 import { ACCENT, SURFACE, seqOpacity } from "../../core/theme";
 import { ChartSvg, PAD, frame, typeScale } from "../svg";
 
-export type PolarAreaProps = BaseProps & { items: Item[] };
+export type PolarAreaProps = BaseProps & { items: Item[]; inner?: number };
 
 export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
   (
-    { items, title, width, height, aspect, fontSize, className, ...rest },
+    {
+      items,
+      inner: innerFraction,
+      title,
+      width,
+      height,
+      aspect,
+      fontSize,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const T = typeScale(fontSize);
@@ -31,7 +41,10 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
       0,
       Math.min(right - left, bottom - top) / 2 - labelAllowance,
     );
-    const inner = Math.max(2, outer * 0.12);
+    const inner =
+      innerFraction === undefined || Number.isNaN(innerFraction)
+        ? Math.max(2, outer * 0.12)
+        : outer * Math.min(0.9, Math.max(0, innerFraction));
     const ringStroke = Math.max(1, Math.min(4, outer * 0.035));
     const slice = (Math.PI * 2) / Math.max(1, items.length);
     const max = Math.max(...items.map((r) => r.value), 1);

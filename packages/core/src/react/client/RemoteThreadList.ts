@@ -1670,20 +1670,29 @@ const useRemoteThreadList = (
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
       }
       const mutation = session.mutations.reserve(data.id, data);
-      try {
+      let canApplyOptimisticUpdate = false;
+      const ensureThreadIsNotMain = (async () => {
         do {
           await ensureNotMain(data.id);
         } while (isSameThread(store.value, data.id, session.mainThreadId));
         requireAdapterGeneration(adapterGeneration);
+        canApplyOptimisticUpdate = true;
+        store.update(store.baseValue);
+      })();
+      try {
         await store.optimisticUpdate({
-          execute: () =>
-            mutation.run(async () => {
+          execute: async () => {
+            await ensureThreadIsNotMain;
+            return mutation.run(async () => {
               const { remoteId } = await data.initializeTask;
               requireAdapterGeneration(adapterGeneration);
               return currentAdapter.archive(remoteId);
-            }),
+            });
+          },
           optimistic: (state) =>
-            updateStatusReducer(state, data.id, "archived"),
+            canApplyOptimisticUpdate
+              ? updateStatusReducer(state, data.id, "archived")
+              : state,
         });
       } finally {
         mutation.cancel();
@@ -1764,19 +1773,29 @@ const useRemoteThreadList = (
       const mutation = session.mutations.reserve(data.id, data);
       let remoteId: string | undefined;
       let result: void;
-      try {
+      let canApplyOptimisticUpdate = false;
+      const ensureThreadIsNotMain = (async () => {
         do {
           await ensureNotMain(data.id);
         } while (isSameThread(store.value, data.id, session.mainThreadId));
         requireAdapterGeneration(adapterGeneration);
+        canApplyOptimisticUpdate = true;
+        store.update(store.baseValue);
+      })();
+      try {
         result = await store.optimisticUpdate({
-          execute: () =>
-            mutation.run(async () => {
+          execute: async () => {
+            await ensureThreadIsNotMain;
+            return mutation.run(async () => {
               ({ remoteId } = await data.initializeTask);
               requireAdapterGeneration(adapterGeneration);
               return currentAdapter.delete(remoteId);
-            }),
-          optimistic: (state) => deleteThreadReducer(state, data.id, remoteId),
+            });
+          },
+          optimistic: (state) =>
+            canApplyOptimisticUpdate
+              ? deleteThreadReducer(state, data.id, remoteId)
+              : state,
         });
       } finally {
         mutation.cancel();
@@ -1838,6 +1857,7 @@ const useRemoteThreadList = (
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
+        reconcileExplicitClaimsOnRetraction: true,
         messages,
         generate: async (onTitle) => {
           if (isRemoved()) return;
