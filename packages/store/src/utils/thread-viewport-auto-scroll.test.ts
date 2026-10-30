@@ -43,6 +43,7 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
     },
     resize: (value: number) => {
       viewportHeight = value;
+      top = Math.max(0, Math.min(top, height - viewportHeight));
     },
   };
 };
@@ -755,6 +756,32 @@ describe("createThreadViewportAutoScroll", () => {
       top: 900,
       behavior: "auto",
     });
+    controller.dispose();
+  });
+
+  it("keeps following after a browser-clamped resize during a run", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.runStarted();
+
+    view.resize(200);
+    view.grow(600);
+    observers[0]!.trigger();
+    view.grow(700);
+    observers[0]!.trigger();
+    flushFrames();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 700,
+      behavior: "auto",
+    });
+    expect(view.element.scrollTop).toBe(500);
+    expect(controller.isAtBottom).toBe(true);
     controller.dispose();
   });
 
