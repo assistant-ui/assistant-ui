@@ -1,5 +1,12 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.22
+
+### Patch Changes
+
+- Updated dependencies [[`35b9a3a`](https://github.com/assistant-ui/assistant-ui/commit/35b9a3a7429173b22446f31397b83a19004edc1d)]:
+  - @assistant-ui/ai-sdk@0.0.17
+
 ## 1.4.21
 
 ### Patch Changes

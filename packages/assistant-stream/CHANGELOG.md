@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.56
+
+### Patch Changes
+
+- [#10212](https://github.com/assistant-ui/assistant-ui/pull/10212) [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d) - Preserve part order when earlier stream chunks are already written. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10200](https://github.com/assistant-ui/assistant-ui/pull/10200) [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e) - Keep merged part paths aligned with emitted part-start order. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.55
 
 ### Patch Changes

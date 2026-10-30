@@ -1,5 +1,15 @@
 # @assistant-ui/eve
 
+## 0.0.25
+
+### Patch Changes
+
+- [#10154](https://github.com/assistant-ui/assistant-ui/pull/10154) [`89c962c`](https://github.com/assistant-ui/assistant-ui/commit/89c962ca366a90cf6492bcb5dddac3b72a015679) - feat: support eve 0.84 and require it as the peer. the runtime reads eve's top level `messages`, answers interactions with `Answer`, and forwards `baseUrl`, `followWhile`, and `followAgents`; eve 0.83 and earlier stay on the previous release. tool parts now carry eve's interaction under `providerMetadata.eve.interaction` instead of `providerMetadata.eve.inputRequest`. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b)]:
+  - @assistant-ui/core@0.3.33
+  - assistant-cloud@0.2.10
+  - @assistant-ui/store@0.3.23
+
 ## 0.0.24
 
 ### Patch Changes

@@ -1,5 +1,24 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.42
+
+### Patch Changes
+
+- [#10178](https://github.com/assistant-ui/assistant-ui/pull/10178) [`66fd5c6`](https://github.com/assistant-ui/assistant-ui/commit/66fd5c6a87a1aff69e4f12c5c23d6ef1407f60c8) - Render one approval control per ADK confirmation. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10188](https://github.com/assistant-ui/assistant-ui/pull/10188) [`d7cc5a2`](https://github.com/assistant-ui/assistant-ui/commit/d7cc5a27d75b83996c7840e403e55c22f381bcfc) - Keep the content parts an ADK error event carries. ([@okisdev](https://github.com/okisdev))
+
+- [#10176](https://github.com/assistant-ui/assistant-ui/pull/10176) [`4b4266e`](https://github.com/assistant-ui/assistant-ui/commit/4b4266efafe6a0ead9fa749260966a7f3eb5d5be) - Keep ADK error details in message status instead of duplicating them as content. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10179](https://github.com/assistant-ui/assistant-ui/pull/10179) [`00fd807`](https://github.com/assistant-ui/assistant-ui/commit/00fd807aa099992b8c57fefb4e4849f0cb5895a5) - Pass structured ADK tool results to renderers. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10190](https://github.com/assistant-ui/assistant-ui/pull/10190) [`af5a47f`](https://github.com/assistant-ui/assistant-ui/commit/af5a47f249e7bb861cfd096fd5ceacbce2d8292e) - Classify streamed ADK truncation and filtering responses by finish reason. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b)]:
+  - assistant-stream@0.3.56
+  - @assistant-ui/core@0.3.33
+  - assistant-cloud@0.2.10
+  - @assistant-ui/store@0.3.23
+
 ## 0.0.41
 
 ### Patch Changes
