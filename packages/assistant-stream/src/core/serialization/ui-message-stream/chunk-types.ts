@@ -1,5 +1,5 @@
 import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
-import type { PartProviderMetadata } from "../../utils/types";
+import type { PartProviderMetadata, ToolCallApproval } from "../../utils/types";
 
 type FinishReason =
   | "stop"
@@ -66,6 +66,18 @@ export type UIMessageStreamChunk =
       isPreliminary?: boolean;
       messages?: ReadonlyJSONValue;
     }
+  | {
+      type: "tool-approval-request";
+      toolCallId: string;
+      approval: ToolCallApproval;
+    }
+  | {
+      type: "tool-approval-response";
+      approvalId: string;
+      approved: boolean;
+      reason?: string;
+    }
+  | { type: "tool-output-denied"; toolCallId: string }
   | { type: "start-step"; messageId?: string }
   | {
       type: "finish-step";

@@ -24,6 +24,17 @@ export const createChunkNormalizer = (): {
     }[];
   };
   const pendingTools = new Map<string, PendingTool>();
+  const createPendingTool = (
+    toolCallId: string,
+    toolName: unknown,
+  ): PendingTool => ({
+    toolCallId,
+    toolName: typeof toolName === "string" ? toolName : "",
+    deltas: [],
+    emitted: false,
+    hasFinalResult: false,
+    pendingResults: [],
+  });
   const emitPendingTool = (
     out: TransformStreamDefaultController<UIMessageStreamChunk>,
     tool: PendingTool,
@@ -124,14 +135,10 @@ export const createChunkNormalizer = (): {
       if (chunk.type === "tool-input-start") {
         if (typeof chunk.toolCallId !== "string") return;
         if (pendingTools.has(chunk.toolCallId)) return;
-        pendingTools.set(chunk.toolCallId, {
-          toolCallId: chunk.toolCallId,
-          toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
-          deltas: [],
-          emitted: false,
-          hasFinalResult: false,
-          pendingResults: [],
-        });
+        pendingTools.set(
+          chunk.toolCallId,
+          createPendingTool(chunk.toolCallId, chunk.toolName),
+        );
         return;
       }
       if (chunk.type === "tool-input-delta") {
@@ -149,14 +156,7 @@ export const createChunkNormalizer = (): {
         if (typeof chunk.toolCallId !== "string") return;
         let tool = pendingTools.get(chunk.toolCallId);
         if (!tool) {
-          tool = {
-            toolCallId: chunk.toolCallId,
-            toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
-            deltas: [],
-            emitted: false,
-            hasFinalResult: false,
-            pendingResults: [],
-          };
+          tool = createPendingTool(chunk.toolCallId, chunk.toolName);
           pendingTools.set(chunk.toolCallId, tool);
         }
         if (tool.emitted) return;
@@ -183,8 +183,16 @@ export const createChunkNormalizer = (): {
         chunk.type === "tool-output-error"
       ) {
         if (typeof chunk.toolCallId !== "string") return;
-        const tool = pendingTools.get(chunk.toolCallId);
-        if (!tool || tool.hasFinalResult) return;
+        // An output for a call this response never opened answers a call an
+        // earlier response left open, such as an approved one; it travels as
+        // a call of its own that the runtime settles the open call with.
+        let tool = pendingTools.get(chunk.toolCallId);
+        const opensCall = tool === undefined;
+        if (!tool) {
+          tool = createPendingTool(chunk.toolCallId, "");
+          pendingTools.set(chunk.toolCallId, tool);
+        }
+        if (tool.hasFinalResult) return;
         const pendingResult =
           chunk.type === "tool-output-error"
             ? {
@@ -199,7 +207,63 @@ export const createChunkNormalizer = (): {
               };
         tool.pendingResults.push(pendingResult);
         if (!pendingResult.isPreliminary) tool.hasFinalResult = true;
-        if (tool.emitted) emitPendingTool(controller, tool);
+        if (tool.emitted || opensCall) emitPendingTool(controller, tool);
+        return;
+      }
+
+      if (chunk.type === "tool-approval-request") {
+        if (
+          typeof chunk.toolCallId !== "string" ||
+          typeof chunk.approvalId !== "string"
+        )
+          return;
+        // Mirrors the approval the AI SDK keeps on its tool UI part, which it
+        // expects back with the decision; `prompt` repeats the reason for renderers.
+        controller.enqueue({
+          type: "tool-approval-request",
+          toolCallId: chunk.toolCallId,
+          approval: {
+            id: chunk.approvalId,
+            ...(chunk.approvalDescriptor != null && {
+              descriptor: chunk.approvalDescriptor,
+            }),
+            ...(Object.hasOwn(chunk, "inputSchemaInput") && {
+              inputSchemaInput: chunk.inputSchemaInput,
+            }),
+            ...(typeof chunk.reason === "string" && {
+              prompt: chunk.reason,
+              requestReason: chunk.reason,
+            }),
+            ...(typeof chunk.isAutomatic === "boolean" && {
+              isAutomatic: chunk.isAutomatic,
+            }),
+            ...(typeof chunk.signature === "string" && {
+              signature: chunk.signature,
+            }),
+          },
+        });
+        return;
+      }
+      if (chunk.type === "tool-approval-response") {
+        if (
+          typeof chunk.approvalId !== "string" ||
+          typeof chunk.approved !== "boolean"
+        )
+          return;
+        controller.enqueue({
+          type: "tool-approval-response",
+          approvalId: chunk.approvalId,
+          approved: chunk.approved,
+          ...(typeof chunk.reason === "string" && { reason: chunk.reason }),
+        });
+        return;
+      }
+      if (chunk.type === "tool-output-denied") {
+        if (typeof chunk.toolCallId !== "string") return;
+        controller.enqueue({
+          type: "tool-output-denied",
+          toolCallId: chunk.toolCallId,
+        });
         return;
       }
 

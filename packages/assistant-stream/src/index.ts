@@ -36,6 +36,7 @@ export type {
   AssistantMessageTiming,
   DataPart,
   MessagePartTiming,
+  ToolCallApproval,
   ToolCallTiming,
 } from "./core/utils/types";
 

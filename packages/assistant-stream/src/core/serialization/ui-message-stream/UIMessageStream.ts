@@ -11,6 +11,7 @@ import { generateId } from "../../utils/generateId";
 import { createToolCallPartRegistry } from "../tool-call-part-registry";
 import { createChunkNormalizer } from "./chunk-normalizer";
 import type { TextStreamController } from "../../modules/text";
+import type { ToolCallApproval } from "../../utils/types";
 
 export type { UIMessageStreamChunk, UIMessageStreamDataChunk };
 
@@ -56,6 +57,10 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       };
       let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
+      // `start` opens the first step, and AI SDK streams follow it with a
+      // `start-step` for that same step.
+      let stepOpenedByStart = false;
+      const approvalsByToolCallId = new Map<string, ToolCallApproval>();
 
       const transform = new AssistantTransformStream<UIMessageStreamChunk>({
         transform(chunk, controller) {
@@ -88,6 +93,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           switch (type) {
             case "start":
               currentMessageId = chunk.messageId;
+              stepOpenedByStart = true;
               controller.enqueue({
                 type: "step-start",
                 path: [],
@@ -219,15 +225,62 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case "start-step":
-              controller.enqueue({
-                type: "step-start",
-                path: [],
-                messageId: chunk.messageId ?? currentMessageId ?? generateId(),
+            // A call opened by an earlier response is not in the registry; its
+            // approval chunks belong to that response's message and are dropped.
+            case "tool-approval-request": {
+              const toolCallController = toolCallPartRegistry.tryGet(
+                chunk.toolCallId,
+              );
+              if (!toolCallController) break;
+              approvalsByToolCallId.set(chunk.toolCallId, chunk.approval);
+              toolCallController.setApproval(chunk.approval);
+              break;
+            }
+
+            case "tool-approval-response": {
+              const entry = [...approvalsByToolCallId].find(
+                ([, approval]) => approval.id === chunk.approvalId,
+              );
+              if (!entry) break;
+              const [toolCallId, approval] = entry;
+              const decided = {
+                ...approval,
+                approved: chunk.approved,
+                ...(chunk.reason !== undefined && { reason: chunk.reason }),
+              };
+              approvalsByToolCallId.set(toolCallId, decided);
+              toolCallPartRegistry.tryGet(toolCallId)?.setApproval(decided);
+              break;
+            }
+
+            case "tool-output-denied": {
+              const toolCallController = toolCallPartRegistry.tryGet(
+                chunk.toolCallId,
+              );
+              if (!toolCallController) break;
+              const reason = approvalsByToolCallId.get(
+                chunk.toolCallId,
+              )?.reason;
+              toolCallPartRegistry.setResponse(toolCallController, {
+                result: { error: reason || "Tool approval denied" },
+                isError: true,
               });
               break;
+            }
+
+            case "start-step": {
+              const messageId =
+                chunk.messageId ?? currentMessageId ?? generateId();
+              const isOpenStep =
+                stepOpenedByStart && messageId === currentMessageId;
+              stepOpenedByStart = false;
+              if (isOpenStep) break;
+              controller.enqueue({ type: "step-start", path: [], messageId });
+              break;
+            }
 
             case "finish-step":
+              stepOpenedByStart = false;
               closeTextParts();
               controller.enqueue({
                 type: "step-finish",

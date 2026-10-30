@@ -2407,6 +2407,83 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     ).toThrow("cancelled or expired");
   });
 
+  it("settles an approved call in place when the resumed run yields its result", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      async run(options) {
+        runs.push(options);
+        if (runs.length === 1) return toolCallResult("deploy", { id: "a1" });
+        return {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-deploy",
+              toolName: "",
+              args: {},
+              argsText: "{}",
+              result: { deployed: true },
+              artifact: { url: "https://example.com" },
+              modelContent: [{ type: "text", text: "deployed" }],
+            },
+            { type: "text", text: "Deployed." },
+          ],
+        };
+      },
+    });
+
+    await thread.append(userMessage("deploy the app"));
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    expect(thread.messages.at(-1)!.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-deploy",
+        toolName: "deploy",
+        approval: { id: "a1", approved: true },
+        result: { deployed: true },
+        artifact: { url: "https://example.com" },
+        modelContent: [{ type: "text", text: "deployed" }],
+      }),
+      { type: "text", text: "Deployed." },
+    ]);
+  });
+
+  it("appends a resumed call whose id matches a settled one", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      async run(options) {
+        runs.push(options);
+        if (runs.length === 1)
+          return {
+            content: [
+              { ...toolCallPart("lookup"), result: "first" },
+              toolCallPart("deploy", { id: "a1" }),
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        return {
+          content: [{ ...toolCallPart("lookup"), result: "second" }],
+        };
+      },
+    });
+
+    await thread.append(userMessage("deploy the app"));
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(
+      thread.messages
+        .at(-1)!
+        .content.map((part) =>
+          part.type === "tool-call" ? part.result : part,
+        ),
+    ).toEqual(["first", undefined, "second"]);
+  });
+
   it("continues multi-step turns after an approval resume", async () => {
     const runs: ChatModelRunOptions[] = [];
     const thread = createThread({

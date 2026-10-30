@@ -46,6 +46,23 @@ const uiMessageStream = (events: readonly Record<string, unknown>[]) =>
     { headers: { "Content-Type": "text/event-stream" } },
   );
 
+const mountRuntime = async (cloud: AssistantCloud) => {
+  let runtime: ReturnType<typeof useCloudRuntime> | null = null;
+  const App = () => {
+    runtime = useCloudRuntime({ cloud, assistantId: "assistant-id" });
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <div />
+      </AssistantRuntimeProvider>
+    );
+  };
+  render(<App />);
+  await waitFor(() => {
+    expect(runtime!.threads.mainItem.getState().id).toBeDefined();
+  });
+  return runtime!;
+};
+
 const requestOf = (call: unknown[]) => {
   const [url, init] = call as [string, RequestInit];
   return {
@@ -94,20 +111,8 @@ describe("useCloudRuntime", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const cloud = makeCloud();
-    let runtime: ReturnType<typeof useCloudRuntime> | null = null;
-    const App = () => {
-      runtime = useCloudRuntime({ cloud, assistantId: "assistant-id" });
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <div />
-        </AssistantRuntimeProvider>
-      );
-    };
-    render(<App />);
-    await waitFor(() => {
-      expect(runtime!.threads.mainItem.getState().id).toBeDefined();
-    });
-    runtime!.registerModelContextProvider({
+    const runtime = await mountRuntime(cloud);
+    runtime.registerModelContextProvider({
       getModelContext: () => ({
         tools: {
           get_weather: {
@@ -122,7 +127,7 @@ describe("useCloudRuntime", () => {
     });
 
     await act(async () => {
-      await runtime!.thread.append({
+      await runtime.thread.append({
         role: "user",
         content: [{ type: "text", text: "What is the weather?" }],
         attachments: [
@@ -139,7 +144,7 @@ describe("useCloudRuntime", () => {
     });
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(runtime!.thread.getState().messages.at(-1)?.status?.type).toBe(
+      expect(runtime.thread.getState().messages.at(-1)?.status?.type).toBe(
         "complete",
       );
     });
@@ -189,11 +194,158 @@ describe("useCloudRuntime", () => {
     ]);
     expect(second.body.messages[1].content[0]).not.toHaveProperty("input");
 
-    expect(runtime!.thread.getState().messages.at(-1)?.content).toMatchObject([
+    expect(runtime.thread.getState().messages.at(-1)?.content).toMatchObject([
       { type: "tool-call", toolCallId: "call-1", result: { temperature: 72 } },
       { type: "text", text: "72 and sunny" },
     ]);
     expect(cloud.threads.create).toHaveBeenCalledTimes(1);
     expect(consoleWarn).not.toHaveBeenCalled();
   });
+
+  // Recorded from AI SDK 7 `streamText` with a `needsApproval` tool and
+  // `experimental_toolApprovalSecret`, through `toUIMessageStreamResponse()`.
+  const approvalRequest = [
+    { type: "start" },
+    { type: "start-step" },
+    {
+      type: "tool-input-available",
+      toolCallId: "call_1",
+      toolName: "delete_file",
+      input: { path: "/tmp/a.txt" },
+    },
+    {
+      type: "tool-approval-request",
+      approvalId: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+      toolCallId: "call_1",
+      signature: "7k2qAL3WgfPT0H4tuB9QTC8NAl-fp6siXIU6YqFc0tM",
+    },
+    { type: "finish-step" },
+    { type: "finish", finishReason: "tool-calls" },
+  ];
+  const continuation = (toolChunk: Record<string, unknown>) => [
+    { type: "start" },
+    toolChunk,
+    { type: "start-step" },
+    { type: "text-start", id: "t" },
+    { type: "text-delta", id: "t", delta: "ok" },
+    { type: "text-end", id: "t" },
+    { type: "finish-step" },
+    { type: "finish", finishReason: "stop" },
+  ];
+
+  it.each([
+    {
+      decision: { approved: true },
+      toolChunk: {
+        type: "tool-output-available",
+        toolCallId: "call_1",
+        output: { deleted: true },
+      },
+      approval: { approved: true },
+      result: { deleted: true },
+      replayed: { result: { deleted: true }, isError: false },
+    },
+    {
+      decision: { approved: false, reason: "not now" },
+      toolChunk: { type: "tool-output-denied", toolCallId: "call_1" },
+      approval: { approved: false, reason: "not now" },
+      result: { error: "not now" },
+      replayed: {},
+    },
+  ])(
+    "shows a server tool approval and sends back $decision",
+    async ({ decision, toolChunk, approval, result, replayed }) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(uiMessageStream(approvalRequest))
+        .mockResolvedValueOnce(uiMessageStream(continuation(toolChunk)))
+        .mockResolvedValueOnce(
+          uiMessageStream([
+            { type: "start" },
+            { type: "finish", finishReason: "stop" },
+          ]),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      const runtime = await mountRuntime(makeCloud());
+
+      await act(async () => {
+        await runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "Delete /tmp/a.txt" }],
+        });
+      });
+      await waitFor(() => {
+        expect(runtime.thread.getState().messages.at(-1)?.status).toEqual({
+          type: "requires-action",
+          reason: "tool-calls",
+        });
+      });
+      const toolPart = runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("call_1");
+      expect(toolPart.getState()).toMatchObject({
+        status: { type: "requires-action" },
+        approval: { id: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ" },
+      });
+
+      await act(async () => {
+        await toolPart.respondToToolApproval(decision);
+      });
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(runtime.thread.getState().messages.at(-1)?.status?.type).toBe(
+          "complete",
+        );
+      });
+
+      const sent = requestOf(fetchMock.mock.calls[1]!).body.messages[1]
+        .content[0];
+      expect(sent).toMatchObject({
+        type: "tool-call",
+        toolCallId: "call_1",
+        toolName: "delete_file",
+        args: { path: "/tmp/a.txt" },
+      });
+      expect(sent.approval).toEqual({
+        id: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+        signature: "7k2qAL3WgfPT0H4tuB9QTC8NAl-fp6siXIU6YqFc0tM",
+        ...approval,
+      });
+      expect(sent).not.toHaveProperty("result");
+      expect(sent).not.toHaveProperty("isError");
+
+      expect(runtime.thread.getState().messages.at(-1)?.content).toEqual([
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "call_1",
+          toolName: "delete_file",
+          result,
+        }),
+        expect.objectContaining({ type: "text", text: "ok" }),
+      ]);
+
+      await act(async () => {
+        await runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "Thanks" }],
+        });
+      });
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(runtime.thread.getState().messages.at(-1)?.status?.type).toBe(
+          "complete",
+        );
+      });
+      const {
+        result: replayedResult,
+        isError,
+        ...replayedCall
+      } = requestOf(fetchMock.mock.calls[2]!).body.messages[1].content[0];
+      expect(replayedCall).toMatchObject({
+        toolCallId: "call_1",
+        approval: { id: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ", ...approval },
+      });
+      expect({ result: replayedResult, isError }).toEqual(replayed);
+    },
+  );
 });

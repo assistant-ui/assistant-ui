@@ -4,6 +4,7 @@ import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { NO_RESULT } from "../../tool/ToolResponse";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 import { toolResultStream } from "../../tool/toolResultStream";
+import type { AssistantMessage } from "../../utils/types";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -438,6 +439,35 @@ describe("UIMessageStreamDecoder", () => {
     expect(stepFinish?.isContinued).toBe(false);
   });
 
+  it("records the step `start` opens once and each later step on its own", async () => {
+    const textFrames = (id: string) => [
+      { type: "text-start", id },
+      { type: "text-delta", id, delta: id },
+      { type: "text-end", id },
+    ];
+    const events = [
+      { type: "start", messageId: "msg_1" },
+      { type: "start-step" },
+      ...textFrames("a"),
+      { type: "finish-step" },
+      { type: "start-step" },
+      ...textFrames("b"),
+      { type: "finish-step" },
+      { type: "finish", finishReason: "stop" },
+    ].map((event) => JSON.stringify(event));
+
+    const messages = await collectChunks(
+      createUIMessageStream([...events, "[DONE]"])
+        .pipeThrough(new UIMessageStreamDecoder())
+        .pipeThrough(new AssistantMessageAccumulator()),
+    );
+
+    expect(messages.at(-1)!.metadata.steps).toEqual([
+      expect.objectContaining({ state: "finished", messageId: "msg_1" }),
+      expect.objectContaining({ state: "finished", messageId: "msg_1" }),
+    ]);
+  });
+
   it("should handle the stock v6 lifecycle with bare step chunks", async () => {
     const events = [
       JSON.stringify({ type: "start" }),
@@ -458,9 +488,8 @@ describe("UIMessageStreamDecoder", () => {
       (c): c is AssistantStreamChunk & { type: "step-start" } =>
         c.type === "step-start",
     );
-    expect(stepStarts).toHaveLength(2);
+    expect(stepStarts).toHaveLength(1);
     expect(stepStarts[0]?.messageId).toBeTruthy();
-    expect(stepStarts[1]?.messageId).toBe(stepStarts[0]?.messageId);
 
     const stepFinish = chunks.find(
       (c): c is AssistantStreamChunk & { type: "step-finish" } =>
@@ -1342,7 +1371,7 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.result).toEqual({ temp: 20 });
     });
 
-    it("ignores a tool-output for an id this decoder never saw", async () => {
+    it("opens a nameless call for a tool-output whose id this decoder never saw", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),
         JSON.stringify({
@@ -1360,11 +1389,22 @@ describe("UIMessageStreamDecoder", () => {
         createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
       );
 
-      expect(chunks.some((c) => c.type === "result")).toBe(false);
+      expect(chunks).toContainEqual({
+        type: "part-start",
+        path: [],
+        part: {
+          type: "tool-call",
+          toolCallId: "call_from_previous_response",
+          toolName: "",
+        },
+      });
+      expect(chunks).toContainEqual(
+        expect.objectContaining({ type: "result", result: { temp: 20 } }),
+      );
       const text = chunks
         .filter(
           (c): c is AssistantStreamChunk & { type: "text-delta" } =>
-            c.type === "text-delta",
+            c.type === "text-delta" && c.path[0] === 1,
         )
         .map((c) => c.textDelta)
         .join("");
@@ -1595,4 +1635,202 @@ describe("UIMessageStreamDecoder server abort", () => {
       expect(chunks.some((chunk) => chunk.type === "part-start")).toBe(retry);
     },
   );
+});
+
+describe("UIMessageStreamDecoder tool approvals", () => {
+  const decodeMessages = (frames: readonly object[]) =>
+    collectChunks(
+      createUIMessageStream([
+        ...frames.map((frame) => JSON.stringify(frame)),
+        "[DONE]",
+      ])
+        .pipeThrough(new UIMessageStreamDecoder())
+        .pipeThrough(new AssistantMessageAccumulator()),
+    );
+
+  const toolCallOf = (messages: readonly AssistantMessage[]) =>
+    messages.at(-1)!.parts.find((part) => part.type === "tool-call");
+
+  // Recorded from AI SDK 7 `streamText` with a `needsApproval` tool and
+  // `experimental_toolApprovalSecret`, through `toUIMessageStreamResponse()`.
+  const approvalRequestFrames = [
+    { type: "start" },
+    { type: "start-step" },
+    {
+      type: "tool-input-available",
+      toolCallId: "call_1",
+      toolName: "delete_file",
+      input: { path: "/tmp/a.txt" },
+    },
+    {
+      type: "tool-approval-request",
+      approvalId: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+      toolCallId: "call_1",
+      signature: "7k2qAL3WgfPT0H4tuB9QTC8NAl-fp6siXIU6YqFc0tM",
+    },
+    { type: "finish-step" },
+    { type: "finish", finishReason: "tool-calls" },
+  ];
+
+  it("puts an approval request on its tool call and pauses for it", async () => {
+    const messages = await decodeMessages(approvalRequestFrames);
+
+    expect(toolCallOf(messages)).toMatchObject({
+      toolCallId: "call_1",
+      toolName: "delete_file",
+      args: { path: "/tmp/a.txt" },
+      approval: {
+        id: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+        signature: "7k2qAL3WgfPT0H4tuB9QTC8NAl-fp6siXIU6YqFc0tM",
+      },
+    });
+    expect(toolCallOf(messages)).not.toHaveProperty("result");
+    expect(messages.at(-1)!.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("keeps the request fields of an approval verbatim", async () => {
+    const messages = await decodeMessages([
+      ...approvalRequestFrames.slice(0, 3),
+      {
+        type: "tool-approval-request",
+        approvalId: "approval-1",
+        toolCallId: "call_1",
+        reason: "Deletes a file",
+        approvalDescriptor: { kind: "destructive" },
+        inputSchemaInput: { path: "a.txt" },
+        isAutomatic: false,
+        signature: "sig",
+      },
+      { type: "finish", finishReason: "tool-calls" },
+    ]);
+
+    expect(toolCallOf(messages)?.approval).toEqual({
+      id: "approval-1",
+      prompt: "Deletes a file",
+      requestReason: "Deletes a file",
+      descriptor: { kind: "destructive" },
+      inputSchemaInput: { path: "a.txt" },
+      isAutomatic: false,
+      signature: "sig",
+    });
+  });
+
+  it("settles a call the server denied on its own", async () => {
+    const messages = await decodeMessages([
+      ...approvalRequestFrames.slice(0, 3),
+      {
+        type: "tool-approval-request",
+        approvalId: "approval-1",
+        toolCallId: "call_1",
+        isAutomatic: true,
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "approval-1",
+        approved: false,
+        reason: "Blocked by policy",
+      },
+      { type: "tool-output-denied", toolCallId: "call_1" },
+      { type: "finish-step" },
+      { type: "start-step" },
+      { type: "text-start", id: "text" },
+      { type: "text-delta", id: "text", delta: "I could not delete it." },
+      { type: "text-end", id: "text" },
+      { type: "finish", finishReason: "stop" },
+    ]);
+
+    expect(toolCallOf(messages)).toMatchObject({
+      approval: {
+        id: "approval-1",
+        isAutomatic: true,
+        approved: false,
+        reason: "Blocked by policy",
+      },
+      result: { error: "Blocked by policy" },
+      isError: true,
+    });
+    expect(messages.at(-1)!.status).toEqual({
+      type: "complete",
+      reason: "stop",
+    });
+  });
+
+  it("drops approval chunks without their ids", async () => {
+    const messages = await decodeMessages([
+      ...approvalRequestFrames.slice(0, 3),
+      { type: "tool-approval-request", toolCallId: "call_1" },
+      { type: "tool-approval-request", approvalId: "approval-1" },
+      { type: "tool-approval-response", approvalId: "approval-1" },
+      { type: "tool-approval-response", approved: false },
+      { type: "tool-output-denied" },
+      { type: "finish", finishReason: "tool-calls" },
+    ]);
+
+    expect(toolCallOf(messages)).not.toHaveProperty("approval");
+    expect(toolCallOf(messages)).not.toHaveProperty("result");
+  });
+
+  it.each([
+    {
+      output: { type: "tool-output-available", output: { deleted: true } },
+      result: { deleted: true },
+      isError: false,
+    },
+    {
+      output: { type: "tool-output-error", errorText: "An error occurred." },
+      result: "An error occurred.",
+      isError: true,
+    },
+  ])(
+    "carries a $output.type for a call an earlier response opened",
+    async ({ output, result, isError }) => {
+      // Recorded continuation after the client approved `call_1`.
+      const messages = await decodeMessages([
+        { type: "start" },
+        { ...output, toolCallId: "call_1" },
+        { type: "start-step" },
+        { type: "text-start", id: "t" },
+        { type: "text-delta", id: "t", delta: "ok" },
+        { type: "text-end", id: "t" },
+        { type: "finish-step" },
+        { type: "finish", finishReason: "stop" },
+      ]);
+
+      expect(messages.at(-1)!.parts).toEqual([
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "call_1",
+          result,
+          isError,
+        }),
+        expect.objectContaining({ type: "text", text: "ok" }),
+      ]);
+    },
+  );
+
+  it("ignores approval chunks for a call an earlier response opened", async () => {
+    // Recorded continuation after the client denied `call_1`.
+    const messages = await decodeMessages([
+      { type: "start" },
+      { type: "tool-output-denied", toolCallId: "call_1" },
+      {
+        type: "tool-approval-request",
+        approvalId: "approval-2",
+        toolCallId: "call_1",
+      },
+      { type: "start-step" },
+      { type: "text-start", id: "t" },
+      { type: "text-delta", id: "t", delta: "ok" },
+      { type: "text-end", id: "t" },
+      { type: "finish-step" },
+      { type: "finish", finishReason: "stop" },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({ type: "text", text: "ok" }),
+    ]);
+  });
 });

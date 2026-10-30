@@ -146,6 +146,10 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     unstable_summary: optional(isString),
     parentId: optional(isString),
   }),
+  [DataStreamStreamChunkType.AuiToolCallApproval]: objectWith({
+    toolCallId: isString,
+    approval: objectWith({ id: isString, approved: optional(isBoolean) }),
+  }),
 };
 
 const ERROR_SEVERITIES: ReadonlySet<unknown> = new Set([
@@ -441,6 +445,17 @@ export class DataStreamEncoder
               finishToolCallArgs(controller, chunk.meta.toolCallId);
               break;
             }
+            case "tool-call-approval": {
+              if (chunk.meta.type !== "tool-call") break;
+              controller.enqueue({
+                type: DataStreamStreamChunkType.AuiToolCallApproval,
+                value: {
+                  toolCallId: chunk.meta.toolCallId,
+                  approval: chunk.approval,
+                },
+              });
+              break;
+            }
             case "part-finish": {
               if (chunk.meta.type === "tool-call") {
                 finishToolCallArgs(controller, chunk.meta.toolCallId);
@@ -636,6 +651,25 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ...(modelContent != null ? { modelContent } : {}),
                 ...(messages !== undefined ? { messages } : {}),
               });
+              break;
+            }
+
+            case DataStreamStreamChunkType.AuiToolCallApproval: {
+              const { toolCallId, approval } = value;
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
+              if (!toolCallController) {
+                if (strict)
+                  throw new Error(
+                    `Encountered tool call approval with unknown id: ${toolCallId}`,
+                  );
+                logDropped(
+                  `approval:${toolCallId}`,
+                  `Dropped approval for unknown tool call: ${toolCallId}`,
+                );
+                break;
+              }
+              toolCallController.setApproval(approval);
               break;
             }
 
