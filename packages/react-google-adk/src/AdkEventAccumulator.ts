@@ -103,6 +103,15 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
+// Both ADK aggregators close a truncated or filtered stream with the finish
+// reason repeated as its error code; that is the finish, not a failure.
+export const isFinishReasonErrorEvent = (event: AdkEvent) => {
+  if (!event.content?.parts?.length || event.errorCode !== event.finishReason)
+    return false;
+  const status = finishReasonToStatus(event.finishReason);
+  return status.type === "incomplete" && status.reason !== "error";
+};
+
 const mediaToContentPart = ({
   inlineData,
   fileData,
@@ -428,13 +437,11 @@ export class AdkEventAccumulator {
           : undefined;
       const message =
         target?.type === "ai" ? target : this.getOrCreateAiMessage(event);
-      const finishReasonStatus = finishReasonToStatus(event.finishReason);
-      if (
-        event.errorCode === event.finishReason &&
-        finishReasonStatus.type === "incomplete" &&
-        finishReasonStatus.reason !== "error"
-      ) {
-        this.setMessageStatus(message, finishReasonStatus);
+      if (isFinishReasonErrorEvent(event)) {
+        this.setMessageStatus(
+          message,
+          finishReasonToStatus(event.finishReason),
+        );
       } else {
         this.setErrorStatus(message, errorText);
       }
