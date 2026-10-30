@@ -1857,6 +1857,7 @@ const useRemoteThreadList = (
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
+        reconcileExplicitClaimsOnRetraction: true,
         messages,
         generate: async (onTitle) => {
           if (isRemoved()) return;
