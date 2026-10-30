@@ -81,7 +81,10 @@ const BenchProvider: React.FC<{
   }, [core]);
 
   const config = AuiConfig({
-    thread: ThreadClient({ runtime: threadRuntime }),
+    thread: ThreadClient({
+      runtime: threadRuntime,
+      threadListItem: READONLY_THREAD_LIST_ITEM_BINDING,
+    }),
     composer: Derived({
       source: "thread",
       query: {},
