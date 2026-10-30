@@ -221,17 +221,32 @@ def test_draft_list_append_emits_index_set() -> None:
     assert state.state["items"] == ["a", "b"]
 
 
-def test_draft_setdefault_container_emits_later_writes() -> None:
+@pytest.mark.parametrize("key", ["items", 7])
+def test_draft_setdefault_container_emits_later_writes(key: str | int) -> None:
     ops: list[dict[str, Any]] = []
     state = AssistantState({})
     draft = state.draft(ops.extend)
-    items = draft.setdefault("items", [])
+    items = draft.setdefault(key, [])
     ops.clear()
 
     items.append("x")
 
-    assert ops == [{"type": "set", "path": ["items", "0"], "value": "x"}]
-    assert state.state == {"items": ["x"]}
+    assert ops == [{"type": "set", "path": [str(key), "0"], "value": "x"}]
+    assert state.state == {str(key): ["x"]}
+
+
+def test_draft_setdefault_preserves_existing_normalized_key() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({"tasks": {"7": ["kept"]}})
+    draft = state.draft(ops.extend)
+
+    items = draft["tasks"].setdefault(7, ["replacement"])
+
+    assert items == ["kept"]
+    assert ops == []
+    items.append("next")
+    assert state.state == {"tasks": {"7": ["kept", "next"]}}
+    assert ops == [{"type": "set", "path": ["tasks", "7", "1"], "value": "next"}]
 
 
 def test_draft_mutating_list_methods_raise() -> None:
