@@ -100,6 +100,26 @@ describe("tool-call writes after cancellation", () => {
 
     expect(unhandledRejections).toEqual([]);
   });
+
+  it("cancels while a local part waits for its start index", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    const first = controller.addTextPart();
+    first.append("before");
+    first.close();
+    controller.enqueue({
+      type: "step-finish",
+      path: [],
+      finishReason: "tool-calls",
+      usage: { inputTokens: 0, outputTokens: 0 },
+      isContinued: false,
+    });
+    const second = controller.addTextPart();
+    second.append("after");
+
+    const reader = stream.getReader();
+    await reader.read();
+    await reader.cancel();
+  });
 });
 
 describe("controller close idempotence", () => {
@@ -313,6 +333,100 @@ describe("raw chunk ordering", () => {
         toolCallId: "t2",
         argsText: '{"city":"Rome"}',
         result: "sunny",
+      }),
+    );
+  });
+
+  it("keeps merged part paths aligned with start order across a microtask", async () => {
+    let innerController!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => (release = resolve));
+    const stream = createAssistantStream(async (controller) => {
+      controller.merge(
+        new ReadableStream<AssistantStreamChunk>({
+          start(inner) {
+            innerController = inner;
+          },
+        }),
+      );
+      const text = controller.addTextPart();
+      controller.enqueue({
+        type: "step-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 2, outputTokens: 0 },
+        isContinued: false,
+      });
+      await ready;
+      innerController.enqueue({
+        type: "part-start",
+        part: { type: "text" },
+        path: [],
+      });
+      const tool = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "t",
+      });
+      text.close();
+      innerController.enqueue({ type: "part-finish", path: [0] });
+      tool.argsText.append('{"a":1}');
+      void tool.close();
+      innerController.close();
+    });
+    const reader = stream.getReader();
+    const chunks: AssistantStreamChunk[] = [];
+    const first = await reader.read();
+    chunks.push(first.value!);
+    await Promise.resolve();
+    release();
+    for (;;) {
+      const result = await reader.read();
+      if (result.done) break;
+      chunks.push(result.value);
+    }
+
+    const started: string[] = [];
+    for (const chunk of chunks) {
+      if (chunk.type === "part-start" && chunk.path.length === 0) {
+        started.push(chunk.part.type);
+      } else if (chunk.path.length > 0) {
+        expect(chunk.path[0]).toBeLessThan(started.length);
+        if (
+          chunk.type === "tool-call-args-text-finish" ||
+          (chunk.type === "text-delta" && chunk.textDelta.startsWith("{"))
+        ) {
+          expect(started[chunk.path[0]!]).toBe("tool-call");
+        }
+      }
+    }
+    expect([...started].sort()).toEqual(["text", "text", "tool-call"]);
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path[0])
+        .sort(),
+    ).toEqual([0, 1, 2]);
+
+    let message: AssistantMessage | undefined;
+    await new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    })
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(value: AssistantMessage) {
+            message = value;
+          },
+        }),
+      );
+    expect(message?.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "t1",
+        argsText: '{"a":1}',
       }),
     );
   });

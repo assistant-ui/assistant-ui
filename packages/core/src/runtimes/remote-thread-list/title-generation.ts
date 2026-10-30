@@ -10,6 +10,7 @@ export type ThreadTitleClaim = {
 
 type ThreadTitleGeneration = {
   readonly automatic: boolean;
+  readonly reconcileExplicitClaimsOnRetraction: boolean;
   readonly order: number;
   claim: ThreadTitleClaim | null;
   readonly claims: ThreadTitleClaim[];
@@ -76,6 +77,7 @@ export type ThreadTitleGenerationRun = {
   states: Map<string, ThreadTitleState>;
   threadId: string;
   automatic: boolean;
+  reconcileExplicitClaimsOnRetraction?: boolean | undefined;
   messages?: readonly ThreadMessage[];
   afterRun?: (() => string | undefined) | undefined;
   generate: (
@@ -273,7 +275,11 @@ function retractGeneration(
     state.manualClaim = hidden;
   }
   for (const active of state.generations) {
-    if (active === generation || !active.automatic || active.claim !== null)
+    if (
+      active === generation ||
+      (!active.automatic && !active.reconcileExplicitClaimsOnRetraction) ||
+      active.claim !== null
+    )
       continue;
     active.claim = newestClaim(state, [
       ...active.claims,
@@ -294,6 +300,7 @@ function startThreadTitleGeneration(
   states: Map<string, ThreadTitleState>,
   threadId: string,
   automatic: boolean,
+  reconcileExplicitClaimsOnRetraction: boolean,
 ): ThreadTitleGeneration | null {
   const state = getThreadTitleState(states, threadId);
   if (
@@ -310,6 +317,7 @@ function startThreadTitleGeneration(
   });
   const generation: ThreadTitleGeneration = {
     automatic,
+    reconcileExplicitClaimsOnRetraction,
     order: ++state.nextOrder,
     claim: automatic ? state.pendingClaim : null,
     claims:
@@ -349,7 +357,13 @@ function startThreadTitleGeneration(
 export async function runThreadTitleGeneration(
   run: ThreadTitleGenerationRun,
 ): Promise<void> {
-  const { states, threadId, automatic, afterRun } = run;
+  const {
+    states,
+    threadId,
+    automatic,
+    reconcileExplicitClaimsOnRetraction = false,
+    afterRun,
+  } = run;
   const state = getThreadTitleState(states, threadId);
   const history = getAutomaticTitleHistory(states, threadId);
   if (afterRun) {
@@ -441,7 +455,12 @@ export async function runThreadTitleGeneration(
         break;
       }
     }
-    generation = startThreadTitleGeneration(states, threadId, automatic);
+    generation = startThreadTitleGeneration(
+      states,
+      threadId,
+      automatic,
+      reconcileExplicitClaimsOnRetraction,
+    );
   } finally {
     if (waitingForExplicit) {
       const remaining = waitingAutomatics.get(state)! - 1;

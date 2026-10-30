@@ -119,6 +119,7 @@ export const createThreadViewportAutoScroll = (input: {
   let initialized = false;
   let lastScrollTop = 0;
   let lastScrollHeight = 0;
+  let lastClientHeight = 0;
   let lastObservedScrollHeight = 0;
   let lastObservedClientHeight = 0;
   let lastObservedMessageHeights = new Map<
@@ -166,6 +167,7 @@ export const createThreadViewportAutoScroll = (input: {
     element.scrollTo?.({ top: element.scrollHeight, behavior });
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
+    lastClientHeight = element.clientHeight;
   };
 
   const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
@@ -190,9 +192,11 @@ export const createThreadViewportAutoScroll = (input: {
 
     const { autoScroll, holdFollow } = input.getOptions();
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
+    const clientHeight = element.clientHeight;
     const scrolledUp =
       element.scrollTop < lastScrollTop &&
-      element.scrollHeight >= lastScrollHeight;
+      element.scrollHeight >= lastScrollHeight &&
+      clientHeight === lastClientHeight;
     if (restoreFollowOnNextResize && scrolledUp && !newIsAtBottom)
       restoreFollowOnNextResize = false;
     if (
@@ -226,6 +230,7 @@ export const createThreadViewportAutoScroll = (input: {
 
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
+    lastClientHeight = clientHeight;
     firstMessage = measureFirstMessage(element);
   };
 
@@ -377,6 +382,7 @@ export const createThreadViewportAutoScroll = (input: {
       intent = null;
       lastScrollTop = el.scrollTop;
       lastScrollHeight = el.scrollHeight;
+      lastClientHeight = el.clientHeight;
       lastObservedScrollHeight = 0;
       lastObservedClientHeight = 0;
       lastObservedMessageHeights = new Map();
@@ -460,6 +466,7 @@ export const createThreadViewportAutoScroll = (input: {
       }
       lastScrollTop = element.scrollTop;
       lastScrollHeight = element.scrollHeight;
+      lastClientHeight = element.clientHeight;
     },
     setContentInset: (inset) => {
       if (directContentInset === inset) return;
