@@ -1,0 +1,57 @@
+name: Scheduled Failure Issue
+
+# Shared by the scheduled docs checks so only this job holds issues: write. react18-weekly still reports inline.
+on:
+  workflow_call:
+    inputs:
+      title:
+        description: "Tracking issue title; an open issue with this title gets a comment instead of a duplicate"
+        required: true
+        type: string
+      failed:
+        description: "Whether the run failed; a passing run closes the open tracking issue"
+        required: true
+        type: boolean
+
+permissions:
+  issues: write
+
+jobs:
+  report:
+    name: Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Update the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: ${{ inputs.title }}
+          FAILED: ${{ inputs.failed }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          set -euo pipefail
+          issue=$(gh issue list --state open --search "\"$TITLE\" in:title" --limit 100 --json number,title --jq 'map(select(.title == env.TITLE)) | first | .number // empty')
+          if [ "$FAILED" != "true" ]; then
+            if [ -n "$issue" ]; then
+              gh issue close "$issue" --comment "The scheduled run passed again: $RUN_URL"
+            fi
+            exit 0
+          fi
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "The scheduled run failed again: $RUN_URL"
+            exit 0
+          fi
+          workflow_path="${WORKFLOW_REF#*/*/}"
+          gh issue create --title "$TITLE" --label maintenance --type Task --body "### Problem
+
+          The scheduled run failed: $RUN_URL
+
+          ### Where
+
+          \`${workflow_path%@*}\`
+
+          ### Done when
+
+          A scheduled run passes. The next one closes this issue."
