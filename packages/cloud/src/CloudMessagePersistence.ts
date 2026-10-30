@@ -60,7 +60,9 @@ export class CloudMessagePersistence {
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
-        external_id: messageId,
+        ...(messageId.length > 0 && messageId.length <= 255
+          ? { external_id: messageId }
+          : undefined),
         format,
         content,
       });

@@ -165,6 +165,20 @@ describe("CloudMessagePersistence", () => {
     ).toEqual(["parent", "parent", "child"]);
   });
 
+  it("omits an external id longer than the API accepts", async () => {
+    const longId = "m".repeat(256);
+    vi.mocked(cloud.threads.messages.create).mockResolvedValueOnce({
+      message_id: "msg_long",
+    });
+
+    await persistence.append("thread-1", longId, null, "aui/v0", {});
+
+    expect(
+      vi.mocked(cloud.threads.messages.create).mock.calls[0]![1],
+    ).not.toHaveProperty("external_id");
+    expect(persistence.getResolvedRemoteId(longId)).toBe("msg_long");
+  });
+
   it("does not create a deleted failed parent again", async () => {
     vi.mocked(cloud.threads.messages.create)
       .mockRejectedValueOnce(new Error("parent create failed"))
