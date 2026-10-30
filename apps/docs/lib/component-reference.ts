@@ -459,8 +459,8 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
   },
   Citation: {
     $type: "Citation",
-    title: "Tire and tube repair",
-    url: "https://www.parktool.com/en-us/blog/repair-help/tire-and-tube-repair",
+    title: "Repair help",
+    url: "https://www.parktool.com/en-us/blog/repair-help/",
     snippet:
       "Find what caused the flat before you patch, or the new tube goes flat too.",
   },
