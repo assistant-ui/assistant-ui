@@ -73,8 +73,9 @@ buffer, so a disabled telemetry setting drops everything here as well.
 
 Appends, updates and loads cloud messages while mapping local ids to cloud
 ids and chaining parent_id. A parent that is still being created is awaited,
-so concurrent appends land under the right parent, and a parent whose create
-failed is created again before its child.
+so concurrent appends land under the right parent. A parent whose create
+failed is created again before its child, and a child whose parent still
+cannot be created is stored as a root.
 
 <ParametersTable {...assistantCloud_CloudMessagePersistence} />
 
