@@ -125,6 +125,48 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("clears initialization intent when an overflowing viewport is already pinned", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    view.scrollTo.mockImplementationOnce(() => {});
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.setHasMessages(true);
+    flushFrames();
+    expect(view.element.scrollTop).toBe(400);
+
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledTimes(1);
+    expect(view.element.scrollTop).toBe(400);
+    controller.dispose();
+  });
+
+  it("keeps initialization intent until the viewport overflows", () => {
+    const view = geometry(100, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.setHasMessages(true);
+    flushFrames();
+
+    view.grow(200);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 200,
+      behavior: "instant",
+    });
+    expect(view.element.scrollTop).toBe(100);
+    controller.dispose();
+  });
+
   it("follows content growth while pinned and unpins on user scroll up", () => {
     const view = geometry();
     const onAtBottomChange = vi.fn();
