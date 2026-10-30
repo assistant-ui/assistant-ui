@@ -107,16 +107,18 @@ describe("useDataStreamRuntime tool approvals", () => {
       executed: 1,
       output: { type: "json", value: { deleted: true } },
       response: { approved: true },
+      result: { deleted: true },
     },
     {
       decision: { approved: false, reason: "not now" },
       executed: 0,
       output: { type: "execution-denied", reason: "not now" },
       response: { approved: false, reason: "not now" },
+      result: { error: "not now" },
     },
   ])(
     "sends $decision back to an AI SDK server",
-    async ({ decision, executed, output, response }) => {
+    async ({ decision, executed, output, response, result }) => {
       const { model, execute, fetchMock } = startServer();
       const runtime = await mountRuntime();
 
@@ -192,6 +194,7 @@ describe("useDataStreamRuntime tool approvals", () => {
         role: "tool",
         content: [{ type: "tool-result", toolCallId: "call_1", output }],
       });
+      expect(toolPart.getState()).toMatchObject({ result });
       expect(
         runtime.thread.getState().messages.at(-1)?.content.at(-1),
       ).toMatchObject({ type: "text", text: "ok" });
