@@ -45,7 +45,9 @@ type DocsPagerProps = {
 };
 
 const pagerLabel = (direction: "Previous" | "Next", name: ReactNode) =>
-  typeof name === "string" ? `${direction}: ${name}` : `${direction} page`;
+  typeof name === "string" && name !== ""
+    ? `${direction}: ${name}`
+    : `${direction} page`;
 
 function PageAction({
   title,

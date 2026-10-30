@@ -95,7 +95,7 @@ describe("TrustedBy", () => {
     const images = [...container.querySelectorAll("img")];
     expect(images.length).toBeGreaterThan(0);
     for (const image of images) {
-      expect(image.getAttribute("alt")).not.toBe("");
+      expect(image.getAttribute("alt")).toBeTruthy();
     }
   });
 

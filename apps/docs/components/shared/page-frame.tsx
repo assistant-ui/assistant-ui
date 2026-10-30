@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { cn } from "@/lib/utils";
 
 const pads = {
@@ -19,7 +19,7 @@ export function PageFrame({
 }) {
   return (
     <main
-      id={MAIN_CONTENT_ID}
+      {...MAIN_CONTENT_PROPS}
       className={cn(
         "mx-auto w-full max-w-7xl px-4",
         pad && pads[pad],

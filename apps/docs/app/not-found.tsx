@@ -1,6 +1,6 @@
 "use client";
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -71,7 +71,7 @@ export default function NotFound() {
 
   return (
     <main
-      id={MAIN_CONTENT_ID}
+      {...MAIN_CONTENT_PROPS}
       className="flex h-dvh min-h-0 flex-col items-center justify-center overflow-hidden px-4"
     >
       <div className="flex w-full max-w-md flex-col gap-4">

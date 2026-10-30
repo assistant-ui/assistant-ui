@@ -23,6 +23,10 @@ describe("SkipLink", () => {
     const href = screen
       .getByRole("link", { name: "Skip to content" })
       .getAttribute("href");
-    expect(screen.getByRole("main").id).toBe(href?.slice(1));
+    const main = screen.getByRole("main");
+    expect(main.id).toBe(href?.slice(1));
+
+    main.focus();
+    expect(document.activeElement).toBe(main);
   });
 });

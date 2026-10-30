@@ -80,13 +80,11 @@ describe("DocsPager", () => {
     ).toBe("/docs/runtimes");
   });
 
-  it("falls back to a direction when a target name is not plain text", () => {
-    render(
-      <DocsPager
-        title="Example"
-        next={{ name: <b>Node</b>, url: "/docs/node" }}
-      />,
-    );
+  it.each([
+    ["is not plain text", <b key="name">Node</b>],
+    ["is empty", ""],
+  ])("falls back to a direction when a target name %s", (_, name) => {
+    render(<DocsPager title="Example" next={{ name, url: "/docs/node" }} />);
 
     expect(screen.getByRole("link", { name: "Next page" })).toBeTruthy();
   });

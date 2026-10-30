@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { LegalLinks } from "@/components/shared/legal-links";
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { cn } from "@/lib/utils";
 
 export function DocsPageShell({
@@ -13,7 +13,7 @@ export function DocsPageShell({
   return (
     <div className="docs-layout">
       <main
-        id={MAIN_CONTENT_ID}
+        {...MAIN_CONTENT_PROPS}
         className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pt-4 pb-10 md:px-6"
       >
         {children}

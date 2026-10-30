@@ -11,7 +11,7 @@
  * - Various utility overrides (angle, color, speed, spread, width)
  */
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +37,7 @@ export default function ShimmerSandboxPage() {
           </aside>
 
           {/* Main content */}
-          <main id={MAIN_CONTENT_ID} className="min-w-0 flex-1 space-y-16">
+          <main {...MAIN_CONTENT_PROPS} className="min-w-0 flex-1 space-y-16">
             <TextShimmerSection />
             <BackgroundShimmerSection />
             <ContainerSizeSection />

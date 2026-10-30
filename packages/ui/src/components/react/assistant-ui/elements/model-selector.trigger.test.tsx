@@ -19,6 +19,15 @@ describe.each([
           <ModelSelectorTrigger />
         </ModelSelectorRoot>,
       );
+      expect(
+        screen.getByRole("combobox", { name: "Model: Model A" }),
+      ).toBeTruthy();
+
+      rerender(
+        <ModelSelectorRoot models={[]}>
+          <ModelSelectorTrigger />
+        </ModelSelectorRoot>,
+      );
       expect(screen.getByRole("combobox", { name: "Model" })).toBeTruthy();
 
       rerender(

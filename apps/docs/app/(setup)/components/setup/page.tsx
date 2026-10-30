@@ -1,4 +1,4 @@
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -18,7 +18,7 @@ export default function SetupPage() {
   if (!checkoutEnabled) notFound();
   return (
     <main
-      id={MAIN_CONTENT_ID}
+      {...MAIN_CONTENT_PROPS}
       className="bg-muted/40 dark:bg-background relative isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8"
     >
       <Suspense>

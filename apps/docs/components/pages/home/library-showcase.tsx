@@ -292,7 +292,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1">
-          <div role="tablist" className="contents">
+          <div role="tablist" className="flex flex-wrap gap-x-5 gap-y-1">
             {tabs.map((tab, index) => {
               const current = index === cycle.index;
               return (

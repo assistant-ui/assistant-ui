@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DocsSidebar, DocsSidebarProvider } from "../contexts/sidebar";
 import { PlatformProvider } from "../platform/context";
@@ -60,6 +66,20 @@ describe("DocsHeader mobile panels", () => {
 
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(panel.hasAttribute("inert")).toBe(false);
+  });
+
+  it("returns focus to the toggle when a link opens in a new tab", () => {
+    renderHeader();
+    const toggle = screen.getByRole("button", { name: "Site navigation" });
+    const panel = document.getElementById(
+      toggle.getAttribute("aria-controls")!,
+    )!;
+    fireEvent.click(toggle);
+
+    fireEvent.click(within(panel).getByRole("link", { name: "Cloud" }));
+
+    expect(panel.hasAttribute("inert")).toBe(true);
+    expect(document.activeElement).toBe(toggle);
   });
 
   it("hides the closed sidebar below the breakpoint and only there", () => {

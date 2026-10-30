@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useEffect } from "react";
+import { useId, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,8 +68,14 @@ function SearchButton({
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuId = useId();
+  const mobileMenuToggle = useRef<HTMLButtonElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const { toggle } = useAssistantPanel();
+  // A new tab leaves this page open, and closing the menu makes the clicked link inert.
+  const closeMenuToToggle = () => {
+    setMobileMenuOpen(false);
+    mobileMenuToggle.current?.focus();
+  };
   const scrolled = useScrolled();
 
   return (
@@ -124,6 +130,7 @@ export function Header() {
             </Button>
 
             <button
+              ref={mobileMenuToggle}
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors lg:hidden"
@@ -157,7 +164,7 @@ export function Header() {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={closeMenuToToggle}
                     className="text-foreground py-3 text-lg transition-colors"
                   >
                     {item.label}
@@ -191,7 +198,7 @@ export function Header() {
                             href={link.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => setMobileMenuOpen(false)}
+                            onClick={closeMenuToToggle}
                             className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
                           >
                             {link.label}
@@ -219,7 +226,7 @@ export function Header() {
                 size="sm"
                 nativeButton={false}
                 className="w-fit"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMenuToToggle}
                 render={
                   <a
                     href={CLOUD_URL}

@@ -1,4 +1,4 @@
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { typeSection } from "@/components/shared/type";
@@ -26,7 +26,7 @@ export default async function AuthErrorPage({
 
   return (
     <main
-      id={MAIN_CONTENT_ID}
+      {...MAIN_CONTENT_PROPS}
       className="mx-auto flex min-h-[60svh] w-full max-w-[36rem] flex-col justify-center gap-3 px-6"
     >
       <h1 className={typeSection}>{message}</h1>

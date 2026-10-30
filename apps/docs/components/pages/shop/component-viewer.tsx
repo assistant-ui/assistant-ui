@@ -1,6 +1,6 @@
 "use client";
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
 import type { Statewire, StatewireClient } from "statewire";
@@ -152,7 +152,7 @@ export function ComponentViewer() {
           ))}
         </nav>
         <main
-          id={MAIN_CONTENT_ID}
+          {...MAIN_CONTENT_PROPS}
           className="bg-muted/40 dark:bg-background relative isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8"
         >
           {hydrated && (

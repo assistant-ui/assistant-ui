@@ -1,6 +1,6 @@
 "use client";
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { Variant, Variants } from "@assistant-ui/variants";
 import { Clock, Users } from "lucide-react";
 import { useState } from "react";
@@ -345,7 +345,7 @@ export function RecipeDemo() {
     <div className="flex flex-col">
       <Nav />
       <main
-        id={MAIN_CONTENT_ID}
+        {...MAIN_CONTENT_PROPS}
         className="mx-auto flex w-full max-w-[52rem] flex-col gap-12 px-8 py-14"
       >
         <Variants

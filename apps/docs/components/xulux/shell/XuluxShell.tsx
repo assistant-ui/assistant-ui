@@ -1,6 +1,6 @@
 "use client";
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import {
   useCallback,
   useEffect,
@@ -506,7 +506,7 @@ export function XuluxShell({
           <LearnStageSourceProvider>
             <LearnCourseObserver />
             <main
-              id={MAIN_CONTENT_ID}
+              {...MAIN_CONTENT_PROPS}
               className="bg-background text-foreground grid h-full min-h-0 grid-rows-[minmax(0,55%)_minmax(0,45%)] overflow-hidden md:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] md:grid-rows-1"
             >
               <section
@@ -571,94 +571,35 @@ export function XuluxShell({
           onRestoreThread={handleRestoreThread}
         />
 
-        <main id={MAIN_CONTENT_ID} className="contents">
-          {viewMode === "landing" ? (
-            <XuluxLandingPage
-              onStartChat={handleStartChat}
-              onSelectTemplate={handleSelectTemplate}
-            />
-          ) : viewMode === "preview" ? (
-            isSmallScreen ? (
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="min-h-0 flex-1 overflow-hidden">
-                  <XuluxCanvas
-                    status={canvas.status}
-                    previewUrl={canvas.url}
-                    source={canvas.source}
-                    error={canvas.error}
-                    {...(canvas.templateId
-                      ? { templateId: canvas.templateId }
-                      : {})}
-                    {...(canvas.downloadUrl
-                      ? { downloadUrl: canvas.downloadUrl }
-                      : {})}
-                    {...(canvas.versionId
-                      ? { versionId: canvas.versionId }
-                      : {})}
-                    {...(canvas.previewFrame
-                      ? { previewFrame: canvas.previewFrame }
-                      : {})}
-                    {...(sourceUrl ? { sourceUrl } : {})}
-                    {...(canvasTitle ? { title: canvasTitle } : {})}
-                  />
-                </div>
-                <div className="flex h-[45%] min-h-[180px] flex-col overflow-hidden border-t">
-                  {isInterrupted && (
-                    <InterruptedRunBanner
-                      lastUserMessage={interruptedUserMessage}
-                      onRetry={handleRetryInterrupted}
-                    />
-                  )}
-                  <XuluxThread onNewThread={handleNewChat} />
-                </div>
+        {viewMode === "landing" ? (
+          <XuluxLandingPage
+            onStartChat={handleStartChat}
+            onSelectTemplate={handleSelectTemplate}
+          />
+        ) : viewMode === "preview" ? (
+          isSmallScreen ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <XuluxCanvas
+                  status={canvas.status}
+                  previewUrl={canvas.url}
+                  source={canvas.source}
+                  error={canvas.error}
+                  {...(canvas.templateId
+                    ? { templateId: canvas.templateId }
+                    : {})}
+                  {...(canvas.downloadUrl
+                    ? { downloadUrl: canvas.downloadUrl }
+                    : {})}
+                  {...(canvas.versionId ? { versionId: canvas.versionId } : {})}
+                  {...(canvas.previewFrame
+                    ? { previewFrame: canvas.previewFrame }
+                    : {})}
+                  {...(sourceUrl ? { sourceUrl } : {})}
+                  {...(canvasTitle ? { title: canvasTitle } : {})}
+                />
               </div>
-            ) : (
-              <Group
-                orientation="horizontal"
-                className="min-h-0 flex-1 overflow-hidden"
-              >
-                <Panel
-                  defaultSize="30%"
-                  minSize="20%"
-                  maxSize="55%"
-                  className="flex h-full flex-col overflow-hidden border-r"
-                >
-                  {isInterrupted && (
-                    <InterruptedRunBanner
-                      lastUserMessage={interruptedUserMessage}
-                      onRetry={handleRetryInterrupted}
-                    />
-                  )}
-                  <XuluxThread onNewThread={handleNewChat} />
-                </Panel>
-                <Separator className="bg-border hover:bg-primary/30 w-1 cursor-col-resize transition-colors" />
-                <Panel className="h-full overflow-hidden">
-                  <XuluxCanvas
-                    status={canvas.status}
-                    previewUrl={canvas.url}
-                    source={canvas.source}
-                    error={canvas.error}
-                    {...(canvas.templateId
-                      ? { templateId: canvas.templateId }
-                      : {})}
-                    {...(canvas.downloadUrl
-                      ? { downloadUrl: canvas.downloadUrl }
-                      : {})}
-                    {...(canvas.versionId
-                      ? { versionId: canvas.versionId }
-                      : {})}
-                    {...(canvas.previewFrame
-                      ? { previewFrame: canvas.previewFrame }
-                      : {})}
-                    {...(sourceUrl ? { sourceUrl } : {})}
-                    {...(canvasTitle ? { title: canvasTitle } : {})}
-                  />
-                </Panel>
-              </Group>
-            )
-          ) : (
-            <div className="flex min-h-0 flex-1 justify-center overflow-hidden">
-              <section className="flex w-full max-w-3xl flex-col">
+              <div className="flex h-[45%] min-h-[180px] flex-col overflow-hidden border-t">
                 {isInterrupted && (
                   <InterruptedRunBanner
                     lastUserMessage={interruptedUserMessage}
@@ -666,10 +607,63 @@ export function XuluxShell({
                   />
                 )}
                 <XuluxThread onNewThread={handleNewChat} />
-              </section>
+              </div>
             </div>
-          )}
-        </main>
+          ) : (
+            <Group
+              orientation="horizontal"
+              className="min-h-0 flex-1 overflow-hidden"
+            >
+              <Panel
+                defaultSize="30%"
+                minSize="20%"
+                maxSize="55%"
+                className="flex h-full flex-col overflow-hidden border-r"
+              >
+                {isInterrupted && (
+                  <InterruptedRunBanner
+                    lastUserMessage={interruptedUserMessage}
+                    onRetry={handleRetryInterrupted}
+                  />
+                )}
+                <XuluxThread onNewThread={handleNewChat} />
+              </Panel>
+              <Separator className="bg-border hover:bg-primary/30 w-1 cursor-col-resize transition-colors" />
+              <Panel className="h-full overflow-hidden">
+                <XuluxCanvas
+                  status={canvas.status}
+                  previewUrl={canvas.url}
+                  source={canvas.source}
+                  error={canvas.error}
+                  {...(canvas.templateId
+                    ? { templateId: canvas.templateId }
+                    : {})}
+                  {...(canvas.downloadUrl
+                    ? { downloadUrl: canvas.downloadUrl }
+                    : {})}
+                  {...(canvas.versionId ? { versionId: canvas.versionId } : {})}
+                  {...(canvas.previewFrame
+                    ? { previewFrame: canvas.previewFrame }
+                    : {})}
+                  {...(sourceUrl ? { sourceUrl } : {})}
+                  {...(canvasTitle ? { title: canvasTitle } : {})}
+                />
+              </Panel>
+            </Group>
+          )
+        ) : (
+          <div className="flex min-h-0 flex-1 justify-center overflow-hidden">
+            <section className="flex w-full max-w-3xl flex-col">
+              {isInterrupted && (
+                <InterruptedRunBanner
+                  lastUserMessage={interruptedUserMessage}
+                  onRetry={handleRetryInterrupted}
+                />
+              )}
+              <XuluxThread onNewThread={handleNewChat} />
+            </section>
+          </div>
+        )}
 
         <TemplatesModal
           open={templatesOpen}

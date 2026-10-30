@@ -1,6 +1,6 @@
 "use client";
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import {
   useCallback,
   useEffect,
@@ -144,7 +144,7 @@ function BuilderPlayground() {
   const toolBtnOff = "text-foreground/45 hover:text-foreground/90";
 
   const content = (
-    <main id={MAIN_CONTENT_ID} className="flex h-full w-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden">
       <div className="border-foreground/10 hidden w-72 shrink-0 overflow-hidden border-r md:block lg:w-80">
         <div className="h-full overflow-y-auto px-4 py-4">
           <BuilderControls config={config} onChange={setConfig} />
@@ -374,7 +374,7 @@ function BuilderPlayground() {
           <PlaygroundChatThread onRunningChange={setAiRunning} />
         </div>
       )}
-    </main>
+    </div>
   );
 
   return (
@@ -445,7 +445,10 @@ export default function PlaygroundPage() {
         </HeaderPortal>
       )}
 
-      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <main
+        {...MAIN_CONTENT_PROPS}
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+      >
         {XuluxApp && visitedModes.agent && (
           <div
             className={cn(
@@ -468,7 +471,7 @@ export default function PlaygroundPage() {
             <BuilderPlayground />
           </div>
         )}
-      </div>
+      </main>
     </>
   );
 }

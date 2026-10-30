@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
@@ -163,6 +163,12 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const navMenuId = useId();
+  const navMenuToggle = useRef<HTMLButtonElement>(null);
+  // A new tab leaves this page open, and closing the menu makes the clicked link inert.
+  const closeMenuToToggle = () => {
+    setNavMenuOpen(false);
+    navMenuToggle.current?.focus();
+  };
   const scrolled = useScrolled();
   const { platform } = usePlatform();
   const homeHref = useMemo(
@@ -222,6 +228,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
             <AskAIButton />
             <SearchIconButton className="size-8" />
             <button
+              ref={navMenuToggle}
               type="button"
               onClick={handleNavMenuToggle}
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
@@ -317,7 +324,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => setNavMenuOpen(false)}
+                    onClick={closeMenuToToggle}
                     className="text-foreground py-3 text-lg transition-colors"
                   >
                     {item.label}
@@ -351,7 +358,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
                             href={link.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => setNavMenuOpen(false)}
+                            onClick={closeMenuToToggle}
                             className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
                           >
                             {link.label}
@@ -378,7 +385,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
                 size="sm"
                 nativeButton={false}
                 className="w-fit"
-                onClick={() => setNavMenuOpen(false)}
+                onClick={closeMenuToToggle}
                 render={
                   <a
                     href={CLOUD_URL}

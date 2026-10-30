@@ -1,6 +1,6 @@
 "use client";
 
-import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import type { ReactNode } from "react";
 import {
   AuiConfig,
@@ -24,7 +24,7 @@ export function RendererHost(): ReactNode {
   });
 
   return (
-    <main id={MAIN_CONTENT_ID}>
+    <main {...MAIN_CONTENT_PROPS}>
       <CloudRendererHost
         allowedOrigins={RENDERER_ALLOWED_ORIGINS}
         config={config}

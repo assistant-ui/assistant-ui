@@ -1,4 +1,11 @@
-export const MAIN_CONTENT_ID = "main-content";
+const MAIN_CONTENT_ID = "main-content";
+
+// tabIndex makes the target focusable, so following the skip link moves focus
+// here instead of relying on how each browser treats a non-focusable fragment.
+export const MAIN_CONTENT_PROPS = {
+  id: MAIN_CONTENT_ID,
+  tabIndex: -1,
+} as const;
 
 export function SkipLink() {
   return (
