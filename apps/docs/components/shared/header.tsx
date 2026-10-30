@@ -8,7 +8,7 @@ import { analytics } from "@/lib/analytics";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
-import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
+import { NAV_ITEMS, CLOUD_URL, megaGroups } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
@@ -173,7 +173,7 @@ export function Header() {
                   <span className="text-foreground py-3 text-lg">
                     {item.label}
                   </span>
-                  {item.groups.map((group) => (
+                  {megaGroups(item).map((group) => (
                     <div key={group.label} className="flex flex-col">
                       <span className="text-muted-foreground py-3 text-xs font-medium">
                         {group.label}

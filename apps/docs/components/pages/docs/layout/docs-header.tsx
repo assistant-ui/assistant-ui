@@ -4,9 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
+import { ArrowUpRight, Menu, PanelLeft, Search, X } from "lucide-react";
 import { useSearchContext } from "@/components/shared/search-provider";
-import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
+import {
+  NAV_ITEMS,
+  CLOUD_URL,
+  megaGroups,
+  type NavItem,
+} from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
@@ -215,8 +220,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           {/* Mobile controls */}
           <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
             <CartButton />
-            <AskAIButton />
             <SearchIconButton className="size-8" />
+            <AskAIButton />
             <button
               type="button"
               onClick={handleNavMenuToggle}
@@ -226,7 +231,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
               {navMenuOpen ? (
                 <X className="size-4" />
               ) : (
-                <LayoutGrid className="size-4" />
+                <Menu className="size-4" />
               )}
             </button>
             <button
@@ -238,7 +243,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
               {sidebarOpen ? (
                 <X className="size-4" />
               ) : (
-                <Menu className="size-4" />
+                <PanelLeft className="size-4" />
               )}
             </button>
           </div>
@@ -247,8 +252,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
             <div className="flex items-center gap-2">
               <CartButton />
-              <AskAIButton />
               <SearchIconButton className="size-7" />
+              <AskAIButton />
             </div>
             <div className="flex shrink-0 items-center">
               <NavItems
@@ -264,9 +269,9 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           <div className="ml-auto hidden items-center gap-4 lg:flex">
             <div className="flex min-w-0 items-center gap-2">
               <CartButton />
-              <AskAIButton />
               <SearchIconButton className="size-7 xl:hidden" />
               <HeaderSearch />
+              <AskAIButton />
             </div>
             <NavItems
               items={filteredItems}
@@ -329,7 +334,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
                   <span className="text-foreground py-3 text-lg">
                     {item.label}
                   </span>
-                  {item.groups.map((group) => (
+                  {megaGroups(item).map((group) => (
                     <div key={group.label} className="flex flex-col">
                       <span className="text-muted-foreground py-3 text-sm">
                         {group.label}
