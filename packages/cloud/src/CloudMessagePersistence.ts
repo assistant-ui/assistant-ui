@@ -15,8 +15,9 @@ type FailedAppend = {
 /**
  * Appends, updates and loads cloud messages while mapping local ids to cloud
  * ids and chaining parent_id. A parent that is still being created is awaited,
- * so concurrent appends land under the right parent, and a parent whose create
- * failed is created again before its child.
+ * so concurrent appends land under the right parent. A parent whose create
+ * failed is created again before its child, and a child whose parent still
+ * cannot be created is stored as a root.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -54,21 +55,8 @@ export class CloudMessagePersistence {
 
     this.failedAppends.delete(messageId);
     const task = (async () => {
-      const failedParent = parentId
-        ? this.failedAppends.get(parentId)
-        : undefined;
-      if (parentId && failedParent && !this.idMapping.has(parentId)) {
-        await this.append(
-          failedParent.threadId,
-          parentId,
-          failedParent.parentId,
-          failedParent.format,
-          failedParent.content,
-        );
-      }
-      const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
       const resolvedParentId = parentId
-        ? ((await parentEntry) ?? parentId)
+        ? await this.resolveParentId(parentId)
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
@@ -95,6 +83,24 @@ export class CloudMessagePersistence {
         });
       }
       throw err;
+    }
+  }
+
+  private async resolveParentId(parentId: string): Promise<string | null> {
+    const failedParent = this.failedAppends.get(parentId);
+    try {
+      if (failedParent && !this.idMapping.has(parentId)) {
+        await this.append(
+          failedParent.threadId,
+          parentId,
+          failedParent.parentId,
+          failedParent.format,
+          failedParent.content,
+        );
+      }
+      return (await this.idMapping.get(parentId)) ?? parentId;
+    } catch {
+      return null;
     }
   }
 

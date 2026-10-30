@@ -118,29 +118,27 @@ describe("CloudMessagePersistence", () => {
     ]);
   });
 
-  it("retries every failed ancestor when a later descendant appends", async () => {
+  it("stores a child as a root when its parent still cannot be created", async () => {
     vi.mocked(cloud.threads.messages.create)
-      .mockRejectedValueOnce(new Error("offline"))
-      .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValueOnce({ message_id: "msg_parent" })
+      .mockRejectedValueOnce(new Error("content too large"))
+      .mockRejectedValueOnce(new Error("content too large"))
       .mockResolvedValueOnce({ message_id: "msg_child" })
       .mockResolvedValueOnce({ message_id: "msg_grandchild" });
 
     await expect(
       persistence.append("thread-1", "parent", null, "aui/v0", {}),
-    ).rejects.toThrow("offline");
-    await expect(
-      persistence.append("thread-1", "child", "parent", "aui/v0", {}),
-    ).rejects.toThrow("offline");
+    ).rejects.toThrow("content too large");
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {});
     await persistence.append("thread-1", "grandchild", "child", "aui/v0", {});
 
     expect(
       vi
         .mocked(cloud.threads.messages.create)
         .mock.calls.map(([, body]) => body.parent_id),
-    ).toEqual([null, null, null, "msg_parent", "msg_child"]);
-    expect(persistence.getResolvedRemoteId("parent")).toBe("msg_parent");
-    expect(persistence.getResolvedRemoteId("child")).toBe("msg_child");
+    ).toEqual([null, null, null, "msg_child"]);
+    expect(persistence.getResolvedRemoteId("grandchild")).toBe(
+      "msg_grandchild",
+    );
   });
 
   it("does not create a deleted failed parent again", async () => {
