@@ -38,7 +38,6 @@ const PREVIEW_COMPONENT_SLUGS = new Set([
   "chatgpt",
   "claude",
   "gemini",
-  "generative-ui",
   "grok",
   "modal",
   "perplexity",
