@@ -828,6 +828,27 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("leaves a reader inside the content inset in place on unchanged geometry", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    controller.setContentInset(50);
+    view.setTop(370);
+    expect(controller.isAtBottom).toBe(true);
+    view.scrollTo.mockClear();
+
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(370);
+    controller.dispose();
+  });
+
   it("cancels a queued bottom scroll when the user scrolls up", () => {
     const view = geometry(500, 100);
     view.setTop(400);

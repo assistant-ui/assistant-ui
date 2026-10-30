@@ -254,11 +254,11 @@ export const createThreadViewportAutoScroll = (input: {
   const onContentResize = () => {
     if (!element) return;
     const { scrollHeight, clientHeight } = element;
-    // A clamp the controller never observed can leave a following viewport short of the bottom at unchanged geometry.
+    // A clamp the controller has not read yet lowers scrollTop while unchanged geometry hides it.
     if (
       scrollHeight === lastObservedScrollHeight &&
       clientHeight === lastObservedClientHeight &&
-      !(isFollowing() && !isViewportAtBottom(element))
+      !(isFollowing() && element.scrollTop < lastScrollTop)
     ) {
       return;
     }
