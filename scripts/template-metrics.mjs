@@ -38,6 +38,8 @@ const CODE_EXT = new Set([
   ".jsx",
   ".mjs",
   ".cjs",
+  ".mts",
+  ".cts",
   ".css",
   ".vue",
 ]);
