@@ -250,3 +250,34 @@ test("an unmeasured template still contributes LOC, a report, and footprint fail
   assert.equal(check.status, 1);
   assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
 });
+
+test("Vue component growth counts toward the template footprint limit", (t) => {
+  const { root, write, git, commit } = fixture(t);
+  const file = "templates/nuxt/app.vue";
+  write(file, "<template>\n</template>\n");
+  commit();
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+
+  write(
+    file,
+    "<template>\n" +
+      Array.from(
+        { length: 301 },
+        (_, i) => `  <p>Example message ${i}</p>\n`,
+      ).join("") +
+      "</template>\n",
+  );
+  commit();
+
+  const check = spawnSync(
+    process.execPath,
+    ["scripts/template-metrics.mjs", "check", "."],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, MAX_LOC_HARD_INCREASE: "300" },
+    },
+  );
+  assert.equal(check.status, 1, check.stdout + check.stderr);
+  assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
+});

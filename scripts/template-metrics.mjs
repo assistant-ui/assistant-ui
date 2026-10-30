@@ -39,6 +39,7 @@ const CODE_EXT = new Set([
   ".mjs",
   ".cjs",
   ".css",
+  ".vue",
 ]);
 const RESOLVE_EXT = [".tsx", ".ts", ".jsx", ".js"];
 
