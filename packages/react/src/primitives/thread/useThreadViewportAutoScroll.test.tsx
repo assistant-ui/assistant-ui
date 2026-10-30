@@ -353,7 +353,11 @@ const FooterThread = ({
       scrollToBottomOnInitialize={false}
     >
       {messages.map((_, index) => (
-        <div key={index} data-testid="thread-message" />
+        <div
+          key={index}
+          data-message-id={`footer-message-${index}`}
+          data-testid="thread-message"
+        />
       ))}
       {footerHeight !== null && (
         <ThreadPrimitiveViewportFooter
@@ -395,6 +399,30 @@ describe("viewport footer insets", () => {
 
     expect(getViewport().scrollTop).toBe(540);
     expect(screen.getByTestId("footer-inset").textContent).toBe("80");
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("keeps following when message growth offsets a footer inset shrink", () => {
+    for (let index = 0; index < messages.length; index++)
+      messageHeights.set(`footer-message-${index}`, 12.5);
+    viewportMeasurementOffset = 540;
+    const view = render(<FooterThread footerHeight={540} autoScroll />);
+    act(notifyResizeObservers);
+
+    act(() => {
+      getViewport().scrollTop = 0;
+      fireEvent.scroll(getViewport());
+    });
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+
+    for (let index = 0; index < messages.length; index++)
+      messageHeights.set(`footer-message-${index}`, 80);
+    viewportMeasurementOffset = 0;
+    view.rerender(<FooterThread footerHeight={0} autoScroll />);
+    act(() => notifyResizeOf(screen.getByTestId("footer")));
+
+    expect(getViewport().scrollHeight).toBe(640);
+    expect(getViewport().scrollTop).toBe(540);
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 

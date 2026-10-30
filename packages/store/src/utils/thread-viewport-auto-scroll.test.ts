@@ -785,6 +785,49 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("follows after an unobserved clamp that content regrowth hides", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.element.scrollTop = 300;
+    observers[0]!.trigger();
+    view.element.dispatchEvent(new Event("scroll"));
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+    expect(view.element.scrollTop).toBe(400);
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("leaves a viewport the reader scrolled up at unchanged geometry", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.setTop(300);
+    view.scrollTo.mockClear();
+
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(300);
+    controller.dispose();
+  });
+
   it("cancels a queued bottom scroll when the user scrolls up", () => {
     const view = geometry(500, 100);
     view.setTop(400);
