@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Abort pending tool invocations retained across thread runtime handoffs when a run is stopped.
+A committed thread runtime takes back the tool tracker that a discarded render claimed, so Stop aborts pending frontend tools after switching back to a thread.

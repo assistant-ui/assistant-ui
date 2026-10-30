@@ -493,7 +493,17 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public __internal_setAdapter(store: ExternalStoreAdapter<any>) {
-    if (this._store === store) return;
+    if (this._store === store) {
+      // A runtime constructed by a discarded render claims the retained tracker
+      // in its constructor, so the committed runtime takes it back here.
+      const retained = store.unstable_enableToolInvocations
+        ? retainedToolInvocations.get(this.repository)
+        : undefined;
+      if (retained && retained.host !== this) {
+        this._runTrackerUpdate(() => this._claimToolInvocations(retained));
+      }
+      return;
+    }
 
     this._updateStoreSnapshot(store);
   }
@@ -924,13 +934,6 @@ export class ExternalStoreThreadRuntimeCore
     return retained.tracker;
   }
 
-  private _getToolInvocations(): ToolInvocationTracker | undefined {
-    const retained = retainedToolInvocations.get(this.repository);
-    return retained
-      ? this._claimToolInvocations(retained)
-      : (this._toolInvocations ?? undefined);
-  }
-
   /**
    * Feed the current message snapshot into the tool-invocations tracker.
    * Opt-in via `adapter.unstable_enableToolInvocations: true`. The tracker
@@ -1218,7 +1221,7 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      const toolsSettled = this._getToolInvocations()?.abort({
+      const toolsSettled = this._toolInvocations?.abort({
         discardPending: true,
       });
       if (toolsSettled && toolsSettled !== NO_TOOL_EXECUTIONS)
@@ -1337,7 +1340,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support deleting messages.");
 
     if (this._getEffectiveIsRunning(this._store)) {
-      await this._getToolInvocations()?.abort();
+      await this._toolInvocations?.abort();
     }
 
     const messages = this.repository.getMessages();
@@ -1443,7 +1446,7 @@ export class ExternalStoreThreadRuntimeCore
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
     try {
-      await this._getToolInvocations()?.abort({
+      await this._toolInvocations?.abort({
         discardPending: true,
       });
       if (!cancellationLease.isCurrent()) {
@@ -1516,7 +1519,7 @@ export class ExternalStoreThreadRuntimeCore
     // cleared status map itself, so adapter-side statuses reset only when
     // the tracker is the source of truth.
     const pendingResume = this._pendingResume;
-    this._runTrackerUpdate(() => this._getToolInvocations()?.reset());
+    this._runTrackerUpdate(() => this._toolInvocations?.reset());
 
     this._store.onLoadExternalState(state);
     this._clearPendingResume(pendingResume);
@@ -1534,7 +1537,7 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
     this._clearPendingResume(this._pendingResume);
-    this._runTrackerUpdate(() => this._getToolInvocations()?.reset());
+    this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
 
@@ -1569,7 +1572,7 @@ export class ExternalStoreThreadRuntimeCore
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
     // cancel on it.
-    void this._getToolInvocations()?.abort({ discardPending: true });
+    void this._toolInvocations?.abort({ discardPending: true });
 
     // Before the run is aborted, so the settle it produces keeps the pending
     // items instead of dispatching the next one at the moment the user
