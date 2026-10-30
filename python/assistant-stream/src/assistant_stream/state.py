@@ -552,6 +552,7 @@ class StateProxy:
                 f"'setdefault' not supported for type {type(value).__name__}"
             )
 
+        key = self._resolve_key(value, key, require_existing=False)
         if key in value:
             return self[key]
 
