@@ -42,6 +42,10 @@
     "./resumable/ioredis": {
       "types": "./dist/resumable/stores/ioredis.d.ts",
       "default": "./dist/resumable/stores/ioredis.js"
+    },
+    "./streamfold": {
+      "types": "./dist/streamfold/index.d.ts",
+      "default": "./dist/streamfold/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -74,7 +78,8 @@
   "peerDependencies": {
     "ai": "^6.0.0 || ^7.0.0",
     "ioredis": "^5.10.1 || ^6.0.0",
-    "redis": "^5.12.1"
+    "redis": "^5.12.1",
+    "streamfold": "^0.1.13"
   },
   "peerDependenciesMeta": {
     "ai": {
@@ -85,6 +90,9 @@
     },
     "redis": {
       "optional": true
+    },
+    "streamfold": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -94,7 +102,8 @@
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.3.0",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "streamfold": "^0.1.13"
   },
   "publishConfig": {
     "access": "public",

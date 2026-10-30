@@ -37,8 +37,39 @@ export async function POST(request: Request) {
 
 For tool execution, pipe through `ToolExecutionStream`; for resumable streams (clients can reconnect and replay), import from the `assistant-stream/resumable` sub-path with a `redis` or `ioredis` adapter.
 
+## Streamfold parsing
+
+Install `streamfold@^0.1.13` alongside `assistant-stream` to opt into its Rust/WASM
+parser. Initialize it once before starting streams in each browser or server
+bundle that should use it:
+
+```ts
+import { initializeStreamfold } from "assistant-stream/streamfold";
+
+const enabled = await initializeStreamfold();
+```
+
+This enables Streamfold for subsequent shared tool-argument parsers in this
+`assistant-stream` instance, including the message accumulator, active tool
+argument readers, and React LangGraph. Existing parsers keep their backend.
+`enabled` is false if WASM preparation or finalization support is unavailable;
+the JavaScript parser remains usable. Import this optional entry only in
+bundles where you intend to enable Streamfold.
+
+The integration preserves partial values and metadata, security filtering,
+mutable published snapshots, and independent parser branches. Unsupported or
+malformed inputs and branches from an earlier parser fall back to native
+parsing. Complete inputs initialized in one call keep the native JSON fast
+path. Completed and rejected WASM parsers are disposed immediately; abandoned
+partial parsers are released through Streamfold's finalizer after collection.
+
+Streamfold is opt-in because performance depends on payload shape and chunk size;
+small chunks can be slower than the default incremental JavaScript parser.
+Measure representative payloads and chunk sizes in your runtime before enabling
+it. This entry adds Streamfold's WASM download and initialization cost only to bundles that import it.
+
 ## Sub-paths
 
-`.`, `./utils`, `./ai-sdk`, `./internal`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it works with `ai@6` or `ai@7`, install it alongside (declared as an optional peer). `./internal` is an internal-use entry: it is published like every other export, but it only carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk` and is not a supported surface. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
+`.`, `./utils`, `./ai-sdk`, `./internal`, `./streamfold`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it works with `ai@6` or `ai@7`, install it alongside (declared as an optional peer). `./internal` is an internal-use entry: it is published like every other export, but it only carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk` and is not a supported surface. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
 
 Full reference for encoders, tool execution, message conversion, and resumable streams at [assistant-ui.com/docs/architecture](https://www.assistant-ui.com/docs/architecture).
