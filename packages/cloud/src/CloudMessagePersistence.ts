@@ -90,6 +90,7 @@ export class CloudMessagePersistence {
   }
 
   private async resolveParentId(parentId: string): Promise<string | null> {
+    await Promise.resolve(this.idMapping.get(parentId)).catch(() => undefined);
     const failedParent = this.failedAppends.get(parentId);
     try {
       if (failedParent && !this.idMapping.has(parentId)) {

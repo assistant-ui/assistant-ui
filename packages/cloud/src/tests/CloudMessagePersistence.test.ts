@@ -124,6 +124,35 @@ describe("CloudMessagePersistence", () => {
     ]);
   });
 
+  it("creates a parent again when its create fails while the child waits", async () => {
+    let rejectParent!: (error: Error) => void;
+    vi.mocked(cloud.threads.messages.create)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectParent = reject;
+          }),
+      )
+      .mockResolvedValueOnce({ message_id: "msg_parent" })
+      .mockResolvedValueOnce({ message_id: "msg_child" });
+
+    const parent = persistence.append("thread-1", "parent", null, "aui/v0", {});
+    const child = persistence.append(
+      "thread-1",
+      "child",
+      "parent",
+      "aui/v0",
+      {},
+    );
+    rejectParent(new Error("parent create failed"));
+
+    await expect(parent).rejects.toThrow("parent create failed");
+    await child;
+    expect(
+      vi.mocked(cloud.threads.messages.create).mock.calls[2]![1].parent_id,
+    ).toBe("msg_parent");
+  });
+
   it("stores a child as a root when its parent still cannot be created", async () => {
     vi.mocked(cloud.threads.messages.create)
       .mockRejectedValueOnce(new Error("content too large"))
