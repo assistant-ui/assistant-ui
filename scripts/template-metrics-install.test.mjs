@@ -250,3 +250,32 @@ test("an unmeasured template still contributes LOC, a report, and footprint fail
   assert.equal(check.status, 1);
   assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
 });
+
+for (const extension of ["vue", "mts", "cts"]) {
+  test(`${extension} source growth counts toward the template footprint limit`, (t) => {
+    const { root, write, git, commit } = fixture(t);
+    const file = `templates/nuxt/source.${extension}`;
+    const source = (lines) =>
+      extension === "vue"
+        ? `<template>\n${lines.map((i) => `  <p>Example message ${i}</p>\n`).join("")}</template>\n`
+        : lines.map((i) => `export const value${i} = ${i};\n`).join("");
+    write(file, source([0]));
+    commit();
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+
+    write(file, source(Array.from({ length: 302 }, (_, i) => i)));
+    commit();
+
+    const check = spawnSync(
+      process.execPath,
+      ["scripts/template-metrics.mjs", "check", "."],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, MAX_LOC_HARD_INCREASE: "300" },
+      },
+    );
+    assert.equal(check.status, 1, check.stdout + check.stderr);
+    assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
+  });
+}
