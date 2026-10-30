@@ -940,6 +940,27 @@ describe("AdkEventAccumulator - finish reasons", () => {
       },
     });
   });
+
+  it("keeps a content error whose code differs from a MAX_TOKENS finish", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        finishReason: "MAX_TOKENS",
+        errorCode: "SERVER_ERROR",
+        errorMessage: "Service unavailable",
+        content: { role: "model", parts: [{ text: "partial" }] },
+      }),
+    );
+
+    expect(msgs[0]).toMatchObject({
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: "Service unavailable",
+      },
+    });
+  });
 });
 
 describe("AdkEventAccumulator - isFinalResponse logic", () => {

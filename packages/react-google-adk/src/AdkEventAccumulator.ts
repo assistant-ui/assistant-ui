@@ -430,6 +430,7 @@ export class AdkEventAccumulator {
         target?.type === "ai" ? target : this.getOrCreateAiMessage(event);
       const finishReasonStatus = finishReasonToStatus(event.finishReason);
       if (
+        event.errorCode === event.finishReason &&
         finishReasonStatus.type === "incomplete" &&
         finishReasonStatus.reason !== "error"
       ) {
