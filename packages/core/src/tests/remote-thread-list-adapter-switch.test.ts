@@ -711,6 +711,48 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.archivedThreadIds).toEqual([]);
   });
 
+  it("reloads the active adapter after an old archive settles", async () => {
+    const archiveRequest = deferred<void>();
+    const staleList = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const backend = { status: "regular" as "regular" | "archived" };
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({ threads: [thread("same")] })),
+      archive: vi.fn(async () => {
+        await archiveRequest.promise;
+        backend.status = "archived";
+      }),
+    });
+    const listB = vi
+      .fn()
+      .mockReturnValueOnce(staleList.promise)
+      .mockImplementation(async () => ({
+        threads: [{ ...thread("same"), status: backend.status }],
+      }));
+    const adapterB = makeAdapter({ list: listB });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const archiveTask = core.archive("same");
+    await vi.waitFor(() => expect(adapterA.archive).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    const replacementLoad = core.getLoadThreadsPromise();
+    await vi.waitFor(() => expect(listB).toHaveBeenCalledOnce());
+    staleList.resolve({ threads: [thread("same")] });
+    await replacementLoad;
+    expect(core.getItemById("same")?.status).toBe("regular");
+
+    archiveRequest.resolve();
+    await archiveTask;
+
+    expect(backend.status).toBe("archived");
+    expect(listB).toHaveBeenCalledTimes(2);
+    expect(core.getItemById("same")?.status).toBe("archived");
+  });
+
   it("keeps the replacement's thread archived when an old unarchive of the same id settles", async () => {
     const unarchiveRequest = deferred<void>();
     const archived = { ...thread("same"), status: "archived" as const };

@@ -896,6 +896,19 @@ const useRemoteThreadList = (
     store,
   ]);
 
+  const reloadAfterAdapterChange = useCallback(
+    (adapterGeneration: number) => {
+      if (adapterGeneration === session.adapterGeneration) {
+        return RESOLVED_PROMISE;
+      }
+      session.loadGeneration++;
+      session.loadPromise = undefined;
+      session.loadMorePromise = undefined;
+      return getLoadThreadsPromise();
+    },
+    [getLoadThreadsPromise, session],
+  );
+
   useEffect(() => {
     void getLoadThreadsPromise();
   }, [getLoadThreadsPromise]);
@@ -1694,6 +1707,7 @@ const useRemoteThreadList = (
               ? updateStatusReducer(state, data.id, "archived")
               : state,
         });
+        await reloadAfterAdapterChange(adapterGeneration);
       } finally {
         mutation.cancel();
       }
@@ -1702,6 +1716,7 @@ const useRemoteThreadList = (
     [
       ensureNotMain,
       leaveRemovedMainThread,
+      reloadAfterAdapterChange,
       requireAdapterGeneration,
       session,
       store,
@@ -1732,7 +1747,7 @@ const useRemoteThreadList = (
         );
       }
       const mutation = session.mutations.reserve(data.id, data);
-      return store.optimisticUpdate({
+      await store.optimisticUpdate({
         execute: () =>
           mutation.run(async () => {
             try {
@@ -1753,8 +1768,15 @@ const useRemoteThreadList = (
           }),
         optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
       });
+      await reloadAfterAdapterChange(adapterGeneration);
     },
-    [ensureNotMain, requireAdapterGeneration, session, store],
+    [
+      ensureNotMain,
+      reloadAfterAdapterChange,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const deleteThread = useCallback(
