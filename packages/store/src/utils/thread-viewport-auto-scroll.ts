@@ -161,6 +161,7 @@ export const createThreadViewportAutoScroll = (input: {
     element.scrollTo?.({ top: element.scrollHeight, behavior });
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
+    handleScroll();
   };
 
   const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
