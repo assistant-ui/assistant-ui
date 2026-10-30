@@ -47,4 +47,15 @@ it("announces every action that opens a new tab", () => {
     `Start Pro${NEW_TAB}`,
     `Start free${NEW_TAB}`,
   ]);
+  expect(
+    screen.getByRole("button", { name: `Start Pro${NEW_TAB}` }),
+  ).toBeTruthy();
+
+  expect(
+    anyAction().filter(
+      (action) =>
+        action.getAttribute("target") !== "_blank" &&
+        action.textContent?.includes(NEW_TAB),
+    ),
+  ).toEqual([]);
 });

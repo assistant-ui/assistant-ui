@@ -95,7 +95,7 @@ export default function App() {
     id: "mastra",
     label: "Mastra",
     docs: "/docs/integrations/frameworks/mastra/separate-server",
-    changed: [2, 6, 7, 8],
+    changed: [2, 6, 7, 8, 9],
     caption: "The AI SDK client, pointed at your Mastra server's chat route.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
@@ -103,6 +103,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 export default function App() {
   const runtime = useChatRuntime({
+    // Set NEXT_PUBLIC_MASTRA_URL to your Mastra server's chat route.
     transport: new AssistantChatTransport({ api: process.env.NEXT_PUBLIC_MASTRA_URL! }),
   });
 
