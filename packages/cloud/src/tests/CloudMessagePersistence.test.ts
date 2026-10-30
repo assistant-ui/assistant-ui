@@ -89,6 +89,74 @@ describe("CloudMessagePersistence", () => {
     expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
   });
 
+  it("creates a failed parent again before its child and grandchild", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockRejectedValueOnce(new Error("parent create failed"))
+      .mockResolvedValueOnce({ message_id: "msg_parent" })
+      .mockResolvedValueOnce({ message_id: "msg_child" })
+      .mockResolvedValueOnce({ message_id: "msg_grandchild" });
+
+    await expect(
+      persistence.append("thread-1", "parent", null, "aui/v0", { n: 0 }),
+    ).rejects.toThrow("parent create failed");
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {
+      n: 1,
+    });
+    await persistence.append("thread-1", "grandchild", "child", "aui/v0", {
+      n: 2,
+    });
+
+    expect(
+      vi
+        .mocked(cloud.threads.messages.create)
+        .mock.calls.map(([, body]) => [body.parent_id, body.content]),
+    ).toEqual([
+      [null, { n: 0 }],
+      [null, { n: 0 }],
+      ["msg_parent", { n: 1 }],
+      ["msg_child", { n: 2 }],
+    ]);
+  });
+
+  it("retries every failed ancestor when a later descendant appends", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ message_id: "msg_parent" })
+      .mockResolvedValueOnce({ message_id: "msg_child" })
+      .mockResolvedValueOnce({ message_id: "msg_grandchild" });
+
+    await expect(
+      persistence.append("thread-1", "parent", null, "aui/v0", {}),
+    ).rejects.toThrow("offline");
+    await expect(
+      persistence.append("thread-1", "child", "parent", "aui/v0", {}),
+    ).rejects.toThrow("offline");
+    await persistence.append("thread-1", "grandchild", "child", "aui/v0", {});
+
+    expect(
+      vi
+        .mocked(cloud.threads.messages.create)
+        .mock.calls.map(([, body]) => body.parent_id),
+    ).toEqual([null, null, null, "msg_parent", "msg_child"]);
+    expect(persistence.getResolvedRemoteId("parent")).toBe("msg_parent");
+    expect(persistence.getResolvedRemoteId("child")).toBe("msg_child");
+  });
+
+  it("does not create a deleted failed parent again", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockRejectedValueOnce(new Error("parent create failed"))
+      .mockResolvedValueOnce({ message_id: "msg_child" });
+
+    await expect(
+      persistence.append("thread-1", "parent", null, "aui/v0", {}),
+    ).rejects.toThrow("parent create failed");
+    await persistence.delete("thread-1", ["parent"]);
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {});
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps a replacement mapping made during deletion", async () => {
     persistence.record("local-1", "msg_1");
     let resolveDelete!: () => void;

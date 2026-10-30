@@ -5,13 +5,22 @@ import { CloudAPIError } from "./AssistantCloudAPI";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
+type FailedAppend = {
+  threadId: string;
+  parentId: string | null;
+  format: string;
+  content: ReadonlyJSONObject;
+};
+
 /**
  * Appends, updates and loads cloud messages while mapping local ids to cloud
  * ids and chaining parent_id. A parent that is still being created is awaited,
- * so concurrent appends land under the right parent.
+ * so concurrent appends land under the right parent, and a parent whose create
+ * failed is created again before its child.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
+  private failedAppends = new Map<string, FailedAppend>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -43,7 +52,20 @@ export class CloudMessagePersistence {
       return;
     }
 
+    this.failedAppends.delete(messageId);
     const task = (async () => {
+      const failedParent = parentId
+        ? this.failedAppends.get(parentId)
+        : undefined;
+      if (parentId && failedParent && !this.idMapping.has(parentId)) {
+        await this.append(
+          failedParent.threadId,
+          parentId,
+          failedParent.parentId,
+          failedParent.format,
+          failedParent.content,
+        );
+      }
       const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
       const resolvedParentId = parentId
         ? ((await parentEntry) ?? parentId)
@@ -65,6 +87,12 @@ export class CloudMessagePersistence {
     } catch (err) {
       if (this.idMapping.get(messageId) === task) {
         this.idMapping.delete(messageId);
+        this.failedAppends.set(messageId, {
+          threadId,
+          parentId,
+          format,
+          content,
+        });
       }
       throw err;
     }
@@ -102,6 +130,7 @@ export class CloudMessagePersistence {
       remoteId: string;
     }[] = [];
     for (const localId of messageIds) {
+      this.failedAppends.delete(localId);
       const entry = mapping.get(localId);
       if (!entry) continue;
       try {
@@ -222,5 +251,6 @@ export class CloudMessagePersistence {
    */
   reset() {
     this.idMapping = new Map();
+    this.failedAppends = new Map();
   }
 }
