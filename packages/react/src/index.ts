@@ -69,6 +69,10 @@ export {
   OpenAIRealtimeVoiceAdapter,
   type OpenAIRealtimeVoiceAdapterOptions,
 } from "./adapters/OpenAIRealtimeVoiceAdapter";
+export {
+  GeminiLiveVoiceAdapter,
+  type GeminiLiveVoiceAdapterOptions,
+} from "./adapters/GeminiLiveVoiceAdapter";
 export type {
   VoiceSessionControls,
   VoiceSessionHelpers,
