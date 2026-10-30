@@ -510,7 +510,7 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onTextMessageContentEvent?.({
           event: { type: "TEXT_MESSAGE_CONTENT", delta: "Hello" },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
       }),
     } as unknown as HttpAgent;
 
@@ -634,7 +634,7 @@ describe("AGUIThreadRuntimeCore", () => {
             ],
           },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
       }),
     } as unknown as HttpAgent;
 
@@ -2837,12 +2837,12 @@ describe("AGUIThreadRuntimeCore", () => {
           subscriber.onToolCallEndEvent?.({
             event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
           });
-          subscriber.onRunFinalized?.();
+          notifyRunFinished(subscriber, "run");
         } else {
           subscriber.onTextMessageContentEvent?.({
             event: { type: "TEXT_MESSAGE_CONTENT", delta: "It is sunny!" },
           });
-          subscriber.onRunFinalized?.();
+          notifyRunFinished(subscriber, "run");
         }
       }),
     } as unknown as HttpAgent;
@@ -2975,12 +2975,12 @@ describe("AGUIThreadRuntimeCore", () => {
             isError: false,
             modelContent: [{ type: "text", text: "22C and sunny" }],
           });
-          subscriber.onRunFinalized?.();
+          notifyRunFinished(subscriber, "run");
         } else {
           subscriber.onTextMessageContentEvent?.({
             event: { type: "TEXT_MESSAGE_CONTENT", delta: "It is sunny!" },
           });
-          subscriber.onRunFinalized?.();
+          notifyRunFinished(subscriber, "run");
         }
       }),
     } as unknown as HttpAgent;
@@ -5322,7 +5322,7 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onToolCallEndEvent?.({
           event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
         return;
       }
       subscriber.onTextMessageContentEvent?.({
@@ -6066,7 +6066,7 @@ describe("AGUIThreadRuntimeCore", () => {
             event: { type: "TOOL_CALL_END", toolCallId: id },
           });
         }
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
         return;
       }
       subscriber.onRunFinishedEvent?.({
@@ -6129,7 +6129,7 @@ describe("AGUIThreadRuntimeCore", () => {
           result: "ra",
           isError: false,
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
         return;
       }
       subscriber.onRunFinishedEvent?.({
@@ -6178,7 +6178,7 @@ describe("AGUIThreadRuntimeCore", () => {
       subscriber.onToolCallEndEvent?.({
         event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
       });
-      subscriber.onRunFinalized?.();
+      notifyRunFinished(subscriber, "run");
     });
 
     const core = createCore({ runAgent } as unknown as HttpAgent);
@@ -6209,7 +6209,7 @@ describe("AGUIThreadRuntimeCore", () => {
       subscriber.onToolCallEndEvent?.({
         event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
       });
-      subscriber.onRunFinalized?.();
+      notifyRunFinished(subscriber, "run");
       await gate;
     });
 
@@ -6249,7 +6249,7 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onToolCallEndEvent?.({
           event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
         return;
       }
       subscriber.onTextMessageContentEvent?.({
@@ -8335,7 +8335,7 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onTextMessageContentEvent?.({
           event: { type: "TEXT_MESSAGE_CONTENT", delta: "ok" },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
       }),
     } as unknown as HttpAgent;
 
@@ -8791,7 +8791,7 @@ describe("AGUIThreadRuntimeCore", () => {
             ],
           },
         });
-        subscriber.onRunFinalized?.();
+        notifyRunFinished(subscriber, "run");
       }),
     } as unknown as HttpAgent;
 
