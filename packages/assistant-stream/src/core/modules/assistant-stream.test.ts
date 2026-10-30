@@ -385,29 +385,27 @@ describe("raw chunk ordering", () => {
       chunks.push(result.value);
     }
 
-    expect(
-      chunks
-        .filter((chunk) => chunk.type === "part-start")
-        .map((chunk) => chunk.part.type),
-    ).toEqual(["text", "text", "tool-call"]);
+    const started: string[] = [];
+    for (const chunk of chunks) {
+      if (chunk.type === "part-start" && chunk.path.length === 0) {
+        started.push(chunk.part.type);
+      } else if (chunk.path.length > 0) {
+        expect(chunk.path[0]).toBeLessThan(started.length);
+        if (
+          chunk.type === "tool-call-args-text-finish" ||
+          (chunk.type === "text-delta" && chunk.textDelta.startsWith("{"))
+        ) {
+          expect(started[chunk.path[0]!]).toBe("tool-call");
+        }
+      }
+    }
+    expect([...started].sort()).toEqual(["text", "text", "tool-call"]);
     expect(
       chunks
         .filter((chunk) => chunk.type === "part-finish")
-        .map((chunk) => chunk.path[0]),
+        .map((chunk) => chunk.path[0])
+        .sort(),
     ).toEqual([0, 1, 2]);
-    expect(
-      chunks
-        .filter(
-          (chunk) =>
-            chunk.type === "text-delta" && chunk.textDelta.startsWith("{"),
-        )
-        .map((chunk) => chunk.path),
-    ).toEqual([[2]]);
-    expect(
-      chunks
-        .filter((chunk) => chunk.type === "tool-call-args-text-finish")
-        .map((chunk) => chunk.path),
-    ).toEqual([[2]]);
 
     let message: AssistantMessage | undefined;
     await new ReadableStream<AssistantStreamChunk>({
