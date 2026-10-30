@@ -12,9 +12,11 @@ import {
 
 export function CopyButton({
   text,
+  label = "Copy source",
   className,
 }: {
   text: string;
+  label?: string;
   className?: string;
 }) {
   const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
@@ -24,7 +26,7 @@ export function CopyButton({
   return (
     <button
       type="button"
-      aria-label={copied ? "Copied" : "Copy source"}
+      aria-label={copied ? "Copied" : label}
       onClick={() => copyToClipboard(text)}
       className={cn(
         ghostButton,

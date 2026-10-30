@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CheckIcon, CopyIcon, LoaderCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
+import { SetupAgentExplainer } from "@/components/pages/shop/setup-agent-explainer";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
@@ -85,25 +86,20 @@ function AgentSnippet({
   url,
   products,
   actions,
-  aside,
 }: {
   url: string;
   products: string[];
   actions?: ReactNode;
-  aside?: ReactNode;
 }) {
   const text = agentPrompt(url, products);
   return (
     <div className="flex flex-col gap-3">
-      <div className="bg-muted w-full rounded-lg p-4 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
+      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document w-full p-4 font-mono text-[13px] leading-6 wrap-anywhere whitespace-pre-wrap [font-variant-ligatures:none]">
         {text}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <CopyButton text={text} label="Copy prompt" />
-          {actions}
-        </div>
-        {aside}
+      <div className="flex items-center gap-2">
+        <CopyButton text={text} label="Copy prompt" />
+        {actions}
       </div>
     </div>
   );
@@ -144,30 +140,18 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
 }
 
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
-const AGENT_MARK_SHIFT_REM = 1;
 
-/** The marks of the coding agents a setup can be handed to. */
-export function AgentMarks({ className }: { className?: string }) {
+/** The coding agents a setup can be handed to, each with its mark and name. */
+export function AgentMarks() {
   return (
     <ul
       aria-label="Supported coding agents"
-      tabIndex={0}
-      className="group/agents focus-visible:outline-ring flex items-center gap-1.5 rounded-sm outline-offset-4 focus-visible:outline-2"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1"
     >
-      {WORKS_WITH.map((kind, index) => (
-        <li
-          key={kind}
-          className="bg-background relative flex size-5 shrink-0 items-center justify-center rounded-full transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
-          style={
-            {
-              "--agent-offset": `${(WORKS_WITH.length - 1 - index) * AGENT_MARK_SHIFT_REM}rem`,
-              zIndex: WORKS_WITH.length - index,
-            } as CSSProperties
-          }
-          title={agentKindName(kind)}
-        >
-          <AgentKindIcon kind={kind} className={className} />
-          <span className="sr-only">{agentKindName(kind)}</span>
+      {WORKS_WITH.map((kind) => (
+        <li key={kind} className="flex items-center gap-1.5">
+          <AgentKindIcon kind={kind} className="size-4 shrink-0" />
+          {agentKindName(kind)}
         </li>
       ))}
     </ul>
@@ -176,18 +160,9 @@ export function AgentMarks({ className }: { className?: string }) {
 
 function WorksWith() {
   return (
-    <div className="group/agents text-muted-foreground ml-auto flex items-center gap-x-2 text-xs">
-      <span
-        className="transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
-        style={
-          {
-            "--agent-offset": `${(WORKS_WITH.length - 1) * AGENT_MARK_SHIFT_REM}rem`,
-          } as CSSProperties
-        }
-      >
-        Works with
-      </span>
-      <AgentMarks className="size-3.5" />
+    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <span>Works with</span>
+      <AgentMarks />
     </div>
   );
 }
@@ -207,7 +182,9 @@ function ConnectBody({
         Paste this prompt into your coding agent. Once it runs the command, it
         stays connected to this browser for your next setups too.
       </p>
-      <AgentSnippet url={url} products={products} aside={<WorksWith />} />
+      <AgentSnippet url={url} products={products} />
+      <WorksWith />
+      <SetupAgentExplainer />
       <p
         role="status"
         className="text-muted-foreground flex items-center gap-2 text-sm"
@@ -244,7 +221,7 @@ function QuietBody({
 
 const dotClassName = (phase: AgentPhase) =>
   cn(
-    phase === "connected" && "bg-emerald-500",
+    phase === "connected" && "bg-blue-500",
     phase === "waiting" && "bg-foreground/50 animate-pulse",
     phase === "quiet" && "bg-amber-500",
     phase === "finished" && "bg-foreground",

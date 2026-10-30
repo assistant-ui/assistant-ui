@@ -63,7 +63,7 @@ export function AnswerReview({
       <p className="text-sm font-medium [overflow-wrap:anywhere]">
         {inputPrompt(input)}
       </p>
-      <div className="bg-muted rounded-lg p-4">
+      <div className="bg-muted rounded-document p-4">
         <p className="text-sm [overflow-wrap:anywhere]">
           {answer ?? "You skipped this question."}
         </p>

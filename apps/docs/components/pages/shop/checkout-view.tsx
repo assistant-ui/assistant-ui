@@ -121,7 +121,7 @@ export function CheckoutView() {
     );
   }
   return (
-    <div className="border-foreground/10 bg-background w-full max-w-xl rounded-2xl border p-6 shadow-lg sm:p-8">
+    <div className="ring-foreground/10 bg-background w-full max-w-xl rounded-xl p-6 ring-1 sm:p-8">
       {failed ? (
         <UnreadableState />
       ) : slugs.length === 0 ? (
