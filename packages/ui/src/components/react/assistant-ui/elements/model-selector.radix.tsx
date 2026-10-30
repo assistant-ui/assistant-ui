@@ -96,7 +96,7 @@ function ModelSelectorTrigger({
   onKeyDown,
   ...props
 }: ModelSelectorTriggerProps) {
-  const { setOpen } = useModelSelectorContext();
+  const { setOpen, selectedModel } = useModelSelectorContext();
 
   return (
     <PopoverTrigger
@@ -104,6 +104,7 @@ function ModelSelectorTrigger({
       data-variant={variant ?? "outline"}
       data-size={size ?? "default"}
       role="combobox"
+      aria-label={selectedModel ? `Model: ${selectedModel.name}` : "Model"}
       aria-haspopup="listbox"
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
       onKeyDown={(e) => {

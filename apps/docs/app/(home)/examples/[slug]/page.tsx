@@ -136,7 +136,10 @@ export default async function ExamplePage(props: {
       </article>
 
       {neighbors.previous || neighbors.next ? (
-        <nav className="border-foreground/10 divide-foreground/10 mt-20 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0">
+        <nav
+          aria-label="Previous and next example"
+          className="border-foreground/10 divide-foreground/10 mt-20 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0"
+        >
           {neighbors.previous ? (
             <Link
               href={neighbors.previous.link}

@@ -1,5 +1,6 @@
 "use client";
 
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import {
   useCallback,
   useEffect,
@@ -488,9 +489,12 @@ export function XuluxShell({
   if (mode === "learn") {
     if (!learnReady) {
       return (
-        <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+        <main
+          {...MAIN_CONTENT_PROPS}
+          className="text-muted-foreground flex h-full items-center justify-center text-sm"
+        >
           Loading course…
-        </div>
+        </main>
       );
     }
 
@@ -504,7 +508,10 @@ export function XuluxShell({
         >
           <LearnStageSourceProvider>
             <LearnCourseObserver />
-            <div className="bg-background text-foreground grid h-full min-h-0 grid-rows-[minmax(0,55%)_minmax(0,45%)] overflow-hidden md:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] md:grid-rows-1">
+            <main
+              {...MAIN_CONTENT_PROPS}
+              className="bg-background text-foreground grid h-full min-h-0 grid-rows-[minmax(0,55%)_minmax(0,45%)] overflow-hidden md:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] md:grid-rows-1"
+            >
               <section
                 className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b md:border-r md:border-b-0"
                 aria-label="Learn chat"
@@ -519,7 +526,7 @@ export function XuluxShell({
               <LearnCanvas
                 onStartCourse={() => handleStartCourse("curriculum")}
               />
-            </div>
+            </main>
           </LearnStageSourceProvider>
         </LearnModeProvider>
       </XuluxTemplateProvider>

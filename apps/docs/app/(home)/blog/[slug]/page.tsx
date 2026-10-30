@@ -108,7 +108,10 @@ export default function Page(props: {
       </div>
 
       {neighbors.older || neighbors.newer ? (
-        <nav className="border-foreground/10 divide-foreground/10 mt-24 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0">
+        <nav
+          aria-label="Older and newer posts"
+          className="border-foreground/10 divide-foreground/10 mt-24 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0"
+        >
           {neighbors.older ? (
             <NeighborCell post={neighbors.older} direction="older" />
           ) : (

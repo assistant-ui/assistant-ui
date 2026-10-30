@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ import { toast } from "sonner";
 import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
 
 type PagerItem = {
+  name: ReactNode;
   url: string;
 };
 
@@ -41,6 +43,11 @@ type DocsPagerProps = {
   title: string;
   platformAwareMarkdown?: boolean;
 };
+
+const pagerLabel = (direction: "Previous" | "Next", name: ReactNode) =>
+  typeof name === "string" && name !== ""
+    ? `${direction}: ${name}`
+    : `${direction} page`;
 
 function PageAction({
   title,
@@ -93,7 +100,11 @@ export function DocsPager({
   return (
     <div className="flex items-center gap-1">
       {previous ? (
-        <Link href={previous.url} className={buttonClass}>
+        <Link
+          href={previous.url}
+          aria-label={pagerLabel("Previous", previous.name)}
+          className={buttonClass}
+        >
           <ChevronLeft className="size-4" />
         </Link>
       ) : (
@@ -102,7 +113,11 @@ export function DocsPager({
         </div>
       )}
       {next ? (
-        <Link href={next.url} className={buttonClass}>
+        <Link
+          href={next.url}
+          aria-label={pagerLabel("Next", next.name)}
+          className={buttonClass}
+        >
           <ChevronRight className="size-4" />
         </Link>
       ) : (

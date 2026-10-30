@@ -66,7 +66,7 @@ function PartChip({
   return (
     <span
       className={cn(
-        "absolute -top-2.5 right-2 z-10 rounded-sm bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium text-white",
+        "absolute -top-2.5 right-2 z-10 rounded-sm bg-blue-600 px-1.5 py-px font-mono text-[10px] font-medium text-white",
         className,
       )}
     >
@@ -149,10 +149,10 @@ export function PrimitivesAnatomy() {
                   onMouseEnter={() => setActive(line.part)}
                   onFocus={() => setActive(line.part)}
                   className={cn(
-                    "-mx-2 flex rounded-sm whitespace-pre transition-colors duration-200",
+                    "-mx-2 flex min-h-6 items-center rounded-sm whitespace-pre transition-colors duration-200",
                     current
                       ? "text-foreground bg-blue-500/8"
-                      : "text-foreground/45 hover:text-foreground/75",
+                      : "text-foreground/65 hover:text-foreground/85",
                   )}
                 >
                   <span

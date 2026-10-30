@@ -268,6 +268,10 @@
     scroll-padding-top: calc(var(--docs-header-height, 48px) + 2rem);
     overflow-y: scroll;
   }
+  /* Focused only by the skip link, where a ring around the page adds nothing. */
+  #main-content {
+    @apply outline-none;
+  }
   body {
     @apply bg-background text-foreground;
     font-optical-sizing: auto;

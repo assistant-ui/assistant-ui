@@ -18,6 +18,7 @@ import { AssistantPanelProvider } from "@/components/pages/docs/assistant/contex
 import { XuluxAnalyticsProvider } from "@/lib/xulux/analytics-context";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import type { XuluxTemplate } from "./templates/types";
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
 import { createXuluxChatFetch } from "./runtime/xulux-chat-fetch";
@@ -149,7 +150,14 @@ function XuluxRuntimeProvider({
     process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL;
 
   if (!cloudBaseUrl) {
-    return <XuluxMissingCloudConfig />;
+    // The playground page owns its main landmark; /learn has only this state.
+    return mode === "learn" ? (
+      <main {...MAIN_CONTENT_PROPS}>
+        <XuluxMissingCloudConfig />
+      </main>
+    ) : (
+      <XuluxMissingCloudConfig />
+    );
   }
 
   return (

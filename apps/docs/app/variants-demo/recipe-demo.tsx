@@ -1,5 +1,6 @@
 "use client";
 
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import { Variant, Variants } from "@assistant-ui/variants";
 import { Clock, Users } from "lucide-react";
 import { useState } from "react";
@@ -42,7 +43,10 @@ function Nav() {
           <span className="bg-foreground rounded-capsule size-4" aria-hidden />
           Simmer
         </span>
-        <nav className="text-muted-foreground hidden gap-6 text-[13px] sm:flex">
+        <nav
+          aria-label="Recipes"
+          className="text-muted-foreground hidden gap-6 text-[13px] sm:flex"
+        >
           <span className="text-foreground">Recipes</span>
           <span>Collections</span>
           <span>Kitchen notes</span>
@@ -340,7 +344,10 @@ export function RecipeDemo() {
   return (
     <div className="flex flex-col">
       <Nav />
-      <main className="mx-auto flex w-full max-w-[52rem] flex-col gap-12 px-8 py-14">
+      <main
+        {...MAIN_CONTENT_PROPS}
+        className="mx-auto flex w-full max-w-[52rem] flex-col gap-12 px-8 py-14"
+      >
         <Variants
           id="variants-demo-header"
           label="Header"
