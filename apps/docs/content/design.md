@@ -26,7 +26,7 @@ When a rule you need is not written below, derive it from this section rather th
 When requirements compete, protect them in this order:
 
 1. **Honesty.** Never draw a claim, capability, number, framework, or page that does not exist today.
-2. **The library hierarchy.** `assistant-ui` and its documentation are the subject. Design and Elements extend the library and never take the most prominent position on a page. Platforms (React, React Native, Ink) are ways to install the library and are not presented as a product line.
+2. **The library hierarchy.** `assistant-ui` and its documentation are the subject. Design and Elements extend the library and never take the most prominent position on a page. Platforms (React, Vue, React Native, Ink) are ways to install the library and are not presented as a product line.
 3. **The registers below.** Shape, color, type, copy, and the line budget are fixed. A local composition does not get an exception to them.
 4. **A composition specific to this page's material.** Inside the registers the layout is free. Choose it to suit the material.
 5. **Refinement.** Motion, hover, responsive behavior, and detail. None of these may weaken 1 to 4.

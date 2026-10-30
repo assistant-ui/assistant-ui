@@ -65,6 +65,14 @@ export default {
         __dirname,
         "../../packages/ui/src/hooks/use-attachment-src",
       ),
+      "@/components/ui/context-menu": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/ui/radix/context-menu",
+      ),
+      "@/components/ui/hover-card": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/ui/radix/hover-card",
+      ),
       "@/components/ui": resolve(
         __dirname,
         "../../packages/ui/src/components/react/ui/base",

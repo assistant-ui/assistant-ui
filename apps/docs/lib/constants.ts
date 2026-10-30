@@ -118,6 +118,46 @@ export type NavItem =
       groups: NavGroup[];
     };
 
+/** A mega item's groups in display order, with its featured column first. */
+export function megaGroups(
+  item: Extract<NavItem, { type: "mega" }>,
+): NavGroup[] {
+  if (!item.featured) return item.groups;
+  const { label, item: lead, extraItems = [] } = item.featured;
+  return [{ label, items: [lead, ...extraItems] }, ...item.groups];
+}
+
+export const PLATFORM_LINKS: DropdownItem[] = [
+  {
+    label: "React",
+    href: "/docs",
+    description: "The web distribution",
+    external: false,
+    glyph: "react",
+  },
+  {
+    label: "React Native",
+    href: "/native",
+    description: "Mobile apps on the same runtime",
+    external: false,
+    glyph: "native",
+  },
+  {
+    label: "Ink",
+    href: "/ink",
+    description: "Terminal UIs on the same runtime",
+    external: false,
+    glyph: "ink",
+  },
+  {
+    label: "Vue",
+    href: "/docs/vue",
+    description: "Vue and Nuxt apps on the same runtime",
+    external: false,
+    glyph: "vue",
+  },
+];
+
 export const NAV_ITEMS: NavItem[] = [
   ...(checkoutEnabled
     ? [{ type: "link" as const, label: "Components", href: "/components" }]
@@ -131,7 +171,7 @@ export const NAV_ITEMS: NavItem[] = [
       item: {
         label: "Elements",
         href: "/elements",
-        description: "Multimodal UI. An extension, not a replacement.",
+        description: "Single interface pieces for AI products",
         external: false,
         glyph: "elements",
       },
@@ -139,7 +179,7 @@ export const NAV_ITEMS: NavItem[] = [
         {
           label: "Design",
           href: "/design",
-          description: "Every component, live.",
+          description: "Rules and the component kit",
           external: false,
           glyph: "design",
         },
@@ -148,36 +188,7 @@ export const NAV_ITEMS: NavItem[] = [
     groups: [
       {
         label: "Platforms",
-        items: [
-          {
-            label: "React",
-            href: "/docs",
-            description: "The web distribution",
-            external: false,
-            glyph: "react",
-          },
-          {
-            label: "React Native",
-            href: "/native",
-            description: "Mobile apps on the same runtime",
-            external: false,
-            glyph: "native",
-          },
-          {
-            label: "Ink",
-            href: "/ink",
-            description: "Terminal UIs on the same runtime",
-            external: false,
-            glyph: "ink",
-          },
-          {
-            label: "Vue",
-            href: "/docs/vue",
-            description: "Vue and Nuxt apps on the same runtime",
-            external: false,
-            glyph: "vue",
-          },
-        ],
+        items: PLATFORM_LINKS,
       },
       {
         label: "Hosted",
