@@ -118,7 +118,6 @@ export type NavItem =
       groups: NavGroup[];
     };
 
-/** A mega item's groups in display order, with its featured column first. */
 export function megaGroups(
   item: Extract<NavItem, { type: "mega" }>,
 ): NavGroup[] {

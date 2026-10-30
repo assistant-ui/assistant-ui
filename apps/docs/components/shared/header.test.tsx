@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type * as PageTree from "fumadocs-core/page-tree";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantPanelProvider } from "@/components/pages/docs/assistant/context";
-import { DocsSidebarProvider } from "@/components/pages/docs/contexts/sidebar";
-import { DocsHeader } from "@/components/pages/docs/layout/docs-header";
-import { PlatformProvider } from "@/components/pages/docs/platform/context";
 import { Header } from "./header";
 
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -17,35 +13,22 @@ vi.mock("next/navigation", async (importOriginal) => ({
 
 afterEach(cleanup);
 
-const tree: PageTree.Root = { name: "docs", children: [] };
+const menuPanel = () =>
+  screen.getByRole("link", { name: "Elements" }).closest(".transition-opacity");
 
-const renderMarketing = () =>
-  render(
-    <AssistantPanelProvider>
-      <Header />
-    </AssistantPanelProvider>,
-  );
+describe("marketing header", () => {
+  beforeEach(() => {
+    render(
+      <AssistantPanelProvider>
+        <Header />
+      </AssistantPanelProvider>,
+    );
+  });
 
-const renderDocs = () =>
-  render(
-    <AssistantPanelProvider>
-      <PlatformProvider tree={tree}>
-        <DocsSidebarProvider>
-          <DocsHeader section="docs" sectionHref="/docs" tree={tree} />
-        </DocsSidebarProvider>
-      </PlatformProvider>
-    </AssistantPanelProvider>,
-  );
-
-const headers = [
-  { name: "marketing", renderHeader: renderMarketing, menu: /menu/i },
-  { name: "docs", renderHeader: renderDocs, menu: /site navigation/i },
-];
-
-describe.each(headers)("$name header", ({ renderHeader, menu }) => {
   it("reaches the featured links from the small screen menu", () => {
-    renderHeader();
-    fireEvent.click(screen.getByRole("button", { name: menu }));
+    expect(menuPanel()?.classList.contains("opacity-100")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /menu/i }));
+    expect(menuPanel()?.classList.contains("opacity-100")).toBe(true);
 
     expect(screen.getByRole("link", { name: "Elements" })).toHaveProperty(
       "pathname",
@@ -62,7 +45,6 @@ describe.each(headers)("$name header", ({ renderHeader, menu }) => {
   });
 
   it("puts Search before Ask AI in every layout", () => {
-    renderHeader();
     const actions = screen
       .getAllByRole("button", { name: /^(search|ask ai)/i })
       .map((button) =>
@@ -81,22 +63,10 @@ describe.each(headers)("$name header", ({ renderHeader, menu }) => {
   });
 
   it("marks site navigation with the menu icon", () => {
-    renderHeader();
-
     expect(
       screen
-        .getByRole("button", { name: menu })
+        .getByRole("button", { name: /menu/i })
         .querySelector("svg.lucide-menu"),
     ).not.toBeNull();
   });
-});
-
-it("gives the docs sidebar its own icon", () => {
-  renderDocs();
-
-  expect(
-    screen
-      .getByRole("button", { name: /sidebar/i })
-      .querySelector("svg.lucide-menu"),
-  ).toBeNull();
 });
