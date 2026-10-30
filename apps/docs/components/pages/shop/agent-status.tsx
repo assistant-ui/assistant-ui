@@ -145,7 +145,7 @@ const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 export function AgentMarks() {
   return (
     <ul
-      aria-label="Supported coding agents"
+      aria-label="Coding agents"
       className="flex flex-wrap items-center gap-x-3 gap-y-1"
     >
       {WORKS_WITH.map((kind) => (
@@ -154,6 +154,7 @@ export function AgentMarks() {
           {agentKindName(kind)}
         </li>
       ))}
+      <li>and others</li>
     </ul>
   );
 }

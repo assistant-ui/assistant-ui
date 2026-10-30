@@ -20,11 +20,13 @@ const DETAILS: { term: string; detail: ReactNode }[] = [
     detail: (
       <>
         <Command>npx</Command> downloads <Command>setup-agent</Command> from npm
-        and runs it. It prints setup instructions for your agent and holds a
-        connection to the setup server in the link. It touches your files only
-        to read a plan file or write an env file your agent names, and to keep a
-        one-time key in a private user folder. Run by hand in a terminal, it
-        offers to start a coding agent.
+        and runs it. That first run prints setup instructions for your agent and
+        exits. Your agent then runs <Command>setup-agent stream</Command>, which
+        holds a connection to the setup server in the link. These commands touch
+        your files only to read a plan file or write an env file your agent
+        names, and to keep a one-time key in a private user folder. Run by hand
+        in a terminal, <Command>setup-agent</Command> offers to start a coding
+        agent.
       </>
     ),
   },
@@ -36,7 +38,7 @@ const DETAILS: { term: string; detail: ReactNode }[] = [
   {
     term: "What this page sends",
     detail:
-      "Begin plan, your answers, plan approval or changes, and messages. Your agent reads them and acts on them. An API key you enter waits on the setup server for up to an hour, until the CLI fetches it once and writes it to your env file.",
+      "The products you picked and any special instructions, then Begin plan, your answers, plan approval or changes, and messages. Your agent reads them and acts on them. An API key you enter waits on the setup server for up to an hour, until the CLI fetches it once and writes it to your env file.",
   },
   {
     term: "Who can use the link",
@@ -48,7 +50,8 @@ const DETAILS: { term: string; detail: ReactNode }[] = [
     detail: (
       <>
         Cancel ends this setup and tells your agent, which stays connected for
-        your next one. To disconnect, stop the agent's{" "}
+        your next one. If the connection is lost, your agent may not get the
+        cancel and can keep working. To disconnect, stop the agent's{" "}
         <Command>setup-agent stream</Command> command or quit the agent.
       </>
     ),

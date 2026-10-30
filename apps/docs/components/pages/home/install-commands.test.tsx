@@ -29,15 +29,16 @@ describe("InstallCommands", () => {
     ).toBeDefined();
   });
 
-  it("copies the command its button is labelled with", async () => {
+  it.each([
+    ["new project", "npx assistant-ui@latest create"],
+    ["existing project", "npx assistant-ui@latest init"],
+  ])("copies the %s command from its button", async (label, command) => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     render(<InstallCommands />);
     fireEvent.click(
-      screen.getByRole("button", { name: "Copy existing project command" }),
+      screen.getByRole("button", { name: `Copy ${label} command` }),
     );
-    await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith("npx assistant-ui@latest init"),
-    );
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(command));
   });
 });

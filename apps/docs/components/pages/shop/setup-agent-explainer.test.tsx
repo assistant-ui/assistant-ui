@@ -66,7 +66,12 @@ describe("the command explanation on the connect page", () => {
     }
     expect(dialog.getByText(/Your project's folder path/)).toBeDefined();
     expect(dialog.getByText(/Anyone with the link/)).toBeDefined();
-    expect(dialog.getByText("setup-agent stream")).toBeDefined();
+    expect(dialog.getByText(/That first run prints/)).toBeDefined();
+    expect(dialog.getAllByText("setup-agent stream")).toHaveLength(2);
+    expect(dialog.getByText(/any special instructions/)).toBeDefined();
+    expect(dialog.getByText(/up to an hour/)).toBeDefined();
+    expect(dialog.getByText(/fetches it once/)).toBeDefined();
+    expect(dialog.getByText(/If the connection is lost/)).toBeDefined();
   });
 
   it("is gone once the agent has connected", () => {
@@ -84,14 +89,21 @@ describe("the command explanation on the connect page", () => {
 });
 
 describe("AgentMarks", () => {
-  it("names every supported agent in visible text", () => {
+  it("names example agents in visible text and says there are others", () => {
     render(<AgentMarks />);
-    const list = screen.getByRole("list", { name: "Supported coding agents" });
+    const list = screen.getByRole("list", { name: "Coding agents" });
     expect(
       within(list)
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual(["Claude Code", "Codex", "Cursor", "Gemini CLI", "OpenCode"]);
+    ).toEqual([
+      "Claude Code",
+      "Codex",
+      "Cursor",
+      "Gemini CLI",
+      "OpenCode",
+      "and others",
+    ]);
     expect(list.hasAttribute("tabindex")).toBe(false);
   });
 });
