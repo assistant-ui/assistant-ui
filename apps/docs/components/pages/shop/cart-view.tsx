@@ -257,9 +257,9 @@ export function CartView() {
         </h2>
         <dl className="divide-foreground/10 mt-4 divide-y text-sm">
           <div className="flex items-center justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Works with</dt>
+            <dt className="text-muted-foreground shrink-0">Works with</dt>
             <dd>
-              <AgentMarks className="size-4" />
+              <AgentMarks />
             </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">

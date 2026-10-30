@@ -10,7 +10,6 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeftIcon,
@@ -89,6 +88,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const ignoreNext = () => {};
+
+const LOGOTYPE =
+  "bg-foreground/45 block h-[18px] w-[108px] [mask-image:url(/brand/logotype.svg)] [mask-size:contain] [mask-position:left_center] [mask-repeat:no-repeat]";
 
 const listProducts = (names: string[]) =>
   new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
@@ -219,7 +221,7 @@ function DisconnectedDialog({
   const trigger = useRef<HTMLButtonElement>(null);
   return (
     <Dialog open={open} disablePointerDismissal>
-      <DialogContent showCloseButton={false} className="rounded-none">
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
@@ -946,32 +948,18 @@ export function SetupWizard({
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/10 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto sm:min-h-[min(38rem,100%)]"
+      className="ring-foreground/10 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden rounded-xl ring-1 sm:aspect-[16/10] sm:h-auto sm:min-h-[min(38rem,100%)]"
     >
-      <header className="flex shrink-0 items-center justify-between bg-black px-3 py-2 sm:hidden">
-        <SetupBackButton className="text-white hover:bg-white/15 hover:text-white" />
-        <Image
-          src="/favicon/icon.svg"
-          alt=""
-          width={24}
-          height={24}
-          className="invert"
-        />
+      <header className="flex shrink-0 items-center justify-between px-3 pt-2 pr-5 sm:hidden">
+        <SetupBackButton />
+        <span aria-hidden="true" className={LOGOTYPE} />
       </header>
       <div className="flex min-h-0 flex-1">
         <aside
           aria-hidden="true"
-          className="hidden w-48 shrink-0 flex-col items-center bg-black px-6 pt-12 sm:flex"
+          className="bg-foreground/[0.025] dark:bg-foreground/[0.04] hidden w-48 shrink-0 flex-col px-6 pt-11 sm:flex"
         >
-          <span className="flex size-14 items-center justify-center border border-white">
-            <Image
-              src="/favicon/icon.svg"
-              alt=""
-              width={32}
-              height={32}
-              className="invert"
-            />
-          </span>
+          <span className={LOGOTYPE} />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <ConnectionNotice
@@ -986,7 +974,7 @@ export function SetupWizard({
             onEnd={() => exit(false)}
           />
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 px-5 pt-8 sm:px-6 sm:pt-10">
+            <div className="shrink-0 px-5 pt-5 sm:px-6 sm:pt-10">
               <h1
                 ref={heading}
                 id="setup-wizard-title"
