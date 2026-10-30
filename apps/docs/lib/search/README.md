@@ -2,7 +2,8 @@
 
 Cmd+K (Ctrl+K on Windows/Linux) searches the current page and the docs catalogue.
 The palette uses the shared command and dialog primitives, with scopes for Docs,
-Elements, Examples, and Design. It has no chat mode or Ask AI action.
+Elements, Examples, and Design. It has no chat mode. A query with no results
+offers one action, which closes the palette and sends the query to Ask AI.
 
 Opening the palette immediately shows built-in page shortcuts grouped by category.
 These links stay available while the full index loads, including if it fails.
@@ -12,7 +13,9 @@ the footer shows the number of pages in the selected scope.
 Search progress appears only after a query is entered. Index errors expose Retry
 in both browse and search views; loading times out after ten seconds.
 
-Local title, description, and heading matches appear immediately. For eligible
+Local title, description, and heading matches appear immediately. Page prose and
+code stay out of the browser index to keep its payload small, so a term that only
+appears in body text finds nothing here. Ask AI reads page bodies through its own tools. For eligible
 queries, after 200 ms `/api/search/suggest` asks Jev to select pages by meaning
 and adds confident new destinations under **Suggested pages**, below local matches
 so existing results stay in place. Short queries, exact titles/URLs, and queries

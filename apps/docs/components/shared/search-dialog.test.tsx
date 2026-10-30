@@ -26,10 +26,15 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
       querySubmitted: vi.fn(),
       noResults: vi.fn(),
       resultClicked: vi.fn(),
+      askAITriggered: vi.fn(),
     },
   },
 }));
 import { analytics } from "@/lib/analytics";
+import {
+  AssistantPanelProvider,
+  useAssistantPanel,
+} from "@/components/pages/docs/assistant/context";
 import { SearchDialog } from "./search-dialog";
 
 const pages = [
@@ -311,4 +316,62 @@ it("adds semantic destinations after local results without moving the selection"
   ]);
   fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
   expect(mocks.push).toHaveBeenCalledWith("/docs/cloud");
+});
+
+function AssistantPanelProbe() {
+  const { open, pendingMessage } = useAssistantPanel();
+  return <output>{open ? `panel: ${pendingMessage}` : "panel closed"}</output>;
+}
+
+const searchWithAssistant = async (query: string, close = vi.fn()) => {
+  render(
+    <AssistantPanelProvider>
+      <AssistantPanelProbe />
+      <SearchDialog open onOpenChange={close} />
+    </AssistantPanelProvider>,
+  );
+  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  fireEvent.change(
+    screen.getByRole("combobox", { name: "Search documentation" }),
+    { target: { value: query } },
+  );
+  return close;
+};
+
+it("hands a query with no results to Ask AI", async () => {
+  const close = await searchWithAssistant("useThreadRuntime");
+  const action = await screen.findByRole("option", {
+    name: "Ask AI about “useThreadRuntime”",
+  });
+  expect(screen.getByText("No results for “useThreadRuntime”")).toBeTruthy();
+  expect(screen.getByText("panel closed")).toBeTruthy();
+
+  fireEvent.click(action);
+
+  expect(close).toHaveBeenCalledWith(false);
+  expect(screen.getByText("panel: useThreadRuntime")).toBeTruthy();
+  expect(analytics.search.askAITriggered).toHaveBeenCalledWith(
+    "useThreadRuntime",
+  );
+});
+
+it("selects the Ask AI action so Enter sends the query", async () => {
+  await searchWithAssistant("useThreadRuntime");
+  const action = await screen.findByRole("option", { name: /Ask AI about/ });
+  await waitFor(() =>
+    expect(action.getAttribute("aria-selected")).toBe("true"),
+  );
+
+  fireEvent.keyDown(
+    screen.getByRole("combobox", { name: "Search documentation" }),
+    { key: "Enter" },
+  );
+
+  expect(screen.getByText("panel: useThreadRuntime")).toBeTruthy();
+});
+
+it("offers Ask AI only when a query has no results", async () => {
+  await searchWithAssistant("conversation");
+  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  expect(screen.queryByRole("option", { name: /Ask AI about/ })).toBeNull();
 });

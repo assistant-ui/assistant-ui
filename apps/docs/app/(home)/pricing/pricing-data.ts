@@ -93,7 +93,7 @@ export const pricingPlans = [
       "Everything in Free",
       "Early access to new features",
     ],
-    cta: "Get started",
+    cta: "Start Pro",
     href: `${CLOUD_URL}/org?plan=pro`,
     highlighted: true,
   },

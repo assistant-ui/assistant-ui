@@ -31,7 +31,7 @@ export function LibraryBody({
   reactVersion,
 }: {
   setupTabs: SetupTab[];
-  reactVersion: string | null;
+  reactVersion: string;
 }) {
   return (
     <div className="mt-16 flex flex-col gap-12 md:mt-20 md:gap-16">
@@ -103,8 +103,7 @@ export function LibraryBody({
             </div>
             <p className="text-muted-foreground text-xs">
               <span className="font-mono">
-                @assistant-ui/react
-                {reactVersion && <span>@{reactVersion}</span>}
+                @assistant-ui/react@{reactVersion}
               </span>{" "}
               · MIT License
             </p>

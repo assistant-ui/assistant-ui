@@ -46,6 +46,30 @@ describe("StatusBadge", () => {
     expect(link.querySelector("span")?.className).toContain(dot);
   });
 
+  it("keeps the dot still while everything is operational", async () => {
+    respondWith({ state: "operational" });
+    render(<StatusBadge />);
+
+    const link = await screen.findByRole("link", {
+      name: "All systems operational",
+    });
+    expect(link.querySelector("span")?.classList).not.toContain(
+      "animate-pulse",
+    );
+  });
+
+  it.each([
+    ["degraded", "Degraded performance"],
+    ["downtime", "Service disruption"],
+    ["maintenance", "Under maintenance"],
+  ])("pulses the dot while %s", async (state, label) => {
+    respondWith({ state });
+    render(<StatusBadge />);
+
+    const link = await screen.findByRole("link", { name: label });
+    expect(link.querySelector("span")?.classList).toContain("animate-pulse");
+  });
+
   it("keeps the plain link when the route reports the state unavailable", async () => {
     respondWith({ error: "status unavailable" }, false);
     render(<StatusBadge />);

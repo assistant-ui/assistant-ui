@@ -1,6 +1,4 @@
 import { cacheLife } from "next/cache";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { HomeDemo } from "@/components/pages/home/demo";
 import { Hero } from "@/components/pages/home/hero";
 import { LibraryBody } from "@/components/pages/home/library-body";
@@ -8,6 +6,7 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { getRepo } from "@/lib/github";
 import { highlightElementSource } from "@/lib/element-source";
 import { getWeeklyDownloads } from "@/lib/npm";
+import reactPackage from "../../../../packages/react/package.json";
 
 function markChangedLines(html: string, lines: readonly number[]): string {
   let lineNumber = 0;
@@ -19,29 +18,10 @@ function markChangedLines(html: string, lines: readonly number[]): string {
   });
 }
 
-async function getReactVersion(): Promise<string | null> {
-  try {
-    const raw = await fs.readFile(
-      path.join(
-        process.cwd(),
-        "node_modules",
-        "@assistant-ui",
-        "react",
-        "package.json",
-      ),
-      "utf8",
-    );
-    const version = (JSON.parse(raw) as { version?: unknown }).version;
-    return typeof version === "string" ? version : null;
-  } catch {
-    return null;
-  }
-}
-
 async function getHomeStats() {
   "use cache";
   cacheLife("hours");
-  return Promise.all([getRepo(), getWeeklyDownloads(), getReactVersion()]);
+  return Promise.all([getRepo(), getWeeklyDownloads()]);
 }
 
 const SETUP_SNIPPETS = [
@@ -114,16 +94,16 @@ export default function App() {
   {
     id: "mastra",
     label: "Mastra",
-    docs: "/docs/integrations/frameworks/mastra/overview",
+    docs: "/docs/integrations/frameworks/mastra/separate-server",
     changed: [2, 6, 7, 8],
-    caption: "The same AI SDK client. Your route calls the Mastra agent.",
+    caption: "The AI SDK client, pointed at your Mastra server's chat route.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function App() {
   const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({ api: "/api/chat" }),
+    transport: new AssistantChatTransport({ api: process.env.NEXT_PUBLIC_MASTRA_URL! }),
   });
 
   return (
@@ -158,7 +138,7 @@ export default function App() {
 ] as const;
 
 export default async function HomePage() {
-  const [[repo, downloads, reactVersion], setupHtml] = await Promise.all([
+  const [[repo, downloads], setupHtml] = await Promise.all([
     getHomeStats(),
     Promise.all(
       SETUP_SNIPPETS.map((snippet) =>
@@ -181,7 +161,7 @@ export default async function HomePage() {
         <Hero stars={repo?.stars ?? null} downloads={downloads} />
         <HomeDemo />
       </div>
-      <LibraryBody setupTabs={setupTabs} reactVersion={reactVersion} />
+      <LibraryBody setupTabs={setupTabs} reactVersion={reactPackage.version} />
     </PageFrame>
   );
 }
