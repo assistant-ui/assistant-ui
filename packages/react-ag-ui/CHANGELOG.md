@@ -1,5 +1,19 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.2
+
+### Patch Changes
+
+- [#10177](https://github.com/assistant-ui/assistant-ui/pull/10177) [`fd46df3`](https://github.com/assistant-ui/assistant-ui/commit/fd46df3a4f29c8b917682d97af075fda3bbafe92) - Send an empty state for AG-UI runs before a snapshot exists. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10156](https://github.com/assistant-ui/assistant-ui/pull/10156) [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b) - Send file parts with `sourceType: "id"` as AG-UI file sources instead of inline bytes, preserving provider handles through snapshot round trips. A file source in a `MESSAGES_SNAPSHOT` user message now also imports as an attachment, so the handle stays visible in the thread. ([@clean99](https://github.com/clean99))
+
+- [#10180](https://github.com/assistant-ui/assistant-ui/pull/10180) [`1f60edd`](https://github.com/assistant-ui/assistant-ui/commit/1f60edd97c50e59734001c4a00b157552d19fbe4) - Preserve AG-UI tool result metadata on the matching tool call part during streaming and cross-run completion, and send it back on export. ([@diefergil](https://github.com/diefergil))
+- Updated dependencies [[`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b)]:
+  - assistant-stream@0.3.56
+  - @assistant-ui/core@0.3.33
+  - @assistant-ui/store@0.3.23
+
 ## 0.1.1
 
 ### Patch Changes

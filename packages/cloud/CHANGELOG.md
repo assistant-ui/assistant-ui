@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.2.10
+
+### Patch Changes
+
+- [#10225](https://github.com/assistant-ui/assistant-ui/pull/10225) [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736) - Create a message's failed parent again before the message, so a reply to a message whose create failed keeps its place in the thread; a reply whose parent still cannot be created is stored as a root. Message creates now send the local message id as `external_id`, so a repeated create cannot store the same message twice. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e)]:
+  - assistant-stream@0.3.56
+
 ## 0.2.9
 
 ### Patch Changes
