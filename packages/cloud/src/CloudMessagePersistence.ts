@@ -60,6 +60,7 @@ export class CloudMessagePersistence {
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
+        external_id: messageId,
         format,
         content,
       });
@@ -136,7 +137,6 @@ export class CloudMessagePersistence {
       remoteId: string;
     }[] = [];
     for (const localId of messageIds) {
-      this.failedAppends.delete(localId);
       const entry = mapping.get(localId);
       if (!entry) continue;
       try {
@@ -145,6 +145,7 @@ export class CloudMessagePersistence {
         continue;
       }
     }
+    for (const localId of messageIds) this.failedAppends.delete(localId);
     if (resolved.length === 0) return;
 
     try {

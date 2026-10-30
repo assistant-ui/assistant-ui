@@ -87,6 +87,12 @@ describe("CloudMessagePersistence", () => {
     await rejected;
     await deletion;
     expect(cloud.threads.messages.delete).not.toHaveBeenCalled();
+
+    vi.mocked(cloud.threads.messages.create).mockResolvedValueOnce({
+      message_id: "msg_child",
+    });
+    await persistence.append("thread-1", "child", "local-1", "aui/v0", {});
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
   });
 
   it("creates a failed parent again before its child and grandchild", async () => {
@@ -139,6 +145,24 @@ describe("CloudMessagePersistence", () => {
     expect(persistence.getResolvedRemoteId("grandchild")).toBe(
       "msg_grandchild",
     );
+  });
+
+  it("repeats a failed parent's create under the same external id", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValueOnce({ message_id: "msg_parent" })
+      .mockResolvedValueOnce({ message_id: "msg_child" });
+
+    await expect(
+      persistence.append("thread-1", "parent", null, "aui/v0", {}),
+    ).rejects.toThrow("response lost");
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {});
+
+    expect(
+      vi
+        .mocked(cloud.threads.messages.create)
+        .mock.calls.map(([, body]) => body.external_id),
+    ).toEqual(["parent", "parent", "child"]);
   });
 
   it("does not create a deleted failed parent again", async () => {
@@ -365,11 +389,13 @@ describe("CloudMessagePersistence", () => {
 
     expect(cloud.threads.messages.create).toHaveBeenCalledWith("thread-1", {
       parent_id: "remote-parent",
+      external_id: "child",
       format: "aui/v0",
       content: { text: "child" },
     });
     expect(cloud.threads.messages.create).toHaveBeenCalledWith("thread-1", {
       parent_id: "remote-child",
+      external_id: "grandchild",
       format: "aui/v0",
       content: { text: "grandchild" },
     });
