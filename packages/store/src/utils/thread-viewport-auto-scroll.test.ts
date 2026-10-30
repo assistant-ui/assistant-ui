@@ -796,7 +796,9 @@ describe("createThreadViewportAutoScroll", () => {
     observers[0]!.trigger();
     view.scrollTo.mockClear();
 
-    view.element.scrollTop = 300;
+    view.grow(350);
+    view.element.scrollTop = 250;
+    view.grow(500);
     observers[0]!.trigger();
     view.element.dispatchEvent(new Event("scroll"));
 
