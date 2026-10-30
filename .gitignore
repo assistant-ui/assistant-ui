@@ -87,9 +87,6 @@ htmlcov/
 # Cursor
 .cursor
 
-# Husky
-.husky/_
-
 # Claude
 **/.claude/scheduled_tasks.lock
 apps/docs/app/api/xulux/README.md
