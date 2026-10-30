@@ -255,12 +255,12 @@ export function DemoShell({
       >
         <Sidebar onNavigate={() => setView("thread")} />
       </div>
-      <main
+      <div
         className="min-h-0 min-w-0"
         style={{ ["--thread-max-width" as string]: "42rem" }}
       >
         {view === "memory" ? <MemoryView /> : <Thread />}
-      </main>
+      </div>
       <Sheet
         open={mobileSidebarOpen}
         onOpenChange={onMobileSidebarOpenChange}

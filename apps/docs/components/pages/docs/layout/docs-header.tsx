@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
-import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
+import {
+  DOCS_SIDEBAR_ID,
+  useDocsSidebar,
+} from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
@@ -46,7 +49,7 @@ function AskAIButton() {
       size="sm"
       onClick={toggle}
       className="shrink-0"
-      aria-label="Ask AI (⌘I)"
+      aria-keyshortcuts="Meta+I Control+I"
     >
       Ask AI
       <KbdGroup className="hidden xl:inline-flex">
@@ -159,6 +162,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const navMenuId = useId();
   const scrolled = useScrolled();
   const { platform } = usePlatform();
   const homeHref = useMemo(
@@ -222,6 +226,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
               onClick={handleNavMenuToggle}
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
               aria-label="Site navigation"
+              aria-expanded={navMenuOpen}
+              aria-controls={navMenuId}
             >
               {navMenuOpen ? (
                 <X className="size-4" />
@@ -234,6 +240,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
               onClick={handleSidebarToggle}
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
               aria-label="Toggle sidebar"
+              aria-expanded={sidebarOpen}
+              aria-controls={DOCS_SIDEBAR_ID}
             >
               {sidebarOpen ? (
                 <X className="size-4" />
@@ -293,6 +301,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
 
         {/* Mobile nav menu */}
         <div
+          id={navMenuId}
+          inert={!navMenuOpen}
           className={cn(
             "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
             navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",

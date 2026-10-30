@@ -105,6 +105,7 @@ function ModelSelectorTrigger({
       data-variant={variant ?? "outline"}
       data-size={size ?? "default"}
       role="combobox"
+      aria-label="Model"
       aria-haspopup="listbox"
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
       onKeyDown={(e) => {

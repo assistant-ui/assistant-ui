@@ -19,7 +19,10 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
   if (!previous && !next) return null;
 
   return (
-    <nav className="not-prose mt-16 flex items-center justify-between gap-4 text-sm">
+    <nav
+      aria-label="Previous and next page"
+      className="not-prose mt-16 flex items-center justify-between gap-4 text-sm"
+    >
       {previous ? (
         <Link
           href={previous.url}

@@ -1,3 +1,4 @@
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
@@ -28,7 +29,7 @@ export default async function DemoEmbedPage({
     <div className="bg-background flex h-dvh flex-col overflow-hidden">
       {/* The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the embed iframe that reserves a permanent scrollbar strip along the right edge wherever the platform draws classic scrollbars. */}
       <style>{`html { overflow: hidden; }`}</style>
-      <main className="min-h-0 flex-1">
+      <main id={MAIN_CONTENT_ID} className="min-h-0 flex-1">
         <DocsRuntimeProvider>
           <DemoComponent />
         </DocsRuntimeProvider>

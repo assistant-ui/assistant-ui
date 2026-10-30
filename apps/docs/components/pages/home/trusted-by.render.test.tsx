@@ -88,6 +88,17 @@ describe("TrustedBy", () => {
     expect([...outgoing[0]!.classList]).toContain("mx-auto");
   });
 
+  it("names every logo image in both theme variants", () => {
+    const { container } = render(<TrustedBy />);
+    act(() => reportIntersection(true));
+
+    const images = [...container.querySelectorAll("img")];
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(image.getAttribute("alt")).not.toBe("");
+    }
+  });
+
   it("lets each logo preserve its intrinsic aspect ratio", () => {
     const { container } = render(<TrustedBy />);
     const images = Array.from(container.querySelectorAll("img"));

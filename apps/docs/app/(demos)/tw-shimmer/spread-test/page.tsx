@@ -11,6 +11,7 @@
  * - Various utility overrides (angle, color, speed, spread, width)
  */
 
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,7 @@ export default function ShimmerSandboxPage() {
           </aside>
 
           {/* Main content */}
-          <main className="min-w-0 flex-1 space-y-16">
+          <main id={MAIN_CONTENT_ID} className="min-w-0 flex-1 space-y-16">
             <TextShimmerSection />
             <BackgroundShimmerSection />
             <ContainerSizeSection />
@@ -71,7 +72,7 @@ function TableOfContents() {
   ];
 
   return (
-    <nav className="sticky top-24">
+    <nav aria-label="Sections" className="sticky top-24">
       <h2 className="text-muted-foreground mb-3 text-xs font-semibold">
         Sections
       </h2>

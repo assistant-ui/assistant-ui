@@ -126,7 +126,10 @@ export default function CareerRolePage({
       </div>
 
       {others.length > 0 ? (
-        <nav className="border-foreground/10 divide-foreground/10 mt-24 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0">
+        <nav
+          aria-label="Other roles"
+          className="border-foreground/10 divide-foreground/10 mt-24 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0"
+        >
           {others.map((other) => (
             <Link
               key={other.url}

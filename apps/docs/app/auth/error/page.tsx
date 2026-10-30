@@ -1,3 +1,4 @@
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { typeSection } from "@/components/shared/type";
@@ -24,7 +25,10 @@ export default async function AuthErrorPage({
     "Sign-in did not complete.";
 
   return (
-    <main className="mx-auto flex min-h-[60svh] w-full max-w-[36rem] flex-col justify-center gap-3 px-6">
+    <main
+      id={MAIN_CONTENT_ID}
+      className="mx-auto flex min-h-[60svh] w-full max-w-[36rem] flex-col justify-center gap-3 px-6"
+    >
       <h1 className={typeSection}>{message}</h1>
       {reason ? (
         <p className="text-muted-foreground font-mono text-[12px] [font-variant-ligatures:none]">

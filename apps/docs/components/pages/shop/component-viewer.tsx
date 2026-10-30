@@ -1,5 +1,6 @@
 "use client";
 
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
 import type { Statewire, StatewireClient } from "statewire";
@@ -124,7 +125,10 @@ export function ComponentViewer() {
       }}
     >
       <div className="grid h-dvh min-w-[84rem] grid-cols-[12rem_minmax(0,1fr)_20rem]">
-        <nav className="border-border overflow-y-auto border-r p-3 text-sm">
+        <nav
+          aria-label="Components"
+          className="border-border overflow-y-auto border-r p-3 text-sm"
+        >
           {groups.map((group) => (
             <div key={group} className="mb-4">
               <p className="text-muted-foreground mb-1 px-2 text-xs font-medium">
@@ -147,7 +151,10 @@ export function ComponentViewer() {
             </div>
           ))}
         </nav>
-        <main className="bg-muted/40 dark:bg-background relative isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8">
+        <main
+          id={MAIN_CONTENT_ID}
+          className="bg-muted/40 dark:bg-background relative isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8"
+        >
           {hydrated && (
             <SetupWizard
               key={`${entry.id}:${scene.initialPage}:${nonce}`}

@@ -1,3 +1,4 @@
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -16,7 +17,10 @@ export const viewport: Viewport = { interactiveWidget: "resizes-content" };
 export default function SetupPage() {
   if (!checkoutEnabled) notFound();
   return (
-    <main className="bg-muted/40 dark:bg-background relative isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8">
+    <main
+      id={MAIN_CONTENT_ID}
+      className="bg-muted/40 dark:bg-background relative isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8"
+    >
       <Suspense>
         <SetupBackdropButton />
         <CheckoutView />

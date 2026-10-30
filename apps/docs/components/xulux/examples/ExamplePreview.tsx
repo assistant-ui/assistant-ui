@@ -1,3 +1,4 @@
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import Image from "next/image";
 import { Artifacts } from "@/components/pages/examples/artifacts";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
@@ -21,7 +22,10 @@ type PreviewData = {
 
 export function ExamplePreview({ preview }: { preview: PreviewData }) {
   return (
-    <main className="bg-background text-foreground h-screen w-screen overflow-hidden">
+    <main
+      id={MAIN_CONTENT_ID}
+      className="bg-background text-foreground h-screen w-screen overflow-hidden"
+    >
       {renderPreview(preview)}
     </main>
   );

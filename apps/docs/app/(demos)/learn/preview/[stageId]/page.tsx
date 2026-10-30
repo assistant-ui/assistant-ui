@@ -1,3 +1,4 @@
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
@@ -10,10 +11,10 @@ import { PublicAssistantSessionBoundary } from "@/components/xulux/learn/PublicA
 
 // The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the preview iframe that reserves a permanent scrollbar strip along the right edge wherever the platform draws classic scrollbars.
 const PreviewShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-background h-dvh overflow-hidden">
+  <main id={MAIN_CONTENT_ID} className="bg-background h-dvh overflow-hidden">
     <style>{`html { overflow: hidden; }`}</style>
     {children}
-  </div>
+  </main>
 );
 
 export const instant = false;

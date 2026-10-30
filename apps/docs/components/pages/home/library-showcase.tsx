@@ -212,7 +212,7 @@ function Stage() {
                   "relative flex items-baseline gap-2.5 pb-1.5 text-xs font-medium transition-colors",
                   current
                     ? "text-foreground"
-                    : "text-foreground/35 hover:text-foreground/70",
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <span className="tabular-nums">
@@ -284,40 +284,42 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
     <div ref={cycle.rootRef} className="flex flex-col gap-5" {...cycle.hold}>
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="flex max-w-[44rem] flex-col gap-2">
-          <p className="text-[15px] font-medium">
-            A provider, a hook, one component.{" "}
+          <div className="text-[15px] font-medium">
+            <h3 className="inline">A provider, a hook, one component.</h3>{" "}
             <span className="text-muted-foreground font-normal">
               The complete client, whatever runs behind it.
             </span>
-          </p>
+          </div>
         </div>
-        <div role="tablist" className="flex flex-wrap gap-x-5 gap-y-1">
-          {tabs.map((tab, index) => {
-            const current = index === cycle.index;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={current}
-                onClick={() => cycle.jump(index)}
-                className={cn(
-                  "relative pb-1.5 text-xs font-medium transition-colors",
-                  current
-                    ? "text-foreground"
-                    : "text-foreground/35 hover:text-foreground/70",
-                )}
-              >
-                {tab.label}
-                {current ? (
-                  <CycleProgress
-                    playKey={`${cycle.index}-${cycle.epoch}-${String(cycle.frozen)}`}
-                    frozen={cycle.frozen}
-                  />
-                ) : null}
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap gap-x-5 gap-y-1">
+          <div role="tablist" className="contents">
+            {tabs.map((tab, index) => {
+              const current = index === cycle.index;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={current}
+                  onClick={() => cycle.jump(index)}
+                  className={cn(
+                    "relative pb-1.5 text-xs font-medium transition-colors",
+                    current
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {tab.label}
+                  {current ? (
+                    <CycleProgress
+                      playKey={`${cycle.index}-${cycle.epoch}-${String(cycle.frozen)}`}
+                      frozen={cycle.frozen}
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
           <Link
             href="/docs/runtimes/pick-a-runtime"
             className="text-muted-foreground hover:text-foreground pb-1.5 text-xs font-medium transition-colors"
@@ -371,20 +373,20 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
       </div>
 
       <div className="border-foreground/10 flex flex-col gap-6 border-t pt-8">
-        <p className="text-sm font-medium">What the runtime handles</p>
+        <h3 className="text-sm font-medium">What the runtime handles</h3>
         <Stage />
       </div>
 
       <div className="border-foreground/10 flex flex-col gap-5 border-t pt-8">
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <div className="flex max-w-[44rem] flex-col gap-2">
-            <p className="text-[15px] font-medium">
-              Yours to reshape.{" "}
+            <div className="text-[15px] font-medium">
+              <h3 className="inline">Yours to reshape.</h3>{" "}
               <span className="text-muted-foreground font-normal">
                 Every part is a component you compose; the CLI copies the UI
                 source into your repo.
               </span>
-            </p>
+            </div>
           </div>
           <Link
             href="/elements/thread"

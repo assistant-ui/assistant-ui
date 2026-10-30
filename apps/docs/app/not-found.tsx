@@ -1,5 +1,6 @@
 "use client";
 
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,10 @@ export default function NotFound() {
   }, [showAssistant]);
 
   return (
-    <main className="flex h-dvh min-h-0 flex-col items-center justify-center overflow-hidden px-4">
+    <main
+      id={MAIN_CONTENT_ID}
+      className="flex h-dvh min-h-0 flex-col items-center justify-center overflow-hidden px-4"
+    >
       <div className="flex w-full max-w-md flex-col gap-4">
         <div className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both flex justify-end duration-500">
           <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-3">

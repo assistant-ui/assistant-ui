@@ -61,6 +61,36 @@ describe("DocsPager", () => {
     },
   );
 
+  it("names the previous and next links after their target pages", () => {
+    render(
+      <DocsPager
+        title="Example"
+        previous={{ name: "Installation", url: "/docs/installation" }}
+        next={{ name: "Runtimes", url: "/docs/runtimes" }}
+      />,
+    );
+
+    expect(
+      screen
+        .getByRole("link", { name: "Previous: Installation" })
+        .getAttribute("href"),
+    ).toBe("/docs/installation");
+    expect(
+      screen.getByRole("link", { name: "Next: Runtimes" }).getAttribute("href"),
+    ).toBe("/docs/runtimes");
+  });
+
+  it("falls back to a direction when a target name is not plain text", () => {
+    render(
+      <DocsPager
+        title="Example"
+        next={{ name: <b>Node</b>, url: "/docs/node" }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Next page" })).toBeTruthy();
+  });
+
   it("does not show page actions without a Markdown URL", () => {
     render(<DocsPager title="Example" />);
 

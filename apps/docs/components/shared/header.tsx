@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useId, useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,8 @@ function SearchButton({
         type="button"
         onClick={() => onToggle("header")}
         className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
-        aria-label="Search (⌘K)"
+        aria-label="Search"
+        aria-keyshortcuts="Meta+K Control+K"
       >
         <Search className="size-4" />
       </button>
@@ -52,7 +53,7 @@ function SearchButton({
         size="sm"
         onClick={() => onToggle("header")}
         className="hidden md:inline-flex"
-        aria-label="Search (⌘K)"
+        aria-keyshortcuts="Meta+K Control+K"
       >
         Search
         <KbdGroup className="hidden xl:inline-flex">
@@ -66,6 +67,7 @@ function SearchButton({
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuId = useId();
   const [searchOpen, setSearchOpen] = useState(false);
   const { toggle } = useAssistantPanel();
   const scrolled = useScrolled();
@@ -101,7 +103,7 @@ export function Header() {
               variant="outline"
               size="sm"
               onClick={toggle}
-              aria-label="Ask AI (⌘I)"
+              aria-keyshortcuts="Meta+I Control+I"
             >
               Ask AI
               <KbdGroup className="hidden xl:inline-flex">
@@ -126,6 +128,8 @@ export function Header() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors lg:hidden"
               aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls={mobileMenuId}
             >
               {mobileMenuOpen ? (
                 <X className="size-5" />
@@ -137,6 +141,8 @@ export function Header() {
         </div>
 
         <div
+          id={mobileMenuId}
+          inert={!mobileMenuOpen}
           className={cn(
             "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 lg:hidden",
             mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
@@ -229,6 +235,7 @@ export function Header() {
                   href="https://github.com/assistant-ui/assistant-ui"
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="GitHub"
                   className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
                 >
                   <GitHubIcon className="size-5" />
@@ -237,6 +244,7 @@ export function Header() {
                   href="https://discord.gg/S9dwgCNEFs"
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="Discord"
                   className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
                 >
                   <DiscordIcon className="size-5" />

@@ -1,3 +1,4 @@
+import { MAIN_CONTENT_ID } from "@/components/shared/skip-link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
@@ -40,7 +41,7 @@ export default async function DemoPage({
   return (
     <div className="bg-background flex h-dvh flex-col overflow-hidden">
       <DemoHeader slug={demo.slug} />
-      <main className="min-h-0 flex-1">
+      <main id={MAIN_CONTENT_ID} className="min-h-0 flex-1">
         <h1 className="sr-only">{demo.name} demo</h1>
         <DocsRuntimeProvider>
           <DemoComponent />
