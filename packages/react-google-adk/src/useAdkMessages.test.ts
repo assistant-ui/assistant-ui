@@ -511,6 +511,39 @@ describe("ADK stream lifecycle", () => {
     expect([...controller.getState().failedRunIds]).toEqual(["1", "3", "4"]);
   });
 
+  it("treats a streamed MAX_TOKENS finish as a finish, not a failed run", async () => {
+    const onError = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "event-truncated",
+        author: "agent",
+        finishReason: "MAX_TOKENS",
+        errorCode: "MAX_TOKENS",
+        errorMessage: "Output token limit reached.",
+        content: { role: "model", parts: [{ text: "partial" }] },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessagesInternal({ stream, eventHandlers: { onError } }),
+    );
+    const { controller } = result.current;
+    act(() => {
+      controller.dispatch({ type: "run.active" });
+    });
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "go" }],
+        {},
+      );
+    });
+    act(() => {
+      controller.dispatch({ type: "run.finished", runId: "1" });
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect([...controller.getState().failedRunIds]).toEqual([]);
+  });
+
   it("settles a superseded send while its stream is still opening", async () => {
     const signals: AbortSignal[] = [];
     const parked = new Promise<AsyncGenerator<AdkEvent>>(() => {});

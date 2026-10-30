@@ -21,6 +21,8 @@ const externalSources = [
   expoSource,
   "examples/with-react-ink/src/app.tsx",
   "README.md",
+  "scripts/lib/experimental-annotations.mjs",
+  "scripts/example-bundles.json",
 ];
 
 type PlannedTask = { taskId: string; hash: string };
