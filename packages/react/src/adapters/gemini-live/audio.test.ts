@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  WORKLET_SOURCE,
   createPcmPlayer,
+  createResampler,
   decodePcm16,
   encodePcm16,
   openMicrophone,
@@ -42,8 +44,9 @@ class FakeContext {
   sampleRate: number;
   sources: FakeSource[] = [];
   destination = {};
+  static addModule: (url: string) => Promise<void> = async () => {};
   audioWorklet = FakeContext.workletSupported
-    ? { addModule: vi.fn(async () => {}) }
+    ? { addModule: vi.fn((url: string) => FakeContext.addModule(url)) }
     : undefined;
   mediaSource = { connect: vi.fn(), disconnect: vi.fn() };
   processor = {
@@ -134,11 +137,86 @@ describe("level", () => {
   });
 });
 
+const ramp = (start: number, length: number, scale = 1) =>
+  Float32Array.from({ length }, (_, i) => (start + i) * scale);
+
+const loadWorklet = (sampleRate: number, targetRate: number) => {
+  const posted: Float32Array[] = [];
+  class AudioWorkletProcessor {
+    port = { postMessage: (data: Float32Array) => posted.push(data) };
+  }
+  let Processor:
+    | (new (options: { processorOptions: { targetRate: number } }) => {
+        process: (inputs: Float32Array[][]) => boolean;
+      })
+    | undefined;
+  new Function(
+    "AudioWorkletProcessor",
+    "sampleRate",
+    "registerProcessor",
+    WORKLET_SOURCE,
+  )(AudioWorkletProcessor, sampleRate, (_: string, cls: typeof Processor) => {
+    Processor = cls;
+  });
+  const processor = new Processor!({ processorOptions: { targetRate } });
+  return {
+    process: (input: Float32Array) => processor.process([[input]]),
+    posted,
+  };
+};
+
+describe("resampler", () => {
+  it.each([
+    [48000, 3, 1365],
+    [44100, 2.75625, 1486],
+  ])(
+    "keeps a continuous phase across 2048-frame buffers at %i Hz",
+    (rate, ratio, count) => {
+      const resample = createResampler(rate / 16000);
+      const out = [...resample(ramp(0, 2048)), ...resample(ramp(2048, 2048))];
+      expect(out).toHaveLength(count);
+      for (const [k, value] of out.entries())
+        expect(value).toBeCloseTo(k * ratio, 3);
+    },
+  );
+
+  it("interpolates across the boundary between buffers", () => {
+    const resample = createResampler(2.5);
+    expect([...resample(ramp(0, 3))]).toEqual([0]);
+    expect([...resample(ramp(3, 3))]).toEqual([2.5]);
+  });
+
+  it("ignores empty buffers", () => {
+    const resample = createResampler(3);
+    expect(resample(new Float32Array(0))).toHaveLength(0);
+    expect([...resample(ramp(0, 5))]).toEqual([0, 3]);
+  });
+
+  it("produces the same output in the worklet", () => {
+    const worklet = loadWorklet(44100, 16000);
+    const resample = createResampler(44100 / 16000);
+    const expected: number[] = [];
+    for (let block = 0; block < 32; block++) {
+      const input = ramp(block * 128, 128, 1 / 4096);
+      worklet.process(input);
+      expected.push(...resample(input));
+    }
+    const out = worklet.posted.flatMap((data) => [...data]);
+    expect(out).toHaveLength(expected.length);
+    expect(out).toHaveLength(1486);
+    for (const [k, value] of out.entries()) {
+      expect(value).toBeCloseTo(expected[k]!, 6);
+      expect(value).toBeCloseTo((k * 2.75625) / 4096, 6);
+    }
+  });
+});
+
 describe("microphone", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     FakeContext.instances = [];
     FakeContext.workletSupported = true;
+    FakeContext.addModule = async () => {};
     FakeWorklet.instances = [];
   });
 
@@ -199,6 +277,64 @@ describe("microphone", () => {
       inputBuffer: { getChannelData: () => samples },
     });
     expect(decodePcm16(onChunk.mock.calls[0]![0] as string)).toHaveLength(2);
+    expect(FakeWorklet.instances).toHaveLength(0);
+  });
+
+  it("keeps the fallback sample rate across buffers", async () => {
+    FakeContext.workletSupported = false;
+    installBrowser();
+    const onChunk = vi.fn();
+    await openMicrophone({ sampleRate: 16000, onChunk });
+    const context = FakeContext.instances[0]!;
+    for (const start of [0, 2048])
+      context.processor.onaudioprocess?.({
+        inputBuffer: { getChannelData: () => ramp(start, 2048, 1 / 8192) },
+      });
+    const out = onChunk.mock.calls.flatMap(([base64]) => [
+      ...decodePcm16(base64 as string),
+    ]);
+    expect(out).toHaveLength(1365);
+    for (const [k, value] of out.entries())
+      expect(Math.abs(value - (k * 3) / 8192)).toBeLessThan(1 / 16384);
+  });
+
+  it("stops the tracks and closes the context when worklet setup fails", async () => {
+    FakeContext.addModule = async () => {
+      throw new Error("bad module");
+    };
+    const browser = installBrowser();
+    await expect(
+      openMicrophone({ sampleRate: 16000, onChunk: () => {} }),
+    ).rejects.toThrow("bad module");
+    expect(browser.track.stop).toHaveBeenCalled();
+    expect(FakeContext.instances[0]?.close).toHaveBeenCalled();
+    expect(browser.revokeObjectURL).toHaveBeenCalledWith("blob:worklet");
+    expect(FakeWorklet.instances).toHaveLength(0);
+  });
+
+  it("stops the tracks and closes the context when aborted during setup", async () => {
+    let finishModule!: () => void;
+    FakeContext.addModule = () =>
+      new Promise<void>((resolve) => {
+        finishModule = resolve;
+      });
+    const browser = installBrowser();
+    const controller = new AbortController();
+    const opening = openMicrophone({
+      sampleRate: 16000,
+      onChunk: () => {},
+      signal: controller.signal,
+    });
+    await vi.waitFor(() =>
+      expect(
+        FakeContext.instances[0]?.audioWorklet?.addModule,
+      ).toHaveBeenCalled(),
+    );
+    controller.abort(new Error("cancelled"));
+    finishModule();
+    await expect(opening).rejects.toThrow("cancelled");
+    expect(browser.track.stop).toHaveBeenCalled();
+    expect(FakeContext.instances[0]?.close).toHaveBeenCalled();
     expect(FakeWorklet.instances).toHaveLength(0);
   });
 
@@ -352,5 +488,21 @@ describe("playback", () => {
     await player.close();
     expect(context.sources[0]?.stop).toHaveBeenCalled();
     expect(context.close).toHaveBeenCalled();
+  });
+
+  it("does not report idle for a source that ends after close", async () => {
+    vi.useFakeTimers();
+    try {
+      const onIdle = vi.fn();
+      const { player, context } = setup(onIdle);
+      player.enqueue(chunk(2400));
+      await player.close();
+      expect(context.sources[0]?.onended).toBeNull();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(onIdle).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

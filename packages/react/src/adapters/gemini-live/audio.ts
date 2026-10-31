@@ -40,27 +40,26 @@ export type MicrophoneCapture = {
   close: () => Promise<void>;
 };
 
-const WORKLET_SOURCE = `
+export const WORKLET_SOURCE = `
 class PcmCapture extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.ratio = sampleRate / options.processorOptions.targetRate;
-    this.phase = 0;
+    this.position = 0;
     this.last = 0;
   }
   process(inputs) {
     const input = inputs[0]?.[0];
-    if (!input) return true;
+    if (!input || input.length === 0) return true;
     const out = [];
-    let i = this.phase;
-    while (i < input.length) {
-      const index = Math.floor(i);
-      const next = index + 1 < input.length ? input[index + 1] : input[index];
-      const prev = index >= 0 ? input[index] : this.last;
-      out.push(prev + (next - prev) * (i - index));
-      i += this.ratio;
+    while (this.position < input.length - 1) {
+      const index = Math.floor(this.position);
+      const prev = index < 0 ? this.last : input[index];
+      const next = input[index + 1];
+      out.push(prev + (next - prev) * (this.position - index));
+      this.position += this.ratio;
     }
-    this.phase = i - input.length;
+    this.position -= input.length;
     this.last = input[input.length - 1];
     if (out.length) this.port.postMessage(Float32Array.from(out));
     return true;
@@ -69,16 +68,23 @@ class PcmCapture extends AudioWorkletProcessor {
 registerProcessor("pcm-capture", PcmCapture);
 `;
 
-const resample = (input: Float32Array, ratio: number): Float32Array => {
-  const length = Math.floor(input.length / ratio);
-  const out = new Float32Array(length);
-  for (let i = 0; i < length; i++) {
-    const position = i * ratio;
-    const index = Math.floor(position);
-    const next = input[Math.min(index + 1, input.length - 1)]!;
-    out[i] = input[index]! + (next - input[index]!) * (position - index);
-  }
-  return out;
+export const createResampler = (ratio: number) => {
+  let position = 0;
+  let last = 0;
+  return (input: Float32Array): Float32Array => {
+    if (input.length === 0) return new Float32Array(0);
+    const out: number[] = [];
+    while (position < input.length - 1) {
+      const index = Math.floor(position);
+      const prev = index < 0 ? last : input[index]!;
+      const next = input[index + 1]!;
+      out.push(prev + (next - prev) * (position - index));
+      position += ratio;
+    }
+    position -= input.length;
+    last = input[input.length - 1]!;
+    return Float32Array.from(out);
+  };
 };
 
 export const openMicrophone = async (options: {
@@ -87,62 +93,73 @@ export const openMicrophone = async (options: {
   signal?: AbortSignal;
 }): Promise<MicrophoneCapture> => {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  if (options.signal?.aborted) {
-    stream.getTracks().forEach((track) => track.stop());
-    throw options.signal.reason;
-  }
-  const context = new AudioContext();
-  if (context.state === "suspended") await context.resume();
-  const ratio = context.sampleRate / options.sampleRate;
-  const source = context.createMediaStreamSource(stream);
-  const analyser = context.createAnalyser();
-  analyser.fftSize = 256;
-  source.connect(analyser);
-
-  let muted = false;
-  const push = (samples: Float32Array) => {
-    if (!muted) options.onChunk(encodePcm16(samples));
+  const stopTracks = () => stream.getTracks().forEach((track) => track.stop());
+  const throwIfAborted = () => {
+    if (options.signal?.aborted) throw options.signal.reason;
   };
+  let context: AudioContext | undefined;
+  try {
+    throwIfAborted();
+    context = new AudioContext();
+    if (context.state === "suspended") await context.resume();
+    throwIfAborted();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
 
-  let node: AudioNode;
-  if (context.audioWorklet) {
-    const url = URL.createObjectURL(
-      new Blob([WORKLET_SOURCE], { type: "text/javascript" }),
-    );
-    try {
-      await context.audioWorklet.addModule(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    const worklet = new AudioWorkletNode(context, "pcm-capture", {
-      processorOptions: { targetRate: options.sampleRate },
-    });
-    worklet.port.onmessage = (event) => push(event.data as Float32Array);
-    node = worklet;
-  } else {
-    const processor = context.createScriptProcessor(2048, 1, 1);
-    processor.onaudioprocess = (event) =>
-      push(resample(event.inputBuffer.getChannelData(0), ratio));
-    node = processor;
-  }
-  analyser.connect(node);
-  node.connect(context.destination);
+    let muted = false;
+    const push = (samples: Float32Array) => {
+      if (!muted && samples.length) options.onChunk(encodePcm16(samples));
+    };
 
-  return {
-    setMuted: (value) => {
-      muted = value;
-      stream.getAudioTracks().forEach((track) => {
-        track.enabled = !value;
+    let node: AudioNode;
+    if (context.audioWorklet) {
+      const url = URL.createObjectURL(
+        new Blob([WORKLET_SOURCE], { type: "text/javascript" }),
+      );
+      try {
+        await context.audioWorklet.addModule(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      throwIfAborted();
+      const worklet = new AudioWorkletNode(context, "pcm-capture", {
+        processorOptions: { targetRate: options.sampleRate },
       });
-    },
-    level: () => readLevel(analyser),
-    close: async () => {
-      node.disconnect();
-      source.disconnect();
-      stream.getTracks().forEach((track) => track.stop());
-      await context.close();
-    },
-  };
+      worklet.port.onmessage = (event) => push(event.data as Float32Array);
+      node = worklet;
+    } else {
+      const resample = createResampler(context.sampleRate / options.sampleRate);
+      const processor = context.createScriptProcessor(2048, 1, 1);
+      processor.onaudioprocess = (event) =>
+        push(resample(event.inputBuffer.getChannelData(0)));
+      node = processor;
+    }
+    analyser.connect(node);
+    node.connect(context.destination);
+    const opened = context;
+
+    return {
+      setMuted: (value) => {
+        muted = value;
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = !value;
+        });
+      },
+      level: () => readLevel(analyser),
+      close: async () => {
+        node.disconnect();
+        source.disconnect();
+        stopTracks();
+        await opened.close();
+      },
+    };
+  } catch (error) {
+    stopTracks();
+    await context?.close().catch(() => {});
+    throw error;
+  }
 };
 
 export type PcmPlayer = {
@@ -210,7 +227,10 @@ export const createPcmPlayer = (options: {
     level: () => readLevel(analyser),
     close: async () => {
       clearTimeout(idleTimer);
-      for (const source of sources) source.stop();
+      for (const source of sources) {
+        source.onended = null;
+        source.stop();
+      }
       sources.clear();
       await context.close();
     },
