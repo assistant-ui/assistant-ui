@@ -180,6 +180,87 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
+  it("preserves completed tool attachments in model content", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            agent: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          },
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "completed",
+                input: { filePath: "plot.png" },
+                output: "Image read successfully",
+                title: "plot.png",
+                metadata: {},
+                time: { start: 1, end: 2 },
+                attachments: [
+                  {
+                    id: "file-1",
+                    sessionID: "ses_1",
+                    messageID: "assistant-1",
+                    type: "file",
+                    mime: "image/png",
+                    url: "data:image/png;base64,aW1hZ2U=",
+                    filename: "plot.png",
+                  },
+                ],
+              },
+            },
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Image read successfully",
+        modelContent: [
+          { type: "text", text: "Image read successfully" },
+          {
+            type: "file",
+            data: "aW1hZ2U=",
+            mediaType: "image/png",
+            filename: "plot.png",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("projects Task child sessions into nested tool-call messages", () => {
     const grandchildState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_grandchild"),
