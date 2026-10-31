@@ -14,6 +14,7 @@ import {
   type ThreadMessage,
 } from "@assistant-ui/react";
 import {
+  parseDataUrl,
   resolveFileMediaType,
   resolveImageMediaType,
 } from "@assistant-ui/core/internal";
@@ -413,6 +414,25 @@ const projectAssistantContent = (
             ? { result: toolState.result }
             : {}),
           ...(toolState.isError ? { isError: true } : {}),
+          ...(part.state?.status === "completed" &&
+          part.state.attachments?.length
+            ? {
+                modelContent: [
+                  { type: "text" as const, text: part.state.output },
+                  ...part.state.attachments.map((attachment) => {
+                    const parsed = parseDataUrl(attachment.url);
+                    return {
+                      type: "file" as const,
+                      data: parsed?.data ?? attachment.url,
+                      mediaType: parsed?.mimeType ?? attachment.mime,
+                      ...(attachment.filename !== undefined
+                        ? { filename: attachment.filename }
+                        : {}),
+                    };
+                  }),
+                ],
+              }
+            : {}),
           ...(childMessages !== undefined ? { messages: childMessages } : {}),
           ...(permission
             ? { approval: projectOpenCodePermissionApproval(permission) }
