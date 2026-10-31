@@ -80,6 +80,41 @@ describe("LangChain content block identities", () => {
     ).toBeUndefined();
   });
 
+  it("keeps an exploded reasoning part's key when another summary arrives", () => {
+    const contentOf = (content: unknown) =>
+      convertExternalMessages(
+        [{ _getType: () => "ai", id: "message-1", content }],
+        (message) => convertLangChainBaseMessage(message),
+        false,
+        {},
+      )[0]!.content;
+    const first = {
+      type: "reasoning",
+      id: "rs_1",
+      index: "lc_rs_305f30",
+      reasoning: "First summary",
+    };
+    const initial = contentOf([first]);
+    const final = contentOf([
+      first,
+      {
+        type: "reasoning",
+        id: "rs_1",
+        index: "lc_rs_305f31",
+        reasoning: "Second summary",
+      },
+    ]);
+    const initialKeys = getMessagePartKeys(initial);
+    const finalKeys = getMessagePartKeys(final);
+
+    expect(final).toMatchObject([
+      { type: "reasoning", text: "First summary" },
+      { type: "reasoning", text: "Second summary" },
+    ]);
+    expect(finalKeys[0]).toBe(initialKeys[0]);
+    expect(finalKeys[1]).not.toBe(finalKeys[0]);
+  });
+
   it("keeps the stored part key when another block is inserted before it", () => {
     const contentOf = (content: unknown) =>
       convertExternalMessages(

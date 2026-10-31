@@ -245,7 +245,12 @@ export const convertLangChainContentBlock = (
     typeof part.id === "string" &&
     !("source_type" in part && part.source_type === "id")
   ) {
-    return { ...converted, id: part.id };
+    const id =
+      "index" in part &&
+      (typeof part.index === "string" || typeof part.index === "number")
+        ? `${part.id}:${part.index}`
+        : part.id;
+    return { ...converted, id };
   }
   return converted;
 };
