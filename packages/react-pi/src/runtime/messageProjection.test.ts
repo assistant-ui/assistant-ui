@@ -336,6 +336,61 @@ describe("messageProjection", () => {
     expect(part.isPreliminary).toBeUndefined();
   });
 
+  it("preserves tool details as artifacts without replacing result text", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("edit", "edit", { path: "note.txt" }),
+            toolCall("search", "search", { query: "notes" }),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "edit",
+            toolName: "edit",
+            content: [{ type: "text", text: "Successfully replaced text." }],
+            details: { diff: "-1 old\n+1 new", firstChangedLine: 1 },
+            isError: false,
+            timestamp: 2,
+          },
+        ],
+        {
+          toolExecutions: {
+            edit: {
+              toolCallId: "edit",
+              status: "running",
+              partialResult: { details: { diff: "stale" } },
+            },
+            search: {
+              toolCallId: "search",
+              status: "running",
+              partialResult: {
+                content: [{ type: "text", text: "Searching..." }],
+                details: { matches: ["note.txt"] },
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    const parts = contentParts(out[0]!);
+    expect(parts[0]).toMatchObject({
+      toolCallId: "edit",
+      result: "Successfully replaced text.",
+      artifact: { diff: "-1 old\n+1 new", firstChangedLine: 1 },
+    });
+    expect(parts[1]).toMatchObject({
+      toolCallId: "search",
+      result: "Searching...",
+      artifact: { matches: ["note.txt"] },
+      isPreliminary: true,
+    });
+    expect(parts[0]!.modelContent).toBeUndefined();
+    expect(parts[1]!.modelContent).toBeUndefined();
+  });
+
   it("preserves live image tool result content", () => {
     const out = projectPiThreadMessages(
       input([assistant([toolCall("tc1", "screenshot", {})])], {
