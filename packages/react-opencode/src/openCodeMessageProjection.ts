@@ -419,16 +419,19 @@ const projectAssistantContent = (
             ? {
                 modelContent: [
                   { type: "text" as const, text: part.state.output },
-                  ...part.state.attachments.map((attachment) => {
+                  ...part.state.attachments.flatMap((attachment) => {
                     const parsed = parseDataUrl(attachment.url);
-                    return {
-                      type: "file" as const,
-                      data: parsed?.data ?? attachment.url,
-                      mediaType: parsed?.mimeType ?? attachment.mime,
-                      ...(attachment.filename !== undefined
-                        ? { filename: attachment.filename }
-                        : {}),
-                    };
+                    if (!parsed) return [];
+                    return [
+                      {
+                        type: "file" as const,
+                        data: parsed.data,
+                        mediaType: parsed.mimeType,
+                        ...(attachment.filename !== undefined
+                          ? { filename: attachment.filename }
+                          : {}),
+                      },
+                    ];
                   }),
                 ],
               }

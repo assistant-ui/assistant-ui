@@ -261,6 +261,79 @@ describe("projectOpenCodeThreadMessages", () => {
     ]);
   });
 
+  it("omits non-base64 tool attachment data URLs from model content", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            agent: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          },
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "completed",
+                input: { filePath: "plot.svg" },
+                output: "Image read successfully",
+                title: "plot.svg",
+                metadata: {},
+                time: { start: 1, end: 2 },
+                attachments: [
+                  {
+                    id: "file-1",
+                    sessionID: "ses_1",
+                    messageID: "assistant-1",
+                    type: "file",
+                    mime: "image/svg+xml",
+                    url: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E",
+                    filename: "plot.svg",
+                  },
+                ],
+              },
+            },
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Image read successfully",
+        modelContent: [{ type: "text", text: "Image read successfully" }],
+      },
+    ]);
+  });
+
   it("projects Task child sessions into nested tool-call messages", () => {
     const grandchildState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_grandchild"),
