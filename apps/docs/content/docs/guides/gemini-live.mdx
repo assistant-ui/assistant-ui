@@ -1,0 +1,124 @@
+---
+title: Gemini Live
+description: Connect browser voice conversations directly to the Gemini Live API with transcripts, interruptions, mute controls, and typed input.
+platforms: ["react"]
+---
+
+`GeminiLiveVoiceAdapter` connects your browser's microphone directly to the [Gemini Live API](https://ai.google.dev/gemini-api/docs/live) over a WebSocket. It uses assistant-ui's existing [voice session](/docs/guides/voice) and voice components. Your server authenticates the user and mints a short-lived [ephemeral token](https://ai.google.dev/gemini-api/docs/ephemeral-tokens); audio and session events then flow between the browser and Google.
+
+## Create the token endpoint
+
+Keep `GEMINI_API_KEY` in your server environment. The Next.js route below uses your application's `auth()` helper, as in the [Auth.js guide](/docs/integrations/auth/next-auth). Apply your application's per-user rate limit before minting a token.
+
+The server chooses the model, voice, and instructions through the token's connection constraints, so the browser cannot change them. Input and output transcription supply the thread's messages, and the Live API's automatic activity detection lets the model answer and handle spoken interruptions.
+
+```ts title="app/api/gemini-live/route.ts"
+import { auth } from "@/auth";
+import { GoogleGenAI } from "@google/genai";
+
+export async function POST(request: Request) {
+  const user = await auth();
+  if (!user?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return new Response("Voice is not configured", { status: 503 });
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const token = await ai.authTokens.create({
+    config: {
+      uses: 1,
+      expireTime: new Date(Date.now() + 30 * 60_000).toISOString(),
+      newSessionExpireTime: new Date(Date.now() + 60_000).toISOString(),
+      liveConnectConstraints: {
+        model: "gemini-3.8-live",
+        config: {
+          responseModalities: ["AUDIO"],
+          systemInstruction: "Be concise and conversational.",
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
+          },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+        },
+      },
+    },
+  });
+
+  return Response.json(
+    { token: token.name },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+```
+
+Behind a reverse proxy, preserve the public scheme and host in the request URL so the origin check matches your site. Google bills Live API sessions separately from your text chat requests.
+
+## Connect the adapter
+
+Add the adapter to your existing runtime. `getToken` receives an abort signal: pass it to `fetch` so hanging up cancels a pending token request. Pass `model` only if it differs from the token's constraints.
+
+```tsx title="app/assistant.tsx"
+"use client";
+
+import { useMemo } from "react";
+import {
+  AssistantRuntimeProvider,
+  GeminiLiveVoiceAdapter,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { VoiceControl } from "@/components/assistant-ui/elements/voice.aui";
+import { VoiceConversation } from "@/components/assistant-ui/elements/voice-conversation.aui";
+
+export function Assistant() {
+  const voice = useMemo(() => new GeminiLiveVoiceAdapter({
+    getToken: async ({ signal }) => {
+      const response = await fetch("/api/gemini-live", {
+        method: "POST",
+        signal,
+      });
+      if (!response.ok) throw new Error("Could not connect voice");
+      const { token } = await response.json();
+      return token;
+    },
+  }), []);
+
+  const runtime = useChatRuntime({ adapters: { voice } });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <VoiceControl />
+      <VoiceConversation />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+This assumes an existing AI SDK chat setup, including `/api/chat`, the [Thread element](/elements/thread), the [voice controls](/elements/orb), and the [Voice Conversation element](/elements/voice-conversation). The adapter also works with other runtimes that accept `adapters.voice`; their [transcript persistence behavior](/docs/guides/voice#realtimevoiceadapter) still applies.
+
+Use HTTPS or localhost and connect from a user action so the browser can request microphone permission and play audio. Microphone or playback failures end the session; `useVoiceState()` returns `undefined` once the session ends.
+
+## Conversation behavior
+
+- Microphone audio is captured with Web Audio, resampled to 16 kHz PCM, and streamed to Gemini. Model audio arrives as 24 kHz PCM and is scheduled back to back for gapless playback.
+- Final user transcriptions become user messages; assistant transcripts stream into assistant messages and finish when the turn completes.
+- The speaking indicator follows audio playback. Generation can finish before buffered audio finishes playing.
+- Speaking while the assistant talks interrupts it through Gemini's activity detection, which clears buffered playback. Typed messages interrupt the current reply the same way.
+- Typed text is committed once Gemini starts replying to it, after any remaining transcript of the interrupted reply. It is not echoed as a second voice transcript. A typed message that gets no reply within ten seconds is rejected.
+- Muting disables the microphone and tells Gemini the audio stream paused. Hanging up stops capture and playback, closes the connection, and rejects pending text sends.
+
+Each connection starts a new Gemini session. Existing assistant-ui history, model context, tool registrations, and approval UI are not forwarded to it. This adapter covers audio conversations and typed input; configure any server-side Gemini tools through the token's constraints. Gemini limits a connection to about ten minutes and an audio session to fifteen; the adapter ends the session normally when Google closes it, and session resumption is not implemented. Finalized transcripts remain in assistant-ui according to the runtime's persistence behavior, but reconnecting does not replay them into Gemini.
+
+## Related
+
+- [Realtime voice](/docs/guides/voice): shared session contract, hooks, and runtime behavior.
+- [OpenAI Realtime](/docs/guides/openai-realtime): the equivalent adapter for OpenAI.
+- [Live API reference](https://ai.google.dev/api/live): upstream messages and session configuration.
