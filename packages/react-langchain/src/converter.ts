@@ -148,7 +148,7 @@ const resolveImage = (
 
 const convertMediaBlock = (
   part: LangChainMediaBlock,
-): ConvertedContentPart | undefined => {
+): Extract<ConvertedContentPart, { type: "image" | "file" }> | undefined => {
   const source = resolveMediaSource(part);
   if (!source) return undefined;
 
@@ -194,9 +194,9 @@ export const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
   }
 };
 
-export const convertLangChainContentBlock = (
+const convertContentBlock = (
   part: LangChainContentBlock | LangChainMediaBlock,
-): ConvertedContentPart | null | undefined => {
+) => {
   const type = part.type;
   switch (type) {
     case "text":
@@ -233,6 +233,26 @@ export const convertLangChainContentBlock = (
     default:
       return undefined;
   }
+};
+
+export const convertLangChainContentBlock = (
+  part: LangChainContentBlock | LangChainMediaBlock,
+): ConvertedContentPart | null | undefined => {
+  const converted = convertContentBlock(part);
+  if (
+    converted &&
+    "id" in part &&
+    typeof part.id === "string" &&
+    !("source_type" in part && part.source_type === "id")
+  ) {
+    const id =
+      "index" in part &&
+      (typeof part.index === "string" || typeof part.index === "number")
+        ? `${part.id}:${part.index}`
+        : part.id;
+    return { ...converted, id };
+  }
+  return converted;
 };
 
 const hasVisibleText = (text: unknown): boolean =>
