@@ -3,7 +3,7 @@ title: Voice Sessions
 description: Create and control realtime assistant-ui voice sessions, state, controls, and helpers.
 ---
 
-import { OpenAIRealtimeVoiceAdapter, RealtimeVoiceAdapter, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, createVoiceSession } from "@/generated/typeDocs";
+import { GeminiLiveVoiceAdapter, OpenAIRealtimeVoiceAdapter, RealtimeVoiceAdapter, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, createVoiceSession } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -17,6 +17,17 @@ import { OpenAIRealtimeVoiceAdapter, RealtimeVoiceAdapter, VoiceSessionControls,
 ### createVoiceSession
 
 <ParametersTable {...createVoiceSession} />
+
+### GeminiLiveVoiceAdapter
+
+Connects browser microphone audio directly to the Gemini Live API over a
+WebSocket. Configure the model, voice, and transcription on the server
+through the ephemeral token's connection constraints. Each connection starts
+a new conversation; existing thread history and assistant-ui tools are not
+sent to the voice model, and sessions end when Google's session limit is
+reached.
+
+<ParametersTable {...GeminiLiveVoiceAdapter} />
 
 ### OpenAIRealtimeVoiceAdapter
 
