@@ -77,6 +77,43 @@ describe("convertAdkMessage - tool results", () => {
     },
   );
 
+  it("preserves a loaded tool result artifact on the tool call", () => {
+    const artifact = { rows: [{ title: "Found document" }] };
+    const messages = convertExternalMessages<AdkMessage>(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: [],
+          tool_calls: [{ id: "call-1", name: "search", args: {} }],
+        },
+        {
+          id: "tool-1",
+          type: "tool",
+          tool_call_id: "call-1",
+          name: "search",
+          content: '{"count":1}',
+          artifact,
+          status: "success",
+        },
+      ],
+      (message) => convertAdkMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: { count: 1 },
+        artifact,
+        isError: false,
+      },
+    ]);
+  });
+
   it("preserves string-valued results", () => {
     expect(convertResult('"ready"')).toMatchObject({
       role: "tool",
