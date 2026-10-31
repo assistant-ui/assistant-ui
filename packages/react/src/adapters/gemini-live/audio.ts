@@ -45,23 +45,32 @@ class PcmCapture extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.ratio = sampleRate / options.processorOptions.targetRate;
+    this.chunk = Math.round(options.processorOptions.targetRate / 50);
     this.position = 0;
     this.last = 0;
+    this.pending = [];
   }
   process(inputs) {
-    const input = inputs[0]?.[0];
-    if (!input || input.length === 0) return true;
-    const out = [];
+    const channels = inputs[0];
+    if (!channels || channels.length === 0 || channels[0].length === 0) return true;
+    const input = channels[0].slice();
+    for (let c = 1; c < channels.length; c++)
+      for (let i = 0; i < input.length; i++) input[i] += channels[c][i];
+    if (channels.length > 1)
+      for (let i = 0; i < input.length; i++) input[i] /= channels.length;
     while (this.position < input.length - 1) {
       const index = Math.floor(this.position);
       const prev = index < 0 ? this.last : input[index];
       const next = input[index + 1];
-      out.push(prev + (next - prev) * (this.position - index));
+      this.pending.push(prev + (next - prev) * (this.position - index));
       this.position += this.ratio;
     }
     this.position -= input.length;
     this.last = input[input.length - 1];
-    if (out.length) this.port.postMessage(Float32Array.from(out));
+    if (this.pending.length >= this.chunk) {
+      this.port.postMessage(Float32Array.from(this.pending));
+      this.pending = [];
+    }
     return true;
   }
 }
@@ -109,11 +118,14 @@ export const openMicrophone = async (options: {
     source.connect(analyser);
 
     let muted = false;
+    let closed = false;
     const push = (samples: Float32Array) => {
-      if (!muted && samples.length) options.onChunk(encodePcm16(samples));
+      if (!muted && !closed && samples.length)
+        options.onChunk(encodePcm16(samples));
     };
 
     let node: AudioNode;
+    let detach = () => {};
     if (context.audioWorklet) {
       const url = URL.createObjectURL(
         new Blob([WORKLET_SOURCE], { type: "text/javascript" }),
@@ -128,12 +140,18 @@ export const openMicrophone = async (options: {
         processorOptions: { targetRate: options.sampleRate },
       });
       worklet.port.onmessage = (event) => push(event.data as Float32Array);
+      detach = () => {
+        worklet.port.onmessage = null;
+      };
       node = worklet;
     } else {
       const resample = createResampler(context.sampleRate / options.sampleRate);
       const processor = context.createScriptProcessor(2048, 1, 1);
       processor.onaudioprocess = (event) =>
         push(resample(event.inputBuffer.getChannelData(0)));
+      detach = () => {
+        processor.onaudioprocess = null;
+      };
       node = processor;
     }
     analyser.connect(node);
@@ -149,6 +167,8 @@ export const openMicrophone = async (options: {
       },
       level: () => readLevel(analyser),
       close: async () => {
+        closed = true;
+        detach();
         node.disconnect();
         source.disconnect();
         stopTracks();

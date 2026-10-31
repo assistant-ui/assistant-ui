@@ -160,7 +160,7 @@ const loadWorklet = (sampleRate: number, targetRate: number) => {
   });
   const processor = new Processor!({ processorOptions: { targetRate } });
   return {
-    process: (input: Float32Array) => processor.process([[input]]),
+    process: (...channels: Float32Array[]) => processor.process([channels]),
     posted,
   };
 };
@@ -202,12 +202,30 @@ describe("resampler", () => {
       expected.push(...resample(input));
     }
     const out = worklet.posted.flatMap((data) => [...data]);
-    expect(out).toHaveLength(expected.length);
-    expect(out).toHaveLength(1486);
+    expect(expected).toHaveLength(1486);
+    expect(out.length).toBeGreaterThan(1486 - 320);
+    expect(out.length).toBeLessThanOrEqual(1486);
     for (const [k, value] of out.entries()) {
       expect(value).toBeCloseTo(expected[k]!, 6);
       expect(value).toBeCloseTo((k * 2.75625) / 4096, 6);
     }
+  });
+
+  it("posts the worklet output in 20 ms chunks", () => {
+    const worklet = loadWorklet(48000, 16000);
+    for (let block = 0; block < 16; block++) worklet.process(ramp(0, 128));
+    expect(worklet.posted).toHaveLength(2);
+    for (const data of worklet.posted)
+      expect(data.length).toBeGreaterThanOrEqual(320);
+  });
+
+  it("downmixes every input channel in the worklet", () => {
+    const worklet = loadWorklet(16000, 16000);
+    for (let block = 0; block < 3; block++)
+      worklet.process(new Float32Array(128), new Float32Array(128).fill(0.5));
+    const out = worklet.posted.flatMap((data) => [...data]);
+    expect(out.length).toBeGreaterThan(0);
+    for (const value of out) expect(value).toBeCloseTo(0.25, 6);
   });
 });
 
@@ -353,6 +371,18 @@ describe("microphone", () => {
     expect(onChunk).toHaveBeenCalledTimes(1);
   });
 
+  it("drops worklet messages that arrive after close", async () => {
+    installBrowser();
+    const onChunk = vi.fn();
+    const microphone = await openMicrophone({ sampleRate: 16000, onChunk });
+    const worklet = FakeWorklet.instances[0]!;
+    const handler = worklet.port.onmessage;
+    await microphone.close();
+    expect(worklet.port.onmessage).toBeNull();
+    handler?.({ data: Float32Array.from([0.5]) });
+    expect(onChunk).not.toHaveBeenCalled();
+  });
+
   it("closes the graph, the tracks, and the context", async () => {
     const browser = installBrowser();
     const microphone = await openMicrophone({
@@ -396,6 +426,18 @@ describe("playback", () => {
     );
     return { player, context: FakeContext.instances[0]! };
   };
+
+  it("copies the decoded samples into the buffer", () => {
+    const { player, context } = setup();
+    const samples = Float32Array.from([0.5, -0.25]);
+    player.enqueue(encodePcm16(samples));
+    const buffer = context.createBuffer.mock.results[0]!.value;
+    expect(context.createBuffer).toHaveBeenCalledWith(1, 2, 24000);
+    const copied = buffer.copyToChannel.mock.calls[0]![0] as Float32Array;
+    expect(copied[0]).toBeCloseTo(0.5, 3);
+    expect(copied[1]).toBeCloseTo(-0.25, 3);
+    expect(buffer.copyToChannel).toHaveBeenCalledWith(copied, 0);
+  });
 
   it("schedules chunks back to back from the current time", () => {
     const { player, context } = setup();
