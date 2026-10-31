@@ -210,6 +210,87 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("keeps an upward scroll made in the viewport-growth frame", () => {
+    const view = geometry(6, 3);
+    view.setTop(3);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.element.dispatchEvent(new Event("wheel"));
+    view.resize(4);
+    view.setTop(0);
+    observers[0]!.trigger();
+    view.grow(7);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(0);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("honors upward input when content and viewport resize in the same frame", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -50 }));
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+    flushFrames();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("honors an upward pointer drag when content and viewport resize together", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    const dispatchPointer = (type: string, clientY: number) => {
+      const event = new Event(type);
+      Object.defineProperties(event, {
+        pointerId: { value: 1 },
+        clientY: { value: clientY },
+      });
+      view.element.dispatchEvent(event);
+    };
+    dispatchPointer("pointerdown", 400);
+    dispatchPointer("pointermove", 350);
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+    flushFrames();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
   it("keeps following after a content-growth burst undershoots the bottom", () => {
     const view = geometry(500, 100);
     view.setTop(400);
@@ -420,6 +501,38 @@ describe("createThreadViewportAutoScroll", () => {
     view.resize(110);
     observers[0]!.trigger();
     view.grow(200);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("does not resume a disclosure pause from a touch that does not move", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const disclosure = document.createElement("button");
+    disclosure.setAttribute("aria-expanded", "false");
+    message.append(disclosure);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    disclosure.click();
+    view.grow(600);
+    view.resize(200);
+    observers[0]!.trigger();
+    view.element.dispatchEvent(new Event("touchstart"));
+    view.resize(210);
+    observers[0]!.trigger();
+    view.grow(700);
     observers[0]!.trigger();
 
     expect(view.scrollTo).not.toHaveBeenCalled();
@@ -693,7 +806,9 @@ describe("createThreadViewportAutoScroll", () => {
     expect(frames.size).toBe(1);
 
     button.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-    expect(frames.size).toBe(0);
+    expect(frames.size).toBe(
+      ["ArrowUp", "PageUp", "Home"].includes(key) ? 1 : 0,
+    );
     view.grow(1000);
     observers[0]!.trigger();
     flushFrames();

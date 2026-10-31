@@ -120,6 +120,11 @@ export const createThreadViewportAutoScroll = (input: {
   let lastScrollTop = 0;
   let lastScrollHeight = 0;
   let lastClientHeight = 0;
+  let userScrollUpIntent = false;
+  let userScrollUpIntentFrame: number | null = null;
+  let lastTouchY: number | null = null;
+  let activePointerId: number | null = null;
+  let lastPointerY: number | null = null;
   let lastObservedScrollHeight = 0;
   let lastObservedClientHeight = 0;
   let frame: number | null = null;
@@ -150,6 +155,26 @@ export const createThreadViewportAutoScroll = (input: {
     if (frame === null) return;
     cancelAnimationFrame(frame);
     frame = null;
+  };
+
+  const markUserScrollUpIntent = () => {
+    if (typeof requestAnimationFrame === "undefined") return;
+    userScrollUpIntent = true;
+    if (userScrollUpIntentFrame !== null) return;
+    userScrollUpIntentFrame = requestAnimationFrame(() => {
+      userScrollUpIntentFrame = null;
+      userScrollUpIntent = false;
+    });
+  };
+
+  const clearUserScrollUpIntent = () => {
+    if (userScrollUpIntentFrame !== null)
+      cancelAnimationFrame(userScrollUpIntentFrame);
+    userScrollUpIntentFrame = null;
+    userScrollUpIntent = false;
+    lastTouchY = null;
+    activePointerId = null;
+    lastPointerY = null;
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
@@ -188,10 +213,18 @@ export const createThreadViewportAutoScroll = (input: {
     const { autoScroll, holdFollow } = input.getOptions();
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
+    const scrollTop = element.scrollTop;
+    const scrollHeight = element.scrollHeight;
+    const resizeClampTop = Math.min(
+      lastScrollTop,
+      Math.max(0, lastScrollHeight - clientHeight),
+    );
     const scrolledUp =
-      element.scrollTop < lastScrollTop &&
-      element.scrollHeight >= lastScrollHeight &&
-      clientHeight === lastClientHeight;
+      scrollTop < lastScrollTop &&
+      scrollHeight >= lastScrollHeight &&
+      (clientHeight === lastClientHeight ||
+        userScrollUpIntent ||
+        scrollTop < resizeClampTop);
     if (
       !holdFollow &&
       !newIsAtBottom &&
@@ -293,8 +326,52 @@ export const createThreadViewportAutoScroll = (input: {
       if (!SCROLL_KEYS.has(keyEvent.key)) return;
       if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
         return;
-    } else if (event.type === "pointerdown" && event.target !== element) {
+      if (
+        keyEvent.key === "ArrowUp" ||
+        keyEvent.key === "PageUp" ||
+        keyEvent.key === "Home" ||
+        (keyEvent.key === " " && keyEvent.shiftKey)
+      )
+        markUserScrollUpIntent();
+    } else if (event.type === "touchstart") {
+      lastTouchY = (event as TouchEvent).touches?.[0]?.clientY ?? null;
       return;
+    } else if (event.type === "pointerdown") {
+      if (event.target !== element) return;
+      const pointerEvent = event as PointerEvent;
+      activePointerId = pointerEvent.pointerId;
+      lastPointerY = pointerEvent.clientY;
+    } else if (event.type === "pointermove") {
+      const pointerEvent = event as PointerEvent;
+      if (pointerEvent.pointerId !== activePointerId || lastPointerY === null)
+        return;
+      if (pointerEvent.clientY < lastPointerY) markUserScrollUpIntent();
+      lastPointerY = pointerEvent.clientY;
+    } else if (event.type === "pointerup" || event.type === "pointercancel") {
+      if ((event as PointerEvent).pointerId === activePointerId) {
+        activePointerId = null;
+        lastPointerY = null;
+      }
+      return;
+    } else if (event.type === "wheel") {
+      const target = event.target as Element | null;
+      if (
+        (event as WheelEvent).deltaY < 0 &&
+        !target?.closest?.(TEXT_ENTRY_SELECTOR)
+      )
+        markUserScrollUpIntent();
+    } else if (event.type === "touchmove") {
+      const target = event.target as Element | null;
+      const touchY = (event as TouchEvent).touches?.[0]?.clientY;
+      if (touchY !== undefined) {
+        if (
+          lastTouchY !== null &&
+          touchY > lastTouchY &&
+          !target?.closest?.(TEXT_ENTRY_SELECTOR)
+        )
+          markUserScrollUpIntent();
+        lastTouchY = touchY;
+      }
     }
     scrolledSincePause = true;
   };
@@ -331,6 +408,7 @@ export const createThreadViewportAutoScroll = (input: {
       detachAttached?.();
       element = el;
       intent = null;
+      clearUserScrollUpIntent();
       lastScrollTop = el.scrollTop;
       lastScrollHeight = el.scrollHeight;
       lastClientHeight = el.clientHeight;
@@ -355,7 +433,16 @@ export const createThreadViewportAutoScroll = (input: {
       });
       el.addEventListener("keydown", cancelOnKeyDown);
       el.addEventListener("click", pauseFollowOnExpand, true);
-      for (const gesture of ["pointerdown", "wheel", "touchmove", "keydown"])
+      for (const gesture of [
+        "pointerdown",
+        "pointermove",
+        "pointerup",
+        "pointercancel",
+        "wheel",
+        "touchstart",
+        "touchmove",
+        "keydown",
+      ])
         el.addEventListener(gesture, noteScrollGesture, { passive: true });
       for (const gesture of ["pointerdown", "wheel", "touchstart", "keydown"])
         el.addEventListener(gesture, releasePrependAnchor, { passive: true });
@@ -372,7 +459,11 @@ export const createThreadViewportAutoScroll = (input: {
         el.removeEventListener("click", pauseFollowOnExpand, true);
         for (const gesture of [
           "pointerdown",
+          "pointermove",
+          "pointerup",
+          "pointercancel",
           "wheel",
+          "touchstart",
           "touchmove",
           "keydown",
         ]) {
@@ -387,6 +478,7 @@ export const createThreadViewportAutoScroll = (input: {
           el.removeEventListener(gesture, releasePrependAnchor);
         }
         cancelFrame();
+        clearUserScrollUpIntent();
         if (element === el) element = null;
         detachAttached = null;
       };
