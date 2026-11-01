@@ -12,6 +12,7 @@ import {
   ExportedMessageRepository,
   type MessageTiming,
   type ThreadMessage,
+  type ToolModelContentPart,
 } from "@assistant-ui/react";
 import {
   parseDataUrl,
@@ -332,6 +333,43 @@ const convertFilePart = (part: Extract<Part, { type: "file" }>) => {
   };
 };
 
+type CompletedToolState = Extract<
+  Extract<Part, { type: "tool" }>["state"],
+  { status: "completed" }
+>;
+
+const toolModelContentCache = new WeakMap<
+  CompletedToolState,
+  ToolModelContentPart[]
+>();
+
+const getToolModelContent = (
+  state: CompletedToolState,
+): ToolModelContentPart[] => {
+  const cached = toolModelContentCache.get(state);
+  if (cached) return cached;
+
+  const modelContent: ToolModelContentPart[] = [
+    { type: "text", text: state.output },
+    ...(state.attachments ?? []).flatMap((attachment) => {
+      const parsed = parseDataUrl(attachment.url);
+      if (!parsed) return [];
+      return [
+        {
+          type: "file" as const,
+          data: parsed.data,
+          mediaType: parsed.mimeType,
+          ...(attachment.filename !== undefined
+            ? { filename: attachment.filename }
+            : {}),
+        },
+      ];
+    }),
+  ];
+  toolModelContentCache.set(state, modelContent);
+  return modelContent;
+};
+
 const projectAssistantContent = (
   state: OpenCodeThreadState,
   message: OpenCodeServerMessage,
@@ -416,25 +454,7 @@ const projectAssistantContent = (
           ...(toolState.isError ? { isError: true } : {}),
           ...(part.state?.status === "completed" &&
           part.state.attachments?.length
-            ? {
-                modelContent: [
-                  { type: "text" as const, text: part.state.output },
-                  ...part.state.attachments.flatMap((attachment) => {
-                    const parsed = parseDataUrl(attachment.url);
-                    if (!parsed) return [];
-                    return [
-                      {
-                        type: "file" as const,
-                        data: parsed.data,
-                        mediaType: parsed.mimeType,
-                        ...(attachment.filename !== undefined
-                          ? { filename: attachment.filename }
-                          : {}),
-                      },
-                    ];
-                  }),
-                ],
-              }
+            ? { modelContent: getToolModelContent(part.state) }
             : {}),
           ...(childMessages !== undefined ? { messages: childMessages } : {}),
           ...(permission

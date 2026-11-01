@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { projectOpenCodeThreadMessages } from "./openCodeMessageProjection";
-import { createOpenCodeThreadState } from "./openCodeThreadState";
+import {
+  createOpenCodeThreadState,
+  reduceOpenCodeThreadState,
+} from "./openCodeThreadState";
 import type { OpenCodeThreadState } from "./types";
 
 describe("projectOpenCodeThreadMessages", () => {
@@ -180,7 +183,7 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
-  it("preserves completed tool attachments in model content", () => {
+  it("preserves completed tool attachments across streamed text updates", () => {
     const state: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_1"),
       messageOrder: ["assistant-1"],
@@ -205,7 +208,6 @@ describe("projectOpenCodeThreadMessages", () => {
               cache: { read: 0, write: 0 },
             },
             time: { created: 1 },
-            finish: "stop",
           },
           parts: [
             {
@@ -259,6 +261,46 @@ describe("projectOpenCodeThreadMessages", () => {
         ],
       },
     ]);
+
+    const withText = reduceOpenCodeThreadState(state, {
+      type: "part.updated",
+      messageId: "assistant-1",
+      part: {
+        id: "text-1",
+        sessionID: "ses_1",
+        messageID: "assistant-1",
+        type: "text",
+        text: "The image",
+      },
+    });
+    const withDelta = reduceOpenCodeThreadState(withText, {
+      type: "part.delta",
+      messageId: "assistant-1",
+      partId: "text-1",
+      field: "text",
+      delta: " shows a plot.",
+    });
+    const updatedMessages = projectOpenCodeThreadMessages(withDelta);
+    const tool = messages[0]?.content[0];
+    const updatedTool = updatedMessages[0]?.content[0];
+
+    expect(withDelta.messagesById["assistant-1"]?.parts[0]).toBe(
+      state.messagesById["assistant-1"]?.parts[0],
+    );
+    expect(updatedMessages[0]?.content[1]).toEqual({
+      type: "text",
+      id: "text-1",
+      text: "The image shows a plot.",
+    });
+    if (
+      typeof tool !== "object" ||
+      tool.type !== "tool-call" ||
+      typeof updatedTool !== "object" ||
+      updatedTool.type !== "tool-call"
+    ) {
+      throw new Error("Expected tool-call parts");
+    }
+    expect(updatedTool.modelContent).toBe(tool.modelContent);
   });
 
   it("omits non-base64 tool attachment data URLs from model content", () => {
