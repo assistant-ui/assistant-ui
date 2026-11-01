@@ -23,6 +23,7 @@ import {
   currentPlan,
   isAgentPresent,
   isClosed,
+  isLoopbackHostname,
   isOptionIcon,
   isValidModelAnswer,
   parseEntryPointOptions,
@@ -65,9 +66,56 @@ Commands (the url always comes first):
                                     Mark every remaining step done and propose closing; the user closes it.
 `;
 
-export const agentInstructions = (
-  url: string,
-) => `You are the coding agent for a setup the user opened in their browser. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
+/** Characters a setup URL may hold: an origin and a path, nothing a shell or a reader treats as more than an address. */
+const SETUP_URL_PATTERN =
+  /^https?:\/\/[A-Za-z0-9.-]+(?::[0-9]+)?(?:\/[A-Za-z0-9._~%/-]*)?$|^http:\/\/\[::1\](?::[0-9]+)?(?:\/[A-Za-z0-9._~%/-]*)?$/;
+
+/**
+ * The normalized setup URL, or an error saying why it is refused. A setup URL
+ * is printed into shell commands and the coding agent's prompt, and the API
+ * key travels over it, so it must be https (http only on this machine), carry
+ * no credentials, query or fragment, and hold only address characters.
+ */
+export const parseSetupUrl = (value: string): string => {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`"${value}" is not a URL`);
+  }
+  if (
+    url.protocol !== "https:" &&
+    !(url.protocol === "http:" && isLoopbackHostname(url.hostname))
+  ) {
+    throw new Error("the setup URL must use https (http only on localhost)");
+  }
+  if (url.username !== "" || url.password !== "") {
+    throw new Error("the setup URL must not carry credentials");
+  }
+  if (
+    url.search !== "" ||
+    url.hash !== "" ||
+    value.includes("?") ||
+    value.includes("#")
+  ) {
+    throw new Error("the setup URL must not have a query or fragment");
+  }
+  const href = url.href.replace(/\/$/, "");
+  if (!SETUP_URL_PATTERN.test(href)) {
+    throw new Error("the setup URL has characters a setup URL does not use");
+  }
+  return href;
+};
+
+/** `value` as one shell word, quoted only when it holds more than plain URL characters. */
+const shellWord = (value: string) =>
+  /^[A-Za-z0-9._~%/:@=+,-]+$/.test(value)
+    ? value
+    : `'${value.replaceAll("'", `'\\''`)}'`;
+
+export const agentInstructions = (setupUrl: string) => {
+  const url = shellWord(setupUrl);
+  return `You are the coding agent for a setup the user opened in their browser. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
 
 First, start a persistent Monitor on
   npx setup-agent ${url} stream
@@ -110,6 +158,7 @@ Before that, start the project's dev server in the background when the project h
   npx setup-agent ${url} wait start
 which returns once that setup begins, then run "status" for its products, guides and instructions and go through plan and install again. A "setup.created" event while you are still working means the user replaced this setup: drop what you were doing and start over the same way.
 `;
+};
 
 export const INSTRUCTIONS = agentInstructions;
 
@@ -242,7 +291,7 @@ const chooseLauncher = async () => {
 
 const launchAgent = async (url: string) => {
   const launcher = await chooseLauncher();
-  const prompt = `Run \`npx setup-agent ${url}\` and follow the instructions it prints.`;
+  const prompt = `Run \`npx setup-agent ${shellWord(url)}\` and follow the instructions it prints.`;
   process.stdout.write(`\nStarting ${launcher.name}...\n\n`);
   const child = spawn(launcher.command, launcher.args(prompt), {
     stdio: "inherit",
@@ -654,6 +703,13 @@ const assertEnvKey = (key: string) => {
 /** Sets `key=value` in dotenv text, replacing an existing line for the key. */
 export const upsertEnvLine = (content: string, key: string, value: string) => {
   assertEnvKey(key);
+  // A line break or other control character would end the line and let the
+  // value write lines of its own.
+  const isLineBreaking = (code: number) =>
+    code < 0x20 || code === 0x7f || code === 0x2028 || code === 0x2029;
+  if ([...value].some((char) => isLineBreaking(char.charCodeAt(0)))) {
+    throw new Error(`the value for ${key} must be a single line`);
+  }
   const line = `${key}=${value}`;
   const lines = content === "" ? [] : content.replace(/\n$/, "").split("\n");
   const index = lines.findIndex(
@@ -855,7 +911,12 @@ export const main = async (argv: readonly string[]) => {
     process.stdout.write(HELP);
     return process.exit(first === undefined ? 1 : 0);
   }
-  const url = first;
+  let url: string;
+  try {
+    url = parseSetupUrl(first);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
   if (command === "intro" && isDirectInvocation()) return launchAgent(url);
 
   const client = await connectCheckout(url).catch((error: unknown) =>
@@ -1023,6 +1084,16 @@ export const main = async (argv: readonly string[]) => {
         }
         const file = resolve(flagText(flags, "file") ?? ".env.local");
         await writeEnvSecret(file, envKey, async () => {
+          const secretUrl = new URL(url);
+          if (
+            secretUrl.protocol !== "https:" &&
+            !(
+              secretUrl.protocol === "http:" &&
+              isLoopbackHostname(secretUrl.hostname)
+            )
+          ) {
+            fail("the key is only fetched over https");
+          }
           const response = await fetch(
             `${url.replace(/\/$/, "")}/secret/${encodeURIComponent(inputId)}?setup=${encodeURIComponent(setupId)}`,
             storedKey === undefined
@@ -1038,7 +1109,13 @@ export const main = async (argv: readonly string[]) => {
             );
           }
           if (!response.ok) fail(`could not fetch the key: ${response.status}`);
-          return response.text();
+          const key = await response.text();
+          // An API key is one word of printable ASCII; anything else could
+          // break out of the env line or be read differently by dotenv.
+          if (!/^[\x21-\x7e]+$/.test(key) || /["'`#$\\]/.test(key)) {
+            fail("the deposited key is not a valid API key");
+          }
+          return key;
         });
         if (storedKey !== undefined) {
           await unlink(storedKey.file).catch((error: NodeJS.ErrnoException) => {

