@@ -151,3 +151,11 @@ color tokens and fonts. Import `@assistant-ui/docs-theme/site.css` after Tailwin
 instead of `styles.css` for this composable layout; its source directive includes
 the published component classes. The existing Farming Labs integration remains
 available through the root, `next`, `provider`, and `styles.css` entries.
+
+`DocsSidebarProvider`, `DocsSidebar`, and `useDocsSidebar` share mobile sidebar
+state. `DocsSiteHeader` accepts branding, search, theme controls and navigation
+slots, keeping mobile site navigation and the sidebar mutually exclusive.
+`DocsTableOfContents` accepts `{ title, url, depth }` entries, observes headings
+only on desktop, and supports encoded heading fragments. `DocsPagerNavigation`
+accepts previous/next destinations and an application-owned actions slot.
+The interactive components preserve their client boundaries in the package build.

@@ -4,7 +4,7 @@ import { RootProvider } from "@farming-labs/theme";
 
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 
-import { ComponentProps, ReactNode } from "react";
+import { ComponentProps, ComponentType, ReactNode } from "react";
 
 declare function DocsBody(_param0: ComponentProps<"article">): import("react").JSX.Element;
 
@@ -20,6 +20,13 @@ declare function DocsContent(_param2: {
   children: ReactNode;
 }): ReactNode;
 
+interface DocsFolder extends DocsNodeBase {
+  type: "folder";
+  name: ReactNode;
+  index?: DocsPage;
+  children: DocsNode[];
+}
+
 declare function DocsFooter(_param3: DocsFooterProps): import("react").JSX.Element | null;
 
 type DocsFooterProps = {
@@ -27,20 +34,85 @@ type DocsFooterProps = {
   next?: FooterItem | undefined;
 };
 
+type DocsNode = DocsPage | DocsFolder | DocsSeparator;
+
+interface DocsNodeBase {
+  $id?: string;
+  name?: ReactNode;
+  icon?: ReactNode;
+}
+
+interface DocsPage extends DocsNodeBase {
+  type: "page";
+  name: ReactNode;
+  url: string;
+}
+
 declare function DocsPageShell(_param4: {
   toc?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
 }): import("react").JSX.Element;
 
-declare function DocsShell(_param5: {
+declare function DocsPagerNavigation(_param5: {
+  previous?: {
+    url: string;
+  } | undefined;
+  next?: {
+    url: string;
+  } | undefined;
+  children?: ReactNode;
+}): import("react").JSX.Element;
+
+interface DocsSeparator extends DocsNodeBase {
+  type: "separator";
+}
+
+declare function DocsShell(_param6: {
   children: ReactNode;
 }): ReactNode;
+
+declare function DocsSidebar(_param7: {
+  children: ReactNode;
+}): import("react").JSX.Element;
+
+interface DocsSidebarContextValue {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  toggle: () => void;
+}
+
+declare function DocsSidebarProvider(_param8: {
+  children: ReactNode;
+}): import("react").JSX.Element;
+
+declare function DocsSiteHeader(_param9: {
+  brand: ReactNode;
+  mobileControls: ReactNode;
+  condensedNavigation: ReactNode;
+  desktopNavigation: ReactNode;
+  mobileNavigation: (close: () => void) => ReactNode;
+  navigationRoot: ComponentType<{
+    children: ReactNode;
+  }>;
+  scrolled: boolean;
+}): import("react").JSX.Element;
+
+declare function DocsTableOfContents(_param10: {
+  items: TOCItem[];
+  children?: ReactNode;
+}): import("react").JSX.Element | null;
 
 type FooterItem = {
   name: ReactNode;
   url: string;
   section?: ReactNode;
+};
+
+type TOCItem = {
+  title: ReactNode;
+  url: string;
+  depth: number;
 };
 
 declare const assistantUi: (overrides?: assistantUi.Options) => DocsTheme;
@@ -50,7 +122,7 @@ declare namespace assistantUi {
   }
 }
 
-declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param6: {
+declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param11: {
   children: ReactNode;
 }) => import("react").JSX.Element;
 
@@ -87,7 +159,9 @@ declare namespace entry_provider_exports {
 }
 
 declare namespace entry_ui_exports {
-  export { DocsBody, DocsContent, DocsFooter, DocsPageShell, DocsShell };
+  export { DocsBody, DocsContent, DocsFolder, DocsFooter, DocsNode, DocsPage, DocsPageShell, DocsPagerNavigation, DocsSeparator, DocsShell, DocsSidebar, DocsSidebarProvider, DocsSiteHeader, DocsTableOfContents, useDocsSidebar };
 }
+
+declare function useDocsSidebar(): DocsSidebarContextValue;
 
 export { entry_next_exports as entry_next, entry_provider_exports as entry_provider, entry_root_exports as entry_root, entry_ui_exports as entry_ui };
