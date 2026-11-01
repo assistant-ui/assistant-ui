@@ -14,6 +14,14 @@ import {
   navigationSchema,
 } from "../../content.config.ts";
 
+function serializeSourceLiteral(value: string | object) {
+  return JSON.stringify(value).replace(
+    /[<>\u2028\u2029]/gu,
+    (character) =>
+      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+}
+
 export async function createContentManifest(root: string) {
   const { default: remarkHeading } =
     await import("@farming-labs/next/mdx-plugins/remark-heading");
@@ -60,13 +68,13 @@ export async function createContentManifest(root: string) {
           : {}),
       };
       modules.push(
-        `${JSON.stringify(path)}: () => import(${JSON.stringify(`../${relative(root, absolute)}`)})`,
+        `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(`../${relative(root, absolute)}`)})`,
       );
     }
     output.push(
-      `export const ${collection} = createContentSource(${JSON.stringify(collection)}, ${JSON.stringify(pages)}, ${JSON.stringify(metadata)}, {${modules.join(",\n")}}, () => import("./content-data/${collection}").then((module) => module.default));`,
+      `export const ${collection} = createContentSource(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(pages)}, ${serializeSourceLiteral(metadata)}, {${modules.join(",\n")}}, () => import("./content-data/${collection}").then((module) => module.default));`,
     );
-    data[collection] = `export default ${JSON.stringify(search)};\n`;
+    data[collection] = `export default ${serializeSourceLiteral(search)};\n`;
   }
   return { content: `${output.join("\n")}\n`, data };
 }

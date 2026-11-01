@@ -72,3 +72,48 @@ Install the package.
   );
   expect(refreshed).toContain('import("../content/docs/(start)/new.mdx")');
 });
+
+it("escapes source literals while preserving authored metadata and filenames", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  const directory = join(root, "content/docs");
+  await mkdir(directory, { recursive: true });
+  const filename = "quote'\u2028\u2029.mdx";
+  const title =
+    'Quotes " and \\ with </script><script> and separators \u2028\u2029';
+  await writeFile(
+    join(directory, filename),
+    `---\ntitle: ${JSON.stringify(title)}\n---\n\n## Literal markup\n\nUse \`</script><script>\` as text.\n`,
+  );
+
+  const { content, data } = await createContentManifest(root);
+  expect(content).not.toContain("</script>");
+  expect(content).not.toMatch(/[\u2028\u2029]/u);
+  expect(content).toContain("\\u003c/script\\u003e\\u003cscript\\u003e");
+  expect(content).toContain(
+    'import("../content/docs/quote\'\\u2028\\u2029.mdx")',
+  );
+  const instantiate = new Function(
+    "createContentSource",
+    content
+      .replace(/^import[^\n]+\n/, "")
+      .replaceAll("export const ", "const ") + "\nreturn docs;",
+  );
+  const source = instantiate(createContentSource) as ReturnType<
+    typeof createContentSource<"docs">
+  >;
+  expect(source.files).toContainEqual(
+    expect.objectContaining({
+      path: filename,
+      data: expect.objectContaining({ title }),
+    }),
+  );
+  expect(data.docs).not.toContain("</script>");
+  expect(data.docs).not.toMatch(/[\u2028\u2029]/u);
+  const search = JSON.parse(
+    data.docs!.replace(/^export default /, "").replace(/;\n$/, ""),
+  );
+  expect(search[filename].structured.contents).toEqual([
+    { heading: "literal-markup", content: "Use `</script><script>` as text." },
+  ]);
+});
