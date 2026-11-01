@@ -303,7 +303,7 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(updatedTool.modelContent).toBe(tool.modelContent);
   });
 
-  it("omits non-base64 tool attachment data URLs from model content", () => {
+  it("falls back to the attachment MIME and omits non-base64 data URLs", () => {
     const state: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_1"),
       messageOrder: ["assistant-1"],
@@ -355,6 +355,15 @@ describe("projectOpenCodeThreadMessages", () => {
                     url: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E",
                     filename: "plot.svg",
                   },
+                  {
+                    id: "file-2",
+                    sessionID: "ses_1",
+                    messageID: "assistant-1",
+                    type: "file",
+                    mime: "image/png",
+                    url: "data:;base64,aW1hZ2U=",
+                    filename: "plot.png",
+                  },
                 ],
               },
             },
@@ -371,7 +380,15 @@ describe("projectOpenCodeThreadMessages", () => {
         type: "tool-call",
         toolCallId: "call-1",
         result: "Image read successfully",
-        modelContent: [{ type: "text", text: "Image read successfully" }],
+        modelContent: [
+          { type: "text", text: "Image read successfully" },
+          {
+            type: "file",
+            data: "aW1hZ2U=",
+            mediaType: "image/png",
+            filename: "plot.png",
+          },
+        ],
       },
     ]);
   });

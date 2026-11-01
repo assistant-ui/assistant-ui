@@ -352,7 +352,7 @@ const getToolModelContent = (
   const modelContent: ToolModelContentPart[] = [
     { type: "text", text: state.output },
     ...(state.attachments ?? []).flatMap((attachment) => {
-      const parsed = parseDataUrl(attachment.url);
+      const parsed = parseDataUrl(attachment.url, attachment.mime);
       if (!parsed) return [];
       return [
         {
