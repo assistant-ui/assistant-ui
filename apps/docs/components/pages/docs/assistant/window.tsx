@@ -1,12 +1,79 @@
 "use client";
 
-import { useEffect } from "react";
+import {
+  Component,
+  Suspense,
+  lazy,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { XIcon } from "lucide-react";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { AssistantThread } from "@/components/pages/docs/assistant/thread";
+import { AskAiWindowFrame } from "./window-frame";
 import { analytics } from "@/lib/analytics";
+
+const AssistantSession = lazy(() => import("./session"));
+
+class SessionBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function SessionPlaceholder({ failed = false }: { failed?: boolean }) {
+  const { open, setOpen } = useAssistantPanel();
+  if (!open) return null;
+  return (
+    <div className="bg-background flex h-full flex-col">
+      <div className="border-foreground/10 flex h-11 shrink-0 items-center justify-between border-b px-3.5">
+        <span className="text-muted-foreground text-xs font-medium">
+          assistant-ui · Ask AI
+        </span>
+        <button
+          type="button"
+          aria-label="Close chat"
+          onClick={() => {
+            analytics.assistant.panelToggled({ open: false, source: "header" });
+            setOpen(false);
+          }}
+          className="text-muted-foreground hover:text-foreground rounded-control flex size-7 items-center justify-center transition-colors"
+        >
+          <XIcon className="size-3.5" />
+        </button>
+      </div>
+      <div
+        role="status"
+        className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 px-4 text-sm"
+      >
+        {failed ? "Chat could not load." : "Loading chat…"}
+        {failed ? (
+          <button
+            type="button"
+            className="text-foreground underline underline-offset-4"
+            onClick={() => window.location.reload()}
+          >
+            Reload page
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function AskAiWindow() {
   const { open, toggle, setOpen } = useAssistantPanel();
+  const [activated, setActivated] = useState(open);
+  if (open && !activated) setActivated(true);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,13 +108,15 @@ export function AskAiWindow() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open, setOpen]);
 
-  if (!open) return null;
+  if (!activated) return null;
 
   return (
-    <div className="animate-in fade-in-0 slide-in-from-bottom-3 bg-popover md:ring-foreground/10 fixed inset-0 z-50 flex flex-col overflow-hidden duration-300 ease-out motion-reduce:animate-none md:inset-auto md:right-5 md:bottom-5 md:h-[min(42rem,calc(100vh-6rem))] md:w-[min(30rem,calc(100vw-2.5rem))] md:rounded-xl md:shadow-[0_16px_48px_-24px_rgb(0_0_0/0.25)] md:ring-1 dark:md:shadow-[0_16px_48px_-24px_rgb(0_0_0/0.6)]">
-      <div className="min-h-0 flex-1">
-        <AssistantThread />
-      </div>
-    </div>
+    <AskAiWindowFrame open={open}>
+      <SessionBoundary fallback={<SessionPlaceholder failed />}>
+        <Suspense fallback={<SessionPlaceholder />}>
+          <AssistantSession open={open} />
+        </Suspense>
+      </SessionBoundary>
+    </AskAiWindowFrame>
   );
 }
