@@ -11,6 +11,7 @@
  * type boundary plus the few places the supervisor must enrich (turn index, live
  * run status, readiness).
  */
+import { isRecord } from "@assistant-ui/core/internal";
 import type {
   AgentSessionEvent,
   ModelRegistry,
@@ -72,11 +73,20 @@ const baseName = (filePath: string): string => {
   return segments[segments.length - 1] ?? filePath;
 };
 
+const snapshotToolResult = (result: unknown): unknown => {
+  if (!isRecord(result) || result.details === undefined) return result;
+  try {
+    return { ...result, details: structuredClone(result.details) };
+  } catch {
+    return result;
+  }
+};
+
 /**
  * Map Pi's session-level event stream (`AgentSession.subscribe`) onto the
- * JSON-safe `PiClientEventBody`. `agent_start` / `tool_execution_*` / `message_*`
- * carry through unchanged; the variants Pi renamed or enriched are normalized
- * here. `turn_start` / `turn_end` carry no index in the SDK — the supervisor
+ * JSON-safe `PiClientEventBody`. Tool execution details are snapshotted at the
+ * event boundary; the variants Pi renamed or enriched are normalized here.
+ * `turn_start` / `turn_end` carry no index in the SDK — the supervisor
  * derives and passes one via `ctx.turnIndex`.
  *
  * Note: `error`, `context_usage`, and `extension_ui_request` / `_resolved` are
@@ -121,13 +131,13 @@ export const mapSessionEvent = (
         type: "tool_execution_update",
         toolCallId: event.toolCallId,
         toolName: event.toolName,
-        partialResult: event.partialResult,
+        partialResult: snapshotToolResult(event.partialResult),
       };
     case "tool_execution_end":
       return {
         type: "tool_execution_end",
         toolCallId: event.toolCallId,
-        result: event.result,
+        result: snapshotToolResult(event.result),
         isError: event.isError,
       };
     case "queue_update":

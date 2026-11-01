@@ -7,6 +7,8 @@ import {
   type PiProjectionInput,
 } from "./messageProjection";
 import { isCompleteTranscriptMessage } from "../client/validation";
+import { mapSessionEvent } from "../node/mapping";
+import { createPiThreadState, reducePiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
   PiAssistantMessage,
@@ -389,6 +391,70 @@ describe("messageProjection", () => {
     });
     expect(parts[0]!.modelContent).toBeUndefined();
     expect(parts[1]!.modelContent).toBeUndefined();
+  });
+
+  it("publishes in-process tool details when nested results are reused", () => {
+    const projector = new PiThreadMessageProjector();
+    const currentResult = { usage: { turns: 1 }, messages: [] as unknown[] };
+    const partialResult = () => ({
+      content: [{ type: "text", text: "(running...)" }],
+      details: { mode: "single", results: [currentResult] },
+    });
+    const initial = {
+      ...createPiThreadState("thread"),
+      messages: [assistant([toolCall("tc1", "subagent", {})])],
+    };
+    const first = reducePiThreadState(initial, {
+      ...mapSessionEvent(
+        {
+          type: "tool_execution_update",
+          toolCallId: "tc1",
+          toolName: "subagent",
+          args: {},
+          partialResult: partialResult(),
+        },
+        { turnIndex: 0 },
+      ),
+      threadId: "thread",
+      seq: 1,
+    });
+    const previous = projector.project(first);
+
+    currentResult.usage.turns = 2;
+    currentResult.messages.push(assistant([], { stopReason: "toolUse" }));
+    const next = reducePiThreadState(first, {
+      ...mapSessionEvent(
+        {
+          type: "tool_execution_update",
+          toolCallId: "tc1",
+          toolName: "subagent",
+          args: {},
+          partialResult: partialResult(),
+        },
+        { turnIndex: 0 },
+      ),
+      threadId: "thread",
+      seq: 2,
+    });
+    const projected = projector.project(next);
+
+    expect(projected).not.toBe(previous);
+    expect(projector.getChangedProjectedIndex()).toBe(0);
+    expect(contentParts(previous[0]!)[0]).toMatchObject({
+      result: "(running...)",
+      artifact: { results: [{ usage: { turns: 1 }, messages: [] }] },
+    });
+    expect(contentParts(projected[0]!)[0]).toMatchObject({
+      result: "(running...)",
+      artifact: {
+        results: [
+          {
+            usage: { turns: 2 },
+            messages: [{ role: "assistant", content: [] }],
+          },
+        ],
+      },
+    });
   });
 
   it("preserves live image tool result content", () => {
