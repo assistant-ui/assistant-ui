@@ -23,6 +23,7 @@ import type {
   OpenCodeThreadState,
   OpenCodeUnhandledEvent,
   OpenCodeUserMessageOptions,
+  Part,
   PendingUserMessage,
 } from "./types";
 import {
@@ -286,10 +287,61 @@ type HistorySyncWindow = {
     }
   >;
   removedPartIds: Set<string>;
+  /**
+   * Content the part had right before the first live change for it arrived
+   * during this history load. A loaded part that still equals this baseline
+   * carries no history newer than the live change, so the live part wins.
+   */
+  baselineParts: Map<string, Part | undefined>;
 };
 
 const historyPartKey = (messageId: string, partId: string) =>
   `${messageId}\0${partId}`;
+
+const isSamePart = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((value, index) => isSamePart(value, b[index]))
+    );
+  }
+  const aRecord = a as Record<string, unknown>;
+  const bRecord = b as Record<string, unknown>;
+  const aKeys = Object.keys(aRecord);
+  if (aKeys.length !== Object.keys(bRecord).length) return false;
+  return aKeys.every(
+    (key) => key in bRecord && isSamePart(aRecord[key], bRecord[key]),
+  );
+};
+
+const isLivePartNewer = (
+  loadedPart: Part,
+  livePart: Part,
+  baselinePart: Part | undefined,
+) =>
+  baselinePart !== undefined &&
+  !isSamePart(loadedPart, livePart) &&
+  isSamePart(loadedPart, baselinePart);
+
+const recordBaselinePart = (
+  syncWindow: HistorySyncWindow,
+  state: OpenCodeThreadState,
+  messageId: string,
+  partId: string,
+) => {
+  // Runs before the reducer applies the change, so this is the content the
+  // loaded snapshot carries when it knows nothing about the live change.
+  const key = historyPartKey(messageId, partId);
+  if (syncWindow.baselineParts.has(key)) return;
+  syncWindow.baselineParts.set(
+    key,
+    state.messagesById[messageId]?.parts.find((part) => part.id === partId),
+  );
+};
 
 const mergeHistoryMessages = (
   messages: readonly MessageWithParts[],
@@ -315,25 +367,34 @@ const mergeHistoryMessages = (
 
     const current = state.messagesById[messageId];
     const loadedPartIds = new Set(message.parts.map((part) => part.id));
-    const parts = message.parts.filter(
-      (part) =>
-        !syncWindow.removedPartIds.has(historyPartKey(messageId, part.id)),
-    );
-    const appendIfMissing = (part: MessageWithParts["parts"][number]) => {
-      const key = historyPartKey(messageId, part.id);
-      if (loadedPartIds.has(part.id) || syncWindow.removedPartIds.has(key)) {
-        return;
-      }
-      loadedPartIds.add(part.id);
-      parts.push(part);
-    };
+    const liveParts = new Map<string, Part>();
     for (const part of current?.parts ?? []) {
-      if (syncWindow.changedPartIds.has(historyPartKey(messageId, part.id))) {
-        appendIfMissing(part);
+      const key = historyPartKey(messageId, part.id);
+      if (syncWindow.changedPartIds.has(key)) liveParts.set(key, part);
+    }
+    for (const [key, update] of syncWindow.updatedParts) {
+      if (update.messageId === messageId && !liveParts.has(key)) {
+        liveParts.set(key, update.part);
       }
     }
-    for (const update of syncWindow.updatedParts.values()) {
-      if (update.messageId === messageId) appendIfMissing(update.part);
+
+    const parts: Part[] = [];
+    for (const part of message.parts) {
+      const key = historyPartKey(messageId, part.id);
+      if (syncWindow.removedPartIds.has(key)) continue;
+      const live = liveParts.get(key);
+      parts.push(
+        live && isLivePartNewer(part, live, syncWindow.baselineParts.get(key))
+          ? live
+          : part,
+      );
+    }
+    for (const [key, live] of liveParts) {
+      if (loadedPartIds.has(live.id) || syncWindow.removedPartIds.has(key)) {
+        continue;
+      }
+      loadedPartIds.add(live.id);
+      parts.push(live);
     }
     merged.push({
       info: message.info,
@@ -815,6 +876,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       changedPartIds: new Set(previousWindow?.changedPartIds),
       updatedParts: new Map(previousWindow?.updatedParts),
       removedPartIds: new Set(previousWindow?.removedPartIds),
+      baselineParts: new Map(previousWindow?.baselineParts),
     };
     this.historySyncWindow = syncWindow;
 
@@ -1385,6 +1447,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "part.updated": {
         syncWindow.changedMessageIds.add(event.messageId);
         const key = historyPartKey(event.messageId, event.part.id);
+        recordBaselinePart(
+          syncWindow,
+          this.state,
+          event.messageId,
+          event.part.id,
+        );
         syncWindow.changedPartIds.add(key);
         syncWindow.updatedParts.set(key, {
           messageId: event.messageId,
@@ -1395,6 +1463,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
       case "part.delta":
         syncWindow.changedMessageIds.add(event.messageId);
+        recordBaselinePart(
+          syncWindow,
+          this.state,
+          event.messageId,
+          event.partId,
+        );
         syncWindow.changedPartIds.add(
           historyPartKey(event.messageId, event.partId),
         );
@@ -1404,6 +1478,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         const key = historyPartKey(event.messageId, event.partId);
         syncWindow.changedPartIds.delete(key);
         syncWindow.updatedParts.delete(key);
+        syncWindow.baselineParts.delete(key);
         syncWindow.removedPartIds.add(key);
         break;
       }
