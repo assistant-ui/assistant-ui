@@ -7,13 +7,31 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { AssistantPanelProvider } from "./context";
 import { AskAiWindow } from "./window";
 
+const chunk = vi.hoisted(() => {
+  let reject!: (error: Error) => void;
+  const pending = new Promise<void>((_, fail) => {
+    reject = fail;
+  });
+  let requested!: () => void;
+  const started = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  return { pending, reject, started, requested };
+});
+
 vi.mock("./session", async (importOriginal) => {
-  await importOriginal();
-  throw new Error("Chat chunk could not load");
+  const original = await importOriginal<typeof import("./session")>();
+  chunk.requested();
+  await chunk.pending;
+  return { ...original };
+});
+
+beforeAll(async () => {
+  await vi.importActual("./session");
 });
 
 afterEach(() => {
@@ -30,7 +48,12 @@ it("keeps the page and close control available when the chat chunk fails", async
     </AssistantPanelProvider>,
   );
   fireEvent.keyDown(document, { key: "i", ctrlKey: true });
-  await act(async () => vi.dynamicImportSettled());
+  expect(screen.getByRole("status").textContent).toBe("Loading chat…");
+  await act(async () => {
+    await chunk.started;
+    chunk.reject(new Error("Chat chunk could not load"));
+    await vi.dynamicImportSettled();
+  });
   expect(
     await screen.findByRole("button", { name: "Reload page" }),
   ).toBeTruthy();
