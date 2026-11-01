@@ -82,11 +82,22 @@ interface DocsSidebarContextValue {
   toggle: () => void;
 }
 
-declare function DocsSidebarProvider(_param8: {
+declare function DocsSidebarNavigation(_param8: {
+  sections: readonly DocsFolder[];
+  pathname: string;
+  activeSectionId: string | null;
+  isVisible?: (node: DocsNode) => boolean;
+  onNavigate: () => void;
+  banner?: ReactNode;
+  footer?: ReactNode;
+  platform?: string;
+}): import("react").JSX.Element;
+
+declare function DocsSidebarProvider(_param9: {
   children: ReactNode;
 }): import("react").JSX.Element;
 
-declare function DocsSiteHeader(_param9: {
+declare function DocsSiteHeader(_param10: {
   brand: ReactNode;
   mobileControls: ReactNode;
   condensedNavigation: ReactNode;
@@ -98,7 +109,7 @@ declare function DocsSiteHeader(_param9: {
   scrolled: boolean;
 }): import("react").JSX.Element;
 
-declare function DocsTableOfContents(_param10: {
+declare function DocsTableOfContents(_param11: {
   items: TOCItem[];
   children?: ReactNode;
 }): import("react").JSX.Element | null;
@@ -122,7 +133,7 @@ declare namespace assistantUi {
   }
 }
 
-declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param11: {
+declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param12: {
   children: ReactNode;
 }) => import("react").JSX.Element;
 
@@ -159,7 +170,7 @@ declare namespace entry_provider_exports {
 }
 
 declare namespace entry_ui_exports {
-  export { DocsBody, DocsContent, DocsFolder, DocsFooter, DocsNode, DocsPage, DocsPageShell, DocsPagerNavigation, DocsSeparator, DocsShell, DocsSidebar, DocsSidebarProvider, DocsSiteHeader, DocsTableOfContents, useDocsSidebar };
+  export { DocsBody, DocsContent, DocsFolder, DocsFooter, DocsNode, DocsPage, DocsPageShell, DocsPagerNavigation, DocsSeparator, DocsShell, DocsSidebar, DocsSidebarNavigation, DocsSidebarProvider, DocsSiteHeader, DocsTableOfContents, useDocsSidebar };
 }
 
 declare function useDocsSidebar(): DocsSidebarContextValue;

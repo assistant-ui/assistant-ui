@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { use } from "react";
 import { createOgMetadata } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -41,16 +40,17 @@ function getNeighbors(slug: string, pages: BlogPage[]) {
   };
 }
 
-export default function Page(props: {
+export default async function Page(props: {
   params: Promise<Param>;
-}): React.ReactElement {
-  const params = use(props.params);
+}): Promise<React.ReactElement> {
+  const params = await props.params;
   const pages = blog.getPages() as BlogPage[];
   const page = blog.getPage([params.slug]) as BlogPage | undefined;
   const mdxComponents = getMDXComponents({});
 
   if (!page) notFound();
 
+  const { body: Body, toc } = await page.data.load();
   const neighbors = getNeighbors(params.slug, pages);
   const ordered = [...pages].sort(
     (a, b) => (a.data.date?.getTime() ?? 0) - (b.data.date?.getTime() ?? 0),
@@ -102,9 +102,9 @@ export default function Page(props: {
           data-page-content=""
           className="docs-prose prose prose-blog w-full max-w-[42rem] min-w-0"
         >
-          <page.data.body components={mdxComponents} />
+          <Body components={mdxComponents} />
         </article>
-        <BlogTOC items={page.data.toc} />
+        <BlogTOC items={toc} />
       </div>
 
       {neighbors.older || neighbors.newer ? (

@@ -140,22 +140,79 @@ In this workspace, use `"@assistant-ui/docs-theme": "workspace:*"`. To test loca
 changes in another repository, run `pnpm pack` in this package and install the
 resulting archive with `pnpm add /path/to/package.tgz`.
 
-## Compose a site layout
+## Compose the assistant-ui site layout
 
-The `ui` entry provides `DocsShell`, `DocsContent`, `DocsPageShell`, `DocsBody`,
-and `DocsFooter` as Server Components for a custom docs layout. Supply the header,
-sidebar, table of contents, and page actions from the consuming app.
+The `ui` entry supplies the responsive shell, header, animated sidebar sections,
+page typography, table of contents, and pager used by `apps/docs`. It does not
+import the framework’s layout into the browser. `apps/docs` compiles content with
+`withDocs` from `@farming-labs/next/config` and selects `assistantUi()` in its
+Farming Labs configuration. It retains application-owned search, platform
+selection, Markdown endpoints, and navigation metadata.
+The existing `next`, `provider`, and `styles.css` integration above remains available.
 
-Use Next.js App Router, React 19, and Tailwind CSS 4 with the host app’s semantic
-color tokens and fonts. Import `@assistant-ui/docs-theme/site.css` after Tailwind
-instead of `styles.css` for this composable layout; its source directive includes
-the published component classes. The existing Farming Labs integration remains
-available through the root, `next`, `provider`, and `styles.css` entries.
+Use Next.js App Router, React 19, Tailwind CSS 4, and `motion@^14` for the animated
+sidebar. Supply your existing semantic Tailwind tokens (`background`, `foreground`,
+`muted`, `muted-foreground`, `accent`, and `border`) and fonts. Import `site.css`
+instead of `styles.css`; it includes a source directive for the published component
+classes, so no source alias or monorepo-relative Tailwind path is necessary.
 
-`DocsSidebarProvider`, `DocsSidebar`, and `useDocsSidebar` share mobile sidebar
-state. `DocsSiteHeader` accepts branding, search, theme controls and navigation
-slots, keeping mobile site navigation and the sidebar mutually exclusive.
-`DocsTableOfContents` accepts `{ title, url, depth }` entries, observes headings
-only on desktop, and supports encoded heading fragments. `DocsPagerNavigation`
-accepts previous/next destinations and an application-owned actions slot.
-The interactive components preserve their client boundaries in the package build.
+```css
+@import "tailwindcss";
+@import "@assistant-ui/docs-theme/site.css";
+```
+
+```tsx
+import {
+  DocsBody, DocsContent, DocsPageShell, DocsShell,
+  DocsSidebar, DocsSidebarProvider,
+} from "@assistant-ui/docs-theme/ui";
+
+export function Documentation({ header, navigation, toc, footer, children }: {
+  header: React.ReactNode;
+  navigation: React.ReactNode;
+  toc: React.ReactNode;
+  footer: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <DocsSidebarProvider>
+      <DocsShell>
+        {header}
+        <DocsContent>
+          <DocsPageShell toc={toc} footer={footer}>
+            <DocsBody>{children}</DocsBody>
+          </DocsPageShell>
+        </DocsContent>
+        <DocsSidebar>{navigation}</DocsSidebar>
+      </DocsShell>
+    </DocsSidebarProvider>
+  );
+}
+```
+
+`DocsSiteHeader` owns the mobile navigation/sidebar toggles and responsive header
+regions. Provide branding, search, theme controls, and application links through
+its slots. `navigationRoot` accepts your existing navigation provider;
+`mobileNavigation(close)` receives the action to close the menu after navigation.
+`useDocsSidebar` lets a custom header control the same sidebar.
+
+`DocsSidebarNavigation` accepts `sections` (folders with stable `$id` values),
+`pathname`, `activeSectionId`, and `onNavigate`. Use `isVisible` for platform-specific
+nodes and `banner`/`footer` for a platform selector and social links. The structural
+`DocsNode` types accept Fumadocs page trees without tying rendering to that engine.
+The active ancestor path is computed once per tree/path change; opening a section
+does not repeat a tree walk for each nested folder.
+
+`DocsTableOfContents` accepts `{title, url, depth}` items and an action area as
+children. `DocsPagerNavigation` accepts previous/next URLs and an actions menu as
+children. `DocsFooter` accepts named previous/next destinations and optional section
+labels. Copy, search, Ask AI, and analytics stay with the consuming application.
+
+The shell, page body, and footer can render as Server Components. Interactive
+components preserve their client boundaries in the published build. A separate
+module graph keeps the Farming Labs integration out of the `ui` consumer bundle;
+this does not remove Farming Labs’ internal Fumadocs dependencies or promise a
+particular page-load time.
+
+The table of contents observes headings only while its desktop region is visible,
+and reconnects when the viewport grows.

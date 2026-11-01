@@ -30,7 +30,6 @@
       ],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
-      "fumadocs-mdx:collections/*": ["./.source/*"],
       "@assistant-ui/generative-ui/*": ["../../packages/generative-ui/src/*"],
       "@assistant-ui/store/client": ["../../packages/store/src/client"],
       "@assistant-ui/store/internal": ["../../packages/store/src/internal"],
@@ -50,9 +49,24 @@
       ],
       "generative-frame/spec/vue": [
         "../../packages/generative-frame/src/spec/vue"
-      ]
-    }
+      ],
+      "@assistant-ui/docs-theme": ["./node_modules/@assistant-ui/docs-theme"]
+    },
+    "allowImportingTsExtensions": true
   },
-  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "next.config.mts",
+    "scripts/content/**/*.mts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    ".source/server.ts",
+    ".source/browser.ts",
+    ".source/dynamic.ts"
+  ]
 }

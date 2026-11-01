@@ -6,6 +6,7 @@ export {
   DocsSidebarProvider,
   useDocsSidebar,
 } from "./site/sidebar";
+export { DocsSidebarNavigation } from "./site/sidebar-navigation";
 export { DocsTableOfContents } from "./site/toc";
 export type {
   DocsNode,
