@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/docs-theme",
   "version": "0.0.2",
-  "description": "The assistant-ui documentation theme for Farming Labs Docs",
+  "description": "Composable assistant-ui documentation UI and theme for Next.js",
   "license": "MIT",
   "author": "AgentbaseAI Inc.",
   "type": "module",
@@ -20,7 +20,12 @@
       "types": "./dist/provider.d.ts",
       "default": "./dist/provider.js"
     },
-    "./styles.css": "./styles/theme.css"
+    "./styles.css": "./styles/theme.css",
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "default": "./dist/ui.js"
+    },
+    "./site.css": "./styles/site.css"
   },
   "files": [
     "dist",

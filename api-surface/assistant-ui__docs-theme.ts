@@ -4,15 +4,44 @@ import { RootProvider } from "@farming-labs/theme";
 
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 
-import { ReactNode } from "react";
+import { ComponentProps, ReactNode } from "react";
 
-declare const DocsBrand: (_param0: DocsBrand.Props) => import("react").JSX.Element;
+declare function DocsBody(_param0: ComponentProps<"article">): import("react").JSX.Element;
+
+declare const DocsBrand: (_param1: DocsBrand.Props) => import("react").JSX.Element;
 
 declare namespace DocsBrand {
   interface Props {
     name?: string;
   }
 }
+
+declare function DocsContent(_param2: {
+  children: ReactNode;
+}): ReactNode;
+
+declare function DocsFooter(_param3: DocsFooterProps): import("react").JSX.Element | null;
+
+type DocsFooterProps = {
+  previous?: FooterItem | undefined;
+  next?: FooterItem | undefined;
+};
+
+declare function DocsPageShell(_param4: {
+  toc?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}): import("react").JSX.Element;
+
+declare function DocsShell(_param5: {
+  children: ReactNode;
+}): ReactNode;
+
+type FooterItem = {
+  name: ReactNode;
+  url: string;
+  section?: ReactNode;
+};
 
 declare const assistantUi: (overrides?: assistantUi.Options) => DocsTheme;
 
@@ -21,7 +50,7 @@ declare namespace assistantUi {
   }
 }
 
-declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param1: {
+declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param6: {
   children: ReactNode;
 }) => import("react").JSX.Element;
 
@@ -57,4 +86,8 @@ declare namespace entry_provider_exports {
   export { RootProvider };
 }
 
-export { entry_next_exports as entry_next, entry_provider_exports as entry_provider, entry_root_exports as entry_root };
+declare namespace entry_ui_exports {
+  export { DocsBody, DocsContent, DocsFooter, DocsPageShell, DocsShell };
+}
+
+export { entry_next_exports as entry_next, entry_provider_exports as entry_provider, entry_root_exports as entry_root, entry_ui_exports as entry_ui };

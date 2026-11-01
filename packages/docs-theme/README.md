@@ -139,3 +139,15 @@ client provider without pulling server-only framework exports into the browser.
 In this workspace, use `"@assistant-ui/docs-theme": "workspace:*"`. To test local
 changes in another repository, run `pnpm pack` in this package and install the
 resulting archive with `pnpm add /path/to/package.tgz`.
+
+## Compose a site layout
+
+The `ui` entry provides `DocsShell`, `DocsContent`, `DocsPageShell`, `DocsBody`,
+and `DocsFooter` as Server Components for a custom docs layout. Supply the header,
+sidebar, table of contents, and page actions from the consuming app.
+
+Use Next.js App Router, React 19, and Tailwind CSS 4 with the host app’s semantic
+color tokens and fonts. Import `@assistant-ui/docs-theme/site.css` after Tailwind
+instead of `styles.css` for this composable layout; its source directive includes
+the published component classes. The existing Farming Labs integration remains
+available through the root, `next`, `provider`, and `styles.css` entries.
