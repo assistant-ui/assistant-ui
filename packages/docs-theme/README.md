@@ -12,10 +12,10 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.133-perf.0 @farming-labs/next@0.2.133-perf.0 @farming-labs/theme@0.2.133-perf.0 fumadocs-ui@16.17.1
 ```
 
-Use Farming Labs Docs, Next, and Theme 0.2.127 with Fumadocs UI 16.17.1.
+Use the Farming Labs Docs, Next, and Theme performance prerelease 0.2.133-perf.0 with Fumadocs UI 16.17.1. This version adds the focused `@farming-labs/docs/config` entry used by the theme.
 Fumadocs UI is a required peer because the theme imports its shared contexts.
 Package managers with automatic peer installation install it; otherwise, add
 `fumadocs-ui@16.17.1` directly and satisfy its peers. With Yarn PnP, also install
@@ -35,7 +35,7 @@ this package supplies the appearance and navigation components.
 
 ```tsx
 // docs.config.tsx
-import { defineDocs } from "@farming-labs/docs";
+import { defineDocs } from "@farming-labs/docs/config";
 import { assistantUi, DocsBrand } from "@assistant-ui/docs-theme";
 
 export default defineDocs({

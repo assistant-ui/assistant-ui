@@ -1,4 +1,6 @@
-import { DocsConfig, DocsTheme } from "@farming-labs/docs";
+import { DocsConfig } from "@farming-labs/docs";
+
+import { DocsTheme } from "@farming-labs/docs/config";
 
 import { RootProvider } from "@farming-labs/theme";
 

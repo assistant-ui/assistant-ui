@@ -1,4 +1,4 @@
-import { defineDocs } from "@farming-labs/docs";
+import { defineDocs } from "@farming-labs/docs/config";
 import { assistantUi } from "@assistant-ui/docs-theme";
 
 export default defineDocs({
