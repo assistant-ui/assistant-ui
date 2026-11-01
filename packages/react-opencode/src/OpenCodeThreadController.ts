@@ -318,14 +318,49 @@ const isSamePart = (a: unknown, b: unknown): boolean => {
   );
 };
 
+/**
+ * Text and reasoning parts only ever append deltas, so a loaded text that is a
+ * strict prefix of the live text is necessarily older than the live part.
+ */
+const getPartText = (part: Part): string | undefined => {
+  if (
+    (part.type === "text" || part.type === "reasoning") &&
+    typeof part.text === "string"
+  ) {
+    return part.text;
+  }
+  return undefined;
+};
+
 const isLivePartNewer = (
   loadedPart: Part,
   livePart: Part,
   baselinePart: Part | undefined,
-) =>
-  baselinePart !== undefined &&
-  !isSamePart(loadedPart, livePart) &&
-  isSamePart(loadedPart, baselinePart);
+): boolean => {
+  if (isSamePart(loadedPart, livePart)) return false;
+
+  // The snapshot was built before the first live change in this window, so it
+  // knows nothing the live part does not already know.
+  if (baselinePart !== undefined && isSamePart(loadedPart, baselinePart)) {
+    return true;
+  }
+
+  // The snapshot usually lands between two live deltas. Because text/reasoning
+  // deltas only append, a loaded text that is a strict prefix of the live text
+  // is an older slice of the same stream, so the live part wins.
+  const loadedText = getPartText(loadedPart);
+  const liveText = getPartText(livePart);
+  if (
+    loadedText !== undefined &&
+    liveText !== undefined &&
+    loadedText.length < liveText.length &&
+    liveText.startsWith(loadedText)
+  ) {
+    return true;
+  }
+
+  return false;
+};
 
 const recordBaselinePart = (
   syncWindow: HistorySyncWindow,

@@ -5541,6 +5541,82 @@ describe("OpenCodeThreadController", () => {
     ]);
   });
 
+  it("keeps the live part when the loaded snapshot lands between two deltas", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Hel",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part },
+      raw: {},
+    });
+
+    // First delta ("l") is already baked into the snapshot that refresh() will
+    // return; the second ("o") arrives after the snapshot was built. The
+    // snapshot ("Hell") is neither the baseline ("Hel") nor the live value
+    // ("Hello"), so only the prefix rule can pick the live part.
+    const refresh = controller.refresh();
+    eventSource.emit({
+      type: "message.part.delta",
+      sessionId: "ses_1",
+      properties: {
+        messageID: "message_1",
+        partID: "part_1",
+        field: "text",
+        delta: "l",
+      },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.delta",
+      sessionId: "ses_1",
+      properties: {
+        messageID: "message_1",
+        partID: "part_1",
+        field: "text",
+        delta: "o",
+      },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [{ ...message, parts: [{ ...part, text: "Hell" }] }],
+    });
+    await refresh;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Hello" },
+    ]);
+  });
+
   it("does not resurrect parts removed during a history load", async () => {
     const session = createDeferred<{ data: unknown }>();
     const messages = createDeferred<{ data: unknown[] }>();
