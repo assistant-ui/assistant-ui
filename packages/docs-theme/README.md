@@ -12,10 +12,10 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.133-perf.1 @farming-labs/next@0.2.133-perf.1 @farming-labs/theme@0.2.133-perf.1 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.133 @farming-labs/next@0.2.133 @farming-labs/theme@0.2.133 fumadocs-ui@16.17.1
 ```
 
-Use the Farming Labs Docs, Next, and Theme performance prerelease 0.2.133-perf.1 with Fumadocs UI 16.17.1. This version adds the focused `@farming-labs/docs/config` entry used by the theme.
+Use the Farming Labs Docs, Next, and Theme stable patch 0.2.133 with Fumadocs UI 16.17.1. This version adds the focused `@farming-labs/docs/config` entry used by the theme.
 Fumadocs UI is a required peer because the theme imports its shared contexts.
 Package managers with automatic peer installation install it; otherwise, add
 `fumadocs-ui@16.17.1` directly and satisfy its peers. With Yarn PnP, also install
