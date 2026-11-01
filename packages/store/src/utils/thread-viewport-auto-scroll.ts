@@ -163,6 +163,17 @@ export const createThreadViewportAutoScroll = (input: {
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
     lastClientHeight = element.clientHeight;
+    // A bottom-scroll that lands on an already pinned viewport produces no
+    // movement and therefore no scroll event, which would leave `intent` stale
+    // and make later content growth scroll even with autoScroll disabled. Clear
+    // it here, mirroring handleScroll's at-bottom handling.
+    if (
+      viewportOverflows(element, contentInset) &&
+      isViewportAtBottom(element, contentInset)
+    ) {
+      intent = null;
+      setAtBottom(true);
+    }
   };
 
   const scheduleScrollToBottom = (behavior: ScrollBehavior) => {

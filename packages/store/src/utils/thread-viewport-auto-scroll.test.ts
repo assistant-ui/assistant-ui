@@ -759,6 +759,42 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("clears a bottom-scroll that lands on an already pinned viewport", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    // A real browser fires no scroll event when scrollTo doesn't move the
+    // viewport; the default harness always dispatches one, which would mask
+    // the stale-intent bug this test guards against.
+    view.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
+      const next = Math.max(
+        0,
+        Math.min(
+          top ?? 0,
+          view.element.scrollHeight - view.element.clientHeight,
+        ),
+      );
+      if (next === view.element.scrollTop) return;
+      view.element.scrollTop = next;
+      view.element.dispatchEvent(new Event("scroll"));
+    });
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.setHasMessages(true);
+    flushFrames();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(400);
+    controller.dispose();
+  });
+
   it("keeps following after a browser-clamped resize during a run", () => {
     const view = geometry(500, 100);
     view.setTop(400);
