@@ -2451,6 +2451,50 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     ]);
   });
 
+  it("replaces preliminary model content when a continuation supplies the final result", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      async run(options) {
+        runs.push(options);
+        if (runs.length === 1)
+          return {
+            content: [
+              {
+                ...toolCallPart("lookup"),
+                result: { progress: 10 },
+                isPreliminary: true,
+                modelContent: [{ type: "text", text: "Still searching" }],
+              },
+              toolCallPart("deploy", { id: "a1" }),
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        return {
+          content: [
+            { ...toolCallPart("lookup"), result: { answer: 42 } },
+            { ...toolCallPart("deploy"), result: { deployed: true } },
+          ],
+        };
+      },
+    });
+
+    await thread.append(userMessage("look up and deploy"));
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    const lookup = thread.messages
+      .at(-1)!
+      .content.find(
+        (part) =>
+          part.type === "tool-call" && part.toolCallId === "call-lookup",
+      );
+    expect(lookup).toMatchObject({ result: { answer: 42 } });
+    expect(lookup).not.toHaveProperty("isPreliminary");
+    expect(lookup).not.toHaveProperty("modelContent");
+  });
+
   it("appends a resumed call whose id matches a settled one", async () => {
     const runs: ChatModelRunOptions[] = [];
     const thread = createThread({

@@ -112,7 +112,7 @@ const withContinuation = (
     const target = open.get(part.toolCallId);
     if (!target) return true;
     if (part.result !== undefined) {
-      const { isPreliminary: _, ...call } = target;
+      const { isPreliminary: _, modelContent: _modelContent, ...call } = target;
       settled.set(target, {
         ...call,
         result: part.result,
