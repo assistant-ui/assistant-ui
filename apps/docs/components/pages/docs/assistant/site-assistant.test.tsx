@@ -123,10 +123,20 @@ it("defers the runtime until opening and retains a queued question, conversation
   fireEvent.keyDown(document, { key: "i", ctrlKey: true });
   await waitFor(() => expect(state.run).toHaveBeenCalledTimes(1));
   const runtime = state.runtimes[0]!;
-  await waitFor(() => expect(runtime.thread.getState().isRunning).toBe(false));
-  expect(runtime.thread.getState().messages[0]?.content).toEqual([
-    { type: "text", text: "How do I install assistant-ui?" },
-  ]);
+  await waitFor(() => {
+    const { messages, isRunning } = runtime.thread.getState();
+    expect(messages.map(({ role, content }) => ({ role, content }))).toEqual([
+      {
+        role: "user",
+        content: [{ type: "text", text: "How do I install assistant-ui?" }],
+      },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Documentation answer" }],
+      },
+    ]);
+    expect(isRunning).toBe(false);
+  });
   await act(async () => runtime.thread.composer.setText("My follow-up draft"));
   fireEvent.click(screen.getByRole("button", { name: "Close chat" }));
   fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
