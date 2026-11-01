@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { useLocalRuntime, type AssistantRuntime } from "@assistant-ui/react";
 import { SiteAssistant } from "./site-assistant";
 import { useAssistantPanel } from "./context";
@@ -20,9 +20,15 @@ const state = vi.hoisted(() => {
   const loaded = new Promise<void>((resolve) => {
     release = resolve;
   });
+  let requested!: () => void;
+  const started = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
   return {
     loaded,
     release,
+    started,
+    requested,
     pathname: "/docs",
     runtimes: [] as AssistantRuntime[],
     run: vi.fn(async () => ({
@@ -37,8 +43,10 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 
 vi.mock("./session", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./session")>();
+  state.requested();
   await state.loaded;
-  return { ...(await importOriginal<typeof import("./session")>()) };
+  return { ...original };
 });
 
 vi.mock("@/runtimes/chat-runtime", async (importOriginal) => ({
@@ -74,6 +82,10 @@ function Page() {
     </>
   );
 }
+
+beforeAll(async () => {
+  await vi.importActual("./session");
+});
 
 afterEach(() => {
   cleanup();
@@ -114,7 +126,9 @@ it("defers the runtime until opening and retains a queued question, conversation
   fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.queryByRole("status")).toBeNull();
   await act(async () => {
+    await state.started;
     state.release();
+    await import("./session");
     await vi.dynamicImportSettled();
   });
   await waitFor(() => expect(state.runtimes.length).toBeGreaterThan(0));
