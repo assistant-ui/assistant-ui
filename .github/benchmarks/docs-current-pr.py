@@ -181,15 +181,11 @@ try:
         run(side, 'install', ['pnpm', 'install', '--frozen-lockfile', '--filter', '.', '--filter', '@assistant-ui/docs-site...'])
         run(side, 'dependencies', ['pnpm', 'exec', 'turbo', 'run', 'build', '--filter=@assistant-ui/docs-site^...', '--concurrency=2'])
         run(side, 'type-docs', ['pnpm', '--filter', '@assistant-ui/docs-site', 'generate:type-docs'])
-    for index, side in enumerate(['base', 'head', 'head', 'base'], 1):
-        shutil.rmtree(SIDES[side] / 'apps/docs/.next', ignore_errors=True)
-        for cache in ('cold', 'cached'):
-            run(side, f'build-{index}-{cache}', ['pnpm', '--filter', '@assistant-ui/docs-site', 'build'])
-        output(side)
-        if side not in REPORT['http']:
-            serve(side)
     for side in ['base', 'head']:
-        serve(side, dev=True)
+        run(side, 'source-snapshot', ['pnpm', '--filter', '@assistant-ui/docs-site', 'generate:source-snapshot'])
+        run(side, 'profile-build', ['pnpm', '--filter', '@assistant-ui/docs-site', 'exec', 'next', 'build', '--experimental-cpu-prof'])
+        profiles = SIDES[side] / 'apps/docs/.next-profiles'
+        shutil.copytree(profiles, OUT / f'{side}-profiles')
     REPORT['status'] = 'complete'
 except Exception as error:
     REPORT['status'] = 'failed'

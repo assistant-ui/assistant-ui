@@ -1,4 +1,4 @@
-name: Docs current PR comparison
+name: Docs current PR build profiles
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: docs-current-pr-comparison-${{ github.ref }}
+  group: docs-current-pr-profiles-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -48,6 +48,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
-          name: docs-current-pr-comparison
+          name: docs-current-pr-profiles
           path: comparison-results
           retention-days: 7
