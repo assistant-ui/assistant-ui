@@ -21,7 +21,44 @@ function distanceFromInterval(value: number, start: number, end: number) {
   return value < start ? start - value : value > end ? value - end : 0;
 }
 
+function outerRadius(html: string) {
+  const mark = [...html.matchAll(/<path\b[^>]*>/g)].find(([tag]) =>
+    tag!.includes('data-part="mark"'),
+  )?.[0];
+  const path = /\bd="([^"]+)"/.exec(mark ?? "")?.[1] ?? "";
+  return Number(/\bA([\d.]+) \1/.exec(path)?.[1]);
+}
+
 describe("PolarArea labels", () => {
+  it("keeps long labels clear and preserves vertical radius in a wide frame", () => {
+    const frameWidth = 1000;
+    const frameHeight = 384;
+    const items = Array.from({ length: 8 }, (_, i) => ({
+      label: `Category long ${i}`,
+      value: 1,
+    }));
+    const html = renderToStaticMarkup(
+      <PolarArea width={frameWidth} height={frameHeight} items={items} />,
+    );
+
+    expect(outerRadius(html)).toBeCloseTo(164.95, 1);
+    for (const item of items) {
+      const rendered = label(html, item.label);
+      const textWidthPx = textWidth(item.label, 11);
+      const left =
+        rendered.textAnchor === "start"
+          ? rendered.x
+          : rendered.textAnchor === "end"
+            ? rendered.x - textWidthPx
+            : rendered.x - textWidthPx / 2;
+
+      expect(left).toBeGreaterThanOrEqual(PAD);
+      expect(left + textWidthPx).toBeLessThanOrEqual(frameWidth - PAD);
+      expect(rendered.y - 11 / 2).toBeGreaterThanOrEqual(PAD);
+      expect(rendered.y + 11 / 2).toBeLessThanOrEqual(frameHeight - PAD);
+    }
+  });
+
   it("anchors the largest diagonal labels outside their sectors", () => {
     const hourly = Array.from({ length: 24 }, (_, i) => ({
       label: String(i).padStart(2, "0"),

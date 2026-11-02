@@ -33,13 +33,12 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
     const cx = (left + right) / 2;
     const cy = (top + bottom) / 2;
     const labelGap = Math.max(6, frameType.axis.px / 2 + 1);
-    const labelAllowance = Math.max(
-      frameType.axis.px + labelGap,
-      labelW + labelGap,
-    );
     const outer = Math.max(
       0,
-      Math.min(right - left, bottom - top) / 2 - labelAllowance,
+      Math.min(
+        (right - left) / 2 - labelW - labelGap,
+        (bottom - top) / 2 - frameType.axis.px / 2 - labelGap,
+      ),
     );
     const inner =
       innerFraction === undefined || Number.isNaN(innerFraction)
@@ -94,12 +93,13 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
                 ? "start"
                 : "end";
           const p = polar(cx, cy, outer + labelGap, angle);
-          const fit =
+          const fit = round(
             textAnchor === "start"
               ? F.width - PAD - p.x
               : textAnchor === "end"
                 ? p.x - PAD
-                : 2 * Math.min(p.x - PAD, F.width - PAD - p.x);
+                : 2 * Math.min(p.x - PAD, F.width - PAD - p.x),
+          );
           return (
             <text
               key={item.label}
