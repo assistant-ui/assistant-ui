@@ -23,6 +23,7 @@ const SCROLL_KEYS = new Set([
   "Home",
   "End",
 ]);
+const UPWARD_SCROLL_KEYS = new Set(["ArrowUp", "PageUp", "Home"]);
 
 const isOpeningDisclosure = (target: Element) => {
   const control = target.closest(DISCLOSURE_SELECTOR);
@@ -36,6 +37,10 @@ const isOpeningDisclosure = (target: Element) => {
     control.getAttribute("role") !== "combobox"
   );
 };
+
+const isUpwardKey = (event: KeyboardEvent) =>
+  UPWARD_SCROLL_KEYS.has(event.key) ||
+  (event.key === " " && event.shiftKey);
 
 type MessageOffset = { readonly id: string; readonly offset: number };
 
@@ -112,7 +117,8 @@ export const createThreadViewportAutoScroll = (input: {
   let followBottom = true;
   let followPaused = false;
   let scrolledSincePause = false;
-  let scrolledByUser = false;
+  let userScrollFrom: number | null = null;
+  let lastTouchY: number | null = null;
   let contentInset = 0;
   let directContentInset = 0;
   const contentInsetEntries = new Map<symbol, number>();
@@ -152,12 +158,16 @@ export const createThreadViewportAutoScroll = (input: {
     frame = null;
   };
 
+  const clearUserScroll = () => {
+    userScrollFrom = null;
+  };
+
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     if (!element) return;
     followBottom = true;
     followPaused = false;
     scrolledSincePause = false;
-    scrolledByUser = false;
+    clearUserScroll();
     intent = behavior;
     prependAnchor = null;
     element.scrollTo?.({ top: element.scrollHeight, behavior });
@@ -180,7 +190,12 @@ export const createThreadViewportAutoScroll = (input: {
   const handleScroll = ({
     preserveFollow = false,
     insetShrank = false,
-  }: { preserveFollow?: boolean; insetShrank?: boolean } = {}) => {
+    userScroll = false,
+  }: {
+    preserveFollow?: boolean;
+    insetShrank?: boolean;
+    userScroll?: boolean;
+  } = {}) => {
     if (!element) return;
 
     if (prependAnchor && Math.abs(element.scrollTop - heldScrollTop) >= 1)
@@ -199,7 +214,7 @@ export const createThreadViewportAutoScroll = (input: {
     // stops above the clamp target is a reader scroll-up only when input preceded
     // it; without input it stays ambiguous and keeps following.
     const escapedClamp =
-      scrolledByUser &&
+      userScroll &&
       element.scrollHeight >= lastScrollHeight &&
       element.scrollTop < lastScrollTop &&
       element.scrollTop > clampTarget;
@@ -238,11 +253,15 @@ export const createThreadViewportAutoScroll = (input: {
     firstMessage = measureFirstMessage(element);
   };
 
-  // The input signal covers one scroll event: it is consumed as soon as the
-  // scroll it preceded has been read.
+  // The signal covers exactly one scroll, and only counts when the position
+  // actually moved up after the input: input that scrolled another element, or
+  // nothing at all, leaves the position where the signal was armed.
   const onScroll = () => {
-    handleScroll();
-    scrolledByUser = false;
+    const from = userScrollFrom;
+    userScrollFrom = null;
+    const el = element;
+    const movedUp = from !== null && el !== null && el.scrollTop < from;
+    handleScroll({ userScroll: movedUp });
   };
 
   const followGrowth = () => {
@@ -315,16 +334,29 @@ export const createThreadViewportAutoScroll = (input: {
     scrolledSincePause = true;
   };
 
-  // Only wheel, touch and scroll-key input counts: a pointer press is not a
-  // scroll, and dragging the scrollbar reports its own scroll events.
+  // Only input that points up counts: a pointer press is not a scroll and a
+  // downward gesture is not an escape.
   const noteUserScroll = (event: Event) => {
-    if (event.type === "keydown") {
-      const keyEvent = event as KeyboardEvent;
-      if (!SCROLL_KEYS.has(keyEvent.key)) return;
+    if (!element) return;
+    if (event.type === "wheel") {
+      if ((event as WheelEvent).deltaY >= 0) return clearUserScroll();
+    } else if (event.type === "keydown") {
+      if (!isUpwardKey(event as KeyboardEvent)) return clearUserScroll();
       if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
-        return;
+        return clearUserScroll();
+    } else if (event.type === "touchmove") {
+      const touch = (event as TouchEvent).touches[0];
+      const previous = lastTouchY;
+      if (touch) lastTouchY = touch.clientY;
+      if (!touch || previous === null || touch.clientY <= previous)
+        return clearUserScroll();
     }
-    scrolledByUser = true;
+    userScrollFrom = element.scrollTop;
+  };
+
+  const noteTouchStart = (event: Event) => {
+    const touch = (event as TouchEvent).touches[0];
+    lastTouchY = touch ? touch.clientY : null;
   };
 
   const releasePrependAnchor = () => {
@@ -367,7 +399,8 @@ export const createThreadViewportAutoScroll = (input: {
       followBottom = true;
       followPaused = false;
       scrolledSincePause = false;
-      scrolledByUser = false;
+      clearUserScroll();
+      lastTouchY = null;
       firstMessage = null;
       prependAnchor = null;
       heldScrollTop = el.scrollTop;
@@ -387,6 +420,7 @@ export const createThreadViewportAutoScroll = (input: {
         el.addEventListener(gesture, noteScrollGesture, { passive: true });
       for (const gesture of ["wheel", "touchmove", "keydown"])
         el.addEventListener(gesture, noteUserScroll, { passive: true });
+      el.addEventListener("touchstart", noteTouchStart, { passive: true });
       for (const gesture of ["pointerdown", "wheel", "touchstart", "keydown"])
         el.addEventListener(gesture, releasePrependAnchor, { passive: true });
       checkInitialize();
@@ -411,6 +445,7 @@ export const createThreadViewportAutoScroll = (input: {
         for (const gesture of ["wheel", "touchmove", "keydown"]) {
           el.removeEventListener(gesture, noteUserScroll);
         }
+        el.removeEventListener("touchstart", noteTouchStart);
         for (const gesture of [
           "pointerdown",
           "wheel",
@@ -480,7 +515,6 @@ export const createThreadViewportAutoScroll = (input: {
       prependAnchor = null;
       followPaused = false;
       scrolledSincePause = false;
-      scrolledByUser = false;
       if (input.getOptions().scrollToBottomOnRunStart)
         scheduleScrollToBottom("auto");
     },
@@ -488,7 +522,7 @@ export const createThreadViewportAutoScroll = (input: {
       prependAnchor = null;
       followPaused = false;
       scrolledSincePause = false;
-      scrolledByUser = false;
+      clearUserScroll();
       if (input.getOptions().scrollToBottomOnThreadSwitch)
         scheduleScrollToBottom("instant");
     },
