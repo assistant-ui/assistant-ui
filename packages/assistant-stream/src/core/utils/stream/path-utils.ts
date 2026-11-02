@@ -51,20 +51,6 @@ export class PathAppendDecoder extends TransformStream<
   }
 }
 
-export class PathMergeEncoder extends TransformStream<
-  AssistantStreamChunk,
-  AssistantStreamChunk
-> {
-  constructor(counter: Counter) {
-    const mapChunk = createPathMergeMapper(() => counter.up());
-    super({
-      transform(chunk, controller) {
-        controller.enqueue(mapChunk(chunk));
-      },
-    });
-  }
-}
-
 export const createPathMergeMapper = (
   nextPartIndex: () => number,
 ): ((chunk: AssistantStreamChunk) => AssistantStreamChunk) => {
