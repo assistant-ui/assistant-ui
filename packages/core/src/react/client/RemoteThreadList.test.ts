@@ -4002,6 +4002,7 @@ describe("RemoteThreadList", () => {
       const backend = { status: "regular" as "regular" | "archived" };
       const archiveRequest = deferred<void>();
       const staleList = deferred<{ threads: RemoteThreadMetadata[] }>();
+      const refreshedList = deferred<{ threads: RemoteThreadMetadata[] }>();
       const adapterA = makeAdapter({
         list: vi.fn(async () => ({
           threads: [
@@ -4017,9 +4018,7 @@ describe("RemoteThreadList", () => {
         list: vi
           .fn()
           .mockReturnValueOnce(staleList.promise)
-          .mockImplementation(async () => ({
-            threads: [{ status: backend.status, remoteId: "r0", title: "r0" }],
-          })),
+          .mockReturnValueOnce(refreshedList.promise),
       });
       let adapter = adapterA;
       const listeners = new Set<() => void>();
@@ -4072,10 +4071,13 @@ describe("RemoteThreadList", () => {
         );
 
         archiveRequest.resolve();
-        await archiveTask;
-
+        await waitFor(() => expect(adapterB.list).toHaveBeenCalledTimes(2));
         expect(backend.status).toBe("archived");
-        expect(adapterB.list).toHaveBeenCalledTimes(2);
+        expect(threads.item({ id: "r0" }).getState().status).toBe("archived");
+        refreshedList.resolve({
+          threads: [{ status: backend.status, remoteId: "r0", title: "r0" }],
+        });
+        await archiveTask;
         await waitFor(() => {
           expect(
             (

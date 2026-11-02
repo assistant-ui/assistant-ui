@@ -714,6 +714,7 @@ describe("RemoteThreadList adapter changes", () => {
   it("reloads the active adapter after an old archive settles", async () => {
     const archiveRequest = deferred<void>();
     const staleList = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const refreshedList = deferred<{ threads: ReturnType<typeof thread>[] }>();
     const backend = { status: "regular" as "regular" | "archived" };
     const adapterA = makeAdapter({
       list: vi.fn(async () => ({ threads: [thread("same")] })),
@@ -725,9 +726,7 @@ describe("RemoteThreadList adapter changes", () => {
     const listB = vi
       .fn()
       .mockReturnValueOnce(staleList.promise)
-      .mockImplementation(async () => ({
-        threads: [{ ...thread("same"), status: backend.status }],
-      }));
+      .mockReturnValueOnce(refreshedList.promise);
     const adapterB = makeAdapter({ list: listB });
     const core = createCore(adapterA);
 
@@ -746,10 +745,13 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.getItemById("same")?.status).toBe("regular");
 
     archiveRequest.resolve();
-    await archiveTask;
-
+    await vi.waitFor(() => expect(listB).toHaveBeenCalledTimes(2));
     expect(backend.status).toBe("archived");
-    expect(listB).toHaveBeenCalledTimes(2);
+    expect(core.getItemById("same")?.status).toBe("archived");
+    refreshedList.resolve({
+      threads: [{ ...thread("same"), status: backend.status }],
+    });
+    await archiveTask;
     expect(core.getItemById("same")?.status).toBe("archived");
   });
 

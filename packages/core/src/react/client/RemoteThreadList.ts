@@ -897,16 +897,28 @@ const useRemoteThreadList = (
   ]);
 
   const reloadAfterAdapterChange = useCallback(
-    (adapterGeneration: number) => {
+    (
+      adapterGeneration: number,
+      data: RemoteThreadData,
+      status: "regular" | "archived",
+    ) => {
       if (adapterGeneration === session.adapterGeneration) {
         return RESOLVED_PROMISE;
+      }
+      const current = getThreadData(store.baseValue, data.id);
+      if (
+        current &&
+        current.remoteId === data.remoteId &&
+        current.status !== "new"
+      ) {
+        store.update(updateStatusReducer(store.baseValue, current.id, status));
       }
       session.loadGeneration++;
       session.loadPromise = undefined;
       session.loadMorePromise = undefined;
       return getLoadThreadsPromise();
     },
-    [getLoadThreadsPromise, session],
+    [getLoadThreadsPromise, session, store],
   );
 
   useEffect(() => {
@@ -1707,7 +1719,7 @@ const useRemoteThreadList = (
               ? updateStatusReducer(state, data.id, "archived")
               : state,
         });
-        await reloadAfterAdapterChange(adapterGeneration);
+        await reloadAfterAdapterChange(adapterGeneration, data, "archived");
       } finally {
         mutation.cancel();
       }
@@ -1768,7 +1780,7 @@ const useRemoteThreadList = (
           }),
         optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
       });
-      await reloadAfterAdapterChange(adapterGeneration);
+      await reloadAfterAdapterChange(adapterGeneration, data, "regular");
     },
     [
       ensureNotMain,

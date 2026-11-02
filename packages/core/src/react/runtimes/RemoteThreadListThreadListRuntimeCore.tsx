@@ -477,8 +477,23 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
-  private async _reloadAfterAdapterChange(generation: number) {
-    if (generation !== this._adapterGeneration) await this.reload();
+  private async _reloadAfterAdapterChange(
+    generation: number,
+    data: RemoteThreadData,
+    status: "regular" | "archived",
+  ) {
+    if (generation === this._adapterGeneration) return;
+    const current = getThreadData(this._state.baseValue, data.id);
+    if (
+      current &&
+      current.remoteId === data.remoteId &&
+      current.status !== "new"
+    ) {
+      this._state.update(
+        updateStatusReducer(this._state.baseValue, current.id, status),
+      );
+    }
+    await this.reload();
   }
 
   // Adapters can list threads under the same id. Until a replacement list
@@ -1612,7 +1627,7 @@ export class RemoteThreadListThreadListRuntimeCore
         optimistic: (state) =>
           this._updateStatusFromAdapter(state, adapter, data.id, "archived"),
       });
-      await this._reloadAfterAdapterChange(adapterGeneration);
+      await this._reloadAfterAdapterChange(adapterGeneration, data, "archived");
     } finally {
       mutation.cancel();
     }
@@ -1666,7 +1681,7 @@ export class RemoteThreadListThreadListRuntimeCore
       optimistic: (state) =>
         this._updateStatusFromAdapter(state, adapter, data.id, "regular"),
     });
-    await this._reloadAfterAdapterChange(adapterGeneration);
+    await this._reloadAfterAdapterChange(adapterGeneration, data, "regular");
   }
 
   public async delete(threadIdOrRemoteId: string) {

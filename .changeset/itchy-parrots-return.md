@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Refresh remote thread status after an archive settles across an adapter change.
+Keep archive and unarchive status visible when a replacement adapter lists stale data, then refresh it from the active adapter.
