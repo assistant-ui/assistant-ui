@@ -266,7 +266,10 @@ const getAiContent = (message: Extract<LangChainMessage, { type: "ai" }>) => {
     typeof message.content === "string"
       ? [{ type: "text" as const, text: message.content }]
       : contentBlocks(message.content);
-  const reasoning = content.some((part) => part.type === "reasoning")
+  const reasoning = content.some(
+    (part) =>
+      part.type === "reasoning" && convertLangChainContentBlock(part) != null,
+  )
     ? undefined
     : message.additional_kwargs?.reasoning;
   return [

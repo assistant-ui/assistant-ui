@@ -1511,6 +1511,28 @@ describe("convertLangChainMessages reasoning content", () => {
     ]);
   });
 
+  it("reads additional_kwargs reasoning when the content block is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-empty-block",
+      content: [
+        { type: "reasoning", summary: [] },
+        { type: "text", text: "19" },
+      ],
+      additional_kwargs: {
+        reasoning: {
+          type: "reasoning",
+          summary: [{ type: "summary_text", text: "Add 12 and 7 first." }],
+        },
+      },
+    });
+
+    expect(result.content).toEqual([
+      { type: "reasoning", text: "Add 12 and 7 first." },
+      { type: "text", text: "19" },
+    ]);
+  });
+
   it("reads additional_kwargs reasoning when the content has none", () => {
     const result = convertLangChainMessages({
       type: "ai",
