@@ -41,6 +41,30 @@ export type MicrophoneCapture = {
   close: () => Promise<void>;
 };
 
+const createLowPass = (ratio: number) => {
+  const omega = (Math.PI * 0.9) / ratio;
+  const cosine = Math.cos(omega);
+  const sine = Math.sin(omega);
+  const sections = [0.5176380902, 0.7071067812, 1.9318516526].map((q) => {
+    const alpha = sine / (2 * q);
+    const a0 = 1 + alpha;
+    const b = (1 - cosine) / (2 * a0);
+    return { b, a1: (-2 * cosine) / a0, a2: (1 - alpha) / a0, z1: 0, z2: 0 };
+  });
+  return (samples: Float32Array) => {
+    for (let i = 0; i < samples.length; i++) {
+      let x = samples[i]!;
+      for (const s of sections) {
+        const y = s.b * x + s.z1;
+        s.z1 = 2 * s.b * x - s.a1 * y + s.z2;
+        s.z2 = s.b * x - s.a2 * y;
+        x = y;
+      }
+      samples[i] = x;
+    }
+  };
+};
+
 export const WORKLET_SOURCE = `
 class PcmCapture extends AudioWorkletProcessor {
   constructor(options) {
@@ -50,6 +74,18 @@ class PcmCapture extends AudioWorkletProcessor {
     this.position = 0;
     this.last = 0;
     this.pending = [];
+    this.sections = [];
+    if (this.ratio > 1) {
+      const omega = (Math.PI * 0.9) / this.ratio;
+      const cosine = Math.cos(omega);
+      const sine = Math.sin(omega);
+      for (const q of [0.5176380902, 0.7071067812, 1.9318516526]) {
+        const alpha = sine / (2 * q);
+        const a0 = 1 + alpha;
+        const b = (1 - cosine) / (2 * a0);
+        this.sections.push({ b, a1: (-2 * cosine) / a0, a2: (1 - alpha) / a0, z1: 0, z2: 0 });
+      }
+    }
   }
   process(inputs) {
     const channels = inputs[0];
@@ -59,6 +95,16 @@ class PcmCapture extends AudioWorkletProcessor {
       for (let i = 0; i < input.length; i++) input[i] += channels[c][i];
     if (channels.length > 1)
       for (let i = 0; i < input.length; i++) input[i] /= channels.length;
+    for (let i = 0; i < input.length; i++) {
+      let x = input[i];
+      for (const s of this.sections) {
+        const y = s.b * x + s.z1;
+        s.z1 = 2 * s.b * x - s.a1 * y + s.z2;
+        s.z2 = s.b * x - s.a2 * y;
+        x = y;
+      }
+      input[i] = x;
+    }
     while (this.position < input.length - 1) {
       const index = Math.floor(this.position);
       const prev = index < 0 ? this.last : input[index];
@@ -81,18 +127,21 @@ registerProcessor("pcm-capture", PcmCapture);
 export const createResampler = (ratio: number) => {
   let position = 0;
   let last = 0;
+  const lowPass = ratio > 1 ? createLowPass(ratio) : undefined;
   return (input: Float32Array): Float32Array => {
     if (input.length === 0) return new Float32Array(0);
+    const samples = lowPass ? input.slice() : input;
+    lowPass?.(samples);
     const out: number[] = [];
-    while (position < input.length - 1) {
+    while (position < samples.length - 1) {
       const index = Math.floor(position);
-      const prev = index < 0 ? last : input[index]!;
-      const next = input[index + 1]!;
+      const prev = index < 0 ? last : samples[index]!;
+      const next = samples[index + 1]!;
       out.push(prev + (next - prev) * (position - index));
       position += ratio;
     }
-    position -= input.length;
-    last = input[input.length - 1]!;
+    position -= samples.length;
+    last = samples[samples.length - 1]!;
     return Float32Array.from(out);
   };
 };
