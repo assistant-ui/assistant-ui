@@ -1,16 +1,120 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { stripTypeScriptTypes } from "node:module";
+import { afterEach, expect, it, vi } from "vitest";
 import { loader } from "fumadocs-core/source";
-import { createContentManifest } from "./manifest.mts";
-import { createContentSource } from "../../lib/content-source";
+import { remark } from "remark";
+import { createContentManifest, generateContentManifest } from "./manifest.mts";
+import {
+  createContentSource,
+  type ContentSearchData,
+} from "../../lib/content-source";
+
+vi.mock("remark", async (importOriginal) => {
+  const original = await importOriginal<typeof import("remark")>();
+  return { ...original, remark: vi.fn(() => original.remark()) };
+});
+
+function readSearchModule(source: string): ContentSearchData {
+  return new Function(
+    stripTypeScriptTypes(source).replace("export default", "return"),
+  )();
+}
 
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true })),
   );
+});
+
+it("reuses unchanged parsed content across builds and restores missing generated files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  await mkdir(join(root, "content/docs"), { recursive: true });
+  await writeFile(
+    join(root, "content/docs/index.mdx"),
+    "---\ntitle: Welcome\n---\n## Install\n\nInstall the package.",
+  );
+
+  await generateContentManifest(root);
+  const generated = await readFile(join(root, ".source/content.ts"), "utf8");
+  const search = await readFile(
+    join(root, ".source/content-data/docs.ts"),
+    "utf8",
+  );
+  expect(remark).toHaveBeenCalledTimes(1);
+  await rm(join(root, ".source"), { recursive: true });
+
+  await generateContentManifest(root);
+  expect(remark).toHaveBeenCalledTimes(1);
+  expect(await readFile(join(root, ".source/content.ts"), "utf8")).toBe(
+    generated,
+  );
+  expect(
+    await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+  ).toBe(search);
+
+  await rm(join(root, ".next/cache"), { recursive: true });
+  await generateContentManifest(root);
+  expect(remark).toHaveBeenCalledTimes(2);
+  expect(await readFile(join(root, ".source/content.ts"), "utf8")).toBe(
+    generated,
+  );
+
+  await writeFile(join(root, ".next/cache/aui-content-manifest.json"), "{");
+  await generateContentManifest(root);
+  expect(remark).toHaveBeenCalledTimes(3);
+  expect(await readFile(join(root, ".source/content.ts"), "utf8")).toBe(
+    generated,
+  );
+});
+
+it("invalidates cached content for edits, additions, removals and navigation changes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  const directory = join(root, "content/docs");
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    join(directory, "index.mdx"),
+    "---\ntitle: Before\n---\nOld text.",
+  );
+  await generateContentManifest(root);
+
+  await writeFile(
+    join(directory, "index.mdx"),
+    "---\ntitle: After\n---\nNew text.",
+  );
+  await writeFile(
+    join(directory, "next.mdx"),
+    "---\ntitle: Next\n---\nNext text.",
+  );
+  await writeFile(
+    join(directory, "meta.json"),
+    JSON.stringify({ pages: ["next", "index"] }),
+  );
+  await generateContentManifest(root);
+  expect(remark).toHaveBeenCalledTimes(2);
+  const edited = await readFile(join(root, ".source/content.ts"), "utf8");
+  expect(edited).toContain('"title":"After"');
+  expect(edited).toContain('"pages":["next","index"]');
+  expect(
+    await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+  ).toContain("New text.");
+
+  await rm(join(directory, "next.mdx"));
+  await generateContentManifest(root);
+  expect(remark).toHaveBeenCalledTimes(3);
+  expect(
+    await readFile(join(root, ".source/content.ts"), "utf8"),
+  ).not.toContain('import("../content/docs/next.mdx")');
+
+  await writeFile(
+    join(directory, "index.mdx"),
+    "---\ntitle: [invalid]\n---\nNew text.",
+  );
+  await expect(generateContentManifest(root)).rejects.toThrow();
 });
 
 it("indexes authored MDX without importing bodies and refreshes added and removed pages", async () => {
@@ -53,9 +157,7 @@ Install the package.
   expect(page.data.title).toBe("Welcome");
   expect(page.data.platforms).toEqual(["vue"]);
   expect(
-    JSON.parse(data.docs!.replace(/^export default /, "").replace(/;\n$/, ""))[
-      "(start)/index.mdx"
-    ].structured,
+    readSearchModule(data.docs!)["(start)/index.mdx"]!.structured,
   ).toMatchObject({
     headings: [{ id: "setup", content: "Install" }],
     contents: [{ content: "Install the package." }],
@@ -110,10 +212,8 @@ it("escapes source literals while preserving authored metadata and filenames", a
   );
   expect(data.docs).not.toContain("</script>");
   expect(data.docs).not.toMatch(/[\u2028\u2029]/u);
-  const search = JSON.parse(
-    data.docs!.replace(/^export default /, "").replace(/;\n$/, ""),
-  );
-  expect(search[filename].structured.contents).toEqual([
+  const search = readSearchModule(data.docs!);
+  expect(search[filename]!.structured.contents).toEqual([
     { heading: "literal-markup", content: "Use `</script><script>` as text." },
   ]);
 });

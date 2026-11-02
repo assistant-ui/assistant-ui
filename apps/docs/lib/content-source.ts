@@ -26,6 +26,8 @@ type SearchEntry = {
   markdown?: string;
 };
 
+export type ContentSearchData = Record<string, SearchEntry>;
+
 type ContentData<C extends Collection> = z.output<
   (typeof contentSchemas)[C]
 > & {
@@ -39,7 +41,7 @@ export function createContentSource<C extends Collection>(
   entries: ContentEntry[],
   metadata: { path: string; data: unknown }[],
   modules: Record<string, () => Promise<ContentModule>>,
-  loadData: () => Promise<Record<string, SearchEntry>>,
+  loadData: () => Promise<ContentSearchData>,
 ): StaticSource<{
   pageData: ContentData<C>;
   metaData: z.output<typeof navigationSchema>;
