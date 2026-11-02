@@ -46,13 +46,12 @@ export const Radar = forwardRef<SVGSVGElement, RadarProps>(
       ...axisLabels.map((axis) => textWidth(axis, T.axis.px)),
     );
     const labelGap = Math.max(6, T.axis.px / 2 + 1);
-    const labelAllowance = Math.max(
-      T.axis.px + labelGap,
-      widestLabel + labelGap,
-    );
     const radius = Math.max(
       0,
-      Math.min(right - left, bottom - top) / 2 - labelAllowance,
+      Math.min(
+        (right - left) / 2 - widestLabel - labelGap,
+        (bottom - top) / 2 - T.axis.px / 2 - labelGap,
+      ),
     );
     const max = Math.max(...shown.flatMap((series) => series.data), 1);
     const vertex = (share: number, i: number) =>

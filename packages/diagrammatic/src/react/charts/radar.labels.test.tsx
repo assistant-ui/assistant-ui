@@ -34,6 +34,57 @@ function distanceFromInterval(value: number, start: number, end: number) {
 }
 
 describe("Radar labels", () => {
+  it.each([
+    { axis: "Security posture", expectedRadius: 155.45 },
+    { axis: "Deployment frequency/week", expectedRadius: 140.5 },
+  ])(
+    "keeps the plot large and labels in bounds with $axis",
+    ({ axis, expectedRadius }) => {
+      const axes = [
+        "Throughput",
+        "Reliability",
+        "Latency budget",
+        "Cost efficiency",
+        "Observability",
+        axis,
+      ];
+      const html = renderToStaticMarkup(
+        <Radar
+          axes={axes}
+          series={[
+            { name: "A", data: [9, 7, 10, 8, 9, 7] },
+            { name: "B", data: [6, 9, 5, 7, 6, 9] },
+          ]}
+        />,
+      );
+      const { cx, cy, radius } = outerRadius(html, axes.length);
+
+      expect(radius).toBeCloseTo(expectedRadius, 1);
+      for (const text of axes) {
+        const rendered = label(html, text);
+        const width = textWidth(text, 11);
+        const left =
+          rendered.textAnchor === "start"
+            ? rendered.x
+            : rendered.textAnchor === "end"
+              ? rendered.x - width
+              : rendered.x - width / 2;
+        const nearestX = distanceFromInterval(cx, left, left + width);
+        const nearestY = distanceFromInterval(
+          cy,
+          rendered.y - 11 / 2,
+          rendered.y + 11 / 2,
+        );
+
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(left + width).toBeLessThanOrEqual(640);
+        expect(rendered.y - 11 / 2).toBeGreaterThanOrEqual(0);
+        expect(rendered.y + 11 / 2).toBeLessThanOrEqual(384);
+        expect(Math.hypot(nearestX, nearestY)).toBeGreaterThanOrEqual(radius);
+      }
+    },
+  );
+
   it("anchors the reported diagonal labels away from the polygon vertices", () => {
     const html = renderToStaticMarkup(
       <Radar
