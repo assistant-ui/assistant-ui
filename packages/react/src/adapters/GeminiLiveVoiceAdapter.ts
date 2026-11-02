@@ -120,6 +120,10 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const end = (reason: "finished" | "error", error?: unknown) => {
+        if (ready && !closed) {
+          finishTurn();
+          flushUser();
+        }
         session.end(reason, error);
         disconnect();
       };
@@ -333,8 +337,6 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         };
         socket.onclose = ({ code, reason }) => {
           if (ready) {
-            finishTurn();
-            flushUser();
             if (code === 1000 || goingAway) end("finished");
             else
               end(

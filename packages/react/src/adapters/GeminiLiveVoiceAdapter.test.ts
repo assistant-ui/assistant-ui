@@ -730,6 +730,20 @@ describe("GeminiLiveVoiceAdapter", () => {
     ]);
   });
 
+  it("emits held transcripts when the socket fails", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    socket.emit({ serverContent: { inputTranscription: { text: "Hi" } } });
+    socket.emit(reply("Hello"));
+    socket.onerror?.();
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hi", isFinal: true },
+      { role: "assistant", text: "Hello", isFinal: true },
+    ]);
+    expect(session.status).toMatchObject({ type: "ended", reason: "error" });
+  });
+
   it("ends with an error when a running session closes abnormally without goAway", async () => {
     const { session, socket } = await connected();
     socket.readyState = 3;
