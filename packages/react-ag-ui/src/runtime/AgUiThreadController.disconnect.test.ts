@@ -124,6 +124,51 @@ describe("AgUiThreadController HTTP stream closure", () => {
     });
   });
 
+  it("retains snapshot tool calls when later events emit before RUN_FINISHED", async () => {
+    const core = createController([
+      start,
+      ...text,
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "lookup",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+          },
+          {
+            id: "lookup-result",
+            role: "tool",
+            toolCallId: "lookup",
+            content: "ok",
+          },
+        ],
+      },
+      { type: "CUSTOM", name: "after", value: { retained: true } },
+      { type: "RUN_FINISHED", threadId: "thread", runId: "run" },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "answer",
+      content: [
+        { type: "text", text: "snapshot answer" },
+        { type: "tool-call", toolCallId: "lookup", result: "ok" },
+        { type: "data", name: "after", data: { retained: true } },
+      ],
+      status: { type: "complete" },
+    });
+  });
+
   it.each(["eof", "finished", "error"])(
     "preserves snapshot content when the stream closes (%s)",
     async (terminal) => {

@@ -1591,6 +1591,7 @@ export class AgUiThreadController {
     let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
     let settlingRun = false;
     let latestSnapshot: ThreadAssistantMessage | undefined;
+    let snapshotToolCallIds = new Set<string>();
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -2004,7 +2005,6 @@ export class AgUiThreadController {
           update.status.type !== "running" &&
           update.status.type !== "requires-action"
         ) {
-          // A terminal event changes status, not the authoritative snapshot text.
           const status = update.status;
           const content = mapToolCallPartsDeep(
             latestSnapshot.content,
@@ -2022,10 +2022,31 @@ export class AgUiThreadController {
                 : part,
           ).content;
           applyUpdate({ ...update, content });
+        } else if (
+          latestSnapshot &&
+          latestSnapshot.id === assistantMessageId &&
+          update.content !== undefined
+        ) {
+          const content = this.mergeSnapshotAssistantContent(
+            latestSnapshot.content,
+            update.content as ThreadAssistantMessage["content"],
+            update.content.some((part) => part.type === "reasoning"),
+            update.content.some(isActivityPart),
+            snapshotToolCallIds,
+          );
+          applyUpdate({ ...update, content });
         } else {
           applyUpdate(update);
         }
-        latestSnapshot = undefined;
+        const current = assistantMessageId
+          ? this.session.tryGetMessage(assistantMessageId)?.message
+          : undefined;
+        latestSnapshot =
+          !settlingRun &&
+          current?.role === "assistant" &&
+          current.id === latestSnapshot?.id
+            ? current
+            : undefined;
       },
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
@@ -2104,8 +2125,19 @@ export class AgUiThreadController {
           const imported = assistantMessageId
             ? this.session.tryGetMessage(assistantMessageId)?.message
             : undefined;
+          const source = event.messages.find(
+            (message) =>
+              message?.role === "assistant" && message.id === imported?.id,
+          );
           latestSnapshot =
-            imported?.role === "assistant" ? imported : undefined;
+            imported?.role === "assistant" && source ? imported : undefined;
+          snapshotToolCallIds = new Set(
+            Array.isArray(source?.toolCalls)
+              ? source.toolCalls
+                  .map((call: { id?: unknown }) => call.id)
+                  .filter((id: unknown): id is string => typeof id === "string")
+              : [],
+          );
           if (!replayEnded && assistantMessageId === undefined) {
             const tail = this.session.getMessages().at(-1);
             snapshotAssistantId =
@@ -2777,16 +2809,24 @@ export class AgUiThreadController {
     next: ThreadAssistantMessage["content"],
     snapshotHasReasoning: boolean,
     snapshotHasActivity: boolean,
+    keepMissingToolCalls: ReadonlySet<string> = new Set(),
   ): ThreadAssistantMessage["content"] {
     const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
-      part.type === "reasoning"
-        ? this.showThinking && !snapshotHasReasoning
-        : part.type === "data" && !isActivityPart(part)
-          ? !next.some(
-              (incoming) =>
-                incoming.type === "data" && incoming.name === part.name,
-            )
-          : isActivityPart(part) && !snapshotHasActivity;
+      part.type === "tool-call"
+        ? keepMissingToolCalls.has(part.toolCallId) &&
+          !next.some(
+            (incoming) =>
+              incoming.type === "tool-call" &&
+              incoming.toolCallId === part.toolCallId,
+          )
+        : part.type === "reasoning"
+          ? this.showThinking && !snapshotHasReasoning
+          : part.type === "data" && !isActivityPart(part)
+            ? !next.some(
+                (incoming) =>
+                  incoming.type === "data" && incoming.name === part.name,
+              )
+            : isActivityPart(part) && !snapshotHasActivity;
     const kept = previous.filter(shouldKeep);
     const merged = this.reconcileSnapshotNestedContent(
       previous,
