@@ -41,11 +41,56 @@ export type MicrophoneCapture = {
   close: () => Promise<void>;
 };
 
+class LowPassFilter {
+  private sections: {
+    b0: number;
+    b1: number;
+    b2: number;
+    a1: number;
+    a2: number;
+    z1: number;
+    z2: number;
+  }[] = [];
+
+  constructor(ratio: number) {
+    const omega = (Math.PI * 0.9) / ratio;
+    const cosine = Math.cos(omega);
+    const sine = Math.sin(omega);
+    for (const q of [0.5176380902, 0.7071067812, 1.9318516526]) {
+      const alpha = sine / (2 * q);
+      const a0 = 1 + alpha;
+      const b0 = (1 - cosine) / (2 * a0);
+      this.sections.push({
+        b0,
+        b1: (1 - cosine) / a0,
+        b2: b0,
+        a1: (-2 * cosine) / a0,
+        a2: (1 - alpha) / a0,
+        z1: 0,
+        z2: 0,
+      });
+    }
+  }
+
+  process(sample: number) {
+    for (const section of this.sections) {
+      const output = section.b0 * sample + section.z1;
+      section.z1 = section.b1 * sample - section.a1 * output + section.z2;
+      section.z2 = section.b2 * sample - section.a2 * output;
+      sample = output;
+    }
+    return sample;
+  }
+}
+
+// Audio worklets run in a separate global scope, so they need the filter implementation embedded.
 export const WORKLET_SOURCE = `
+const LowPassFilter = (${LowPassFilter.toString()});
 class PcmCapture extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.ratio = sampleRate / options.processorOptions.targetRate;
+    this.filter = this.ratio > 1 ? new LowPassFilter(this.ratio) : undefined;
     this.chunk = Math.round(options.processorOptions.targetRate / 50);
     this.position = 0;
     this.last = 0;
@@ -59,6 +104,8 @@ class PcmCapture extends AudioWorkletProcessor {
       for (let i = 0; i < input.length; i++) input[i] += channels[c][i];
     if (channels.length > 1)
       for (let i = 0; i < input.length; i++) input[i] /= channels.length;
+    if (this.filter)
+      for (let i = 0; i < input.length; i++) input[i] = this.filter.process(input[i]);
     while (this.position < input.length - 1) {
       const index = Math.floor(this.position);
       const prev = index < 0 ? this.last : input[index];
@@ -81,18 +128,23 @@ registerProcessor("pcm-capture", PcmCapture);
 export const createResampler = (ratio: number) => {
   let position = 0;
   let last = 0;
+  const filter = ratio > 1 ? new LowPassFilter(ratio) : undefined;
   return (input: Float32Array): Float32Array => {
     if (input.length === 0) return new Float32Array(0);
+    const samples = filter ? input.slice() : input;
+    if (filter)
+      for (let i = 0; i < samples.length; i++)
+        samples[i] = filter.process(samples[i]!);
     const out: number[] = [];
-    while (position < input.length - 1) {
+    while (position < samples.length - 1) {
       const index = Math.floor(position);
-      const prev = index < 0 ? last : input[index]!;
-      const next = input[index + 1]!;
+      const prev = index < 0 ? last : samples[index]!;
+      const next = samples[index + 1]!;
       out.push(prev + (next - prev) * (position - index));
       position += ratio;
     }
-    position -= input.length;
-    last = input[input.length - 1]!;
+    position -= samples.length;
+    last = samples[samples.length - 1]!;
     return Float32Array.from(out);
   };
 };

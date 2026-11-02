@@ -150,6 +150,21 @@ describe("level", () => {
 const ramp = (start: number, length: number, scale = 1) =>
   Float32Array.from({ length }, (_, i) => (start + i) * scale);
 
+const tone = (
+  frequency: number,
+  sampleRate: number,
+  start: number,
+  length: number,
+) =>
+  Float32Array.from({ length }, (_, i) =>
+    Math.sin((2 * Math.PI * frequency * (start + i)) / sampleRate),
+  );
+
+const rms = (samples: number[]) =>
+  Math.sqrt(
+    samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length,
+  );
+
 const loadWorklet = (sampleRate: number, targetRate: number) => {
   const posted: Float32Array[] = [];
   class AudioWorkletProcessor {
@@ -175,31 +190,68 @@ const loadWorklet = (sampleRate: number, targetRate: number) => {
   };
 };
 
+const resampleWithWorklet = (frequency: number, sampleRate = 48000) => {
+  const worklet = loadWorklet(sampleRate, 16000);
+  const input = tone(frequency, sampleRate, 0, sampleRate);
+  for (let start = 0; start < input.length; start += 128)
+    worklet.process(input.subarray(start, start + 128));
+  return worklet.posted.flatMap((data) => [...data]);
+};
+
 describe("resampler", () => {
   it.each([
-    [48000, 3, 1365],
-    [44100, 2.75625, 1486],
+    [48000, 1365],
+    [44100, 1486],
   ])(
-    "keeps a continuous phase across 2048-frame buffers at %i Hz",
-    (rate, ratio, count) => {
-      const resample = createResampler(rate / 16000);
+    "keeps phase and filter state across 2048-frame buffers at %i Hz",
+    (rate, count) => {
+      const ratio = rate / 16000;
+      const input = ramp(0, 4096);
+      const expected = [...createResampler(ratio)(input)];
+      const resample = createResampler(ratio);
       const out = [...resample(ramp(0, 2048)), ...resample(ramp(2048, 2048))];
       expect(out).toHaveLength(count);
-      for (const [k, value] of out.entries())
-        expect(value).toBeCloseTo(k * ratio, 3);
+      expect(out).toEqual(expected);
     },
   );
 
   it("interpolates across the boundary between buffers", () => {
+    const input = ramp(0, 6);
+    const expected = [...createResampler(2.5)(input)];
     const resample = createResampler(2.5);
-    expect([...resample(ramp(0, 3))]).toEqual([0]);
-    expect([...resample(ramp(3, 3))]).toEqual([2.5]);
+    expect([...resample(ramp(0, 3)), ...resample(ramp(3, 3))]).toEqual(
+      expected,
+    );
   });
 
   it("ignores empty buffers", () => {
     const resample = createResampler(3);
     expect(resample(new Float32Array(0))).toHaveLength(0);
-    expect([...resample(ramp(0, 5))]).toEqual([0, 3]);
+    const out = [...resample(ramp(0, 5))];
+    expect(out).toHaveLength(2);
+    expect(out).toEqual([...createResampler(3)(ramp(0, 5))]);
+  });
+
+  it("attenuates tones above Nyquist while retaining speech-band tones in both paths", () => {
+    for (const sampleRate of [48000, 44100]) {
+      const ratio = sampleRate / 16000;
+      const scriptHigh = [
+        ...createResampler(ratio)(tone(12000, sampleRate, 0, sampleRate)),
+      ];
+      const scriptSpeech = [
+        ...createResampler(ratio)(tone(4000, sampleRate, 0, sampleRate)),
+      ];
+      const workletHigh = resampleWithWorklet(12000, sampleRate);
+      const workletSpeech = resampleWithWorklet(4000, sampleRate);
+
+      for (const { high, speech } of [
+        { high: scriptHigh, speech: scriptSpeech },
+        { high: workletHigh, speech: workletSpeech },
+      ]) {
+        expect(rms(high.slice(100))).toBeLessThan(0.05);
+        expect(rms(speech.slice(100))).toBeGreaterThan(0.65);
+      }
+    }
   });
 
   it("produces the same output in the worklet", () => {
@@ -215,10 +267,7 @@ describe("resampler", () => {
     expect(expected).toHaveLength(1486);
     expect(out.length).toBeGreaterThan(1486 - 320);
     expect(out.length).toBeLessThanOrEqual(1486);
-    for (const [k, value] of out.entries()) {
-      expect(value).toBeCloseTo(expected[k]!, 6);
-      expect(value).toBeCloseTo((k * 2.75625) / 4096, 6);
-    }
+    expect(out).toEqual(expected.slice(0, out.length));
   });
 
   it("posts the worklet output in 20 ms chunks", () => {
@@ -332,16 +381,19 @@ describe("microphone", () => {
       const context = FakeContext.instances[0]!;
       const size = context.createScriptProcessor.mock.calls[0]![0];
       expect(size / rate).toBeLessThan(0.025);
-      for (const start of [0, size])
+      const inputs = [0, size].map((start) => ramp(start, size, 1 / 8192));
+      const resample = createResampler(ratio);
+      const expected = inputs.flatMap((input) => [...resample(input)]);
+      for (const input of inputs)
         context.processor.onaudioprocess?.({
-          inputBuffer: { getChannelData: () => ramp(start, size, 1 / 8192) },
+          inputBuffer: { getChannelData: () => input },
         });
       const out = onChunk.mock.calls.flatMap(([base64]) => [
         ...decodePcm16(base64 as string),
       ]);
       expect(out).toHaveLength(count);
       for (const [k, value] of out.entries())
-        expect(Math.abs(value - (k * ratio) / 8192)).toBeLessThan(1 / 16384);
+        expect(value).toBeCloseTo(expected[k]!, 4);
     },
   );
 
@@ -354,13 +406,16 @@ describe("microphone", () => {
     const microphone = await openMicrophone({ sampleRate: 16000, onChunk });
     const context = FakeContext.instances[0]!;
     const handler = context.processor.onaudioprocess!;
+    const samples = Float32Array.from([0, 0, 0, 0.5, 0, 0]);
     const event = {
       inputBuffer: {
-        getChannelData: () => Float32Array.from([0, 0, 0, 0.5, 0, 0]),
+        getChannelData: () => samples,
       },
     };
     handler(event);
-    expect(onChunk).toHaveBeenCalledWith("AAD/Pw==");
+    expect(onChunk).toHaveBeenCalledWith(
+      encodePcm16(createResampler(3)(samples)),
+    );
     expect(browser.track.stop).not.toHaveBeenCalled();
     expect(browser.revokeObjectURL).toHaveBeenCalledWith("blob:worklet");
     expect(FakeWorklet.instances).toHaveLength(0);
