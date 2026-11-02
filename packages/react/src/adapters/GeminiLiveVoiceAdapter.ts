@@ -13,8 +13,8 @@ import {
 export type GeminiLiveVoiceAdapterOptions = {
   /** Return a short-lived ephemeral token minted by your authenticated server. Keep the API key and session configuration on the server. */
   getToken: (options: { signal: AbortSignal }) => Promise<string>;
-  /** Model name to request; defaults to `gemini-3.8-live`. */
-  model?: string | undefined;
+  /** Live model to connect to, such as `gemini-3.8-live`; it must match the model your token was minted for. */
+  model: string;
 };
 
 const ENDPOINT =
@@ -65,8 +65,12 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       let closed = false;
       let ready = false;
       let generating = false;
+      let holdingAssistant = false;
       let assistantText = "";
       let userText = "";
+      let userFinished = false;
+      let nextUserText = "";
+      let nextUserFinished = false;
       let deferred: Record<string, unknown>[] | undefined;
       let volumeTimer: ReturnType<typeof setInterval> | undefined;
       let connectionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -125,6 +129,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const flushUser = () => {
+        userFinished = true;
         if (!userText) return;
         const text = userText;
         userText = "";
@@ -132,7 +137,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const emitAssistant = (isFinal: boolean) => {
-        if (!assistantText) return;
+        if (!assistantText || holdingAssistant) return;
         session.emitTranscript({
           role: "assistant",
           text: assistantText,
@@ -147,10 +152,30 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         session.emitMode("listening");
       };
 
+      const releaseAssistant = () => {
+        if (!holdingAssistant) return;
+        flushUser();
+        holdingAssistant = false;
+        emitAssistant(false);
+      };
+
+      const startReply = (typed: boolean) => {
+        generating = true;
+        holdingAssistant = !typed && !userFinished;
+      };
+
       const finishTurn = () => {
         generating = false;
+        holdingAssistant = false;
         flushUser();
         emitAssistant(true);
+        userText = nextUserText;
+        userFinished = false;
+        nextUserText = "";
+        if (nextUserFinished) {
+          nextUserFinished = false;
+          flushUser();
+        }
         if (pendingText) pendingText.awaitingInterrupt = false;
       };
 
@@ -158,16 +183,26 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         const parts = asRecord(content.modelTurn)?.parts;
         const output = asRecord(content.outputTranscription)?.text;
         const input = asRecord(content.inputTranscription);
-        if (typeof input?.text === "string") userText += input.text;
-        if (input?.finished === true) flushUser();
+        const nextTurn = generating && !holdingAssistant;
+        if (typeof input?.text === "string" && input.text) {
+          if (nextTurn) nextUserText += input.text;
+          else {
+            if (!generating) userFinished = false;
+            userText += input.text;
+          }
+        }
+        if (input?.finished === true) {
+          if (nextTurn) nextUserFinished = true;
+          else if (generating) releaseAssistant();
+          else flushUser();
+        }
         if (content.interrupted === true) {
           stopPlayback();
           finishTurn();
           return;
         }
         if (Array.isArray(parts) || typeof output === "string") {
-          generating = true;
-          flushUser();
+          if (!generating) startReply(false);
           if (Array.isArray(parts))
             for (const part of parts) {
               const data = asRecord(asRecord(part)?.inlineData)?.data;
@@ -183,6 +218,31 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           }
         }
         if (content.turnComplete === true) finishTurn();
+      };
+
+      const routeContent = (content: Record<string, unknown>) => {
+        if (deferred) {
+          deferred.push(content);
+          return;
+        }
+        if (
+          pendingText &&
+          !pendingText.awaitingInterrupt &&
+          (content.modelTurn !== undefined ||
+            content.outputTranscription !== undefined)
+        ) {
+          flushUser();
+          settleText();
+          startReply(true);
+          const queue = (deferred = [content]);
+          setTimeout(() => {
+            deferred = undefined;
+            if (closed) return;
+            for (const item of queue) routeContent(item);
+          }, 0);
+          return;
+        }
+        handleContent(content);
       };
 
       const handleMessage = (message: Record<string, unknown>) => {
@@ -216,27 +276,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
             console.warn("Gemini Live session is closing.", goAway.timeLeft);
           return;
         }
-        if (deferred) {
-          deferred.push(content);
-          return;
-        }
-        if (
-          pendingText &&
-          !pendingText.awaitingInterrupt &&
-          (content.modelTurn !== undefined ||
-            content.outputTranscription !== undefined)
-        ) {
-          flushUser();
-          settleText();
-          const queue = (deferred = [content]);
-          setTimeout(() => {
-            deferred = undefined;
-            if (closed) return;
-            for (const item of queue) handleContent(item);
-          }, 0);
-          return;
-        }
-        handleContent(content);
+        routeContent(content);
       };
 
       const open = (token: string) => {
@@ -248,7 +288,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           socket?.send(
             JSON.stringify({
               setup: {
-                model: `models/${this.options.model ?? "gemini-3.8-live"}`,
+                model: `models/${this.options.model}`,
                 generationConfig: { responseModalities: ["AUDIO"] },
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
@@ -284,14 +324,6 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const start = async () => {
-        connectionTimer = setTimeout(
-          () => end("error", new Error("Gemini Live connection timed out.")),
-          30_000,
-        );
-        const token = await this.options.getToken({
-          signal: controller.signal,
-        });
-        if (closed) return;
         player = createPcmPlayer({
           sampleRate: OUTPUT_RATE,
           onIdle: () => {
@@ -319,6 +351,14 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         }
         microphone = capture;
         capture.setMuted(muted);
+        connectionTimer = setTimeout(
+          () => end("error", new Error("Gemini Live connection timed out.")),
+          30_000,
+        );
+        const token = await this.options.getToken({
+          signal: controller.signal,
+        });
+        if (closed) return;
         open(token);
       };
       void start().catch((error: unknown) => end("error", error));

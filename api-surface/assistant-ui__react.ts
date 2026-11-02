@@ -2578,7 +2578,7 @@ type GeminiLiveVoiceAdapterOptions = {
   getToken: (options: {
     signal: AbortSignal;
   }) => Promise<string>;
-  model?: string | undefined;
+  model: string;
 };
 
 type GeneratePresignedDownloadUrlResponse = {

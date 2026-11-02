@@ -35,7 +35,8 @@ const audio = vi.hoisted(() => {
   };
 });
 
-vi.mock("./gemini-live/audio", () => ({
+vi.mock("./gemini-live/audio", async (importOriginal) => ({
+  ...(await importOriginal()),
   openMicrophone: audio.openMicrophone,
   createPcmPlayer: audio.createPcmPlayer,
 }));
@@ -80,9 +81,10 @@ const getToken = vi.fn<(options: { signal: AbortSignal }) => Promise<string>>(
 const sessions: ReturnType<GeminiLiveVoiceAdapter["connect"]>[] = [];
 
 const start = (abortSignal?: AbortSignal) => {
-  const session = new GeminiLiveVoiceAdapter({ getToken }).connect(
-    abortSignal ? { abortSignal } : {},
-  );
+  const session = new GeminiLiveVoiceAdapter({
+    getToken,
+    model: "gemini-3.8-live",
+  }).connect(abortSignal ? { abortSignal } : {});
   sessions.push(session);
   return session;
 };
@@ -121,7 +123,6 @@ afterEach(() => {
   for (const session of sessions.splice(0)) session.disconnect();
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  vi.clearAllMocks();
 });
 
 describe("GeminiLiveVoiceAdapter", () => {
@@ -154,19 +155,6 @@ describe("GeminiLiveVoiceAdapter", () => {
     expect(session.status).toEqual({ type: "running" });
     expect(onMode).toHaveBeenCalledWith("listening");
     expect(session.sendText).toBeTypeOf("function");
-  });
-
-  it("uses the configured model", async () => {
-    const session = new GeminiLiveVoiceAdapter({
-      getToken,
-      model: "gemini-3.8-live-extended-thinking",
-    }).connect({});
-    sessions.push(session);
-    await vi.waitFor(() => expect(Socket.instances).toHaveLength(1));
-    Socket.instances[0]!.open();
-    expect(Socket.instances[0]!.events()[0].setup.model).toBe(
-      "models/gemini-3.8-live-extended-thinking",
-    );
   });
 
   it("streams microphone chunks only once setup is complete", async () => {
@@ -209,7 +197,7 @@ describe("GeminiLiveVoiceAdapter", () => {
     expect(onMode).toHaveBeenLastCalledWith("listening");
   });
 
-  it("emits final user transcripts and cumulative assistant transcripts", async () => {
+  it("streams cumulative assistant transcripts once the user transcription is finished", async () => {
     const { session, socket } = await connected();
     const onTranscript = vi.fn();
     session.onTranscript(onTranscript);
@@ -217,49 +205,87 @@ describe("GeminiLiveVoiceAdapter", () => {
       serverContent: { interimInputTranscription: { text: "Hel" } },
     });
     socket.emit({ serverContent: { inputTranscription: { text: "Hel" } } });
-    socket.emit({ serverContent: { inputTranscription: { text: "lo" } } });
+    socket.emit({
+      serverContent: { inputTranscription: { text: "lo", finished: true } },
+    });
     socket.emit({ serverContent: { outputTranscription: { text: "Good " } } });
     socket.emit({
       serverContent: { outputTranscription: { text: "morning" } },
     });
     socket.emit({ serverContent: { generationComplete: true } });
     socket.emit({ serverContent: { turnComplete: true } });
-    socket.emit({ serverContent: { outputTranscription: { text: "Next" } } });
     expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
       { role: "user", text: "Hello", isFinal: true },
       { role: "assistant", text: "Good ", isFinal: false },
       { role: "assistant", text: "Good morning", isFinal: false },
       { role: "assistant", text: "Good morning", isFinal: true },
-      { role: "assistant", text: "Next", isFinal: false },
     ]);
   });
 
-  it("joins streamed input transcription into one user message per turn", async () => {
+  it("keeps late input transcription in the spoken turn by holding the reply transcript", async () => {
     const { session, socket } = await connected();
     const onTranscript = vi.fn();
     session.onTranscript(onTranscript);
-    const frames = [
-      { serverContent: { inputTranscription: { text: "What's" } } },
-      { serverContent: { inputTranscription: { text: " the weather" } } },
-      { serverContent: { inputTranscription: { text: " in Paris?" } } },
-    ];
-    for (const frame of frames) socket.emit(frame);
-    expect(onTranscript).not.toHaveBeenCalled();
+    socket.emit({ serverContent: { inputTranscription: { text: "What's" } } });
+    socket.emit({
+      serverContent: { inputTranscription: { text: " the weather?" } },
+    });
     socket.emit({
       serverContent: {
         modelTurn: { parts: [{ inlineData: { data: "AQID" } }] },
       },
     });
+    socket.emit({ serverContent: { outputTranscription: { text: "Sunny" } } });
     socket.emit({
       serverContent: { inputTranscription: { text: " Thanks." } },
     });
-    socket.emit({ serverContent: { outputTranscription: { text: "Sunny" } } });
+    socket.emit({ serverContent: { outputTranscription: { text: " today" } } });
+    expect(onTranscript).not.toHaveBeenCalled();
+    expect(audio.player.enqueue).toHaveBeenCalledWith("AQID");
     socket.emit({ serverContent: { turnComplete: true } });
     expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
-      { role: "user", text: "What's the weather in Paris?", isFinal: true },
-      { role: "user", text: " Thanks.", isFinal: true },
-      { role: "assistant", text: "Sunny", isFinal: false },
-      { role: "assistant", text: "Sunny", isFinal: true },
+      { role: "user", text: "What's the weather? Thanks.", isFinal: true },
+      { role: "assistant", text: "Sunny today", isFinal: true },
+    ]);
+  });
+
+  it("releases the held reply transcript when the user transcription finishes mid-reply", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    socket.emit({ serverContent: { inputTranscription: { text: "Hi" } } });
+    socket.emit({ serverContent: { outputTranscription: { text: "Hello" } } });
+    socket.emit({
+      serverContent: { inputTranscription: { text: " there", finished: true } },
+    });
+    socket.emit({ serverContent: { outputTranscription: { text: "!" } } });
+    socket.emit({ serverContent: { turnComplete: true } });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hi there", isFinal: true },
+      { role: "assistant", text: "Hello", isFinal: false },
+      { role: "assistant", text: "Hello!", isFinal: false },
+      { role: "assistant", text: "Hello!", isFinal: true },
+    ]);
+  });
+
+  it("carries speech that arrives after the reply streams into the next turn", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    socket.emit({
+      serverContent: { inputTranscription: { text: "Hi", finished: true } },
+    });
+    socket.emit({ serverContent: { outputTranscription: { text: "Hello" } } });
+    socket.emit({ serverContent: { inputTranscription: { text: "Again" } } });
+    socket.emit({ serverContent: { turnComplete: true } });
+    socket.emit({ serverContent: { outputTranscription: { text: "Sure" } } });
+    socket.emit({ serverContent: { turnComplete: true } });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hi", isFinal: true },
+      { role: "assistant", text: "Hello", isFinal: false },
+      { role: "assistant", text: "Hello", isFinal: true },
+      { role: "user", text: "Again", isFinal: true },
+      { role: "assistant", text: "Sure", isFinal: true },
     ]);
   });
 
@@ -304,13 +330,11 @@ describe("GeminiLiveVoiceAdapter", () => {
     socket.emit({ serverContent: { interrupted: true } });
     expect(audio.player.clear).toHaveBeenCalledOnce();
     expect(onMode).toHaveBeenLastCalledWith("listening");
-    expect(onTranscript).toHaveBeenLastCalledWith({
-      role: "assistant",
-      text: "Let me",
-      isFinal: true,
-    });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "assistant", text: "Let me", isFinal: true },
+    ]);
     socket.emit({ serverContent: { turnComplete: true } });
-    expect(onTranscript).toHaveBeenCalledTimes(2);
+    expect(onTranscript).toHaveBeenCalledOnce();
   });
 
   it("mutes the microphone and tells Gemini the audio stream paused", async () => {
@@ -401,15 +425,13 @@ describe("GeminiLiveVoiceAdapter", () => {
     socket.emit({ serverContent: { interrupted: true } });
     expect(audio.player.clear).toHaveBeenCalledOnce();
     expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
-      { role: "assistant", text: "Previous", isFinal: false },
-      { role: "assistant", text: "Previous reply", isFinal: false },
       { role: "assistant", text: "Previous reply", isFinal: true },
     ]);
     await Promise.resolve();
     expect(accepted).not.toHaveBeenCalled();
     socket.emit({ serverContent: { outputTranscription: { text: "New" } } });
     await sent;
-    expect(onTranscript).toHaveBeenCalledTimes(3);
+    expect(onTranscript).toHaveBeenCalledOnce();
     await flush();
     expect(onTranscript).toHaveBeenLastCalledWith({
       role: "assistant",
@@ -456,6 +478,44 @@ describe("GeminiLiveVoiceAdapter", () => {
     socket.emit({ serverContent: { turnComplete: true } });
     socket.emit({ serverContent: { outputTranscription: { text: "New" } } });
     await expect(sent).resolves.toBeUndefined();
+  });
+
+  it("clears audio still buffered after turnComplete when text is typed", async () => {
+    const { session, socket } = await connected();
+    socket.emit({
+      serverContent: {
+        modelTurn: { parts: [{ inlineData: { data: "AQID" } }] },
+        turnComplete: true,
+      },
+    });
+    audio.player.isPlaying.mockReturnValue(true);
+    const onMode = vi.fn();
+    session.onModeChange(onMode);
+    const sent = session.sendText!("Next question");
+    expect(audio.player.clear).toHaveBeenCalledOnce();
+    expect(onMode).toHaveBeenLastCalledWith("listening");
+    socket.emit({ serverContent: { outputTranscription: { text: "Sure" } } });
+    await expect(sent).resolves.toBeUndefined();
+  });
+
+  it("accepts a typed send whose reply arrives while the previous one is still deferred", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    const first = session.sendText!("One");
+    socket.emit({ serverContent: { outputTranscription: { text: "First" } } });
+    await first;
+    const second = session.sendText!("Two");
+    socket.emit({ serverContent: { interrupted: true } });
+    socket.emit({ serverContent: { outputTranscription: { text: "Second" } } });
+    await flush();
+    await expect(second).resolves.toBeUndefined();
+    await flush();
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "assistant", text: "First", isFinal: false },
+      { role: "assistant", text: "First", isFinal: true },
+      { role: "assistant", text: "Second", isFinal: false },
+    ]);
   });
 
   it("rejects a typed send before setup completes", async () => {
@@ -523,7 +583,7 @@ describe("GeminiLiveVoiceAdapter", () => {
       expect(session.status).toMatchObject({ type: "ended", reason: "error" }),
     );
     expect(Socket.instances).toHaveLength(0);
-    expect(audio.openMicrophone).not.toHaveBeenCalled();
+    expect(audio.microphone.close).toHaveBeenCalledOnce();
   });
 
   it("decodes binary frames", async () => {
@@ -559,7 +619,7 @@ describe("GeminiLiveVoiceAdapter", () => {
     expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
   });
 
-  it("aborts an in-flight token request and releases a late microphone", async () => {
+  it("aborts an in-flight token request and releases the microphone", async () => {
     let resolveToken!: (token: string) => void;
     getToken.mockReturnValue(
       new Promise<string>((resolve) => {
@@ -574,7 +634,7 @@ describe("GeminiLiveVoiceAdapter", () => {
     resolveToken("late-token");
     await flush();
     expect(Socket.instances).toHaveLength(0);
-    expect(audio.openMicrophone).not.toHaveBeenCalled();
+    expect(audio.microphone.close).toHaveBeenCalledOnce();
     expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
   });
 
@@ -611,7 +671,10 @@ describe("GeminiLiveVoiceAdapter", () => {
   });
 
   it("does not allocate anything for an already-aborted connection", () => {
-    const session = new GeminiLiveVoiceAdapter({ getToken }).connect({
+    const session = new GeminiLiveVoiceAdapter({
+      getToken,
+      model: "gemini-3.8-live",
+    }).connect({
       abortSignal: AbortSignal.abort(),
     });
     expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
