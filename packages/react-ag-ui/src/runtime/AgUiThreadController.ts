@@ -1992,6 +1992,23 @@ export class AgUiThreadController {
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
+    const settleNestedContent = (
+      content: ThreadAssistantMessage["content"],
+      status: MessageStatus,
+    ) =>
+      mapToolCallPartsDeep(content, (part) =>
+        part.messages
+          ? {
+              ...part,
+              messages: part.messages.map((message) =>
+                message.role === "assistant" &&
+                message.status?.type === "running"
+                  ? { ...message, status }
+                  : message,
+              ),
+            }
+          : part,
+      ).content;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       joinStrategy,
@@ -2006,21 +2023,7 @@ export class AgUiThreadController {
           update.status.type !== "requires-action"
         ) {
           const status = update.status;
-          const content = mapToolCallPartsDeep(
-            latestSnapshot.content,
-            (part) =>
-              part.messages
-                ? {
-                    ...part,
-                    messages: part.messages.map((message) =>
-                      message.role === "assistant" &&
-                      message.status?.type === "running"
-                        ? { ...message, status }
-                        : message,
-                    ),
-                  }
-                : part,
-          ).content;
+          const content = settleNestedContent(latestSnapshot.content, status);
           applyUpdate({ ...update, content });
         } else if (
           latestSnapshot &&
@@ -2236,14 +2239,16 @@ export class AgUiThreadController {
         current.status?.type === "running"
       ) {
         // Finalization is transport cleanup, not proof of a terminal event.
-        // Status-only settlement preserves content imported by snapshots.
         const status: MessageStatus = {
           type: "incomplete",
           reason: "error",
           error: "The connection ended before the answer finished.",
         };
         settleHeldMessages(status);
-        applyUpdate({ status });
+        applyUpdate({
+          status,
+          content: settleNestedContent(current.content, status),
+        });
       }
       this.finishRun(abortController);
     }

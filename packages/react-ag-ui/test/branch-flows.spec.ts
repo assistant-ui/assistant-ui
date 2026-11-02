@@ -264,7 +264,7 @@ describe("AgUiThreadController branch flows", () => {
     expect(messages.map(({ id }) => id)).toEqual([userId, snapshotAssistantId]);
     expect((messages[1] as ThreadAssistantMessage).content[0]).toMatchObject({
       type: "text",
-      text: "continued",
+      text: "snapshotcontinued",
     });
     expect(update).toHaveBeenCalledTimes(1);
     expect(update.mock.calls[0]?.[0]).toMatchObject({
@@ -272,7 +272,7 @@ describe("AgUiThreadController branch flows", () => {
       message: {
         id: snapshotAssistantId,
         role: "assistant",
-        content: [{ type: "text", text: "continued" }],
+        content: [{ type: "text", text: "snapshotcontinued" }],
       },
     });
   });

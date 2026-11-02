@@ -86,7 +86,11 @@ describe("AgUiThreadController HTTP stream closure", () => {
         parentId: core.getMessages().at(-1)!.id,
       });
       expect(core.isRunning()).toBe(false);
-      expect(core.getMessages().at(-1)?.status?.type).toBe("complete");
+      expect(core.getMessages().at(-1)).toMatchObject({
+        id: "next",
+        content: [{ type: "text", text: "next answer" }],
+        status: { type: "complete" },
+      });
     },
   );
 
@@ -121,6 +125,112 @@ describe("AgUiThreadController HTTP stream closure", () => {
         { type: "data", name: "after", data: { retained: true } },
       ],
       status: { type: "complete" },
+    });
+  });
+
+  it("appends text after a snapshot that precedes the text stream", async () => {
+    const core = createController([
+      start,
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          { id: "answer", role: "assistant", content: "snapshot answer" },
+        ],
+      },
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "answer",
+        delta: " continued",
+      },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "RUN_FINISHED", threadId: "thread", runId: "run" },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "answer",
+      content: [{ type: "text", text: "snapshot answer continued" }],
+      status: { type: "complete" },
+    });
+  });
+
+  it("settles a nested assistant when EOF follows a snapshot", async () => {
+    const core = createController([
+      start,
+      ...text,
+      { type: "TOOL_CALL_START", toolCallId: "task", toolCallName: "task" },
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub",
+        name: "worker",
+        parentToolCallId: "task",
+      },
+      {
+        type: "TEXT_MESSAGE_START",
+        messageId: "sub-answer",
+        role: "assistant",
+        subagentRunId: "sub",
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "sub-answer",
+        delta: "working",
+        subagentRunId: "sub",
+      },
+      { type: "TOOL_CALL_END", toolCallId: "task" },
+      {
+        type: "TOOL_CALL_RESULT",
+        messageId: "task-result",
+        toolCallId: "task",
+        content: "started",
+        role: "tool",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+            ],
+          },
+          {
+            id: "task-result",
+            role: "tool",
+            toolCallId: "task",
+            content: "started",
+          },
+        ],
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "answer",
+      status: { type: "incomplete", reason: "error" },
+      content: [
+        { type: "text", text: "snapshot answer" },
+        {
+          type: "tool-call",
+          toolCallId: "task",
+          messages: [
+            {
+              id: "sub",
+              status: { type: "incomplete", reason: "error" },
+              content: [{ type: "text", text: "working" }],
+            },
+          ],
+        },
+      ],
     });
   });
 
