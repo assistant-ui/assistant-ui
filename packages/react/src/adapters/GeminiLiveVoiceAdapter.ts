@@ -65,6 +65,8 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       let closed = false;
       let ready = false;
       let generating = false;
+      let cancelled = false;
+      let goingAway = false;
       let holdingAssistant = false;
       let assistantText = "";
       let userText = "";
@@ -161,6 +163,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
 
       const startReply = (typed: boolean) => {
         generating = true;
+        cancelled = false;
         holdingAssistant = !typed && !userFinished;
       };
 
@@ -200,6 +203,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         if (content.interrupted === true) {
           stopPlayback();
           finishTurn();
+          cancelled = true;
           return;
         }
         if (Array.isArray(parts) || typeof output === "string") {
@@ -218,7 +222,10 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
             emitAssistant(false);
           }
         }
-        if (content.turnComplete === true) finishTurn();
+        if (content.turnComplete === true) {
+          if (cancelled) cancelled = false;
+          else finishTurn();
+        }
       };
 
       const routeContent = (content: Record<string, unknown>) => {
@@ -232,10 +239,14 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           (content.modelTurn !== undefined ||
             content.outputTranscription !== undefined)
         ) {
+          const input = asRecord(content.inputTranscription)?.text;
+          if (typeof input === "string") userText += input;
           flushUser();
           settleText();
           startReply(true);
-          const queue = (deferred = [content]);
+          const queue = (deferred = [
+            { ...content, inputTranscription: undefined },
+          ]);
           setTimeout(() => {
             deferred = undefined;
             if (closed) return;
@@ -273,8 +284,10 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         const content = asRecord(message.serverContent);
         if (!content) {
           const goAway = asRecord(message.goAway);
-          if (goAway)
+          if (goAway) {
+            goingAway = true;
             console.warn("Gemini Live session is closing.", goAway.timeLeft);
+          }
           return;
         }
         routeContent(content);
@@ -313,7 +326,15 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         socket.onclose = ({ code, reason }) => {
           if (ready) {
             finishTurn();
-            end("finished");
+            flushUser();
+            if (code === 1000 || goingAway) end("finished");
+            else
+              end(
+                "error",
+                new Error(
+                  `Gemini Live connection closed (${code}${reason ? `: ${reason}` : ""}).`,
+                ),
+              );
           } else
             end(
               "error",

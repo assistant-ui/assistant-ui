@@ -83,7 +83,7 @@ const sessions: ReturnType<GeminiLiveVoiceAdapter["connect"]>[] = [];
 const start = (abortSignal?: AbortSignal) => {
   const session = new GeminiLiveVoiceAdapter({
     getToken,
-    model: "gemini-3.8-live",
+    model: "live-test-model",
   }).connect(abortSignal ? { abortSignal } : {});
   sessions.push(session);
   return session;
@@ -135,7 +135,7 @@ describe("GeminiLiveVoiceAdapter", () => {
     expect(socket.events()).toEqual([
       {
         setup: {
-          model: "models/gemini-3.8-live",
+          model: "models/live-test-model",
           generationConfig: { responseModalities: ["AUDIO"] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
@@ -595,6 +595,79 @@ describe("GeminiLiveVoiceAdapter", () => {
     ]);
   });
 
+  it("ignores the turnComplete that follows an interruption", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    socket.emit({
+      serverContent: { inputTranscription: { text: "Hi", finished: true } },
+    });
+    socket.emit({ serverContent: { outputTranscription: { text: "Sure" } } });
+    socket.emit({ serverContent: { inputTranscription: { text: "No" } } });
+    socket.emit({ serverContent: { interrupted: true } });
+    socket.emit({ serverContent: { turnComplete: true } });
+    socket.emit({ serverContent: { inputTranscription: { text: " wait" } } });
+    socket.emit({ serverContent: { outputTranscription: { text: "Ok" } } });
+    socket.emit({ serverContent: { turnComplete: true } });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hi", isFinal: true },
+      { role: "assistant", text: "Sure", isFinal: false },
+      { role: "assistant", text: "Sure", isFinal: true },
+      { role: "user", text: "No wait", isFinal: true },
+      { role: "assistant", text: "Ok", isFinal: true },
+    ]);
+  });
+
+  it("keeps input transcription that arrives with the first frame of a typed reply ahead of it", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    const sent = session.sendText!("Typed");
+    socket.emit({
+      serverContent: {
+        inputTranscription: { text: "Um" },
+        outputTranscription: { text: "Sure" },
+      },
+    });
+    await sent;
+    await flush();
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Um", isFinal: true },
+      { role: "assistant", text: "Sure", isFinal: false },
+    ]);
+  });
+
+  it("emits unfinished speech heard during a reply when the server closes", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    socket.emit({
+      serverContent: { inputTranscription: { text: "Hi", finished: true } },
+    });
+    socket.emit({ serverContent: { outputTranscription: { text: "Hello" } } });
+    socket.emit({ serverContent: { inputTranscription: { text: "Bye" } } });
+    socket.close();
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hi", isFinal: true },
+      { role: "assistant", text: "Hello", isFinal: false },
+      { role: "assistant", text: "Hello", isFinal: true },
+      { role: "user", text: "Bye", isFinal: true },
+    ]);
+  });
+
+  it("ends with an error when a running session closes abnormally without goAway", async () => {
+    const { session, socket } = await connected();
+    socket.readyState = 3;
+    socket.onclose?.({ code: 1011, reason: "internal error" });
+    expect(session.status).toMatchObject({
+      type: "ended",
+      reason: "error",
+      error: expect.objectContaining({
+        message: expect.stringContaining("1011: internal error"),
+      }),
+    });
+  });
+
   it("emits held transcripts when the server closes mid-turn", async () => {
     const { session, socket } = await connected();
     const onTranscript = vi.fn();
@@ -713,7 +786,7 @@ describe("GeminiLiveVoiceAdapter", () => {
   it("does not allocate anything for an already-aborted connection", () => {
     const session = new GeminiLiveVoiceAdapter({
       getToken,
-      model: "gemini-3.8-live",
+      model: "live-test-model",
     }).connect({
       abortSignal: AbortSignal.abort(),
     });
