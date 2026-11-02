@@ -1,25 +1,19 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { stripTypeScriptTypes } from "node:module";
 import { afterEach, expect, it, vi } from "vitest";
 import { loader } from "fumadocs-core/source";
 import { remark } from "remark";
 import { createContentManifest, generateContentManifest } from "./manifest.mts";
-import {
-  createContentSource,
-  type ContentSearchData,
-} from "../../lib/content-source";
+import { createContentSource } from "../../lib/content-source";
 
 vi.mock("remark", async (importOriginal) => {
   const original = await importOriginal<typeof import("remark")>();
   return { ...original, remark: vi.fn(() => original.remark()) };
 });
 
-function readSearchModule(source: string): ContentSearchData {
-  return new Function(
-    stripTypeScriptTypes(source).replace("export default", "return"),
-  )();
+function readSearchModule(source: string) {
+  return JSON.parse(source.replace(/^export default /, "").replace(/;\n$/, ""));
 }
 
 const roots: string[] = [];

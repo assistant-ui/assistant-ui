@@ -103,8 +103,7 @@ async function compileContent(
     output.push(
       `export const ${collection} = createContentSource(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(pages)}, ${serializeSourceLiteral(metadata)}, {${modules.join(",\n")}}, () => import("./content-data/${collection}").then((module) => module.default));`,
     );
-    data[collection] =
-      `import type { ContentSearchData } from "../../lib/content-source";\nexport default JSON.parse(${serializeSourceLiteral(JSON.stringify(search))}) as ContentSearchData;\n`;
+    data[collection] = `export default ${serializeSourceLiteral(search)};\n`;
   }
   return { content: `${output.join("\n")}\n`, data };
 }
