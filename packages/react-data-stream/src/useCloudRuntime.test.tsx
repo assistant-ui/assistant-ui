@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
+import { ExportedMessageRepository } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -78,6 +79,94 @@ afterEach(() => {
 });
 
 describe("useCloudRuntime", () => {
+  it("omits denial results from nested tool messages", async () => {
+    const approval = {
+      id: "nested-approval",
+      approved: false,
+      reason: "not now",
+      signature: "sig",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        uiMessageStream([
+          { type: "start" },
+          { type: "finish", finishReason: "stop" },
+        ]),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const runtime = await mountRuntime(makeCloud());
+    await act(async () => {
+      runtime.thread.import(
+        ExportedMessageRepository.fromArray([
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "parent",
+                toolName: "delegate",
+                args: {},
+                argsText: "{}",
+                result: "done",
+                messages: [
+                  {
+                    id: "nested",
+                    role: "assistant",
+                    createdAt: new Date(0),
+                    status: { type: "complete", reason: "stop" },
+                    metadata: {
+                      unstable_state: null,
+                      unstable_annotations: [],
+                      unstable_data: [],
+                      steps: [],
+                      custom: {},
+                    },
+                    content: [
+                      {
+                        type: "tool-call",
+                        toolCallId: "child",
+                        toolName: "delete_file",
+                        args: {},
+                        argsText: "{}",
+                        approval,
+                        result: { error: "not now" },
+                        isError: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+      );
+      await runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "continue" }],
+      });
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const parent = requestOf(fetchMock.mock.calls[0]!).body.messages[0]
+      .content[0];
+    expect(parent.result).toBe("done");
+    expect(parent.messages[0].content[0]).toMatchObject({
+      approval: {
+        id: "nested-approval",
+        approved: false,
+        reason: "not now",
+        signature: "sig",
+      },
+    });
+    expect(parent.messages[0].content[0]).not.toHaveProperty("result");
+    expect(parent.messages[0].content[0]).not.toHaveProperty("isError");
+    expect(runtime.thread.getState().messages[0]!.content[0]).toMatchObject({
+      messages: [
+        { content: [{ result: { error: "not now" }, isError: true }] },
+      ],
+    });
+  });
+
   it("posts the thread as it is and runs a frontend tool through the second roundtrip", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchMock = vi

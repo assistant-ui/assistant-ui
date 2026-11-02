@@ -183,9 +183,11 @@ export const createChunkNormalizer = (): {
         chunk.type === "tool-output-error"
       ) {
         if (typeof chunk.toolCallId !== "string") return;
-        // An output for a call this response never opened answers a call an
-        // earlier response left open, such as an approved one; it travels as
-        // a call of its own that the runtime settles the open call with.
+        if (
+          chunk.type === "tool-output-available" &&
+          !Object.hasOwn(chunk, "output")
+        )
+          return;
         let tool = pendingTools.get(chunk.toolCallId);
         const opensCall = tool === undefined;
         if (!tool) {

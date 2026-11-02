@@ -19,17 +19,22 @@ type UseCloudRuntimeOptions = Omit<
 
 // LocalRuntime answers a denial with an error result. The AI SDK turns a denied
 // call into an execution-denied result only when the part carries no output.
-const withoutDenialResults = (messages: readonly ThreadMessage[]) =>
+const withoutDenialResults = (
+  messages: readonly ThreadMessage[],
+): ThreadMessage[] =>
   messages.map((message) =>
     message.role !== "assistant"
       ? message
       : {
           ...message,
           content: message.content.map((part) => {
-            if (part.type !== "tool-call" || part.approval?.approved !== false)
-              return part;
-            const { result: _result, isError: _isError, ...call } = part;
-            return call;
+            if (part.type !== "tool-call") return part;
+            const call = part.messages
+              ? { ...part, messages: withoutDenialResults(part.messages) }
+              : part;
+            if (call.approval?.approved !== false) return call;
+            const { result: _result, isError: _isError, ...denied } = call;
+            return denied;
           }),
         },
   );

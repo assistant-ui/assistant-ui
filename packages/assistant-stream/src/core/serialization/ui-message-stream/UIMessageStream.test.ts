@@ -1811,6 +1811,32 @@ describe("UIMessageStreamDecoder tool approvals", () => {
     },
   );
 
+  it("drops missing output without opening or settling a call", async () => {
+    const messages = await decodeMessages([
+      { type: "start" },
+      { type: "tool-output-available", toolCallId: "missing" },
+      {
+        type: "tool-input-available",
+        toolCallId: "known",
+        toolName: "lookup",
+        input: {},
+      },
+      { type: "tool-output-available", toolCallId: "known" },
+      { type: "tool-output-available", toolCallId: "known", output: null },
+      { type: "tool-output-available", toolCallId: "earlier", output: null },
+      { type: "finish", finishReason: "stop" },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({
+        toolCallId: "known",
+        toolName: "lookup",
+        result: null,
+      }),
+      expect.objectContaining({ toolCallId: "earlier", result: null }),
+    ]);
+  });
+
   it("ignores approval chunks for a call an earlier response opened", async () => {
     // Recorded continuation after the client denied `call_1`.
     const messages = await decodeMessages([

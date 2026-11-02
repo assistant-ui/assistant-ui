@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, onTestFinished } from "vitest";
 import {
   AssistantMessageAccumulator,
   createInitialMessage,
@@ -1141,6 +1141,7 @@ describe("AssistantMessageAccumulator tool arguments", () => {
 describe("AssistantMessageAccumulator tool-call approvals", () => {
   it("sets an approval on a tool call and drops one aimed at another part", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warn.mockRestore());
     const messages = await collectStream([
       {
         type: "part-start",
@@ -1159,6 +1160,5 @@ describe("AssistantMessageAccumulator tool-call approvals", () => {
     expect(warn).toHaveBeenCalledWith(
       "Dropped tool-call-approval chunk: part is not a tool-call",
     );
-    warn.mockRestore();
   });
 });

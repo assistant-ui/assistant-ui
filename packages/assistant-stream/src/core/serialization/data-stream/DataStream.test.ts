@@ -1153,6 +1153,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     'aui-state:[{"type":"append-text","path":["a"],"value":1}]',
     'aui-tool-call-approval:{"toolCallId":"t1","approval":{}}',
     'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","approved":"false"}}',
+    'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","approved":null}}',
   ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(

@@ -148,7 +148,10 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   }),
   [DataStreamStreamChunkType.AuiToolCallApproval]: objectWith({
     toolCallId: isString,
-    approval: objectWith({ id: isString, approved: optional(isBoolean) }),
+    approval: objectWith({
+      id: isString,
+      approved: (value) => value === undefined || isBoolean(value),
+    }),
   }),
 };
 
