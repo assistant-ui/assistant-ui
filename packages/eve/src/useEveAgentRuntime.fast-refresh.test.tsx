@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, act, type ReactNode } from "react";
+import { Activity, act, type ReactNode, version } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import { emptySessionView } from "eve/events";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
@@ -105,6 +105,10 @@ afterEach(() => {
   fiberRoots.clear();
 });
 afterAll(() => vi.unstubAllGlobals());
+
+// Activity is React 19 only, so the React 18 peer run skips the cases that
+// render it.
+const onReact18 = version.startsWith("18");
 
 const refresh = async (Before: unknown, After: unknown) => {
   const family: Family = { current: After };
@@ -346,103 +350,109 @@ it("keeps a first Eve session wait alive when a nested runtimeHook refreshes", a
   view.unmount();
 });
 
-it("reads Eve delivery results again after an Activity hides and shows the runtime", async () => {
-  const agent = makeAgent(async () => {});
-  agent.send.mockImplementation(async () => {
-    const receipt = createEveDelivery();
-    return {
-      ...receipt,
-      result: (options?: { readonly signal?: AbortSignal }) =>
-        options?.signal?.aborted
-          ? Promise.reject(options.signal.reason)
-          : receipt.result(),
+it.skipIf(onReact18)(
+  "reads Eve delivery results again after an Activity hides and shows the runtime",
+  async () => {
+    const agent = makeAgent(async () => {});
+    agent.send.mockImplementation(async () => {
+      const receipt = createEveDelivery();
+      return {
+        ...receipt,
+        result: (options?: { readonly signal?: AbortSignal }) =>
+          options?.signal?.aborted
+            ? Promise.reject(options.signal.reason)
+            : receipt.result(),
+      };
+    });
+    mockUseEveAgent.mockReturnValue(agent);
+    let runtime!: ReturnType<typeof useEveAgentRuntime>;
+    const Host = () => {
+      runtime = useEveAgentRuntime();
+      return null;
     };
-  });
-  mockUseEveAgent.mockReturnValue(agent);
-  let runtime!: ReturnType<typeof useEveAgentRuntime>;
-  const Host = () => {
-    runtime = useEveAgentRuntime();
-    return null;
-  };
-  const view = render(
-    <Activity mode="visible">
-      <Host />
-    </Activity>,
-  );
-  view.rerender(
-    <Activity mode="hidden">
-      <Host />
-    </Activity>,
-  );
-  await act(async () => {});
-  view.rerender(
-    <Activity mode="visible">
-      <Host />
-    </Activity>,
-  );
-  await act(async () => {});
+    const view = render(
+      <Activity mode="visible">
+        <Host />
+      </Activity>,
+    );
+    view.rerender(
+      <Activity mode="hidden">
+        <Host />
+      </Activity>,
+    );
+    await act(async () => {});
+    view.rerender(
+      <Activity mode="visible">
+        <Host />
+      </Activity>,
+    );
+    await act(async () => {});
 
-  act(() => {
-    runtime.thread.composer.setText("after show");
-    runtime.thread.composer.send();
-  });
-  await waitFor(() =>
-    expect(agent.send).toHaveBeenCalledWith("after show", undefined),
-  );
-  await act(async () => {});
-  expect(runtime.thread.composer.getState().text).toBe("");
-  view.unmount();
-});
+    act(() => {
+      runtime.thread.composer.setText("after show");
+      runtime.thread.composer.send();
+    });
+    await waitFor(() =>
+      expect(agent.send).toHaveBeenCalledWith("after show", undefined),
+    );
+    await act(async () => {});
+    expect(runtime.thread.composer.getState().text).toBe("");
+    view.unmount();
+  },
+);
 
-it("keeps a send queued after an Activity re-show behind the turn still in flight", async () => {
-  let releaseFirst!: () => void;
-  const agent = makeAgent(
-    vi
-      .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            releaseFirst = resolve;
-          }),
-      )
-      .mockResolvedValue(undefined),
-  );
-  mockUseEveAgent.mockReturnValue(agent);
-  let runtime!: ReturnType<typeof useEveAgentRuntime>;
-  const Host = () => {
-    runtime = useEveAgentRuntime();
-    return null;
-  };
-  const view = render(
-    <Activity mode="visible">
-      <Host />
-    </Activity>,
-  );
+it.skipIf(onReact18)(
+  "keeps a send queued after an Activity re-show behind the turn still in flight",
+  async () => {
+    let releaseFirst!: () => void;
+    const agent = makeAgent(
+      vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              releaseFirst = resolve;
+            }),
+        )
+        .mockResolvedValue(undefined),
+    );
+    mockUseEveAgent.mockReturnValue(agent);
+    let runtime!: ReturnType<typeof useEveAgentRuntime>;
+    const Host = () => {
+      runtime = useEveAgentRuntime();
+      return null;
+    };
+    const view = render(
+      <Activity mode="visible">
+        <Host />
+      </Activity>,
+    );
 
-  await act(async () => runtime.thread.append("first"));
-  await waitFor(() => expect(agent.send).toHaveBeenCalledTimes(1));
-  view.rerender(
-    <Activity mode="hidden">
-      <Host />
-    </Activity>,
-  );
-  await act(async () => {});
-  view.rerender(
-    <Activity mode="visible">
-      <Host />
-    </Activity>,
-  );
-  await act(async () => {});
+    await act(async () => runtime.thread.append("first"));
+    await waitFor(() => expect(agent.send).toHaveBeenCalledTimes(1));
+    view.rerender(
+      <Activity mode="hidden">
+        <Host />
+      </Activity>,
+    );
+    await act(async () => {});
+    view.rerender(
+      <Activity mode="visible">
+        <Host />
+      </Activity>,
+    );
+    await act(async () => {});
 
-  await act(async () => runtime.thread.append("second"));
-  await act(async () => {});
-  expect(agent.send).toHaveBeenCalledTimes(1);
+    await act(async () => runtime.thread.append("second"));
+    await act(async () => {});
+    expect(agent.send).toHaveBeenCalledTimes(1);
 
-  await act(async () => releaseFirst());
-  await waitFor(() => expect(agent.send).toHaveBeenCalledTimes(2));
-  expect(agent.send).toHaveBeenNthCalledWith(2, "second", undefined);
-  view.unmount();
-});
+    await act(async () => releaseFirst());
+    await waitFor(() => expect(agent.send).toHaveBeenCalledTimes(2));
+    expect(agent.send).toHaveBeenNthCalledWith(2, "second", undefined);
+    view.unmount();
+  },
+);
 
 it("keeps the composer empty when a reset ends a send Eve already accepted", async () => {
   const agent = makeAgent(async () => {});
