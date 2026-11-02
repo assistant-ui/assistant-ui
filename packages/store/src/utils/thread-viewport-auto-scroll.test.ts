@@ -12,8 +12,13 @@ const options = (): ThreadViewportAutoScrollOptions => ({
   scrollToBottomOnThreadSwitch: true,
 });
 
-const geometry = (scrollHeight = 500, clientHeight = 500) => {
+const geometry = (
+  scrollHeight = 500,
+  clientHeight = 500,
+  { deferScroll = false }: { deferScroll?: boolean } = {},
+) => {
   const element = document.createElement("div");
+  let scrollPending = false;
   let top = 0;
   let height = scrollHeight;
   let viewportHeight = clientHeight;
@@ -28,9 +33,18 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
     scrollHeight: { get: () => height, configurable: true },
     clientHeight: { get: () => viewportHeight, configurable: true },
   });
+  // A browser queues the scroll event a layout clamp causes and delivers it on
+  // a later rendering update, after the content may have grown back.
+  const notifyScroll = () => {
+    if (deferScroll) {
+      scrollPending = true;
+      return;
+    }
+    element.dispatchEvent(new Event("scroll"));
+  };
   const scrollTo = vi.fn(({ top: target }: ScrollToOptions) => {
     top = Math.max(0, Math.min(target ?? 0, height - viewportHeight));
-    element.dispatchEvent(new Event("scroll"));
+    notifyScroll();
   });
   Object.defineProperty(element, "scrollTo", { value: scrollTo });
   return {
@@ -38,10 +52,21 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
     scrollTo,
     setTop: (value: number) => {
       top = value;
+      notifyScroll();
+    },
+    flushScroll: () => {
+      if (!scrollPending) return false;
+      scrollPending = false;
       element.dispatchEvent(new Event("scroll"));
+      return true;
     },
     grow: (value: number) => {
       height = value;
+      // A shrinking content box clamps scrollTop in the same layout pass.
+      const next = Math.max(0, Math.min(top, height - viewportHeight));
+      if (next === top) return;
+      top = next;
+      notifyScroll();
     },
     resize: (value: number) => {
       viewportHeight = value;
@@ -1546,27 +1571,31 @@ describe("createThreadViewportAutoScroll", () => {
     });
   });
 
-  it("follows content when a shrink is undone before the next observed resize", () => {
-    const view = geometry(3, 3);
+  it("follows content when a shrink is undone before the scroll event is delivered", async () => {
+    vi.stubGlobal("MutationObserver", NativeMutationObserver);
+    const view = geometry(5, 3, { deferScroll: true });
+    const content = document.createElement("div");
+    view.element.append(content);
     const controller = createThreadViewportAutoScroll({
       getOptions: () => options(),
       onAtBottomChange: vi.fn(),
     });
     controller.attach(view.element);
     observers[0]!.trigger();
-
-    // The content grows by 2 and the controller follows to the new bottom.
-    view.grow(5);
-    observers[0]!.trigger();
+    view.flushScroll();
     expect(view.element.scrollTop).toBe(2);
 
-    // Within one frame the content shrinks back to the viewport height, which
-    // clamps scrollTop to 0, and grows by the same 2px again. The height the
-    // observer delivers is the one it already saw.
+    // The content collapses without a mutation, so the browser clamps
+    // scrollTop to 0 and queues the scroll event; it grows back with one
+    // before that event is delivered, so the height never looks changed.
     view.grow(3);
-    view.setTop(0);
+    expect(view.element.scrollTop).toBe(0);
     view.grow(5);
+    content.append(document.createElement("span"));
+    await Promise.resolve();
     observers[0]!.trigger();
+    flushFrames();
+    view.flushScroll();
 
     expect(view.element.scrollTop).toBe(2);
     expect(controller.isAtBottom).toBe(true);

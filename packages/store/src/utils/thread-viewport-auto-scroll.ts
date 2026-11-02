@@ -121,7 +121,7 @@ export const createThreadViewportAutoScroll = (input: {
   let lastScrollHeight = 0;
   let lastObservedScrollHeight = 0;
   let lastObservedClientHeight = 0;
-  let contentShrankSinceResize = false;
+  let contentNodesChanged = false;
   let frame: number | null = null;
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
@@ -224,11 +224,6 @@ export const createThreadViewportAutoScroll = (input: {
       if (newIsAtBottom || intent === null) setAtBottom(newIsAtBottom);
     }
 
-    // The browser clamps scrollTop while the content is short, then the content
-    // grows back before the next observed resize. Remember the shrink so that
-    // resize cannot early-return on an unchanged height and strand the view.
-    if (element.scrollHeight < lastScrollHeight)
-      contentShrankSinceResize = true;
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
     firstMessage = measureFirstMessage(element);
@@ -253,14 +248,22 @@ export const createThreadViewportAutoScroll = (input: {
   const onContentResize = () => {
     if (!element) return;
     const { scrollHeight, clientHeight } = element;
+    // A shrink that a browser clamp caused is undone before the scroll event it
+    // queued is delivered, so the height reads as unchanged. Only the nodes
+    // that were added show that the content grew while the view stayed
+    // clamped above the bottom.
+    const grewUnobserved =
+      contentNodesChanged &&
+      followBottom &&
+      !isViewportAtBottom(element, contentInset);
+    contentNodesChanged = false;
     if (
       scrollHeight === lastObservedScrollHeight &&
       clientHeight === lastObservedClientHeight &&
-      !contentShrankSinceResize
+      !grewUnobserved
     ) {
       return;
     }
-    contentShrankSinceResize = false;
     lastObservedScrollHeight = scrollHeight;
     lastObservedClientHeight = clientHeight;
 
@@ -344,7 +347,7 @@ export const createThreadViewportAutoScroll = (input: {
       lastScrollHeight = el.scrollHeight;
       lastObservedScrollHeight = 0;
       lastObservedClientHeight = 0;
-      contentShrankSinceResize = false;
+      contentNodesChanged = false;
       initialized = false;
       followBottom = true;
       followPaused = false;
@@ -354,6 +357,20 @@ export const createThreadViewportAutoScroll = (input: {
       heldScrollTop = el.scrollTop;
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
+      const nodeObserver =
+        typeof MutationObserver !== "undefined"
+          ? new MutationObserver((records) => {
+              const changed = records.some(
+                (record) =>
+                  record.addedNodes.length > 0 ||
+                  record.removedNodes.length > 0,
+              );
+              if (!changed) return;
+              contentNodesChanged = true;
+              onContentResize();
+            })
+          : null;
+      nodeObserver?.observe(el, { childList: true, subtree: true });
       el.addEventListener("scroll", onScroll);
       el.addEventListener("pointerdown", cancelPendingScrollToBottom);
       el.addEventListener("wheel", cancelPendingScrollToBottom, {
@@ -373,6 +390,7 @@ export const createThreadViewportAutoScroll = (input: {
       const detach = () => {
         if (detachAttached !== detach) return;
         disconnect();
+        nodeObserver?.disconnect();
         el.removeEventListener("scroll", onScroll);
         el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
         el.removeEventListener("wheel", cancelPendingScrollToBottom);

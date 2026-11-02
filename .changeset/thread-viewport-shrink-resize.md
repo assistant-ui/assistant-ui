@@ -2,4 +2,4 @@
 "@assistant-ui/store": patch
 ---
 
-Follow content when a shrink is undone before the next observed resize
+Keep the thread at the bottom when a shrink is undone before its scroll event is delivered
