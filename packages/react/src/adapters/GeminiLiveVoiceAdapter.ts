@@ -321,7 +321,12 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           } catch {
             return;
           }
-          if (message) handleMessage(message);
+          if (!message) return;
+          try {
+            handleMessage(message);
+          } catch (error) {
+            end("error", error);
+          }
         };
         socket.onclose = ({ code, reason }) => {
           if (ready) {

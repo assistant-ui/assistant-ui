@@ -699,6 +699,21 @@ describe("GeminiLiveVoiceAdapter", () => {
     expect(audio.microphone.close).toHaveBeenCalledOnce();
   });
 
+  it("ends with an error when a frame cannot be played", async () => {
+    const { session, socket } = await connected();
+    audio.player.enqueue.mockImplementationOnce(() => {
+      throw new Error("invalid audio");
+    });
+    socket.emit({
+      serverContent: { modelTurn: { parts: [{ inlineData: { data: "!" } }] } },
+    });
+    expect(session.status).toMatchObject({
+      type: "ended",
+      reason: "error",
+      error: expect.objectContaining({ message: "invalid audio" }),
+    });
+  });
+
   it("decodes binary frames", async () => {
     const { session, socket } = await connected();
     expect(socket.binaryType).toBe("arraybuffer");
