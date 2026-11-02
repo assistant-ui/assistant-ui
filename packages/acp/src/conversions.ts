@@ -12,7 +12,7 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import {
-  detectImageMediaType,
+  isBase64,
   isRecord,
   parseDataUrl,
   resolveFilePartSource,
@@ -58,9 +58,7 @@ export function threadContentToAcpBlocks(
         if (!part.image) break;
         const parsed = parseDataUrl(part.image);
         blocks.push(
-          parsed ||
-            (/^[A-Za-z0-9+/]+={0,2}$/.test(part.image) &&
-              detectImageMediaType(part.image))
+          parsed || isBase64(part.image)
             ? {
                 type: "image",
                 data: parsed?.data ?? part.image,

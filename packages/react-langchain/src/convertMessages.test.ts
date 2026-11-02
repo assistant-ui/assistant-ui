@@ -175,6 +175,8 @@ describe("getMessageContent image blocks", () => {
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
     ],
     ["image/jpeg", "/9j/4AAQSkZJRg=="],
+    ["image/jpeg", "/9j/4AAQ\r\nSkZJRg=="],
+    ["image/png", "PHN2Zy8+"],
   ])("wraps bare base64 %s images in a data URL", (mimeType, image) => {
     const message = {
       content: [

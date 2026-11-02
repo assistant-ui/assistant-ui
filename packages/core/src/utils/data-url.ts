@@ -59,6 +59,19 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
+ * Unlike !isParsableUrl, validates the base64 alphabet and padding so image
+ * references such as /uploads/cat.png stay URLs. MIME line breaks are allowed;
+ * image signatures are not required because not every format can be sniffed.
+ */
+export function isBase64(value: string): boolean {
+  const compact = value.replace(/[\t\n\r ]/g, "");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return false;
+  return compact.endsWith("=")
+    ? compact.length % 4 === 0
+    : compact.length % 4 !== 1;
+}
+
+/**
  * A data URL's media type without parameters. It uses
  * `application/octet-stream` when a base64 payload omits a type and
  * `text/plain` when any other payload does.

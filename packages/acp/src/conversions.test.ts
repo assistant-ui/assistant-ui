@@ -190,6 +190,8 @@ describe("threadContentToAcpBlocks", () => {
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
     ],
     ["image/jpeg", "/9j/4AAQSkZJRg=="],
+    ["image/jpeg", "/9j/4AAQ\r\nSkZJRg=="],
+    ["image/png", "PHN2Zy8+"],
   ])(
     "sends bare base64 %s images as inline image blocks",
     (mimeType, image) => {
