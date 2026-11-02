@@ -216,7 +216,9 @@ describe("GeminiLiveVoiceAdapter", () => {
       serverContent: { inputTranscription: { text: "lo", finished: true } },
     });
     socket.emit(reply("Good "));
-    socket.emit(reply("morning"));
+    socket.emit({
+      serverContent: { outputTranscription: { text: "morning" } },
+    });
     socket.emit({ serverContent: { generationComplete: true } });
     socket.emit({ serverContent: { turnComplete: true } });
     expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
@@ -244,7 +246,7 @@ describe("GeminiLiveVoiceAdapter", () => {
     socket.emit({
       serverContent: { inputTranscription: { text: " Thanks." } },
     });
-    socket.emit(reply(" today"));
+    socket.emit({ serverContent: { outputTranscription: { text: " today" } } });
     expect(onTranscript).not.toHaveBeenCalled();
     expect(audio.player.enqueue).toHaveBeenCalledWith("AQID");
     socket.emit({ serverContent: { turnComplete: true } });
@@ -263,7 +265,7 @@ describe("GeminiLiveVoiceAdapter", () => {
     socket.emit({
       serverContent: { inputTranscription: { text: " there", finished: true } },
     });
-    socket.emit(reply("!"));
+    socket.emit({ serverContent: { outputTranscription: { text: "!" } } });
     socket.emit({ serverContent: { turnComplete: true } });
     expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
       { role: "user", text: "Hi there", isFinal: true },
