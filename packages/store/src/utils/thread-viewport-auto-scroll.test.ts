@@ -926,7 +926,18 @@ describe("createThreadViewportAutoScroll", () => {
   });
 
   it("leaves a reader inside the footer inset in place on a subtree mutation", async () => {
-    vi.stubGlobal("MutationObserver", NativeMutationObserver);
+    const mutationCallback = vi.fn();
+    vi.stubGlobal(
+      "MutationObserver",
+      class extends NativeMutationObserver {
+        constructor(callback: MutationCallback) {
+          super((records, observer) => {
+            mutationCallback();
+            callback(records, observer);
+          });
+        }
+      },
+    );
     const view = geometry(500, 100);
     view.setTop(400);
     const controller = createThreadViewportAutoScroll({
@@ -947,6 +958,7 @@ describe("createThreadViewportAutoScroll", () => {
     flushFrames();
     observers[0]!.trigger();
 
+    expect(mutationCallback).toHaveBeenCalled();
     expect(view.element.scrollTop).toBe(370);
     expect(view.scrollTo).not.toHaveBeenCalled();
     expect(controller.isAtBottom).toBe(true);
