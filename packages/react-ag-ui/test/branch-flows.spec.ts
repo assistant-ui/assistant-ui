@@ -264,7 +264,7 @@ describe("AgUiThreadController branch flows", () => {
     expect(messages.map(({ id }) => id)).toEqual([userId, snapshotAssistantId]);
     expect((messages[1] as ThreadAssistantMessage).content[0]).toMatchObject({
       type: "text",
-      text: "continued",
+      text: "snapshotcontinued",
     });
     expect(update).toHaveBeenCalledTimes(1);
     expect(update.mock.calls[0]?.[0]).toMatchObject({
@@ -272,7 +272,7 @@ describe("AgUiThreadController branch flows", () => {
       message: {
         id: snapshotAssistantId,
         role: "assistant",
-        content: [{ type: "text", text: "continued" }],
+        content: [{ type: "text", text: "snapshotcontinued" }],
       },
     });
   });
@@ -407,6 +407,65 @@ describe("AgUiThreadController branch flows", () => {
         .messages.find(({ message }) => message.id === followupAssistantId),
     ).toMatchObject({ parentId: snapshotStepId });
   });
+
+  it.each(["finished", "eof"])(
+    "settles the previous assistant when a snapshot advances the head (%s)",
+    async (ending) => {
+      let runCount = 0;
+      let userId = "";
+      const agent = {
+        runAgent: vi.fn(async (_input, subscriber) => {
+          if (++runCount === 1) {
+            subscriber.onRunFinalized?.();
+            return;
+          }
+          emitAssistantText(subscriber, "assistant-a", "streamed A");
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-a", role: "assistant", content: "snapshot A" },
+                { id: "assistant-b", role: "assistant", content: "snapshot B" },
+              ],
+            },
+          });
+          if (ending === "finished") {
+            subscriber.onRunFinishedEvent?.({
+              event: {
+                type: "RUN_FINISHED",
+                threadId: "thread",
+                runId: "run",
+                outcome: { type: "success" },
+              },
+              outcome: "success",
+              pendingToolCallIds: [],
+            });
+          }
+          subscriber.onRunFinalized?.();
+        }),
+      } as unknown as HttpAgent;
+      const core = createCore(agent);
+
+      await core.append(createAppendMessage());
+      userId = core.getMessages()[0]!.id;
+      await core.reload(userId);
+
+      expect(core.getMessages().map(({ id }) => id)).toEqual([
+        userId,
+        "assistant-a",
+        "assistant-b",
+      ]);
+      expect(core.getMessages()[1]).toMatchObject({
+        content: [{ type: "text", text: "snapshot A" }],
+        status: { type: "complete" },
+      });
+      expect(core.getMessages()[2]).toMatchObject({
+        content: [{ type: "text", text: "snapshot B" }],
+      });
+      expect(core.getMessages()[2]?.status?.type).toBe("complete");
+    },
+  );
 
   it("updates history when a snapshot refreshes the active server assistant", async () => {
     const serverAssistantId = "assistant-server";
