@@ -169,9 +169,13 @@ describe("convertLangChainBaseMessage file content parts", () => {
 });
 
 describe("getMessageContent image blocks", () => {
-  it("wraps bare base64 images in a data URL", () => {
-    const image =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+  it.each([
+    [
+      "image/png",
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+    ],
+    ["image/jpeg", "/9j/4AAQSkZJRg=="],
+  ])("wraps bare base64 %s images in a data URL", (mimeType, image) => {
     const message = {
       content: [
         { type: "text", text: "Describe this image" },
@@ -183,10 +187,27 @@ describe("getMessageContent image blocks", () => {
       { type: "text", text: "Describe this image" },
       {
         type: "image_url",
-        image_url: { url: `data:image/png;base64,${image}` },
+        image_url: { url: `data:${mimeType};base64,${image}` },
       },
     ]);
   });
+
+  it.each(["/uploads/cat.png", "/9j/uploads/cat.png"])(
+    "preserves relative image reference %s",
+    (image) => {
+      const message = {
+        content: [
+          { type: "text", text: "Describe this image" },
+          { type: "image", image },
+        ],
+      } as unknown as AppendMessage;
+
+      expect(getMessageContent(message)).toEqual([
+        { type: "text", text: "Describe this image" },
+        { type: "image_url", image_url: { url: image } },
+      ]);
+    },
+  );
 });
 
 describe("getMessageContent file blocks", () => {

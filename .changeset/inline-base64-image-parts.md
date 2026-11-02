@@ -4,4 +4,4 @@
 "@assistant-ui/react-langchain": patch
 ---
 
-Send bare base64 image parts as inline image data instead of remote URLs.
+Send recognizable bare base64 images as inline data while preserving URL and relative image references.

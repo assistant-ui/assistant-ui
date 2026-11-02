@@ -170,9 +170,13 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
-  it("sends bare base64 images as Gemini inline data", () => {
-    const image =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+  it.each([
+    [
+      "image/png",
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+    ],
+    ["image/jpeg", "/9j/4AAQSkZJRg=="],
+  ])("sends bare base64 %s images as Gemini inline data", (mimeType, image) => {
     const content = getMessageContent(
       makeAppendMessage([{ type: "image", image, filename: "pixel.png" }]),
     );
@@ -180,13 +184,26 @@ describe("getMessageContent", () => {
     expect(contentToParts(content)).toEqual([
       {
         inlineData: {
-          mimeType: "image/png",
+          mimeType,
           data: image,
           displayName: "pixel.png",
         },
       },
     ]);
   });
+
+  it.each(["/uploads/cat.png", "/9j/uploads/cat.png"])(
+    "preserves relative image reference %s",
+    (image) => {
+      const content = getMessageContent(
+        makeAppendMessage([{ type: "image", image, filename: "cat.png" }]),
+      );
+
+      expect(contentToParts(content)).toEqual([
+        { fileData: { fileUri: image, displayName: "cat.png" } },
+      ]);
+    },
+  );
 
   it.each(["file", "image"] as const)(
     "sends percent-encoded %s data URL bytes as bare Gemini inline data",

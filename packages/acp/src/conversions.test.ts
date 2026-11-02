@@ -184,14 +184,31 @@ describe("resolvePermissionOutcome", () => {
 });
 
 describe("threadContentToAcpBlocks", () => {
-  it("sends bare base64 images as inline image blocks", () => {
-    const image =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+  it.each([
+    [
+      "image/png",
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+    ],
+    ["image/jpeg", "/9j/4AAQSkZJRg=="],
+  ])(
+    "sends bare base64 %s images as inline image blocks",
+    (mimeType, image) => {
+      expect(threadContentToAcpBlocks([{ type: "image", image }])).toEqual([
+        { type: "image", data: image, mimeType },
+      ]);
+    },
+  );
 
-    expect(threadContentToAcpBlocks([{ type: "image", image }])).toEqual([
-      { type: "image", data: image, mimeType: "image/png" },
-    ]);
-  });
+  it.each(["/uploads/cat.png", "/9j/uploads/cat.png"])(
+    "preserves relative image reference %s",
+    (image) => {
+      expect(
+        threadContentToAcpBlocks([
+          { type: "image", image, filename: "cat.png" },
+        ]),
+      ).toEqual([{ type: "resource_link", uri: image, name: "cat.png" }]);
+    },
+  );
 
   it("converts text parts and skips empty text", () => {
     expect(
