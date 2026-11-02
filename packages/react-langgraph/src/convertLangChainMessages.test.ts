@@ -1488,6 +1488,47 @@ describe("convertLangChainMessages reasoning content", () => {
       content: [{ type: "reasoning", text: "\n\n\nkept" }],
     });
   });
+
+  it("shows reasoning once when additional_kwargs repeats a content block", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-kwargs-copy",
+      content: [
+        { type: "reasoning", reasoning: "Add 12 and 7 first." },
+        { type: "text", text: "19" },
+      ],
+      additional_kwargs: {
+        reasoning: {
+          type: "reasoning",
+          summary: [{ type: "summary_text", text: "Add 12 and 7 first." }],
+        },
+      },
+    });
+
+    expect(result.content).toEqual([
+      { type: "reasoning", text: "Add 12 and 7 first." },
+      { type: "text", text: "19" },
+    ]);
+  });
+
+  it("reads additional_kwargs reasoning when the content has none", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-kwargs-only",
+      content: [{ type: "text", text: "19" }],
+      additional_kwargs: {
+        reasoning: {
+          type: "reasoning",
+          summary: [{ type: "summary_text", text: "Add 12 and 7 first." }],
+        },
+      },
+    });
+
+    expect(result.content).toEqual([
+      { type: "reasoning", text: "Add 12 and 7 first." },
+      { type: "text", text: "19" },
+    ]);
+  });
 });
 
 describe("convertLangChainMessages image content", () => {

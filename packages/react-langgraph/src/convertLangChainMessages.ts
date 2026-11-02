@@ -261,14 +261,20 @@ const contentBlocks = (
   );
 };
 
-const getAiContent = (message: Extract<LangChainMessage, { type: "ai" }>) =>
-  [
-    message.additional_kwargs?.reasoning,
-    ...(typeof message.content === "string"
+const getAiContent = (message: Extract<LangChainMessage, { type: "ai" }>) => {
+  const content =
+    typeof message.content === "string"
       ? [{ type: "text" as const, text: message.content }]
-      : contentBlocks(message.content)),
+      : contentBlocks(message.content);
+  const reasoning = content.some((part) => part.type === "reasoning")
+    ? undefined
+    : message.additional_kwargs?.reasoning;
+  return [
+    reasoning,
+    ...content,
     ...(message.additional_kwargs?.tool_outputs ?? []),
   ].filter((part) => part !== undefined);
+};
 
 const getComputerCallId = (
   part: Extract<LangChainMessageContentBlock, { type: "computer_call" }>,
