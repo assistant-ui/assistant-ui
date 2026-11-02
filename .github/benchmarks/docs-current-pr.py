@@ -19,7 +19,7 @@ ROOT = Path.cwd()
 OUT = ROOT / 'comparison-results'
 OUT.mkdir(exist_ok=True)
 SIDES = {'base': ROOT / 'comparison/base', 'head': ROOT / 'comparison/head'}
-EXPECTED = {'base': 'a4dcbb5b9155cd7220e383c67a0613197d4d963d', 'head': '4be193486883cee56cd037ba9757a0454ddf3f39'}
+EXPECTED = {'base': 'a4dcbb5b9155cd7220e383c67a0613197d4d963d', 'head': '254d0fe97756405e6a5801c65c51dccd239d92fc'}
 ROUTES = ['/docs', '/docs/installation', '/design/components', '/elements/thread']
 ENV = dict(os.environ)
 REPORT = {'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'commits': EXPECTED, 'environment': {'platform': platform.platform(), 'cpuCount': os.cpu_count(), 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'pnpm': subprocess.check_output(['pnpm', '--version'], text=True).strip(), 'flags': {key: ENV.get(key) for key in ['NODE_OPTIONS', 'CIRCLE_NODE_TOTAL', 'RAYON_NUM_THREADS', 'NEXT_PUBLIC_AUI_AI_PLAYGROUND_ENABLED', 'NEXT_PUBLIC_WEBMCP_ENABLED']}}, 'preparation': [], 'builds': [], 'assets': {}, 'http': {}, 'dev': {}, 'limitations': ['Two cold/cached samples per revision in ABBA order; percentages are descriptive, not a statistical significance verdict.', 'Cold means removed .next; OS and dependency caches remain warm. Cached builds retain .next.', 'Process-tree RSS is sampled and can double-count shared pages.', 'HTTP timings are server response/download timings, not browser FCP, LCP, hydration or interaction.', 'Baseline is pinned current main, not a confirmed production deployment SHA.']}
@@ -84,6 +84,9 @@ def run(side, label, command, timeout=1200):
         match = re.search(pattern, raw)
         if match:
             phases[key] = float(match[1]) * {'ms': .001, 's': 1, 'min': 60}[match[2]]
+    trace = SIDES[side] / 'apps/docs/.next/trace'
+    if 'build-' in label and trace.exists():
+        shutil.copyfile(trace, OUT / f'{side}-{label}-trace.jsonl')
     item['phasesSeconds'] = phases
     REPORT['builds' if 'build-' in label else 'preparation'].append(item)
     save()
@@ -181,11 +184,15 @@ try:
         run(side, 'install', ['pnpm', 'install', '--frozen-lockfile', '--filter', '.', '--filter', '@assistant-ui/docs-site...'])
         run(side, 'dependencies', ['pnpm', 'exec', 'turbo', 'run', 'build', '--filter=@assistant-ui/docs-site^...', '--concurrency=2'])
         run(side, 'type-docs', ['pnpm', '--filter', '@assistant-ui/docs-site', 'generate:type-docs'])
+    for index, side in enumerate(['base', 'head', 'head', 'base'], 1):
+        shutil.rmtree(SIDES[side] / 'apps/docs/.next', ignore_errors=True)
+        for cache in ('cold', 'cached'):
+            run(side, f'build-{index}-{cache}', ['pnpm', '--filter', '@assistant-ui/docs-site', 'build'])
+        output(side)
+        if side not in REPORT['http']:
+            serve(side)
     for side in ['base', 'head']:
-        run(side, 'source-snapshot', ['pnpm', '--filter', '@assistant-ui/docs-site', 'generate:source-snapshot'])
-        run(side, 'profile-build', ['pnpm', '--filter', '@assistant-ui/docs-site', 'exec', 'next', 'build', '--experimental-cpu-prof'])
-        profiles = SIDES[side] / 'apps/docs/.next-profiles'
-        shutil.copytree(profiles, OUT / f'{side}-profiles')
+        serve(side, dev=True)
     REPORT['status'] = 'complete'
 except Exception as error:
     REPORT['status'] = 'failed'
