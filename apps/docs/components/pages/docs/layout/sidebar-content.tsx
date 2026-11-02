@@ -260,6 +260,7 @@ export function SidebarContent({
       )}
       <nav
         ref={navRef}
+        aria-label="Docs"
         data-docs-platform={platform}
         className={cn(
           "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pt-2 pb-4 lg:pt-4",

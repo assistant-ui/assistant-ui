@@ -126,7 +126,10 @@ export default async function ChangelogPage({
       </div>
 
       {totalPages > 1 ? (
-        <nav className="mt-10 flex items-baseline justify-between text-xs">
+        <nav
+          aria-label="Pagination"
+          className="mt-10 flex items-baseline justify-between text-xs"
+        >
           {current > 1 ? (
             <Link
               href={changelogHref(pkg, current - 1)}

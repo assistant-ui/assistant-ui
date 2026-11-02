@@ -426,7 +426,10 @@ export default async function ElementPage({
             )}
           </article>
 
-          <nav className="border-foreground/10 mt-16 flex items-center justify-between gap-4 border-t pt-6">
+          <nav
+            aria-label="Previous and next element"
+            className="border-foreground/10 mt-16 flex items-center justify-between gap-4 border-t pt-6"
+          >
             {previous ? (
               <Link
                 href={`/elements/${previous.slug}`}
