@@ -230,6 +230,23 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+const settleNestedContent = (
+  content: ThreadAssistantMessage["content"],
+  status: MessageStatus,
+) =>
+  mapToolCallPartsDeep(content, (part) =>
+    part.messages
+      ? {
+          ...part,
+          messages: part.messages.map((message) =>
+            message.role === "assistant" && message.status?.type === "running"
+              ? { ...message, status }
+              : message,
+          ),
+        }
+      : part,
+  ).content;
+
 type AgUiRuntimeCallbackName = "onError" | "onCancel";
 
 const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -1992,23 +2009,6 @@ export class AgUiThreadController {
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
-    const settleNestedContent = (
-      content: ThreadAssistantMessage["content"],
-      status: MessageStatus,
-    ) =>
-      mapToolCallPartsDeep(content, (part) =>
-        part.messages
-          ? {
-              ...part,
-              messages: part.messages.map((message) =>
-                message.role === "assistant" &&
-                message.status?.type === "running"
-                  ? { ...message, status }
-                  : message,
-              ),
-            }
-          : part,
-      ).content;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       joinStrategy,
@@ -3044,6 +3044,10 @@ export class AgUiThreadController {
             ) {
               this.updateAssistantMessage(activeAssistantId, {
                 status: FALLBACK_USER_STATUS,
+                content: settleNestedContent(
+                  previous.content,
+                  FALLBACK_USER_STATUS,
+                ),
               });
             }
           }

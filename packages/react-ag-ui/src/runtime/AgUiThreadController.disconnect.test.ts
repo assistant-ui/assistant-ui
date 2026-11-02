@@ -234,6 +234,74 @@ describe("AgUiThreadController HTTP stream closure", () => {
     });
   });
 
+  it("settles a nested assistant when a snapshot advances past its step", async () => {
+    const core = createController([
+      start,
+      ...text,
+      { type: "TOOL_CALL_START", toolCallId: "task", toolCallName: "task" },
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub",
+        name: "worker",
+        parentToolCallId: "task",
+      },
+      {
+        type: "TEXT_MESSAGE_START",
+        messageId: "sub-answer",
+        role: "assistant",
+        subagentRunId: "sub",
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "sub-answer",
+        delta: "working",
+        subagentRunId: "sub",
+      },
+      { type: "TOOL_CALL_END", toolCallId: "task" },
+      {
+        type: "TOOL_CALL_RESULT",
+        messageId: "task-result",
+        toolCallId: "task",
+        content: "started",
+        role: "tool",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+            ],
+          },
+          {
+            id: "task-result",
+            role: "tool",
+            toolCallId: "task",
+            content: "started",
+          },
+          { id: "next", role: "assistant", content: "next step" },
+        ],
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    const answer = core.getMessages().find(({ id }) => id === "answer");
+    expect(answer?.status?.type).toBe("complete");
+    expect(answer?.content[1]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "task",
+      messages: [{ id: "sub", status: { type: "complete" } }],
+    });
+  });
+
   it("retains snapshot tool calls when later events emit before RUN_FINISHED", async () => {
     const core = createController([
       start,

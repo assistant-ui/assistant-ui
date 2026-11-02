@@ -432,7 +432,14 @@ describe("AgUiThreadController branch flows", () => {
           });
           if (ending === "finished") {
             subscriber.onRunFinishedEvent?.({
-              event: { type: "RUN_FINISHED" },
+              event: {
+                type: "RUN_FINISHED",
+                threadId: "thread",
+                runId: "run",
+                outcome: { type: "success" },
+              },
+              outcome: "success",
+              pendingToolCallIds: [],
             });
           }
           subscriber.onRunFinalized?.();
@@ -456,7 +463,7 @@ describe("AgUiThreadController branch flows", () => {
       expect(core.getMessages()[2]).toMatchObject({
         content: [{ type: "text", text: "snapshot B" }],
       });
-      expect(core.getMessages()[2]?.status?.type).not.toBe("running");
+      expect(core.getMessages()[2]?.status?.type).toBe("complete");
     },
   );
 
