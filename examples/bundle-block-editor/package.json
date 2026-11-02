@@ -16,7 +16,7 @@
     "@lexical/react": "^0.53.0",
     "@lexical/rich-text": "^0.53.0",
     "@lexical/selection": "^0.53.0",
-    "ai": "^7.0.153",
+    "ai": "^7.0.159",
     "bundle-shared": "workspace:*",
     "lexical": "^0.53.0",
     "react": "^19.3.1",
