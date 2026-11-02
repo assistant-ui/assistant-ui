@@ -1,4 +1,7 @@
-import { raceWithAbortSignal } from "@assistant-ui/core/internal";
+import {
+  bytesToBase64,
+  raceWithAbortSignal,
+} from "@assistant-ui/core/internal";
 
 export const encodePcm16 = (samples: Float32Array): string => {
   const bytes = new Uint8Array(samples.length * 2);
@@ -7,11 +10,7 @@ export const encodePcm16 = (samples: Float32Array): string => {
     const s = Math.max(-1, Math.min(1, samples[i]!));
     view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
   }
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
+  return bytesToBase64(bytes);
 };
 
 export const decodePcm16 = (base64: string): Float32Array<ArrayBuffer> => {
