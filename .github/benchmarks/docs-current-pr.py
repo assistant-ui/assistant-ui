@@ -19,7 +19,7 @@ ROOT = Path.cwd()
 OUT = ROOT / 'comparison-results'
 OUT.mkdir(exist_ok=True)
 SIDES = {'base': ROOT / 'comparison/base', 'head': ROOT / 'comparison/head'}
-EXPECTED = {'base': '4be193486883cee56cd037ba9757a0454ddf3f39', 'head': '254d0fe97756405e6a5801c65c51dccd239d92fc'}
+EXPECTED = {'base': '4be193486883cee56cd037ba9757a0454ddf3f39', 'head': '6229e91ac5500138885696108de4e7e9ff2f8ec4'}
 ROUTES = ['/docs', '/docs/installation', '/design/components', '/elements/thread']
 ENV = dict(os.environ)
 REPORT = {'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'commits': EXPECTED, 'environment': {'platform': platform.platform(), 'cpuCount': os.cpu_count(), 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'pnpm': subprocess.check_output(['pnpm', '--version'], text=True).strip(), 'flags': {key: ENV.get(key) for key in ['NODE_OPTIONS', 'CIRCLE_NODE_TOTAL', 'RAYON_NUM_THREADS', 'NEXT_PUBLIC_AUI_AI_PLAYGROUND_ENABLED', 'NEXT_PUBLIC_WEBMCP_ENABLED']}}, 'preparation': [], 'builds': [], 'assets': {}, 'http': {}, 'dev': {}, 'limitations': ['Two cold/cached samples per revision in ABBA order; percentages are descriptive, not a statistical significance verdict.', 'Cold means removed .next; OS and dependency caches remain warm. Cached builds retain .next.', 'Process-tree RSS is sampled and can double-count shared pages.', 'HTTP timings are server response/download timings, not browser FCP, LCP, hydration or interaction.', 'Baseline is the PR immediately before the content build optimization, not production.']}
