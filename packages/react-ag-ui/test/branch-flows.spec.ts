@@ -408,6 +408,58 @@ describe("AgUiThreadController branch flows", () => {
     ).toMatchObject({ parentId: snapshotStepId });
   });
 
+  it.each(["finished", "eof"])(
+    "settles the previous assistant when a snapshot advances the head (%s)",
+    async (ending) => {
+      let runCount = 0;
+      let userId = "";
+      const agent = {
+        runAgent: vi.fn(async (_input, subscriber) => {
+          if (++runCount === 1) {
+            subscriber.onRunFinalized?.();
+            return;
+          }
+          emitAssistantText(subscriber, "assistant-a", "streamed A");
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-a", role: "assistant", content: "snapshot A" },
+                { id: "assistant-b", role: "assistant", content: "snapshot B" },
+              ],
+            },
+          });
+          if (ending === "finished") {
+            subscriber.onRunFinishedEvent?.({
+              event: { type: "RUN_FINISHED" },
+            });
+          }
+          subscriber.onRunFinalized?.();
+        }),
+      } as unknown as HttpAgent;
+      const core = createCore(agent);
+
+      await core.append(createAppendMessage());
+      userId = core.getMessages()[0]!.id;
+      await core.reload(userId);
+
+      expect(core.getMessages().map(({ id }) => id)).toEqual([
+        userId,
+        "assistant-a",
+        "assistant-b",
+      ]);
+      expect(core.getMessages()[1]).toMatchObject({
+        content: [{ type: "text", text: "snapshot A" }],
+        status: { type: "complete" },
+      });
+      expect(core.getMessages()[2]).toMatchObject({
+        content: [{ type: "text", text: "snapshot B" }],
+      });
+      expect(core.getMessages()[2]?.status?.type).not.toBe("running");
+    },
+  );
+
   it("updates history when a snapshot refreshes the active server assistant", async () => {
     const serverAssistantId = "assistant-server";
     const update = vi.fn().mockResolvedValue(undefined);

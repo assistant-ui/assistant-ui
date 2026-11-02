@@ -3030,8 +3030,24 @@ export class AgUiThreadController {
             headId === null
               ? undefined
               : this.session.tryGetMessage(headId)?.message;
-          activeAssistantId =
+          const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
+          if (
+            activeAssistantId !== nextActiveAssistantId &&
+            activeAssistantId
+          ) {
+            const previous =
+              this.session.tryGetMessage(activeAssistantId)?.message;
+            if (
+              previous?.role === "assistant" &&
+              previous.status?.type === "running"
+            ) {
+              this.updateAssistantMessage(activeAssistantId, {
+                status: FALLBACK_USER_STATUS,
+              });
+            }
+          }
+          activeAssistantId = nextActiveAssistantId;
         }
         this.updateActiveAssistantState(activeAssistantId);
         break;

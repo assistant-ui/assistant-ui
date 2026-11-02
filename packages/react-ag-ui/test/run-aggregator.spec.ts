@@ -144,6 +144,33 @@ describe("RunAggregator", () => {
     expect((textPart as any).text).toBe("Hello world");
   });
 
+  it("continues snapshot text from a content event after a distinct root message", () => {
+    const aggregator = createAggregator(false, undefined, () => {});
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" });
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "previous",
+    });
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "previous",
+      delta: "old",
+    });
+    aggregator.handle({
+      type: "MESSAGES_SNAPSHOT",
+      messages: [{ id: "next", role: "assistant", content: "snapshot" }],
+    });
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "next",
+      delta: " continued",
+    });
+
+    expect(getLastResult(results).content).toEqual([
+      { type: "text", text: "snapshot continued" },
+    ]);
+  });
+
   it("emits custom events as ordered data parts and separates anonymous text", () => {
     const aggregator = createAggregator(false);
 
