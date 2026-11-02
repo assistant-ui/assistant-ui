@@ -112,6 +112,8 @@ export const createThreadViewportAutoScroll = (input: {
   let followBottom = true;
   let followPaused = false;
   let scrolledSincePause = false;
+  let scrolledByUser = false;
+  let scrolledByUserFrame: number | null = null;
   let contentInset = 0;
   let directContentInset = 0;
   const contentInsetEntries = new Map<symbol, number>();
@@ -152,8 +154,29 @@ export const createThreadViewportAutoScroll = (input: {
     frame = null;
   };
 
+  const clearUserScrollSignal = () => {
+    scrolledByUser = false;
+    if (scrolledByUserFrame === null) return;
+    cancelAnimationFrame(scrolledByUserFrame);
+    scrolledByUserFrame = null;
+  };
+
+  const noteUserScrollInput = () => {
+    scrolledByUser = true;
+    if (
+      scrolledByUserFrame !== null ||
+      typeof requestAnimationFrame === "undefined"
+    )
+      return;
+    scrolledByUserFrame = requestAnimationFrame(() => {
+      scrolledByUserFrame = null;
+      scrolledByUser = false;
+    });
+  };
+
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     if (!element) return;
+    clearUserScrollSignal();
     followBottom = true;
     followPaused = false;
     scrolledSincePause = false;
@@ -176,6 +199,12 @@ export const createThreadViewportAutoScroll = (input: {
     });
   };
 
+  const isScrolledUp = (clientHeight: number) =>
+    !!element &&
+    element.scrollTop < lastScrollTop &&
+    element.scrollHeight >= lastScrollHeight &&
+    (clientHeight === lastClientHeight || scrolledByUser);
+
   const handleScroll = ({
     preserveFollow = false,
     insetShrank = false,
@@ -188,10 +217,8 @@ export const createThreadViewportAutoScroll = (input: {
     const { autoScroll, holdFollow } = input.getOptions();
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
-    const scrolledUp =
-      element.scrollTop < lastScrollTop &&
-      element.scrollHeight >= lastScrollHeight &&
-      clientHeight === lastClientHeight;
+    const scrollTopChanged = element.scrollTop !== lastScrollTop;
+    const scrolledUp = isScrolledUp(clientHeight);
     if (
       !holdFollow &&
       !newIsAtBottom &&
@@ -221,6 +248,7 @@ export const createThreadViewportAutoScroll = (input: {
       if (newIsAtBottom || intent === null) setAtBottom(newIsAtBottom);
     }
 
+    if (scrollTopChanged) clearUserScrollSignal();
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
     lastClientHeight = clientHeight;
@@ -255,6 +283,7 @@ export const createThreadViewportAutoScroll = (input: {
     lastObservedScrollHeight = scrollHeight;
     lastObservedClientHeight = clientHeight;
 
+    if (scrolledByUser && isScrolledUp(clientHeight)) handleScroll();
     followGrowth();
     handleScroll();
   };
@@ -297,6 +326,7 @@ export const createThreadViewportAutoScroll = (input: {
       return;
     }
     scrolledSincePause = true;
+    if (event.type !== "pointerdown") noteUserScrollInput();
   };
 
   const releasePrependAnchor = () => {
@@ -329,6 +359,7 @@ export const createThreadViewportAutoScroll = (input: {
   return {
     attach: (el) => {
       detachAttached?.();
+      clearUserScrollSignal();
       element = el;
       intent = null;
       lastScrollTop = el.scrollTop;
@@ -387,6 +418,7 @@ export const createThreadViewportAutoScroll = (input: {
           el.removeEventListener(gesture, releasePrependAnchor);
         }
         cancelFrame();
+        clearUserScrollSignal();
         if (element === el) element = null;
         detachAttached = null;
       };

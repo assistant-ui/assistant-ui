@@ -593,6 +593,10 @@ describe("createThreadViewportAutoScroll", () => {
       controller.runStarted();
       expect(frames.size).toBe(1);
       view.element.dispatchEvent(new Event(gesture));
+      if (gesture === "wheel") {
+        expect(frames.size).toBe(1);
+        flushFrames();
+      }
       expect(frames.size).toBe(0);
       view.grow(1000);
       observers[0]!.trigger();
@@ -693,6 +697,10 @@ describe("createThreadViewportAutoScroll", () => {
     expect(frames.size).toBe(1);
 
     button.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    if (key !== "Enter") {
+      expect(frames.size).toBe(1);
+      flushFrames();
+    }
     expect(frames.size).toBe(0);
     view.grow(1000);
     observers[0]!.trigger();
@@ -781,6 +789,84 @@ describe("createThreadViewportAutoScroll", () => {
       behavior: "auto",
     });
     expect(view.element.scrollTop).toBe(500);
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it.each(["wheel", "touchmove", "ArrowUp"] as const)(
+    "keeps a reader scroll-up across growth and resize after %s input",
+    (gesture) => {
+      const view = geometry(500, 100);
+      view.setTop(400);
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+
+      view.grow(600);
+      view.resize(200);
+      view.element.dispatchEvent(
+        gesture === "wheel"
+          ? new WheelEvent("wheel")
+          : gesture === "touchmove"
+            ? new Event("touchmove")
+            : new KeyboardEvent("keydown", { key: gesture }),
+      );
+      view.setTop(350);
+      observers[0]!.trigger();
+      view.grow(700);
+      observers[0]!.trigger();
+
+      expect(view.scrollTo).not.toHaveBeenCalled();
+      expect(view.element.scrollTop).toBe(350);
+      controller.dispose();
+    },
+  );
+
+  it("classifies a resize-frame reader scroll before following its growth", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel"));
+    view.element.scrollTop = 350;
+    observers[0]!.trigger();
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    controller.dispose();
+  });
+
+  it("expires resize scroll input that did not move the viewport", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel"));
+    flushFrames();
+    view.grow(600);
+    observers[0]!.trigger();
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenLastCalledWith({
+      top: 700,
+      behavior: "instant",
+    });
     expect(controller.isAtBottom).toBe(true);
     controller.dispose();
   });
