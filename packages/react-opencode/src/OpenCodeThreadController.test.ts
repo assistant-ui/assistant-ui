@@ -5428,6 +5428,83 @@ describe("OpenCodeThreadController", () => {
     ]);
   });
 
+  it.each(["message.part.updated", "message.part.delta"] as const)(
+    "keeps %s text when a refresh returns older history",
+    async (type) => {
+      const refreshMessages = createDeferred<{ data: unknown[] }>();
+      const eventSource = createEventSource();
+      const message = createTaskMessage("ses_1", "message_1", []);
+      const part = {
+        id: "part_1",
+        messageID: "message_1",
+        sessionID: "ses_1",
+        type: "text",
+        text: "Hel",
+      };
+      const client = {
+        session: {
+          get: vi.fn().mockResolvedValue({ data: { id: "ses_1", time: {} } }),
+          messages: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [{ ...message, parts: [part] }] })
+            .mockReturnValueOnce(refreshMessages.promise)
+            .mockResolvedValueOnce({
+              data: [
+                { ...message, parts: [{ ...part, text: "Loaded newer" }] },
+              ],
+            }),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+
+      await controller.load();
+      expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
+        [{ id: "part_1", text: "Hel" }],
+      );
+
+      const refresh = controller.refresh();
+      eventSource.emit(
+        type === "message.part.updated"
+          ? {
+              type,
+              sessionId: "ses_1",
+              properties: { part: { ...part, text: "Hello" } },
+              raw: {},
+            }
+          : {
+              type,
+              sessionId: "ses_1",
+              properties: {
+                messageID: "message_1",
+                partID: "part_1",
+                field: "text",
+                delta: "lo",
+              },
+              raw: {},
+            },
+      );
+      expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
+        [{ id: "part_1", text: "Hello" }],
+      );
+
+      refreshMessages.resolve({ data: [{ ...message, parts: [part] }] });
+      await refresh;
+      expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
+        [{ id: "part_1", text: "Hello" }],
+      );
+
+      await controller.refresh();
+      expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
+        [{ id: "part_1", text: "Loaded newer" }],
+      );
+    },
+  );
+
   it("does not resurrect parts removed during a history load", async () => {
     const session = createDeferred<{ data: unknown }>();
     const messages = createDeferred<{ data: unknown[] }>();

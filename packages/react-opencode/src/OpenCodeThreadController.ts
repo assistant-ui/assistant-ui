@@ -291,6 +291,16 @@ type HistorySyncWindow = {
 const historyPartKey = (messageId: string, partId: string) =>
   `${messageId}\0${partId}`;
 
+const extendsLoadedText = (
+  live: MessageWithParts["parts"][number],
+  loaded: MessageWithParts["parts"][number],
+) =>
+  live.type === loaded.type &&
+  "text" in live &&
+  "text" in loaded &&
+  live.text.length > loaded.text.length &&
+  live.text.startsWith(loaded.text);
+
 const mergeHistoryMessages = (
   messages: readonly MessageWithParts[],
   state: OpenCodeThreadState,
@@ -314,11 +324,16 @@ const mergeHistoryMessages = (
     }
 
     const current = state.messagesById[messageId];
+    const currentParts = new Map(current?.parts.map((part) => [part.id, part]));
     const loadedPartIds = new Set(message.parts.map((part) => part.id));
-    const parts = message.parts.filter(
-      (part) =>
-        !syncWindow.removedPartIds.has(historyPartKey(messageId, part.id)),
-    );
+    const parts = message.parts.flatMap((part) => {
+      const key = historyPartKey(messageId, part.id);
+      if (syncWindow.removedPartIds.has(key)) return [];
+      if (!syncWindow.changedPartIds.has(key)) return [part];
+      const live =
+        currentParts.get(part.id) ?? syncWindow.updatedParts.get(key)?.part;
+      return [live && extendsLoadedText(live, part) ? live : part];
+    });
     const appendIfMissing = (part: MessageWithParts["parts"][number]) => {
       const key = historyPartKey(messageId, part.id);
       if (loadedPartIds.has(part.id) || syncWindow.removedPartIds.has(key)) {
