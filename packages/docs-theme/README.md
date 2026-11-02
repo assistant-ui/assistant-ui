@@ -12,10 +12,10 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.134 @farming-labs/next@0.2.134 @farming-labs/theme@0.2.134 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.135 @farming-labs/next@0.2.135 @farming-labs/theme@0.2.135 fumadocs-ui@16.17.1
 ```
 
-Use the Farming Labs Docs, Next, and Theme stable patch 0.2.134 with Fumadocs UI 16.17.1. This version includes the focused `@farming-labs/docs/config` entry used by the theme and avoids loading the raw Markdown parser for MDX tree helpers.
+Use the Farming Labs Docs, Next, and Theme stable patch 0.2.135 with Fumadocs UI 16.17.1. This version includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, and loads the built-in command-search dialog on first use.
 Fumadocs UI is a required peer because the theme imports its shared contexts.
 Package managers with automatic peer installation install it; otherwise, add
 `fumadocs-ui@16.17.1` directly and satisfy its peers. With Yarn PnP, also install
