@@ -5,14 +5,22 @@ export function DocsPageShell({
   toc,
   footer,
   children,
+  mainProps,
 }: {
   toc?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
+  mainProps?: Omit<ComponentProps<"main">, "children">;
 }) {
   return (
     <div className="docs-layout">
-      <main className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pt-4 pb-10 md:px-6">
+      <main
+        {...mainProps}
+        className={cn(
+          "mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pt-4 pb-10 md:px-6",
+          mainProps?.className,
+        )}
+      >
         {children}
       </main>
       {toc}

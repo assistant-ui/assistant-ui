@@ -269,6 +269,10 @@
     scroll-padding-top: calc(var(--docs-header-height, 48px) + 2rem);
     overflow-y: scroll;
   }
+  #main-content:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
   body {
     @apply bg-background text-foreground;
     font-optical-sizing: auto;

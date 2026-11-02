@@ -1,5 +1,6 @@
 "use client";
 
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import {
   useCallback,
   useEffect,
@@ -444,7 +445,10 @@ export default function PlaygroundPage() {
         </HeaderPortal>
       )}
 
-      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <main
+        {...MAIN_CONTENT_PROPS}
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+      >
         {XuluxApp && visitedModes.agent && (
           <div
             className={cn(
@@ -467,7 +471,7 @@ export default function PlaygroundPage() {
             <BuilderPlayground />
           </div>
         )}
-      </div>
+      </main>
     </>
   );
 }

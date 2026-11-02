@@ -6,6 +6,7 @@ import { LegalLinks } from "@/components/shared/legal-links";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { checkoutEnabled } from "@/lib/checkout/config";
+import { PLATFORM_LINKS } from "@/lib/constants";
 import { SUB_PROJECT_SLUGS, subProject } from "@/lib/docs-sites";
 
 type FooterLinkItem = {
@@ -20,11 +21,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Changelog", href: "/changelog" },
     { label: "Playground", href: "/playground" },
   ],
-  Platforms: [
-    { label: "React", href: "/docs" },
-    { label: "React Native", href: "/native" },
-    { label: "Ink", href: "/ink" },
-  ],
+  Platforms: PLATFORM_LINKS,
   Extend: [
     ...(checkoutEnabled ? [{ label: "Components", href: "/components" }] : []),
     { label: "Elements", href: "/elements" },

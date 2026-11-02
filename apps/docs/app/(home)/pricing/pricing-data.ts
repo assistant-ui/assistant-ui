@@ -33,7 +33,7 @@ export const libraryHighlights: Highlight[] = [
       "Pair it with any runtime you already run. Cloud is optional, not a requirement.",
   },
   {
-    title: "React, React Native, and Ink",
+    title: "React, Vue, React Native, and Ink",
     description:
       "One chat model across web, native, and terminal. Keep the same runtime adapters.",
   },

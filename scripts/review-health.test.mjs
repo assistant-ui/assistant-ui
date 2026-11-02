@@ -78,8 +78,15 @@ function mockGitHubFetch({ repository, teams, areas, missingTeams }) {
   };
 }
 
+// The CLI rejects a --since older than GitHub's one-month rule-suite window, so
+// the CLI tests use a window that ends today.
+const daysFromToday = (days) =>
+  new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 for (const missingTeams of [false, true]) {
   test(`CLI fetches organization owners and ${missingTeams ? "warns about missing" : "paginates all"} teams`, () => {
+    const since = daysFromToday(-6);
+    const until = daysFromToday(0);
     const preload = `(${mockGitHubFetch.toString()})(${JSON.stringify({
       repository: policy.repository,
       teams: policy.teams,
@@ -93,14 +100,17 @@ for (const missingTeams of [false, true]) {
         `data:text/javascript,${encodeURIComponent(preload)}`,
         path.resolve(import.meta.dirname, "review-health.mjs"),
         "--since",
-        "2026-10-01",
+        since,
         "--until",
-        "2026-10-07",
+        until,
       ],
       { encoding: "utf8", env: { ...process.env, GITHUB_TOKEN: "test" } },
     );
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /^# Review health, 2026-10-01 to 2026-10-07/m);
+    assert.match(
+      result.stdout,
+      new RegExp(`^# Review health, ${since} to ${until}$`, "m"),
+    );
     for (const slug of new Set([
       ...Object.values(policy.teams),
       ...policy.areas.map((area) => area.ownerTeam),

@@ -1,4 +1,5 @@
 export {
+  DOCS_SIDEBAR_ID,
   DocsSidebarProvider,
   DocsSidebar,
   useDocsSidebar,

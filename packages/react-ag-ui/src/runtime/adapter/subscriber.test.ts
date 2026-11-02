@@ -4,7 +4,7 @@ import { createAgUiSubscriber } from "./subscriber";
 const createSubscriber = () => {
   const dispatch = vi.fn();
   const logger = { debug: vi.fn(), error: vi.fn() };
-  const subscriber = createAgUiSubscriber({ dispatch, runId: "run-1", logger });
+  const subscriber = createAgUiSubscriber({ dispatch, logger });
   return { subscriber, dispatch, logger };
 };
 

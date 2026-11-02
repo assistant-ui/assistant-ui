@@ -13,7 +13,12 @@ function SidebarState() {
 
 it("keeps one sidebar mounted and closes the competing mobile menu", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("matchMedia", () => ({
+    addEventListener() {},
+    removeEventListener() {},
+  }));
   const container = document.createElement("div");
+  document.body.append(container);
   const root = createRoot(container);
   const button = (label: string) =>
     container.querySelector<HTMLButtonElement>(
@@ -42,6 +47,13 @@ it("keeps one sidebar mounted and closes the competing mobile menu", async () =>
         </DocsSidebarProvider>,
       ),
     );
+    expect(button("Toggle sidebar").getAttribute("aria-controls")).toBe(
+      container.querySelector("aside")?.id,
+    );
+    const navigation = document.getElementById(
+      button("Site navigation").getAttribute("aria-controls")!,
+    );
+    expect(navigation?.hasAttribute("inert")).toBe(true);
     await act(async () => button("Toggle sidebar").click());
     expect(button("Toggle sidebar").getAttribute("aria-expanded")).toBe("true");
     await act(async () =>
@@ -51,6 +63,7 @@ it("keeps one sidebar mounted and closes the competing mobile menu", async () =>
     expect(button("Site navigation").getAttribute("aria-expanded")).toBe(
       "true",
     );
+    expect(navigation?.hasAttribute("inert")).toBe(false);
     expect(button("Toggle sidebar").getAttribute("aria-expanded")).toBe(
       "false",
     );
@@ -67,8 +80,10 @@ it("keeps one sidebar mounted and closes the competing mobile menu", async () =>
     expect(button("Site navigation").getAttribute("aria-expanded")).toBe(
       "false",
     );
+    expect(document.activeElement).toBe(button("Site navigation"));
   } finally {
     await act(async () => root.unmount());
+    container.remove();
     vi.unstubAllGlobals();
   }
 });

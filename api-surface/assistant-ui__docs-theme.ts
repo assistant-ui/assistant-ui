@@ -8,6 +8,8 @@ import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 
 import { ComponentProps, ComponentType, ReactNode } from "react";
 
+declare const DOCS_SIDEBAR_ID = "docs-sidebar";
+
 declare function DocsBody(_param0: ComponentProps<"article">): import("react").JSX.Element;
 
 declare const DocsBrand: (_param1: DocsBrand.Props) => import("react").JSX.Element;
@@ -54,14 +56,17 @@ declare function DocsPageShell(_param4: {
   toc?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
+  mainProps?: Omit<ComponentProps<"main">, "children">;
 }): import("react").JSX.Element;
 
 declare function DocsPagerNavigation(_param5: {
   previous?: {
     url: string;
+    name?: ReactNode;
   } | undefined;
   next?: {
     url: string;
+    name?: ReactNode;
   } | undefined;
   children?: ReactNode;
 }): import("react").JSX.Element;
@@ -172,7 +177,7 @@ declare namespace entry_provider_exports {
 }
 
 declare namespace entry_ui_exports {
-  export { DocsBody, DocsContent, DocsFolder, DocsFooter, DocsNode, DocsPage, DocsPageShell, DocsPagerNavigation, DocsSeparator, DocsShell, DocsSidebar, DocsSidebarNavigation, DocsSidebarProvider, DocsSiteHeader, DocsTableOfContents, useDocsSidebar };
+  export { DOCS_SIDEBAR_ID, DocsBody, DocsContent, DocsFolder, DocsFooter, DocsNode, DocsPage, DocsPageShell, DocsPagerNavigation, DocsSeparator, DocsShell, DocsSidebar, DocsSidebarNavigation, DocsSidebarProvider, DocsSiteHeader, DocsTableOfContents, useDocsSidebar };
 }
 
 declare function useDocsSidebar(): DocsSidebarContextValue;

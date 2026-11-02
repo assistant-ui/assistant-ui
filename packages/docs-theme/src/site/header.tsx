@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, type ComponentType, type ReactNode } from "react";
-import { LayoutGrid, Menu, X } from "lucide-react";
-import { useDocsSidebar } from "./sidebar";
+import {
+  useId,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
+import { Menu, PanelLeft, X } from "lucide-react";
+import { DOCS_SIDEBAR_ID, useDocsSidebar } from "./sidebar";
 import { cn } from "./utils";
 
 export function DocsSiteHeader({
@@ -28,6 +34,12 @@ export function DocsSiteHeader({
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const navMenuId = useId();
+  const navMenuToggle = useRef<HTMLButtonElement>(null);
+  const closeNavigation = () => {
+    setNavMenuOpen(false);
+    navMenuToggle.current?.focus();
+  };
   const toggleNavigation = () => {
     if (!navMenuOpen) setSidebarOpen(false);
     setNavMenuOpen((open) => !open);
@@ -52,15 +64,17 @@ export function DocsSiteHeader({
             {mobileControls}
             <button
               type="button"
+              ref={navMenuToggle}
               onClick={toggleNavigation}
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
               aria-label="Site navigation"
               aria-expanded={navMenuOpen}
+              aria-controls={navMenuId}
             >
               {navMenuOpen ? (
                 <X className="size-4" />
               ) : (
-                <LayoutGrid className="size-4" />
+                <Menu className="size-4" />
               )}
             </button>
             <button
@@ -69,11 +83,12 @@ export function DocsSiteHeader({
               className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
               aria-label="Toggle sidebar"
               aria-expanded={sidebarOpen}
+              aria-controls={DOCS_SIDEBAR_ID}
             >
               {sidebarOpen ? (
                 <X className="size-4" />
               ) : (
-                <Menu className="size-4" />
+                <PanelLeft className="size-4" />
               )}
             </button>
           </div>
@@ -89,10 +104,11 @@ export function DocsSiteHeader({
             "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
             navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
           )}
+          id={navMenuId}
           inert={!navMenuOpen}
         >
           <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-            {mobileNavigation(() => setNavMenuOpen(false))}
+            {mobileNavigation(closeNavigation)}
           </div>
         </div>
       </NavigationRoot>

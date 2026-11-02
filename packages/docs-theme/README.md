@@ -179,7 +179,11 @@ export function Documentation({ header, navigation, toc, footer, children }: {
       <DocsShell>
         {header}
         <DocsContent>
-          <DocsPageShell toc={toc} footer={footer}>
+          <DocsPageShell
+            toc={toc}
+            footer={footer}
+            mainProps={{ id: "main-content", tabIndex: -1 }}
+          >
             <DocsBody>{children}</DocsBody>
           </DocsPageShell>
         </DocsContent>
@@ -193,8 +197,11 @@ export function Documentation({ header, navigation, toc, footer, children }: {
 `DocsSiteHeader` owns the mobile navigation/sidebar toggles and responsive header
 regions. Provide branding, search, theme controls, and application links through
 its slots. `navigationRoot` accepts your existing navigation provider;
-`mobileNavigation(close)` receives the action to close the menu after navigation.
-`useDocsSidebar` lets a custom header control the same sidebar.
+`mobileNavigation(close)` receives the action to close the menu and restore focus
+to its toggle after navigation. `useDocsSidebar` lets a custom header control the
+same sidebar; `DOCS_SIDEBAR_ID` identifies it for `aria-controls`.
+`DocsPageShell.mainProps` configures the main landmark, including a focusable target
+for an application-provided skip link.
 
 `DocsSidebarNavigation` accepts `sections` (folders with stable `$id` values),
 `pathname`, `activeSectionId`, and `onNavigate`. Use `isVisible` for platform-specific
@@ -204,8 +211,8 @@ The active ancestor path is computed once per tree/path change; opening a sectio
 does not repeat a tree walk for each nested folder.
 
 `DocsTableOfContents` accepts `{title, url, depth}` items and an action area as
-children. `DocsPagerNavigation` accepts previous/next URLs and an actions menu as
-children. `DocsFooter` accepts named previous/next destinations and optional section
+children. `DocsPagerNavigation` accepts previous/next URLs with optional names for
+accessible link labels, and an actions menu as children. `DocsFooter` accepts named previous/next destinations and optional section
 labels. Copy, search, Ask AI, and analytics stay with the consuming application.
 
 The shell, page body, and footer can render as Server Components. Interactive

@@ -2,13 +2,18 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+const pagerLabel = (direction: "Previous" | "Next", name: ReactNode) =>
+  typeof name === "string" && name !== ""
+    ? `${direction}: ${name}`
+    : `${direction} page`;
+
 export function DocsPagerNavigation({
   previous,
   next,
   children,
 }: {
-  previous?: { url: string } | undefined;
-  next?: { url: string } | undefined;
+  previous?: { url: string; name?: ReactNode } | undefined;
+  next?: { url: string; name?: ReactNode } | undefined;
   children?: ReactNode;
 }) {
   const buttonClass =
@@ -21,7 +26,7 @@ export function DocsPagerNavigation({
         <Link
           href={previous.url}
           className={buttonClass}
-          aria-label="Previous page"
+          aria-label={pagerLabel("Previous", previous.name)}
         >
           <ChevronLeft className="size-4" />
         </Link>
@@ -31,7 +36,11 @@ export function DocsPagerNavigation({
         </div>
       )}
       {next ? (
-        <Link href={next.url} className={buttonClass} aria-label="Next page">
+        <Link
+          href={next.url}
+          className={buttonClass}
+          aria-label={pagerLabel("Next", next.name)}
+        >
           <ChevronRight className="size-4" />
         </Link>
       ) : (

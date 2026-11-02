@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { DocsPagerNavigation } from "@assistant-ui/docs-theme/ui";
 import { MoreHorizontal, Copy, FileText } from "lucide-react";
 import {
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
 
 type PagerItem = {
+  name: ReactNode;
   url: string;
 };
 

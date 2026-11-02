@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, onTestFinished } from "vitest";
 import {
   AssistantMessageAccumulator,
   createInitialMessage,
@@ -1135,5 +1135,30 @@ describe("AssistantMessageAccumulator tool arguments", () => {
     const mutableArgs = part.args as Record<string, unknown>;
     mutableArgs.query = "updated";
     expect(mutableArgs.query).toBe("updated");
+  });
+});
+
+describe("AssistantMessageAccumulator tool-call approvals", () => {
+  it("sets an approval on a tool call and drops one aimed at another part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warn.mockRestore());
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "deploy" },
+      },
+      { type: "part-start", path: [], part: { type: "text" } },
+      { type: "tool-call-approval", path: [0], approval: { id: "a1" } },
+      { type: "tool-call-approval", path: [1], approval: { id: "a2" } },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({ type: "tool-call", approval: { id: "a1" } }),
+      expect.not.objectContaining({ approval: expect.anything() }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped tool-call-approval chunk: part is not a tool-call",
+    );
   });
 });

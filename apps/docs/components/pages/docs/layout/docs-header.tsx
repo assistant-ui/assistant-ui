@@ -6,7 +6,12 @@ import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ArrowUpRight, Search } from "lucide-react";
 import { useSearchContext } from "@/components/shared/search-provider";
-import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
+import {
+  NAV_ITEMS,
+  CLOUD_URL,
+  megaGroups,
+  type NavItem,
+} from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
@@ -43,7 +48,7 @@ function AskAIButton() {
       size="sm"
       onClick={toggle}
       className="shrink-0"
-      aria-label="Ask AI (⌘I)"
+      aria-keyshortcuts="Meta+I Control+I"
     >
       Ask AI
       <KbdGroup className="hidden xl:inline-flex">
@@ -192,16 +197,16 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
       mobileControls={
         <>
           <CartButton />
-          <AskAIButton />
           <SearchIconButton className="size-8" />
+          <AskAIButton />
         </>
       }
       condensedNavigation={
         <>
           <div className="flex items-center gap-2">
             <CartButton />
-            <AskAIButton />
             <SearchIconButton className="size-7" />
+            <AskAIButton />
           </div>
           <div className="flex shrink-0 items-center">
             <NavItems
@@ -217,9 +222,9 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
         <>
           <div className="flex min-w-0 items-center gap-2">
             <CartButton />
-            <AskAIButton />
             <SearchIconButton className="size-7 xl:hidden" />
             <HeaderSearch />
+            <AskAIButton />
           </div>
           <NavItems
             items={filteredItems}
@@ -271,7 +276,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
                 <span className="text-foreground py-3 text-lg">
                   {item.label}
                 </span>
-                {item.groups.map((group) => (
+                {megaGroups(item).map((group) => (
                   <div key={group.label} className="flex flex-col">
                     <span className="text-muted-foreground py-3 text-sm">
                       {group.label}

@@ -231,6 +231,7 @@ export function DocsSidebarNavigation({
     <div className="flex h-full flex-col">
       {banner && <div className="shrink-0 px-3 pt-4 lg:hidden">{banner}</div>}
       <nav
+        aria-label="Docs"
         ref={navRef}
         data-docs-platform={platform}
         className={cn(
