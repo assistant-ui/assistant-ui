@@ -141,6 +141,10 @@
     {
       "context": "Test Coverage",
       "integrationId": 15368
+    },
+    {
+      "context": "TraceHub traces",
+      "integrationId": 5070843
     }
   ],
   "mergeQueue": {
