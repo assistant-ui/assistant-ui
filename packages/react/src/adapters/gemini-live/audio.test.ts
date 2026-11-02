@@ -300,6 +300,9 @@ describe("microphone", () => {
     await openMicrophone({ sampleRate: 16000, onChunk });
     const context = FakeContext.instances[0]!;
     expect(context.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
+    expect(context.mediaSource.connect).toHaveBeenCalledWith(context.analyser);
+    expect(context.analyser.connect).toHaveBeenCalledWith(context.processor);
+    expect(context.processor.connect).toHaveBeenCalledWith(context.destination);
     const samples = Float32Array.from([0, 0.3, 0.6, 0.9, 1.2, 1.5]);
     context.processor.onaudioprocess?.({
       inputBuffer: { getChannelData: () => samples },
