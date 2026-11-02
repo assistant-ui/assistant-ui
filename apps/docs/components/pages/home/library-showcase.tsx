@@ -418,7 +418,8 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
         >
           LangChain
         </Link>
-        , or any backend through adapters. Ships for React, Native, and Ink.{" "}
+        , or any backend through adapters. Ships for React, Vue, React Native,
+        and Ink.{" "}
         <Link
           href="/elements"
           className="hover:text-foreground transition-colors"
