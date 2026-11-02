@@ -196,6 +196,23 @@ const handleToolCallArgsTextFinish = (
   });
 };
 
+const handleToolCallApproval = (
+  message: AssistantMessage,
+  chunk: AssistantStreamChunk & { readonly type: "tool-call-approval" },
+  warnOnce: WarnOnce,
+): AssistantMessage => {
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
+    if (part.type !== "tool-call") {
+      warnOnce(
+        "wrong-part:tool-call-approval",
+        "Dropped tool-call-approval chunk: part is not a tool-call",
+      );
+      return part;
+    }
+    return { ...part, approval: chunk.approval };
+  });
+};
+
 const handlePartFinish = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { readonly type: "part-finish" },
@@ -592,6 +609,10 @@ export class AssistantMessageAccumulator extends TransformStream<
 
           case "tool-call-args-text-finish":
             message = handleToolCallArgsTextFinish(message, chunk, warnOnce);
+            break;
+
+          case "tool-call-approval":
+            message = handleToolCallApproval(message, chunk, warnOnce);
             break;
 
           case "part-finish":
