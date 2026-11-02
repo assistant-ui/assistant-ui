@@ -393,6 +393,61 @@ describe("messageProjection", () => {
     expect(parts[1]!.modelContent).toBeUndefined();
   });
 
+  it("keeps falsy details and lets a finalized result without details win", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("count", "count", {}),
+            toolCall("plain", "plain", {}),
+            toolCall("flag", "flag", {}),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "count",
+            toolName: "count",
+            content: [{ type: "text", text: "0 matches" }],
+            details: 0,
+            isError: false,
+            timestamp: 2,
+          },
+          {
+            role: "toolResult",
+            toolCallId: "plain",
+            toolName: "plain",
+            content: [{ type: "text", text: "done" }],
+            isError: false,
+            timestamp: 3,
+          },
+        ],
+        {
+          toolExecutions: {
+            plain: {
+              toolCallId: "plain",
+              status: "running",
+              partialResult: { details: { stale: true } },
+            },
+            flag: {
+              toolCallId: "flag",
+              status: "running",
+              partialResult: {
+                content: [{ type: "text", text: "checking" }],
+                details: false,
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    const parts = contentParts(out[0]!);
+    expect(parts[0]).toMatchObject({ toolCallId: "count", artifact: 0 });
+    expect(parts[1]).toMatchObject({ toolCallId: "plain", result: "done" });
+    expect(parts[1]).not.toHaveProperty("artifact");
+    expect(parts[2]).toMatchObject({ toolCallId: "flag", artifact: false });
+  });
+
   it("publishes in-process tool details when nested results are reused", () => {
     const projector = new PiThreadMessageProjector();
     const currentResult = { usage: { turns: 1 }, messages: [] as unknown[] };
