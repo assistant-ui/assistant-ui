@@ -431,6 +431,59 @@ describe("raw chunk ordering", () => {
     );
   });
 
+  it("maps merged part paths in source order after an outer part", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    const outer = controller.addTextPart();
+    outer.append("outer");
+    outer.close();
+
+    const reader = stream.getReader();
+    const chunks: AssistantStreamChunk[] = [];
+    for (let i = 0; i < 3; i++) {
+      chunks.push((await reader.read()).value!);
+    }
+
+    controller.merge(
+      new ReadableStream<AssistantStreamChunk>({
+        start(inner) {
+          inner.enqueue({
+            type: "part-start",
+            part: { type: "text" },
+            path: [],
+          });
+          inner.enqueue({ type: "text-delta", textDelta: "first", path: [0] });
+          inner.enqueue({ type: "part-finish", path: [0] });
+          inner.enqueue({
+            type: "part-start",
+            part: { type: "text" },
+            path: [],
+          });
+          inner.enqueue({ type: "text-delta", textDelta: "second", path: [1] });
+          inner.enqueue({ type: "part-finish", path: [1] });
+          inner.close();
+        },
+      }),
+    );
+    controller.close();
+    for (;;) {
+      const result = await reader.read();
+      if (result.done) break;
+      chunks.push(result.value);
+    }
+
+    expect(chunks).toEqual([
+      { type: "part-start", part: { type: "text" }, path: [] },
+      { type: "text-delta", textDelta: "outer", path: [0] },
+      { type: "part-finish", path: [0] },
+      { type: "part-start", part: { type: "text" }, path: [] },
+      { type: "text-delta", textDelta: "first", path: [1] },
+      { type: "part-finish", path: [1] },
+      { type: "part-start", part: { type: "text" }, path: [] },
+      { type: "text-delta", textDelta: "second", path: [2] },
+      { type: "part-finish", path: [2] },
+    ]);
+  });
+
   it("emits a step-finish without waiting for an open part to close", async () => {
     const [stream, controller] = createAssistantStreamController();
     const text = controller.addTextPart();

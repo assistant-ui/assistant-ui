@@ -9,11 +9,7 @@ import {
   ToolCallStreamControllerImpl,
   type ToolCallStreamController,
 } from "./tool-call";
-import { Counter } from "../utils/Counter";
-import {
-  PathAppendEncoder,
-  PathMergeEncoder,
-} from "../utils/stream/path-utils";
+import { PathAppendEncoder } from "../utils/stream/path-utils";
 import type {
   DataPart,
   FilePart,
@@ -276,7 +272,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   merge(stream: AssistantStream) {
-    this._addTransformedStream(stream, new PathMergeEncoder(new Counter()), {
+    this._addTransformedStream(stream, undefined, {
       pathTransform: "merge",
     });
   }
