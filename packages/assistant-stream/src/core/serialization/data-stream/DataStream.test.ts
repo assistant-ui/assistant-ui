@@ -5,6 +5,7 @@ import { createAssistantStreamController } from "../../modules/assistant-stream"
 import { toolResultStream } from "../../tool/toolResultStream";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 import { NO_RESULT } from "../../tool/ToolResponse";
+import type { AssistantMessage } from "../../utils/types";
 
 const roundTripFirstPart = async <T>(
   chunks: AssistantStreamChunk[],
@@ -51,6 +52,40 @@ const decodeLines = async (
   );
   return chunks;
 };
+
+describe("DataStreamEncoder part order", () => {
+  it("keeps synchronous text and non-text appends in order", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    controller.appendText("Hello ");
+    controller.appendText("world");
+    controller.appendFile({
+      type: "file",
+      mimeType: "text/plain",
+      data: "Zg==",
+    } as never);
+    controller.appendText("Bye");
+    controller.close();
+
+    let last: AssistantMessage | undefined;
+    await stream
+      .pipeThrough(new DataStreamEncoder())
+      .pipeThrough(new DataStreamDecoder())
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            last = message;
+          },
+        }),
+      );
+
+    expect(
+      last!.parts.map((part) =>
+        part.type === "text" ? `text:${part.text}` : part.type,
+      ),
+    ).toEqual(["text:Hello world", "file", "text:Bye"]);
+  });
+});
 
 describe("DataStreamDecoder line limits", () => {
   it("forwards a custom line limit to the protocol decoder", async () => {

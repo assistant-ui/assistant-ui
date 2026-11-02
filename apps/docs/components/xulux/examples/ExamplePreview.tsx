@@ -3,7 +3,6 @@ import { Artifacts } from "@/components/pages/examples/artifacts";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
 import { Claude } from "@/components/pages/examples/claude";
 import { Gemini } from "@/components/pages/examples/gemini";
-import { GenUI } from "@/components/pages/examples/genui";
 import { Grok } from "@/components/pages/examples/grok";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
@@ -59,8 +58,6 @@ function renderPreview(preview: PreviewData) {
           <Gemini />
         </DocsRuntimeProvider>
       );
-    case "generative-ui":
-      return <GenUI />;
     case "grok":
       return (
         <DocsRuntimeProvider>

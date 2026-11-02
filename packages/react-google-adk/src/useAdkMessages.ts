@@ -18,6 +18,7 @@ import {
 import {
   AdkEventAccumulator,
   isErrorFinishReason,
+  isFinishReasonErrorEvent,
   normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
@@ -373,14 +374,13 @@ const useAdkMessagesInternal = ({
               }
             }
 
-            if (
-              event.errorCode ||
-              event.errorMessage ||
-              isErrorFinishReason(event.finishReason)
-            ) {
+            const carriesError =
+              (!!event.errorCode || !!event.errorMessage) &&
+              !isFinishReasonErrorEvent(event);
+            if (carriesError || isErrorFinishReason(event.finishReason)) {
               controller.dispatch({ type: "run.failed" });
             }
-            if (event.errorCode || event.errorMessage) {
+            if (carriesError) {
               invokeAdkRuntimeCallback(
                 "onError",
                 onError,

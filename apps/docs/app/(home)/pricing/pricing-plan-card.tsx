@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NewTabCue } from "@/components/shared/new-tab-cue";
 import { Button } from "@/components/ui/button";
 import { analytics } from "@/lib/analytics";
 import type { PricingPlan } from "./pricing-data";
@@ -64,6 +65,7 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
         }
       >
         {plan.cta}
+        <NewTabCue />
       </Button>
     </div>
   );

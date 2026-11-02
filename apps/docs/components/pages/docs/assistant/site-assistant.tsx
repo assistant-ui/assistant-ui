@@ -7,12 +7,11 @@ import { AssistantPanelProvider } from "@/components/pages/docs/assistant/contex
 import { DocsAssistantRuntimeProvider } from "@/runtimes/docs-assistant";
 import { AskAiBall } from "@/components/pages/docs/assistant/ball";
 import { AskAiWindow } from "@/components/pages/docs/assistant/window";
-import { EMBEDDED_PATHS } from "@/lib/embedded-paths";
+import { isAssistantHiddenPath } from "@/lib/embedded-paths";
 
 export function SiteAssistant({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const hidden =
-    pathname === "/components/setup" || EMBEDDED_PATHS.includes(pathname);
+  const hidden = isAssistantHiddenPath(pathname);
   return (
     <CurrentPageProvider>
       <AssistantPanelProvider>

@@ -15,6 +15,7 @@ import type {
   RemoteThreadListAdapter,
   RemoteThreadMetadata,
 } from "../../runtimes/remote-thread-list/types";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
 import type { AppendMessage } from "../../types/message";
@@ -50,10 +51,11 @@ const useStubThread = (props: {
   threadId: string;
   refetch?: (() => Promise<void>) | undefined;
   isRunning?: boolean | undefined;
+  messages?: readonly ThreadMessageLike[] | undefined;
 }) => ({
   getState: () => ({
     isRunning: props.isRunning === true,
-    messages: [],
+    messages: props.messages ?? [],
   }),
   composer: () => stubComposer,
   suggestions: () => stubSuggestions,
@@ -186,6 +188,25 @@ const mountList = (
   );
   handle.subscribe(() => {});
   return { handle, onThreadIdChange };
+};
+
+const mountListWithTitleMessage = (adapter: RemoteThreadListAdapter) => {
+  const titleMessage: ThreadMessageLike = {
+    id: "m1",
+    role: "user",
+    content: [{ type: "text", text: "hello" }],
+  };
+  const handle = createAssistantClient(
+    AuiConfig({
+      threads: RemoteThreadList({
+        adapter,
+        thread: (id) =>
+          StubThread({ threadId: id, messages: [titleMessage] }) as never,
+      }),
+    }),
+  );
+  handle.subscribe(() => {});
+  return { handle };
 };
 
 describe("RemoteThreadList without adapter unarchive", () => {
@@ -1374,6 +1395,77 @@ describe("RemoteThreadList", () => {
     );
     expect(adapter.rename).toHaveBeenNthCalledWith(1, "t1", "Manual title");
     expect(adapter.rename).toHaveBeenNthCalledWith(2, "t1", "Manual title");
+    handle.destroy();
+  });
+
+  it("preserves a successful rename when an older explicit write lands late", async () => {
+    let serverTitle = "One";
+    const firstGeneratedTitle = deferred<ReadableStream>();
+    const secondGeneratedTitle = deferred<ReadableStream>();
+    const generatedTitles = [firstGeneratedTitle, secondGeneratedTitle];
+    const renameWrites: ReturnType<typeof deferred<void>>[] = [];
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: serverTitle },
+        ],
+      })),
+      generateTitle: vi.fn(() => generatedTitles.shift()!.promise as never),
+      rename: vi.fn((_remoteId: string, title: string) => {
+        const write = deferred<void>();
+        renameWrites.push(write);
+        if (renameWrites.length === 3) {
+          serverTitle = title;
+          write.resolve();
+        }
+        return write.promise;
+      }),
+    });
+    const { handle } = mountListWithTitleMessage(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await waitFor(() =>
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]),
+    );
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await waitFor(() => expect(aui.threads.getState().mainThreadId).toBe("t1"));
+
+    const item = aui.threads.item({ id: "t1" });
+    item.generateTitle();
+    await waitFor(() => expect(adapter.generateTitle).toHaveBeenCalledOnce());
+    item.rename("Rename 1");
+    item.rename("Rename 2");
+    await waitFor(() => expect(adapter.rename).toHaveBeenCalledOnce());
+    serverTitle = "Rename 1";
+    renameWrites[0]!.resolve();
+    await waitFor(() => expect(adapter.rename).toHaveBeenCalledTimes(2));
+    renameWrites[1]!.reject(new Error("rename failed"));
+    await microtasks(5);
+
+    serverTitle = "G1ab";
+    let controller!: ReadableStreamDefaultController<unknown>;
+    firstGeneratedTitle.resolve(
+      new ReadableStream({ start: (value) => void (controller = value) }),
+    );
+    await microtasks(5);
+    item.generateTitle();
+    await waitFor(() => expect(adapter.generateTitle).toHaveBeenCalledTimes(2));
+    controller.enqueue({
+      type: "part-start",
+      path: [0],
+      part: { type: "text" },
+    });
+    controller.enqueue({ type: "text-delta", path: [0], textDelta: "G1ab" });
+    controller.enqueue({ type: "part-finish", path: [0] });
+    await waitFor(() => expect(controller.desiredSize).toBeGreaterThan(0));
+    await microtasks(20);
+    secondGeneratedTitle.reject(new Error("generate failed"));
+    await microtasks(5);
+    controller.close();
+    await waitFor(() => expect(adapter.rename).toHaveBeenCalledTimes(3));
+    expect(adapter.rename).toHaveBeenNthCalledWith(3, "t1", "Rename 1");
+    await waitFor(() => expect(serverTitle).toBe("Rename 1"));
+    await waitFor(() => expect(item.getState().title).toBe("Rename 1"));
     handle.destroy();
   });
 

@@ -239,6 +239,51 @@ describe("RemoteThreadList thread mutations", () => {
     }
   });
 
+  it("shows the server status after archive, unarchive, archive", async () => {
+    let server: "regular" | "archived" = "regular";
+    const calls: string[] = [];
+    const firstArchive = deferred();
+    const { handle, threads } = await mount({
+      list: vi.fn(async () => ({
+        threads: [{ remoteId: "a", status: "regular" as const, title: "a" }],
+      })),
+      archive: vi.fn(async () => {
+        calls.push("archive");
+        if (calls.length === 1) await firstArchive.promise;
+        server = "archived";
+      }),
+      unarchive: vi.fn(async () => {
+        calls.push("unarchive");
+        server = "regular";
+      }),
+    });
+    const actions = threads.__internal_getRawActions!();
+    try {
+      const first = actions.archive("a");
+      let unarchived: Promise<void> | undefined;
+      queueMicrotask(() => {
+        unarchived = actions.unarchive("a");
+      });
+      const second = actions.archive("a");
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      firstArchive.resolve();
+      await Promise.all([first, second, unarchived!]);
+      flushTapSync(() => {});
+      expect(calls).toEqual(["archive", "archive", "unarchive"]);
+      expect({
+        shown: threads.item({ id: "a" }).getState().status,
+        server,
+        calls,
+      }).toEqual({
+        shown: "regular",
+        server: "regular",
+        calls: ["archive", "archive", "unarchive"],
+      });
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("sends mutations for different threads concurrently", async () => {
     const first = deferred();
     const { adapter, handle, threads } = await mount({

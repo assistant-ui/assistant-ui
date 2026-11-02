@@ -103,6 +103,15 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
+// Both ADK aggregators close a truncated or filtered stream with the finish
+// reason repeated as its error code; that is the finish, not a failure.
+export const isFinishReasonErrorEvent = (event: AdkEvent) => {
+  if (!event.content?.parts?.length || event.errorCode !== event.finishReason)
+    return false;
+  const status = finishReasonToStatus(event.finishReason);
+  return status.type === "incomplete" && status.reason !== "error";
+};
+
 const mediaToContentPart = ({
   inlineData,
   fileData,
@@ -426,10 +435,16 @@ export class AdkEventAccumulator {
         lastAiMessageId !== null
           ? this.messagesMap.get(lastAiMessageId)
           : undefined;
-      this.setErrorStatus(
-        target?.type === "ai" ? target : this.getOrCreateAiMessage(event),
-        errorText,
-      );
+      const message =
+        target?.type === "ai" ? target : this.getOrCreateAiMessage(event);
+      if (isFinishReasonErrorEvent(event)) {
+        this.setMessageStatus(
+          message,
+          finishReasonToStatus(event.finishReason),
+        );
+      } else {
+        this.setErrorStatus(message, errorText);
+      }
       this.finalizeCurrentMessage();
       return this.getMessages();
     }
@@ -592,10 +607,17 @@ export class AdkEventAccumulator {
   }
 
   private setErrorStatus(msg: InProgressMessage, error: string): void {
+    this.setMessageStatus(msg, { type: "incomplete", reason: "error", error });
+  }
+
+  private setMessageStatus(
+    msg: InProgressMessage,
+    status: MessageStatus,
+  ): void {
     this.messagesMap.set(msg.id, {
       ...msg,
       content: [...this.getContentArray(msg)],
-      status: { type: "incomplete", reason: "error", error },
+      status,
     });
   }
 
