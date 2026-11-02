@@ -1545,4 +1545,51 @@ describe("createThreadViewportAutoScroll", () => {
       view.controller.dispose();
     });
   });
+
+  it("follows content when a shrink is undone before the next observed resize", () => {
+    const view = geometry(3, 3);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => options(),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+
+    // The content grows by 2 and the controller follows to the new bottom.
+    view.grow(5);
+    observers[0]!.trigger();
+    expect(view.element.scrollTop).toBe(2);
+
+    // Within one frame the content shrinks back to the viewport height, which
+    // clamps scrollTop to 0, and grows by the same 2px again. The height the
+    // observer delivers is the one it already saw.
+    view.grow(3);
+    view.setTop(0);
+    view.grow(5);
+    observers[0]!.trigger();
+
+    expect(view.element.scrollTop).toBe(2);
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("leaves a programmatic scroll alone when the height never shrank", () => {
+    const view = geometry(500, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => options(),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    expect(view.element.scrollTop).toBe(400);
+
+    // Scrolled away without any content shrink: an unchanged height must still
+    // short-circuit, or the reader is pulled back to the bottom.
+    view.setTop(200);
+    observers[0]!.trigger();
+
+    expect(view.element.scrollTop).toBe(200);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
 });

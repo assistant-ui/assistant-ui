@@ -121,6 +121,7 @@ export const createThreadViewportAutoScroll = (input: {
   let lastScrollHeight = 0;
   let lastObservedScrollHeight = 0;
   let lastObservedClientHeight = 0;
+  let contentShrankSinceResize = false;
   let frame: number | null = null;
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
@@ -223,6 +224,10 @@ export const createThreadViewportAutoScroll = (input: {
       if (newIsAtBottom || intent === null) setAtBottom(newIsAtBottom);
     }
 
+    // The browser clamps scrollTop while the content is short, then the content
+    // grows back before the next observed resize. Remember the shrink so that
+    // resize cannot early-return on an unchanged height and strand the view.
+    if (element.scrollHeight < lastScrollHeight) contentShrankSinceResize = true;
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
     firstMessage = measureFirstMessage(element);
@@ -249,10 +254,12 @@ export const createThreadViewportAutoScroll = (input: {
     const { scrollHeight, clientHeight } = element;
     if (
       scrollHeight === lastObservedScrollHeight &&
-      clientHeight === lastObservedClientHeight
+      clientHeight === lastObservedClientHeight &&
+      !contentShrankSinceResize
     ) {
       return;
     }
+    contentShrankSinceResize = false;
     lastObservedScrollHeight = scrollHeight;
     lastObservedClientHeight = clientHeight;
 
@@ -336,6 +343,7 @@ export const createThreadViewportAutoScroll = (input: {
       lastScrollHeight = el.scrollHeight;
       lastObservedScrollHeight = 0;
       lastObservedClientHeight = 0;
+      contentShrankSinceResize = false;
       initialized = false;
       followBottom = true;
       followPaused = false;
