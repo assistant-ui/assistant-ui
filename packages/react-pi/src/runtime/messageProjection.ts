@@ -207,6 +207,9 @@ const projectAssistantInto = (
       const output =
         paired ?? projectToolResult(readToolResultContent(live?.partialResult));
       const isError = paired?.isError ?? live?.status === "error";
+      const artifact = paired
+        ? paired.details
+        : (live?.partialResult as { details?: unknown } | undefined)?.details;
 
       const hostUi = hostUiByToolCall.get(part.id);
       const approval = hostUi && approvalForRequest(hostUi);
@@ -224,6 +227,7 @@ const projectAssistantInto = (
         ...(output.modelContent !== undefined
           ? { modelContent: output.modelContent }
           : {}),
+        ...(artifact !== undefined ? { artifact } : {}),
         ...(isError ? { isError: true } : {}),
         ...(paired === undefined &&
         output.result !== undefined &&
