@@ -8,6 +8,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocsSidebar, DocsSidebarProvider } from "../contexts/sidebar";
 import { PlatformProvider } from "../platform/context";
@@ -98,6 +99,17 @@ describe("DocsHeader mobile panels", () => {
 
     expect(panel.hasAttribute("inert")).toBe(true);
     expect(document.activeElement).toBe(toggle);
+  });
+
+  it("hides the closed mobile sidebar from focus in the server render", () => {
+    const html = renderToString(
+      <DocsSidebarProvider>
+        <DocsSidebar>sidebar</DocsSidebar>
+      </DocsSidebarProvider>,
+    );
+
+    expect(html).not.toContain("inert");
+    expect(html).toContain("max-md:invisible");
   });
 
   it("makes the mobile sidebar inert as soon as it closes", () => {
