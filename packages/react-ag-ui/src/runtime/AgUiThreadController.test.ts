@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AbstractAgent } from "@ag-ui/client";
+import { HttpAgent, type AbstractAgent } from "@ag-ui/client";
 import type {
   AppendMessage,
   ThreadAssistantMessage,
@@ -576,6 +576,32 @@ describe("AgUiThreadController run state", () => {
     await core.append({ ...userMessage("explicit null"), startRun: true });
     expect(runAgent.mock.calls[2]?.[0].state).toBeNull();
     expect(agent.state).toBeNull();
+  });
+
+  it("synchronizes agent and controller state changes", async () => {
+    const agent = new HttpAgent({
+      url: "http://agent.test/agent",
+      initialState: { fromInitialState: true },
+    });
+    const { core } = createCore(undefined, agent);
+
+    expect(core.getState()).toEqual({ fromInitialState: true });
+
+    core.setState({ fromRuntime: true });
+    expect(agent.state).toEqual({ fromRuntime: true });
+
+    agent.setState({ fromAgent: true });
+    await flush();
+    expect(core.getState()).toEqual({ fromAgent: true });
+
+    core.resetState();
+    expect(core.getState()).toBeUndefined();
+    expect(agent.state).toEqual({});
+
+    core.setState({ fromPreviousThread: true });
+    core.resetThreadState();
+    expect(core.getState()).toBeUndefined();
+    expect(agent.state).toEqual({});
   });
 });
 
