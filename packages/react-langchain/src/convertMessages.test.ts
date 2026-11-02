@@ -170,6 +170,27 @@ describe("convertLangChainBaseMessage file content parts", () => {
 
 describe("getMessageContent image blocks", () => {
   it.each([
+    "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+    "data:;base64,/9j/4AAQSkZJRg==",
+    "data:image/jpeg;base64,%2F9j%2F4AAQSkZJRg%3D%3D",
+  ])("normalizes image data URL %s through the converter", (image) => {
+    const message = {
+      content: [
+        { type: "text", text: "Describe this image" },
+        { type: "image", image },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getMessageContent(message)).toEqual([
+      { type: "text", text: "Describe this image" },
+      {
+        type: "image_url",
+        image_url: { url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" },
+      },
+    ]);
+  });
+
+  it.each([
     [
       "image/png",
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
