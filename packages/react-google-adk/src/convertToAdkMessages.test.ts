@@ -170,6 +170,24 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
+  it("sends bare base64 images as Gemini inline data", () => {
+    const image =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+    const content = getMessageContent(
+      makeAppendMessage([{ type: "image", image, filename: "pixel.png" }]),
+    );
+
+    expect(contentToParts(content)).toEqual([
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: image,
+          displayName: "pixel.png",
+        },
+      },
+    ]);
+  });
+
   it.each(["file", "image"] as const)(
     "sends percent-encoded %s data URL bytes as bare Gemini inline data",
     (type) => {

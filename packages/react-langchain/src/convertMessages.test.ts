@@ -168,6 +168,27 @@ describe("convertLangChainBaseMessage file content parts", () => {
   });
 });
 
+describe("getMessageContent image blocks", () => {
+  it("wraps bare base64 images in a data URL", () => {
+    const image =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+    const message = {
+      content: [
+        { type: "text", text: "Describe this image" },
+        { type: "image", image },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getMessageContent(message)).toEqual([
+      { type: "text", text: "Describe this image" },
+      {
+        type: "image_url",
+        image_url: { url: `data:image/png;base64,${image}` },
+      },
+    ]);
+  });
+});
+
 describe("getMessageContent file blocks", () => {
   const appendMessage = (part: Record<string, unknown>) =>
     ({ content: [part] }) as unknown as AppendMessage;

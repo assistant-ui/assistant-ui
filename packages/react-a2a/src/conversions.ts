@@ -6,6 +6,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import {
+  isParsableUrl,
   parseDataUrl,
   resolveFilePartSource,
   resolveImageMediaType,
@@ -174,9 +175,9 @@ export function contentPartsToA2AParts(
         case "image": {
           if (!part.image) return null;
           const parsed = parseDataUrl(part.image);
-          if (parsed) {
+          if (parsed || !isParsableUrl(part.image)) {
             return {
-              raw: parsed.data,
+              raw: parsed?.data ?? part.image,
               mediaType: resolveImageMediaType(part.image, fallbackMimeType),
               ...(part.filename && { filename: part.filename }),
             };

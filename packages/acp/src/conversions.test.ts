@@ -184,6 +184,15 @@ describe("resolvePermissionOutcome", () => {
 });
 
 describe("threadContentToAcpBlocks", () => {
+  it("sends bare base64 images as inline image blocks", () => {
+    const image =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+
+    expect(threadContentToAcpBlocks([{ type: "image", image }])).toEqual([
+      { type: "image", data: image, mimeType: "image/png" },
+    ]);
+  });
+
   it("converts text parts and skips empty text", () => {
     expect(
       threadContentToAcpBlocks([

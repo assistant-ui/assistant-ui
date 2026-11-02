@@ -475,6 +475,15 @@ describe("isInterruptedTaskState", () => {
 });
 
 describe("contentPartsToA2AParts", () => {
+  it("sends bare base64 images as raw image bytes", () => {
+    const image =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+
+    expect(
+      contentPartsToA2AParts([{ type: "image", image, filename: "pixel.png" }]),
+    ).toEqual([{ raw: image, mediaType: "image/png", filename: "pixel.png" }]);
+  });
+
   it.each(["application/pdf", ""])(
     "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
     (mimeType) => {

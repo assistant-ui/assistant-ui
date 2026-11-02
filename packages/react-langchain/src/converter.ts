@@ -8,6 +8,8 @@ import type {
 import {
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type { StreamingTimingAccessors } from "@assistant-ui/core/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -315,7 +317,12 @@ export const getMessageContent = (msg: AppendMessage) => {
       case "text":
         return { type: "text" as const, text: part.text };
       case "image":
-        return { type: "image_url" as const, image_url: { url: part.image } };
+        return {
+          type: "image_url" as const,
+          image_url: {
+            url: toMediaWireUrl(part.image, resolveImageMediaType(part.image)),
+          },
+        };
       case "file": {
         const metadata = { filename: part.filename ?? "file" };
         if (part.sourceType === "id") {
