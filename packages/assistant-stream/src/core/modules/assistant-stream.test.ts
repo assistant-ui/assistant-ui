@@ -171,16 +171,17 @@ describe("raw chunk ordering", () => {
     ]);
   });
 
-  it("rejects a merged chunk whose part path has no start", async () => {
+  it("rejects a merged chunk whose part path has no start and cancels its source", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
     try {
+      const cancelSource = vi.fn();
       const merged = new ReadableStream<AssistantStreamChunk>({
         start(inner) {
           inner.enqueue({ type: "text-delta", textDelta: "orphan", path: [0] });
-          inner.close();
         },
+        cancel: cancelSource,
       });
 
       await expect(
@@ -188,6 +189,7 @@ describe("raw chunk ordering", () => {
           createAssistantStream((controller) => controller.merge(merged)),
         ),
       ).rejects.toThrow("Path not found");
+      await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
     } finally {
       consoleError.mockRestore();
     }
