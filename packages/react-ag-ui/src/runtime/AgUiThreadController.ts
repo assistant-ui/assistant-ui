@@ -2023,7 +2023,14 @@ export class AgUiThreadController {
           update.status.type !== "requires-action"
         ) {
           const status = update.status;
-          const content = settleNestedContent(latestSnapshot.content, status);
+          const current =
+            this.session.tryGetMessage(assistantMessageId)?.message;
+          const content = settleNestedContent(
+            current?.role === "assistant"
+              ? current.content
+              : latestSnapshot.content,
+            status,
+          );
           applyUpdate({ ...update, content });
         } else if (
           latestSnapshot &&
