@@ -206,8 +206,8 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           cancelled = true;
           return;
         }
-        if (Array.isArray(parts) || typeof output === "string") {
-          if (!generating) startReply(false);
+        if (Array.isArray(parts) && !generating) startReply(false);
+        if (generating) {
           if (Array.isArray(parts))
             for (const part of parts) {
               const data = asRecord(asRecord(part)?.inlineData)?.data;
@@ -236,8 +236,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         if (
           pendingText &&
           !pendingText.awaitingInterrupt &&
-          (content.modelTurn !== undefined ||
-            content.outputTranscription !== undefined)
+          content.modelTurn !== undefined
         ) {
           const input = asRecord(content.inputTranscription)?.text;
           if (typeof input === "string") userText += input;
@@ -250,7 +249,11 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           setTimeout(() => {
             deferred = undefined;
             if (closed) return;
-            for (const item of queue) routeContent(item);
+            try {
+              for (const item of queue) routeContent(item);
+            } catch (error) {
+              end("error", error);
+            }
           }, 0);
           return;
         }
