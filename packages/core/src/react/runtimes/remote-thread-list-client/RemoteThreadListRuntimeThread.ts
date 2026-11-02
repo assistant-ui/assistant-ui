@@ -81,7 +81,12 @@ const useStableClientThreadRuntime = (options: ThreadOptions) => {
 
 const useRemoteThreadListRuntimeThread = (options: ThreadOptions) => {
   const runtime = useStableClientThreadRuntime(options);
-  return useResource(ThreadClient({ runtime }));
+  return useResource(
+    ThreadClient({
+      runtime,
+      threadListItem: runtime.__internal_threadBinding.threadListItem,
+    }),
+  );
 };
 
 export const RemoteThreadListRuntimeThread = resource(

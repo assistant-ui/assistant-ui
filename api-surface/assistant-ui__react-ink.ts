@@ -4660,6 +4660,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
     outerSubscribe(callback: () => void): Unsubscribe$1;
   } & {
     getStateState(): ThreadRuntimeState;
+    threadListItem: ThreadListItemRuntimeBinding;
   };
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
@@ -4702,8 +4703,6 @@ type ThreadRuntimePath = {
 };
 
 type ThreadRuntimeState = {
-  readonly threadId: string;
-  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isSendDisabled: boolean;
   readonly isLoading: boolean;

@@ -4861,6 +4861,7 @@ type ThreadAssistantMessagePart = TextMessagePart | ReasoningMessagePart | ToolC
 declare const ThreadClient: Resource<ClientOutput<"thread">, [
   {
     runtime: ThreadRuntime;
+    threadListItem: ThreadListItemRuntimeBinding;
   }
 ]>;
 
@@ -5757,6 +5758,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
     outerSubscribe(callback: () => void): Unsubscribe$1;
   } & {
     getStateState(): ThreadRuntimeState;
+    threadListItem: ThreadListItemRuntimeBinding;
   };
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
@@ -5799,8 +5801,6 @@ type ThreadRuntimePath = {
 };
 
 type ThreadRuntimeState = {
-  readonly threadId: string;
-  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
@@ -6835,7 +6835,7 @@ declare const getThreadData: (state: RemoteThreadState, threadIdOrRemoteId: stri
 
 declare const getThreadMessageText: (message: ThreadMessage | AppendMessage) => string;
 
-declare const getThreadState: (runtime: ThreadRuntimeCore, threadListItemState: ThreadListItemRuntimeState) => ThreadRuntimeState;
+declare const getThreadState: (runtime: ThreadRuntimeCore) => ThreadRuntimeState;
 
 declare global {
   interface Window {

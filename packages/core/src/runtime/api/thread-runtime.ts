@@ -108,19 +108,6 @@ export type ThreadListItemRuntimeBinding = SubscribableWithState<
 
 export type ThreadRuntimeState = {
   /**
-   * The thread ID.
-   * @deprecated This field is deprecated and will be removed in 0.12.0. Use `useThreadListItem().id` instead.
-   */
-  readonly threadId: string;
-
-  /**
-   * The thread metadata.
-   *
-   * @deprecated Use `useThreadListItem()` instead. This field is deprecated and will be removed in 0.12.0.
-   */
-  readonly metadata: ThreadListItemRuntimeState;
-
-  /**
    * Whether typing into the composer, adding attachments, sending, and editing messages are disabled for the thread.
    */
   readonly isDisabled: boolean;
@@ -208,11 +195,8 @@ export const getThreadRuntimeCoreIsRunning = (
 
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
-  threadListItemState: ThreadListItemRuntimeState,
 ): ThreadRuntimeState => {
   return Object.freeze({
-    threadId: threadListItemState.id,
-    metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isSendDisabled: runtime.isSendDisabled,
@@ -355,6 +339,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadRuntimeState;
+    threadListItem: ThreadListItemRuntimeBinding;
   };
   private readonly _stateBinding: ShallowMemoizeSubject<
     ThreadRuntimeState,
@@ -367,11 +352,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   ) {
     const stateBinding = new ShallowMemoizeSubject({
       path: threadBinding.path,
-      getState: () =>
-        getThreadState(
-          threadBinding.getState(),
-          threadListItemBinding.getState(),
-        ),
+      getState: () => getThreadState(threadBinding.getState()),
       subscribe: (callback) => {
         const sub1 = threadBinding.subscribe(callback);
         const sub2 = threadListItemBinding.subscribe(callback);
@@ -384,6 +365,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       path: threadBinding.path,
       getState: () => threadBinding.getState(),
       getStateState: () => stateBinding.getState(),
+      threadListItem: {
+        path: threadListItemBinding.path,
+        getState: () => threadListItemBinding.getState(),
+        subscribe: (callback) => threadListItemBinding.subscribe(callback),
+      },
       outerSubscribe: (callback) => threadBinding.outerSubscribe(callback),
       subscribe: (callback) => threadBinding.subscribe(callback),
     };

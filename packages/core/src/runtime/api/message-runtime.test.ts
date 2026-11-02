@@ -5,6 +5,7 @@ import type {
   ToolCallMessagePartStatus,
 } from "../../types/message";
 import type { ThreadRuntimeImpl } from "./thread-runtime";
+import type { ThreadListItemRuntimeState } from "./bindings";
 import {
   MessageRuntimeImpl,
   type MessageRuntimeState,
@@ -73,8 +74,12 @@ const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     ({}) as ReturnType<
       ThreadRuntimeImpl["__internal_threadBinding"]["getState"]
     >,
-  getStateState: () =>
-    ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
+  getStateState: () => ({}) as ReturnType<ThreadRuntimeImpl["getState"]>,
+  threadListItem: {
+    path: { ref: "threadItems.main", threadSelector: { type: "main" } },
+    getState: () => ({ id: "thread-1" }) as ThreadListItemRuntimeState,
+    subscribe: () => () => {},
+  },
   subscribe: () => () => {},
   outerSubscribe: () => () => {},
 };

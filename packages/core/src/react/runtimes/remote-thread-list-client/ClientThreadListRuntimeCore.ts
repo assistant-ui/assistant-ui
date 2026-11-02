@@ -11,6 +11,7 @@ import type {
   ThreadListRuntimeEvent,
 } from "../../../runtime/interfaces/thread-list-runtime-core";
 import type { ThreadRuntimeCore } from "../../../runtime/interfaces/thread-runtime-core";
+import type { ThreadRuntimeImpl } from "../../../runtime/api/thread-runtime";
 import { EMPTY_THREAD_CORE } from "../../../runtimes/remote-thread-list/empty-thread-core";
 import { LOCAL_THREAD_ID_PREFIX } from "../../../runtimes/remote-thread-list/remote-thread-state";
 import { isTitleSourceMessage } from "../../../runtimes/remote-thread-list/title";
@@ -189,14 +190,15 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public getItemById(threadId: string) {
     const items = this.state.threadItems;
     const pending = this.pendingItems.get(threadId);
+    const item = items.find(
+      (item) => item.id === threadId || item.remoteId === threadId,
+    );
+    if (item) return item;
+    const runtime = this.aui.threads
+      .__internal_getThreadBody?.(threadId)
+      ?.__internal_getRuntime?.() as ThreadRuntimeImpl | undefined;
     return (
-      items.find(
-        (item) => item.id === threadId || item.remoteId === threadId,
-      ) ??
-      this.aui.threads
-        .__internal_getThreadBody?.(threadId)
-        ?.__internal_getRuntime?.()
-        .getState().metadata ??
+      runtime?.__internal_threadBinding.threadListItem.getState() ??
       (pending?.source === items ? pending.item : undefined)
     );
   }

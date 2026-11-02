@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
-import type { MessageStateBinding } from "./bindings";
+import type {
+  MessageStateBinding,
+  ThreadListItemRuntimeState,
+} from "./bindings";
 import type { MessagePartState } from "./message-part-runtime";
 import { MessagePartRuntimeImpl } from "./message-part-runtime";
 import {
@@ -82,8 +85,12 @@ const createRuntime = ({
   const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     path: threadPath,
     getState: () => core,
-    getStateState: () =>
-      ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
+    getStateState: () => ({}) as ThreadRuntimeState,
+    threadListItem: {
+      path: threadPath,
+      getState: () => ({ id: "thread-1" }) as ThreadListItemRuntimeState,
+      subscribe: () => () => {},
+    },
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
   };
@@ -128,7 +135,12 @@ const createRetainedRuntime = (
   const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     path: threadPath,
     getState: () => currentCore,
-    getStateState: () => ({ threadId }) as ThreadRuntimeState,
+    getStateState: () => ({}) as ThreadRuntimeState,
+    threadListItem: {
+      path: threadPath,
+      getState: () => ({ id: threadId }) as ThreadListItemRuntimeState,
+      subscribe: () => () => {},
+    },
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
   };
@@ -233,10 +245,12 @@ describe("MessagePartRuntime interaction recording", () => {
     const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
       path: threadPath,
       getState: () => currentCore,
-      getStateState: () =>
-        ({ threadId: currentThreadId }) as ReturnType<
-          ThreadRuntimeImpl["getState"]
-        >,
+      getStateState: () => ({}) as ThreadRuntimeState,
+      threadListItem: {
+        path: threadPath,
+        getState: () => ({ id: currentThreadId }) as ThreadListItemRuntimeState,
+        subscribe: () => () => {},
+      },
       subscribe: () => () => {},
       outerSubscribe: () => () => {},
     };
@@ -364,8 +378,12 @@ describe("MessagePartRuntime interaction recording", () => {
     const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
       path: threadPath,
       getState: () => currentCore,
-      getStateState: () =>
-        ({ threadId: "thread-a" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
+      getStateState: () => ({}) as ThreadRuntimeState,
+      threadListItem: {
+        path: threadPath,
+        getState: () => ({ id: "thread-a" }) as ThreadListItemRuntimeState,
+        subscribe: () => () => {},
+      },
       subscribe: () => () => {},
       outerSubscribe: () => () => {},
     };
