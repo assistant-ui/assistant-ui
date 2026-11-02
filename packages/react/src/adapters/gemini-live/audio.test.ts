@@ -639,6 +639,7 @@ describe("microphone", () => {
 
 describe("playback", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     FakeContext.instances = [];
   });
@@ -700,7 +701,6 @@ describe("playback", () => {
     context.sources[1]?.onended?.();
     vi.advanceTimersByTime(200);
     expect(onIdle).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
   });
 
   it("does not report idle across a short gap between chunks", () => {
@@ -713,7 +713,6 @@ describe("playback", () => {
     player.enqueue(chunk(2400));
     vi.advanceTimersByTime(200);
     expect(onIdle).not.toHaveBeenCalled();
-    vi.useRealTimers();
   });
 
   it("clear stops every source and resets the cursor", () => {
@@ -731,7 +730,6 @@ describe("playback", () => {
     context.currentTime = 0.05;
     player.enqueue(chunk(2400));
     expect(context.sources[2]?.start).toHaveBeenCalledWith(0.05);
-    vi.useRealTimers();
   });
 
   it("skips empty chunks", () => {
@@ -788,45 +786,37 @@ describe("playback", () => {
 
   it("handles a pending resume rejected when playback closes", async () => {
     vi.useFakeTimers();
-    try {
-      const onIdle = vi.fn();
-      const { player, context } = setup(onIdle);
-      let rejectResume!: (reason: unknown) => void;
-      const resume = new Promise<void>((_resolve, reject) => {
-        rejectResume = reject;
-      });
-      context.state = "suspended";
-      context.resume = () => resume;
-      context.close.mockImplementation(async () => {
-        context.state = "closed";
-        rejectResume(
-          new DOMException("AudioContext closed", "InvalidStateError"),
-        );
-      });
-      player.enqueue(chunk(2400));
-      await player.close();
-      await vi.advanceTimersByTimeAsync(1000);
-      expect(context.state).toBe("closed");
-      expect(player.isPlaying()).toBe(false);
-      expect(onIdle).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
+    const onIdle = vi.fn();
+    const { player, context } = setup(onIdle);
+    let rejectResume!: (reason: unknown) => void;
+    const resume = new Promise<void>((_resolve, reject) => {
+      rejectResume = reject;
+    });
+    context.state = "suspended";
+    context.resume = () => resume;
+    context.close.mockImplementation(async () => {
+      context.state = "closed";
+      rejectResume(
+        new DOMException("AudioContext closed", "InvalidStateError"),
+      );
+    });
+    player.enqueue(chunk(2400));
+    await player.close();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(context.state).toBe("closed");
+    expect(player.isPlaying()).toBe(false);
+    expect(onIdle).not.toHaveBeenCalled();
   });
 
   it("does not report idle for a source that ends after close", async () => {
     vi.useFakeTimers();
-    try {
-      const onIdle = vi.fn();
-      const { player, context } = setup(onIdle);
-      player.enqueue(chunk(2400));
-      await player.close();
-      expect(context.sources[0]?.onended).toBeNull();
-      await vi.advanceTimersByTimeAsync(1000);
-      expect(onIdle).not.toHaveBeenCalled();
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
+    const onIdle = vi.fn();
+    const { player, context } = setup(onIdle);
+    player.enqueue(chunk(2400));
+    await player.close();
+    expect(context.sources[0]?.onended).toBeNull();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onIdle).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
