@@ -248,6 +248,21 @@ describe("projectOpenCodeThreadMessages", () => {
               tool: "read",
               state: { status: "pending", input: {}, raw: "" },
             },
+            {
+              id: "tool-4",
+              callID: "call-4",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "bash",
+              state: {
+                status: "error",
+                input: { command: "echo partial; sleep 10" },
+                error: "Tool execution aborted",
+                metadata: { output: "partial\n", interrupted: true },
+                time: { start: 4, end: 5 },
+              },
+            },
           ],
           shadowParts: undefined,
         },
@@ -263,6 +278,12 @@ describe("projectOpenCodeThreadMessages", () => {
         artifact: { diff: "-hello\n+hi\n", diagnostics: {} },
       },
       { toolCallId: "call-3" },
+      {
+        toolCallId: "call-4",
+        isError: true,
+        result: "Tool execution aborted",
+        artifact: { output: "partial\n", interrupted: true },
+      },
     ]);
     expect(messages[0]?.content[0]).not.toHaveProperty("result");
     expect(messages[0]?.content[2]).not.toHaveProperty("artifact");
