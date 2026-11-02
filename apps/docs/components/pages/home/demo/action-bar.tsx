@@ -99,7 +99,7 @@ export function AssistantActionBar(): ReactNode {
       </ActionBarMorePrimitive.Root>
       <MessageTiming
         side="bottom"
-        className="text-muted-foreground/70 hover:text-foreground ms-1 rounded-none p-1 text-[11px] hover:bg-transparent"
+        className="text-muted-foreground hover:text-foreground ms-1 rounded-none p-1 text-[11px] hover:bg-transparent"
       />
     </ActionBarPrimitive.Root>
   );

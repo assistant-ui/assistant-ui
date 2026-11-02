@@ -30,7 +30,7 @@ export function MemoryView({
           ) : null}
         </div>
         {memories.length === 0 ? (
-          <p className="text-muted-foreground/70 mt-6 px-2 text-[15px] leading-relaxed">
+          <p className="text-muted-foreground mt-6 px-2 text-[15px] leading-relaxed">
             Nothing remembered yet. Ask the assistant to remember something.
           </p>
         ) : (
