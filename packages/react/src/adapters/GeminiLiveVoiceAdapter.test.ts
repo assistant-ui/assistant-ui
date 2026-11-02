@@ -514,6 +514,27 @@ describe("GeminiLiveVoiceAdapter", () => {
     });
   });
 
+  it("does not resume the interrupted reply's audio after a typed send", async () => {
+    const { session, socket } = await connected();
+    socket.emit(reply("Long"));
+    audio.player.isPlaying.mockReturnValue(true);
+    const onMode = vi.fn();
+    session.onModeChange(onMode);
+    const sent = session.sendText!("Stop");
+    expect(audio.player.clear).toHaveBeenCalledOnce();
+    audio.player.isPlaying.mockReturnValue(false);
+    audio.player.enqueue.mockClear();
+    socket.emit(reply(" answer"));
+    expect(audio.player.enqueue).not.toHaveBeenCalled();
+    expect(onMode.mock.calls).toEqual([["listening"]]);
+    socket.emit({ serverContent: { interrupted: true } });
+    socket.emit(reply("Okay"));
+    await sent;
+    await flush();
+    expect(audio.player.enqueue).toHaveBeenCalledOnce();
+    expect(onMode).toHaveBeenLastCalledWith("speaking");
+  });
+
   it("keeps frames that arrive during the deferred first chunk in order", async () => {
     const { session, socket } = await connected();
     const onTranscript = vi.fn();

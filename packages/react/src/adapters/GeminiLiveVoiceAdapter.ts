@@ -212,7 +212,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         }
         if (Array.isArray(parts) && !generating) startReply(false);
         if (generating) {
-          if (Array.isArray(parts))
+          if (Array.isArray(parts) && !pendingText?.awaitingInterrupt)
             for (const part of parts) {
               const data = asRecord(asRecord(part)?.inlineData)?.data;
               if (typeof data === "string" && player) {
