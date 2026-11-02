@@ -925,6 +925,56 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("keeps a reader scroll-up inside the clamp band once input preceded it", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    view.setTop(350);
+    observers[0]!.trigger();
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following through the same geometry without reader input", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(view.element.scrollTop).toBe(400);
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
   it("leaves a reader inside the footer inset in place on a subtree mutation", async () => {
     const mutationCallback = vi.fn();
     vi.stubGlobal(
