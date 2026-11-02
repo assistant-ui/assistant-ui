@@ -285,6 +285,7 @@ type HistorySyncWindow = {
       part: MessageWithParts["parts"][number];
     }
   >;
+  pendingDeltaBases: Map<string, string>;
   removedPartIds: Set<string>;
 };
 
@@ -332,6 +333,14 @@ const mergeHistoryMessages = (
       if (!syncWindow.changedPartIds.has(key)) return [part];
       const live =
         currentParts.get(part.id) ?? syncWindow.updatedParts.get(key)?.part;
+      const deltaBase = syncWindow.pendingDeltaBases.get(key);
+      if (
+        deltaBase !== undefined &&
+        "text" in part &&
+        part.text !== deltaBase
+      ) {
+        return [part];
+      }
       return [live && extendsLoadedText(live, part) ? live : part];
     });
     const appendIfMissing = (part: MessageWithParts["parts"][number]) => {
@@ -829,6 +838,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       removedMessageIds: new Set(previousWindow?.removedMessageIds),
       changedPartIds: new Set(previousWindow?.changedPartIds),
       updatedParts: new Map(previousWindow?.updatedParts),
+      pendingDeltaBases: new Map(previousWindow?.pendingDeltaBases),
       removedPartIds: new Set(previousWindow?.removedPartIds),
     };
     this.historySyncWindow = syncWindow;
@@ -1382,6 +1392,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private trackHistoryEvent(
     event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+    nextState: OpenCodeThreadState = this.state,
   ) {
     const syncWindow = this.historySyncWindow;
     if (!syncWindow) return;
@@ -1405,20 +1416,40 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           messageId: event.messageId,
           part: event.part,
         });
+        syncWindow.pendingDeltaBases.delete(key);
         syncWindow.removedPartIds.delete(key);
         break;
       }
-      case "part.delta":
+      case "part.delta": {
+        const key = historyPartKey(event.messageId, event.partId);
+        if (nextState === this.state) {
+          const update = syncWindow.updatedParts.get(key);
+          const part = update?.part;
+          if (
+            event.field !== "text" ||
+            !part ||
+            (part.type !== "text" && part.type !== "reasoning")
+          )
+            break;
+          syncWindow.pendingDeltaBases.set(
+            key,
+            syncWindow.pendingDeltaBases.get(key) ?? part.text,
+          );
+          syncWindow.updatedParts.set(key, {
+            messageId: event.messageId,
+            part: { ...part, text: part.text + event.delta },
+          });
+        }
         syncWindow.changedMessageIds.add(event.messageId);
-        syncWindow.changedPartIds.add(
-          historyPartKey(event.messageId, event.partId),
-        );
+        syncWindow.changedPartIds.add(key);
         break;
+      }
       case "part.removed": {
         syncWindow.changedMessageIds.add(event.messageId);
         const key = historyPartKey(event.messageId, event.partId);
         syncWindow.changedPartIds.delete(key);
         syncWindow.updatedParts.delete(key);
+        syncWindow.pendingDeltaBases.delete(key);
         syncWindow.removedPartIds.add(key);
         break;
       }
@@ -1428,8 +1459,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private dispatch(
     event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
   ) {
-    this.trackHistoryEvent(event);
     const nextState = reduceOpenCodeThreadStateInternal(this.state, event);
+    this.trackHistoryEvent(event, nextState);
     this.commitState(event, nextState);
   }
 
