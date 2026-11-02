@@ -368,7 +368,7 @@ function DemoMenu({
                 }}
               >
                 <span>{command.label}</span>
-                <kbd className="text-muted-foreground font-mono text-[10px]">
+                <kbd className="text-muted-foreground font-mono text-[12px]">
                   {command.shortcut}
                 </kbd>
               </Menu.Item>
