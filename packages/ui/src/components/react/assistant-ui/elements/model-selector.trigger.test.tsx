@@ -5,7 +5,7 @@ import * as RadixModelSelector from "./model-selector.radix";
 
 afterEach(cleanup);
 
-const MODELS = [{ id: "a", name: "Model A" }];
+const MODELS = [{ id: "a", name: "Model A", efforts: true }];
 
 describe.each([
   ["Base UI", BaseModelSelector],
@@ -13,14 +13,14 @@ describe.each([
 ])(
   "%s ModelSelectorTrigger",
   (_, { ModelSelectorRoot, ModelSelectorTrigger }) => {
-    it("names the combobox and lets the consumer rename it", () => {
+    it("includes the visible selection in the combobox name and lets the consumer rename it", () => {
       const { rerender } = render(
-        <ModelSelectorRoot models={MODELS} value="a">
+        <ModelSelectorRoot models={MODELS} value="a" effort="high">
           <ModelSelectorTrigger />
         </ModelSelectorRoot>,
       );
       expect(
-        screen.getByRole("combobox", { name: "Model: Model A" }),
+        screen.getByRole("combobox", { name: "Model: Model A High" }),
       ).toBeTruthy();
 
       rerender(
@@ -28,7 +28,9 @@ describe.each([
           <ModelSelectorTrigger />
         </ModelSelectorRoot>,
       );
-      expect(screen.getByRole("combobox", { name: "Model" })).toBeTruthy();
+      expect(
+        screen.getByRole("combobox", { name: "Select model" }),
+      ).toBeTruthy();
 
       rerender(
         <ModelSelectorRoot models={MODELS} value="a">

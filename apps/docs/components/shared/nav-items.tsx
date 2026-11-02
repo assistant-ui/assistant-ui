@@ -113,7 +113,7 @@ export function NavItemsRoot({ children }: { children: ReactNode }) {
   return (
     <NavigationMenu
       ref={rootRef}
-      aria-label="Main"
+      aria-label="Site navigation"
       value={value}
       onValueChange={(next) => setValue(next as string | null)}
       delay={100}

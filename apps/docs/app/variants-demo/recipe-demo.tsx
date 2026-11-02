@@ -43,14 +43,11 @@ function Nav() {
           <span className="bg-foreground rounded-capsule size-4" aria-hidden />
           Simmer
         </span>
-        <nav
-          aria-label="Recipes"
-          className="text-muted-foreground hidden gap-6 text-[13px] sm:flex"
-        >
+        <div className="text-muted-foreground hidden gap-6 text-[13px] sm:flex">
           <span className="text-foreground">Recipes</span>
           <span>Collections</span>
           <span>Kitchen notes</span>
-        </nav>
+        </div>
       </div>
       <Button type="button" variant="ghost" size="sm">
         Sign in

@@ -71,7 +71,6 @@ export function Header() {
   const mobileMenuToggle = useRef<HTMLButtonElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const { toggle } = useAssistantPanel();
-  // A new tab leaves this page open, and closing the menu makes the clicked link inert.
   const closeMenuToToggle = () => {
     setMobileMenuOpen(false);
     mobileMenuToggle.current?.focus();
@@ -173,7 +172,7 @@ export function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={closeMenuToToggle}
                     className="text-foreground py-3 text-lg transition-colors"
                   >
                     {item.label}
@@ -208,7 +207,7 @@ export function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={() => setMobileMenuOpen(false)}
+                            onClick={closeMenuToToggle}
                             className="text-foreground py-2 pl-4 text-lg transition-colors"
                           >
                             {link.label}

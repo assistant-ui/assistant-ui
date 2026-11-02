@@ -56,6 +56,22 @@ describe("Header mobile menu", () => {
     expect(document.activeElement).toBe(toggle);
   });
 
+  it("returns focus to the toggle when an internal link closes the menu", () => {
+    render(<Header />);
+    const toggle = screen.getByRole("button", { name: "Toggle menu" });
+    const panel = document.getElementById(
+      toggle.getAttribute("aria-controls")!,
+    )!;
+    fireEvent.click(toggle);
+    const docs = within(panel).getByRole("link", { name: "Docs" });
+    docs.focus();
+
+    fireEvent.click(docs);
+
+    expect(panel.hasAttribute("inert")).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+  });
+
   it("names the icon links", () => {
     render(<Header />);
 
@@ -80,6 +96,8 @@ describe("Header mobile menu", () => {
   it("labels the navigation landmark", () => {
     render(<Header />);
 
-    expect(screen.getByRole("navigation", { name: "Main" })).toBeTruthy();
+    expect(
+      screen.getByRole("navigation", { name: "Site navigation" }),
+    ).toBeTruthy();
   });
 });

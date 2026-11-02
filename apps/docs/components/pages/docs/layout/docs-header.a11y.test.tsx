@@ -13,6 +13,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocsSidebar, DocsSidebarProvider } from "../contexts/sidebar";
 import { PlatformProvider } from "../platform/context";
 import { DocsHeader } from "./docs-header";
+import { DocsSiteHeader } from "./docs-site-header";
+
+vi.mock("@/components/shared/sub-project-header", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  SubProjectHeader: ({ actions }: { actions: React.ReactNode }) => (
+    <div>{actions}</div>
+  ),
+}));
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -71,6 +79,21 @@ afterEach(() => {
 });
 
 describe("DocsHeader mobile panels", () => {
+  it("exposes the docs site sidebar state and target", () => {
+    render(
+      <DocsSidebarProvider>
+        <DocsSiteHeader site="safe-content-frame" />
+        <DocsSidebar>sidebar</DocsSidebar>
+      </DocsSidebarProvider>,
+    );
+    const toggle = screen.getByRole("button", { name: "Toggle sidebar" });
+    const sidebar = document.getElementById("docs-sidebar")!;
+    expect(toggle.getAttribute("aria-controls")).toBe(sidebar.id);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(sidebar.hasAttribute("inert")).toBe(false);
+  });
   it("keeps the closed site navigation out of the tab order", () => {
     renderHeader();
     const toggle = screen.getByRole("button", { name: "Site navigation" });

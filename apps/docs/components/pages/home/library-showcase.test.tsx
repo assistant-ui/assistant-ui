@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryShowcase } from "./library-showcase";
 
@@ -31,15 +37,19 @@ const setupTabs = [
 ];
 
 describe("LibraryShowcase", () => {
-  it("keeps only tabs inside the tablist", () => {
+  it("exposes runtime choices as toggle buttons and keeps the guide link separate", () => {
     render(<LibraryShowcase setupTabs={setupTabs} />);
-    const tablist = screen.getByRole("tablist");
+    const group = screen.getByRole("group", { name: "Runtime" });
+    const aiSdk = within(group).getByRole("button", { name: "AI SDK" });
+    const custom = within(group).getByRole("button", { name: "Custom" });
 
+    expect(aiSdk.getAttribute("aria-pressed")).toBe("true");
+    expect(custom.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(custom);
+    expect(aiSdk.getAttribute("aria-pressed")).toBe("false");
+    expect(custom.getAttribute("aria-pressed")).toBe("true");
     expect(
-      [...tablist.children].map((child) => child.getAttribute("role")),
-    ).toEqual(["tab", "tab"]);
-    expect(
-      within(tablist).queryByRole("link", { name: /All runtimes/ }),
+      within(group).queryByRole("link", { name: /All runtimes/ }),
     ).toBeNull();
     expect(screen.getByRole("link", { name: /All runtimes/ })).toBeTruthy();
   });

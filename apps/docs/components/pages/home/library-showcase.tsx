@@ -285,22 +285,27 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="flex max-w-[44rem] flex-col gap-2">
           <div className="text-[15px] font-medium">
-            <h3 className="inline">A provider, a hook, one component.</h3>{" "}
+            <h3 className="inline font-sans font-medium tracking-normal">
+              A provider, a hook, one component.
+            </h3>{" "}
             <span className="text-muted-foreground font-normal">
               The complete client, whatever runs behind it.
             </span>
           </div>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1">
-          <div role="tablist" className="flex flex-wrap gap-x-5 gap-y-1">
+          <div
+            role="group"
+            aria-label="Runtime"
+            className="flex flex-wrap gap-x-5 gap-y-1"
+          >
             {tabs.map((tab, index) => {
               const current = index === cycle.index;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  role="tab"
-                  aria-selected={current}
+                  aria-pressed={current}
                   onClick={() => cycle.jump(index)}
                   className={cn(
                     "relative pb-1.5 text-xs font-medium transition-colors",
@@ -381,7 +386,9 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <div className="flex max-w-[44rem] flex-col gap-2">
             <div className="text-[15px] font-medium">
-              <h3 className="inline">Yours to reshape.</h3>{" "}
+              <h3 className="inline font-sans font-medium tracking-normal">
+                Yours to reshape.
+              </h3>{" "}
               <span className="text-muted-foreground font-normal">
                 Every part is a component you compose; the CLI copies the UI
                 source into your repo.
