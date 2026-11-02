@@ -33,13 +33,14 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
     const cx = (left + right) / 2;
     const cy = (top + bottom) / 2;
     const labelGap = Math.max(6, frameType.axis.px / 2 + 1);
-    const labelAllowance = Math.max(
-      frameType.axis.px + labelGap,
-      labelW + labelGap,
-    );
+    // Round the width up, because truncation counts whole characters: a label
+    // that exactly fills the half-frame would otherwise lose its last one.
     const outer = Math.max(
       0,
-      Math.min(right - left, bottom - top) / 2 - labelAllowance,
+      Math.min(
+        (right - left) / 2 - Math.ceil(labelW) - labelGap,
+        (bottom - top) / 2 - frameType.axis.px / 2 - labelGap,
+      ),
     );
     const inner =
       innerFraction === undefined || Number.isNaN(innerFraction)
