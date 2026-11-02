@@ -70,7 +70,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       let userText = "";
       let userFinished = false;
       let nextUserText = "";
-      let nextUserFinished = false;
+      let nextUserFinals: string[] = [];
       let deferred: Record<string, unknown>[] | undefined;
       let volumeTimer: ReturnType<typeof setInterval> | undefined;
       let connectionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -169,13 +169,12 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
         holdingAssistant = false;
         flushUser();
         emitAssistant(true);
+        for (const text of nextUserFinals)
+          session.emitTranscript({ role: "user", text, isFinal: true });
+        userFinished = nextUserFinals.length > 0 && !nextUserText;
         userText = nextUserText;
-        userFinished = false;
         nextUserText = "";
-        if (nextUserFinished) {
-          nextUserFinished = false;
-          flushUser();
-        }
+        nextUserFinals = [];
         if (pendingText) pendingText.awaitingInterrupt = false;
       };
 
@@ -192,8 +191,10 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
           }
         }
         if (input?.finished === true) {
-          if (nextTurn) nextUserFinished = true;
-          else if (generating) releaseAssistant();
+          if (nextTurn) {
+            if (nextUserText) nextUserFinals.push(nextUserText);
+            nextUserText = "";
+          } else if (generating) releaseAssistant();
           else flushUser();
         }
         if (content.interrupted === true) {

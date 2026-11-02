@@ -569,6 +569,32 @@ describe("GeminiLiveVoiceAdapter", () => {
     }
   });
 
+  it("keeps separate utterances heard during a streaming reply as separate messages", async () => {
+    const { session, socket } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    socket.emit({
+      serverContent: { inputTranscription: { text: "Hi", finished: true } },
+    });
+    socket.emit({ serverContent: { outputTranscription: { text: "Hello" } } });
+    socket.emit({
+      serverContent: { inputTranscription: { text: "Again", finished: true } },
+    });
+    socket.emit({
+      serverContent: { inputTranscription: { text: "Wait", finished: true } },
+    });
+    socket.emit({ serverContent: { turnComplete: true } });
+    socket.emit({ serverContent: { outputTranscription: { text: "Sure" } } });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hi", isFinal: true },
+      { role: "assistant", text: "Hello", isFinal: false },
+      { role: "assistant", text: "Hello", isFinal: true },
+      { role: "user", text: "Again", isFinal: true },
+      { role: "user", text: "Wait", isFinal: true },
+      { role: "assistant", text: "Sure", isFinal: false },
+    ]);
+  });
+
   it("emits held transcripts when the server closes mid-turn", async () => {
     const { session, socket } = await connected();
     const onTranscript = vi.fn();
