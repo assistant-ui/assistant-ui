@@ -183,6 +183,91 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
+  it("passes tool state metadata to renderers as the artifact", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "bash",
+              state: {
+                status: "running",
+                input: { command: "echo started; sleep 3; echo finished" },
+                metadata: { output: "started\n" },
+                time: { start: 1 },
+              },
+            },
+            {
+              id: "tool-2",
+              callID: "call-2",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "edit",
+              state: {
+                status: "completed",
+                input: { filePath: "a.txt" },
+                output: "Edit applied successfully.",
+                title: "a.txt",
+                metadata: { diff: "-hello\n+hi\n", diagnostics: {} },
+                time: { start: 2, end: 3 },
+              },
+            },
+            {
+              id: "tool-3",
+              callID: "call-3",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: { status: "pending", input: {}, raw: "" },
+            },
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.content).toMatchObject([
+      { toolCallId: "call-1", artifact: { output: "started\n" } },
+      {
+        toolCallId: "call-2",
+        result: "Edit applied successfully.",
+        artifact: { diff: "-hello\n+hi\n", diagnostics: {} },
+      },
+      { toolCallId: "call-3" },
+    ]);
+    expect(messages[0]?.content[0]).not.toHaveProperty("result");
+    expect(messages[0]?.content[2]).not.toHaveProperty("artifact");
+  });
+
   it("preserves completed tool attachments across streamed text updates", () => {
     const state: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_1"),

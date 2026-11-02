@@ -456,6 +456,9 @@ const projectAssistantContent = (
           part.state.attachments?.length
             ? { modelContent: getToolModelContent(part.state) }
             : {}),
+          ...(part.state?.status !== "pending" && part.state?.metadata
+            ? { artifact: part.state.metadata }
+            : {}),
           ...(childMessages !== undefined ? { messages: childMessages } : {}),
           ...(permission
             ? { approval: projectOpenCodePermissionApproval(permission) }
