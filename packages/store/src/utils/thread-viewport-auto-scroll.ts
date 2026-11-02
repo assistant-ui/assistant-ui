@@ -227,7 +227,8 @@ export const createThreadViewportAutoScroll = (input: {
     // The browser clamps scrollTop while the content is short, then the content
     // grows back before the next observed resize. Remember the shrink so that
     // resize cannot early-return on an unchanged height and strand the view.
-    if (element.scrollHeight < lastScrollHeight) contentShrankSinceResize = true;
+    if (element.scrollHeight < lastScrollHeight)
+      contentShrankSinceResize = true;
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
     firstMessage = measureFirstMessage(element);
