@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { textWidth } from "../../core/text";
-import { PAD } from "../svg";
+import { PAD, frame } from "../svg";
 import { PolarArea } from "./polar-area";
 
 function label(html: string, text: string) {
@@ -15,6 +15,14 @@ function label(html: string, text: string) {
     y: Number(/\by="([^"]+)"/.exec(attrs)?.[1]),
     textAnchor: /\btext-anchor="([^"]+)"/.exec(attrs)?.[1],
   };
+}
+
+function outerRadius(html: string) {
+  const mark = [...html.matchAll(/<path\b[^>]*>/g)].find(([tag]) =>
+    tag!.includes('data-part="mark"'),
+  )?.[0];
+  const path = /\bd="([^"]+)"/.exec(mark ?? "")?.[1] ?? "";
+  return Number(/\bA([\d.]+) [\d.]+/.exec(path)?.[1]);
 }
 
 function distanceFromInterval(value: number, start: number, end: number) {
@@ -120,6 +128,53 @@ describe("PolarArea labels", () => {
       );
 
       expect(Math.hypot(nearestX, nearestY)).toBeGreaterThanOrEqual(outer);
+    }
+  });
+
+  it("sizes a wide frame from the text height, then keeps the labels in it", () => {
+    const width = 960;
+    const height = 384;
+    const labels = [
+      "Sub-Saharan Africa pipeline",
+      "North America rollout",
+      "Western Europe",
+      "Asia Pacific",
+    ];
+    const html = renderToStaticMarkup(
+      <PolarArea
+        width={width}
+        height={height}
+        items={labels.map((text) => ({ label: text, value: 1 }))}
+      />,
+    );
+    const F = frame({ width, height }, 5 / 3);
+    const axis = F.T.axis.px;
+    const labelGap = Math.max(6, axis / 2 + 1);
+    const verticalClearance = (F.bottom - F.top) / 2 - axis / 2 - labelGap;
+    const horizontalClearance =
+      (F.right - F.left) / 2 -
+      textWidth("Sub-Saharan Africa pipeline", axis) -
+      labelGap;
+
+    // The vertical axis only has to hold the text height, so a wide frame keeps
+    // its radius even when the labels are wider than the frame is tall.
+    expect(horizontalClearance).toBeGreaterThan(verticalClearance);
+    expect(outerRadius(html)).toBeCloseTo(verticalClearance, 1);
+
+    for (const text of labels) {
+      const rendered = label(html, text);
+      const textWidthPx = textWidth(text, axis);
+      const left =
+        rendered.textAnchor === "start"
+          ? rendered.x
+          : rendered.textAnchor === "end"
+            ? rendered.x - textWidthPx
+            : rendered.x - textWidthPx / 2;
+
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(left + textWidthPx).toBeLessThanOrEqual(width);
+      expect(rendered.y - axis / 2).toBeGreaterThanOrEqual(0);
+      expect(rendered.y + axis / 2).toBeLessThanOrEqual(height);
     }
   });
 });
