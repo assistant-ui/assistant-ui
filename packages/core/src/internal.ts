@@ -81,8 +81,8 @@ export {
   dataUrlMediaType,
   type FilePartSource,
   httpUrlPattern,
-  isBase64,
   isParsableUrl,
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
 } from "./utils/data-url";

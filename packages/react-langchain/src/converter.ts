@@ -6,7 +6,7 @@ import type {
   ThreadUserMessage,
 } from "@assistant-ui/core";
 import {
-  isBase64,
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
   resolveImageMediaType,
@@ -317,16 +317,20 @@ export const getMessageContent = (msg: AppendMessage) => {
     switch (type) {
       case "text":
         return { type: "text" as const, text: part.text };
-      case "image":
+      case "image": {
+        const image = parseDataUrl(part.image)
+          ? part.image
+          : parseBase64(part.image);
         return {
           type: "image_url" as const,
           image_url: {
             url:
-              parseDataUrl(part.image) || isBase64(part.image)
-                ? toMediaWireUrl(part.image, resolveImageMediaType(part.image))
+              image !== null
+                ? toMediaWireUrl(image, resolveImageMediaType(image))
                 : part.image,
           },
         };
+      }
       case "file": {
         const metadata = { filename: part.filename ?? "file" };
         if (part.sourceType === "id") {

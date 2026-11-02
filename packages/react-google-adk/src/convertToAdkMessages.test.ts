@@ -176,23 +176,26 @@ describe("getMessageContent", () => {
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
     ],
     ["image/jpeg", "/9j/4AAQSkZJRg=="],
-    ["image/jpeg", "/9j/4AAQ\r\nSkZJRg=="],
+    ["image/jpeg", "/9j/4AAQ\r\nSkZJRg==", "/9j/4AAQSkZJRg=="],
     ["image/png", "PHN2Zy8+"],
-  ])("sends bare base64 %s images as Gemini inline data", (mimeType, image) => {
-    const content = getMessageContent(
-      makeAppendMessage([{ type: "image", image, filename: "pixel.png" }]),
-    );
+  ])(
+    "sends bare base64 %s images as Gemini inline data",
+    (mimeType, image, data = image) => {
+      const content = getMessageContent(
+        makeAppendMessage([{ type: "image", image, filename: "pixel.png" }]),
+      );
 
-    expect(contentToParts(content)).toEqual([
-      {
-        inlineData: {
-          mimeType,
-          data: image,
-          displayName: "pixel.png",
+      expect(contentToParts(content)).toEqual([
+        {
+          inlineData: {
+            mimeType,
+            data,
+            displayName: "pixel.png",
+          },
         },
-      },
-    ]);
-  });
+      ]);
+    },
+  );
 
   it.each(["/uploads/cat.png", "/9j/uploads/cat.png"])(
     "preserves relative image reference %s",

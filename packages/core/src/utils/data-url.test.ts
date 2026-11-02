@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   dataUrlMediaType,
   httpUrlPattern,
-  isBase64,
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
 } from "./data-url";
 
-describe("isBase64", () => {
+describe("parseBase64", () => {
   it.each([
     "aGk=",
     "aGk",
@@ -19,7 +19,7 @@ describe("isBase64", () => {
   ])(
     "recognizes bare base64 %j without requiring an image signature",
     (value) => {
-      expect(isBase64(value)).toBe(true);
+      expect(parseBase64(value)).not.toBeNull();
     },
   );
 
@@ -35,7 +35,15 @@ describe("isBase64", () => {
     "/9j/uploads/cat.png",
     "../cat.png",
   ])("rejects non-base64 reference %j", (value) => {
-    expect(isBase64(value)).toBe(false);
+    expect(parseBase64(value)).toBeNull();
+  });
+
+  it.each([
+    ["aGk=", "aGk="],
+    ["aGk", "aGk"],
+    [" /9j/4AAQ\r\nSkZJRg==\t\n", "/9j/4AAQSkZJRg=="],
+  ])("returns compact bytes for %j", (value, expected) => {
+    expect(parseBase64(value)).toBe(expected);
   });
 });
 

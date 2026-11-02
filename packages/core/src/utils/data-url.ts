@@ -59,16 +59,18 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
+ * Returns compact bare base64, or null for references and malformed input.
  * Unlike !isParsableUrl, validates the base64 alphabet and padding so image
  * references such as /uploads/cat.png stay URLs. MIME line breaks are allowed;
  * image signatures are not required because not every format can be sniffed.
  */
-export function isBase64(value: string): boolean {
+export function parseBase64(value: string): string | null {
   const compact = value.replace(/[\t\n\r ]/g, "");
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return false;
-  return compact.endsWith("=")
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return null;
+  const validLength = compact.endsWith("=")
     ? compact.length % 4 === 0
     : compact.length % 4 !== 1;
+  return validLength ? compact : null;
 }
 
 /**
