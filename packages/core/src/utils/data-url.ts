@@ -59,6 +59,24 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
+ * Returns compact bare base64, or null when the value, with whitespace
+ * removed, leaves the base64 alphabet or has invalid padding, so references
+ * such as /uploads/cat.png stay URLs. MIME line breaks are allowed; image
+ * signatures are not required because not every format can be sniffed. A
+ * reference made only of base64 characters and whitespace, such as
+ * /uploads/cat, is indistinguishable from a payload (JPEG base64 starts with
+ * /9j/) and is returned as base64.
+ */
+export function parseBase64(value: string): string | null {
+  const compact = value.replace(/[\t\n\r ]/g, "");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return null;
+  const validLength = compact.endsWith("=")
+    ? compact.length % 4 === 0
+    : compact.length % 4 !== 1;
+  return validLength ? compact : null;
+}
+
+/**
  * A data URL's media type without parameters. It uses
  * `application/octet-stream` when a base64 payload omits a type and
  * `text/plain` when any other payload does.
