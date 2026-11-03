@@ -1730,6 +1730,7 @@ type ExternalMessageConverterMessage = (ThreadMessageLike & {
   toolName?: string | undefined;
   result: any;
   artifact?: any;
+  modelContent?: ToolCallMessagePart["modelContent"];
   isError?: boolean;
   messages?: readonly ThreadMessage[];
 };
