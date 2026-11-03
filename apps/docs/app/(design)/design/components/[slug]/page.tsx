@@ -11,7 +11,7 @@ import {
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
 import { design } from "@/lib/source";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 import { cn } from "@/lib/utils";
 
 function getPage(slug: string) {

@@ -20,7 +20,7 @@ import {
 } from "@/lib/examples";
 import { getDemo } from "@/lib/demos";
 import { examples } from "@/lib/source";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 
 const EXAMPLE_TO_DEMO_SLUG: Record<string, string> = { "ai-sdk": "base" };
 

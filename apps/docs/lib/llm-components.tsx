@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 import { TabLLM, TabsLLM } from "@/components/pages/docs/fumadocs/tabs.llm";
 import {
   PlatformOnlyLLM,

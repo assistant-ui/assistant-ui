@@ -3,7 +3,7 @@ import { createOgMetadata } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { blog, type BlogPage } from "@/lib/source";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 import { ArrowLeft } from "lucide-react";
 import { BlogTOC } from "@/components/pages/blog/blog-toc";
 import { GlyphPlate } from "@/components/shared/glyph-scene";

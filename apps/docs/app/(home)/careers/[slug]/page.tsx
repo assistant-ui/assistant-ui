@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 import { ApplyForm } from "@/components/pages/careers/apply-form";
 import { sceneFor } from "@/components/pages/careers/scenes";
 import { GlyphPlate } from "@/components/shared/glyph-scene";

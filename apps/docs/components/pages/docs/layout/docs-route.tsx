@@ -8,7 +8,7 @@ import {
   DocsPageShell,
 } from "@/components/pages/docs/layout/docs-page";
 import { createOgMetadata } from "@/lib/og";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 import type { DocsSiteLoader, source } from "@/lib/source";
 import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
 import { getPagePlatform } from "@/components/pages/docs/platform/tree";

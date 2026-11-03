@@ -42,7 +42,7 @@ import {
 } from "@/components/pages/elements/element-platform";
 import { getNativeRegistryName } from "@/components/pages/elements/native-elements";
 import { RuntimeSetup } from "@/components/pages/elements/runtime-setup";
-import { getMDXComponents } from "@/mdx-components";
+import { getMDXComponents } from "@/components/pages/docs/mdx-components";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
 
 function tocTitle(node: unknown): string {
