@@ -1873,11 +1873,15 @@ describe("toolResultStream inside a provider step", () => {
     await write(
       { type: "step-start", path: [], messageId: "m1" },
       ...toolCallChunks("call_1"),
+      { type: "part-finish", path: [0] },
     );
     expect(execute).not.toHaveBeenCalled();
     await close();
 
     expect(execute).toHaveBeenCalledOnce();
-    expect(output.at(-1)).toMatchObject({ type: "result", result: "done" });
+    expect(output.slice(-2)).toEqual([
+      expect.objectContaining({ type: "result", result: "done" }),
+      expect.objectContaining({ type: "part-finish", path: [0] }),
+    ]);
   });
 });

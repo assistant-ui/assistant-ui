@@ -264,6 +264,7 @@ describe("useDataStreamRuntime tool approvals", () => {
     expect(toolPart.getState()).not.toHaveProperty("result");
     expect(frontendExecute).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
 
     await act(async () => {
       await toolPart.respondToToolApproval({ approved: true });
