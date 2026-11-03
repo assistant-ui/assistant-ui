@@ -9,7 +9,14 @@ import { createContentSource } from "../../lib/content-source";
 
 vi.mock("remark", async (importOriginal) => {
   const original = await importOriginal<typeof import("remark")>();
-  return { ...original, remark: vi.fn(() => original.remark()) };
+  return {
+    ...original,
+    remark: vi.fn(() => {
+      const processor = original.remark();
+      vi.spyOn(processor, "parse");
+      return processor;
+    }),
+  };
 });
 
 function readSearchModule(source: string) {
@@ -20,6 +27,61 @@ const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true })),
+  );
+});
+
+it("parses only changed pages and retains search data for unchanged pages", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  const directory = join(root, "content/docs");
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    join(directory, "index.mdx"),
+    "---\ntitle: Welcome\n---\n## Install\n\nOld instructions.",
+  );
+  await writeFile(
+    join(directory, "other.mdx"),
+    "---\ntitle: Other page\n---\n## Usage [#custom]\n\nRetained instructions.",
+  );
+  const parsedPages = () =>
+    vi
+      .mocked(remark)
+      .mock.results.reduce(
+        (count, { value }) => count + vi.mocked(value.parse).mock.calls.length,
+        0,
+      );
+
+  await generateContentManifest(root);
+  expect(parsedPages()).toBe(2);
+  const readSearch = async () =>
+    readSearchModule(
+      await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+    );
+  const originalSearch = await readSearch();
+
+  await writeFile(
+    join(directory, "index.mdx"),
+    "---\ntitle: Updated welcome\n---\n## Install\n\nNew instructions.",
+  );
+  await generateContentManifest(root);
+  expect(parsedPages()).toBe(3);
+  expect((await readSearch())["other.mdx"]).toEqual(
+    originalSearch["other.mdx"],
+  );
+  expect((await readSearch())["index.mdx"].structured.contents).toEqual([
+    { heading: "install", content: "New instructions." },
+  ]);
+  expect(await readFile(join(root, ".source/content.ts"), "utf8")).toContain(
+    '"title":"Updated welcome"',
+  );
+
+  await rm(join(directory, "other.mdx"));
+  await writeFile(join(directory, "meta.json"), '{"pages":["index"]}');
+  await generateContentManifest(root);
+  expect(parsedPages()).toBe(3);
+  expect(await readSearch()).not.toHaveProperty("other.mdx");
+  expect(await readFile(join(root, ".source/content.ts"), "utf8")).toContain(
+    '"pages":["index"]',
   );
 });
 
@@ -65,6 +127,49 @@ it("reuses unchanged parsed content across builds and restores missing generated
   );
 });
 
+it("rebuilds pages when their parsed cache is missing, unreadable or from a different compiler", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  const directory = join(root, "content/docs");
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    join(directory, "index.mdx"),
+    "---\ntitle: Welcome\n---\nBefore.",
+  );
+  await writeFile(
+    join(directory, "other.mdx"),
+    "---\ntitle: Other\n---\nRetained.",
+  );
+  await generateContentManifest(root);
+  const cachedPages = join(root, ".next/cache/aui-content-pages.json");
+
+  for (const failure of ["missing", "unreadable", "old-compiler"]) {
+    if (failure === "missing") await rm(cachedPages);
+    else if (failure === "unreadable") await writeFile(cachedPages, "{");
+    else {
+      const cache = JSON.parse(await readFile(cachedPages, "utf8"));
+      cache.inputFingerprint = "previous-compiler";
+      await writeFile(cachedPages, JSON.stringify(cache));
+    }
+    await writeFile(
+      join(directory, "index.mdx"),
+      `---\ntitle: Welcome\n---\n${failure}.`,
+    );
+    await generateContentManifest(root);
+    const processor = vi.mocked(remark).mock.results.at(-1)!.value;
+    expect(processor.parse).toHaveBeenCalledTimes(2);
+    const search = readSearchModule(
+      await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+    );
+    expect(search["index.mdx"].structured.contents[0].content).toBe(
+      `${failure}.`,
+    );
+    expect(search["other.mdx"].structured.contents[0].content).toBe(
+      "Retained.",
+    );
+  }
+});
+
 it("invalidates cached content for edits, additions, removals and navigation changes", async () => {
   const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
   roots.push(root);
@@ -99,7 +204,7 @@ it("invalidates cached content for edits, additions, removals and navigation cha
 
   await rm(join(directory, "next.mdx"));
   await generateContentManifest(root);
-  expect(remark).toHaveBeenCalledTimes(3);
+  expect(remark).toHaveBeenCalledTimes(2);
   expect(
     await readFile(join(root, ".source/content.ts"), "utf8"),
   ).not.toContain('import("../content/docs/next.mdx")');

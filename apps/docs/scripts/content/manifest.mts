@@ -40,13 +40,17 @@ function serializeSourceLiteral(value: string | object) {
 }
 
 export async function createContentManifest(root: string) {
-  return compileContent(root, await readContent(root));
+  const { content, data } = await compileContent(root, await readContent(root));
+  return { content, data };
 }
 
-async function compileContent(
-  root: string,
-  collections: Awaited<ReturnType<typeof readContent>>,
-) {
+type CompiledPage = {
+  fingerprint: string;
+  metadata: unknown;
+  search: { structured: unknown; markdown?: string };
+};
+
+async function createContentProcessor() {
   const [
     { remark },
     { default: remarkMdx },
@@ -58,7 +62,7 @@ async function compileContent(
     import("remark"),
     import("remark-mdx"),
     import("remark-gfm"),
-    import("fumadocs-core/mdx-plugins"),
+    import("fumadocs-core/mdx-plugins/remark-structure"),
     import("vfile"),
     import("@farming-labs/next/mdx-plugins/remark-heading"),
   ]);
@@ -67,6 +71,16 @@ async function compileContent(
     .use(remarkGfm)
     .use(remarkHeading)
     .use(remarkStructure);
+  return { processor, VFile };
+}
+
+async function compileContent(
+  root: string,
+  collections: Awaited<ReturnType<typeof readContent>>,
+  previousPages: Record<string, CompiledPage> = {},
+) {
+  let compiler: Awaited<ReturnType<typeof createContentProcessor>> | undefined;
+  const compiledPages: Record<string, CompiledPage> = {};
   const output = [
     'import { createContentSource } from "../lib/content-source";',
   ];
@@ -84,18 +98,33 @@ async function compileContent(
         });
         continue;
       }
-      const parsed = matter(source);
-      const data = contentSchemas[collection].parse(parsed.data);
-      const file = new VFile({ value: parsed.content, path: absolute });
-      const tree = await processor.run(processor.parse(file), file);
-      tree.children = tree.children.filter((node) => node.type !== "mdxjsEsm");
-      pages.push({ path, metadata: data });
-      search[path] = {
-        structured: file.data.structuredData,
-        ...(collection === "blog"
-          ? { markdown: processor.stringify(tree) }
-          : {}),
-      };
+      const key = `${collection}/${path}`;
+      const fingerprint = createHash("sha256").update(source).digest("hex");
+      let page = previousPages[key];
+      if (page?.fingerprint !== fingerprint) {
+        compiler ??= await createContentProcessor();
+        const { processor, VFile } = compiler;
+        const parsed = matter(source);
+        const metadata = contentSchemas[collection].parse(parsed.data);
+        const file = new VFile({ value: parsed.content, path: absolute });
+        const tree = await processor.run(processor.parse(file), file);
+        tree.children = tree.children.filter(
+          (node) => node.type !== "mdxjsEsm",
+        );
+        page = {
+          fingerprint,
+          metadata,
+          search: {
+            structured: file.data.structuredData,
+            ...(collection === "blog"
+              ? { markdown: processor.stringify(tree) }
+              : {}),
+          },
+        };
+      }
+      compiledPages[key] = page;
+      pages.push({ path, metadata: page.metadata });
+      search[path] = page.search;
       modules.push(
         `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(`../${relative(root, absolute)}`)})`,
       );
@@ -105,7 +134,7 @@ async function compileContent(
     );
     data[collection] = `export default ${serializeSourceLiteral(search)};\n`;
   }
-  return { content: `${output.join("\n")}\n`, data };
+  return { content: `${output.join("\n")}\n`, data, compiledPages };
 }
 
 async function writeIfChanged(destination: string, output: string) {
@@ -122,22 +151,48 @@ export async function generateContentManifest(root: string) {
   ]);
   const hash = createHash("sha256").update(process.version);
   for (const input of inputs) hash.update(input);
+  const inputFingerprint = hash.copy().digest("hex");
   hash.update(JSON.stringify(collections));
   const fingerprint = hash.digest("hex");
   const cachePath = resolve(root, ".next/cache/aui-content-manifest.json");
+  const pagesCachePath = resolve(root, ".next/cache/aui-content-pages.json");
   const cached = await readFile(cachePath, "utf8")
     .then(
       (source) =>
         JSON.parse(source) as {
           fingerprint: string;
-          result: Awaited<ReturnType<typeof createContentManifest>>;
+          inputFingerprint: string;
+          result: { content: string; data: Record<string, string> };
         },
     )
     .catch(() => undefined);
-  const result =
-    cached?.fingerprint === fingerprint
-      ? cached.result
-      : await compileContent(root, collections);
+  let result: { content: string; data: Record<string, string> };
+  let compiledPages: Record<string, CompiledPage> | undefined;
+  if (cached?.fingerprint === fingerprint) {
+    result = cached.result;
+  } else {
+    const cachedPages =
+      cached?.inputFingerprint === inputFingerprint
+        ? await readFile(pagesCachePath, "utf8")
+            .then(
+              (source) =>
+                JSON.parse(source) as {
+                  inputFingerprint: string;
+                  pages: Record<string, CompiledPage>;
+                },
+            )
+            .catch(() => undefined)
+        : undefined;
+    const compiled = await compileContent(
+      root,
+      collections,
+      cachedPages?.inputFingerprint === inputFingerprint
+        ? cachedPages.pages
+        : undefined,
+    );
+    compiledPages = compiled.compiledPages;
+    result = { content: compiled.content, data: compiled.data };
+  }
   const { content, data } = result;
   await mkdir(resolve(root, ".source/content-data"), { recursive: true });
   await Promise.all(
@@ -149,9 +204,16 @@ export async function generateContentManifest(root: string) {
     ),
   );
   await writeIfChanged(resolve(root, ".source/content.ts"), content);
-  if (cached?.fingerprint !== fingerprint) {
+  if (compiledPages) {
     await mkdir(resolve(root, ".next/cache"), { recursive: true });
-    await writeFile(cachePath, JSON.stringify({ fingerprint, result }));
+    await writeFile(
+      pagesCachePath,
+      JSON.stringify({ inputFingerprint, pages: compiledPages }),
+    );
+    await writeFile(
+      cachePath,
+      JSON.stringify({ fingerprint, inputFingerprint, result }),
+    );
   }
 }
 
