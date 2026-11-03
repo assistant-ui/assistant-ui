@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { watch, type FSWatcher } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve, relative } from "node:path";
@@ -101,9 +101,9 @@ async function compileContent(
       );
     }
     output.push(
-      `export const ${collection} = createContentSource(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(pages)}, ${serializeSourceLiteral(metadata)}, {${modules.join(",\n")}}, () => import("./content-data/${collection}").then((module) => module.default));`,
+      `export const ${collection} = createContentSource(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(pages)}, ${serializeSourceLiteral(metadata)}, {${modules.join(",\n")}}, () => import("./content-data/${collection}.json").then((module) => module.default));`,
     );
-    data[collection] = `export default ${serializeSourceLiteral(search)};\n`;
+    data[collection] = `${serializeSourceLiteral(search)}\n`;
   }
   return { content: `${output.join("\n")}\n`, data };
 }
@@ -141,12 +141,15 @@ export async function generateContentManifest(root: string) {
   const { content, data } = result;
   await mkdir(resolve(root, ".source/content-data"), { recursive: true });
   await Promise.all(
-    Object.entries(data).map(([collection, output]) =>
-      writeIfChanged(
-        resolve(root, `.source/content-data/${collection}.ts`),
+    Object.entries(data).map(async ([collection, output]) => {
+      await writeIfChanged(
+        resolve(root, `.source/content-data/${collection}.json`),
         output,
-      ),
-    ),
+      );
+      await rm(resolve(root, `.source/content-data/${collection}.ts`), {
+        force: true,
+      });
+    }),
   );
   await writeIfChanged(resolve(root, ".source/content.ts"), content);
   if (cached?.fingerprint !== fingerprint) {

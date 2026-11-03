@@ -13,7 +13,7 @@ vi.mock("remark", async (importOriginal) => {
 });
 
 function readSearchModule(source: string) {
-  return JSON.parse(source.replace(/^export default /, "").replace(/;\n$/, ""));
+  return JSON.parse(source);
 }
 
 const roots: string[] = [];
@@ -35,7 +35,7 @@ it("reuses unchanged parsed content across builds and restores missing generated
   await generateContentManifest(root);
   const generated = await readFile(join(root, ".source/content.ts"), "utf8");
   const search = await readFile(
-    join(root, ".source/content-data/docs.ts"),
+    join(root, ".source/content-data/docs.json"),
     "utf8",
   );
   expect(remark).toHaveBeenCalledTimes(1);
@@ -47,7 +47,7 @@ it("reuses unchanged parsed content across builds and restores missing generated
     generated,
   );
   expect(
-    await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+    await readFile(join(root, ".source/content-data/docs.json"), "utf8"),
   ).toBe(search);
 
   await rm(join(root, ".next/cache"), { recursive: true });
@@ -94,7 +94,7 @@ it("invalidates cached content for edits, additions, removals and navigation cha
   expect(edited).toContain('"title":"After"');
   expect(edited).toContain('"pages":["next","index"]');
   expect(
-    await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+    await readFile(join(root, ".source/content-data/docs.json"), "utf8"),
   ).toContain("New text.");
 
   await rm(join(directory, "next.mdx"));
