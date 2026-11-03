@@ -1,4 +1,4 @@
-name: Docs current PR versus Fumadocs main
+name: Docs search module format comparison
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: docs-current-pr-comparison-${{ github.ref }}
+  group: docs-search-json-comparison-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -29,12 +29,12 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          ref: a4dcbb5b9155cd7220e383c67a0613197d4d963d
+          ref: 6229e91ac5500138885696108de4e7e9ff2f8ec4
           path: comparison/base
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          ref: 6229e91ac5500138885696108de4e7e9ff2f8ec4
+          ref: da0c3965041e53d25734f950c7efd2a332e9ad95
           path: comparison/head
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
@@ -48,6 +48,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
-          name: docs-current-pr-comparison
+          name: docs-search-json-comparison
           path: comparison-results
           retention-days: 7
