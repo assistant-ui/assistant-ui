@@ -1142,7 +1142,23 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("drops pending upward input on a thread switch", () => {
+  it.each([
+    [
+      "a thread switch",
+      (controller: ReturnType<typeof createThreadViewportAutoScroll>) =>
+        controller.threadSwitched(),
+    ],
+    [
+      "a reattach",
+      (
+        controller: ReturnType<typeof createThreadViewportAutoScroll>,
+        element: HTMLElement,
+      ) => {
+        controller.attach(element);
+        observers.at(-1)!.trigger();
+      },
+    ],
+  ] as const)("drops pending upward input on %s", (_, reset) => {
     const view = geometry(500, 100);
     view.setTop(400);
     const controller = createThreadViewportAutoScroll({
@@ -1151,19 +1167,46 @@ describe("createThreadViewportAutoScroll", () => {
     });
     controller.attach(view.element);
     observers[0]!.trigger();
-    view.scrollTo.mockClear();
 
     view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
-    controller.threadSwitched();
+    reset(controller, view.element);
+    view.scrollTo.mockClear();
     view.grow(600);
     view.resize(200);
     view.setTop(350);
-    observers[0]!.trigger();
+    observers.at(-1)!.trigger();
 
     expect(view.scrollTo).toHaveBeenCalledWith({
       top: 600,
       behavior: "instant",
     });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps following when upward input from a nested scroller shares a frame with a resize clamp", () => {
+    const view = geometry(500, 100);
+    const nested = document.createElement("pre");
+    view.element.append(nested);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    nested.dispatchEvent(
+      new WheelEvent("wheel", { deltaY: -2, bubbles: true }),
+    );
+    view.grow(550);
+    view.resize(200);
+    view.setTop(view.element.scrollTop);
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.element.scrollTop).toBe(400);
     expect(controller.isAtBottom).toBe(true);
     controller.dispose();
   });
