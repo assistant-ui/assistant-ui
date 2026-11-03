@@ -12,7 +12,7 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.136 @farming-labs/next@0.2.136 @farming-labs/theme@0.2.136 fumadocs-ui@16.17.8
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.136 @farming-labs/next@0.2.136 @farming-labs/theme@0.2.136 fumadocs-ui@16.17.8 motion@^14
 ```
 
 Use the Farming Labs Docs, Next, and Theme stable patch 0.2.136 with Fumadocs UI 16.17.8. This version includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
