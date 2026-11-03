@@ -19,7 +19,7 @@ ROOT = Path.cwd()
 OUT = ROOT / 'comparison-results'
 OUT.mkdir(exist_ok=True)
 SIDES = {'base': ROOT / 'comparison/base', 'head': ROOT / 'comparison/head'}
-EXPECTED = {'base': '6229e91ac5500138885696108de4e7e9ff2f8ec4', 'head': '1ab22b4fb73e3788eda0e7186a35050205874bf4'}
+EXPECTED = {'base': 'a4dcbb5b9155cd7220e383c67a0613197d4d963d', 'head': '6229e91ac5500138885696108de4e7e9ff2f8ec4'}
 ROUTES = ['/docs', '/docs/installation', '/design/components', '/elements/thread']
 ENV = dict(os.environ)
 REPORT = {'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'commits': EXPECTED, 'environment': {'platform': platform.platform(), 'cpuCount': os.cpu_count(), 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'pnpm': subprocess.check_output(['pnpm', '--version'], text=True).strip(), 'flags': {key: ENV.get(key) for key in ['NODE_OPTIONS', 'CIRCLE_NODE_TOTAL', 'RAYON_NUM_THREADS', 'NEXT_PUBLIC_AUI_AI_PLAYGROUND_ENABLED', 'NEXT_PUBLIC_WEBMCP_ENABLED']}}, 'preparation': [], 'builds': [], 'assets': {}, 'http': {}, 'dev': {}, 'limitations': ['Two cold/cached samples per revision in ABBA order; percentages are descriptive, not a statistical significance verdict.', 'Cold means removed .next; OS and dependency caches remain warm. Cached builds retain .next.', 'Process-tree RSS is sampled and can double-count shared pages.', 'HTTP timings are server response/download timings, not browser FCP, LCP, hydration or interaction.', 'Baseline is the current PR; head separates the automatic MDX provider from the explicit page component map.']}
@@ -62,8 +62,13 @@ def run(side, label, command, timeout=1200):
     peak = 0
     reason = None
     log = OUT / f'{side}-{label}.log'
+    run_env = dict(ENV)
+    if 'build-' in label:
+        profiles = OUT / f'{side}-profiles'
+        profiles.mkdir(exist_ok=True)
+        run_env['NODE_OPTIONS'] = ENV.get('NODE_OPTIONS', '') + f' --cpu-prof --cpu-prof-dir={profiles}'
     with log.open('w') as stream:
-        proc = subprocess.Popen(command, cwd=SIDES[side], env=ENV, stdout=stream, stderr=subprocess.STDOUT, start_new_session=True)
+        proc = subprocess.Popen(command, cwd=SIDES[side], env=run_env, stdout=stream, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             while proc.poll() is None:
                 peak = max(peak, tree_rss(proc.pid))
@@ -184,15 +189,11 @@ try:
         run(side, 'install', ['pnpm', 'install', '--frozen-lockfile', '--filter', '.', '--filter', '@assistant-ui/docs-site...'])
         run(side, 'dependencies', ['pnpm', 'exec', 'turbo', 'run', 'build', '--filter=@assistant-ui/docs-site^...', '--concurrency=2'])
         run(side, 'type-docs', ['pnpm', '--filter', '@assistant-ui/docs-site', 'generate:type-docs'])
-    for index, side in enumerate(['base', 'head', 'head', 'base'], 1):
+    for index, side in enumerate(['base', 'head'], 1):
         shutil.rmtree(SIDES[side] / 'apps/docs/.next', ignore_errors=True)
-        for cache in ('cold', 'cached'):
+        for cache in ('cold',):
             run(side, f'build-{index}-{cache}', ['pnpm', '--filter', '@assistant-ui/docs-site', 'build'])
-        output(side)
-        if side not in REPORT['http']:
-            serve(side)
-    for side in ['base', 'head']:
-        serve(side, dev=True)
+    REPORT['limitations'] = ['Diagnostic cold builds with CPU profiling in all Node workers; timings include profiling overhead and are not a speed comparison.']
     REPORT['status'] = 'complete'
 except Exception as error:
     REPORT['status'] = 'failed'
