@@ -50,6 +50,41 @@ it("keeps Streamfold active when string keys and values end a chunk with a hyphe
   expect(dispose).toHaveBeenCalledTimes(1);
 });
 
+it("keeps complete emoji on Streamfold across argument deltas", async () => {
+  expect(await initializeStreamfold()).toBe(true);
+  const push = vi.spyOn(IncrementalJsonScanner.prototype, "push");
+  const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+  const chunks = ['{"😀":"café ', "東京 🚀", ' is ready"}'] as const;
+  const partial = IncrementalJsonObjectParser.from(chunks[0]).append(chunks[1]);
+
+  expect(partial.currentArgs).toMatchObject({ "😀": "café 東京 🚀" });
+  expect(dispose).not.toHaveBeenCalled();
+  expect(partial.append(chunks[2]).currentArgs).toMatchObject({
+    "😀": "café 東京 🚀 is ready",
+  });
+  expect(partial.currentArgs).toMatchObject({ "😀": "café 東京 🚀" });
+  expect(push.mock.calls.map(([chunk]) => chunk)).toEqual(chunks);
+  expect(dispose).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ["\uD83D", '\uDE00"}', "😀"],
+  ["\uDE00", 'tail"}', "\uDE00tail"],
+])(
+  "preserves unpaired surrogate deltas through native fallback",
+  async (delta, rest, value) => {
+    expect(await initializeStreamfold()).toBe(true);
+    const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+    const partial =
+      IncrementalJsonObjectParser.from('{"value":"').append(delta);
+
+    expect(partial.currentArgs).toMatchObject({ value: delta });
+    expect(partial.append(rest).currentArgs).toMatchObject({ value });
+    expect(partial.currentArgs).toMatchObject({ value: delta });
+    expect(dispose).toHaveBeenCalledTimes(1);
+  },
+);
+
 it("parses accumulator snapshots and reader field completion through Streamfold", async () => {
   expect(await initializeStreamfold()).toBe(true);
   const push = vi.spyOn(IncrementalJsonScanner.prototype, "push");

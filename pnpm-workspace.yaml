@@ -49,7 +49,6 @@ minimumReleaseAgeExclude:
   - heat-graph
   - next
   - safe-content-frame
-  - streamfold@0.1.13
   - tw-shimmer
   - typescript
 

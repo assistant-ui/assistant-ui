@@ -39,7 +39,7 @@ For tool execution, pipe through `ToolExecutionStream`; for resumable streams (c
 
 ## Streamfold parsing
 
-Install `streamfold@^0.1.13` alongside `assistant-stream` to opt into its Rust/WASM
+Install `streamfold@^0.1.16` alongside `assistant-stream` to opt into its Rust/WASM
 parser. Initialize it once before starting streams in each browser or server
 bundle that should use it:
 
@@ -55,6 +55,10 @@ argument readers, and React LangGraph. Existing parsers keep their backend.
 `enabled` is false if WASM preparation or finalization support is unavailable;
 the JavaScript parser remains usable. Import this optional entry only in
 bundles where you intend to enable Streamfold.
+
+Only assistant-stream's shared parser is affected. Provider SDK parsers keep
+their own behavior. The AI SDK UI-message decoder currently buffers tool input
+until it is available, so that path does not benefit from incremental parsing.
 
 The integration preserves partial values and metadata, security filtering,
 mutable published snapshots, and independent parser branches. Unsupported or
