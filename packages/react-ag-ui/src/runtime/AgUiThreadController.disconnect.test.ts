@@ -302,6 +302,78 @@ describe("AgUiThreadController HTTP stream closure", () => {
     });
   });
 
+  it("streams a nested assistant that starts after a snapshot", async () => {
+    const core = createController([
+      start,
+      ...text,
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "TOOL_CALL_START", toolCallId: "task", toolCallName: "task" },
+      { type: "TOOL_CALL_END", toolCallId: "task" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub",
+        name: "worker",
+        parentToolCallId: "task",
+      },
+      {
+        type: "TEXT_MESSAGE_START",
+        messageId: "sub-answer",
+        role: "assistant",
+        subagentRunId: "sub",
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "sub-answer",
+        delta: "working",
+        subagentRunId: "sub",
+      },
+      {
+        type: "TEXT_MESSAGE_END",
+        messageId: "sub-answer",
+        subagentRunId: "sub",
+      },
+      { type: "SUBAGENT_FINISHED", subagentRunId: "sub" },
+      { type: "RUN_FINISHED", threadId: "thread", runId: "run" },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "answer",
+      content: [
+        { type: "text", text: "snapshot answer" },
+        {
+          type: "tool-call",
+          toolCallId: "task",
+          messages: [
+            {
+              id: "sub",
+              status: { type: "complete" },
+              content: [{ type: "text", text: "working" }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("retains snapshot tool calls when later events emit before RUN_FINISHED", async () => {
     const core = createController([
       start,
