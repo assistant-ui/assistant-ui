@@ -119,6 +119,27 @@ describe("convertExternalMessageCallback", () => {
 });
 
 describe("joinExternalMessages", () => {
+  it("passes model content from a tool result to its call", () => {
+    const modelContent = [
+      { type: "file" as const, data: "aW1hZ2U=", mediaType: "image/png" },
+    ];
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "image",
+            toolName: "image",
+            args: {},
+          },
+        ],
+      },
+      { role: "tool", toolCallId: "image", result: "done", modelContent },
+    ]);
+    expect(result.content[0]).toMatchObject({ result: "done", modelContent });
+  });
+
   it.each(["omitted", "replacement", "empty"] as const)(
     "handles a tool result with %s nested messages",
     (mode) => {

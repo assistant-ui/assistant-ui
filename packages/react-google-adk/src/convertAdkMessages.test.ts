@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { parseAdkEventValue } from "./parseAdkEvent";
+import toolMedia from "./__fixtures__/tool-media.json";
 import {
   convertAdkMessage,
   createAdkMessageConverter,
@@ -36,6 +39,62 @@ describe("createAdkMessageConverter - queued replies", () => {
 });
 
 describe("convertAdkMessage - tool results", () => {
+  it("keeps ADK tool media on the same call live and after session replay", () => {
+    const live = new AdkEventAccumulator();
+    const first = live.processEvent(
+      parseAdkEventValue(toolMedia.events[0], "ADK recording"),
+    );
+    const initial = convertExternalMessages(
+      first,
+      convertAdkMessage,
+      true,
+      {},
+    )[0]!;
+    for (const event of toolMedia.events.slice(1)) {
+      live.processEvent(parseAdkEventValue(event, "ADK recording"));
+    }
+    const completed = convertExternalMessages(
+      live.getMessages(),
+      convertAdkMessage,
+      false,
+      {},
+    )[0]!;
+    const history = new AdkEventAccumulator();
+    for (const event of toolMedia.reloaded_events) {
+      history.processEvent(parseAdkEventValue(event, "ADK recording"));
+    }
+    const reloaded = convertExternalMessages(
+      history.getMessages(),
+      convertAdkMessage,
+      false,
+      {},
+    ).find((message) => message.role === "assistant")!;
+
+    const expected = {
+      type: "tool-call",
+      toolCallId: "adk-281b4c4b-c4b5-446c-b424-7b7c8c6820a8",
+      result: { status: "ok" },
+      modelContent: [
+        { type: "text", text: '{"status":"ok"}' },
+        {
+          type: "file",
+          mediaType: "image/png",
+          data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8_x8AAwMCAO-jRZkAAAAASUVORK5CYII=",
+        },
+      ],
+    };
+    expect(completed.content[0]).toMatchObject(expected);
+    expect(reloaded.content[0]).toMatchObject(expected);
+    expect(completed.id).toBe(initial.id);
+    expect(reloaded.id).toBe(initial.id);
+    expect(getMessagePartKeys(completed.content)[0]).toBe(
+      getMessagePartKeys(initial.content)[0],
+    );
+    expect(getMessagePartKeys(reloaded.content)[0]).toBe(
+      getMessagePartKeys(initial.content)[0],
+    );
+  });
+
   const convertResult = (content: string) =>
     convertAdkMessage(
       {
