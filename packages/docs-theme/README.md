@@ -12,14 +12,14 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.135 @farming-labs/next@0.2.135 @farming-labs/theme@0.2.135 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.136 @farming-labs/next@0.2.136 @farming-labs/theme@0.2.136 fumadocs-ui@16.17.8
 ```
 
-Use the Farming Labs Docs, Next, and Theme stable patch 0.2.135 with Fumadocs UI 16.17.1. This version includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, and loads the built-in command-search dialog on first use.
+Use the Farming Labs Docs, Next, and Theme stable patch 0.2.136 with Fumadocs UI 16.17.8. This version includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
 Fumadocs UI is a required peer because the theme imports its shared contexts.
 Package managers with automatic peer installation install it; otherwise, add
-`fumadocs-ui@16.17.1` directly and satisfy its peers. With Yarn PnP, also install
-`fumadocs-core@16.17.1` and align its Zod 4 peer with the version resolved by
+`fumadocs-ui@16.17.8` directly and satisfy its peers. With Yarn PnP, also install
+`fumadocs-core@16.17.8` and align its Zod 4 peer with the version resolved by
 `@farming-labs/theme`. PnP can create separate context instances for different
 peer environments even when the Fumadocs versions match.
 
