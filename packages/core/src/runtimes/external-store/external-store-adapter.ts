@@ -306,10 +306,15 @@ type ExternalStoreAdapterBase<T> = {
    * run ends, so a registered tool executes only once the run's outcome is
    * known and cannot fire on a call the provider was about to answer or gate.
    *
+   * Return `undefined` for a call the adapter cannot classify. `false` is a
+   * claim about that call and stays with the run: a caller that only knows
+   * some of its calls are the provider's can name those and leave the rest
+   * unknown, instead of having to answer for every call.
+   *
    * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_isClientToolCall?:
-    | ((toolCall: ToolCallMessagePart) => boolean)
+    | ((toolCall: ToolCallMessagePart) => boolean | undefined)
     | undefined;
   /**
    * Receives the current per-tool-call execution status map whenever it

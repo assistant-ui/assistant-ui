@@ -338,6 +338,28 @@ const useLangGraphRuntimeImpl = (
     interruptRef.current = interrupt;
   }, [interrupt]);
 
+  // A graph that paused on an interrupt is holding the calls it had not
+  // answered when it paused: they are the graph's, not the client's. Capture
+  // them once, at that interrupt, because a call's ownership is decided when
+  // the tracker first sees the call, and the tracker sees it after the pause.
+  // Keyed on the interrupt itself and never recomputed for the same one: a
+  // call that only arrives with the next run is not what this pause holds, and
+  // an empty capture stays empty instead of adopting the next run's calls.
+  const heldToolCallIdsRef = useRef<{
+    interrupt: LangGraphInterruptState;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  if (interrupt === undefined) {
+    if (heldToolCallIdsRef.current !== null) heldToolCallIdsRef.current = null;
+  } else if (heldToolCallIdsRef.current?.interrupt !== interrupt) {
+    heldToolCallIdsRef.current = {
+      interrupt,
+      ids: new Set(
+        getPendingToolCalls(messages).map((toolCall) => toolCall.id),
+      ),
+    };
+  }
+
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
@@ -990,6 +1012,10 @@ const useLangGraphRuntimeImpl = (
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
+    unstable_isClientToolCall: (toolCall) =>
+      heldToolCallIdsRef.current?.ids.has(toolCall.toolCallId)
+        ? false
+        : undefined,
     setToolStatuses,
     adapters: {
       attachments,
