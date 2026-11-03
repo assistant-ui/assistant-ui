@@ -223,8 +223,8 @@ export const createThreadViewportAutoScroll = (input: {
     const scrolledUp =
       element.scrollTop < clampedScrollTop &&
       element.scrollHeight >= lastScrollHeight;
-    // A browser clamp lands exactly on `clampTarget`, so stopping above it after
-    // upward input is a reader scroll-up even when growth and a resize moved it.
+    // A browser clamp lands at the bottom, which `newIsAtBottom` excludes, so a stop
+    // above `clampTarget` after upward input is a reader scroll-up.
     const escapedClamp =
       userScroll &&
       element.scrollHeight >= lastScrollHeight &&
