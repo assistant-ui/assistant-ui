@@ -2174,6 +2174,34 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
+  it("normalizes URL-safe base64 in inline images and files", () => {
+    const messages = new AdkEventAccumulator().processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: "image/png", data: "-_8=" } },
+            {
+              inlineData: {
+                mimeType: "application/octet-stream",
+                data: "-_8=",
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(messages[0]).toMatchObject({
+      type: "human",
+      content: [
+        { type: "image", mimeType: "image/png", data: "+/8=" },
+        { type: "file", mimeType: "application/octet-stream", data: "+/8=" },
+      ],
+    });
+  });
+
   it("creates human message with mixed text and image content", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(

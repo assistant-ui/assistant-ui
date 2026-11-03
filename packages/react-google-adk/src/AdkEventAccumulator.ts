@@ -182,14 +182,18 @@ const getToolModelContent = (
     if (!isRecord(part)) return [];
     const { inlineData, fileData } = normalizeAdkPart(part);
     const media = inlineData ?? fileData;
-    if (!isRecord(media) || typeof media.mimeType !== "string") return [];
+    if (!isRecord(media)) return [];
+    const mediaType =
+      media.mimeType ??
+      (media === fileData ? "application/octet-stream" : undefined);
+    if (typeof mediaType !== "string") return [];
     const data = media.data ?? media.fileUri;
     if (typeof data !== "string") return [];
     return [
       {
         type: "file",
         data,
-        mediaType: media.mimeType,
+        mediaType,
         ...(typeof media.displayName === "string" && {
           filename: media.displayName,
         }),

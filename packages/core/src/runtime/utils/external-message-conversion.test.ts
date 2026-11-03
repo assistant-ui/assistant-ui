@@ -140,6 +140,28 @@ describe("joinExternalMessages", () => {
     expect(result.content[0]).toMatchObject({ result: "done", modelContent });
   });
 
+  it("keeps the call's model content when the result omits it", () => {
+    const modelContent = [
+      { type: "file" as const, data: "aW1hZ2U=", mediaType: "image/png" },
+    ];
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "image",
+            toolName: "image",
+            args: {},
+            modelContent,
+          },
+        ],
+      },
+      { role: "tool", toolCallId: "image", result: "done" },
+    ]);
+    expect(result.content[0]).toMatchObject({ result: "done", modelContent });
+  });
+
   it.each(["omitted", "replacement", "empty"] as const)(
     "handles a tool result with %s nested messages",
     (mode) => {

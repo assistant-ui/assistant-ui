@@ -79,7 +79,7 @@ describe("convertAdkMessage - tool results", () => {
         {
           type: "file",
           mediaType: "image/png",
-          data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8_x8AAwMCAO-jRZkAAAAASUVORK5CYII=",
+          data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
         },
       ],
     };
@@ -93,6 +93,65 @@ describe("convertAdkMessage - tool results", () => {
     expect(getMessagePartKeys(reloaded.content)[0]).toBe(
       getMessagePartKeys(initial.content)[0],
     );
+  });
+
+  it("preserves tool file URIs with and without MIME types", () => {
+    const messages = new AdkEventAccumulator().processEvent(
+      parseAdkEventValue(
+        {
+          id: "tool-event",
+          author: "agent",
+          content: {
+            parts: [
+              {
+                function_response: {
+                  name: "search",
+                  id: "call-1",
+                  response: { status: "ok" },
+                  parts: [
+                    {
+                      fileData: {
+                        fileUri: "gs://bucket/report.pdf",
+                        mimeType: "application/pdf",
+                        displayName: "report.pdf",
+                      },
+                    },
+                    {
+                      file_data: {
+                        file_uri: "gs://bucket/raw_data-v1",
+                        display_name: "raw_data-v1",
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        "ADK tool response",
+      ),
+    );
+
+    expect(convertAdkMessage(messages[0]!, {})).toMatchObject({
+      role: "tool",
+      toolCallId: "call-1",
+      result: { status: "ok" },
+      modelContent: [
+        { type: "text", text: '{"status":"ok"}' },
+        {
+          type: "file",
+          data: "gs://bucket/report.pdf",
+          mediaType: "application/pdf",
+          filename: "report.pdf",
+        },
+        {
+          type: "file",
+          data: "gs://bucket/raw_data-v1",
+          mediaType: "application/octet-stream",
+          filename: "raw_data-v1",
+        },
+      ],
+    });
   });
 
   const convertResult = (content: string) =>
