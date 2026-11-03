@@ -792,9 +792,10 @@ describe("createThreadViewportAutoScroll", () => {
     controller.attach(view.element);
     controller.runStarted();
     expect(frames.size).toBe(1);
+    const [queued] = frames.keys();
 
     button.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-    expect(frames.size).toBe(0);
+    expect(frames.has(queued!)).toBe(false);
     view.grow(1000);
     observers[0]!.trigger();
     flushFrames();
@@ -1058,6 +1059,61 @@ describe("createThreadViewportAutoScroll", () => {
     expect(view.scrollTo).not.toHaveBeenCalled();
     expect(view.element.scrollTop).toBe(350);
     expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following when an upward key goes to a text field", () => {
+    const view = geometry(500, 100);
+    const textarea = document.createElement("textarea");
+    view.element.append(textarea);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    textarea.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps following when upward input from an earlier frame scrolled nothing", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    flushFrames();
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
     controller.dispose();
   });
 
