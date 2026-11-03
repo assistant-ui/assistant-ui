@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-const imports = vi.hoisted(() => ({ diagrams: 0 }));
+const imports = vi.hoisted(() => ({ diagrams: 0, maps: 0 }));
 
 vi.mock("beautiful-mermaid", async (importOriginal) => {
   const original = await importOriginal<typeof import("beautiful-mermaid")>();
@@ -9,14 +9,21 @@ vi.mock("beautiful-mermaid", async (importOriginal) => {
   return { ...original };
 });
 
+vi.mock("./geo-map", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./geo-map")>();
+  imports.maps++;
+  return { ...original };
+});
+
 import { GenerativeMarkdown } from "./generative-markdown";
 
 afterEach(cleanup);
 
-it("renders Markdown without loading the diagram engine", () => {
+it("renders Markdown without loading diagram or map modules", () => {
   render(<GenerativeMarkdown value="**Ready**" />);
 
   expect(screen.getByText("Ready").tagName).toBe("STRONG");
+  expect(imports.maps).toBe(0);
   expect(imports.diagrams).toBe(0);
 });
 
