@@ -340,25 +340,31 @@ const useLangGraphRuntimeImpl = (
 
   // A graph that paused on an interrupt is holding the calls it had not
   // answered when it paused: they are the graph's, not the client's. Capture
-  // them once, at that interrupt, because a call's ownership is decided when
-  // the tracker first sees the call, and the tracker sees it after the pause.
-  // Keyed on the interrupt itself and never recomputed for the same one: a
-  // call that only arrives with the next run is not what this pause holds, and
-  // an empty capture stays empty instead of adopting the next run's calls.
+  // them at that interrupt and key the capture on it, so a call that only
+  // arrives with the next run is not what this pause holds and an empty
+  // capture stays empty instead of adopting the next run's calls. A stream can
+  // deliver the call before the pause, so the capture is read when the tracker
+  // settles the run as well as when it first sees the call.
   const heldToolCallIdsRef = useRef<{
     interrupt: LangGraphInterruptState;
     ids: ReadonlySet<string>;
   } | null>(null);
-  if (interrupt === undefined) {
-    if (heldToolCallIdsRef.current !== null) heldToolCallIdsRef.current = null;
-  } else if (heldToolCallIdsRef.current?.interrupt !== interrupt) {
-    heldToolCallIdsRef.current = {
-      interrupt,
-      ids: new Set(
-        getPendingToolCalls(messages).map((toolCall) => toolCall.id),
-      ),
-    };
-  }
+  // Built locally and published only once this render commits, so a render
+  // React abandons cannot leave its speculative capture in the ref.
+  const heldToolCallIds =
+    interrupt === undefined
+      ? null
+      : heldToolCallIdsRef.current?.interrupt === interrupt
+        ? heldToolCallIdsRef.current
+        : {
+            interrupt,
+            ids: new Set(
+              getPendingToolCalls(messages).map((toolCall) => toolCall.id),
+            ),
+          };
+  useInsertionEffect(() => {
+    heldToolCallIdsRef.current = heldToolCallIds;
+  }, [heldToolCallIds]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
