@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
+import { DocsBuildCache } from "@farming-labs/docs/build";
 import { loader } from "fumadocs-core/source";
 import { remark } from "remark";
 import { createContentManifest, generateContentManifest } from "./manifest.mts";
@@ -121,7 +122,7 @@ it("reuses unchanged parsed content across builds and restores missing generated
 
   await writeFile(join(root, ".next/cache/aui-content-manifest.json"), "{");
   await generateContentManifest(root);
-  expect(remark).toHaveBeenCalledTimes(3);
+  expect(remark).toHaveBeenCalledTimes(2);
   expect(await readFile(join(root, ".source/content.ts"), "utf8")).toBe(
     generated,
   );
@@ -147,9 +148,14 @@ it("rebuilds pages when their parsed cache is missing, unreadable or from a diff
     if (failure === "missing") await rm(cachedPages);
     else if (failure === "unreadable") await writeFile(cachedPages, "{");
     else {
-      const cache = JSON.parse(await readFile(cachedPages, "utf8"));
-      cache.inputFingerprint = "previous-compiler";
-      await writeFile(cachedPages, JSON.stringify(cache));
+      const cache = new DocsBuildCache(cachedPages);
+      for (const page of ["index", "other"]) {
+        await cache.compile(`docs/${page}.mdx`, "previous-compiler", () => ({
+          metadata: { title: "Outdated" },
+          search: { structured: { headings: [], contents: [] } },
+        }));
+      }
+      await cache.flush();
     }
     await writeFile(
       join(directory, "index.mdx"),
