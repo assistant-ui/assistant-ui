@@ -894,6 +894,38 @@ describe("adapter conversions", () => {
       ]);
     });
 
+    it("keeps the pending calls of both joined records", () => {
+      const call = (id: string) => ({
+        id,
+        type: "function",
+        function: { name: "confirm", arguments: "{}" },
+      });
+      const result = fromAgUiMessages(
+        [
+          { id: "u-1", role: "user", content: "book it" },
+          {
+            id: "a-1",
+            role: "assistant",
+            toolCalls: [call("c-1")],
+            metadata: { custom: { agui: { pendingToolCallIds: ["c-1"] } } },
+          },
+          {
+            id: "a-2",
+            role: "assistant",
+            content: "please confirm both",
+            toolCalls: [call("c-2")],
+            metadata: { custom: { agui: { pendingToolCallIds: ["c-2"] } } },
+          },
+        ],
+        { joinAdjacentAssistantMessages: true },
+      );
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-2"]);
+      expect(
+        (result[1]!.metadata as any).custom.agui.pendingToolCallIds,
+      ).toEqual(["c-1", "c-2"]);
+      expect(result[1]!.status).toMatchObject({ type: "requires-action" });
+    });
+
     it("round-trips the joined turn as one assistant record and its result", () => {
       const wire = toAgUiMessages(
         fromAgUiMessages(splitTurn, { joinAdjacentAssistantMessages: true }),

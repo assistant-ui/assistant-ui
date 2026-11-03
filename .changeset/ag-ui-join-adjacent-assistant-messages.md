@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-Add a `joinAdjacentAssistantMessages` option to `fromAgUiMessages` and `useAgUiRuntime` that joins a turn split across named assistant records into one message.
+Add an opt-in `joinAdjacentAssistantMessages` option to `fromAgUiMessages` and `useAgUiRuntime`. It joins adjacent assistant records into one message, with a user message as the only turn boundary, for backends whose history gives each record of a turn an id of its own.

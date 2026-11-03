@@ -1072,6 +1072,16 @@ function readNamespacedMetadata(metadata: unknown): Record<string, unknown> {
   return isObject(namespaced) ? namespaced : {};
 }
 
+function unresolvedToolCallIds(message: CoreThreadMessageLike): string[] {
+  if (!Array.isArray(message.content)) return [];
+  return message.content.flatMap((part) => {
+    if (!isObject(part) || part.type !== "tool-call") return [];
+    if (part.result !== undefined) return [];
+    const id = getString(part, "toolCallId");
+    return id ? [id] : [];
+  });
+}
+
 function foldTurnRecords(
   previous: CoreThreadMessageLike,
   message: CoreThreadMessageLike,
@@ -1092,10 +1102,22 @@ function foldTurnRecords(
       trailsCalls ? { ...entry, after: true } : entry,
     ),
   ];
+  // A record without the list leaves every call it carries without a result
+  // pending, so the merged list keeps those beside the other record's list.
+  const previousPending = readPersistedPendingToolCallIds(previous.metadata);
+  const messagePending = readPersistedPendingToolCallIds(message.metadata);
+  const pendingToolCallIds =
+    previousPending === undefined && messagePending === undefined
+      ? []
+      : [
+          ...(previousPending ?? unresolvedToolCallIds(previous)),
+          ...(messagePending ?? unresolvedToolCallIds(message)),
+        ];
   const namespaced = {
     ...readNamespacedMetadata(previous.metadata),
     ...readNamespacedMetadata(message.metadata),
     ...(interrupts.length > 0 ? { interrupts } : {}),
+    ...(pendingToolCallIds.length > 0 ? { pendingToolCallIds } : {}),
     ...(opaqueReasoning.length > 0 ? { opaqueReasoning } : {}),
   } satisfies AgUiCustomMetadata & Record<string, unknown>;
   const custom = {
