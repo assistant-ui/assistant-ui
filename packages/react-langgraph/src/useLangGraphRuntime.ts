@@ -1018,10 +1018,16 @@ const useLangGraphRuntimeImpl = (
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
-    unstable_isClientToolCall: (toolCall) =>
-      heldToolCallIdsRef.current?.ids.has(toolCall.toolCallId)
-        ? false
-        : undefined,
+    unstable_isClientToolCall: (toolCall) => {
+      const held = heldToolCallIdsRef.current;
+      // A capture published for an earlier pause must not vote on this one.
+      // Until this interrupt's capture lands — the adapter is built during
+      // render, before insertion effects — the call is simply unknown, and
+      // the tracker asks again once the run settles.
+      if (held === null || held.interrupt !== interruptRef.current)
+        return undefined;
+      return held.ids.has(toolCall.toolCallId) ? false : undefined;
+    },
     setToolStatuses,
     adapters: {
       attachments,
