@@ -706,10 +706,13 @@ export class ToolInvocationTracker {
    * `true` lets it close early on the adapter's word.
    */
   private _resolveDeferredOwnership(
-    entry: ToolCallEntry & { ownershipDeferred: boolean },
+    entry: ToolCallEntry,
     content: ToolCallMessagePart,
   ): void {
-    if (!entry.ownershipDeferred || this._isRunning) return;
+    // `controller` narrows to the active phase, the only one that can carry a
+    // deferred answer or reach the executor.
+    if (!entry.controller || !entry.ownershipDeferred || this._isRunning)
+      return;
     entry.ownershipDeferred = false;
     const ownership = this._isClientToolCall?.(content);
     if (ownership === false) {
