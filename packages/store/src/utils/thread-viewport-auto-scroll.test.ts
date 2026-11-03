@@ -1209,32 +1209,44 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("keeps following when upward input from a nested scroller shares a frame with a resize clamp", () => {
-    const view = geometry(500, 100);
-    const nested = document.createElement("pre");
-    view.element.append(nested);
-    view.setTop(400);
-    const controller = createThreadViewportAutoScroll({
-      getOptions: options,
-      onAtBottomChange: vi.fn(),
-    });
-    controller.attach(view.element);
-    observers[0]!.trigger();
-    view.scrollTo.mockClear();
+  it.each([
+    ["keeps following when a nested scroller takes", 50, true],
+    [
+      "keeps a reader scroll-up when a nested scroller at its top chains",
+      0,
+      false,
+    ],
+  ] as const)(
+    "%s upward input beside a resize clamp",
+    (_, nestedTop, follows) => {
+      const view = geometry(500, 100);
+      const nested = document.createElement("pre");
+      nested.style.overflowY = "auto";
+      Object.defineProperty(nested, "scrollTop", { value: nestedTop });
+      view.element.append(nested);
+      view.setTop(400);
+      const controller = createThreadViewportAutoScroll({
+        getOptions: options,
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      observers[0]!.trigger();
+      view.scrollTo.mockClear();
 
-    nested.dispatchEvent(
-      new WheelEvent("wheel", { deltaY: -2, bubbles: true }),
-    );
-    view.grow(550);
-    view.resize(200);
-    view.setTop(view.element.scrollTop);
-    view.grow(600);
-    observers[0]!.trigger();
+      nested.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: -2, bubbles: true }),
+      );
+      view.grow(550);
+      view.resize(200);
+      view.grow(600);
+      view.setTop(view.element.scrollTop);
+      observers[0]!.trigger();
 
-    expect(view.element.scrollTop).toBe(400);
-    expect(controller.isAtBottom).toBe(true);
-    controller.dispose();
-  });
+      expect(view.scrollTo).toHaveBeenCalledTimes(follows ? 1 : 0);
+      expect(controller.isAtBottom).toBe(follows);
+      controller.dispose();
+    },
+  );
 
   it("keeps following when a drag scrolls down", () => {
     const view = geometry(500, 100);

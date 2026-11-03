@@ -330,6 +330,23 @@ export const createThreadViewportAutoScroll = (input: {
   const touchY = (event: Event) =>
     (event as TouchEvent).touches?.[0]?.clientY ?? null;
 
+  // An upward gesture moves the nearest nested scroller that can still scroll
+  // up, and reaches the viewport only once that scroller is at its top.
+  const nestedScrollerTakesUpward = (target: EventTarget | null) => {
+    for (
+      let node = target instanceof Element ? target : null;
+      node && node !== element;
+      node = node.parentElement
+    ) {
+      if (
+        node.scrollTop > 0 &&
+        /^(auto|scroll)$/.test(getComputedStyle(node).overflowY)
+      )
+        return true;
+    }
+    return false;
+  };
+
   const noteScrollGesture = (event: Event) => {
     let upward = false;
     if (event.type === "keydown") {
@@ -347,7 +364,7 @@ export const createThreadViewportAutoScroll = (input: {
       upward = y !== null && lastTouchY !== null && y > lastTouchY;
       lastTouchY = y;
     }
-    if (upward) noteUpwardInput();
+    if (upward && !nestedScrollerTakesUpward(event.target)) noteUpwardInput();
     else clearUpwardInput();
     scrolledSincePause = true;
   };
