@@ -185,16 +185,14 @@ export class IncrementalJsonObjectParser {
     text = "",
     fallback: ReadonlyJSONObject = parsePartialJsonObject("")!,
   ) {
-    const backend = createJsonParserBackend(text, fallback);
-    if (backend) {
-      const parser = new IncrementalJsonObjectParser(fallback);
-      parser.backend = backend;
-      return parser;
-    }
-    return IncrementalJsonObjectParser.fromNative(text, fallback);
+    return IncrementalJsonObjectParser.create(text, fallback, true);
   }
 
-  private static fromNative(text: string, fallback: ReadonlyJSONObject) {
+  private static create(
+    text: string,
+    fallback: ReadonlyJSONObject,
+    allowBackend: boolean,
+  ) {
     const parser = new IncrementalJsonObjectParser(fallback);
     if (text.length !== 0) {
       parser.text = { length: text.length, previous: undefined, value: text };
@@ -207,6 +205,10 @@ export class IncrementalJsonObjectParser {
       parser.publishedArgs = complete;
       parser.mode = "complete";
       return parser;
+    }
+    if (allowBackend) {
+      parser.backend = createJsonParserBackend(text, fallback);
+      if (parser.backend) return parser;
     }
     parser.consumeDelta(text, true);
     parser.args = parser.snapshot(fallback);
@@ -232,20 +234,22 @@ export class IncrementalJsonObjectParser {
     if (this.backend) {
       const backend = this.backend.append(delta);
       if (!backend)
-        return IncrementalJsonObjectParser.fromNative(
+        return IncrementalJsonObjectParser.create(
           this.backend.text + delta,
           this.currentArgs,
+          false,
         );
       const parser = new IncrementalJsonObjectParser(this.args);
       parser.backend = backend;
       return parser;
     }
     if (this.currentTextLength === 0)
-      return IncrementalJsonObjectParser.fromNative(delta, this.args);
+      return IncrementalJsonObjectParser.create(delta, this.args, false);
     if (this.mode === "complete") {
-      const parser = IncrementalJsonObjectParser.fromNative(
+      const parser = IncrementalJsonObjectParser.create(
         this.accumulatedText() + delta,
         this.args,
+        false,
       );
       if (parser.args === this.args) parser.publishedArgs = this.currentArgs;
       return parser;

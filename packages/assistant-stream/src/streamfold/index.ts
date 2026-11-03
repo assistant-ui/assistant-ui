@@ -170,7 +170,6 @@ export async function initializeStreamfold(): Promise<boolean> {
     const probe = createScanner();
     probe.dispose();
     setJsonParserBackend((text, fallback) => {
-      if (text.trimEnd().endsWith("}")) return undefined;
       try {
         return StreamfoldParser.create(createScanner, text, fallback);
       } catch {

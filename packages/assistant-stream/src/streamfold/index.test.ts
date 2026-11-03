@@ -67,6 +67,52 @@ it("keeps complete emoji on Streamfold across argument deltas", async () => {
   expect(dispose).toHaveBeenCalledTimes(1);
 });
 
+it("keeps partial strings and nested objects ending in a brace on Streamfold", async () => {
+  expect(await initializeStreamfold()).toBe(true);
+  const push = vi.spyOn(IncrementalJsonScanner.prototype, "push");
+  const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+  const string = IncrementalJsonObjectParser.from('{"text":"a }');
+  expect(string.currentArgs).toMatchObject({ text: "a }" });
+  expect(string.append(' b"}').currentArgs).toMatchObject({ text: "a } b" });
+  const nested = IncrementalJsonObjectParser.from('{"nested":{"value":1}');
+  expect(nested.append(',"tail":2}').currentArgs).toMatchObject({
+    nested: { value: 1 },
+    tail: 2,
+  });
+
+  expect(push.mock.calls.map(([chunk]) => chunk)).toEqual([
+    '{"text":"a }',
+    ' b"}',
+    '{"nested":{"value":1}',
+    ',"tail":2}',
+  ]);
+  expect(dispose).toHaveBeenCalledTimes(2);
+});
+
+it("keeps complete single-delta input on the native fast path", async () => {
+  expect(await initializeStreamfold()).toBe(true);
+  const push = vi.spyOn(IncrementalJsonScanner.prototype, "push");
+  expect(
+    IncrementalJsonObjectParser.from('{"nested":{"value":"a }"}} \n')
+      .currentArgs,
+  ).toMatchObject({ nested: { value: "a }" } });
+  expect(push).not.toHaveBeenCalled();
+});
+
+it("isolates published snapshots across whitespace-only deltas", async () => {
+  expect(await initializeStreamfold()).toBe(true);
+  const early = IncrementalJsonObjectParser.from('{"nested":{"value":1},');
+  const later = early.append(" ");
+  const nested = early.currentArgs.nested as { value: number };
+  nested.value = 2;
+
+  expect(later.currentArgs).toMatchObject({ nested: { value: 1 } });
+  expect(later.append('"tail":3}').currentArgs).toMatchObject({
+    nested: { value: 1 },
+    tail: 3,
+  });
+});
+
 it.each([
   ["\uD83D", '\uDE00"}', "😀"],
   ["\uDE00", 'tail"}', "\uDE00tail"],

@@ -17,11 +17,12 @@ const chunk = (args: string): LangChainMessageChunk => ({
   tool_call_chunks: [{ id: "call", index: 0, name: "write", args }],
 });
 
-it("preserves LangGraph tool-call snapshots and branches with Streamfold enabled", async () => {
+it("preserves LangGraph tool-call snapshots when branching an active Streamfold session", async () => {
   expect(await initializeStreamfold()).toBe(true);
   const early = append(undefined, chunk('{"items":[{"text":"hel'));
-  const left = append(early, chunk('lo"}]}'));
+  const left = append(early, chunk("lo"));
   const right = append(early, chunk('p"}]}'));
+  const finishedLeft = append(left, chunk('"}]}'));
   expect(early.tool_calls?.[0]?.args).toMatchObject({
     items: [{ text: "hel" }],
   });
@@ -30,5 +31,8 @@ it("preserves LangGraph tool-call snapshots and branches with Streamfold enabled
   });
   expect(right.tool_calls?.[0]?.args).toMatchObject({
     items: [{ text: "help" }],
+  });
+  expect(finishedLeft.tool_calls?.[0]?.args).toMatchObject({
+    items: [{ text: "hello" }],
   });
 });
