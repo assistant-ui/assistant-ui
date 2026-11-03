@@ -1,4 +1,4 @@
-name: Docs syntax highlighting comparison
+name: Docs current PR versus Fumadocs main
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: docs-highlighter-comparison-${{ github.ref }}
+  group: docs-current-pr-comparison-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          ref: 6229e91ac5500138885696108de4e7e9ff2f8ec4
+          ref: a4dcbb5b9155cd7220e383c67a0613197d4d963d
           path: comparison/base
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -48,6 +48,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
-          name: docs-highlighter-comparison
+          name: docs-current-pr-comparison
           path: comparison-results
           retention-days: 7
