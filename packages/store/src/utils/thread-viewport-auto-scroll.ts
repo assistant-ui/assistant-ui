@@ -165,14 +165,16 @@ export const createThreadViewportAutoScroll = (input: {
     upwardInputFrame = null;
   };
 
-  // Scroll events for an input fire before the next frame's callbacks, so the
-  // signal covers the scroll it caused and nothing after it.
+  // A smooth scroll delivers its first scroll event a frame after the input, so
+  // the signal lasts two frames and cannot outlive the scroll it caused.
   const noteUpwardInput = () => {
     upwardInput = true;
-    if (upwardInputFrame !== null) return;
+    if (upwardInputFrame !== null) cancelAnimationFrame(upwardInputFrame);
     upwardInputFrame = requestAnimationFrame(() => {
-      upwardInputFrame = null;
-      upwardInput = false;
+      upwardInputFrame = requestAnimationFrame(() => {
+        upwardInputFrame = null;
+        upwardInput = false;
+      });
     });
   };
 

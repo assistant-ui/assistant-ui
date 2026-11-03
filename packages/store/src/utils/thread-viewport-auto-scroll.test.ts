@@ -1091,7 +1091,31 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("keeps following when upward input from an earlier frame scrolled nothing", () => {
+  it("keeps a reader scroll-up whose first scroll event lands a frame after the input", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new KeyboardEvent("keydown", { key: "PageUp" }));
+    flushFrames();
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following when upward input from two frames earlier scrolled nothing", () => {
     const view = geometry(500, 100);
     view.setTop(400);
     const controller = createThreadViewportAutoScroll({
@@ -1103,6 +1127,7 @@ describe("createThreadViewportAutoScroll", () => {
     view.scrollTo.mockClear();
 
     view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    flushFrames();
     flushFrames();
     view.grow(600);
     view.resize(200);
