@@ -106,9 +106,8 @@ afterEach(() => {
 });
 afterAll(() => vi.unstubAllGlobals());
 
-// Activity is React 19 only, so the React 18 peer run skips the cases that
-// render it.
-const onReact18 = version.startsWith("18");
+// Activity is React 19 only
+const onReact18 = version.startsWith("18.");
 
 const refresh = async (Before: unknown, After: unknown) => {
   const family: Family = { current: After };
