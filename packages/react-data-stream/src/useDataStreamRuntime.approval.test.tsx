@@ -224,4 +224,57 @@ describe("useDataStreamRuntime tool approvals", () => {
       );
     },
   );
+
+  it("leaves a server-gated call to the server when a frontend tool shares its name", async () => {
+    const { execute, fetchMock } = startServer();
+    const runtime = await mountRuntime();
+    const frontendExecute = vi.fn(async () => ({ deleted: "frontend" }));
+    runtime.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          delete_file: {
+            parameters: {
+              type: "object",
+              properties: { path: { type: "string" } },
+            },
+            execute: frontendExecute,
+          },
+        },
+      }),
+    });
+
+    await act(async () => {
+      await runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "Delete /tmp/a.txt" }],
+      });
+    });
+    await waitFor(() => {
+      expect(runtime.thread.getState().messages.at(-1)?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+    const toolPart = runtime.thread
+      .getMessageByIndex(1)
+      .getMessagePartByToolCallId("call_1");
+    expect(toolPart.getState()).toMatchObject({
+      approval: { id: expect.any(String) },
+    });
+    expect(toolPart.getState()).not.toHaveProperty("result");
+    expect(frontendExecute).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await toolPart.respondToToolApproval({ approved: true });
+    });
+    await waitFor(() => {
+      expect(runtime.thread.getState().messages.at(-1)?.status?.type).toBe(
+        "complete",
+      );
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(frontendExecute).not.toHaveBeenCalled();
+    expect(toolPart.getState()).toMatchObject({ result: { deleted: true } });
+  });
 });
