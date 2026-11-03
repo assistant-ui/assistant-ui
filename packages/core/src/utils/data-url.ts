@@ -59,10 +59,12 @@ export function isParsableUrl(value: string): boolean {
 }
 
 /**
- * Returns compact bare base64, or null for references and malformed input.
- * Unlike !isParsableUrl, validates the base64 alphabet and padding so image
- * references such as /uploads/cat.png stay URLs. MIME line breaks are allowed;
- * image signatures are not required because not every format can be sniffed.
+ * Returns compact bare base64, or null when the value leaves the base64
+ * alphabet or has invalid padding, so references such as /uploads/cat.png stay
+ * URLs. MIME line breaks are allowed; image signatures are not required
+ * because not every format can be sniffed. A reference made only of base64
+ * characters, such as /uploads/cat, is indistinguishable from a payload (JPEG
+ * base64 starts with /9j/) and is returned as base64.
  */
 export function parseBase64(value: string): string | null {
   const compact = value.replace(/[\t\n\r ]/g, "");

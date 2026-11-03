@@ -38,6 +38,13 @@ describe("parseBase64", () => {
     expect(parseBase64(value)).toBeNull();
   });
 
+  it.each(["/uploads/cat", "abc123"])(
+    "classifies the base64-alphabet reference %j as base64",
+    (value) => {
+      expect(parseBase64(value)).toBe(value);
+    },
+  );
+
   it.each([
     ["aGk=", "aGk="],
     ["aGk", "aGk"],
