@@ -66,7 +66,7 @@ function PartChip({
   return (
     <span
       className={cn(
-        "absolute -top-2.5 right-2 z-10 rounded-sm bg-blue-600 px-1.5 py-px font-mono text-[10px] font-medium text-white",
+        "absolute -top-2.5 right-2 z-10 rounded-sm bg-blue-600 px-1.5 py-px font-mono text-[12px] font-medium text-white",
         className,
       )}
     >
