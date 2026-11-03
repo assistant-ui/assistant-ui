@@ -71,7 +71,12 @@ export const states = defineStates([
     label: "No selection",
     note: "The selected prompt was filtered out, so no preview shows.",
     Component: () => (
-      <PromptLibrary prompts={PROMPTS} query="e" selectedId="9" {...handlers} />
+      <PromptLibrary
+        prompts={PROMPTS}
+        query="write"
+        selectedId="1"
+        {...handlers}
+      />
     ),
   },
   {

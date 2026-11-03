@@ -8,6 +8,19 @@ const noop = () => {};
 export const states = defineStates([
   { key: "default", label: "Default" },
   {
+    key: "empty",
+    label: "Empty draft",
+    note: "An empty draft leaves the preview line blank above the saved time.",
+    Component: () => (
+      <DraftRestore
+        draft=""
+        savedAt="2 min ago"
+        onRestore={noop}
+        onDiscard={noop}
+      />
+    ),
+  },
+  {
     key: "long-content",
     label: "Long draft",
     note: "A draft longer than the card truncates to one line.",

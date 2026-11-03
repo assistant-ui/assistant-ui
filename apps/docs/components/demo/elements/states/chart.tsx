@@ -76,6 +76,20 @@ export const states = defineStates([
   },
   {
     key: "empty",
+    label: "Empty",
+    note: "No data has arrived, so only the label, value, and baseline show.",
+    Component: () => (
+      <Chart
+        label="Runs today"
+        value="0"
+        points={[]}
+        visibleCount={0}
+        variant="line"
+      />
+    ),
+  },
+  {
+    key: "all-zero",
     label: "All zero",
     note: "Every point in the series is zero.",
     Component: () => (

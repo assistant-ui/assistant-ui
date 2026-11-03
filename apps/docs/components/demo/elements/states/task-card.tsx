@@ -16,7 +16,6 @@ const transcript = [
 const base = {
   label: "Review the runtime",
   meta: "research",
-  onOpenChange: noop,
 };
 
 export const states = defineStates([
@@ -25,13 +24,7 @@ export const states = defineStates([
     key: "running",
     label: "Working",
     note: "The task is in flight with no result yet.",
-    Component: () => (
-      <TaskCard {...base} state="working" elapsed="0:18" open={false}>
-        {transcript.slice(0, 2).map((line) => (
-          <p key={line}>{line}</p>
-        ))}
-      </TaskCard>
-    ),
+    Component: () => <TaskCard {...base} state="working" elapsed="0:18" />,
   },
   {
     key: "requires-action",

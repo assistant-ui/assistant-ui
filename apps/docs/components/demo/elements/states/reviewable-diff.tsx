@@ -62,7 +62,7 @@ export const states = defineStates([
   },
   {
     key: "ready",
-    label: "Ready to apply",
+    label: "Ready",
     note: "Every hunk has a decision, so Apply is enabled for the kept ones.",
     Component: () => (
       <ReviewableDiff

@@ -2,6 +2,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { act, render } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ELEMENT_STATES } from "./index";
@@ -23,6 +24,33 @@ const catalogSlugs = [
   ...GENERATIVE_ELEMENTS.map((entry) => entry.slug),
 ];
 
+// jsdom lacks the layout APIs the elements observe; fixtures only need them to exist.
+class NoopObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+}
+Object.assign(globalThis, {
+  ResizeObserver: NoopObserver,
+  IntersectionObserver: NoopObserver,
+});
+window.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;
+Element.prototype.scrollIntoView ??= () => {};
+Element.prototype.scrollTo ??= () => {};
+
 const dir = join(process.cwd(), "components/demo/elements/states");
 const NOT_STATE_FILES = new Set(["types.ts", "index.ts", "generative.tsx"]);
 const stateFiles = readdirSync(dir)
@@ -43,6 +71,13 @@ describe("element states", () => {
     const slugs = new Set(catalogSlugs);
     const unknown = Object.keys(ELEMENT_STATES).filter((s) => !slugs.has(s));
     expect(unknown).toEqual([]);
+  });
+
+  it("keys every states file by its own slug", () => {
+    stateFiles.forEach((file, i) => {
+      const slug = file.replace(/\.tsx?$/, "");
+      expect(ELEMENT_STATES[slug], slug).toBe(loaded[i]!.states);
+    });
   });
 
   it("registers every states file in the index", () => {
@@ -73,6 +108,10 @@ describe("element states", () => {
         for (const state of states) {
           expect(state.key, state.key).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
           expect(state.label.length, state.label).toBeLessThanOrEqual(16);
+          expect(
+            state.label.split(" ").length,
+            state.label,
+          ).toBeLessThanOrEqual(2);
           expect(state.label[0], state.label).toBe(
             state.label[0]!.toUpperCase(),
           );
@@ -85,11 +124,22 @@ describe("element states", () => {
         }
       });
 
-      it("renders every fixture", () => {
+      it("renders every fixture", async () => {
         for (const state of states) {
-          if (!state.Component) continue;
-          const html = renderToString(<state.Component />);
-          expect(html.length, state.key).toBeGreaterThan(0);
+          const Fixture = state.Component;
+          if (!Fixture) continue;
+          expect(() => renderToString(<Fixture />), state.key).not.toThrow();
+          const view = render(<Fixture />);
+          await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+          const html = view.container.innerHTML;
+          view.unmount();
+          expect(
+            />[^<\s]/.test(html) ||
+              /<(svg|img|canvas|video|audio|iframe|input|textarea)\b/.test(
+                html,
+              ),
+            `${state.key} renders no text or media`,
+          ).toBe(true);
         }
       });
     });

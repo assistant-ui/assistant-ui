@@ -56,7 +56,7 @@ export const states = defineStates([
     ),
   },
   {
-    key: "multiple-step",
+    key: "multiple-pick",
     label: "Multiple pick",
     note: "A single-question flow that takes several answers and submits them.",
     Component: () => (

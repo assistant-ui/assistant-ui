@@ -63,7 +63,7 @@ export const states = defineStates([
   {
     key: "long-content",
     label: "Long titles",
-    note: "A long query and long result titles truncate inside the same width.",
+    note: "A long query wraps and long result titles truncate inside the same width.",
     Component: () => (
       <WebSearch
         query="how to keep a composer draft when a remote thread reloads in assistant-ui"

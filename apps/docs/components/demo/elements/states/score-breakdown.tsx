@@ -91,7 +91,7 @@ export const states = defineStates([
     Component: () => (
       <ScoreBreakdown
         verdict="approve"
-        total={8.4}
+        total={8.3}
         outOf={10}
         criteria={[
           {

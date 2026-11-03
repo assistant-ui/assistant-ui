@@ -89,7 +89,7 @@ export const states = defineStates([
           { ...SPANS[0]!, durationMs: 1320, status: "failed" },
           SPANS[1]!,
           { ...SPANS[2]!, durationMs: 530, status: "failed" },
-          { ...SPANS[3]!, durationMs: 500, status: "failed" },
+          { ...SPANS[3]!, durationMs: 490, status: "failed" },
         ]}
         totalMs={1320}
         visibleCount={4}

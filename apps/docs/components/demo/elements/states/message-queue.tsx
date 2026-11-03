@@ -20,8 +20,8 @@ export const states = defineStates([
     ),
   },
   {
-    key: "disabled",
-    label: "Locked",
+    key: "no-cancel",
+    label: "No cancel",
     note: "Without a cancel handler the queued turns cannot be removed.",
     Component: () => (
       <MessageQueue

@@ -71,6 +71,7 @@ export const states = defineStates([
     Component: () => (
       <ElicitationForm
         {...base}
+        onFieldChange={undefined}
         state="request"
         server="atlassian-confluence-enterprise-mcp.internal.acme.dev"
         message="The page you asked for lives in a space you have not used before. Pick the space, the parent page, and who should be able to see it. Nothing is published until you send this."

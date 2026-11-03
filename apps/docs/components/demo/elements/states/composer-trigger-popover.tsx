@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type FC, type ReactNode } from "react";
+import { useState, type FC, type ReactNode } from "react";
 import {
   AtSignIcon,
   FileTextIcon,
@@ -10,14 +10,15 @@ import {
   WrenchIcon,
 } from "lucide-react";
 import {
+  AssistantRuntimeProvider,
   ComposerPrimitive,
-  useAui,
-  useAuiState,
+  useExternalStoreRuntime,
+  type ThreadMessageLike,
   type TriggerAdapter,
   type TriggerItem,
 } from "@assistant-ui/react";
 import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
-import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
+import { SampleScope } from "@/components/pages/docs/samples/sample-scope";
 import { defineStates } from "./types";
 
 const noop = () => {};
@@ -132,41 +133,53 @@ const slashIcons: Record<string, IconComponent> = {
   search: GlobeIcon,
 };
 
-/** Puts the trigger text in the composer, as if the user had just typed it. */
-function SeedText({ text }: { text: string }) {
-  const aui = useAui();
-  useEffect(() => {
-    aui.composer.setText(text);
-    return () => aui.composer.setText("");
-  }, [aui, text]);
-  return null;
-}
+const NO_MESSAGES: readonly ThreadMessageLike[] = [];
 
-/** Mounts the popover once the seeded text is in, so its cursor starts at the end. */
-function WhenText({ text, children }: { text: string; children: ReactNode }) {
-  const current = useAuiState((s) => s.composer.text);
-  return current === text ? children : null;
+/**
+ * A store-backed runtime whose composer already holds the trigger text, as if the
+ * user had just typed it. Seeding before the first render keeps the server
+ * HTML and the first paint on the documented state.
+ */
+function SeededRuntime({
+  text,
+  children,
+}: {
+  text: string;
+  children: ReactNode;
+}) {
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages: NO_MESSAGES,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
+  useState(() => runtime.thread.composer.setText(text));
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
 
 function Stage({ text, children }: { text: string; children: ReactNode }) {
   return (
-    <SampleRuntimeProvider>
-      <SeedText text={text} />
-      <div className="flex h-80 w-full max-w-md flex-col justify-end">
-        <ComposerPrimitive.TriggerPopoverRoot>
-          <ComposerPrimitive.Root className="relative w-full">
-            <div className="bg-background rounded-2xl border px-4 py-3">
-              <ComposerPrimitive.Input
-                rows={1}
-                placeholder="Type @ to mention or / for commands"
-                className="w-full resize-none bg-transparent text-sm outline-none"
-              />
-            </div>
-            <WhenText text={text}>{children}</WhenText>
-          </ComposerPrimitive.Root>
-        </ComposerPrimitive.TriggerPopoverRoot>
-      </div>
-    </SampleRuntimeProvider>
+    <SampleScope>
+      <SeededRuntime text={text}>
+        <div className="flex h-80 w-full max-w-md flex-col justify-end">
+          <ComposerPrimitive.TriggerPopoverRoot>
+            <ComposerPrimitive.Root className="relative w-full">
+              <div className="bg-background rounded-2xl border px-4 py-3">
+                <ComposerPrimitive.Input
+                  rows={1}
+                  placeholder="Type @ to mention or / for commands"
+                  className="w-full resize-none bg-transparent text-sm outline-none"
+                />
+              </div>
+              {children}
+            </ComposerPrimitive.Root>
+          </ComposerPrimitive.TriggerPopoverRoot>
+        </div>
+      </SeededRuntime>
+    </SampleScope>
   );
 }
 

@@ -1,19 +1,10 @@
 "use client";
 
-import {
-  CheckpointHistory,
-  type Checkpoint,
-} from "@/components/assistant-ui/elements/checkpoint-history";
+import { CheckpointHistory } from "@/components/assistant-ui/elements/checkpoint-history";
+import { CHECKPOINTS } from "../checkpoint-history";
 import { defineStates } from "./types";
 
 const noop = () => {};
-
-const CHECKPOINTS: readonly Checkpoint[] = [
-  { id: "1", label: "Before the converter change", at: "09:41", files: 0 },
-  { id: "2", label: "Converter guarded", at: "09:58", files: 2 },
-  { id: "3", label: "Tests added", at: "10:12", files: 4 },
-  { id: "4", label: "Formatting sweep", at: "10:20", files: 31 },
-];
 
 export const states = defineStates([
   { key: "default", label: "Default" },

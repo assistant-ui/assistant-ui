@@ -22,14 +22,6 @@ const STEPS = [
 export const states = defineStates([
   { key: "default", label: "Default" },
   {
-    key: "not-started",
-    label: "Not started",
-    note: "The plan is set and no step has begun.",
-    Component: () => (
-      <AgentPlan title="Composer draft" steps={STEPS} activeIndex={-1} />
-    ),
-  },
-  {
     key: "in-progress",
     label: "In progress",
     note: "Two steps are done and the third is running with its detail shown.",

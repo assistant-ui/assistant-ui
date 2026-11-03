@@ -66,6 +66,12 @@ export const states = defineStates([
     ),
   },
   {
+    key: "empty",
+    label: "No places",
+    note: "No pins came back, so the map and the list are empty.",
+    Component: () => <MapAnswer pins={[]} activeId="" onSelect={noop} />,
+  },
+  {
     key: "read-only",
     label: "Read only",
     note: "Without a select handler the pins and rows cannot be picked.",

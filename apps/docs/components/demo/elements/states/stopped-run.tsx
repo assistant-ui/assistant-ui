@@ -46,7 +46,7 @@ export const states = defineStates([
   {
     key: "long-content",
     label: "Long partial",
-    note: "Several paragraphs of partial output stay above the controls.",
+    note: "A long partial output wraps above the controls.",
     Component: () => (
       <StoppedRun
         words={LONG_PARTIAL}

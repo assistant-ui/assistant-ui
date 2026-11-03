@@ -89,6 +89,18 @@ export const states = defineStates([
     ),
   },
   {
+    key: "disabled",
+    label: "No controls",
+    note: "Without mute and end handlers both call buttons are disabled.",
+    Component: () => (
+      <VoiceConversation
+        mode="listening"
+        amplitude={0.3}
+        transcript={TRANSCRIPT}
+      />
+    ),
+  },
+  {
     key: "long-content",
     label: "Long transcript",
     note: "Several long turns wrap inside the narrow call card.",

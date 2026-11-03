@@ -21,7 +21,7 @@ export const states = defineStates([
   },
   {
     key: "pending-no-count",
-    label: "No attempt count",
+    label: "No count",
     note: "Reconnecting without an attempt number to show.",
     Component: () => <ConnectionState phase="reconnecting" />,
   },

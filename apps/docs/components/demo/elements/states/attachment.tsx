@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -68,19 +68,21 @@ function createAdapter(mode: Mode): AttachmentAdapter {
   };
 }
 
+/** Seeds the first list it gets, so a parent rerender does not re-add files. */
 function SeedFiles({ files }: { files: readonly SeedFile[] }) {
   const aui = useAui();
+  const initialFiles = useRef(files).current;
   useEffect(() => {
-    for (const seed of files) {
+    for (const seed of initialFiles) {
       const file = new File([seed.body ?? seed.name], seed.name, {
         type: seed.type,
       });
-      aui.composer.addAttachment(file).catch(() => {});
+      aui.composer.addAttachment(file).catch(console.error);
     }
     return () => {
-      aui.composer.clearAttachments().catch(() => {});
+      aui.composer.clearAttachments().catch(console.error);
     };
-  }, [aui, files]);
+  }, [aui, initialFiles]);
   return null;
 }
 
@@ -181,10 +183,16 @@ const MANY: readonly SeedFile[] = [
   IMAGE,
   PDF,
   CSV,
-  { name: "contract-draft.docx", type: "application/msword" },
+  {
+    name: "contract-draft.docx",
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
   { ...IMAGE, name: "mobile-checkout.svg" },
   { name: "error-log.txt", type: "text/plain" },
-  { name: "pricing-2026.xlsx", type: "application/vnd.ms-excel" },
+  {
+    name: "pricing-2026.xlsx",
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  },
   { ...IMAGE, name: "desktop-checkout.svg" },
   { name: "notes.md", type: "text/markdown" },
 ];

@@ -45,7 +45,7 @@ export const states = defineStates([
   {
     key: "long-content",
     label: "Long title",
-    note: "A long title and meta truncate on one line.",
+    note: "A long title truncates on one line while the meta wraps below it.",
     Component: () => (
       <ArtifactCard
         title="Migrating the thread list from local storage to the remote adapter"

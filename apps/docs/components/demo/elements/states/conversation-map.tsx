@@ -57,6 +57,16 @@ const SINGLE = pairs([
   ],
 ]);
 
+const IN_PROGRESS: ThreadMessageLike[] = [
+  ...SINGLE,
+  {
+    role: "user",
+    content:
+      "Can you split the export by month and rerun it for March? Keep the archive name the same so the downstream sync still finds it.",
+  },
+  { role: "assistant", content: "", status: { type: "running" } },
+];
+
 const TOPICS = [
   "billing webhooks",
   "the retry queue",
@@ -151,6 +161,12 @@ export const states = defineStates([
     label: "Single turn",
     note: "A thread with one exchange draws a single tick.",
     Component: () => <MapFixture messages={SINGLE} />,
+  },
+  {
+    key: "in-progress",
+    label: "In progress",
+    note: "The last turn has no answer yet, so its preview falls back to the question.",
+    Component: () => <MapFixture messages={IN_PROGRESS} />,
   },
   {
     key: "long-content",

@@ -21,7 +21,7 @@ const SERVERS: readonly McpServer[] = [
     name: "linear",
     transport: "sse",
     status: "needs-auth",
-    tools: ["list_issues", "save_issue"],
+    tools: [],
   },
   {
     id: "fs",
@@ -47,7 +47,7 @@ export const states = defineStates([
   {
     key: "connecting",
     label: "Connecting",
-    note: "Servers are still starting up and have not reported tools yet.",
+    note: "GitHub is connected while the other servers start up with no tools yet.",
     Component: () => (
       <McpServerPanel
         servers={SERVERS.map((server) =>

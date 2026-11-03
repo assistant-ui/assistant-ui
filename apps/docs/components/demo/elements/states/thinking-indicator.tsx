@@ -26,7 +26,7 @@ export const states = defineStates([
     Component: () => (
       <div className="w-64">
         <ThinkingIndicator
-          label="Reading packages/react/src/legacy-runtime/runtime-cores/remote-thread-list/RemoteThreadListThreadListRuntimeCore.tsx"
+          label="Reading packages/core/src/react/runtimes/RemoteThreadListThreadListRuntimeCore.tsx"
           elapsed="2:41"
         />
       </div>

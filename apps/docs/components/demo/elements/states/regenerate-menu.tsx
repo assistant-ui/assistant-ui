@@ -31,7 +31,7 @@ export const states = defineStates([
     ),
   },
   {
-    key: "disabled",
+    key: "read-only",
     label: "Read only",
     note: "Without handlers the list shows the models but none can be picked.",
     Component: () => <RegenerateMenu options={OPTIONS} open currentId="opus" />,

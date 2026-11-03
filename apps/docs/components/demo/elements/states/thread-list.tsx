@@ -98,6 +98,7 @@ const thread = (
 });
 
 export const THREAD_LIST_FIXTURES = {
+  empty: [],
   grouped: [
     thread("t-1", "Persist composer drafts", ago(20 * 60 * 1000)),
     thread("t-2", "Fix flaky checkout test", ago(3 * 60 * 60 * 1000)),
@@ -156,7 +157,7 @@ export const states = defineStates([
     key: "empty",
     label: "Empty",
     note: "No saved threads, so only the new thread button shows and search is hidden.",
-    Component: () => <ThreadListFixture threads={[]} />,
+    Component: () => <ThreadListFixture threads={THREAD_LIST_FIXTURES.empty} />,
   },
   {
     key: "grouped",

@@ -4,38 +4,31 @@ import {
   ResearchReport,
   type ReportSection,
 } from "@/components/assistant-ui/elements/research-report";
+import { HEADINGS, PREVIEWS } from "@/components/demo/elements/research-report";
 import { defineStates } from "./types";
 
 const TITLE = "Draft ownership in 0.14";
-
-const HEADINGS = [
-  "What changed in 0.14",
-  "Who is affected",
-  "Migration path",
-  "Open questions",
-] as const;
-
-const PREVIEWS = [
-  "Drafts moved from parent state into a per-thread slot owned by the composer.",
-  "Anyone mirroring the draft in their own useState reads a value that never updates.",
-  "Replace the mirror with useDraft(threadId) and delete the hydrate effect.",
-  "Remote drafts across devices are not covered yet and need an adapter hook.",
-] as const;
-
-const SOURCES = [4, 3, 2, 1] as const;
 
 function sectionsAt(progress: number): ReportSection[] {
   return HEADINGS.map((heading, i) => ({
     id: heading,
     heading,
     state: i < progress ? "done" : i === progress ? "writing" : "pending",
-    sources: i < progress ? SOURCES[i]! : 0,
-    ...(i < progress ? { preview: PREVIEWS[i]! } : {}),
+    sources: i < progress ? 4 - i : 0,
+    ...(i < progress && PREVIEWS[i] ? { preview: PREVIEWS[i] } : {}),
   }));
 }
 
 export const states = defineStates([
   { key: "default", label: "Default" },
+  {
+    key: "empty",
+    label: "Empty",
+    note: "No sections are planned yet, so the header reads 0/0 with no rows.",
+    Component: () => (
+      <ResearchReport title={TITLE} sections={[]} sourcesRead={0} />
+    ),
+  },
   {
     key: "outline",
     label: "Outline",

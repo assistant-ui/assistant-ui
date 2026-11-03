@@ -77,8 +77,8 @@ export const states = defineStates([
   },
   {
     key: "no-expand",
-    label: "No full screen",
-    note: "Without an expand handler the full screen button is disabled.",
+    label: "No fullscreen",
+    note: "Without an expand handler the fullscreen button is disabled.",
     Component: () => (
       <Diagram
         title="message flow"

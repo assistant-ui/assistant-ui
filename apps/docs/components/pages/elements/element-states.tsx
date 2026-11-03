@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useSyncExternalStore, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
@@ -12,18 +12,29 @@ import {
 
 const PARAM = "state";
 
-function readStateParam(states: readonly ElementState[]): string {
-  const value = new URLSearchParams(window.location.search).get(PARAM);
-  return states.some((state) => state.key === value)
-    ? value!
-    : DEFAULT_STATE_KEY;
+const STATE_CHANGE = "element-state-change";
+
+function subscribe(onChange: () => void) {
+  window.addEventListener("popstate", onChange);
+  window.addEventListener(STATE_CHANGE, onChange);
+  return () => {
+    window.removeEventListener("popstate", onChange);
+    window.removeEventListener(STATE_CHANGE, onChange);
+  };
 }
+
+const readStateParam = () =>
+  new URLSearchParams(window.location.search).get(PARAM);
+
+// Fixtures mount only after hydration, so the server always shows the live demo.
+const readServerStateParam = () => null;
 
 function writeStateParam(key: string) {
   const url = new URL(window.location.href);
   if (key === DEFAULT_STATE_KEY) url.searchParams.delete(PARAM);
   else url.searchParams.set(PARAM, key);
-  window.history.replaceState(window.history.state, "", url);
+  window.history.pushState(null, "", url);
+  window.dispatchEvent(new Event(STATE_CHANGE));
 }
 
 export function ElementStatesPreview({
@@ -33,30 +44,25 @@ export function ElementStatesPreview({
   children,
 }: {
   slug: string;
-  /** Caption of the live demo; a fixture state replaces its tail with the state note. */
+  /** Caption of the live demo; a fixture state replaces it with the state note. */
   caption: string;
   canvasClassName: string;
   /** The live demo, shown for the `default` state. */
   children: React.ReactNode;
 }) {
   const states = getElementStates(slug);
-  const [key, setKey] = useState(DEFAULT_STATE_KEY);
-
-  useEffect(() => {
-    if (!states) return;
-    const sync = () => setKey(readStateParam(states));
-    sync();
-    window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
-  }, [states]);
+  const key = useSyncExternalStore(
+    subscribe,
+    readStateParam,
+    readServerStateParam,
+  );
 
   const active =
     states?.find((state) => state.key === key) ?? states?.[0] ?? null;
   const Fixture = active?.key === DEFAULT_STATE_KEY ? null : active?.Component;
 
   const select = (next: string) => {
-    setKey(next);
-    writeStateParam(next);
+    if (next !== active?.key) writeStateParam(next);
   };
 
   return (
@@ -82,7 +88,7 @@ export function ElementStatesPreview({
       )}
       <figcaption className="text-muted-foreground mt-2.5 text-xs">
         {Fixture
-          ? `fig. 01 · ${active!.label.toLowerCase()}${active!.note ? `: ${active!.note}` : ""}`
+          ? `fig. 01 · ${active!.label}${active!.note ? `: ${active!.note}` : ""}`
           : caption}
       </figcaption>
     </figure>

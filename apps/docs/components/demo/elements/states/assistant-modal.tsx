@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { ThreadMessageLike } from "@assistant-ui/react";
-import { AssistantModal as AssistantModalElement } from "@/components/assistant-ui/elements/assistant-modal.aui";
+import { BotIcon } from "lucide-react";
+import {
+  AssistantModalPrimitive,
+  type ThreadMessageLike,
+} from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { AssistantModal } from "@/components/pages/docs/samples/assistant-modal";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
 import { THREAD_FIXTURES } from "./thread";
@@ -25,11 +30,45 @@ function ModalStage({ messages }: { messages: ThreadMessageLike[] }) {
   );
 }
 
+/**
+ * The sample modal always opens on mount, so the closed state composes the
+ * same primitives without `defaultOpen` and portals into the stage like the
+ * other states do.
+ */
 function ClosedModal() {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   return (
     <SampleRuntimeProvider>
-      <div className="bg-muted/40 relative h-full min-h-125 w-full overflow-hidden contain-[layout]">
-        <AssistantModalElement />
+      <div className="bg-muted/40 relative h-full min-h-125 w-full overflow-hidden">
+        <div
+          ref={setContainer}
+          className="[container-type:size] absolute inset-0 contain-[layout]"
+        >
+          <AssistantModalPrimitive.Root>
+            <AssistantModalPrimitive.Anchor className="absolute end-4 bottom-4 size-11">
+              <AssistantModalPrimitive.Trigger asChild>
+                <TooltipIconButton
+                  variant="ghost"
+                  tooltip="Open Assistant"
+                  side="left"
+                  className="bg-background text-foreground border-border/60 hover:border-border hover:bg-background size-full rounded-full border"
+                >
+                  <BotIcon className="size-5" />
+                </TooltipIconButton>
+              </AssistantModalPrimitive.Trigger>
+            </AssistantModalPrimitive.Anchor>
+            {container && (
+              <AssistantModalPrimitive.Content
+                sideOffset={16}
+                avoidCollisions={false}
+                portalProps={{ container }}
+                className="bg-popover text-popover-foreground ring-foreground/10 [&_.aui-thread-viewport-footer]:bg-popover z-50 flex h-100 max-h-[calc(100cqh_-_5.75rem)] w-72 max-w-[calc(100vw-2rem)] flex-col overflow-clip rounded-xl p-0 ring-1 md:h-137.5 md:w-105 [&_.aui-thread-root]:bg-inherit"
+              >
+                <Thread />
+              </AssistantModalPrimitive.Content>
+            )}
+          </AssistantModalPrimitive.Root>
+        </div>
       </div>
     </SampleRuntimeProvider>
   );

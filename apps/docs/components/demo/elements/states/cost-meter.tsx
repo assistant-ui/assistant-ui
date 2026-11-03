@@ -66,7 +66,7 @@ export const states = defineStates([
   {
     key: "long-content",
     label: "Many models",
-    note: "Long model names truncate and large token counts wrap to a second line.",
+    note: "Long model names and token counts truncate, and many rows stack below the meter.",
     Component: () => {
       const lines: CostLine[] = [
         {

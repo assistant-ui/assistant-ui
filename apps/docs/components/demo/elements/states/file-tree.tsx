@@ -1,45 +1,11 @@
 "use client";
 
-import {
-  FileTree,
-  type FileTreeNode,
-} from "@/components/assistant-ui/elements/file-tree";
+import { FileTree } from "@/components/assistant-ui/elements/file-tree";
+import { NODES } from "../file-tree";
 import { defineStates } from "./types";
 
-const NODES: readonly FileTreeNode[] = [
-  { path: "packages", name: "packages/core/src", depth: 0, kind: "folder" },
-  {
-    path: "converter",
-    name: "convertMessages.ts",
-    depth: 1,
-    kind: "file",
-    additions: 24,
-    deletions: 6,
-  },
-  {
-    path: "converter-test",
-    name: "convertMessages.test.ts",
-    depth: 1,
-    kind: "file",
-    additions: 41,
-  },
-  { path: "ui", name: "packages/ui/src", depth: 0, kind: "folder" },
-  {
-    path: "composer",
-    name: "composer.tsx",
-    depth: 1,
-    kind: "file",
-    additions: 8,
-    deletions: 3,
-  },
-  {
-    path: "changeset",
-    name: ".changeset/tidy-pans-shave.md",
-    depth: 0,
-    kind: "file",
-    additions: 5,
-  },
-];
+const sum = (key: "additions" | "deletions") =>
+  NODES.reduce((total, node) => total + (node[key] ?? 0), 0);
 
 export const states = defineStates([
   { key: "default", label: "Default" },
@@ -51,8 +17,8 @@ export const states = defineStates([
       <FileTree
         nodes={NODES}
         visibleCount={3}
-        totalAdditions={78}
-        totalDeletions={9}
+        totalAdditions={sum("additions")}
+        totalDeletions={sum("deletions")}
       />
     ),
   },

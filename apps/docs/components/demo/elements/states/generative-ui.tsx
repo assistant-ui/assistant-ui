@@ -16,27 +16,6 @@ function Frame({ children }: { children: React.ReactNode }) {
   );
 }
 
-const STREAMING: UISpec = {
-  $type: "Card",
-  children: [
-    {
-      $type: "Row",
-      $key: "header",
-      justify: "between",
-      align: "center",
-      children: [
-        {
-          $type: "Text",
-          $key: "city",
-          value: "Austin, TX",
-          color: "secondary",
-        },
-      ],
-    },
-    { $type: "Text", $key: "temp", value: "9", size: "3xl", weight: "bold" },
-  ],
-};
-
 const MARKDOWN: UISpec = {
   $type: "Card",
   children: [
@@ -89,18 +68,6 @@ const MAP: UISpec = {
 
 export const states = defineStates([
   { key: "default", label: "Default" },
-  {
-    key: "streaming",
-    label: "Streaming",
-    note: "The spec is still arriving, so only the finished nodes and partial text show.",
-    Component: () => (
-      <Frame>
-        {renderGenerativeUI(STREAMING, styledGenerativeUILibrary, {
-          status: "streaming",
-        })}
-      </Frame>
-    ),
-  },
   {
     key: "markdown",
     label: "Markdown",

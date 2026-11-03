@@ -1,6 +1,5 @@
 "use client";
 
-import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { SyntaxHighlighter as BaseSyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter";
 import { defineStates } from "./types";
 
@@ -68,7 +67,7 @@ export const states = defineStates([
     Component: () => (
       <Frame>
         <Header language="text" />
-        <SyntaxHighlighter
+        <BaseSyntaxHighlighter
           language="text"
           code={`$ pnpm build\n\n  Tasks:    12 successful, 12 total\n  Cached:   9 cached, 12 total\n  Time:     41.2s`}
         />
@@ -82,7 +81,7 @@ export const states = defineStates([
     Component: () => (
       <Frame>
         <Header language="typescript" />
-        <SyntaxHighlighter language="typescript" code={LONG_LINE} />
+        <BaseSyntaxHighlighter language="typescript" code={LONG_LINE} />
       </Frame>
     ),
   },

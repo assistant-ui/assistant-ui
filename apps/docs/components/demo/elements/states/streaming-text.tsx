@@ -23,12 +23,6 @@ const WORDS = SEGMENTS.reduce(
 export const states = defineStates([
   { key: "default", label: "Default" },
   {
-    key: "empty",
-    label: "Waiting",
-    note: "The stream is open but no tokens have arrived yet.",
-    Component: () => <StreamingText segments={SEGMENTS} count={0} streaming />,
-  },
-  {
     key: "streaming",
     label: "Streaming",
     note: "Halfway through the reply, with the newest words still in blue.",

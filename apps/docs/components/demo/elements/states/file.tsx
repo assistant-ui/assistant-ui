@@ -69,7 +69,7 @@ export const states = defineStates([
   {
     key: "audio",
     label: "Audio",
-    note: "Audio files play inline with the size and download link below.",
+    note: "An audio file by URL plays inline with a download link and no size.",
     Component: () => (
       <Frame>
         <File

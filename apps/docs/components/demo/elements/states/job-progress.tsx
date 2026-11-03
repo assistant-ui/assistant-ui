@@ -24,6 +24,19 @@ const base = {
 export const states = defineStates([
   { key: "default", label: "Default" },
   {
+    key: "starting",
+    label: "Starting",
+    note: "The job has just been queued and the first stage has no progress yet.",
+    Component: () => (
+      <JobProgress
+        {...base}
+        stageIndex={0}
+        stageProgress={0}
+        eta="about 4 min"
+      />
+    ),
+  },
+  {
     key: "running",
     label: "Running",
     note: "Midway through the build with an ETA and a cancel button.",

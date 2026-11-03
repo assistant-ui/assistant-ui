@@ -34,7 +34,7 @@ export const states = defineStates([
   },
   {
     key: "typed",
-    label: "Ready to send",
+    label: "Ready",
     note: "Text is entered, so the mic hides and send is enabled.",
     Component: () => (
       <MobileComposer

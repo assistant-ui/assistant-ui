@@ -40,7 +40,7 @@ export const states = defineStates([
   { key: "default", label: "Default" },
   {
     key: "loading",
-    label: "No rows yet",
+    label: "No rows",
     note: "The title is in but no rows have streamed.",
     Component: () => (
       <SpecSheet

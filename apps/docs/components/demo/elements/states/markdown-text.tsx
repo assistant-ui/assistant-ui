@@ -119,7 +119,7 @@ export const states = defineStates([
   },
   {
     key: "gfm",
-    label: "Lists and quotes",
+    label: "Rich lists",
     note: "Task lists, strikethrough, ordered lists, quotes, and rules in one reply.",
     Component: () => <Fixture markdown={GFM} />,
   },

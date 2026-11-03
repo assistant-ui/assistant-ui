@@ -81,6 +81,20 @@ export const states = defineStates([
     ),
   },
   {
+    key: "empty",
+    label: "Empty",
+    note: "A diff with no changed lines shows only the filename and zero counts.",
+    Component: () => (
+      <CodeDiff
+        filename="use-draft.ts"
+        additions={0}
+        deletions={0}
+        lines={[]}
+        cycle={0}
+      />
+    ),
+  },
+  {
     key: "long-content",
     label: "Long lines",
     note: "Lines wider than the card scroll sideways instead of wrapping.",

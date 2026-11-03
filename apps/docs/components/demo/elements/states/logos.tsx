@@ -47,7 +47,7 @@ export const states = defineStates([
     label: "Tinted",
     note: "The OpenAI mark follows the text color while the others keep brand colors.",
     Component: () => (
-      <div className="flex items-center gap-8 text-blue-600 dark:text-blue-400">
+      <div className="text-foreground/60 flex items-center gap-8">
         <OpenAILogo className="size-9" />
         <ClaudeLogo className="size-9" />
         <GeminiLogo className="size-9" />

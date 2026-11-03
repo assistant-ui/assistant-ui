@@ -80,7 +80,7 @@ export const states = defineStates([
           firstTokenTime: 284,
           totalStreamTime: 1_470,
           tokenCount: 118,
-          tokensPerSecond: 99.4,
+          tokensPerSecond: 80.3,
           totalChunks: 52,
           toolCallCount: 0,
         }}
@@ -134,7 +134,7 @@ export const states = defineStates([
           firstTokenTime: 6_820,
           totalStreamTime: 48_630,
           tokenCount: 2_904,
-          tokensPerSecond: 69.4,
+          tokensPerSecond: 59.7,
           totalChunks: 611,
           toolCallCount: 4,
         }}

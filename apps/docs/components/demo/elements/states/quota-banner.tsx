@@ -34,6 +34,12 @@ export const states = defineStates([
     Component: () => <QuotaBanner {...base} used={50} resetsIn="58m" />,
   },
   {
+    key: "zero-limit",
+    label: "Zero limit",
+    note: "A zero limit reads zero left but stays neutral instead of exhausted.",
+    Component: () => <QuotaBanner {...base} used={0} limit={0} />,
+  },
+  {
     key: "over-limit",
     label: "Over limit",
     note: "Usage past the limit still reads zero left and a full bar.",

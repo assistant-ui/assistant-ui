@@ -43,7 +43,7 @@ export const states = defineStates([
     key: "empty",
     label: "Empty",
     note: "No saved threads yet, so the sidebar holds only the new thread button.",
-    Component: () => <SidebarFixture threads={[]} />,
+    Component: () => <SidebarFixture threads={THREAD_LIST_FIXTURES.empty} />,
   },
   {
     key: "grouped",
