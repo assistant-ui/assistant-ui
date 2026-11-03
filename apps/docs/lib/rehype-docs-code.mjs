@@ -7,6 +7,7 @@ import { transformerMetaHighlight } from "@shikijs/transformers";
 export default function rehypeDocsCode() {
   return rehypeCode({
     lazy: true,
+    engine: "oniguruma",
     langs: ["ts", "js", "html", "tsx", "mdx", "bash"],
     themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
     transformers: [

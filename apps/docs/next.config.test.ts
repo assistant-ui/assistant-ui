@@ -5,6 +5,7 @@ import * as runtime from "react/jsx-runtime";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TableOfContents } from "fumadocs-core/toc";
+import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import type { PluggableList } from "unified";
 
@@ -50,6 +51,7 @@ describe("docs Next config composition", () => {
   });
 
   it("compiles navigation anchors, highlighted code, tables and Mermaid through Farming Labs", async () => {
+    const javascriptHighlighter = vi.spyOn(defaultShikiFactory, "getOrInit");
     const compiled = await evaluate(
       `---
 title: Getting started
@@ -97,7 +99,9 @@ graph LR; A-->B;
     expect(html).toContain("<table>");
     expect(html).toContain("data-line-numbers");
     expect(html).toContain("highlighted");
+    expect(html).toContain("--shiki-dark");
     expect(html).toContain("<figure>graph LR; A--&gt;B;</figure>");
+    expect(javascriptHighlighter).not.toHaveBeenCalled();
   });
 
   it("keeps provider code tabs selectable and local images imported for optimization", async () => {
