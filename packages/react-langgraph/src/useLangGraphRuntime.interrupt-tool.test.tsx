@@ -63,7 +63,8 @@ const hasToolCall = (runtime: AssistantRuntime) =>
       (message) =>
         message.role === "assistant" &&
         message.content.some(
-          (part) => part.type === "tool-call" && part.toolCallId === TOOL_CALL_ID,
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === TOOL_CALL_ID,
         ),
     );
 
