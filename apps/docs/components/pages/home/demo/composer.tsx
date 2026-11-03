@@ -121,7 +121,7 @@ export function Composer(): ReactNode {
                 <ContextDisplay.Text
                   modelContextWindow={getContextWindow(selectedModel)}
                   side="top"
-                  className="text-muted-foreground hover:text-foreground rounded-control h-7 px-2 text-[11px] hover:bg-transparent"
+                  className="text-muted-foreground hover:text-foreground rounded-control h-7 px-2 text-[12px] hover:bg-transparent"
                 />
                 <AuiIf
                   condition={(s) =>
