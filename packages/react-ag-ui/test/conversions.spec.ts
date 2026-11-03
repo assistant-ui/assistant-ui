@@ -832,6 +832,80 @@ describe("adapter conversions", () => {
     expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
+  describe("joinAdjacentAssistantMessages", () => {
+    // A backend that rebuilds history from its own records names the record
+    // carrying a turn's tool call itself, so it is not a container the client
+    // opened and the turn arrives as two assistant records.
+    const splitTurn = [
+      { id: "u-1", role: "user", content: "weather?" },
+      {
+        id: "a-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "get_weather", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", toolCallId: "c-1", content: "sunny" },
+      { id: "a-2", role: "assistant", content: "it is sunny" },
+    ];
+
+    it("keeps records with ids of their own apart by default", () => {
+      const result = fromAgUiMessages(splitTurn);
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-1", "a-2"]);
+    });
+
+    it("joins the turn under the id of the answer, tool step first", () => {
+      const result = fromAgUiMessages(splitTurn, {
+        joinAdjacentAssistantMessages: true,
+      });
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-2"]);
+      expect(result[1]).toMatchObject({
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "c-1",
+            toolName: "get_weather",
+            result: "sunny",
+          },
+          { type: "text", text: "it is sunny" },
+        ],
+      });
+    });
+
+    it("keeps assistant records a user message separates apart", () => {
+      const result = fromAgUiMessages(
+        [
+          ...splitTurn,
+          { id: "u-2", role: "user", content: "and tomorrow?" },
+          { id: "a-3", role: "assistant", content: "rain" },
+          { id: "a-4", role: "assistant", content: "bring an umbrella" },
+        ],
+        { joinAdjacentAssistantMessages: true },
+      );
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-2", "u-2", "a-4"]);
+      expect((result[3] as any).content.map((p: any) => p.text)).toEqual([
+        "rain",
+        "bring an umbrella",
+      ]);
+    });
+
+    it("round-trips the joined turn as one assistant record and its result", () => {
+      const wire = toAgUiMessages(
+        fromAgUiMessages(splitTurn, { joinAdjacentAssistantMessages: true }),
+      );
+      expect(wire.map((m) => [m.role, m.id])).toEqual([
+        ["user", "u-1"],
+        ["assistant", "a-2"],
+        ["tool", "t-1"],
+      ]);
+    });
+  });
+
   it("folds the answer onto the tool call container the run opened for it", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "weather?" },

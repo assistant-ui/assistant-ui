@@ -581,6 +581,7 @@ type FileMessagePart = {
 
 type FromAgUiMessagesOptions = {
   showThinking?: boolean;
+  joinAdjacentAssistantMessages?: boolean;
 };
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -1770,6 +1771,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   logger?: Partial<Logger>;
   showThinking?: boolean;
   joinStrategy?: JoinStrategy;
+  joinAdjacentAssistantMessages?: boolean;
   getRunContext?: ((input: {
     messages: readonly Message[];
     runConfig: RunConfig | undefined;

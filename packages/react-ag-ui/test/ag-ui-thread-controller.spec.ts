@@ -413,12 +413,14 @@ const createCore = (
     getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
     resumeTranscript?: AgUiResumeTranscript;
     joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"];
+    joinAdjacentAssistantMessages?: boolean;
   } = {},
 ) =>
   new AgUiThreadController({
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
+    joinAdjacentAssistantMessages: hooks.joinAdjacentAssistantMessages,
     getRunContext: hooks.getRunContext,
     resumeTranscript: hooks.resumeTranscript,
     joinStrategy: hooks.joinStrategy,
@@ -8870,6 +8872,57 @@ describe("AGUIThreadRuntimeCore", () => {
       assistantText(core.getMessages().find((m) => m.role === "assistant")),
     ).toBe("Hello from snapshot");
   });
+
+  it.each([
+    [false, ["a-1", "a-2"]],
+    [true, ["a-2"]],
+  ])(
+    "joins a snapshot turn split across named assistant records only when joinAdjacentAssistantMessages is %s",
+    async (joinAdjacentAssistantMessages, assistantIds) => {
+      const agent = {
+        runAgent: vi.fn(async (_input, subscriber) => {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: "u-1", role: "user", content: "weather?" },
+                {
+                  id: "a-1",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "c-1",
+                      type: "function",
+                      function: { name: "get_weather", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "t-1",
+                  role: "tool",
+                  toolCallId: "c-1",
+                  content: "sunny",
+                },
+                { id: "a-2", role: "assistant", content: "it is sunny" },
+              ],
+            },
+          });
+          subscriber.onRunFinalized?.();
+        }),
+      } as unknown as HttpAgent;
+
+      const core = createCore(agent, { joinAdjacentAssistantMessages });
+      await core.append(createAppendMessage());
+
+      const assistants = core
+        .getMessages()
+        .filter((m) => m.role === "assistant");
+      expect(assistants.map((m) => m.id)).toEqual(assistantIds);
+      expect(assistants.at(-1)!.content.map((p) => p.type)).toEqual(
+        joinAdjacentAssistantMessages ? ["tool-call", "text"] : ["text"],
+      );
+    },
+  );
 
   it("keeps streaming when a pre-start snapshot ends with a prior-turn assistant", async () => {
     const mid = "99999999-8888-7777-6666-555555555555";

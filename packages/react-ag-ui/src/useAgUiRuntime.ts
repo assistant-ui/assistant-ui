@@ -76,6 +76,8 @@ export function useAgUiRuntime(
       logger,
       showThinking: options.showThinking ?? true,
       joinStrategy: options.joinStrategy,
+      joinAdjacentAssistantMessages:
+        options.joinAdjacentAssistantMessages ?? false,
       getRunContext: options.getRunContext,
       resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
@@ -98,6 +100,8 @@ export function useAgUiRuntime(
       logger,
       showThinking: options.showThinking ?? true,
       joinStrategy: options.joinStrategy,
+      joinAdjacentAssistantMessages:
+        options.joinAdjacentAssistantMessages ?? false,
       getRunContext: options.getRunContext,
       resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
