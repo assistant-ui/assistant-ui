@@ -1117,7 +1117,58 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("keeps following when the drag points down", () => {
+  it("keeps following when input precedes a scroll onto the clamp point", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    view.setTop(300);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("drops pending upward input on a thread switch", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnThreadSwitch: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    controller.threadSwitched();
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps following when a drag scrolls down", () => {
     const view = geometry(500, 100);
     view.setTop(400);
     const controller = createThreadViewportAutoScroll({
@@ -1143,7 +1194,7 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("keeps a reader scroll-up that a downward drag preceded", () => {
+  it("keeps a reader scroll-up that a drag preceded", () => {
     const view = geometry(500, 100);
     view.setTop(400);
     const controller = createThreadViewportAutoScroll({
