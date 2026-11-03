@@ -1085,6 +1085,7 @@ function unresolvedToolCallIds(message: CoreThreadMessageLike): string[] {
 function foldTurnRecords(
   previous: CoreThreadMessageLike,
   message: CoreThreadMessageLike,
+  mergePendingToolCallIds: boolean,
 ): CoreThreadMessageLike {
   const interrupts = [
     ...(readPersistedInterrupts(previous.metadata) ?? []),
@@ -1104,10 +1105,12 @@ function foldTurnRecords(
   ];
   // A record without the list leaves every call it carries without a result
   // pending, so the merged list keeps those beside the other record's list.
+  // Joined records an agent named each may carry a list of their own.
   const previousPending = readPersistedPendingToolCallIds(previous.metadata);
   const messagePending = readPersistedPendingToolCallIds(message.metadata);
   const pendingToolCallIds =
-    previousPending === undefined && messagePending === undefined
+    !mergePendingToolCallIds ||
+    (previousPending === undefined && messagePending === undefined)
       ? []
       : [
           ...(previousPending ?? unresolvedToolCallIds(previous)),
@@ -1549,7 +1552,11 @@ export function fromAgUiMessages(
             message.role === "assistant" &&
             opensTurn(previous)))
     ) {
-      folded[folded.length - 1] = foldTurnRecords(previous, message);
+      folded[folded.length - 1] = foldTurnRecords(
+        previous,
+        message,
+        joinAdjacentAssistantMessages,
+      );
       continue;
     }
     folded.push(message);
