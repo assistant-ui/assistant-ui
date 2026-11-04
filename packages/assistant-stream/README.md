@@ -79,6 +79,24 @@ and runtimes built on it. Provider SDK parsers remain separate. The AI SDK
 UI-message decoder currently buffers tool input until it is available, so that
 path does not gain incremental parsing from a backend.
 
+### Using Streamfold
+
+Install `streamfold@^0.1.17` in your application, then initialize its integration
+once at startup before creating streams:
+
+```ts
+import { initializeAssistantStream } from "streamfold/assistant-ui";
+
+const enabled = await initializeAssistantStream();
+```
+
+`enabled` is `true` when the backend is registered. It is `false` if the installed
+assistant-stream does not expose `registerJsonParserBackend`, or if WASM or
+finalization support is unavailable. Native parsing remains available in those
+cases. Importing the integration alone does not enable it, and assistant-stream
+does not install Streamfold for you. Measure your workload before enabling it;
+small deltas can be slower than native parsing.
+
 ## Sub-paths
 
 `.`, `./utils`, `./ai-sdk`, `./internal`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it works with `ai@6` or `ai@7`, install it alongside (declared as an optional peer). `./internal` is an internal-use entry: it is published like every other export, but it only carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk` and is not a supported surface. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
