@@ -11,7 +11,11 @@ export type JsonParserBackend = {
 export type JsonParserBackendContext = {
   readonly text: string;
   readonly fallback: ReadonlyJSONObject;
-  /** Detaches mutable values and attaches assistant-stream's partial-field metadata. */
+  /**
+   * Detaches mutable values and attaches assistant-stream's partial-field metadata.
+   * Call during backend creation or append, never lazily from a getter, so errors
+   * can trigger native fallback. Getters must return the retained snapshot.
+   */
   readonly createSnapshot: (
     value: ReadonlyJSONObject,
     state: "partial" | "complete",
