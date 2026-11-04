@@ -295,8 +295,10 @@ const handleResult = (
       const {
         isPreliminary: _isPreliminary,
         modelContent: _modelContent,
+        artifact: _artifact,
+        messages: _messages,
         ...basePart
-      } = part;
+      }: typeof part & { readonly messages?: ReadonlyJSONValue } = part;
       const runningStatus =
         part.status.type === "running"
           ? part.status
