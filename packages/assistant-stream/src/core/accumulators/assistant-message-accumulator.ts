@@ -133,7 +133,7 @@ const handlePartStart = (
             sourceType: "document",
             id: partInit.id,
             title: partInit.title,
-            mediaType: partInit.mediaType,
+            mediaType: partInit.mediaType ?? "application/octet-stream",
             ...(partInit.filename
               ? { filename: partInit.filename }
               : undefined),
