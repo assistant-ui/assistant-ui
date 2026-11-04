@@ -498,6 +498,7 @@ test("the merged tap fixture is T3 with owner, decision, and window still needed
   assert.deepEqual(evaluation.requirementResult.approvals, {
     counted: ["Kinfe123"],
     ignored: [],
+    carried: [],
   });
   assert.equal(
     calls.filter((call) => call.query?.includes("query ReviewTierPullRequest("))
