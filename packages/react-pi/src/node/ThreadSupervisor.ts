@@ -60,9 +60,14 @@ import type {
 /** The `model` shape `createAgentSession` accepts (a Pi `Model`), derived from
  * the SDK so the supervisor stays the only file that names it. The host resolves
  * it (e.g. env-seeded via `ModelRuntime.getModel`) and forwards it opaquely. */
-type PiSessionModel = NonNullable<
+type PiCreateSessionOptions = NonNullable<
   Parameters<typeof createAgentSession>[0]
->["model"];
+>;
+type PiSessionModel = PiCreateSessionOptions["model"];
+type PiSessionOptions = Omit<
+  PiCreateSessionOptions,
+  "cwd" | "sessionManager" | "agentDir" | "model" | "modelRuntime"
+>;
 type PiSessionInfo = Awaited<ReturnType<typeof SessionManager.list>>[number];
 
 type CatalogCacheEntry = {
@@ -84,6 +89,18 @@ export interface PiThreadSupervisorOptions {
   /** Explicit model for new sessions. When omitted, Pi resolves from its own
    * settings, else the first available model. */
   model?: PiSessionModel;
+  /** Pi model and auth runtime shared by every session, the model catalog, and
+   * model selection. Defaults to one runtime backed by `agentDir`'s
+   * `auth.json` and `models.json`. */
+  modelRuntime?: ModelRuntime;
+  /** Extra Pi SDK options for each session the supervisor opens or reopens,
+   * such as `tools`, `customTools`, `resourceLoader`, or `settingsManager`. The
+   * supervisor keeps the working directory, session storage, agent directory,
+   * model runtime, and model. */
+  configureSession?: (context: {
+    cwd: string;
+    signal: AbortSignal | undefined;
+  }) => PiSessionOptions | Promise<PiSessionOptions>;
 }
 
 type ThreadRecord = {
@@ -124,6 +141,9 @@ export class PiThreadSupervisor {
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
   private readonly model: PiSessionModel | undefined;
+  private readonly configureSession:
+    | PiThreadSupervisorOptions["configureSession"]
+    | undefined;
   /** Lazily-created Pi model/auth runtime backing the model catalog, picker, and
    *  cold-snapshot context-window lookups. `ModelRuntime.create` is async (it
    *  loads models.json and runs an availability refresh), so the promise is
@@ -140,6 +160,10 @@ export class PiThreadSupervisor {
       ? resolvePiPath(options.agentDir)
       : undefined;
     this.model = options.model;
+    this.configureSession = options.configureSession;
+    if (options.modelRuntime) {
+      this.modelRuntimePromise = Promise.resolve(options.modelRuntime);
+    }
   }
 
   // --- Catalog ---------------------------------------------------------------
@@ -451,9 +475,16 @@ export class PiThreadSupervisor {
   ): Promise<ThreadRecord> {
     const generation = this.generation;
     this.throwIfOpenCancelled(signal, generation);
+    const [modelRuntime, sessionOptions] = await Promise.all([
+      this.getModelRuntime(),
+      this.configureSession?.({ cwd, signal }),
+    ]);
+    this.throwIfOpenCancelled(signal, generation);
     const { session } = await createAgentSession({
+      ...sessionOptions,
       cwd,
       sessionManager,
+      modelRuntime,
       ...(this.agentDir ? { agentDir: this.agentDir } : {}),
       ...(this.model ? { model: this.model } : {}),
     });

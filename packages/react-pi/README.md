@@ -66,6 +66,44 @@ export const piClient = createPiNodeClient({
 });
 ```
 
+An app that manages models and tools itself passes its own Pi `ModelRuntime`
+and a `configureSession` callback. The supervisor uses that runtime for every
+session, the model catalog, and `setModel`, and calls `configureSession` each
+time it opens or reopens a session, with the session's working directory and the
+open's cancellation signal. The callback returns Pi SDK session options such as
+`tools`, `customTools`, `resourceLoader`, and `settingsManager`; the supervisor
+keeps the working directory, session storage, agent directory, model runtime,
+and model. The first `createPiNodeClient` call fixes these options for the
+process, so the runtime and the callback must live as long as the server.
+
+```ts
+import {
+  DefaultResourceLoader,
+  ModelRuntime,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
+import { createPiNodeClient } from "@assistant-ui/react-pi/node";
+
+const modelRuntime = await ModelRuntime.create({ modelsPath: gatewayModelsPath });
+const settingsManager = SettingsManager.inMemory();
+
+export const piClient = createPiNodeClient({
+  workspacePath,
+  modelRuntime,
+  configureSession: async ({ cwd }) => {
+    const resourceLoader = new DefaultResourceLoader({
+      cwd,
+      agentDir,
+      settingsManager,
+      noExtensions: true,
+      noSkills: true,
+    });
+    await resourceLoader.reload();
+    return { tools: [], resourceLoader, settingsManager };
+  },
+});
+```
+
 ### 2. Server: the route layer
 
 Expose the `PiClient` methods over HTTP, and `subscribe` over SSE. The wire
