@@ -1,0 +1,83 @@
+---
+title: Vite plugin
+description: The optional Vite plugin adds the runtime tag, turns component files into pages, and builds single-file pages.
+---
+
+`@assistant-ui/remote-components-vite` is optional. A Vite app is already a remote once its `index.html` loads the runtime.
+
+```html title="index.html"
+<!-- index.html of any Vite app -->
+<head>
+  <script src="/rc-runtime.js"></script>
+  …
+```
+
+The plugin adds a few things on top:
+
+- It adds that tag to `index.html` and serves `rc-runtime.js` in dev and on build.
+- With `components`, each file whose default export is a React component becomes its own page at `/<name>/`. The component gets the host's props as React props.
+- With `singleFile`, each page is also built as one HTML file with everything inlined.
+- Imports of `@assistant-ui/remote-components-runtime` use the tag's `window.rc`, so the runtime is not bundled twice.
+
+```ts title="vite.config.ts"
+import react from "@vitejs/plugin-react";
+import { remoteComponents } from "@assistant-ui/remote-components-vite";
+
+export default {
+  plugins: [
+    react(),
+    remoteComponents({
+      components: "src/remotes",
+      singleFile: { plugins: [react()] },
+      frameAncestors: ["https://app.example"],
+    }),
+  ],
+};
+```
+
+## Development
+
+`vite` serves `/<name>/` with HMR inside the frame. Opened in a tab on its own, a page renders with empty props, which is handy for debugging. In a frame, a generated page renders on the first `props-changed`. The runtime reveals it once React has committed.
+
+```tsx title="host.tsx"
+<RemoteComponent src="http://127.0.0.1:5173/tags/" tags={["hmr", "dev", "vite"]} />
+```
+
+The dev server sends `frame-ancestors` but no `connect-src`, because HMR needs a websocket.
+
+## Build
+
+```txt title="output"
+dist/
+  index.html                your app, with the runtime tag
+  counter/index.html        one page per component
+  counter/single.html       self-contained, for the html prop or isolation="scf"
+  assets/counter-[hash].js
+  rc-runtime.js             the runtime and its lazy chunks
+  remote-components.json    manifest: html, js and css per component
+  _headers                  CORS, nosniff, Allow-CSP-From and the CSP
+```
+
+Host the folder on any static host, on a different site from your app. Assets are served with CORS, so opaque frames can load them.
+
+## Options
+
+| Option | Default | |
+| --- | --- | --- |
+| `components` | `none` | A directory (every .tsx / .jsx file becomes a page named after it) or a map of name to file. |
+| `singleFile` | `off` | Also build /&lt;name&gt;/single.html. Pass the plugins for that build, usually [react()]. |
+| `network` | `"public"` | Network policy for the CSP in _headers. "none" or a list of origins. |
+| `frameAncestors` | `any page` | Host origins that may embed the pages (CSP frame-ancestors). Sent by the dev server and written to _headers. |
+| `injectIndex` | `true` | Add the runtime tag to your own index.html. |
+| `head` | `""` | Extra HTML for every generated page's &lt;head&gt;. |
+
+## Single-file builds
+
+`buildSingleFile` builds one component into one HTML document: the full runtime, script and CSS inlined, assets as data URLs. Use it when the host delivers the document itself, with the `html` prop or a Safe Content Frame.
+
+```ts title="build.ts"
+import { buildSingleFile } from "@assistant-ui/remote-components-vite";
+
+const html = await buildSingleFile({ file: "widget.tsx", plugins: [react()] });
+// <RemoteComponent html={html} />
+```
