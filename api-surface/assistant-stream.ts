@@ -444,9 +444,7 @@ type JSONValue = null | string | number | boolean | {
 } | JSONValue[];
 
 type JsonParserBackend = {
-  readonly currentTextLength: number;
   readonly currentArgs: ReadonlyJSONObject;
-  readonly text: string;
   append(delta: string): JsonParserBackend | undefined;
 };
 

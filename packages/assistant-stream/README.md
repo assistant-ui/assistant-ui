@@ -55,9 +55,9 @@ const unregister = registerJsonParserBackend(({ text, fallback, createSnapshot }
 Keep `unregister` for application cleanup when the backend is no longer needed.
 
 `createCustomParser` is supplied by the integration. Its returned backend exposes
-`text`, `currentTextLength`, `currentArgs`, and `append(delta)`, which returns the
-next backend or `undefined`. Each backend must preserve its accepted text and
-arguments for historical reads and independent branches. `createSnapshot(value,
+`currentArgs` and `append(delta)`, which returns the next backend or `undefined`.
+The host retains accepted text and its length for native replay. Each backend must
+preserve its arguments for historical reads and independent branches. `createSnapshot(value,
 state, partialPath)` detaches mutable containers and attaches assistant-stream's
 partial-field metadata. Call it during backend creation or `append`, so errors
 can trigger native fallback. Getters must return the retained snapshot without

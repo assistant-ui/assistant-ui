@@ -26,8 +26,6 @@ const referenceBackend = (
       ? createSnapshot(parsed, meta.state, meta.partialPath)
       : fallback;
   return {
-    text,
-    currentTextLength: text.length,
     currentArgs: args,
     append: (delta) =>
       referenceBackend({ ...context, text: text + delta, fallback: args }),
@@ -136,19 +134,24 @@ it.each(["decline", "throw"])(
     cleanups.push(
       registerJsonParserBackend((context) => ({
         ...referenceBackend(context),
-        append: () => {
-          if (failure === "throw") throw new Error("unsupported delta");
-          return undefined;
-        },
+        append: (delta) => ({
+          ...referenceBackend({ ...context, text: context.text + delta }),
+          append: () => {
+            if (failure === "throw") throw new Error("unsupported delta");
+            return undefined;
+          },
+        }),
       })),
     );
-    const parser = IncrementalJsonObjectParser.from('{"value":"hel');
-    const left = parser.append('lo"}');
-    const right = parser.append('p"}');
-    expect(left.currentArgs).toMatchObject({ value: "hello" });
-    expect(right.currentArgs).toMatchObject({ value: "help" });
-    expect(parser.currentTextLength).toBe('{"value":"hel'.length);
-    expect(parser.currentArgs).toMatchObject({ value: "hel" });
+    const initial = IncrementalJsonObjectParser.from('{"value":"hel');
+    const parser = initial.append("lo");
+    const left = parser.append(' world"}');
+    const right = parser.append(' there"}');
+    expect(left.currentArgs).toMatchObject({ value: "hello world" });
+    expect(right.currentArgs).toMatchObject({ value: "hello there" });
+    expect(initial.currentArgs).toMatchObject({ value: "hel" });
+    expect(parser.currentArgs).toMatchObject({ value: "hello" });
+    expect(parser.currentTextLength).toBe('{"value":"hello'.length);
     expect(getPartialJsonObjectMeta(left.currentArgs)?.state).toBe("complete");
   },
 );
@@ -157,8 +160,6 @@ it("detaches backend snapshots and attaches metadata without mutating backend va
   const root = { nested: { value: "hel" } };
   cleanups.push(
     registerJsonParserBackend((context) => ({
-      text: context.text,
-      currentTextLength: context.text.length,
       currentArgs: context.createSnapshot(root, "partial", ["nested", "value"]),
       append: () => undefined,
     })),
@@ -194,8 +195,6 @@ it.each([
   const root = JSON.parse(input);
   cleanups.push(
     registerJsonParserBackend((context) => ({
-      text: context.text,
-      currentTextLength: context.text.length,
       currentArgs: context.createSnapshot(root, "partial", []),
       append: () => undefined,
     })),

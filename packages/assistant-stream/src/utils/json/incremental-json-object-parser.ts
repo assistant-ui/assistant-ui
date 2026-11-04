@@ -233,7 +233,7 @@ export class IncrementalJsonObjectParser {
   }
 
   get currentTextLength() {
-    return this.backend?.currentTextLength ?? this.text?.length ?? 0;
+    return this.text?.length ?? 0;
   }
 
   get currentArgs() {
@@ -254,12 +254,17 @@ export class IncrementalJsonObjectParser {
       }
       if (!backend)
         return IncrementalJsonObjectParser.create(
-          this.backend.text + delta,
+          this.accumulatedText() + delta,
           this.currentArgs,
           false,
         );
       const parser = new IncrementalJsonObjectParser(this.args);
       parser.backend = backend;
+      parser.text = {
+        length: this.currentTextLength + delta.length,
+        previous: this.text,
+        value: delta,
+      };
       return parser;
     }
     if (this.currentTextLength === 0)

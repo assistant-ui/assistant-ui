@@ -39,7 +39,7 @@ const expectPrefixParity = (input: string) => {
   }
 };
 
-const parserContract = () => {
+describe("IncrementalJsonObjectParser", () => {
   it.each([false, true])(
     "preserves caller-owned fallback objects before parsing starts (frozen=%s)",
     (frozen) => {
@@ -264,6 +264,4 @@ const parserContract = () => {
 
     expect(parser.currentArgs.values).toEqual(values);
   });
-};
-
-describe("IncrementalJsonObjectParser", parserContract);
+});

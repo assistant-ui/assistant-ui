@@ -1,10 +1,8 @@
 import type { ReadonlyJSONObject } from "./json-value";
 
-/** Retained backends must preserve their accepted text and arguments. */
+/** Retained backends must preserve their arguments. */
 export type JsonParserBackend = {
-  readonly currentTextLength: number;
   readonly currentArgs: ReadonlyJSONObject;
-  readonly text: string;
   append(delta: string): JsonParserBackend | undefined;
 };
 
