@@ -346,7 +346,7 @@ export function protectedPaths(files, policy) {
       }
     }
     if (
-      file.patch === null &&
+      (file.patch ?? null) === null &&
       file.path.startsWith("packages/") &&
       !isTestPath(policy, file.path)
     ) {

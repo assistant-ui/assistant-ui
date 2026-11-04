@@ -157,6 +157,7 @@ function fakeClient({
   latestPrByNumber = {},
   prSnapshots,
   stateSnapshots,
+  comparisons = {},
 } = {}) {
   const calls = [];
   const writes = [];
@@ -327,6 +328,11 @@ function fakeClient({
             },
             status: 200,
           };
+        }
+        if (Object.hasOwn(comparisons, resource)) {
+          const comparison = comparisons[resource];
+          if (comparison instanceof Error) throw comparison;
+          return { data: structuredClone(comparison), status: 200 };
         }
         if (resource.startsWith(`${repo}/compare/base-tip...`))
           return {
@@ -2652,4 +2658,143 @@ test("renaming a coverage config compares against its previous path", async () =
     }),
   );
   assert.deepEqual(evaluation.advice, []);
+});
+
+const compared = (files, overrides = {}) => ({
+  status: "ahead",
+  total_commits: 1,
+  commits: [{ sha: "head" }],
+  files,
+  ...overrides,
+});
+
+test("gathering compares each distinct older approved commit with the head once", async () => {
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      reviews: {
+        nodes: [
+          review("Kinfe123", { commit: { oid: "old-1" } }),
+          review("okisdev", { commit: { oid: "old-1" } }),
+          review("Yonom"),
+          review("bnb", { commit: { oid: "old-2" } }),
+          review("bnb", {
+            state: "CHANGES_REQUESTED",
+            submittedAt: "2026-10-08T11:30:00Z",
+            commit: { oid: "old-3" },
+          }),
+          review("outsider", { state: "COMMENTED", commit: { oid: "old-4" } }),
+        ],
+      },
+    }),
+    comparisons: {
+      [`${repo}/compare/old-1...head`]: compared([file("README.md")]),
+    },
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(
+    recording.calls
+      .filter(
+        ({ resource }) =>
+          resource?.includes("/compare/") && !resource.includes("base-tip"),
+      )
+      .map(({ resource }) => resource),
+    [`${repo}/compare/old-1...head`],
+  );
+  assert.deepEqual(gathered.people.comparisons, {
+    "old-1": {
+      ahead: true,
+      complete: true,
+      files: [
+        {
+          path: "README.md",
+          status: "modified",
+          additions: 10,
+          deletions: 5,
+          previousPath: null,
+          patch: "@@ -1 +1 @@\n-old\n+new",
+        },
+      ],
+    },
+  });
+});
+
+test("a compare that fails, diverges or is cut short leaves its approvals stale", async () => {
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      reviews: {
+        nodes: [
+          review("Kinfe123", { commit: { oid: "gone" } }),
+          review("okisdev", { commit: { oid: "rebased" } }),
+          review("bnb", { commit: { oid: "huge" } }),
+          review("Yonom", { commit: { oid: "many" } }),
+        ],
+      },
+    }),
+    comparisons: {
+      [`${repo}/compare/gone...head`]: apiError(404),
+      [`${repo}/compare/rebased...head`]: compared([], { status: "diverged" }),
+      [`${repo}/compare/huge...head`]: compared(
+        Array.from({ length: 300 }, (_, index) => file(`docs/${index}.md`)),
+      ),
+      [`${repo}/compare/many...head`]: compared([file("README.md")], {
+        total_commits: 251,
+      }),
+    },
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.equal(gathered.people.comparisons.gone, null);
+  assert.equal(gathered.people.comparisons.rebased.ahead, false);
+  assert.equal(gathered.people.comparisons.huge.complete, false);
+  assert.equal(gathered.people.comparisons.many.complete, false);
+  const { approvals } = evaluatePullRequest(gathered, policy).requirementResult;
+  assert.deepEqual(approvals.counted, []);
+  assert.deepEqual(
+    approvals.ignored.map(({ login, reason }) => [login, reason]),
+    [
+      ["Kinfe123", "stale"],
+      ["okisdev", "stale"],
+      ["bnb", "stale"],
+      ["Yonom", "stale"],
+    ],
+  );
+});
+
+test("the comment says which approvals carried over and which protected paths made others stale", async () => {
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      reviews: {
+        nodes: [
+          review("Kinfe123", { commit: { oid: "abcdef1234567890" } }),
+          review("okisdev", { commit: { oid: "old-2" } }),
+          review("Yonom", { commit: { oid: "gone" } }),
+        ],
+      },
+    }),
+    comparisons: {
+      [`${repo}/compare/abcdef1234567890...head`]: compared([
+        file("README.md"),
+      ]),
+      [`${repo}/compare/old-2...head`]: compared([
+        file("packages/tap/src/a.ts"),
+        file("packages/tap/src/b.ts"),
+        file("packages/store/src/c.ts"),
+        file("api-surface/assistant-ui__tap.ts"),
+        file("README.md"),
+      ]),
+      [`${repo}/compare/gone...head`]: apiError(404),
+    },
+  });
+  const comment = renderComment(await evaluationFor(recording), policy);
+  for (const expected of [
+    "Kinfe123 counted",
+    "Kinfe123 carried over (approved `abcdef1`, later commits touch no protected paths)",
+    "okisdev ignored (approved an older head; later commits touch `api-surface/assistant-ui__tap.ts`, `packages/store/src/c.ts`, `packages/tap/src/a.ts` and 1 more protected path)",
+    "Yonom ignored (approved an older head, could not compare it with the head)",
+  ]) {
+    assert.ok(comment.includes(expected), `${expected}\n${comment}`);
+  }
 });

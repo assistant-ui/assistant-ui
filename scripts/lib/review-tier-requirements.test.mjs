@@ -1302,3 +1302,154 @@ test("a pull request spanning owned packages needs an owner of all of them", () 
     "pending",
   );
 });
+
+const changed = (path, overrides = {}) => ({
+  path,
+  status: "modified",
+  additions: 1,
+  deletions: 1,
+  previousPath: null,
+  patch: "@@ -1 +1 @@\n-old\n+new",
+  ...overrides,
+});
+const pushedAfter = (comparison, overrides = {}) =>
+  input({
+    tier: 1,
+    commits: [
+      { sha: "approved", author: "contributor", committer: "contributor" },
+      { sha: "head", author: "contributor", committer: "contributor" },
+    ],
+    reviews: [review("alice", { commitSha: "approved" })],
+    comparisons: { approved: comparison },
+    ...overrides,
+  });
+const ahead = (files) => ({ ahead: true, complete: true, files });
+
+test("an approval carries over a docs-only push", () => {
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("README.md"), changed("apps/docs/x.mdx")])),
+    policy,
+  );
+  assert.equal(result.status, "success");
+  assert.deepEqual(result.approvals, {
+    counted: ["alice"],
+    ignored: [],
+    carried: [{ login: "alice", sha: "approved" }],
+  });
+});
+
+test("an approval carries over a package source push outside owner areas", () => {
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("packages/react/src/index.ts")])),
+    policy,
+  );
+  assert.deepEqual(result.approvals.counted, ["alice"]);
+});
+
+for (const [name, path] of [
+  ["a CODEOWNERS path", "packages/tap/src/core/scheduler.ts"],
+  ["an api-surface file", "api-surface/assistant-ui__react.ts"],
+  ["the CI policy area", ".github/workflows/ci.yaml"],
+  ["a package manifest", "packages/react/package.json"],
+]) {
+  test(`a push touching ${name} leaves the approval stale`, () => {
+    const result = evaluateRequirements(
+      pushedAfter(ahead([changed("README.md"), changed(path)])),
+      policy,
+    );
+    assert.equal(result.status, "pending");
+    assert.deepEqual(result.approvals, {
+      counted: [],
+      ignored: [{ login: "alice", reason: "stale", paths: [path] }],
+      carried: [],
+    });
+  });
+}
+
+for (const [name, comparison, detail] of [
+  [
+    "a force-push",
+    { ahead: false, complete: true, files: [] },
+    "no longer in the branch history",
+  ],
+  ["a failed compare", null, "could not compare it with the head"],
+  [
+    "a truncated compare",
+    { ahead: true, complete: false, files: [changed("README.md")] },
+    "too many later changes to compare",
+  ],
+]) {
+  test(`${name} leaves the approval stale`, () => {
+    const result = evaluateRequirements(pushedAfter(comparison), policy);
+    assert.equal(result.status, "pending");
+    assert.deepEqual(result.approvals, {
+      counted: [],
+      ignored: [{ login: "alice", reason: "stale", detail }],
+      carried: [],
+    });
+  });
+}
+
+test("a carried-over approval still excludes anyone who wrote a later commit", () => {
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("README.md")]), {
+      commits: [
+        { sha: "approved", author: "contributor", committer: "contributor" },
+        { sha: "head", author: "alice", committer: "web-flow" },
+      ],
+    }),
+    policy,
+  );
+  assert.deepEqual(result.approvals, {
+    counted: [],
+    ignored: [{ login: "alice", reason: "contributor" }],
+    carried: [],
+  });
+});
+
+test("approvals of the same older commit share one comparison", () => {
+  let reads = 0;
+  const comparison = ahead([changed("README.md")]);
+  const comparisons = {};
+  Object.defineProperty(comparisons, "approved", {
+    enumerable: true,
+    get() {
+      reads++;
+      return comparison;
+    },
+  });
+  const result = evaluateRequirements(
+    pushedAfter(null, {
+      reviews: [
+        review("alice", { commitSha: "approved" }),
+        review("reviewer", { commitSha: "approved" }),
+      ],
+      comparisons,
+    }),
+    policy,
+  );
+  assert.deepEqual(result.approvals.counted, ["alice", "reviewer"]);
+  assert.equal(reads, 1);
+});
+
+test("a T2 owner approval carries over only while the owner area is untouched", () => {
+  const request = (files) =>
+    pushedAfter(ahead(files), {
+      tier: 2,
+      areas: ["reactivity"],
+      reviews: [review("owner-only", { commitSha: "approved" })],
+    });
+  assert.ok(
+    !codes(
+      evaluateRequirements(request([changed("README.md")]), policy),
+    ).includes("owner:reactivity"),
+  );
+  assert.ok(
+    codes(
+      evaluateRequirements(
+        request([changed("packages/store/src/index.ts")]),
+        policy,
+      ),
+    ).includes("owner:reactivity"),
+  );
+});
