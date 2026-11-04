@@ -81,7 +81,7 @@ path does not gain incremental parsing from a backend.
 
 ### Using Streamfold
 
-Install `streamfold@^0.1.17` in your application, then initialize its integration
+Install `streamfold@^0.1.18` in your application, then initialize its integration
 once at startup before creating streams:
 
 ```ts
