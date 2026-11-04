@@ -75,9 +75,9 @@ open's cancellation signal. The callback returns Pi SDK session options such as
 keeps the working directory, session storage, agent directory, model runtime,
 and model. The first `createPiNodeClient` call fixes these options for the
 process, so the runtime and the callback must live as long as the server.
-Sessions share the supervisor's runtime with or without this option, so a
-provider or model that a session's extension registers stays in the catalog for
-every workspace until the process exits.
+Every session shares a supplied runtime, so a provider that one session's
+extension registers or overrides applies to all of them; without the option,
+each session keeps its own runtime.
 
 ```ts
 import {

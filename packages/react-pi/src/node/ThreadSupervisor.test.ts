@@ -249,7 +249,7 @@ describe("PiThreadSupervisor", () => {
     }
   });
 
-  it("opens a cold thread with configured options and the shared model runtime", async () => {
+  it("opens a cold thread with configured options and its own model runtime", async () => {
     const session = {
       sessionId: "t1",
       sessionFile: SESSION.path,
@@ -259,27 +259,52 @@ describe("PiThreadSupervisor", () => {
       setThinkingLevel: vi.fn(),
     };
     sdk.createAgentSession.mockResolvedValue({ session });
-    const configureSession = vi.fn(() => ({
-      tools: [],
-      cwd: "/elsewhere",
-    }));
+    const configureSession = vi.fn(() => ({ tools: [] }));
     const supervisor = new PiThreadSupervisor({
       workspacePath: "/ws",
       configureSession,
     });
 
     await supervisor.setThinkingLevel("t1", "high");
-    await supervisor.getAvailableModels();
 
     expect(configureSession).toHaveBeenCalledWith({
       cwd: "/ws",
       signal: expect.any(AbortSignal),
     });
-    expect(sdk.modelRuntimeCreate).toHaveBeenCalledOnce();
-    const runtime = await sdk.modelRuntimeCreate.mock.results[0]!.value;
-    expect(sdk.createAgentSession).toHaveBeenCalledWith(
-      expect.objectContaining({ cwd: "/ws", tools: [], modelRuntime: runtime }),
+    const [options] = sdk.createAgentSession.mock.calls[0]!;
+    expect(options).toMatchObject({ cwd: "/ws", tools: [] });
+    expect(options).not.toHaveProperty("modelRuntime");
+  });
+
+  it("selects a model from the live session's own runtime", async () => {
+    const model = { provider: "extension", id: "proxy" };
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      modelRuntime: { getModel: vi.fn(() => model) },
+      setModel: vi.fn(async () => {}),
+      messages: [],
+      getSteeringMessages: vi.fn(() => []),
+      getFollowUpMessages: vi.fn(() => []),
+      getContextUsage: vi.fn(() => undefined),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await supervisor.setModel("t1", {
+      provider: "extension",
+      modelId: "proxy",
+    });
+
+    expect(session.modelRuntime.getModel).toHaveBeenCalledWith(
+      "extension",
+      "proxy",
     );
+    expect(session.setModel).toHaveBeenCalledWith(model);
+    expect(sdk.modelRuntimeCreate).not.toHaveBeenCalled();
   });
 
   it("keeps supervisor-owned fields out of configured session options", async () => {
@@ -304,37 +329,6 @@ describe("PiThreadSupervisor", () => {
     expect(options).toMatchObject({ tools: [] });
     expect(options).not.toHaveProperty("agentDir");
     expect(options).not.toHaveProperty("model");
-  });
-
-  it("skips configuring a session whose open is cancelled while the model runtime loads", async () => {
-    let resolveRuntime!: (runtime: ModelRuntimeStub) => void;
-    sdk.modelRuntimeCreate.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          resolveRuntime = resolve;
-        }),
-    );
-    const configureSession = vi.fn(() => ({ tools: [] }));
-    const supervisor = new PiThreadSupervisor({
-      workspacePath: "/ws",
-      configureSession,
-    });
-
-    const opening = supervisor.setThinkingLevel("t1", "high");
-    const openingResult = expect(opening).rejects.toThrow(
-      "Pi session open was cancelled",
-    );
-    await vi.waitFor(() => expect(resolveRuntime).toBeDefined());
-    await supervisor.dispose();
-    resolveRuntime({
-      refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
-      getAvailableSnapshot: vi.fn(() => []),
-      getModels: vi.fn(() => []),
-      getModel: vi.fn(() => undefined),
-    });
-
-    await openingResult;
-    expect(configureSession).not.toHaveBeenCalled();
   });
 
   it("rejects an open when configuring the session throws", async () => {

@@ -89,9 +89,9 @@ export interface PiThreadSupervisorOptions {
   /** Explicit model for new sessions. When omitted, Pi resolves from its own
    * settings, else the first available model. */
   model?: PiSessionModel;
-  /** Pi model and auth runtime shared by every session, the model catalog, and
-   * model selection. Defaults to one runtime backed by `agentDir`'s
-   * `auth.json` and `models.json`. */
+  /** Pi model and auth runtime shared by every session and the model catalog.
+   * Without it, each session gets its own runtime from `agentDir`, so a
+   * provider an extension registers stays inside that session. */
   modelRuntime?: ModelRuntime;
   /** Extra Pi SDK options for each session the supervisor opens or reopens,
    * such as `tools`, `customTools`, `resourceLoader`, or `settingsManager`. The
@@ -141,6 +141,7 @@ export class PiThreadSupervisor {
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
   private readonly model: PiSessionModel | undefined;
+  private readonly hostModelRuntime: ModelRuntime | undefined;
   private readonly configureSession:
     | PiThreadSupervisorOptions["configureSession"]
     | undefined;
@@ -161,6 +162,7 @@ export class PiThreadSupervisor {
       : undefined;
     this.model = options.model;
     this.configureSession = options.configureSession;
+    this.hostModelRuntime = options.modelRuntime;
     if (options.modelRuntime) {
       this.modelRuntimePromise = Promise.resolve(options.modelRuntime);
     }
@@ -277,8 +279,10 @@ export class PiThreadSupervisor {
     input: { provider: string; modelId: string },
   ): Promise<void> {
     const record = await this.ensureOpen(threadId);
-    const runtime = await this.getModelRuntime();
-    const model = runtime.getModel(input.provider, input.modelId);
+    const model = record.session.modelRuntime.getModel(
+      input.provider,
+      input.modelId,
+    );
     if (!model) {
       throw new Error(
         `${input.provider}/${input.modelId} is not in Pi's model registry`,
@@ -475,8 +479,6 @@ export class PiThreadSupervisor {
   ): Promise<ThreadRecord> {
     const generation = this.generation;
     this.throwIfOpenCancelled(signal, generation);
-    const modelRuntime = await this.getModelRuntime();
-    this.throwIfOpenCancelled(signal, generation);
     const {
       cwd: _cwd,
       sessionManager: _sessionManager,
@@ -493,7 +495,7 @@ export class PiThreadSupervisor {
       ...sessionOptions,
       cwd,
       sessionManager,
-      modelRuntime,
+      ...(this.hostModelRuntime ? { modelRuntime: this.hostModelRuntime } : {}),
       ...(this.agentDir ? { agentDir: this.agentDir } : {}),
       ...(this.model ? { model: this.model } : {}),
     });
