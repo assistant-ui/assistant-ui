@@ -5,7 +5,8 @@ import Link from "next/link";
 import type { DocsNode, DocsFolder } from "./tree";
 import { findActivePath } from "./tree";
 import { ChevronDown } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, domAnimation, LazyMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { cn } from "./utils";
 
 function SectionItem({
@@ -141,7 +142,7 @@ function SidebarSection({
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
-          <motion.div
+          <m.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -160,7 +161,7 @@ function SidebarSection({
                 />
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -238,21 +239,23 @@ export function DocsSidebarNavigation({
           "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pt-2 pb-4 lg:pt-4",
         )}
       >
-        {sections.map((section) => (
-          <SidebarSection
-            key={section.$id}
-            folder={section}
-            isOpen={openSectionId === section.$id}
-            onToggle={() => {
-              const id = section.$id ?? null;
-              setOpenSectionId(openSectionId !== id ? id : null);
-            }}
-            onNavigate={onNavigate}
-            pathname={pathname}
-            activePath={activePath}
-            isVisible={isVisible}
-          />
-        ))}
+        <LazyMotion features={domAnimation}>
+          {sections.map((section) => (
+            <SidebarSection
+              key={section.$id}
+              folder={section}
+              isOpen={openSectionId === section.$id}
+              onToggle={() => {
+                const id = section.$id ?? null;
+                setOpenSectionId(openSectionId !== id ? id : null);
+              }}
+              onNavigate={onNavigate}
+              pathname={pathname}
+              activePath={activePath}
+              isVisible={isVisible}
+            />
+          ))}
+        </LazyMotion>
       </nav>
       {footer && (
         <div className="border-border/50 flex shrink-0 items-center gap-1 border-t px-3 py-2">
