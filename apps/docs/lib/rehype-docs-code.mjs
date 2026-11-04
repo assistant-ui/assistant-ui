@@ -5,7 +5,6 @@ import { transformerMetaHighlight } from "@shikijs/transformers";
 export default function rehypeDocsCode() {
   return rehypeCode.call(this, {
     lazy: true,
-    langs: ["ts", "js", "html", "tsx", "mdx", "bash"],
     themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
     transformers: [
       ...(rehypeCodeDefaultOptions.transformers ?? []),
