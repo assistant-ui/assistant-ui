@@ -123,7 +123,7 @@ export default function RemoteComponentsPage() {
 
       <section className="mx-auto mt-24 max-w-2xl text-center md:mt-32">
         <h2 className={typeSection}>A page is the component</h2>
-        <p className={cn(typeDeck, "mt-3")}>
+        <p className={cn(typeDeck, "mx-auto mt-3 max-w-[56ch]")}>
           A remote component is an HTML document with one script in it. Any page
           works: a fragment, a page a model wrote, a built React app. You render
           it with RemoteComponent. It takes your layout, your theme and your
@@ -133,9 +133,12 @@ export default function RemoteComponentsPage() {
 
       <section className="mt-24 md:mt-32">
         <h2 className={cn(typeSection, "text-center")}>Write, serve, render</h2>
-        <ol className="mx-auto mt-10 grid max-w-6xl gap-8 lg:grid-cols-3 lg:gap-6">
+        <ol className="mx-auto mt-10 grid max-w-6xl gap-8 lg:grid-cols-[repeat(3,minmax(0,1fr))] lg:grid-rows-[auto_auto_auto_1fr] lg:gap-x-6 lg:gap-y-0">
           {STEPS.map((step, index) => (
-            <li key={step.title} className="flex min-w-0 flex-col">
+            <li
+              key={step.title}
+              className="flex min-w-0 flex-col lg:row-span-4 lg:grid lg:grid-rows-subgrid"
+            >
               <span className="text-muted-foreground text-sm tabular-nums">
                 {index + 1}
               </span>
@@ -143,7 +146,7 @@ export default function RemoteComponentsPage() {
               <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
                 {step.body}
               </p>
-              <div className="mt-4 flex flex-1 flex-col [&>figure]:flex-1">
+              <div className="mt-4 flex min-w-0 flex-1 flex-col [&>figure]:flex-1">
                 <Code
                   code={step.code}
                   lang={step.lang}
@@ -159,7 +162,7 @@ export default function RemoteComponentsPage() {
       <section className="mt-24 md:mt-32">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className={typeSection}>Isolation, set from outside</h2>
-          <p className={cn(typeDeck, "mt-3")}>
+          <p className={cn(typeDeck, "mx-auto mt-3 max-w-[56ch]")}>
             The remote is untrusted code. Sandbox, origin and network are set by
             your page and the server.
           </p>
