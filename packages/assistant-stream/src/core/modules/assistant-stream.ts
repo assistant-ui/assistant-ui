@@ -268,7 +268,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   merge(stream: AssistantStream) {
-    // The identity stage keeps a raw chunk enqueued after merge() ahead of the merged stream's buffered part, never between its part-start and deltas.
+    // The identity stage delays the merged stream's buffered chunks, so a raw
+    // chunk enqueued before they are delivered lands ahead of the merged part,
+    // never between its part-start and deltas.
     this._addTransformedStream(
       stream,
       new TransformStream<AssistantStreamChunk, AssistantStreamChunk>(),
