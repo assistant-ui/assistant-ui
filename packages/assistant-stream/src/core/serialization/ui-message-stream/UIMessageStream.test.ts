@@ -396,6 +396,7 @@ describe("UIMessageStreamDecoder", () => {
         filename: "ai.pdf",
       }),
     ]);
+    expect(messages.at(-1)!.parts[0]).not.toHaveProperty("url");
   });
 
   it("should decode file parts", async () => {
