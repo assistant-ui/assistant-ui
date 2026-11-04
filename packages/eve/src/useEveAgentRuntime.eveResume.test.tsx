@@ -2,111 +2,29 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MessageStreamEvent } from "eve/client";
-
-import { createEveSessionFixture } from "./testUtils";
+import {
+  createCompletedTurnEvents,
+  createEveSessionFixture,
+} from "./testUtils";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
-
-const TURN = "turn_resumed";
 
 const USER_AT = "2026-01-02T10:00:01.000Z";
 const ASSISTANT_AT = "2026-01-02T10:02:00.000Z";
-
-const resumedEvents = [
-  {
-    type: "turn.started",
-    data: { sequence: 1, turnId: TURN },
-    meta: { at: "2026-01-02T10:00:00.000Z", id: "evt_001" },
-  },
-  {
-    type: "message.received",
-    data: { message: "hi", sequence: 2, turnId: TURN },
-    meta: { at: USER_AT, id: "evt_101" },
-  },
-  {
-    type: "step.started",
-    data: { modelId: "test-model", sequence: 3, stepIndex: 0, turnId: TURN },
-    meta: { at: ASSISTANT_AT, id: "evt_102" },
-  },
-  {
-    type: "message.completed",
-    data: {
-      finishReason: "stop",
-      message: "hello",
-      sequence: 5,
-      stepIndex: 0,
-      turnId: TURN,
-    },
-    meta: { at: "2026-01-02T10:02:06.000Z", id: "evt_003" },
-  },
-  {
-    type: "turn.completed",
-    data: { sequence: 6, turnId: TURN },
-    meta: { at: "2026-01-02T10:02:07.000Z", id: "evt_004" },
-  },
-] as const satisfies readonly MessageStreamEvent[];
-
-const NEXT_TURN = "turn_next";
-
-const nextTurnEvents = [
-  {
-    type: "turn.started",
-    data: { sequence: 7, turnId: NEXT_TURN },
-    meta: { at: "2026-01-02T10:03:00.000Z", id: "evt_201" },
-  },
-  {
-    type: "message.received",
-    data: { message: "follow up", sequence: 8, turnId: NEXT_TURN },
-    meta: {
-      at: "2026-01-02T10:03:01.000Z",
-      id: "evt_202",
-      deliveryIds: ["delivery_1"],
-    },
-  },
-  {
-    type: "step.started",
-    data: {
-      modelId: "test-model",
-      sequence: 9,
-      stepIndex: 0,
-      turnId: NEXT_TURN,
-    },
-    meta: { at: "2026-01-02T10:03:02.000Z", id: "evt_203" },
-  },
-  {
-    type: "message.completed",
-    data: {
-      finishReason: "stop",
-      message: "noted",
-      sequence: 10,
-      stepIndex: 0,
-      turnId: NEXT_TURN,
-    },
-    meta: { at: "2026-01-02T10:03:03.000Z", id: "evt_204" },
-  },
-  {
-    type: "turn.completed",
-    data: { sequence: 11, turnId: NEXT_TURN },
-    meta: { at: "2026-01-02T10:03:04.000Z", id: "evt_205" },
-  },
-  {
-    type: "session.waiting",
-    data: { continuationToken: "session_resumed", wait: "next-user-message" },
-    meta: { at: "2026-01-02T10:03:05.000Z", id: "evt_206" },
-  },
-] as const satisfies readonly MessageStreamEvent[];
-
-const parkedEvents = [
-  ...resumedEvents,
-  {
-    type: "session.waiting",
-    data: { continuationToken: "session_resumed", wait: "next-user-message" },
-    meta: { at: "2026-01-02T10:02:08.000Z", id: "evt_005" },
-  },
-] as const satisfies readonly MessageStreamEvent[];
-
-const copyEvents = (events: readonly MessageStreamEvent[]) =>
-  JSON.parse(JSON.stringify(events)) as readonly MessageStreamEvent[];
+const resumedEvents = createCompletedTurnEvents({
+  turnId: "turn_resumed",
+  text: "hi",
+  reply: "hello",
+  userAt: USER_AT,
+  assistantAt: ASSISTANT_AT,
+});
+const nextTurnEvents = createCompletedTurnEvents({
+  turnId: "turn_next",
+  text: "follow up",
+  reply: "next answer",
+  startLine: resumedEvents.length,
+  follows: "turn_resumed",
+  deliveryId: "delivery_1",
+});
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -128,8 +46,8 @@ describe("useEveAgentRuntime against a resumed eve session", () => {
 
   it("reports the replay as loading and holds a send typed during it until the replay ends", async () => {
     const { fetch, push, session } = createEveSessionFixture({
-      tailIndex: parkedEvents.length - 1,
-      onSend: () => setTimeout(() => push(copyEvents(nextTurnEvents)), 0),
+      tailIndex: resumedEvents.length - 1,
+      onSend: () => setTimeout(() => push(nextTurnEvents), 0),
     });
 
     const { result } = renderHook(() =>
@@ -146,7 +64,7 @@ describe("useEveAgentRuntime against a resumed eve session", () => {
     expect(fetch).toHaveBeenCalledOnce();
 
     await act(async () => {
-      push(copyEvents(parkedEvents));
+      push(resumedEvents);
     });
 
     await waitFor(() =>

@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.55
+
+### Patch Changes
+
+- [#10107](https://github.com/assistant-ui/assistant-ui/pull/10107) [`86040b7`](https://github.com/assistant-ui/assistant-ui/commit/86040b77b3a6c0929ac9ac6505d3012e8a9435e1) - fix: discard stale model content when a later tool response omits it so the model receives the latest result ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10106](https://github.com/assistant-ui/assistant-ui/pull/10106) [`b8baa3d`](https://github.com/assistant-ui/assistant-ui/commit/b8baa3d7cefca13fbe30f57562c45ee541ac8852) - fix: keep pending tool results attached to their original calls when tool call IDs are reused ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.54
 
 ### Patch Changes

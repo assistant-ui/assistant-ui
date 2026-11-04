@@ -1,5 +1,17 @@
 # assistant-cloud
 
+## 0.2.9
+
+### Patch Changes
+
+- [#10134](https://github.com/assistant-ui/assistant-ui/pull/10134) [`9ae7c5c`](https://github.com/assistant-ui/assistant-ui/commit/9ae7c5c6e78e1ad63eeedb6621945eee0f2651c9) - fix: keep pending message deletions on the cloud client where they started ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10023](https://github.com/assistant-ui/assistant-ui/pull/10023) [`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e) - delete stored cloud messages, and remove a prompt a stop moved back into the composer from any history adapter that implements `delete` ([@okisdev](https://github.com/okisdev))
+
+- [#10052](https://github.com/assistant-ui/assistant-ui/pull/10052) [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5) - link cloud run reports to the user message that started the turn ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`86040b7`](https://github.com/assistant-ui/assistant-ui/commit/86040b77b3a6c0929ac9ac6505d3012e8a9435e1), [`b8baa3d`](https://github.com/assistant-ui/assistant-ui/commit/b8baa3d7cefca13fbe30f57562c45ee541ac8852)]:
+  - assistant-stream@0.3.55
+
 ## 0.2.8
 
 ### Patch Changes

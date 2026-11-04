@@ -5,6 +5,7 @@ import {
   AttachmentPrimitive,
   AuiIf,
   ComposerPrimitive,
+  ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
@@ -246,6 +247,11 @@ const ChatMessage: FC = () => {
           <div className="wrap-break-word text-[#1f1f1f] dark:text-[#e3e3e3]">
             <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
           </div>
+          <MessagePrimitive.Error>
+            <ErrorPrimitive.Root className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+              <ErrorPrimitive.Message className="line-clamp-3" />
+            </ErrorPrimitive.Root>
+          </MessagePrimitive.Error>
           <ActionBarPrimitive.Root className="mt-1.5 -ml-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.FeedbackPositive className={actionBtnClass}>
               <ThumbsUp width={16} height={16} />

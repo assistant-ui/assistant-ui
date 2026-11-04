@@ -1,5 +1,30 @@
 # @assistant-ui/core
 
+## 0.3.32
+
+### Patch Changes
+
+- [#10101](https://github.com/assistant-ui/assistant-ui/pull/10101) [`e0b8d19`](https://github.com/assistant-ui/assistant-ui/commit/e0b8d1905ead37a913a2161e98cdf6e9a8a91d24) - fix: reopen rejected edits for retry without replacing newer drafts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10104](https://github.com/assistant-ui/assistant-ui/pull/10104) [`a94e703`](https://github.com/assistant-ui/assistant-ui/commit/a94e703111de0bed074f8bb71b7ba41f753fc6b4) - fix: cancel dictation when a message edit is cancelled so its microphone stops and late speech cannot update the discarded composer ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10023](https://github.com/assistant-ui/assistant-ui/pull/10023) [`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e) - delete stored cloud messages, and remove a prompt a stop moved back into the composer from any history adapter that implements `delete` ([@okisdev](https://github.com/okisdev))
+
+- [#10105](https://github.com/assistant-ui/assistant-ui/pull/10105) [`3a969f2`](https://github.com/assistant-ui/assistant-ui/commit/3a969f2c7e75b3ff73213fe54d1b09b8079fe939) - fix: keep steering actions queued while a cancellable message queue is held ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10111](https://github.com/assistant-ui/assistant-ui/pull/10111) [`212f4ea`](https://github.com/assistant-ui/assistant-ui/commit/212f4ea5757d5870ffb3edc6598643b9ff915d56) - Preserve uploaded image filenames in SimpleImageAttachmentAdapter content so AG-UI snapshots retain attachment names. ([@clean99](https://github.com/clean99))
+
+- [#10095](https://github.com/assistant-ui/assistant-ui/pull/10095) [`46b927d`](https://github.com/assistant-ui/assistant-ui/commit/46b927d795f45361e0c29f93a29a530e20825881) - fix: let replacement history adapters copy messages while a previous adapter's write is pending, and keep late completions from releasing the current adapter's write lock. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10052](https://github.com/assistant-ui/assistant-ui/pull/10052) [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5) - link cloud run reports to the user message that started the turn ([@okisdev](https://github.com/okisdev))
+
+- [#10116](https://github.com/assistant-ui/assistant-ui/pull/10116) [`4079e2a`](https://github.com/assistant-ui/assistant-ui/commit/4079e2a12677fa4dd241bc2a23963b5a817b824e) - fix: select an existing message as head without pruning the retained thread ([@diefergil](https://github.com/diefergil))
+
+- [#10126](https://github.com/assistant-ui/assistant-ui/pull/10126) [`2a09296`](https://github.com/assistant-ui/assistant-ui/commit/2a092963635f01a92127616face31e036e268537) - fix: on the client thread list path, `reloadMainThread()` waits until the main item reports the remote ID the thread list announced for it, and a thread list item runtime's `updateCustom()` resolves once the item reports the new custom metadata, so a remount right after `initialize()` (from any entry point) or `updateCustom()` comes up on them. `initialize()` still resolves as soon as the adapter answers. ([@Mohamed3nan](https://github.com/Mohamed3nan))
+- Updated dependencies [[`9ae7c5c`](https://github.com/assistant-ui/assistant-ui/commit/9ae7c5c6e78e1ad63eeedb6621945eee0f2651c9), [`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86040b7`](https://github.com/assistant-ui/assistant-ui/commit/86040b77b3a6c0929ac9ac6505d3012e8a9435e1), [`b8baa3d`](https://github.com/assistant-ui/assistant-ui/commit/b8baa3d7cefca13fbe30f57562c45ee541ac8852), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5)]:
+  - assistant-cloud@0.2.9
+  - assistant-stream@0.3.55
+
 ## 0.3.31
 
 ### Patch Changes

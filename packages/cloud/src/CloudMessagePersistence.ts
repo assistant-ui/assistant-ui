@@ -5,13 +5,23 @@ import { CloudAPIError } from "./AssistantCloudAPI";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
+type FailedAppend = {
+  threadId: string;
+  parentId: string | null;
+  format: string;
+  content: ReadonlyJSONObject;
+};
+
 /**
  * Appends, updates and loads cloud messages while mapping local ids to cloud
  * ids and chaining parent_id. A parent that is still being created is awaited,
- * so concurrent appends land under the right parent.
+ * so concurrent appends land under the right parent. A parent whose create
+ * failed is created again before its child, and a child whose parent still
+ * cannot be created is stored as a root.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
+  private failedAppends = new Map<string, FailedAppend>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -43,13 +53,16 @@ export class CloudMessagePersistence {
       return;
     }
 
+    this.failedAppends.delete(messageId);
     const task = (async () => {
-      const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
       const resolvedParentId = parentId
-        ? ((await parentEntry) ?? parentId)
+        ? await this.resolveParentId(parentId)
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
+        ...(messageId.length > 0 && messageId.length <= 255
+          ? { external_id: messageId }
+          : undefined),
         format,
         content,
       });
@@ -65,8 +78,33 @@ export class CloudMessagePersistence {
     } catch (err) {
       if (this.idMapping.get(messageId) === task) {
         this.idMapping.delete(messageId);
+        this.failedAppends.set(messageId, {
+          threadId,
+          parentId,
+          format,
+          content,
+        });
       }
       throw err;
+    }
+  }
+
+  private async resolveParentId(parentId: string): Promise<string | null> {
+    await Promise.resolve(this.idMapping.get(parentId)).catch(() => undefined);
+    const failedParent = this.failedAppends.get(parentId);
+    try {
+      if (failedParent && !this.idMapping.has(parentId)) {
+        await this.append(
+          failedParent.threadId,
+          parentId,
+          failedParent.parentId,
+          failedParent.format,
+          failedParent.content,
+        );
+      }
+      return (await this.idMapping.get(parentId)) ?? parentId;
+    } catch {
+      return null;
     }
   }
 
@@ -110,6 +148,7 @@ export class CloudMessagePersistence {
         continue;
       }
     }
+    for (const localId of messageIds) this.failedAppends.delete(localId);
     if (resolved.length === 0) return;
 
     try {
@@ -222,5 +261,6 @@ export class CloudMessagePersistence {
    */
   reset() {
     this.idMapping = new Map();
+    this.failedAppends = new Map();
   }
 }

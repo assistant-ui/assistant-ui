@@ -1,0 +1,622 @@
+import { fileURLToPath } from "node:url";
+import { withDocs } from "@farming-labs/next/config";
+import docsConfig from "./docs.config.ts";
+import {
+  generateContentManifest,
+  watchContentManifest,
+} from "./scripts/content/manifest.mts";
+import { withAui } from "@assistant-ui/next";
+import type { NextConfig } from "next";
+import {
+  AGENT_DISCOVERY_REWRITES,
+  API_CATALOG_LINK_HEADER,
+} from "./lib/agent-discovery-routes.ts";
+import { isWebMcpEnabled } from "./lib/feature-flags.ts";
+import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer.ts";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs.ts";
+import {
+  DOCS_SITE_REDIRECTS,
+  docsSiteMarkdownAcceptRewrites,
+  docsSiteMarkdownFileRewrites,
+} from "./lib/docs-sites.ts";
+import {
+  docsMarkdownAcceptRewrites,
+  docsMarkdownFileRewrites,
+} from "./lib/markdown-rewrites.ts";
+
+const isDev = process.env.NODE_ENV === "development";
+
+const apiCatalogDiscoveryPaths = ["/(.*)"];
+
+// The repo source tree is read at runtime through paths the file tracer cannot
+// follow, so every route that reaches it has to name it.
+const REPO_SOURCE_TRACE = ["./generated/.repo-source/**/*"];
+
+const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+const faviconVariant =
+  deployEnv === "preview" || deployEnv === "development"
+    ? deployEnv
+    : undefined;
+
+// Browsers prefer the app-router icon <link> tags (icon.svg, icon0.svg,
+// icon1.png) over /favicon.ico, so every icon route must be rewritten for the
+// environment favicon to actually show in the tab.
+const faviconRewrites = faviconVariant
+  ? [
+      {
+        source: "/favicon.ico",
+        destination: `/favicon.${faviconVariant}.ico`,
+      },
+      {
+        source: "/icon.svg",
+        destination: `/favicon.${faviconVariant}.svg`,
+      },
+      {
+        source: "/icon0.svg",
+        destination: `/favicon.${faviconVariant}.svg`,
+      },
+      {
+        source: "/icon1.png",
+        destination: `/favicon.${faviconVariant}.png`,
+      },
+    ]
+  : [];
+
+// The SDK packages resolve to their sources through tsconfig paths, so no
+// package build stamps their version; a deployment reports its commit instead.
+const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
+  ? `0.0.0+${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}`
+  : undefined;
+
+// Chrome applies form-action to the redirects that follow a submit, and the
+// sign-out form lands on the accounts end-session endpoint.
+const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
+
+// The playground AI Builder renders same-origin preview routes inside an iframe.
+// Keep frame ancestors self-only so external sites still cannot embed docs pages;
+// only the conversation renderer also admits the Assistant Cloud dashboard.
+// Cloudflare Web Analytics injects its beacon at the edge, so script-src names
+// static.cloudflareinsights.com although nothing in the repo loads it.
+const csp = (frameAncestors: string) =>
+  `
+    default-src 'self';
+    connect-src *;
+    frame-src * blob:;
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    img-src * blob: data:;
+    font-src 'self' https://fonts.gstatic.com data:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self' ${authOrigin};
+    frame-ancestors ${frameAncestors};
+    upgrade-insecure-requests;
+`.replace(/\n/g, "");
+
+const config: NextConfig = {
+  cacheComponents: true,
+  // A prerender cannot read the clock, so the copyright year is fixed at build time.
+  env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
+  // This app keeps a hand-written AGENTS.md, and the root one already points
+  // agents at the bundled Next.js docs, so `next dev` must not append its block.
+  agentRules: false,
+  compiler: {
+    define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
+  },
+  transpilePackages: ["@assistant-ui/ui", "shiki"],
+  serverExternalPackages: ["just-bash"],
+  skipTrailingSlashRedirect: true,
+  outputFileTracingIncludes: {
+    "/[site]/docs/[[...slug]]": ["./components/diagrammatic/examples/**/*.tsx"],
+    "/elements/[slug]": [
+      "./components/demo/elements/*.tsx",
+      "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",
+    ],
+    "/api/doc/chat": REPO_SOURCE_TRACE,
+    "/api/xulux/chat": REPO_SOURCE_TRACE,
+    "/api/xulux/demo-download": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/chat": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/download": REPO_SOURCE_TRACE,
+    "/api/xulux/learn/source": REPO_SOURCE_TRACE,
+  },
+  headers: async () => [
+    {
+      source: "/(.*)",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: csp("'self'"),
+        },
+      ],
+    },
+    {
+      source: RENDERER_PATH,
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: csp(["'self'", ...RENDERER_ALLOWED_ORIGINS].join(" ")),
+        },
+      ],
+    },
+    ...(isWebMcpEnabled
+      ? [
+          {
+            source: "/:path((?!api(?:/|$)|_next(?:/|$)).*)",
+            has: [
+              {
+                type: "header" as const,
+                key: "accept",
+                value: ".*text/html.*",
+              },
+            ],
+            headers: [
+              {
+                key: "Origin-Agent-Cluster",
+                value: "?1",
+              },
+            ],
+          },
+        ]
+      : []),
+    ...apiCatalogDiscoveryPaths.map((source) => ({
+      source,
+      headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],
+    })),
+  ],
+  redirects: async () => [
+    ...LEGACY_TAP_DOCS_REDIRECTS,
+    ...DOCS_SITE_REDIRECTS,
+    {
+      source: "/hack",
+      destination: "/hackathon",
+      permanent: false,
+    },
+    {
+      source: "/tap",
+      destination: "/docs/tap",
+      permanent: true,
+    },
+    {
+      source: "/shop/cart.md",
+      destination: "/install.md",
+      permanent: true,
+    },
+    {
+      source: "/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/ai-sdk-assistant-ui",
+      destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/observability/helicone",
+      destination: "/docs/integrations",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/telemetry",
+      destination: "/docs/cloud/run-reports",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/overview",
+      destination: "/docs/cloud/dashboard/overview",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/alerts",
+      destination: "/docs/cloud/settings/alerts",
+      permanent: true,
+    },
+    {
+      source: "/elements/reasoning-panel",
+      destination: "/elements/reasoning",
+      permanent: true,
+    },
+    {
+      source: "/elements/suggestions",
+      destination: "/elements/follow-up-suggestions",
+      permanent: true,
+    },
+    {
+      source: "/elements/message-attachment",
+      destination: "/elements/attachment",
+      permanent: true,
+    },
+    {
+      source: "/elements/quote-reply",
+      destination: "/elements/quote",
+      permanent: true,
+    },
+    {
+      source: "/elements/timing-footer",
+      destination: "/elements/message-timing",
+      permanent: true,
+    },
+    {
+      source: "/elements/parallel-tools",
+      destination: "/elements/tool-group",
+      permanent: true,
+    },
+    {
+      source: "/elements/source-cards",
+      destination: "/elements/sources",
+      permanent: true,
+    },
+    {
+      source: "/elements/model-picker",
+      destination: "/elements/model-selector",
+      permanent: true,
+    },
+    {
+      source: "/standalone",
+      destination: "/design/components",
+      permanent: true,
+    },
+    {
+      source: "/standalone/:slug",
+      destination: "/design/components/:slug",
+      permanent: true,
+    },
+    {
+      source: "/elements/aui-voice",
+      destination: "/elements/orb",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/scrollbar",
+      destination: "/docs/guides/scrollbar",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/streamdown",
+      destination: "/docs/guides/streamdown",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/part-grouping",
+      destination: "/docs/guides/part-grouping",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui",
+      destination: "/elements",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/thread",
+      destination: "/elements/thread",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/context-display",
+      destination: "/elements/context-display",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/voice",
+      destination: "/elements/orb",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/quote",
+      destination: "/elements/quote",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/model-selector",
+      destination: "/elements/model-selector",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/composer-trigger-popover",
+      destination: "/elements/composer-trigger-popover",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/follow-up-suggestions",
+      destination: "/elements/follow-up-suggestions",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/markdown",
+      destination: "/elements/markdown-text",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/mermaid",
+      destination: "/elements/mermaid-diagram",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/syntax-highlighting",
+      destination: "/elements/syntax-highlighter",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/attachment",
+      destination: "/elements/attachment",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/tool-fallback",
+      destination: "/elements/tool-fallback",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/tool-group",
+      destination: "/elements/tool-group",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/sources",
+      destination: "/elements/sources",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/reasoning",
+      destination: "/elements/reasoning",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/image",
+      destination: "/elements/image",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/file",
+      destination: "/elements/file",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/directive-text",
+      destination: "/elements/directive-text",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/assistant-modal",
+      destination: "/elements/assistant-modal",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/assistant-sidebar",
+      destination: "/elements/assistant-sidebar",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/message-timing",
+      destination: "/elements/message-timing",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/thread-list",
+      destination: "/elements/thread-list",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/mcp-config",
+      destination: "/elements/mcp-config",
+      permanent: true,
+    },
+    {
+      source: "/docs/runtimes/ai-sdk/v6",
+      destination: "/docs/runtimes/ai-sdk/v6-legacy",
+      permanent: true,
+    },
+    {
+      source: "/docs/tools/interactables-legacy",
+      destination: "/docs/tools/interactables#migrating-from-the-previous-api",
+      permanent: true,
+    },
+    {
+      source: "/gallery",
+      destination: "/elements",
+      permanent: true,
+    },
+    {
+      source: "/gallery/components",
+      destination: "/elements/vocabulary",
+      permanent: true,
+    },
+    {
+      source: "/gallery/:slug",
+      destination: "/elements/generative-:slug",
+      permanent: true,
+    },
+    {
+      source:
+        "/docs/ui/:slug(accordion|badge|diff-viewer|dot-matrix|number-roll|select|tabs)",
+      destination: "/design/components/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/standalone",
+      destination: "/design/components",
+      permanent: true,
+    },
+    {
+      source: "/docs/standalone/:slug",
+      destination: "/design/components/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/react-ai-sdk",
+      destination: "/docs/api-reference/integrations/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/frameworks/cloudflare-agents/overview",
+      destination: "/docs/integrations/frameworks/cloudflare-agents",
+      permanent: true,
+    },
+  ],
+  rewrites: async () => ({
+    beforeFiles: [
+      ...faviconRewrites,
+      ...AGENT_DISCOVERY_REWRITES,
+      {
+        source: "/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/.well-known/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs/.well-known/mcp",
+        destination: "/api/mcp",
+      },
+      ...docsMarkdownFileRewrites(),
+      ...docsSiteMarkdownFileRewrites(),
+      {
+        source: "/examples.md",
+        destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/examples.mdx",
+        destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/examples/:path*.md",
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/examples/:path*.mdx",
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/design/:path+.md",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.md",
+        destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.mdx",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.mdx",
+        destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/elements/:path+.md",
+        destination: "/llms.mdx/elements/:path*",
+      },
+      {
+        source: "/elements/:path+.mdx",
+        destination: "/llms.mdx/elements/:path*",
+      },
+      {
+        source: "/",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.txt",
+      },
+      {
+        source: "/pricing",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/pricing.md",
+      },
+      {
+        source: "/pricing.mdx",
+        destination: "/pricing.md",
+      },
+      ...docsMarkdownAcceptRewrites(),
+      ...docsSiteMarkdownAcceptRewrites(),
+      {
+        source: "/examples/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/design/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          { type: "query", key: "view", value: "radix-ui" },
+        ],
+        destination: "/radix-llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/elements/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/elements/:path*",
+      },
+      {
+        source: "/umami/:path*",
+        destination: "https://assistant-ui-umami.vercel.app/:path*",
+      },
+      {
+        source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
+      },
+      {
+        source: "/blog/:path.mdx",
+        destination: "/blog/llms.md/:path",
+      },
+      {
+        source: "/ph/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/ph/:path*",
+        destination: "https://us.i.posthog.com/:path*",
+      },
+    ],
+    fallback: [
+      {
+        source: "/registry/:path*",
+        destination: "https://ui.shadcn.com/registry/:path*",
+      },
+    ],
+  }),
+};
+
+export default generateContentManifest(process.cwd()).then(() => {
+  if (process.env.NODE_ENV === "development")
+    watchContentManifest(process.cwd());
+  const compiled = withDocs(withAui(config), docsConfig, {
+    mdx: {
+      remarkPlugins: [
+        fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
+      ],
+      codeHighlighter: fileURLToPath(
+        new URL("./lib/rehype-docs-code.mjs", import.meta.url),
+      ),
+    },
+  });
+  return {
+    ...compiled,
+    rewrites: config.rewrites,
+    redirects: config.redirects,
+  };
+});

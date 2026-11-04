@@ -8,7 +8,9 @@
     "dev:server": "tsx watch server/server.ts",
     "dev:app": "next dev app --port 3010",
     "build": "next build app",
-    "start:server": "tsx server/server.ts"
+    "start:server": "tsx server/server.ts",
+    "test": "node --test build-cache.test.mjs",
+    "test:coverage": "pnpm run test"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.102",

@@ -133,7 +133,7 @@ export const saveCloudCredentials = async (
   }
 };
 
-const openBrowser = (url: string): void => {
+export const openBrowser = (url: string): void => {
   const command =
     process.platform === "darwin"
       ? "open"

@@ -264,7 +264,7 @@ describe("useAdkRuntime split new turns", () => {
       ).toBe(true),
     );
     expect(reply(h.runtime, "c2")).toMatchObject({
-      result: '{"result":"second"}',
+      result: { result: "second" },
     });
     expect(h.requests).toHaveLength(3);
     await act(async () => {
@@ -295,7 +295,7 @@ describe("useAdkRuntime split new turns", () => {
         ),
     ).toBe(false);
     expect(reply(h.runtime, "c2")).toMatchObject({
-      result: '{"result":"second"}',
+      result: { result: "second" },
     });
     act(() => h.runtime.thread.composer.send());
     await waitFor(() => expect(h.requests).toHaveLength(5));
@@ -364,7 +364,7 @@ describe("useAdkRuntime split new turns", () => {
         ),
     ).toBe(false);
     expect(reply(h.runtime, "c2")).toMatchObject({
-      result: '{"result":"second"}',
+      result: { result: "second" },
     });
     act(() => h.runtime.thread.composer.send());
     await waitFor(() => expect(h.requests).toHaveLength(4));

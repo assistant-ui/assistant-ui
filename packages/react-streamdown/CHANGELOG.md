@@ -1,5 +1,15 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.21
+
+### Patch Changes
+
+- [#10069](https://github.com/assistant-ui/assistant-ui/pull/10069) [`9821ecb`](https://github.com/assistant-ui/assistant-ui/commit/9821ecbb31fb279ab9f89eb1c1e684935c2f5adc) - Document defaultOrigin in restricted security examples ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10075](https://github.com/assistant-ui/assistant-ui/pull/10075) [`86d482d`](https://github.com/assistant-ui/assistant-ui/commit/86d482d5927b566798db7bb16d5f17b82c5916ef) - docs: set `defaultOrigin` in the security examples, which rehype-harden requires once a prefix list is specific. ([@okisdev](https://github.com/okisdev))
+
+- [#10128](https://github.com/assistant-ui/assistant-ui/pull/10128) [`8e4a469`](https://github.com/assistant-ui/assistant-ui/commit/8e4a46935e30207121b192885fcdaef31c437b41) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.20
 
 ### Patch Changes

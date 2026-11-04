@@ -12,6 +12,7 @@ describe("AssistantFrame Integration", () => {
   let parentDescriptor: PropertyDescriptor;
   let deliveries: Promise<void>[];
   let hosts: AssistantFrameHost[];
+  let parentOrigin: string;
 
   const flushMessages = async () => {
     while (deliveries.length > 0) {
@@ -28,26 +29,28 @@ describe("AssistantFrame Integration", () => {
   beforeEach(() => {
     deliveries = [];
     hosts = [];
+    parentOrigin = window.location.origin;
     parentDescriptor = Object.getOwnPropertyDescriptor(window, "parent")!;
 
-    const deliver = (data: unknown, source: Window) => {
+    const deliver = (data: unknown, source: Window, origin: string) => {
       deliveries.push(
         Promise.resolve().then(() => {
           window.dispatchEvent(
             new MessageEvent("message", {
               data,
               source,
-              origin: window.location.origin,
+              origin,
             }),
           );
         }),
       );
     };
     const parentWindow = {
-      postMessage: (data: unknown) => deliver(data, iframeWindow),
+      postMessage: (data: unknown) =>
+        deliver(data, iframeWindow, window.location.origin),
     } as Window;
     iframeWindow = {
-      postMessage: (data: unknown) => deliver(data, parentWindow),
+      postMessage: (data: unknown) => deliver(data, parentWindow, parentOrigin),
     } as Window;
 
     Object.defineProperty(window, "parent", {
@@ -64,6 +67,7 @@ describe("AssistantFrame Integration", () => {
     } finally {
       Object.defineProperty(window, "parent", parentDescriptor);
       vi.restoreAllMocks();
+      vi.useRealTimers();
     }
   });
 
@@ -83,6 +87,59 @@ describe("AssistantFrame Integration", () => {
     await flushMessages();
     expect(lateHost.getModelContext().system).toBe("Provider is ready.");
   });
+
+  it.each([false, true])(
+    "recovers a cross-origin provider after a missed load request (expired: %s)",
+    async (expired) => {
+      vi.useFakeTimers();
+      parentOrigin = "https://parent.example";
+      const registry = new ModelContextRegistry();
+      const completion = Promise.withResolvers<string>();
+      const toolExecute = vi.fn(() => completion.promise);
+      registry.addTool({
+        toolName: "search",
+        parameters: z.object({}),
+        execute: toolExecute,
+      });
+      const unregister = AssistantFrameProvider.addModelContextProvider(
+        registry,
+        parentOrigin,
+      );
+      const host = createHost();
+      await flushMessages();
+      expect(host.getModelContext().tools?.search).toBeDefined();
+
+      host.frameLoaded();
+      unregister();
+      await flushMessages();
+      if (expired) vi.advanceTimersByTime(2000);
+
+      AssistantFrameProvider.addModelContextProvider(registry, parentOrigin);
+      await flushMessages();
+      const search = host.getModelContext().tools?.search;
+      expect(search).toBeDefined();
+      const result = Promise.resolve(
+        search!.execute!({}, {
+          abortSignal: new AbortController().signal,
+        } as any),
+      );
+      const settled = vi.fn();
+      void result.then(settled, settled);
+      await flushMessages();
+      expect(toolExecute).toHaveBeenCalledOnce();
+
+      vi.advanceTimersByTime(2000);
+      await flushMessages();
+      expect(settled).not.toHaveBeenCalled();
+      registry.addInstruction("Still connected.");
+      await flushMessages();
+      expect(host.getModelContext().system).toBe("Still connected.");
+      expect(host.getModelContext().tools?.search).toBeDefined();
+
+      completion.resolve("search result");
+      await expect(result).resolves.toBe("search result");
+    },
+  );
 
   it("should sync tools from provider to host", async () => {
     const registry = new ModelContextRegistry();

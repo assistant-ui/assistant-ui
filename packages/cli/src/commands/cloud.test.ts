@@ -11,6 +11,7 @@ const {
   cloudAccessToken,
   savedCloudAccessToken,
   runCloudCommand,
+  sendCloudCommand,
   loginToCloud,
   provisionCloudHarness,
   scaffold,
@@ -23,6 +24,7 @@ const {
   cloudAccessToken: vi.fn(),
   savedCloudAccessToken: vi.fn(),
   runCloudCommand: vi.fn(),
+  sendCloudCommand: vi.fn(),
   loginToCloud: vi.fn(),
   provisionCloudHarness: vi.fn(),
   scaffold: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock("../lib/cloud-auth", async (importOriginal) => ({
 vi.mock("../lib/cloud-remote", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/cloud-remote")>()),
   runCloudCommand,
+  sendCloudCommand,
 }));
 vi.mock("../lib/cloud-provision", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/cloud-provision")>()),
@@ -102,6 +105,106 @@ const options = {
 };
 
 describe("cloud setup", () => {
+  it("creates a new organization and project through Cloud commands", async () => {
+    const directory = await fixture();
+    fetchOrganizations.mockResolvedValue([]);
+    fetchProjects.mockResolvedValue([]);
+    sendCloudCommand.mockReset();
+    sendCloudCommand
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: JSON.stringify({
+          id: "org-new",
+          slug: "new-team",
+          name: "New",
+        }),
+      })
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: JSON.stringify({
+          id: "project-new",
+          slug: "chat-app",
+          name: "Chat",
+        }),
+      });
+    provisionCloudHarness.mockResolvedValueOnce({
+      project_id: "project-new",
+      workspace_id: "shared-workspace",
+      harness_id: "harness-1",
+      harness_origin: "https://harness.example.com",
+      api_origin: "https://project.example.com",
+      api_key: "cloud-server-key",
+    });
+    await setupCloud(directory, {
+      ...options,
+      newOrg: "new-team",
+      newProject: "chat-app",
+      name: "Chat",
+    });
+    expect(sendCloudCommand.mock.calls).toEqual([
+      [
+        options.apiUrl,
+        ["orgs", "create", "new-team", "--name", "Chat", "--json"],
+        "oauth-access",
+      ],
+      [
+        options.apiUrl,
+        [
+          "projects",
+          "create",
+          "chat-app",
+          "--name",
+          "Chat",
+          "--org",
+          "org-new",
+          "--json",
+        ],
+        "oauth-access",
+      ],
+    ]);
+    expect(createProject).not.toHaveBeenCalled();
+    expect(provisionCloudHarness).toHaveBeenLastCalledWith(
+      options.apiUrl,
+      "oauth-access",
+      expect.objectContaining({ org_id: "org-new", project_id: "project-new" }),
+    );
+  });
+
+  it("refuses a creation answer without an id, slug and name", async () => {
+    const directory = await fixture();
+    fetchProjects.mockResolvedValue([]);
+    sendCloudCommand.mockReset();
+    const before = provisionCloudHarness.mock.calls.length;
+    for (const stdout of [
+      JSON.stringify({ project: { id: "p" } }),
+      JSON.stringify({ id: "", slug: "chat-app", name: "Chat" }),
+      "not json",
+    ]) {
+      sendCloudCommand.mockResolvedValueOnce({ exitCode: 0, stdout });
+      await expect(
+        setupCloud(directory, { ...options, newProject: "chat-app" }),
+      ).rejects.toThrow(/Unexpected response from `projects create/);
+    }
+    expect(provisionCloudHarness.mock.calls.length).toBe(before);
+  });
+
+  it("stops with the Cloud command's error when creation is refused", async () => {
+    const directory = await fixture();
+    fetchProjects.mockResolvedValue([]);
+    sendCloudCommand.mockReset();
+    sendCloudCommand.mockResolvedValueOnce({
+      exitCode: 1,
+      stderr: "You don't have permission to create projects in team.\n",
+    });
+    const before = provisionCloudHarness.mock.calls.length;
+    await expect(
+      setupCloud(directory, { ...options, newProject: "chat-app" }),
+    ).rejects.toThrow(
+      "Could not create project: You don't have permission to create projects in team.",
+    );
+    expect(provisionCloudHarness.mock.calls.length).toBe(before);
+  });
+
   it("selects an existing project and scaffolds a shared harness with server-only credentials", async () => {
     const directory = await fixture();
     await setupCloud(directory, { ...options, org: "team", project: "chat" });
@@ -292,5 +395,58 @@ describe("cloud remote forwarding", () => {
     await cloud.parseAsync(["whoami"], { from: "user" });
     expect(savedCloudAccessToken).toHaveBeenCalled();
     expect(cloudAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("answers help for a local command here, with its flags", async () => {
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    try {
+      await expect(forwarded(["help", "setup"])).resolves.toEqual([]);
+      const text = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      expect(text).toMatch(/--new-project <slug>/);
+      expect(text).toMatch(/--backend-url <url>/);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it("sends the directory defaults and the action handlers along", async () => {
+    runCloudCommand.mockImplementationOnce(async (_args, options) => {
+      expect(typeof options.defaults).toBe("function");
+      expect(typeof options.openUrl).toBe("function");
+      return 0;
+    });
+    await cloud.parseAsync(["projects", "show"], { from: "user" });
+    expect(runCloudCommand).toHaveBeenCalled();
+  });
+});
+
+describe("cloud --no-open", () => {
+  const sent = async (argv: string[]) => {
+    runCloudCommand.mockClear();
+    runCloudCommand.mockResolvedValue(0);
+    await cloud.parseAsync(argv, { from: "user" });
+    const [args, options] = runCloudCommand.mock.calls[0]!;
+    return { args, noOpen: options.noOpen };
+  };
+
+  it("is the client's flag before --, and the remote command's after it", async () => {
+    await expect(
+      sent(["projects", "list", "--no-open", "--json"]),
+    ).resolves.toEqual({
+      args: ["projects", "list", "--json"],
+      noOpen: true,
+    });
+    await expect(
+      sent(["projects", "show", "--", "--no-open"]),
+    ).resolves.toEqual({
+      args: ["projects", "show", "--no-open"],
+      noOpen: false,
+    });
+    await expect(sent(["projects", "list"])).resolves.toEqual({
+      args: ["projects", "list"],
+      noOpen: false,
+    });
   });
 });

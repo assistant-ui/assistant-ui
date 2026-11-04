@@ -992,7 +992,7 @@ describe("useAdkRuntime refetch", () => {
           expect.objectContaining({
             type: "tool-call",
             toolCallId: "x",
-            result: '{"value":"X"}',
+            result: { value: "X" },
           }),
         );
         expect(capture.longRunningToolIds).toEqual(["x", "y"]);
@@ -1182,7 +1182,7 @@ describe("useAdkRuntime refetch", () => {
         expect.objectContaining({
           type: "tool-call",
           toolCallId: "x",
-          result: '{"value":"X"}',
+          result: { value: "X" },
         }),
       );
       expect(messages[3]?.content).toContainEqual(
@@ -2409,7 +2409,7 @@ describe("useAdkRuntime refetch", () => {
         expect.objectContaining({
           type: "tool-call",
           toolCallId: "x",
-          result: '{"value":"X"}',
+          result: { value: "X" },
         }),
       );
       expect(stagedIndex).toBeGreaterThan(callIndex);

@@ -16,6 +16,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        ".env*",
         "!**/*.test.{ts,tsx}",
         "!**/*.spec.{ts,tsx}",
         "!**/__tests__/**",
@@ -80,6 +81,9 @@
         "$TURBO_ROOT$/scripts/lib/script-options.mjs"
       ],
       "outputs": ["dist/**"]
+    },
+    "//#docs-source-inputs": {
+      "inputs": ["$TURBO_DEFAULT$"]
     }
   }
 }

@@ -9,11 +9,15 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), load: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  load: vi.fn(),
+  pathname: "/docs/installation",
+}));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal()),
   useRouter: () => ({ push: mocks.push }),
-  usePathname: () => "/docs/installation",
+  usePathname: () => mocks.pathname,
 }));
 vi.mock("@/lib/search/load-index", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -26,10 +30,15 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
       querySubmitted: vi.fn(),
       noResults: vi.fn(),
       resultClicked: vi.fn(),
+      askAITriggered: vi.fn(),
     },
   },
 }));
 import { analytics } from "@/lib/analytics";
+import {
+  AssistantPanelProvider,
+  useAssistantPanel,
+} from "@/components/pages/docs/assistant/context";
 import { SearchDialog } from "./search-dialog";
 
 const pages = [
@@ -53,6 +62,7 @@ const pages = [
   },
 ];
 beforeEach(() => {
+  mocks.pathname = "/docs/installation";
   mocks.load.mockResolvedValue(pages);
   vi.stubGlobal(
     "ResizeObserver",
@@ -311,4 +321,97 @@ it("adds semantic destinations after local results without moving the selection"
   ]);
   fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
   expect(mocks.push).toHaveBeenCalledWith("/docs/cloud");
+});
+
+function AssistantPanelProbe() {
+  const { open, pendingMessage } = useAssistantPanel();
+  return <output>{open ? `panel: ${pendingMessage}` : "panel closed"}</output>;
+}
+
+const searchWithAssistant = async (query: string, close = vi.fn()) => {
+  render(
+    <AssistantPanelProvider>
+      <AssistantPanelProbe />
+      <SearchDialog open onOpenChange={close} />
+    </AssistantPanelProvider>,
+  );
+  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  fireEvent.change(
+    screen.getByRole("combobox", { name: "Search documentation" }),
+    { target: { value: query } },
+  );
+  return close;
+};
+
+it("hands a query with no results to Ask AI", async () => {
+  const close = await searchWithAssistant("useThreadRuntime");
+  const action = await screen.findByRole("option", {
+    name: "Ask AI about “useThreadRuntime”",
+  });
+  expect(screen.getByText("No results for “useThreadRuntime”")).toBeTruthy();
+  expect(screen.getByText("panel closed")).toBeTruthy();
+
+  fireEvent.click(action);
+
+  expect(close).toHaveBeenCalledWith(false);
+  expect(screen.getByText("panel: useThreadRuntime")).toBeTruthy();
+  expect(analytics.search.askAITriggered).toHaveBeenCalledWith(
+    "useThreadRuntime",
+  );
+});
+
+it("selects the Ask AI action so Enter opens the panel with the query", async () => {
+  await searchWithAssistant("useThreadRuntime");
+  const action = await screen.findByRole("option", { name: /Ask AI about/ });
+  await waitFor(() =>
+    expect(action.getAttribute("aria-selected")).toBe("true"),
+  );
+
+  fireEvent.keyDown(
+    screen.getByRole("combobox", { name: "Search documentation" }),
+    { key: "Enter" },
+  );
+
+  expect(screen.getByText("panel: useThreadRuntime")).toBeTruthy();
+});
+
+it("offers Ask AI only when a query has no results", async () => {
+  await searchWithAssistant("conversation");
+  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  expect(screen.queryByRole("option", { name: /Ask AI about/ })).toBeNull();
+});
+
+it.each(["/components/setup", "/variants-demo"])(
+  "does not offer Ask AI on %s, where the assistant is not mounted",
+  async (pathname) => {
+    mocks.pathname = pathname;
+    await searchWithAssistant("useThreadRuntime");
+    await screen.findByText("No results for “useThreadRuntime”");
+    expect(screen.queryByRole("option", { name: /Ask AI about/ })).toBeNull();
+  },
+);
+
+const typeWithoutIndex = (query: string) => {
+  render(
+    <AssistantPanelProvider>
+      <SearchDialog open onOpenChange={() => {}} />
+    </AssistantPanelProvider>,
+  );
+  fireEvent.change(
+    screen.getByRole("combobox", { name: "Search documentation" }),
+    { target: { value: query } },
+  );
+};
+
+it("does not offer Ask AI while the index is loading", () => {
+  mocks.load.mockReturnValue(new Promise(() => {}));
+  typeWithoutIndex("useThreadRuntime");
+  expect(screen.queryByRole("option", { name: /Ask AI about/ })).toBeNull();
+});
+
+it("does not offer Ask AI after the index fails to load", async () => {
+  mocks.load.mockRejectedValue(new Error("offline"));
+  typeWithoutIndex("useThreadRuntime");
+  await screen.findByRole("button", { name: "Retry" });
+  expect(screen.queryByRole("option", { name: /Ask AI about/ })).toBeNull();
 });

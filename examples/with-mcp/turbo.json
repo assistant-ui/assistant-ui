@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [
+        "$TURBO_EXTENDS$",
+        "app/.next/**",
+        "!app/.next/cache/**",
+        "!app/.next/dev/**"
+      ]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs"
+      ]
+    },
+    "test:coverage": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs"
+      ]
+    }
+  }
+}

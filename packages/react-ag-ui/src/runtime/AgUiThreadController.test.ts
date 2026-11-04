@@ -539,6 +539,46 @@ describe("AgUiThreadController activity deltas", () => {
   });
 });
 
+describe("AgUiThreadController run state", () => {
+  type Subscriber = {
+    onStateSnapshotEvent?: (payload: {
+      event: { type: "STATE_SNAPSHOT"; snapshot: { count: number } };
+    }) => void;
+  };
+
+  it("sends an empty state when no snapshot exists and preserves null", async () => {
+    const runAgent = vi.fn(
+      async (_input: { state: unknown }, subscriber: Subscriber) => {
+        if (runAgent.mock.calls.length === 1) {
+          subscriber.onStateSnapshotEvent?.({
+            event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+          });
+        }
+      },
+    );
+    const agent = {
+      runAgent,
+      abortRun: vi.fn(),
+    } as unknown as AbstractAgent;
+    const { core } = createCore(undefined, agent);
+
+    await core.append({ ...userMessage("initial"), startRun: true });
+    expect(runAgent.mock.calls[0]?.[0].state).toEqual({});
+    expect(agent.state).toEqual({});
+
+    core.resetState();
+    expect(core.getState()).toBeUndefined();
+    await core.append({ ...userMessage("after reset"), startRun: true });
+    expect(runAgent.mock.calls[1]?.[0].state).toEqual({});
+    expect(agent.state).toEqual({});
+
+    core.setState(null);
+    await core.append({ ...userMessage("explicit null"), startRun: true });
+    expect(runAgent.mock.calls[2]?.[0].state).toBeNull();
+    expect(agent.state).toBeNull();
+  });
+});
+
 describe("AgUiThreadController setState", () => {
   it("keeps a cancel the updater makes while a send waits for history", async () => {
     const { history, finish } = deferredHistory();

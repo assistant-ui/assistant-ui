@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  MODEL_PROVIDER_LIMIT_MESSAGE,
+  MODEL_PROVIDER_UNAVAILABLE_MESSAGE,
   PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE,
   PUBLIC_ASSISTANT_LIMITS,
   PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE,
@@ -25,6 +27,15 @@ describe("unwrapErrorEnvelope", () => {
 });
 
 describe("describePublicAssistantError", () => {
+  it("shows the model provider notices as they are streamed", () => {
+    expect(describePublicAssistantError(MODEL_PROVIDER_LIMIT_MESSAGE)).toBe(
+      MODEL_PROVIDER_LIMIT_MESSAGE,
+    );
+    expect(
+      describePublicAssistantError(MODEL_PROVIDER_UNAVAILABLE_MESSAGE),
+    ).toBe(MODEL_PROVIDER_UNAVAILABLE_MESSAGE);
+  });
+
   it("recognises every limit message the public routes emit", () => {
     for (const subject of PUBLIC_ASSISTANT_LIMITS) {
       expect(

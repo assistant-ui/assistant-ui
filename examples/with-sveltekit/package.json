@@ -12,7 +12,9 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --test build-cache.test.mjs",
+    "test:coverage": "pnpm run test"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.102",

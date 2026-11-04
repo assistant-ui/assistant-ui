@@ -51,6 +51,7 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/vscode": "workspace:*",
     "@base-ui/react": "^1.9.0",
     "ai": "^7.0.153",

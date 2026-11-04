@@ -102,7 +102,7 @@ export function FinishProposal({
   });
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] p-4">
+      <div className="bg-muted rounded-document flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
         <p className="min-w-0 text-sm">
           {preview
             ? "Your dev server is running."
@@ -117,7 +117,7 @@ export function FinishProposal({
           >
             <span
               aria-hidden
-              className="size-2 shrink-0 rounded-full bg-emerald-500"
+              className="bg-foreground size-2 shrink-0 rounded-full"
             />
             <span className="min-w-0 flex-1 truncate font-mono">
               {preview.host}

@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { projectOpenCodeThreadMessages } from "./openCodeMessageProjection";
-import { createOpenCodeThreadState } from "./openCodeThreadState";
+import {
+  createOpenCodeThreadState,
+  reduceOpenCodeThreadState,
+} from "./openCodeThreadState";
 import type { OpenCodeThreadState } from "./types";
 
 describe("projectOpenCodeThreadMessages", () => {
@@ -180,6 +183,322 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
+  it("passes tool state metadata to renderers as the artifact", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "bash",
+              state: {
+                status: "running",
+                input: { command: "echo started; sleep 3; echo finished" },
+                metadata: { output: "started\n" },
+                time: { start: 1 },
+              },
+            },
+            {
+              id: "tool-2",
+              callID: "call-2",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "edit",
+              state: {
+                status: "completed",
+                input: { filePath: "a.txt" },
+                output: "Edit applied successfully.",
+                title: "a.txt",
+                metadata: { diff: "-hello\n+hi\n", diagnostics: {} },
+                time: { start: 2, end: 3 },
+              },
+            },
+            {
+              id: "tool-3",
+              callID: "call-3",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: { status: "pending", input: {}, raw: "" },
+            },
+            {
+              id: "tool-4",
+              callID: "call-4",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "bash",
+              state: {
+                status: "error",
+                input: { command: "echo partial; sleep 10" },
+                error: "Tool execution aborted",
+                metadata: { output: "partial\n", interrupted: true },
+                time: { start: 4, end: 5 },
+              },
+            },
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.content).toMatchObject([
+      { toolCallId: "call-1", artifact: { output: "started\n" } },
+      {
+        toolCallId: "call-2",
+        result: "Edit applied successfully.",
+        artifact: { diff: "-hello\n+hi\n", diagnostics: {} },
+      },
+      { toolCallId: "call-3" },
+      {
+        toolCallId: "call-4",
+        isError: true,
+        result: "Tool execution aborted",
+        artifact: { output: "partial\n", interrupted: true },
+      },
+    ]);
+    expect(messages[0]?.content[0]).not.toHaveProperty("result");
+    expect(messages[0]?.content[2]).not.toHaveProperty("artifact");
+  });
+
+  it("preserves completed tool attachments across streamed text updates", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            agent: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+          },
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "completed",
+                input: { filePath: "plot.png" },
+                output: "Image read successfully",
+                title: "plot.png",
+                metadata: {},
+                time: { start: 1, end: 2 },
+                attachments: [
+                  {
+                    id: "file-1",
+                    sessionID: "ses_1",
+                    messageID: "assistant-1",
+                    type: "file",
+                    mime: "image/png",
+                    url: "data:image/png;base64,aW1hZ2U=",
+                    filename: "plot.png",
+                  },
+                ],
+              },
+            },
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Image read successfully",
+        modelContent: [
+          { type: "text", text: "Image read successfully" },
+          {
+            type: "file",
+            data: "aW1hZ2U=",
+            mediaType: "image/png",
+            filename: "plot.png",
+          },
+        ],
+      },
+    ]);
+
+    const withText = reduceOpenCodeThreadState(state, {
+      type: "part.updated",
+      messageId: "assistant-1",
+      part: {
+        id: "text-1",
+        sessionID: "ses_1",
+        messageID: "assistant-1",
+        type: "text",
+        text: "The image",
+      },
+    });
+    const withDelta = reduceOpenCodeThreadState(withText, {
+      type: "part.delta",
+      messageId: "assistant-1",
+      partId: "text-1",
+      field: "text",
+      delta: " shows a plot.",
+    });
+    const updatedMessages = projectOpenCodeThreadMessages(withDelta);
+    const tool = messages[0]?.content[0];
+    const updatedTool = updatedMessages[0]?.content[0];
+
+    expect(withDelta.messagesById["assistant-1"]?.parts[0]).toBe(
+      state.messagesById["assistant-1"]?.parts[0],
+    );
+    expect(updatedMessages[0]?.content[1]).toEqual({
+      type: "text",
+      id: "text-1",
+      text: "The image shows a plot.",
+    });
+    if (
+      typeof tool !== "object" ||
+      tool.type !== "tool-call" ||
+      typeof updatedTool !== "object" ||
+      updatedTool.type !== "tool-call"
+    ) {
+      throw new Error("Expected tool-call parts");
+    }
+    expect(updatedTool.modelContent).toBe(tool.modelContent);
+  });
+
+  it("falls back to the attachment MIME and omits non-base64 data URLs", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            agent: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          },
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "completed",
+                input: { filePath: "plot.svg" },
+                output: "Image read successfully",
+                title: "plot.svg",
+                metadata: {},
+                time: { start: 1, end: 2 },
+                attachments: [
+                  {
+                    id: "file-1",
+                    sessionID: "ses_1",
+                    messageID: "assistant-1",
+                    type: "file",
+                    mime: "image/svg+xml",
+                    url: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E",
+                    filename: "plot.svg",
+                  },
+                  {
+                    id: "file-2",
+                    sessionID: "ses_1",
+                    messageID: "assistant-1",
+                    type: "file",
+                    mime: "image/png",
+                    url: "data:;base64,aW1hZ2U=",
+                    filename: "plot.png",
+                  },
+                ],
+              },
+            },
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Image read successfully",
+        modelContent: [
+          { type: "text", text: "Image read successfully" },
+          {
+            type: "file",
+            data: "aW1hZ2U=",
+            mediaType: "image/png",
+            filename: "plot.png",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("projects Task child sessions into nested tool-call messages", () => {
     const grandchildState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_grandchild"),
@@ -355,10 +674,14 @@ describe("projectOpenCodeThreadMessages", () => {
       throw new Error("Expected a task tool call");
     }
     expect(tool.messages?.[0]?.content).toEqual([
-      { type: "text", text: "Inspect the package" },
+      { type: "text", id: "child-user-text", text: "Inspect the package" },
     ]);
     expect(tool.messages?.[1]?.content).toEqual([
-      { type: "text", text: "The package is healthy." },
+      {
+        type: "text",
+        id: "child-assistant-text",
+        text: "The package is healthy.",
+      },
       expect.objectContaining({
         type: "tool-call",
         toolName: "task",
@@ -369,6 +692,7 @@ describe("projectOpenCodeThreadMessages", () => {
             content: [
               {
                 type: "text",
+                id: "grandchild-text",
                 text: "The nested dependency is healthy.",
               },
             ],
@@ -1190,7 +1514,9 @@ describe("user message projection", () => {
 
     const [message] = projectOpenCodeThreadMessages(state);
 
-    expect(message?.content).toEqual([{ type: "text", text: "look at this" }]);
+    expect(message?.content).toEqual([
+      { type: "text", id: "part-text", text: "look at this" },
+    ]);
     expect(message?.attachments).toEqual([
       {
         id: "part-file",
@@ -1201,6 +1527,7 @@ describe("user message projection", () => {
         content: [
           {
             type: "image",
+            id: "part-file",
             image: "data:image/png;base64,AA==",
             filename: "photo.png",
           },
@@ -1235,6 +1562,7 @@ describe("user message projection", () => {
         content: [
           {
             type: "file",
+            id: "part-file",
             filename: "report.pdf",
             data: "https://example.com/report.pdf",
             mimeType: "application/pdf",

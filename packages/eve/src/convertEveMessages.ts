@@ -25,16 +25,18 @@ import {
   toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
-  EveAuthorizationOutcome,
-  EveAuthorizationPart,
-  EveDynamicToolPart,
   EveMessage,
-  EveMessageData,
-  EveMessageInputRequest,
   EveMessagePart,
+  EveToolPart,
+  Interaction,
 } from "eve/react";
-import type { InputResponse } from "eve/client";
-import type { MessageStreamEvent } from "eve/client";
+import type { ConversationState, SessionStreamEvent } from "eve/client";
+import {
+  APPROVE_OPTION_ID,
+  DENY_OPTION_ID,
+  type Answer,
+  type InteractionOutcome,
+} from "eve/events";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -57,8 +59,8 @@ const USER_FALLBACK_STATUS = {
 
 export type ConvertEveMessagesOptions = {
   /**
-   * Marks the last assistant message as running while Eve is submitting or
-   * streaming. When omitted, a message carrying Eve's `"streaming"` marker is
+   * Marks the last assistant message as running while Eve has a turn in
+   * flight. When omitted, a message carrying Eve's `"streaming"` marker is
    * treated as running; pass `false` to settle interrupted messages to a
    * terminal status.
    */
@@ -69,11 +71,11 @@ export type ConvertEveMessagesOptions = {
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
   /**
-   * The session's stream events. A `turn.failed` or `turn.cancelled` event
-   * marks its turn's assistant message as incomplete, with a failure's code
-   * and message as its error.
+   * The session's stream events. A failed or cancelled turn marks its
+   * assistant message as incomplete, with a failure's code and message as its
+   * error.
    */
-  readonly events?: readonly MessageStreamEvent[] | undefined;
+  readonly events?: readonly SessionStreamEvent[] | undefined;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -109,25 +111,33 @@ const toMessageStatus = (
   if (interrupted) return interrupted;
 
   const isLast = index === messages.length - 1;
-  const hasPendingApproval = message.parts.some(
-    (part) =>
-      part.type === "dynamic-tool" && part.state === "approval-requested",
+  const interactions = message.parts.flatMap((part) =>
+    part.type === "interaction"
+      ? [part]
+      : part.type === "tool" && part.interaction
+        ? [part.interaction]
+        : [],
+  );
+  const hasPendingApproval = interactions.some(
+    (interaction) =>
+      interaction.status === "open" && interaction.request.kind !== "sign-in",
   );
   // Scoped to the stale-marker case so a terminalized or errored turn keeps its
   // own status; the hold only claims the fall-through that reads as cancelled.
   const hasPendingAuthorization =
     message.metadata?.status === "streaming" &&
     (!isLast || options.error === undefined) &&
-    message.parts.some(
-      (part) => part.type === "authorization" && part.state === "required",
+    interactions.some(
+      (interaction) =>
+        interaction.status === "open" && interaction.request.kind === "sign-in",
     );
 
   if (hasPendingApproval) {
     return { type: "requires-action", reason: "tool-calls" };
   }
 
-  // A connector authorization is answered outside the thread, so the turn is
-  // held on external input rather than on a tool call awaiting a result.
+  // A sign-in is answered outside the thread, so the turn is held on external
+  // input rather than on a tool call awaiting a result.
   if (hasPendingAuthorization) {
     return { type: "requires-action", reason: "interrupt" };
   }
@@ -139,8 +149,6 @@ const toMessageStatus = (
   if (isLast && options.isRunning === true) {
     return ASSISTANT_RUNNING_STATUS;
   }
-
-  // Some eve versions leave the streaming marker after cancellation or failure.
   if (message.metadata?.status === "streaming") {
     if (options.isRunning === undefined) {
       return ASSISTANT_RUNNING_STATUS;
@@ -159,7 +167,7 @@ const toMessageStatus = (
 };
 
 const toolApprovalOptionsFromInputRequest = (
-  inputRequest: EveMessageInputRequest | undefined,
+  inputRequest: Interaction["request"] | undefined,
 ): readonly ToolApprovalOption[] | undefined => {
   const options = inputRequest?.options;
   if (!options || options.length === 0) return undefined;
@@ -167,9 +175,9 @@ const toolApprovalOptionsFromInputRequest = (
   return options.map((option) => ({
     id: option.id,
     kind:
-      option.id === "approve"
+      option.id === APPROVE_OPTION_ID
         ? "allow-once"
-        : option.id === "cancel"
+        : option.id === DENY_OPTION_ID
           ? "reject-once"
           : `_${option.id}`,
     ...(option.label && { label: option.label }),
@@ -178,16 +186,16 @@ const toolApprovalOptionsFromInputRequest = (
 };
 
 /**
- * Eve resolves a request the moment any response for it arrives, so the answer
- * shapes it accepts decide both what the renderer may offer and what
+ * Eve resolves an interaction the moment any answer for it arrives, so the
+ * answer shapes it accepts decide both what the renderer may offer and what
  * {@link toEveInputResponse} may submit. A request with no options and no
  * `display` takes a typed answer, which is why the absence of both is not the
  * same as a confirmation.
  */
-const isDroppedOptionApproval = (inputRequest: EveMessageInputRequest) =>
-  inputRequest.kind === "tool-approval" && !inputRequest.options?.length;
+const isDroppedOptionApproval = (inputRequest: Interaction["request"]) =>
+  inputRequest.kind === "approval" && !inputRequest.options?.length;
 
-const acceptsFreeformAnswer = (inputRequest: EveMessageInputRequest): boolean =>
+const acceptsFreeformAnswer = (inputRequest: Interaction["request"]): boolean =>
   inputRequest.display !== "confirmation" &&
   !isDroppedOptionApproval(inputRequest) &&
   (inputRequest.display === "text" ||
@@ -195,7 +203,7 @@ const acceptsFreeformAnswer = (inputRequest: EveMessageInputRequest): boolean =>
     !inputRequest.options?.length);
 
 const toolApprovalDisplay = (
-  inputRequest: EveMessageInputRequest,
+  inputRequest: Interaction["request"],
 ): ToolApprovalDisplay => {
   // The mapper answers this shape through its approve/cancel branch whatever
   // the request declares, so the projection has to agree: presenting it as a
@@ -210,126 +218,126 @@ const toolApprovalDisplay = (
     case "text":
       return "text";
     default:
-      if (inputRequest.kind === "tool-approval") return "decision";
+      if (inputRequest.kind === "approval") return "decision";
       return inputRequest.options?.length ? "select" : "text";
   }
 };
 
 const toApproval = (
-  part: EveDynamicToolPart,
-): ToolCallMessagePart["approval"] | undefined => {
-  if (
-    part.state !== "approval-requested" &&
-    part.state !== "approval-responded" &&
-    part.state !== "output-available" &&
-    part.state !== "output-error" &&
-    part.state !== "output-denied"
-  ) {
-    return undefined;
-  }
-
-  const approval = part.approval;
-  if (!approval) return undefined;
-  const inputRequest = part.toolMetadata?.eve?.inputRequest;
-  const options = toolApprovalOptionsFromInputRequest(inputRequest);
+  interaction: Interaction,
+): NonNullable<ToolCallMessagePart["approval"]> => {
+  const request = interaction.request;
+  const options = toolApprovalOptionsFromInputRequest(request);
+  const settled = interaction.status === "settled";
+  const approved =
+    interaction.outcome === "accepted"
+      ? true
+      : interaction.outcome === "declined"
+        ? false
+        : undefined;
 
   return {
-    id: approval.id,
-    ...(inputRequest && {
-      prompt: inputRequest.prompt,
-      display: toolApprovalDisplay(inputRequest),
-      ...(acceptsFreeformAnswer(inputRequest) && { allowFreeform: true }),
-    }),
-    ...(approval.approved !== undefined && { approved: approval.approved }),
-    ...(approval.reason && { reason: approval.reason }),
-    ...(approval.isAutomatic !== undefined && {
-      isAutomatic: approval.isAutomatic,
-    }),
+    id: interaction.interactionId,
+    prompt: request.prompt,
+    display: toolApprovalDisplay(request),
+    ...(acceptsFreeformAnswer(request) && { allowFreeform: true }),
+    ...(settled && approved !== undefined && { approved }),
+    ...(settled &&
+      approved === undefined && {
+        resolution:
+          interaction.outcome === "expired"
+            ? ("expired" as const)
+            : ("cancelled" as const),
+      }),
+    ...(interaction.reason && { reason: interaction.reason }),
+    ...(settled &&
+      interaction.answer?.optionId !== undefined && {
+        optionId: interaction.answer.optionId,
+      }),
+    ...(settled &&
+      interaction.answer?.text !== undefined && {
+        text: interaction.answer.text,
+      }),
     ...(options && { options }),
   };
 };
 
-const toJsonSafeInputRequest = (
-  inputRequest: EveMessageInputRequest,
-): PartProviderMetadata[string] => ({
-  requestId: inputRequest.requestId,
-  prompt: inputRequest.prompt,
-  kind: inputRequest.kind,
-  ...(inputRequest.display !== undefined && { display: inputRequest.display }),
-  ...(inputRequest.allowFreeform !== undefined && {
-    allowFreeform: inputRequest.allowFreeform,
-  }),
-  ...(inputRequest.options && {
-    options: inputRequest.options.map((option) => ({
-      id: option.id,
-      label: option.label,
-      ...(option.description !== undefined && {
-        description: option.description,
-      }),
-      ...(option.style !== undefined && { style: option.style }),
-    })),
-  }),
-});
-
 const toToolProviderMetadata = (
-  part: EveDynamicToolPart,
-): PartProviderMetadata | undefined => {
-  const inputRequest = part.toolMetadata?.eve?.inputRequest;
-  if (!inputRequest) return undefined;
-  return { eve: { inputRequest: toJsonSafeInputRequest(inputRequest) } };
+  interaction: Interaction,
+): PartProviderMetadata => {
+  const request = interaction.request;
+  return {
+    eve: {
+      interaction: {
+        interactionId: interaction.interactionId,
+        prompt: request.prompt,
+        kind: request.kind,
+        ...(request.display !== undefined && { display: request.display }),
+        ...(request.allowFreeform !== undefined && {
+          allowFreeform: request.allowFreeform,
+        }),
+        ...(request.options && {
+          options: request.options.map((option) => ({ ...option })),
+        }),
+      },
+    },
+  };
 };
 
-const convertDynamicToolPart = (
-  part: EveDynamicToolPart,
-): ToolCallMessagePart => {
-  const approval = toApproval(part);
-  const providerMetadata = toToolProviderMetadata(part);
-  const toolCall: ToolCallMessagePart = {
+const convertToolPart = (
+  part: EveToolPart,
+): Omit<ToolCallMessagePart, "args"> &
+  Partial<Pick<ToolCallMessagePart, "args">> => {
+  const toolCall: ReturnType<typeof convertToolPart> = {
     type: "tool-call",
-    toolCallId: part.toolCallId,
-    toolName: part.toolName,
-    args: toJsonObject(part.input),
-    argsText: part.state === "input-streaming" ? "" : stringifyArgs(part.input),
-    ...(approval && { approval }),
-    ...(providerMetadata && { providerMetadata }),
+    toolCallId: part.callId,
+    toolName: part.name,
+    ...(part.state !== "streaming" && { args: toJsonObject(part.input) }),
+    argsText:
+      part.state === "streaming" ? part.inputText : stringifyArgs(part.input),
+    ...(part.interaction && {
+      approval: toApproval(part.interaction),
+      providerMetadata: toToolProviderMetadata(part.interaction),
+    }),
   };
 
   switch (part.state) {
-    case "output-available":
+    case "completed":
       return { ...toolCall, result: part.output };
-
-    case "output-error":
+    case "failed":
+    case "rejected":
+    case "cancelled":
       return {
         ...toolCall,
-        result: { error: part.errorText },
+        result: {
+          error:
+            part.error?.message ??
+            part.interaction?.reason ??
+            (part.state === "rejected"
+              ? "Tool approval denied"
+              : part.state === "cancelled"
+                ? "Tool call cancelled"
+                : "Tool call failed"),
+        },
         isError: true,
       };
-
-    case "output-denied":
-      return {
-        ...toolCall,
-        result: { error: part.approval?.reason ?? "Tool approval denied" },
-        isError: true,
-      };
-
     default:
-      return toolCall;
+      return part.output === undefined
+        ? toolCall
+        : { ...toolCall, result: part.output, isPreliminary: true };
   }
 };
 
 /**
- * Payload of the `authorization` data part the Eve runtime emits for a
- * connector authorization challenge. `state` discriminates a pending challenge
- * from a settled one; every other field is present only when Eve projected it.
- * This converter drops a `url` whose scheme is not `http(s)`, so a renderer can
- * link to it without checking the scheme itself; Eve itself passes through
- * whatever the connector supplied. Eve's
- * `turnId` and `stepIndex` part identity is omitted: a renderer receives the
- * one part it renders, in Eve's own step order, so display never has to
- * re-identify a challenge among several.
+ * Payload of the `authorization` data part the Eve runtime emits for a sign-in
+ * interaction. `state` discriminates a pending sign-in from a settled one;
+ * every other field is present only when Eve projected it. This converter
+ * drops a `url` whose scheme is not `http(s)`, so a renderer can link to it
+ * without checking the scheme itself; Eve itself passes through whatever the
+ * connector supplied.
  */
 export type EveAuthorizationData = {
-  readonly state: EveAuthorizationPart["state"];
+  readonly state: "required" | "completed";
   readonly name: string;
   readonly displayName?: string;
   readonly description?: string;
@@ -337,37 +345,85 @@ export type EveAuthorizationData = {
   readonly userCode?: string;
   readonly instructions?: string;
   readonly expiresAt?: string;
-  readonly outcome?: EveAuthorizationOutcome;
+  readonly outcome?:
+    | "authorized"
+    | "declined"
+    | "failed"
+    | "timed-out"
+    | "cancelled";
   readonly reason?: string;
 };
 
+const toAuthorizationOutcome = (
+  outcome: InteractionOutcome,
+): NonNullable<EveAuthorizationData["outcome"]> => {
+  switch (outcome) {
+    case "accepted":
+      return "authorized";
+    case "declined":
+    case "invalid":
+      return "declined";
+    case "expired":
+      return "timed-out";
+    case "failed":
+      return "failed";
+    default:
+      return "cancelled";
+  }
+};
+
 const convertAuthorizationPart = (
-  part: EveAuthorizationPart,
-): DataMessagePart<EveAuthorizationData> => ({
-  type: "data",
-  name: "authorization",
-  data: {
-    state: part.state,
-    name: part.name,
-    ...(part.displayName !== undefined && { displayName: part.displayName }),
-    ...(part.description !== undefined && { description: part.description }),
-    ...(part.authorization?.url !== undefined &&
-      httpUrlPattern.test(part.authorization.url) && {
-        url: part.authorization.url,
+  interaction: Interaction,
+): DataMessagePart<EveAuthorizationData> => {
+  const signIn = interaction.request.signIn;
+  return {
+    type: "data",
+    name: "authorization",
+    data: {
+      state: interaction.status === "open" ? "required" : "completed",
+      name: signIn?.name ?? interaction.request.title ?? "sign-in",
+      ...(signIn?.displayName !== undefined && {
+        displayName: signIn.displayName,
       }),
-    ...(part.authorization?.userCode !== undefined && {
-      userCode: part.authorization.userCode,
+      description: interaction.request.prompt,
+      ...(signIn?.url !== undefined &&
+        httpUrlPattern.test(signIn.url) && { url: signIn.url }),
+      ...(signIn?.userCode !== undefined && { userCode: signIn.userCode }),
+      ...(signIn?.instructions !== undefined && {
+        instructions: signIn.instructions,
+      }),
+      ...(signIn?.expiresAt !== undefined && { expiresAt: signIn.expiresAt }),
+      ...(interaction.outcome !== undefined && {
+        outcome: toAuthorizationOutcome(interaction.outcome),
+      }),
+      ...(interaction.reason !== undefined && { reason: interaction.reason }),
+    },
+  };
+};
+
+const convertInteractionPart = (
+  interaction: Interaction,
+): ThreadAssistantMessagePart => {
+  if (interaction.request.kind === "sign-in")
+    return convertAuthorizationPart(interaction);
+  const approval = toApproval(interaction);
+  return {
+    type: "tool-call",
+    toolCallId: interaction.interactionId,
+    toolName: interaction.call?.name ?? interaction.request.kind,
+    args: toJsonObject(interaction.call?.input),
+    argsText: stringifyArgs(interaction.call?.input),
+    approval,
+    providerMetadata: toToolProviderMetadata(interaction),
+    ...(interaction.status === "settled" && {
+      result: interaction.answer ?? {
+        outcome: interaction.outcome,
+        reason: interaction.reason,
+      },
+      ...(interaction.outcome !== "accepted" && { isError: true }),
     }),
-    ...(part.authorization?.instructions !== undefined && {
-      instructions: part.authorization.instructions,
-    }),
-    ...(part.authorization?.expiresAt !== undefined && {
-      expiresAt: part.authorization.expiresAt,
-    }),
-    ...(part.outcome !== undefined && { outcome: part.outcome }),
-    ...(part.reason !== undefined && { reason: part.reason }),
-  },
-});
+  };
+};
 
 const convertFilePart = (
   part: Extract<EveMessagePart, { type: "file" }>,
@@ -381,14 +437,6 @@ const convertFilePart = (
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
 };
-
-// Eve's `state` is a run marker: the reducer settles a part to "done" only on
-// `reasoning.completed`, `message.completed`, or `turn.cancelled`.
-// `emitStreamContent` does not flush leftover reasoning on a tool-call, so a
-// non-last reasoning part stays `streaming` until the model stream ends and the
-// leftover flush runs. Mapping `streaming` to running would pin that block
-// open. Only `done` is trustworthy; an unsettled part falls back to core's
-// last-part rule.
 const partStateToStatus = (
   state: "done" | "streaming" | undefined,
 ): MessagePartStreamStatus | undefined =>
@@ -396,7 +444,7 @@ const partStateToStatus = (
 
 const convertAssistantPart = (
   part: EveMessagePart,
-): ThreadAssistantMessagePart | null => {
+): ThreadAssistantMessagePart | ReturnType<typeof convertToolPart> | null => {
   switch (part.type) {
     case "text":
     case "reasoning": {
@@ -408,14 +456,11 @@ const convertAssistantPart = (
       };
     }
 
-    case "step-start":
-      return null;
+    case "tool":
+      return convertToolPart(part);
 
-    case "dynamic-tool":
-      return convertDynamicToolPart(part);
-
-    case "authorization":
-      return convertAuthorizationPart(part);
+    case "interaction":
+      return convertInteractionPart(part);
 
     case "file":
       return convertFilePart(part);
@@ -538,22 +583,18 @@ const convertEveMessageWithInterruptions = (
 };
 
 export type InterruptedTurnEventCache = {
-  lastEvents: readonly MessageStreamEvent[];
-  interruptions: readonly MessageStreamEvent[];
+  lastEvents: readonly SessionStreamEvent[];
+  interruptions: readonly SessionStreamEvent[];
 };
 
-const isTurnInterruption = (event: MessageStreamEvent) =>
-  event.type === "turn.failed" || event.type === "turn.cancelled";
+const isTurnInterruption = (event: SessionStreamEvent) =>
+  (event.type === "turn.settled" && event.data.outcome !== "completed") ||
+  (event.type === "session.ended" && event.data.outcome === "failed");
 
-/**
- * Collects the `turn.failed` and `turn.cancelled` events of an append-only
- * event log, scanning only the events appended since the cached call. The
- * returned array keeps its identity until a new interruption arrives.
- */
 export const collectInterruptedTurnEvents = (
-  events: readonly MessageStreamEvent[],
+  events: readonly SessionStreamEvent[],
   cache: InterruptedTurnEventCache,
-): readonly MessageStreamEvent[] => {
+): readonly SessionStreamEvent[] => {
   if (events === cache.lastEvents) return cache.interruptions;
 
   const scanned = cache.lastEvents;
@@ -573,28 +614,45 @@ export const collectInterruptedTurnEvents = (
 };
 
 const getInterruptedTurns = (
-  events: readonly MessageStreamEvent[] | undefined,
+  events: readonly SessionStreamEvent[] | undefined,
 ) => {
   const interrupted = new Map<string, MessageStatus>();
+  const sessionFailures = new Map<string, MessageStatus>();
   for (const event of events ?? []) {
-    if (event.type === "turn.failed") {
+    if (event.type === "turn.settled" && event.data.outcome === "failed") {
       interrupted.set(event.data.turnId, {
         type: "incomplete",
         reason: "error",
-        error: { code: event.data.code, message: event.data.message },
+        ...(event.data.error && { error: toAssistantError(event.data.error) }),
       });
-    } else if (event.type === "turn.cancelled") {
+    } else if (
+      event.type === "turn.settled" &&
+      event.data.outcome === "cancelled"
+    ) {
       interrupted.set(event.data.turnId, ASSISTANT_CANCELLED_STATUS);
+    } else if (
+      event.type === "session.ended" &&
+      event.data.outcome === "failed" &&
+      event.data.cause &&
+      "turnId" in event.data.cause
+    ) {
+      sessionFailures.set(event.data.cause.turnId, {
+        type: "incomplete",
+        reason: "error",
+        ...(event.data.error && { error: toAssistantError(event.data.error) }),
+      });
     }
   }
+  for (const [turnId, status] of sessionFailures)
+    interrupted.set(turnId, status);
   return interrupted;
 };
 
 /**
- * Converts the full Eve message data object into assistant-ui thread messages.
+ * Converts Eve's conversation messages into assistant-ui thread messages.
  */
 export const convertEveMessages = (
-  data: EveMessageData,
+  data: Pick<ConversationState, "messages">,
   options: ConvertEveMessagesOptions = {},
 ): ThreadMessage[] => {
   const interruptedTurns = getInterruptedTurns(options.events);
@@ -610,9 +668,9 @@ export const convertEveMessages = (
 };
 
 /**
- * Structural subset of the `string | UserContent` message content Eve's `send`
- * API accepts. The helpers declare the shapes they produce and leave
- * assignability to the send call site, checked against the installed version.
+ * Structural subset of the message content Eve's `send` API accepts. The
+ * helpers declare the shapes they produce and leave assignability to the send
+ * call site, checked against the installed version.
  */
 export type EveMessageContent =
   | string
@@ -680,8 +738,6 @@ export const getEveMessageContent = (
       }
 
       case "audio": {
-        // A data URL's own media type wins over `mediaType` downstream, so the
-        // envelope is rebuilt from the typed format rather than forwarded.
         const mediaType = `audio/${part.audio.format}`;
         const data = part.audio.data;
         const source = resolveFilePartSource({ data, mimeType: mediaType });
@@ -719,53 +775,54 @@ export const getEveMessageContent = (
 };
 
 /**
- * Finds the pending input request answered by the given approval id, so the
- * response mapping can honor the request's display mode.
+ * Finds the request of the interaction answered by the given approval id, so
+ * the answer mapping can honor the request's display mode.
  */
 export const findEveInputRequest = (
-  data: EveMessageData,
+  data: Pick<ConversationState, "messages">,
   approvalId: string,
-): EveMessageInputRequest | undefined => {
+): Interaction["request"] | undefined => {
   for (const message of data.messages) {
     for (const part of message.parts) {
-      if (part.type === "dynamic-tool" && part.approval?.id === approvalId) {
-        return part.toolMetadata?.eve?.inputRequest;
-      }
+      const interaction =
+        part.type === "interaction"
+          ? part
+          : part.type === "tool"
+            ? part.interaction
+            : undefined;
+      if (interaction?.interactionId === approvalId) return interaction.request;
     }
   }
   return undefined;
 };
 
 /**
- * Converts an assistant-ui tool approval response into an Eve input response.
+ * Converts an assistant-ui tool approval response into an Eve `Answer`.
  *
- * When `inputRequest` is known, every returned response carries either an
- * option the request declares or a free-form answer. A literal option match
- * wins, then the `"approve"` / `"cancel"` option the response's boolean decision
+ * When `inputRequest` is known, every returned answer carries an option the
+ * request declares, the literal `"approve"` / `"deny"` for an approval that
+ * declares no options, or a free-form answer. A literal option match wins,
+ * then the `"approve"` / `"deny"` option the response's boolean decision
  * names, then the response's `text` (or its `reason`, for a caller that
  * predates the first-class answer field) when the request takes a free-form
  * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
  * `display: "confirmation"`) and the response is not a refusal.
- * A one-argument call, or a part with no request, still forwards a caller
- * `optionId` as it always has, including ids the request never declared.
  *
  * A response the known request cannot record as the answer it asked for throws
- * instead of being submitted, because eve resolves a request the moment any
- * response for it arrives, and an empty one is recorded as an answer with no
- * content. Not sending leaves the request pending, so the caller can retry or
+ * instead of being submitted, because Eve resolves an interaction the moment
+ * any answer for it arrives, and an empty one is recorded as an answer with no
+ * content. Not sending leaves the interaction open, so the caller can retry or
  * the user can answer it as an ordinary message.
  *
- * With no request to map against — a one-argument call, or a part carrying no
- * `toolMetadata.eve.inputRequest` — the response maps as it always has, to the
- * literal `"approve"` / `"cancel"` option every eve approval declares. Guessing
- * a display mode is what this mapper stopped doing; an unknown request is not
- * a guess about one.
+ * With no request to map against, a one-argument call forwards a caller
+ * `optionId` as is and otherwise maps the decision to the literal `"approve"` /
+ * `"deny"` option every Eve approval declares.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
-  inputRequest?: EveMessageInputRequest,
-): InputResponse => {
-  const requestId = response.approvalId;
+  inputRequest?: Interaction["request"],
+): Answer => {
+  const interactionId = response.approvalId;
   const options = inputRequest?.options;
   const text = response.text ?? response.reason;
 
@@ -775,13 +832,13 @@ export const toEveInputResponse = (
       options?.some((option) => option.id === response.optionId)
     ) {
       return {
-        requestId,
+        interactionId,
         optionId: response.optionId,
         ...(text && { text }),
       };
     }
     throw new Error(
-      `Eve input request "${requestId}" has no option with id "${response.optionId}"; respond with one of: ${
+      `Eve interaction "${interactionId}" has no option with id "${response.optionId}"; respond with one of: ${
         options?.length
           ? options.map((option) => option.id).join(", ")
           : "(the request carries no options)"
@@ -789,29 +846,23 @@ export const toEveInputResponse = (
     );
   }
 
-  const decisionOptionId = response.approved ? "approve" : "cancel";
-  // Eve's harness always declares `approve`/`cancel` on a `tool-approval`
-  // request, so honoring the kind when the options were dropped keeps a
-  // non-spec approval payload answerable rather than stuck. A tool-approval
-  // that declares its own options still requires one of them.
+  const decisionOptionId = response.approved
+    ? APPROVE_OPTION_ID
+    : DENY_OPTION_ID;
   if (
     !inputRequest ||
-    (inputRequest.kind === "tool-approval" && !options?.length) ||
+    (inputRequest.kind === "approval" && !options?.length) ||
     options?.some((option) => option.id === decisionOptionId)
   ) {
-    return { requestId, optionId: decisionOptionId, ...(text && { text }) };
+    return { interactionId, optionId: decisionOptionId, ...(text && { text }) };
   }
-
-  // Eve recognises an approval by its literal two-option `approve`/`cancel`
-  // shape, so past this point the request is a question and the boolean
-  // carries no decision eve would act on.
   const acceptsText = acceptsFreeformAnswer(inputRequest);
   if (acceptsText && text && response.approved !== false) {
-    return { requestId, text };
+    return { interactionId, text };
   }
 
   throw new Error(
-    `Eve input request "${requestId}" (${inputRequest.prompt}) was not answered by this response; ${
+    `Eve interaction "${interactionId}" (${inputRequest.prompt}) was not answered by this response; ${
       options?.length
         ? `respond with one of: ${options.map((option) => option.id).join(", ")}`
         : !acceptsText

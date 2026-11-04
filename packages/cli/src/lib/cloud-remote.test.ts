@@ -11,14 +11,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const harness = (reply: CloudCliResponse, token: string | null = "token") => {
+const harness = (
+  reply: CloudCliResponse,
+  token: string | null = "token",
+  extra: Partial<Parameters<typeof runCloudCommand>[1]> = {},
+) => {
   const output = { stdout: "", stderr: "" };
-  const send = vi.fn(async () => reply);
+  const send = vi.fn(async (..._args: unknown[]) => reply);
   return {
     output,
     send,
     run: (args: string[]) =>
       runCloudCommand(args, {
+        ...extra,
         cloudUrl: "https://cloud.example.com",
         accessToken: async () => token,
         stdout: (text) => {
@@ -136,7 +141,7 @@ describe("cloud remote commands", () => {
     expect(init.headers).toMatchObject({ Authorization: "Bearer tok" });
     expect(JSON.parse(init.body as string)).toMatchObject({
       command: "help 'a b'",
-      client: { name: "assistant-ui" },
+      client: { name: "assistant-ui", actions: ["print_url", "open_url"] },
     });
   });
 
@@ -152,5 +157,96 @@ describe("cloud remote commands", () => {
       fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     )[1];
     expect(init.headers).not.toHaveProperty("Authorization");
+  });
+
+  it("prints a print_url link on stderr and never opens it", async () => {
+    const openUrl = vi.fn();
+    const { run, output } = harness(
+      {
+        stdout: "Deleting needs a confirmation.\n",
+        exitCode: 0,
+        actions: [
+          {
+            type: "print_url",
+            url: "https://cloud.example.com/o/acme/settings",
+            label: "Confirm in the dashboard",
+          },
+        ],
+      },
+      "token",
+      { interactive: true, openUrl },
+    );
+    await expect(run(["projects", "delete", "web"])).resolves.toBe(0);
+    expect(output).toEqual({
+      stdout: "Deleting needs a confirmation.\n",
+      stderr:
+        "Confirm in the dashboard: https://cloud.example.com/o/acme/settings\n",
+    });
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("opens an open_url link only when interactive, without --no-open, on the same Cloud", async () => {
+    const reply = (url: string): CloudCliResponse => ({
+      exitCode: 0,
+      actions: [{ type: "open_url", url }],
+    });
+    const dashboard = "https://cloud.example.com/o/acme";
+    const cases: [boolean, boolean, string, boolean][] = [
+      [true, false, dashboard, true],
+      [true, true, dashboard, false],
+      [false, false, dashboard, false],
+      [true, false, "https://evil.example.org/", false],
+    ];
+    for (const [interactive, noOpen, url, opens] of cases) {
+      const openUrl = vi.fn();
+      const { run, output } = harness(reply(url), "token", {
+        interactive,
+        noOpen,
+        openUrl,
+      });
+      await expect(run(["x"])).resolves.toBe(0);
+      expect(output.stderr).toBe(`Open: ${url}\n`);
+      expect(openUrl).toHaveBeenCalledTimes(opens ? 1 : 0);
+    }
+  });
+
+  it("fails a malformed link action before printing", async () => {
+    for (const url of [undefined, 3, "javascript:alert(1)", "not a url"]) {
+      const { run, output } = harness({
+        stdout: "x\n",
+        exitCode: 0,
+        actions: [{ type: "open_url", url }],
+      });
+      await expect(run(["x"])).resolves.toBe(1);
+      expect(output.stdout).toBe("");
+      expect(output.stderr).toMatch(/malformed "open_url"/);
+    }
+  });
+
+  it("passes the directory's default org and project to the server", async () => {
+    const { run, send } = harness({ exitCode: 0 }, "token", {
+      defaults: async () => ({ org: "org_1", project: "proj_1" }),
+    });
+    await run(["projects", "show"]);
+    expect(send).toHaveBeenCalledWith(
+      "https://cloud.example.com",
+      ["projects", "show"],
+      "token",
+      { org: "org_1", project: "proj_1" },
+    );
+  });
+
+  it("sends defaults in the request body only when there are some", async () => {
+    const fetchMock = vi.fn(async () => Response.json({ exitCode: 0 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await sendCloudCommand("https://cloud.example.com", ["x"], null, {
+      org: "org_1",
+    });
+    await sendCloudCommand("https://cloud.example.com", ["x"], null, {});
+    const bodies = fetchMock.mock.calls.map((call) =>
+      JSON.parse((call as unknown as [string, RequestInit])[1].body as string),
+    );
+    expect(bodies[0].defaults).toEqual({ org: "org_1" });
+    expect(bodies[1]).not.toHaveProperty("defaults");
   });
 });

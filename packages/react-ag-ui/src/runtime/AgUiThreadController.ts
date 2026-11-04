@@ -65,6 +65,7 @@ import {
   fromAgUiMessages,
   toAgUiMessages,
   toAgUiTools,
+  withAgUiPartMessageMetadata,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 import {
@@ -228,6 +229,23 @@ type CoreOptions = {
 };
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
+
+const settleNestedContent = (
+  content: ThreadAssistantMessage["content"],
+  status: MessageStatus,
+) =>
+  mapToolCallPartsDeep(content, (part) =>
+    part.messages
+      ? {
+          ...part,
+          messages: part.messages.map((message) =>
+            message.role === "assistant" && message.status?.type === "running"
+              ? { ...message, status }
+              : message,
+          ),
+        }
+      : part,
+  ).content;
 
 type AgUiRuntimeCallbackName = "onError" | "onCancel";
 
@@ -1589,6 +1607,8 @@ export class AgUiThreadController {
     let frameOwnerIds = new Set<string>();
     let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
     let settlingRun = false;
+    let latestSnapshot: ThreadAssistantMessage | undefined;
+    let snapshotToolCallIds = new Set<string>();
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -1993,7 +2013,51 @@ export class AgUiThreadController {
       showThinking: this.showThinking,
       joinStrategy,
       logger: this.logger,
-      emit: applyUpdate,
+      emit: (update) => {
+        if (
+          settlingRun &&
+          latestSnapshot &&
+          latestSnapshot.id === assistantMessageId &&
+          update.status &&
+          update.status.type !== "running" &&
+          update.status.type !== "requires-action"
+        ) {
+          const status = update.status;
+          const current =
+            this.session.tryGetMessage(assistantMessageId)?.message;
+          const content = settleNestedContent(
+            current?.role === "assistant"
+              ? current.content
+              : latestSnapshot.content,
+            status,
+          );
+          applyUpdate({ ...update, content });
+        } else if (
+          latestSnapshot &&
+          latestSnapshot.id === assistantMessageId &&
+          update.content !== undefined
+        ) {
+          const content = this.mergeSnapshotAssistantContent(
+            latestSnapshot.content,
+            update.content as ThreadAssistantMessage["content"],
+            update.content.some((part) => part.type === "reasoning"),
+            update.content.some(isActivityPart),
+            snapshotToolCallIds,
+          );
+          applyUpdate({ ...update, content });
+        } else {
+          applyUpdate(update);
+        }
+        const current = assistantMessageId
+          ? this.session.tryGetMessage(assistantMessageId)?.message
+          : undefined;
+        latestSnapshot =
+          !settlingRun &&
+          current?.role === "assistant" &&
+          current.id === latestSnapshot?.id
+            ? current
+            : undefined;
+      },
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
       },
@@ -2068,6 +2132,22 @@ export class AgUiThreadController {
             }
           }
           assistantMessageId = nextAssistantMessageId;
+          const imported = assistantMessageId
+            ? this.session.tryGetMessage(assistantMessageId)?.message
+            : undefined;
+          const source = event.messages.find(
+            (message) =>
+              message?.role === "assistant" && message.id === imported?.id,
+          );
+          latestSnapshot =
+            imported?.role === "assistant" && source ? imported : undefined;
+          snapshotToolCallIds = new Set(
+            Array.isArray(source?.toolCalls)
+              ? source.toolCalls
+                  .map((call: { id?: unknown }) => call.id)
+                  .filter((id: unknown): id is string => typeof id === "string")
+              : [],
+          );
           if (!replayEnded && assistantMessageId === undefined) {
             const tail = this.session.getMessages().at(-1);
             snapshotAssistantId =
@@ -2129,7 +2209,6 @@ export class AgUiThreadController {
         );
         const subscriber = createAgUiSubscriber({
           dispatch,
-          runId,
           logger: this.logger,
           onRunFailed: (error) => {
             if (abortSignal.aborted) return;
@@ -2140,7 +2219,7 @@ export class AgUiThreadController {
         try {
           runAgentInstance.messages = input.messages;
           runAgentInstance.threadId = input.threadId;
-          runAgentInstance.state = input.state ?? null;
+          runAgentInstance.state = input.state;
         } catch {
           // ignore
         }
@@ -2158,6 +2237,26 @@ export class AgUiThreadController {
         pendingError = err;
       }
     } finally {
+      const current = assistantMessageId
+        ? this.session.tryGetMessage(assistantMessageId)?.message
+        : undefined;
+      if (
+        this.abortController === abortController &&
+        current?.role === "assistant" &&
+        current.status?.type === "running"
+      ) {
+        // Finalization is transport cleanup, not proof of a terminal event.
+        const status: MessageStatus = {
+          type: "incomplete",
+          reason: "error",
+          error: "The connection ended before the answer finished.",
+        };
+        settleHeldMessages(status);
+        applyUpdate({
+          status,
+          content: settleNestedContent(current.content, status),
+        });
+      }
       this.finishRun(abortController);
     }
 
@@ -2355,7 +2454,8 @@ export class AgUiThreadController {
     const input = {
       threadId,
       runId,
-      state: this.state.stateSnapshot ?? null,
+      state:
+        this.state.stateSnapshot === undefined ? {} : this.state.stateSnapshot,
       messages,
       tools: toAgUiTools(context?.tools),
       context: [
@@ -2713,7 +2813,7 @@ export class AgUiThreadController {
   }
 
   // A snapshot built from user, assistant, and tool records alone carries no
-  // reasoning or activity of its own, so the parts streamed locally would be
+  // reasoning, activity, or custom data of its own, so locally streamed parts would be
   // lost on every refresh; keep the local ones where they streamed when the
   // snapshot has none of that kind, matching the merge rule of @ag-ui/client.
   private mergeSnapshotAssistantContent(
@@ -2721,11 +2821,24 @@ export class AgUiThreadController {
     next: ThreadAssistantMessage["content"],
     snapshotHasReasoning: boolean,
     snapshotHasActivity: boolean,
+    keepMissingToolCalls: ReadonlySet<string> = new Set(),
   ): ThreadAssistantMessage["content"] {
     const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
-      part.type === "reasoning"
-        ? this.showThinking && !snapshotHasReasoning
-        : isActivityPart(part) && !snapshotHasActivity;
+      part.type === "tool-call"
+        ? keepMissingToolCalls.has(part.toolCallId) &&
+          !next.some(
+            (incoming) =>
+              incoming.type === "tool-call" &&
+              incoming.toolCallId === part.toolCallId,
+          )
+        : part.type === "reasoning"
+          ? this.showThinking && !snapshotHasReasoning
+          : part.type === "data" && !isActivityPart(part)
+            ? !next.some(
+                (incoming) =>
+                  incoming.type === "data" && incoming.name === part.name,
+              )
+            : isActivityPart(part) && !snapshotHasActivity;
     const kept = previous.filter(shouldKeep);
     const merged = this.reconcileSnapshotNestedContent(
       previous,
@@ -2901,6 +3014,7 @@ export class AgUiThreadController {
         break;
       }
       case "MESSAGES_SNAPSHOT": {
+        aggregator.handle(event);
         const previousHeadId = this.session.headId;
         const activeAssistant =
           activeAssistantId === undefined
@@ -2923,8 +3037,28 @@ export class AgUiThreadController {
             headId === null
               ? undefined
               : this.session.tryGetMessage(headId)?.message;
-          activeAssistantId =
+          const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
+          if (
+            activeAssistantId !== nextActiveAssistantId &&
+            activeAssistantId
+          ) {
+            const previous =
+              this.session.tryGetMessage(activeAssistantId)?.message;
+            if (
+              previous?.role === "assistant" &&
+              previous.status?.type === "running"
+            ) {
+              this.updateAssistantMessage(activeAssistantId, {
+                status: FALLBACK_USER_STATUS,
+                content: settleNestedContent(
+                  previous.content,
+                  FALLBACK_USER_STATUS,
+                ),
+              });
+            }
+          }
+          activeAssistantId = nextActiveAssistantId;
         }
         this.updateActiveAssistantState(activeAssistantId);
         break;
@@ -3027,6 +3161,14 @@ export class AgUiThreadController {
             ...(event.messageId
               ? { unstable_toolMessageId: event.messageId }
               : {}),
+            ...(event.metadata !== undefined
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    part.providerMetadata,
+                    event.metadata,
+                  ),
+                }
+              : {}),
           };
         }
         const { modelContent: _modelContent, ...partWithoutModelContent } =
@@ -3052,6 +3194,14 @@ export class AgUiThreadController {
             : {}),
           ...(event.messageId
             ? { unstable_toolMessageId: event.messageId }
+            : {}),
+          ...(event.metadata !== undefined
+            ? {
+                providerMetadata: withAgUiPartMessageMetadata(
+                  part.providerMetadata,
+                  event.metadata,
+                ),
+              }
             : {}),
         };
       });
@@ -3149,8 +3299,16 @@ export class AgUiThreadController {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
+          const previous = message.id
+            ? this.session.tryGetMessage(message.id)?.message
+            : undefined;
+          const fallbackStatus =
+            previous?.role === "assistant" &&
+            previous.status?.type === "running"
+              ? previous.status
+              : FALLBACK_USER_STATUS;
           converted.push(
-            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
+            fromThreadMessageLike(message, generateId(), fallbackStatus),
           );
         } catch (error) {
           this.logger.error?.(

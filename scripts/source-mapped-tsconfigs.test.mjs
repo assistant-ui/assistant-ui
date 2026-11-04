@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -88,5 +88,22 @@ for (const file of sourceMappedTsconfigs) {
         );
       }
     }
+  });
+}
+
+for (const file of globSync("templates/*/tsconfig.json", { cwd: repoRoot })) {
+  const directory = path.dirname(file);
+  const paths = readJson(file).compilerOptions?.paths ?? {};
+  const uiRoot = path.join(repoRoot, "packages/ui/src", path.sep);
+  const readsUi = Object.values(paths)
+    .flat()
+    .some((target) =>
+      path.resolve(repoRoot, directory, target).startsWith(uiRoot),
+    );
+  if (!readsUi) continue;
+
+  test(`${directory} exposes its canonical UI source dependency to the build graph`, () => {
+    const pkg = readJson(path.join(directory, "package.json"));
+    assert.equal(pkg.dependencies?.["@assistant-ui/ui"], "workspace:*");
   });
 }

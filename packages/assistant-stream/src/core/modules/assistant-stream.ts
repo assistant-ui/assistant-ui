@@ -9,11 +9,7 @@ import {
   ToolCallStreamControllerImpl,
   type ToolCallStreamController,
 } from "./tool-call";
-import { Counter } from "../utils/Counter";
-import {
-  PathAppendEncoder,
-  PathMergeEncoder,
-} from "../utils/stream/path-utils";
+import { PathAppendEncoder } from "../utils/stream/path-utils";
 import type {
   DataPart,
   FilePart,
@@ -164,7 +160,6 @@ type AssistantStreamControllerState = {
         parentId: string | undefined;
       }
     | undefined;
-  contentCounter: Counter;
   openInputs: Set<() => void>;
   lastToolCallFinish: Promise<void>;
   closeSubscriber?: () => void;
@@ -181,7 +176,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state = state || {
       strict: options.strict ?? true,
       merger: createMergeStream(),
-      contentCounter: new Counter(),
       openInputs: new Set(),
       lastToolCallFinish: Promise.resolve(),
     };
@@ -215,19 +209,24 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   private _addTransformedStream(
     stream: AssistantStream,
-    transformer: ReadableWritablePair<
-      AssistantStreamChunk,
-      AssistantStreamChunk
-    >,
+    transformer:
+      | ReadableWritablePair<AssistantStreamChunk, AssistantStreamChunk>
+      | undefined,
     options?: {
       orderedFinish?: MergeStreamFinishOrder | undefined;
       written?: () => number;
+      pathTransform?: "merge" | undefined;
     },
   ) {
     if (stream.locked) {
       throw new TypeError(
         "Cannot merge a stream that is already locked to a reader.",
       );
+    }
+
+    if (!transformer) {
+      this._state.merger.addStream(stream, undefined, options);
+      return Promise.resolve();
     }
 
     const pipeTask = stream
@@ -259,23 +258,25 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       this._state.append = undefined;
     }
 
-    this.enqueue({
+    const partIndex = this._state.merger.enqueuePartStart({
       type: "part-start",
       part,
       path: [],
     });
     const pipeTask = this._addTransformedStream(
       stream,
-      new PathAppendEncoder(this._state.contentCounter.value),
+      new PathAppendEncoder(partIndex),
       { orderedFinish, written },
     );
     if (end) this._trackOpenInput(pipeTask, end);
   }
 
   merge(stream: AssistantStream) {
+    // The transform boundary preserves raw step-finish ordering around buffered merged parts.
     this._addTransformedStream(
       stream,
-      new PathMergeEncoder(this._state.contentCounter),
+      new TransformStream<AssistantStreamChunk, AssistantStreamChunk>(),
+      { pathTransform: "merge" },
     );
   }
 
@@ -427,10 +428,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   enqueue(chunk: AssistantStreamChunk) {
     this._state.merger.enqueue(chunk);
-
-    if (chunk.type === "part-start" && chunk.path.length === 0) {
-      this._state.contentCounter.up();
-    }
   }
 
   withParentId(parentId: string): AssistantStreamController {

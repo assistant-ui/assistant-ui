@@ -191,7 +191,7 @@ class StreamTextHandle<T> implements Handle {
     try {
       const value = getField(args as T, this.fieldPath);
 
-      if (value !== undefined && typeof value === "string") {
+      if (typeof value === "string" && value !== this.lastValue) {
         const delta = value.substring(this.lastValue?.length || 0);
         this.lastValue = value;
         this.controller.enqueue(delta);

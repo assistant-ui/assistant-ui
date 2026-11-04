@@ -82,6 +82,7 @@ export {
   type FilePartSource,
   httpUrlPattern,
   isParsableUrl,
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
 } from "./utils/data-url";

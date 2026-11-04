@@ -11,20 +11,21 @@ export function useMarkdownCopy(markdownUrl: string | undefined) {
   } | null>(null);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
   const requestIdRef = useRef(0);
-  const pendingUrlRef = useRef<string | null>(null);
+  const pendingRef = useRef<{
+    url: string;
+    promise: Promise<string>;
+  } | null>(null);
 
-  const prefetch = useCallback(() => {
-    if (
-      !markdownUrl ||
-      loaded?.url === markdownUrl ||
-      pendingUrlRef.current === markdownUrl
-    )
-      return;
+  const loadMarkdown = useCallback(() => {
+    if (!markdownUrl) return;
+    if (loaded?.url === markdownUrl) return Promise.resolve(loaded.content);
+    if (pendingRef.current?.url === markdownUrl) {
+      return pendingRef.current.promise;
+    }
 
     const requestId = ++requestIdRef.current;
-    pendingUrlRef.current = markdownUrl;
     setLoadingUrl(markdownUrl);
-    fetch(markdownUrl)
+    const promise = fetch(markdownUrl)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.text();
@@ -33,30 +34,40 @@ export function useMarkdownCopy(markdownUrl: string | undefined) {
         if (requestId === requestIdRef.current) {
           setLoaded({ url: markdownUrl, content });
         }
-      })
-      .catch(() => {
-        if (requestId === requestIdRef.current) setLoaded(null);
+        return content;
       })
       .finally(() => {
         if (requestId !== requestIdRef.current) return;
-        pendingUrlRef.current = null;
+        pendingRef.current = null;
         setLoadingUrl(null);
       });
-  }, [loaded?.url, markdownUrl]);
+    pendingRef.current = { url: markdownUrl, promise };
+    return promise;
+  }, [loaded, markdownUrl]);
+
+  const prefetch = useCallback(() => {
+    void loadMarkdown()?.catch(() => {});
+  }, [loadMarkdown]);
 
   const copy = useCallback(() => {
-    if (!loaded || loaded.url !== markdownUrl) {
-      toast.error("Content not loaded yet");
-      return;
+    const copyContent = (content: string) => {
+      void copyTextToClipboard(content).then((copied) => {
+        if (copied) {
+          toast.success("Copied to clipboard");
+        } else {
+          toast.error("Failed to copy");
+        }
+      });
+    };
+
+    if (loaded && loaded.url === markdownUrl) {
+      copyContent(loaded.content);
+    } else {
+      void loadMarkdown()?.then(copyContent, () => {
+        toast.error("Failed to load Markdown. Please try again.");
+      });
     }
-    void copyTextToClipboard(loaded.content).then((copied) => {
-      if (copied) {
-        toast.success("Copied to clipboard");
-      } else {
-        toast.error("Failed to copy");
-      }
-    });
-  }, [loaded, markdownUrl]);
+  }, [loaded, loadMarkdown, markdownUrl]);
 
   return { copy, prefetch, isLoading: loadingUrl === markdownUrl };
 }

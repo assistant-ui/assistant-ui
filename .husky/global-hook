@@ -1,0 +1,15 @@
+# Runs the user's global git hook (core.hooksPath in global/system config),
+# which Husky's repo-local core.hooksPath would otherwise shadow.
+# Sourced from .husky/<hook>; uses that hook's name, args and stdin.
+
+hook=$(basename "$0")
+dir=$(git config --global --get core.hooksPath || git config --system --get core.hooksPath || true)
+case $dir in "~"/*) dir=$HOME/${dir#"~/"} ;; esac
+
+if [ -n "$dir" ] && [ -f "$dir/$hook" ] && [ -x "$dir/$hook" ]; then
+	real=$(cd "$dir" && pwd -P)
+	husky=$(cd "$(dirname "$0")" && pwd -P)
+	if [ "$real" != "$husky" ] && [ "$real" != "$husky/_" ]; then
+		"$dir/$hook" "$@" || exit $?
+	fi
+fi

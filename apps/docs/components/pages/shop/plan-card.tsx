@@ -91,7 +91,7 @@ const components: Components = {
     <code className="font-mono text-[0.875em]">{children}</code>
   ),
   pre: ({ children }) => (
-    <pre className="bg-muted my-2 overflow-x-auto rounded-lg p-3 font-mono text-[13px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit">
+    <pre className="bg-muted rounded-document my-2 overflow-x-auto p-3 font-mono text-[13px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit">
       {children}
     </pre>
   ),

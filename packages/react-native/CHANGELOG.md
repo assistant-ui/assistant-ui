@@ -1,5 +1,15 @@
 # @assistant-ui/react-native
 
+## 0.1.51
+
+### Patch Changes
+
+- [#10137](https://github.com/assistant-ui/assistant-ui/pull/10137) [`aa59585`](https://github.com/assistant-ui/assistant-ui/commit/aa595853589065867634b612b179be0ba0c91884) - fix: expose the chain-of-thought toggle's expanded state to assistive technology ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`e0b8d19`](https://github.com/assistant-ui/assistant-ui/commit/e0b8d1905ead37a913a2161e98cdf6e9a8a91d24), [`a94e703`](https://github.com/assistant-ui/assistant-ui/commit/a94e703111de0bed074f8bb71b7ba41f753fc6b4), [`9ae7c5c`](https://github.com/assistant-ui/assistant-ui/commit/9ae7c5c6e78e1ad63eeedb6621945eee0f2651c9), [`24b84e5`](https://github.com/assistant-ui/assistant-ui/commit/24b84e51911a539b20c9f7000f64c09e6c9f253e), [`86040b7`](https://github.com/assistant-ui/assistant-ui/commit/86040b77b3a6c0929ac9ac6505d3012e8a9435e1), [`3a969f2`](https://github.com/assistant-ui/assistant-ui/commit/3a969f2c7e75b3ff73213fe54d1b09b8079fe939), [`b8baa3d`](https://github.com/assistant-ui/assistant-ui/commit/b8baa3d7cefca13fbe30f57562c45ee541ac8852), [`212f4ea`](https://github.com/assistant-ui/assistant-ui/commit/212f4ea5757d5870ffb3edc6598643b9ff915d56), [`46b927d`](https://github.com/assistant-ui/assistant-ui/commit/46b927d795f45361e0c29f93a29a530e20825881), [`86eb7d4`](https://github.com/assistant-ui/assistant-ui/commit/86eb7d42c396d948e0b591eb37fee94f2a6791f5), [`4079e2a`](https://github.com/assistant-ui/assistant-ui/commit/4079e2a12677fa4dd241bc2a23963b5a817b824e), [`2a09296`](https://github.com/assistant-ui/assistant-ui/commit/2a092963635f01a92127616face31e036e268537)]:
+  - @assistant-ui/core@0.3.32
+  - assistant-cloud@0.2.9
+  - assistant-stream@0.3.55
+
 ## 0.1.50
 
 ### Patch Changes

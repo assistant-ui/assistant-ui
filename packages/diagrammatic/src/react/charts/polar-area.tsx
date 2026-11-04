@@ -6,11 +6,21 @@ import { textWidth, truncate } from "../../core/text";
 import { ACCENT, SURFACE, seqOpacity } from "../../core/theme";
 import { ChartSvg, PAD, frame, typeScale } from "../svg";
 
-export type PolarAreaProps = BaseProps & { items: Item[] };
+export type PolarAreaProps = BaseProps & { items: Item[]; inner?: number };
 
 export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
   (
-    { items, title, width, height, aspect, fontSize, className, ...rest },
+    {
+      items,
+      inner: innerFraction,
+      title,
+      width,
+      height,
+      aspect,
+      fontSize,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const T = typeScale(fontSize);
@@ -22,16 +32,20 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
     const { left, right, top, bottom, T: frameType } = F;
     const cx = (left + right) / 2;
     const cy = (top + bottom) / 2;
-    const labelGap = 6;
-    const labelAllowance = Math.max(
-      frameType.axis.px + labelGap,
-      labelW / 2 + labelGap,
-    );
+    const labelGap = Math.max(6, frameType.axis.px / 2 + 1);
+    // Round the width up, because truncation counts whole characters: a label
+    // that exactly fills the half-frame would otherwise lose its last one.
     const outer = Math.max(
       0,
-      Math.min(right - left, bottom - top) / 2 - labelAllowance,
+      Math.min(
+        (right - left) / 2 - Math.ceil(labelW) - labelGap,
+        (bottom - top) / 2 - frameType.axis.px / 2 - labelGap,
+      ),
     );
-    const inner = Math.max(2, outer * 0.12);
+    const inner =
+      innerFraction === undefined || Number.isNaN(innerFraction)
+        ? Math.max(2, outer * 0.12)
+        : outer * Math.min(0.9, Math.max(0, innerFraction));
     const ringStroke = Math.max(1, Math.min(4, outer * 0.035));
     const slice = (Math.PI * 2) / Math.max(1, items.length);
     const max = Math.max(...items.map((r) => r.value), 1);
@@ -69,14 +83,30 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
         })}
         {items.map((item, i) => {
           const angle = i * slice + slice / 2 - Math.PI / 2;
+          const side = Math.cos(angle);
+          const centeredExtent =
+            (textWidth(item.label, frameType.axis.px) * Math.abs(side) +
+              frameType.axis.px * Math.abs(Math.sin(angle))) /
+            2;
+          const textAnchor =
+            Math.abs(side) < 0.35 && centeredExtent <= labelGap
+              ? "middle"
+              : side > 0
+                ? "start"
+                : "end";
           const p = polar(cx, cy, outer + labelGap, angle);
-          const fit = Math.max(0, 2 * Math.min(p.x - PAD, F.width - PAD - p.x));
+          const fit =
+            textAnchor === "start"
+              ? F.width - PAD - p.x
+              : textAnchor === "end"
+                ? p.x - PAD
+                : 2 * Math.min(p.x - PAD, F.width - PAD - p.x);
           return (
             <text
               key={item.label}
               x={round(p.x)}
               y={round(p.y)}
-              textAnchor="middle"
+              textAnchor={textAnchor}
               dominantBaseline="central"
               {...frameType.axis.attrs}
             >

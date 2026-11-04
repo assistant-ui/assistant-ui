@@ -72,6 +72,37 @@ export const readCloudProjectConfig = async (
   }
 };
 
+/**
+ * The org and project `setup` configured for this directory or the nearest
+ * parent with an `.assistant-ui/cloud.json`, for remote commands to use when
+ * no --org or --project is given. A missing or unreadable file means none.
+ */
+export const findCloudProjectDefaults = async (
+  directory: string,
+): Promise<{ org?: string; project?: string } | null> => {
+  for (let current = path.resolve(directory); ;) {
+    try {
+      const config = JSON.parse(
+        await readFile(cloudProjectConfigPath(current), "utf8"),
+      ) as Partial<CloudProjectConfig> | null;
+      const org =
+        typeof config?.organizationId === "string"
+          ? config.organizationId
+          : undefined;
+      const project =
+        typeof config?.projectId === "string" ? config.projectId : undefined;
+      return org || project
+        ? { ...(org && { org }), ...(project && { project }) }
+        : null;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") return null;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+};
+
 export const readOptionalFile = async (file: string): Promise<string> => {
   try {
     return await readFile(file, "utf8");

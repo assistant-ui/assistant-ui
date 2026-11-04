@@ -1422,16 +1422,41 @@ const useRemoteThreadList = (
   );
 
   const initialize = useCallback(
-    async (threadId: string) => {
+    async function initializeThread(
+      threadId: string,
+    ): Promise<ReturnType<typeof toInitializeResult>> {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
+      // A replacement adapter keeps the thread being initialized as its own
+      // draft, which another caller may already be initializing there, so
+      // every caller continues on the replacement. A slot still holding the
+      // awaited task belongs to the replaced adapter.
+      const carriedToReplacement = (task: Promise<unknown>) => {
+        if (adapterGeneration === session.adapterGeneration) return false;
+        const current = getThreadData(store.value, threadId);
+        return (
+          current !== undefined &&
+          (current.status === "new" || current.initializeTask !== task)
+        );
+      };
       if (store.value.newThreadId !== threadId) {
         const data = getThreadData(store.value, threadId);
         if (!data) throw threadNotFoundError(threadId, "initializing it");
         if (data.status === "new") {
           throw threadStatusError(threadId, data.status, "be initialized here");
         }
-        const result = toInitializeResult(await data.initializeTask);
+        let result: ReturnType<typeof toInitializeResult>;
+        try {
+          result = toInitializeResult(await data.initializeTask);
+        } catch (error) {
+          if (carriedToReplacement(data.initializeTask)) {
+            return initializeThread(threadId);
+          }
+          throw error;
+        }
+        if (carriedToReplacement(data.initializeTask)) {
+          return initializeThread(threadId);
+        }
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
@@ -1480,7 +1505,13 @@ const useRemoteThreadList = (
         result = await initialization;
       } catch (error) {
         session.pendingAutomaticTitles.delete(threadId);
+        if (carriedToReplacement(initializeTask)) {
+          return initializeThread(threadId);
+        }
         throw error;
+      }
+      if (carriedToReplacement(initializeTask)) {
+        return initializeThread(threadId);
       }
       requireAdapterGeneration(adapterGeneration);
       if (removedMappingId !== undefined) {
@@ -1639,20 +1670,29 @@ const useRemoteThreadList = (
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
       }
       const mutation = session.mutations.reserve(data.id, data);
-      try {
+      let canApplyOptimisticUpdate = false;
+      const ensureThreadIsNotMain = (async () => {
         do {
           await ensureNotMain(data.id);
         } while (isSameThread(store.value, data.id, session.mainThreadId));
         requireAdapterGeneration(adapterGeneration);
+        canApplyOptimisticUpdate = true;
+        store.update(store.baseValue);
+      })();
+      try {
         await store.optimisticUpdate({
-          execute: () =>
-            mutation.run(async () => {
+          execute: async () => {
+            await ensureThreadIsNotMain;
+            return mutation.run(async () => {
               const { remoteId } = await data.initializeTask;
               requireAdapterGeneration(adapterGeneration);
               return currentAdapter.archive(remoteId);
-            }),
+            });
+          },
           optimistic: (state) =>
-            updateStatusReducer(state, data.id, "archived"),
+            canApplyOptimisticUpdate
+              ? updateStatusReducer(state, data.id, "archived")
+              : state,
         });
       } finally {
         mutation.cancel();
@@ -1733,19 +1773,29 @@ const useRemoteThreadList = (
       const mutation = session.mutations.reserve(data.id, data);
       let remoteId: string | undefined;
       let result: void;
-      try {
+      let canApplyOptimisticUpdate = false;
+      const ensureThreadIsNotMain = (async () => {
         do {
           await ensureNotMain(data.id);
         } while (isSameThread(store.value, data.id, session.mainThreadId));
         requireAdapterGeneration(adapterGeneration);
+        canApplyOptimisticUpdate = true;
+        store.update(store.baseValue);
+      })();
+      try {
         result = await store.optimisticUpdate({
-          execute: () =>
-            mutation.run(async () => {
+          execute: async () => {
+            await ensureThreadIsNotMain;
+            return mutation.run(async () => {
               ({ remoteId } = await data.initializeTask);
               requireAdapterGeneration(adapterGeneration);
               return currentAdapter.delete(remoteId);
-            }),
-          optimistic: (state) => deleteThreadReducer(state, data.id, remoteId),
+            });
+          },
+          optimistic: (state) =>
+            canApplyOptimisticUpdate
+              ? deleteThreadReducer(state, data.id, remoteId)
+              : state,
         });
       } finally {
         mutation.cancel();
@@ -1807,6 +1857,7 @@ const useRemoteThreadList = (
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
+        reconcileExplicitClaimsOnRetraction: true,
         messages,
         generate: async (onTitle) => {
           if (isRemoved()) return;
@@ -1902,7 +1953,8 @@ const useRemoteThreadList = (
       onDelete: (id) => deleteThread(id),
       onGenerateTitle: (id, messages, options, afterRun) =>
         generateTitle(id, messages, options, afterRun),
-      onInitialize: async (id) => toInitializeResult(await initialize(id)),
+      onInitialize: (id) =>
+        afterStateCommit(initialize(id)).then(toInitializeResult),
       onDetach: (id) => detach(id),
     });
 

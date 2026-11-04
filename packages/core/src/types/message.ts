@@ -79,7 +79,7 @@ export type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
-  /** How `data` goes on the wire: a url or id reference; omitted = inferred (http(s) → url, else base64). "url" is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes; "id" by the LangChain family only. */
+  /** How `data` goes on the wire: a url or id reference; omitted = inferred (http(s) → url, else base64). "url" is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes; "id" by the LangChain-family, AG-UI, and Eve runtimes. */
   readonly sourceType?: "url" | "id";
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;

@@ -4,6 +4,7 @@ import type {
 } from "../../../utils/json/json-value";
 import type { GorpStreamOperation } from "../../gorp/types";
 import type { ToolModelContentPart } from "../../tool/tool-types";
+import type { ToolCallApproval } from "../../utils/types";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -49,6 +50,7 @@ export const DataStreamStreamChunkType = {
   AuiReasoningDelta: "aui-reasoning-delta",
   AuiDataPart: "aui-data",
   AuiReasoningPartStart: "aui-reasoning-part-start",
+  AuiToolCallApproval: "aui-tool-call-approval",
 } as const;
 export type DataStreamStreamChunkType =
   (typeof DataStreamStreamChunkType)[keyof typeof DataStreamStreamChunkType];
@@ -136,5 +138,9 @@ type DataStreamStreamChunkValue = {
     name: string;
     data: ReadonlyJSONValue;
     parentId?: string;
+  };
+  [DataStreamStreamChunkType.AuiToolCallApproval]: {
+    toolCallId: string;
+    approval: ToolCallApproval;
   };
 };

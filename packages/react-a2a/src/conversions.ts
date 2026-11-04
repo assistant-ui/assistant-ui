@@ -6,6 +6,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import {
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
   resolveImageMediaType,
@@ -174,10 +175,14 @@ export function contentPartsToA2AParts(
         case "image": {
           if (!part.image) return null;
           const parsed = parseDataUrl(part.image);
-          if (parsed) {
+          const data = parsed?.data ?? parseBase64(part.image);
+          if (data !== null) {
             return {
-              raw: parsed.data,
-              mediaType: resolveImageMediaType(part.image, fallbackMimeType),
+              raw: data,
+              mediaType: resolveImageMediaType(
+                parsed ? part.image : data,
+                fallbackMimeType,
+              ),
               ...(part.filename && { filename: part.filename }),
             };
           }

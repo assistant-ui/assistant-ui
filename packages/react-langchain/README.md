@@ -1,6 +1,6 @@
 # `@assistant-ui/react-langchain`
 
-Adapter that wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph-sdk/react-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. Bridges LangChain's `useStream` to an `AssistantRuntime` with hooks for interrupts, raw state submission, and reading custom LangGraph state keys.
+Adapter that wraps [`useStream`](https://reference.langchain.com/javascript/langchain-react/use-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. Bridges LangChain's `useStream` to an `AssistantRuntime` with hooks for interrupts, raw state submission, and reading custom LangGraph state keys.
 
 ## When to use this
 

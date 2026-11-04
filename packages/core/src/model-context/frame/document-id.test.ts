@@ -123,6 +123,60 @@ it("ignores a retired document without the matching load echo", () => {
   host.dispose();
 });
 
+it.each([false, true])(
+  "retries an unanswered load when the same document publishes (expired: %s)",
+  (expired) => {
+    vi.useFakeTimers();
+    const { host, publish, lastRequestId, postMessage } = createHost();
+    publish("first");
+    host.frameLoaded();
+    const requestId = lastRequestId();
+    if (expired) vi.advanceTimersByTime(2000);
+    postMessage.mockClear();
+
+    publish("first");
+    expect(postMessage).toHaveBeenCalledExactlyOnceWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "model-context-request", requestId },
+      },
+      origin,
+    );
+    if (expired) expect(host.getModelContext()).toEqual({});
+
+    publish("first", requestId);
+    vi.advanceTimersByTime(2000);
+    expect(host.getModelContext().tools?.search).toBeDefined();
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    host.dispose();
+  },
+);
+
+it.each([false, true])(
+  "ignores a delayed load echo after a replacement takes over (expired: %s)",
+  (expired) => {
+    vi.useFakeTimers();
+    const { host, publish, lastRequestId } = createHost();
+    publish("first");
+    host.frameLoaded();
+    const requestId = lastRequestId();
+    if (expired) vi.advanceTimersByTime(2000);
+    publish("first");
+
+    publish("second", undefined, "replacementSearch");
+    publish("first", requestId);
+
+    expect(Object.keys(host.getModelContext().tools ?? {})).toEqual([
+      "replacementSearch",
+    ]);
+    vi.advanceTimersByTime(2000);
+    expect(Object.keys(host.getModelContext().tools ?? {})).toEqual([
+      "replacementSearch",
+    ]);
+    host.dispose();
+  },
+);
+
 it("expires a silent replacement despite a queued update from the old document", () => {
   vi.useFakeTimers();
   const { host, publish } = createHost();

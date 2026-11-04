@@ -200,6 +200,12 @@ describe("useAdkRuntime tool ownership", () => {
 
     await settle();
 
+    const approvedCalls = toolCalls(capture.runtime!).filter(
+      (part) => part.approval !== undefined,
+    );
+    expect(approvedCalls).toHaveLength(1);
+    expect(approvedCalls[0]!.toolCallId).toBe("adk-original-1");
+
     const gated = toolCalls(capture.runtime!).find(
       (part) => part.toolCallId === "adk-original-1",
     )!;
@@ -219,7 +225,9 @@ describe("useAdkRuntime tool ownership", () => {
 
     await settle();
 
-    expect(toolCalls(capture.runtime!)[0]!.result).toBe('{"server":"deleted"}');
+    expect(toolCalls(capture.runtime!)[0]!.result).toEqual({
+      server: "deleted",
+    });
     expect(execute).not.toHaveBeenCalled();
   });
 

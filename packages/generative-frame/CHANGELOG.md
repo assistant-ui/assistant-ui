@@ -1,5 +1,13 @@
 # generative-frame
 
+## 0.0.9
+
+### Patch Changes
+
+- [#10058](https://github.com/assistant-ui/assistant-ui/pull/10058) [`f40d53f`](https://github.com/assistant-ui/assistant-ui/commit/f40d53fcb081cd4564803eadb884147e05ea017b) - fix: fill the composer with widget and MCP App prompts for review before sending. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`aa59585`](https://github.com/assistant-ui/assistant-ui/commit/aa595853589065867634b612b179be0ba0c91884), [`15699d4`](https://github.com/assistant-ui/assistant-ui/commit/15699d422754e4baa77c3c5fa044e9e3e8a98a8d), [`828339f`](https://github.com/assistant-ui/assistant-ui/commit/828339f548223bdce07361ed711de66a6b478649), [`b2e2708`](https://github.com/assistant-ui/assistant-ui/commit/b2e2708ae27f5dd5884ffaf761e394e2496a7155)]:
+  - @assistant-ui/vue@0.0.7
+
 ## 0.0.8
 
 ### Patch Changes

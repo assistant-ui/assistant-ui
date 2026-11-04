@@ -2,75 +2,36 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { HandleMessageStreamEvent } from "eve/client";
-
-import { createEveSessionFixture } from "./testUtils";
+import {
+  createCompletedTurnEvents,
+  createEveSessionFixture,
+} from "./testUtils";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 
-const completedTurn = (
-  turnId: string,
-  text: string,
-  reply: string,
-  sequence: number,
-) =>
-  [
-    {
-      type: "turn.started",
-      data: { sequence, turnId },
-      meta: { at: "2026-01-02T10:00:00.000Z", id: `${turnId}-1` },
-    },
-    {
-      type: "message.received",
-      data: { message: text, sequence: sequence + 1, turnId },
-      meta: { at: "2026-01-02T10:00:01.000Z", id: `${turnId}-2` },
-    },
-    {
-      type: "step.started",
-      data: { modelId: "m", sequence: sequence + 2, stepIndex: 0, turnId },
-      meta: { at: "2026-01-02T10:00:02.000Z", id: `${turnId}-3` },
-    },
-    {
-      type: "message.completed",
-      data: {
-        finishReason: "stop",
-        message: reply,
-        sequence: sequence + 3,
-        stepIndex: 0,
-        turnId,
-      },
-      meta: { at: "2026-01-02T10:00:03.000Z", id: `${turnId}-4` },
-    },
-    {
-      type: "turn.completed",
-      data: { sequence: sequence + 4, turnId },
-      meta: { at: "2026-01-02T10:00:04.000Z", id: `${turnId}-5` },
-    },
-  ] as const satisfies readonly HandleMessageStreamEvent[];
-
-const knownTurn = completedTurn("t1", "hi", "hello", 1);
-const outOfBandTurn = completedTurn("t2", "answered elsewhere", "done", 6);
+const knownTurn = createCompletedTurnEvents({
+  turnId: "t1",
+  text: "hi",
+  reply: "hello",
+});
+const outOfBandTurn = createCompletedTurnEvents({
+  turnId: "t2",
+  text: "answered elsewhere",
+  reply: "done",
+  startLine: knownTurn.length,
+  follows: "t1",
+});
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useEveAgentRuntime against a durable eve session", () => {
   it("surfaces a turn the server appended out of band after reloadMainThread", async () => {
     const { fetch, session } = createEveSessionFixture({
-      events: [
-        ...knownTurn,
-        ...outOfBandTurn,
-        {
-          type: "session.waiting",
-          data: {
-            continuationToken: "session_resumed",
-            wait: "next-user-message",
-          },
-          meta: { at: "2026-01-02T10:00:05.000Z", id: "waiting" },
-        },
-      ],
+      events: outOfBandTurn,
+      tailIndex: knownTurn.length + outOfBandTurn.length - 1,
     });
 
     const { result } = renderHook(() =>
-      useEveAgentRuntime({ initialEvents: knownTurn as never, session }),
+      useEveAgentRuntime({ initialEvents: knownTurn, session }),
     );
     expect(
       result.current.thread.getState().messages.map((m) => m.role),

@@ -23,15 +23,24 @@ vi.mock("eve/react", async (importOriginal) => ({
   useEveAgent: mockUseEveAgent,
 }));
 
-import type { MessageStreamEvent } from "eve/client";
-import type { EveMessageData } from "eve/react";
+import type { SessionEvent, SessionStreamEvent } from "eve/client";
+import { activeTurn, emptySessionView, foldEvents, idle } from "eve/events";
+import type { EveMessage } from "eve/react";
+import {
+  createEveDelivery,
+  createEveDeliveryAfter,
+  createEveEvents,
+} from "./testUtils";
+
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 import { eveExtras } from "./eveExtras";
+
+type MessageFixture = { messages: readonly EveMessage[] };
 
 const waitFor = (assertion: () => void) =>
   waitForAssertion(assertion, { interval: 10 });
 
-const stuckStreamingData: EveMessageData = {
+const stuckStreamingData: MessageFixture = {
   messages: [
     { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
     {
@@ -43,18 +52,34 @@ const stuckStreamingData: EveMessageData = {
   ],
 };
 
-const createAgent = (overrides: Record<string, unknown>) => ({
-  data: stuckStreamingData,
-  error: undefined,
-  events: [],
-  session: undefined,
-  status: "ready",
-  send: vi.fn(),
-  respond: vi.fn(),
-  stop: vi.fn(),
-  reset: vi.fn(),
-  ...overrides,
-});
+const createAgent = (overrides: Record<string, unknown>) => {
+  const { send, respond, ...other } = overrides;
+  const invoke = (handler: unknown, args: unknown[]) => {
+    if (typeof handler !== "function")
+      return Promise.resolve(createEveDelivery());
+    try {
+      return Promise.resolve(
+        createEveDeliveryAfter(Promise.resolve(handler(...args))),
+      );
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
+  return {
+    messages: stuckStreamingData.messages,
+    view: emptySessionView(),
+    error: undefined,
+    events: [],
+    session: undefined,
+    status: "idle",
+    cancel: vi.fn(async () => createEveDelivery()),
+    newSession: vi.fn(),
+    resume: vi.fn(async () => {}),
+    ...other,
+    send: vi.fn((...args: unknown[]) => invoke(send, args)),
+    respond: vi.fn((...args: unknown[]) => invoke(respond, args)),
+  };
+};
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -76,7 +101,7 @@ describe("useEveAgentRuntime status forwarding", () => {
         if (failureMode === "throws") throw callbackError;
         return Promise.reject(callbackError);
       });
-      const agent = createAgent({ data: { messages: [] } });
+      const agent = createAgent({ messages: [] });
       let capturedOptions: Record<
         string,
         ((value: unknown) => void) | undefined
@@ -95,7 +120,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
       const value =
         callbackName === "onFinish"
-          ? { status: "ready" }
+          ? { status: "idle" }
           : callbackName === "onError"
             ? new Error("run failed")
             : {};
@@ -112,7 +137,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
   it("maps the session error onto the interrupted assistant message", () => {
     mockUseEveAgent.mockReturnValue(
-      createAgent({ status: "error", error: new Error("boom") }) as never,
+      createAgent({ status: "idle", error: new Error("boom") }) as never,
     );
 
     const { result } = renderHook(() => useEveAgentRuntime());
@@ -125,7 +150,7 @@ describe("useEveAgentRuntime status forwarding", () => {
   });
 
   it("settles an aborted turn to cancelled once the agent is idle", () => {
-    mockUseEveAgent.mockReturnValue(createAgent({ status: "ready" }) as never);
+    mockUseEveAgent.mockReturnValue(createAgent({ status: "idle" }) as never);
 
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -136,7 +161,7 @@ describe("useEveAgentRuntime status forwarding", () => {
   });
 
   it("recomputes statuses when only the session error changes", () => {
-    const idle = createAgent({ status: "ready" });
+    const idle = createAgent({ status: "idle" });
     mockUseEveAgent.mockReturnValue(idle as never);
 
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
@@ -148,7 +173,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
     mockUseEveAgent.mockReturnValue({
       ...idle,
-      status: "error",
+      status: "idle",
       error: new Error("boom"),
     } as never);
     rerender();
@@ -162,7 +187,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
   it("forwards runConfig to eve as one-turn client context when sending", async () => {
     const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
+      messages: [],
     });
     mockUseEveAgent.mockReturnValue(agent as never);
 
@@ -185,7 +210,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
   it("omits clientContext when no runConfig is provided", async () => {
     const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
+      messages: [],
     });
     mockUseEveAgent.mockReturnValue(agent as never);
 
@@ -205,7 +230,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
   it("omits clientContext when runConfig.custom is empty", async () => {
     const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
+      messages: [],
     });
     mockUseEveAgent.mockReturnValue(agent as never);
 
@@ -226,7 +251,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
   it("prefers the reload-time runConfig over the staged one", async () => {
     const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
+      messages: [],
     });
     mockUseEveAgent.mockReturnValue(agent as never);
 
@@ -262,7 +287,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 
   it("falls back to the staged runConfig when reload passes none", async () => {
     const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
+      messages: [],
     });
     mockUseEveAgent.mockReturnValue(agent as never);
 
@@ -299,7 +324,7 @@ describe("useEveAgentRuntime status forwarding", () => {
   // the adapter and cannot clear the staged context.
   it("cannot clear the staged runConfig with an explicit empty reload config", async () => {
     const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
+      messages: [],
     });
     mockUseEveAgent.mockReturnValue(agent as never);
 
@@ -331,9 +356,7 @@ describe("useEveAgentRuntime status forwarding", () => {
   });
 
   it("keeps the last assistant message running while streaming", () => {
-    mockUseEveAgent.mockReturnValue(
-      createAgent({ status: "streaming" }) as never,
-    );
+    mockUseEveAgent.mockReturnValue(createAgent({ status: "busy" }) as never);
 
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -344,7 +367,7 @@ describe("useEveAgentRuntime status forwarding", () => {
 });
 
 describe("useEveAgentRuntime tool approval responses", () => {
-  const textRequestData: EveMessageData = {
+  const textRequestData: MessageFixture = {
     messages: [
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
       {
@@ -352,22 +375,23 @@ describe("useEveAgentRuntime tool approval responses", () => {
         role: "assistant",
         parts: [
           {
-            type: "dynamic-tool",
-            state: "approval-requested",
-            toolCallId: "call_1",
-            toolName: "ask_question",
+            type: "tool",
+            state: "approval",
+            callId: "call_1",
+            stepIndex: 0,
+            kind: "tool",
+            name: "ask_question",
+            label: "ask_question",
             input: {},
-            approval: { id: "req_1" },
-            toolMetadata: {
-              eve: {
-                kind: "tool-call",
-                name: "ask_question",
-                inputRequest: {
-                  requestId: "req_1",
-                  prompt: "What should the subject line be?",
-                  kind: "question",
-                  display: "text",
-                },
+            interaction: {
+              interactionId: "req_1",
+              turnId: "t1",
+              stepIndex: 0,
+              status: "open",
+              request: {
+                prompt: "What should the subject line be?",
+                kind: "question",
+                display: "text",
               },
             },
           },
@@ -379,11 +403,6 @@ describe("useEveAgentRuntime tool approval responses", () => {
   const flushMicrotasks = () =>
     new Promise((resolve) => setTimeout(resolve, 0));
 
-  const processEvents = process as unknown as {
-    on(event: "unhandledRejection", listener: (reason: unknown) => void): void;
-    off(event: "unhandledRejection", listener: (reason: unknown) => void): void;
-  };
-
   const respondToTextRequest = (
     result: { current: ReturnType<typeof useEveAgentRuntime> },
     response: { approved: boolean; reason?: string; optionId?: string },
@@ -394,14 +413,85 @@ describe("useEveAgentRuntime tool approval responses", () => {
       .respondToToolApproval(response);
 
   it("keeps an unanswered free-form request pending through the default controls", async () => {
+    const pausedEvents: readonly SessionEvent[] = [
+      { type: "session.started", data: {} },
+      { type: "delivery.admitted", data: { deliveryId: "d1" } },
+      {
+        type: "turn.started",
+        data: {
+          turnId: "t1",
+          cause: { deliveryId: "d1" },
+          follows: null,
+        },
+      },
+      {
+        type: "delivery.consumed",
+        data: {
+          deliveryId: "d1",
+          turnId: "t1",
+          parts: [{ kind: "text", text: "hi" }],
+        },
+      },
+      {
+        type: "interaction.opened",
+        data: {
+          interactionId: "req_1",
+          subject: { turnId: "t1" },
+          request: {
+            kind: "question",
+            prompt: "What should the subject line be?",
+            display: "text",
+          },
+        },
+      },
+      {
+        type: "turn.paused",
+        data: { turnId: "t1", awaiting: [{ interactionId: "req_1" }] },
+      },
+      {
+        type: "delivery.settled",
+        data: {
+          deliveryId: "d1",
+          turnId: "t1",
+          outcome: "awaiting-input",
+        },
+      },
+    ];
+    const view = foldEvents(
+      emptySessionView(),
+      createEveEvents(
+        pausedEvents.map((event) => ({
+          at: "2026-01-02T10:00:00.000Z",
+          event,
+        })),
+      ),
+    );
+    expect(activeTurn(view)?.turnId).toBe("t1");
+    expect(idle(view)).toBe(true);
     const rejections: unknown[] = [];
     const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    const processEvents = process as {
+      env: typeof process.env;
+      on(
+        event: "unhandledRejection",
+        listener: (reason: unknown) => void,
+      ): void;
+      off(
+        event: "unhandledRejection",
+        listener: (reason: unknown) => void,
+      ): void;
+    };
     processEvents.on("unhandledRejection", onUnhandledRejection);
-    const agent = createAgent({ data: textRequestData });
+    const agent = createAgent({ messages: textRequestData.messages, view });
     mockUseEveAgent.mockReturnValue(agent as never);
 
     try {
       const { result } = renderHook(() => useEveAgentRuntime());
+      expect(result.current.thread.getState().isRunning).toBe(false);
+      expect(result.current.thread.getState().messages.at(-1)?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
 
       await expect(
         respondToTextRequest(result, { approved: true }),
@@ -418,72 +508,8 @@ describe("useEveAgentRuntime tool approval responses", () => {
     }
   });
 
-  const bareApprovalData = (toolMetadata?: {
-    eve: { kind: "tool-call"; name: string };
-  }): EveMessageData => ({
-    messages: [
-      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [
-          {
-            type: "dynamic-tool",
-            state: "approval-requested",
-            toolCallId: "call_1",
-            toolName: "delete_file",
-            input: {},
-            approval: { id: "req_1" },
-            ...(toolMetadata && { toolMetadata }),
-          },
-        ],
-      },
-    ],
-  });
-
-  it.each([
-    ["no eve tool metadata at all", undefined],
-    [
-      "eve metadata carrying no input request",
-      { eve: { kind: "tool-call", name: "delete_file" } },
-    ],
-  ])(
-    "still answers an ordinary approval when the part has %s",
-    async (_label, toolMetadata) => {
-      const agent = createAgent({
-        data: bareApprovalData(toolMetadata as never),
-      });
-      mockUseEveAgent.mockReturnValue(agent as never);
-
-      const { result } = renderHook(() => useEveAgentRuntime());
-      expect(() =>
-        respondToTextRequest(result, { approved: true }),
-      ).not.toThrow();
-
-      await flushMicrotasks();
-
-      expect(agent.respond).toHaveBeenCalledWith([
-        { requestId: "req_1", optionId: "approve" },
-      ]);
-    },
-  );
-
-  it("maps a refusal on a request the data does not carry", async () => {
-    const agent = createAgent({ data: bareApprovalData(undefined) });
-    mockUseEveAgent.mockReturnValue(agent as never);
-
-    const { result } = renderHook(() => useEveAgentRuntime());
-    respondToTextRequest(result, { approved: false, reason: "not safe" });
-
-    await flushMicrotasks();
-
-    expect(agent.respond).toHaveBeenCalledWith([
-      { requestId: "req_1", optionId: "cancel", text: "not safe" },
-    ]);
-  });
-
   it("submits a free-form answer as text without an option id", async () => {
-    const agent = createAgent({ data: textRequestData });
+    const agent = createAgent({ messages: textRequestData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
 
     const { result } = renderHook(() => useEveAgentRuntime());
@@ -495,12 +521,40 @@ describe("useEveAgentRuntime tool approval responses", () => {
     await flushMicrotasks();
 
     expect(agent.respond).toHaveBeenCalledWith([
-      { requestId: "req_1", text: "Quarterly results" },
+      { interactionId: "req_1", text: "Quarterly results" },
+    ]);
+  });
+
+  it("submits an approval using the interaction's option id", async () => {
+    const agent = createAgent({ messages: approvalData.messages });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, { approved: true });
+
+    await flushMicrotasks();
+
+    expect(agent.respond).toHaveBeenCalledWith([
+      { interactionId: "req_1", optionId: "approve" },
+    ]);
+  });
+
+  it("maps a refusal to eve's deny option", async () => {
+    const agent = createAgent({ messages: approvalData.messages });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, { approved: false, reason: "not safe" });
+
+    await flushMicrotasks();
+
+    expect(agent.respond).toHaveBeenCalledWith([
+      { interactionId: "req_1", optionId: "deny", text: "not safe" },
     ]);
   });
 });
 
-const settledData: EveMessageData = {
+const settledData: MessageFixture = {
   messages: [
     { id: "u1", role: "user", parts: [{ type: "text", text: "earlier" }] },
     {
@@ -511,7 +565,7 @@ const settledData: EveMessageData = {
   ],
 };
 
-const executingToolData: EveMessageData = {
+const executingToolData: MessageFixture = {
   messages: [
     { id: "u1", role: "user", parts: [{ type: "text", text: "run it" }] },
     {
@@ -519,10 +573,13 @@ const executingToolData: EveMessageData = {
       role: "assistant",
       parts: [
         {
-          type: "dynamic-tool",
-          state: "input-available",
-          toolCallId: "call_slow",
-          toolName: "slow_tool",
+          type: "tool",
+          state: "running",
+          callId: "call_slow",
+          stepIndex: 0,
+          kind: "tool",
+          name: "slow_tool",
+          label: "slow_tool",
           input: {},
         },
       ],
@@ -530,7 +587,7 @@ const executingToolData: EveMessageData = {
   ],
 };
 
-const twoExecutingToolsData: EveMessageData = {
+const twoExecutingToolsData: MessageFixture = {
   messages: [
     { id: "u1", role: "user", parts: [{ type: "text", text: "run them" }] },
     {
@@ -538,17 +595,23 @@ const twoExecutingToolsData: EveMessageData = {
       role: "assistant",
       parts: [
         {
-          type: "dynamic-tool",
-          state: "input-available",
-          toolCallId: "call_slow_a",
-          toolName: "slow_tool",
+          type: "tool",
+          state: "running",
+          callId: "call_slow_a",
+          stepIndex: 0,
+          kind: "tool",
+          name: "slow_tool",
+          label: "slow_tool",
           input: {},
         },
         {
-          type: "dynamic-tool",
-          state: "input-available",
-          toolCallId: "call_slow_b",
-          toolName: "slow_tool",
+          type: "tool",
+          state: "running",
+          callId: "call_slow_b",
+          stepIndex: 0,
+          kind: "tool",
+          name: "slow_tool",
+          label: "slow_tool",
           input: {},
         },
       ],
@@ -580,7 +643,7 @@ const stageMessage = async (
 
 describe("useEveAgentRuntime staged messages", () => {
   it("stages a user message without submitting when startRun is false", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -597,7 +660,7 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("renders new turns and refloats staged drafts after a normal send", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
@@ -613,21 +676,19 @@ describe("useEveAgentRuntime staged messages", () => {
 
     mockUseEveAgent.mockReturnValue(
       createAgent({
-        data: {
-          messages: [
-            ...settledData.messages,
-            {
-              id: "u2",
-              role: "user",
-              parts: [{ type: "text", text: "hello" }],
-            },
-            {
-              id: "a2",
-              role: "assistant",
-              parts: [{ type: "text", text: "hi there" }],
-            },
-          ],
-        },
+        messages: [
+          ...settledData.messages,
+          {
+            id: "u2",
+            role: "user",
+            parts: [{ type: "text", text: "hello" }],
+          },
+          {
+            id: "a2",
+            role: "assistant",
+            parts: [{ type: "text", text: "hi there" }],
+          },
+        ],
         send: agent.send,
       }) as never,
     );
@@ -645,7 +706,7 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("keeps both drafts when two appends stage in the same batch", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -680,7 +741,7 @@ describe("useEveAgentRuntime staged messages", () => {
         new Error("eve session is already processing a turn."),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -725,7 +786,7 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("applies the reload runConfig only to the message being reloaded", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -763,7 +824,7 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("keeps later staged messages visible after promoting one staged parent", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -801,7 +862,7 @@ describe("useEveAgentRuntime staged messages", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -843,14 +904,14 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("keeps staged drafts when the session collapses to empty", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
     await stageMessage(result.current, "staged draft");
 
     mockUseEveAgent.mockReturnValue(
-      createAgent({ data: { messages: [] }, send: agent.send }) as never,
+      createAgent({ messages: [], send: agent.send }) as never,
     );
     rerender();
 
@@ -860,17 +921,9 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("stops promoting once a promoted turn parks with an error status", async () => {
-    let capturedOptions: {
-      onFinish?: (snapshot: { status: string }) => void;
-    } = {};
-    const send = vi.fn().mockImplementation(async () => {
-      capturedOptions.onFinish?.({ status: "error" });
-    });
-    const agent = createAgent({ data: settledData, send });
-    mockUseEveAgent.mockImplementation((options) => {
-      capturedOptions = options as typeof capturedOptions;
-      return agent as never;
-    });
+    const send = vi.fn().mockResolvedValue(createEveDelivery("failed"));
+    const agent = createAgent({ messages: settledData.messages, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
     await stageMessage(result.current, "first staged");
@@ -907,7 +960,7 @@ describe("useEveAgentRuntime staged messages", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -942,7 +995,7 @@ describe("useEveAgentRuntime staged messages", () => {
   });
 
   it("still rejects reloading a non-staged message", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -967,7 +1020,7 @@ describe("useEveAgentRuntime extras wiring", () => {
     const events = [{ type: "session.started" }];
     const session = { sessionId: "s1" };
     mockUseEveAgent.mockReturnValue(
-      createAgent({ status: "error", error, events, session }) as never,
+      createAgent({ status: "idle", error, events, session }) as never,
     );
 
     const { result } = renderHook(() => useEveAgentRuntime());
@@ -978,7 +1031,7 @@ describe("useEveAgentRuntime extras wiring", () => {
   });
 
   it("discards staged inputs when reset is invoked", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1006,11 +1059,11 @@ describe("useEveAgentRuntime extras wiring", () => {
       ),
     ).rejects.toThrow("Runtime does not support reloading messages.");
     expect(agent.send).not.toHaveBeenCalled();
-    expect(agent.reset).toHaveBeenCalledTimes(1);
+    expect(agent.newSession).toHaveBeenCalledTimes(1);
   });
 
   it("clears executing tool state when reset is invoked", async () => {
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
@@ -1030,7 +1083,10 @@ describe("useEveAgentRuntime extras wiring", () => {
     // The tracker treats its first snapshot as historical, so the tool call
     // has to arrive on a later one to actually execute.
     mockUseEveAgent.mockReturnValue(
-      createAgent({ data: executingToolData, reset: agent.reset }) as never,
+      createAgent({
+        messages: executingToolData.messages,
+        newSession: agent.newSession,
+      }) as never,
     );
     rerender();
 
@@ -1045,7 +1101,7 @@ describe("useEveAgentRuntime extras wiring", () => {
     await waitFor(() => {
       expect(result.current.thread.getState().isRunning).toBe(false);
     });
-    expect(agent.reset).toHaveBeenCalledTimes(1);
+    expect(agent.newSession).toHaveBeenCalledTimes(1);
   });
 
   it("drops a send queued behind an active turn when reset is invoked", async () => {
@@ -1059,7 +1115,7 @@ describe("useEveAgentRuntime extras wiring", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1112,7 +1168,7 @@ describe("useEveAgentRuntime extras wiring", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1148,7 +1204,7 @@ describe("useEveAgentRuntime extras wiring", () => {
     });
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(agent.stop).toHaveBeenCalledTimes(1);
+    expect(agent.cancel).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(getText(result.current)).toEqual([
         "earlier",
@@ -1161,10 +1217,13 @@ describe("useEveAgentRuntime extras wiring", () => {
   it("aborts client tool executions when reset is invoked", async () => {
     const agentReset = vi.fn(() => {
       mockUseEveAgent.mockReturnValue(
-        createAgent({ data: { messages: [] }, reset: agentReset }) as never,
+        createAgent({ messages: [], newSession: agentReset }) as never,
       );
     });
-    const agent = createAgent({ data: settledData, reset: agentReset });
+    const agent = createAgent({
+      messages: settledData.messages,
+      newSession: agentReset,
+    });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
@@ -1191,7 +1250,10 @@ describe("useEveAgentRuntime extras wiring", () => {
     });
 
     mockUseEveAgent.mockReturnValue(
-      createAgent({ data: twoExecutingToolsData, reset: agentReset }) as never,
+      createAgent({
+        messages: twoExecutingToolsData.messages,
+        newSession: agentReset,
+      }) as never,
     );
     rerender();
 
@@ -1213,10 +1275,13 @@ describe("useEveAgentRuntime extras wiring", () => {
   it("rejects a pending human-input request when reset is invoked", async () => {
     const agentReset = vi.fn(() => {
       mockUseEveAgent.mockReturnValue(
-        createAgent({ data: { messages: [] }, reset: agentReset }) as never,
+        createAgent({ messages: [], newSession: agentReset }) as never,
       );
     });
-    const agent = createAgent({ data: settledData, reset: agentReset });
+    const agent = createAgent({
+      messages: settledData.messages,
+      newSession: agentReset,
+    });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
@@ -1247,7 +1312,10 @@ describe("useEveAgentRuntime extras wiring", () => {
     });
 
     mockUseEveAgent.mockReturnValue(
-      createAgent({ data: twoExecutingToolsData, reset: agentReset }) as never,
+      createAgent({
+        messages: twoExecutingToolsData.messages,
+        newSession: agentReset,
+      }) as never,
     );
     rerender();
 
@@ -1272,10 +1340,13 @@ describe("useEveAgentRuntime extras wiring", () => {
     const releases: Record<string, () => void> = {};
     const agentReset = vi.fn(() => {
       mockUseEveAgent.mockReturnValue(
-        createAgent({ data: { messages: [] }, reset: agentReset }) as never,
+        createAgent({ messages: [], newSession: agentReset }) as never,
       );
     });
-    const agent = createAgent({ data: settledData, reset: agentReset });
+    const agent = createAgent({
+      messages: settledData.messages,
+      newSession: agentReset,
+    });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
 
@@ -1298,8 +1369,8 @@ describe("useEveAgentRuntime extras wiring", () => {
 
     mockUseEveAgent.mockReturnValue(
       createAgent({
-        data: twoExecutingToolsData,
-        reset: agentReset,
+        messages: twoExecutingToolsData.messages,
+        newSession: agentReset,
       }) as never,
     );
     rerender();
@@ -1329,21 +1400,24 @@ describe("useEveAgentRuntime extras wiring", () => {
   });
 
   it("promotes every staged draft after reset when the discarded run failed", async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
-    let capturedOptions: { onFinish?: (snapshot: unknown) => void } = {};
-    mockUseEveAgent.mockImplementation((options) => {
-      capturedOptions = options as typeof capturedOptions;
-      return agent as never;
-    });
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce(createEveDelivery("failed"))
+      .mockResolvedValue(createEveDelivery());
+    const agent = createAgent({ messages: settledData.messages, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
-    act(() => {
-      capturedOptions.onFinish?.({ status: "error" });
+    await stageMessage(result.current, "discarded draft");
+    const discardedId = result.current.thread.getState().messages[2]!.id;
+    await act(async () => {
+      await result.current.thread.startRun({ parentId: discardedId });
     });
+    expect(send).toHaveBeenCalledTimes(1);
     act(() => {
       eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
     });
+    send.mockClear();
 
     await stageMessage(result.current, "first staged");
     await stageMessage(result.current, "second staged");
@@ -1363,7 +1437,7 @@ describe("useEveAgentRuntime extras wiring", () => {
   });
 });
 
-const approvalData: EveMessageData = {
+const approvalData: MessageFixture = {
   messages: [
     { id: "u1", role: "user", parts: [{ type: "text", text: "send it" }] },
     {
@@ -1371,26 +1445,27 @@ const approvalData: EveMessageData = {
       role: "assistant",
       parts: [
         {
-          type: "dynamic-tool",
-          state: "approval-requested",
-          toolCallId: "call_1",
-          toolName: "send_email",
+          type: "tool",
+          state: "approval",
+          callId: "call_1",
+          stepIndex: 0,
+          kind: "tool",
+          name: "send_email",
+          label: "send_email",
           input: { to: "dev@example.com" },
-          approval: { id: "req_1" },
-          toolMetadata: {
-            eve: {
-              kind: "tool-call",
-              name: "send_email",
-              inputRequest: {
-                requestId: "req_1",
-                kind: "tool-approval",
-                prompt: "Send the email?",
-                display: "confirmation",
-                options: [
-                  { id: "approve", label: "Approve" },
-                  { id: "cancel", label: "Cancel" },
-                ],
-              },
+          interaction: {
+            interactionId: "req_1",
+            turnId: "t1",
+            stepIndex: 0,
+            status: "open",
+            request: {
+              kind: "approval",
+              prompt: "Send the email?",
+              display: "confirmation",
+              options: [
+                { id: "approve", label: "Approve" },
+                { id: "deny", label: "Deny" },
+              ],
             },
           },
         },
@@ -1409,7 +1484,11 @@ describe("useEveAgentRuntime concurrent sends", () => {
         }),
     );
     const respond = vi.fn().mockResolvedValue(undefined);
-    const agent = createAgent({ data: approvalData, send, respond });
+    const agent = createAgent({
+      messages: approvalData.messages,
+      send,
+      respond,
+    });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1434,7 +1513,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
     });
     await waitFor(() => expect(respond).toHaveBeenCalledTimes(1));
     expect(respond).toHaveBeenCalledWith([
-      { requestId: "req_1", optionId: "approve" },
+      { interactionId: "req_1", optionId: "approve" },
     ]);
   });
 
@@ -1449,7 +1528,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1488,7 +1567,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1509,7 +1588,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
     act(() => {
       result.current.thread.cancelRun();
     });
-    expect(agent.stop).toHaveBeenCalledTimes(1);
+    expect(agent.cancel).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveFirstSend();
@@ -1528,7 +1607,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1574,13 +1653,11 @@ describe("useEveAgentRuntime concurrent sends", () => {
     // Before the turn streams, the dispatched message is the thread's trailing
     // user leaf. Eve owns that message and cannot remove it on cancel.
     const agent = createAgent({
-      data: {
-        messages: [
-          ...settledData.messages,
-          { id: "u2", role: "user", parts: [{ type: "text", text: "first" }] },
-        ],
-      } satisfies EveMessageData,
-      status: "submitted",
+      messages: [
+        ...settledData.messages,
+        { id: "u2", role: "user", parts: [{ type: "text", text: "first" }] },
+      ],
+      status: "idle",
       send,
     });
     mockUseEveAgent.mockReturnValue(agent as never);
@@ -1620,7 +1697,11 @@ describe("useEveAgentRuntime concurrent sends", () => {
         }),
     );
     const respond = vi.fn().mockResolvedValue(undefined);
-    const agent = createAgent({ data: approvalData, send, respond });
+    const agent = createAgent({
+      messages: approvalData.messages,
+      send,
+      respond,
+    });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
     const before = getText(result.current);
@@ -1663,7 +1744,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result, unmount } = renderHook(() => useEveAgentRuntime());
 
@@ -1693,7 +1774,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
     let capturedOptions: {
       onFinish?: (snapshot: { status: string }) => void;
     } = {};
-    const agent = createAgent({ data: settledData });
+    const agent = createAgent({ messages: settledData.messages });
     mockUseEveAgent.mockImplementation((options) => {
       capturedOptions = options as typeof capturedOptions;
       return agent as never;
@@ -1701,9 +1782,9 @@ describe("useEveAgentRuntime concurrent sends", () => {
     const onFinish = vi.fn();
     renderHook(() => useEveAgentRuntime({ onFinish }));
 
-    capturedOptions.onFinish?.({ status: "ready" });
+    capturedOptions.onFinish?.({ status: "idle" });
 
-    expect(onFinish).toHaveBeenCalledWith({ status: "ready" });
+    expect(onFinish).toHaveBeenCalledWith({ status: "idle" });
   });
 
   it("orders a send issued mid-promotion after the in-flight staged draft", async () => {
@@ -1717,7 +1798,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
           }),
       )
       .mockResolvedValue(undefined);
-    const agent = createAgent({ data: settledData, send });
+    const agent = createAgent({ messages: settledData.messages, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1756,9 +1837,9 @@ describe("useEveAgentRuntime concurrent sends", () => {
 });
 
 describe("useEveAgentRuntime cancel binding", () => {
-  it("cancels through the eve 0.38+ cancel binding when the agent provides it", async () => {
+  it("cancels through the eve cancel binding", async () => {
     const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
-    const agent = createAgent({ status: "streaming", cancel });
+    const agent = createAgent({ status: "busy", cancel });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1767,19 +1848,6 @@ describe("useEveAgentRuntime cancel binding", () => {
     });
 
     expect(cancel).toHaveBeenCalledTimes(1);
-    expect(agent.stop).not.toHaveBeenCalled();
-  });
-
-  it("falls back to the pre-0.38 stop binding when cancel is absent", async () => {
-    const agent = createAgent({ status: "streaming" });
-    mockUseEveAgent.mockReturnValue(agent as never);
-    const { result } = renderHook(() => useEveAgentRuntime());
-
-    await act(async () => {
-      result.current.thread.cancelRun();
-    });
-
-    expect(agent.stop).toHaveBeenCalledTimes(1);
   });
 
   it("drops a queued send when the durable cancel settles late", async () => {
@@ -1800,7 +1868,7 @@ describe("useEveAgentRuntime cancel binding", () => {
           resolveCancel = () => resolve({ status: "cancelled" });
         }),
     );
-    const agent = createAgent({ data: settledData, send, cancel });
+    const agent = createAgent({ messages: settledData.messages, send, cancel });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -1838,28 +1906,24 @@ describe("useEveAgentRuntime thread refetch", () => {
     const resumeA = vi.fn().mockResolvedValue(undefined);
     const resumeB = vi.fn().mockResolvedValue(undefined);
     const agentA = createAgent({
-      data: {
-        messages: [
-          {
-            id: "workspace-a",
-            role: "user",
-            parts: [{ type: "text", text: "workspace A" }],
-          },
-        ],
-      },
+      messages: [
+        {
+          id: "workspace-a",
+          role: "user",
+          parts: [{ type: "text", text: "workspace A" }],
+        },
+      ],
       session,
       resume: resumeA,
     });
     const agentB = createAgent({
-      data: {
-        messages: [
-          {
-            id: "workspace-b",
-            role: "user",
-            parts: [{ type: "text", text: "workspace B" }],
-          },
-        ],
-      },
+      messages: [
+        {
+          id: "workspace-b",
+          role: "user",
+          parts: [{ type: "text", text: "workspace B" }],
+        },
+      ],
       session,
       resume: resumeB,
     });
@@ -2147,19 +2211,6 @@ describe("useEveAgentRuntime thread refetch", () => {
     await waitFor(() => expect(settled).toBe(true));
     expect(resume).not.toHaveBeenCalled();
   });
-
-  it("leaves the capability absent when the installed eve has no resume", async () => {
-    const agent = createAgent({ session });
-    mockUseEveAgent.mockReturnValue(agent as never);
-    const { result } = renderHook(() => useEveAgentRuntime());
-
-    expect(result.current.thread.getState().capabilities.refetchThread).toBe(
-      false,
-    );
-    await act(async () => {
-      await result.current.threads.reloadMainThread();
-    });
-  });
 });
 
 describe("useEveAgentRuntime createdAt derivation", () => {
@@ -2170,22 +2221,34 @@ describe("useEveAgentRuntime createdAt derivation", () => {
   const turnEvents = [
     {
       type: "turn.started",
-      data: { sequence: 1, turnId: TURN },
-      meta: { at: "2026-01-02T10:00:00.000Z", id: "evt_1" },
+      data: {
+        turnId: TURN,
+        cause: { deliveryId: "delivery_1" },
+        follows: null,
+      },
+      meta: {
+        at: "2026-01-02T10:00:00.000Z",
+        position: { line: 0, index: 0 },
+      },
     },
     {
-      type: "message.received",
-      data: { message: "hi", sequence: 2, turnId: TURN },
-      meta: { at: USER_AT, id: "evt_2" },
+      type: "delivery.consumed",
+      data: {
+        deliveryId: "delivery_1",
+        turnId: TURN,
+        parts: [{ kind: "text", text: "hi" }],
+      },
+      meta: { at: USER_AT, position: { line: 1, index: 0 } },
     },
     {
-      type: "step.started",
-      data: { modelId: "m", sequence: 3, stepIndex: 0, turnId: TURN },
-      meta: { at: ASSISTANT_AT, id: "evt_3" },
+      type: "model.requested",
+      data: { runId: "run_1", owner: { turnId: TURN } },
+      scope: { turnId: TURN },
+      meta: { at: ASSISTANT_AT, position: { line: 2, index: 0 } },
     },
-  ] satisfies readonly MessageStreamEvent[];
+  ] satisfies readonly SessionStreamEvent[];
 
-  const turnData: EveMessageData = {
+  const turnData: MessageFixture = {
     messages: [
       {
         id: `${TURN}:user`,
@@ -2204,7 +2267,7 @@ describe("useEveAgentRuntime createdAt derivation", () => {
 
   it("stamps a message with the wall clock when no event covers its turn, and keeps that stamp across renders", () => {
     const before = Date.now();
-    const agent = createAgent({ data: turnData, events: [] });
+    const agent = createAgent({ messages: turnData.messages, events: [] });
     mockUseEveAgent.mockReturnValue(agent as never);
 
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
@@ -2214,7 +2277,7 @@ describe("useEveAgentRuntime createdAt derivation", () => {
 
     mockUseEveAgent.mockReturnValue({
       ...agent,
-      data: { messages: [...turnData.messages] },
+      messages: [...turnData.messages],
     } as never);
     rerender();
 
@@ -2224,7 +2287,10 @@ describe("useEveAgentRuntime createdAt derivation", () => {
   });
 
   it("keeps the message list identity when appended events stamp no message", () => {
-    const agent = createAgent({ data: turnData, events: turnEvents });
+    const agent = createAgent({
+      messages: turnData.messages,
+      events: turnEvents,
+    });
     mockUseEveAgent.mockReturnValue(agent as never);
 
     const { result, rerender } = renderHook(() => useEveAgentRuntime());
@@ -2236,8 +2302,15 @@ describe("useEveAgentRuntime createdAt derivation", () => {
         ...turnEvents,
         {
           type: "turn.started",
-          data: { sequence: 4, turnId: "turn_next" },
-          meta: { at: "2026-01-02T10:05:00.000Z", id: "evt_4" },
+          data: {
+            turnId: "turn_next",
+            cause: { deliveryId: "delivery_2" },
+            follows: TURN,
+          },
+          meta: {
+            at: "2026-01-02T10:05:00.000Z",
+            position: { line: 3, index: 0 },
+          },
         },
       ],
     } as never);

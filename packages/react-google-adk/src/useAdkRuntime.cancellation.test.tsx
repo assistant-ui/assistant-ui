@@ -397,7 +397,7 @@ describe("useAdkRuntime cancellation", () => {
     await waitFor(() =>
       expect(capture.runtime!.thread.getState().messages.at(-1)).toMatchObject({
         role: "assistant",
-        content: [{ type: "tool-call", result: '{"result":"found"}' }],
+        content: [{ type: "tool-call", result: { result: "found" } }],
       }),
     );
 
@@ -540,6 +540,45 @@ describe("useAdkRuntime cancellation", () => {
     expect(capture.runtime!.thread.getState().messages.at(-1)?.status).toEqual({
       type: "complete",
       reason: "stop",
+    });
+  });
+});
+
+describe("useAdkRuntime error status", () => {
+  it("keeps a recoverable error visible when the agent answers after it", async () => {
+    const capture = await renderAdkRuntime(
+      makePendingStream(
+        { id: "error", author: "agent", errorMessage: "recoverable error" },
+        {
+          id: "answer",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "done" }] },
+        },
+      ),
+    );
+
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() =>
+      expect(capture.runtime!.thread.getState().messages.at(-1)).toMatchObject({
+        role: "assistant",
+        content: [{ type: "text", text: "done" }],
+      }),
+    );
+    expect(
+      capture
+        .runtime!.thread.getState()
+        .messages.filter((message) => message.role === "assistant")
+        .map((message) => message.status),
+    ).toContainEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "recoverable error",
     });
   });
 });

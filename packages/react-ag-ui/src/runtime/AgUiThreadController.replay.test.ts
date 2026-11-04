@@ -3286,6 +3286,7 @@ describe("AgUiThreadController selected-turn replay", () => {
         toolCallId: "x",
         messageId: "result-x",
         content: "server result",
+        metadata: { trace: "cross-run", retry: 0 },
       });
       emit(subscriber, {
         type: "RUN_FINISHED",
@@ -3296,7 +3297,13 @@ describe("AgUiThreadController selected-turn replay", () => {
 
     await resume(core, "u");
     expect(contents(core, "a")).toContainEqual(
-      expect.objectContaining({ toolCallId: "x", result: "server result" }),
+      expect.objectContaining({
+        toolCallId: "x",
+        result: "server result",
+        providerMetadata: {
+          agui: { messageMetadata: { trace: "cross-run", retry: 0 } },
+        },
+      }),
     );
     expect(
       core.getMessages().find((message) => message.id === "a")?.status,

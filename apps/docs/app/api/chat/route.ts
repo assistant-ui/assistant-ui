@@ -21,6 +21,8 @@ import {
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { getSession } from "@/lib/accounts-auth";
+import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
 import { searchImagesTool } from "@/lib/ai/search-images";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
@@ -116,7 +118,8 @@ export async function POST(req: Request) {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return withCors(req, toolsError);
 
-    const modelConfig = resolveChatModel(config);
+    const signedIn = (await getSession().catch(() => null)) !== null;
+    const modelConfig = resolveChatModel(config, { signedIn });
     const origin = new URL(req.url).origin;
 
     const frontendTools = await aiToolkit.tools({ frontend: tools });
@@ -193,9 +196,11 @@ export async function POST(req: Request) {
             originalMessages: messages,
             sendReasoning: true,
             messageMetadata: withAssistantCloudTraceMetadata(messageMetadata),
+            onError: toPublicStreamError,
           }),
         );
       },
+      onError: toPublicStreamError,
     });
 
     const response = createUIMessageStreamResponse({ stream });

@@ -29,7 +29,7 @@ const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
 const models: ModelOption[] = [];
 const modelsByProvider = new Map<string, ModelOption[]>();
-for (const option of docsModelOptions()) {
+for (const option of docsModelOptions({ signedIn: true })) {
   const provider = getProvider(option.id) ?? "Other";
   const model: ModelOption = {
     ...option,

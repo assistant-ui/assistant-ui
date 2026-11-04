@@ -5,6 +5,7 @@ import { createAssistantStreamController } from "../../modules/assistant-stream"
 import { toolResultStream } from "../../tool/toolResultStream";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 import { NO_RESULT } from "../../tool/ToolResponse";
+import type { AssistantMessage } from "../../utils/types";
 
 const roundTripFirstPart = async <T>(
   chunks: AssistantStreamChunk[],
@@ -51,6 +52,40 @@ const decodeLines = async (
   );
   return chunks;
 };
+
+describe("DataStreamEncoder part order", () => {
+  it("keeps synchronous text and non-text appends in order", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    controller.appendText("Hello ");
+    controller.appendText("world");
+    controller.appendFile({
+      type: "file",
+      mimeType: "text/plain",
+      data: "Zg==",
+    } as never);
+    controller.appendText("Bye");
+    controller.close();
+
+    let last: AssistantMessage | undefined;
+    await stream
+      .pipeThrough(new DataStreamEncoder())
+      .pipeThrough(new DataStreamDecoder())
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            last = message;
+          },
+        }),
+      );
+
+    expect(
+      last!.parts.map((part) =>
+        part.type === "text" ? `text:${part.text}` : part.type,
+      ),
+    ).toEqual(["text:Hello world", "file", "text:Bye"]);
+  });
+});
 
 describe("DataStreamDecoder line limits", () => {
   it("forwards a custom line limit to the protocol decoder", async () => {
@@ -852,6 +887,47 @@ describe("file parts on the data stream", () => {
   });
 });
 
+describe("tool-call approvals on the data stream", () => {
+  const approvalChunks: AssistantStreamChunk[] = [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "t1", toolName: "deploy" },
+    },
+    {
+      type: "tool-call-approval",
+      path: [0],
+      approval: { id: "a1", signature: "sig" },
+    },
+  ];
+
+  it("carries the approval on the wire", async () => {
+    const lines = await encodeChunks(approvalChunks);
+
+    expect(lines).toContain(
+      'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","signature":"sig"}}',
+    );
+  });
+
+  it("puts a round-tripped approval on its tool call", async () => {
+    const part = await roundTripFirstPart(approvalChunks);
+
+    expect(part).toMatchObject({
+      type: "tool-call",
+      toolCallId: "t1",
+      approval: { id: "a1", signature: "sig" },
+    });
+  });
+
+  it("throws on an approval for an unknown tool call by default", async () => {
+    await expect(
+      decodeLines([
+        'aui-tool-call-approval:{"toolCallId":"missing","approval":{"id":"a1"}}',
+      ]),
+    ).rejects.toThrow("unknown id: missing");
+  });
+});
+
 type ResultChunk = Extract<AssistantStreamChunk, { type: "result" }>;
 
 describe.each([
@@ -1009,6 +1085,7 @@ describe("DataStreamDecoder strict: false", () => {
       [
         'c:{"toolCallId":"missing","argsTextDelta":"{}"}',
         'a:{"toolCallId":"missing","result":{}}',
+        'aui-tool-call-approval:{"toolCallId":"missing","approval":{"id":"a1"}}',
         '0:"hello"',
       ],
       { strict: false },
@@ -1023,7 +1100,8 @@ describe("DataStreamDecoder strict: false", () => {
       ),
     ).toBe(false);
     expect(chunks.some((c) => c.type === "result")).toBe(false);
-    expect(error).toHaveBeenCalledTimes(2);
+    expect(chunks.some((c) => c.type === "tool-call-approval")).toBe(false);
+    expect(error).toHaveBeenCalledTimes(3);
   });
 
   it("drops duplicate tool call starts", async () => {
@@ -1090,6 +1168,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     "aui-text-delta:null",
     "aui-reasoning-delta:null",
     "aui-reasoning-part-start:null",
+    "aui-tool-call-approval:null",
     '2:{"a":1}',
     "8:null",
     'aui-state:"x"',
@@ -1107,6 +1186,9 @@ describe("DataStreamDecoder malformed frame values", () => {
     "aui-state:[{}]",
     'aui-state:[{"type":"set","path":"x","value":1}]',
     'aui-state:[{"type":"append-text","path":["a"],"value":1}]',
+    'aui-tool-call-approval:{"toolCallId":"t1","approval":{}}',
+    'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","approved":"false"}}',
+    'aui-tool-call-approval:{"toolCallId":"t1","approval":{"id":"a1","approved":null}}',
   ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
