@@ -1138,7 +1138,11 @@ body:has([data-fd-theme="assistant-ui"])
   margin: 0;
 }
 
-[data-fd-theme="assistant-ui"] .fd-page-actions-rail .fd-page-action-btn {
+[data-fd-theme="assistant-ui"] .fd-page-actions-rail .fd-page-action-btn,
+[data-fd-theme="assistant-ui"]
+  #nd-toc
+  .fd-page-actions-rail
+  .fd-page-action-btn {
   height: auto;
   gap: 0.375rem;
   padding: 0 !important;
@@ -1147,11 +1151,18 @@ body:has([data-fd-theme="assistant-ui"])
   color: var(--color-fd-muted-foreground) !important;
   font-size: 0.75rem !important;
   font-weight: 400 !important;
-  line-height: 1rem;
+  line-height: 1rem !important;
   transition: color 150ms;
 }
 
-[data-fd-theme="assistant-ui"] .fd-page-actions-rail .fd-page-action-btn:hover {
+[data-fd-theme="assistant-ui"]
+  .fd-page-actions-rail
+  .fd-page-action-btn:is(:hover, :focus-visible, [aria-expanded="true"]),
+[data-fd-theme="assistant-ui"]
+  #nd-toc
+  .fd-page-actions-rail
+  .fd-page-action-btn:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: transparent !important;
   color: var(--color-fd-foreground) !important;
 }
 
