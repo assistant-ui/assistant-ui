@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "fumadocs-core/framework";
 import { Moon, Search, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSearchContext } from "fumadocs-ui/contexts/search";

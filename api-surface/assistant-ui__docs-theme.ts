@@ -1,6 +1,6 @@
-import { DocsConfig } from "@farming-labs/docs";
+import { DocsConfig as DocsConfig$1 } from "@farming-labs/docs";
 
-import { DocsTheme } from "@farming-labs/docs/config";
+import { DocsConfig, DocsTheme } from "@farming-labs/docs/config";
 
 import { RootProvider } from "@farming-labs/theme";
 
@@ -140,7 +140,9 @@ declare namespace assistantUi {
   }
 }
 
-declare const createDocsLayout$1: (config: DocsConfig, options: createDocsLayout$1.Options) => (_param12: {
+declare const assistantUiDefaults: Required<Pick<DocsConfig, "breadcrumb" | "lastUpdated" | "pageActions" | "sidebar">>;
+
+declare const createDocsLayout$1: (config: DocsConfig$1, options: createDocsLayout$1.Options) => (_param12: {
   children: ReactNode;
 }) => import("react").JSX.Element;
 
@@ -162,10 +164,10 @@ declare namespace createDocsLayout$1 {
   }
 }
 
-declare const createDocsMetadata$1: (config: DocsConfig) => Record<string, unknown>;
+declare const createDocsMetadata$1: (config: DocsConfig$1) => Record<string, unknown>;
 
 declare namespace entry_root_exports {
-  export { DocsBrand, assistantUi };
+  export { DocsBrand, assistantUi, assistantUiDefaults };
 }
 
 declare namespace entry_next_exports {

@@ -1,5 +1,6 @@
 import { createTheme, type DocsTheme } from "@farming-labs/docs/config";
 import { shadcn } from "@farming-labs/theme/shadcn";
+import { assistantUiDefaults } from "./defaults";
 
 const createAssistantTheme = createTheme({
   ...shadcn({
@@ -8,7 +9,8 @@ const createAssistantTheme = createTheme({
         contentWidth: 848,
         sidebarWidth: 260,
         tocWidth: 224,
-        header: { height: 48 },
+        header: { height: 48, placement: "top" },
+        skipLink: true,
       },
       typography: {
         font: {
@@ -26,6 +28,7 @@ const createAssistantTheme = createTheme({
     },
   }),
   name: "assistant-ui",
+  configDefaults: assistantUiDefaults,
 });
 
 export const assistantUi = (overrides: assistantUi.Options = {}): DocsTheme =>
@@ -36,3 +39,4 @@ export namespace assistantUi {
 }
 
 export { DocsBrand } from "./brand";
+export { assistantUiDefaults } from "./defaults";

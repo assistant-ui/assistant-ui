@@ -37,6 +37,8 @@ minimumReleaseAgeExclude:
   - '@farming-labs/docs@0.2.137'
   - '@farming-labs/theme@0.2.137'
   - '@farming-labs/next@0.2.137'
+  - '@farming-labs/docs@0.2.139'
+  - '@farming-labs/theme@0.2.139'
   - '@lexical/a11y@0.53.0'
   - '@lexical/clipboard@0.53.0'
   - '@lexical/code-core@0.53.0'
