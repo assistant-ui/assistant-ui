@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ControlButton,
+  DemoHost,
   ErrorNotice,
   Placeholder,
   Range,
@@ -55,7 +56,7 @@ export function BookingDemo() {
   const [picked, setPicked] = useState<string | null>(null);
 
   return (
-    <div>
+    <DemoHost>
       <div
         className={cn(
           field,
@@ -134,7 +135,7 @@ export function BookingDemo() {
           Show boundary
         </label>
       </div>
-    </div>
+    </DemoHost>
   );
 }
 

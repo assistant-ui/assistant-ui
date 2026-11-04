@@ -1,9 +1,25 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
+import {
+  RemoteHostProvider,
+  collectFontFaces,
+} from "@assistant-ui/remote-components-host-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export const field =
   "bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document";
+
+// The site's font files send no CORS header, so opaque frames get only the local() fallback faces.
+export function DemoHost({ children }: { children: ReactNode }) {
+  const [fonts] = useState(() =>
+    typeof document === "undefined"
+      ? []
+      : collectFontFaces(document).filter((face) => !face.src.includes("url(")),
+  );
+  return <RemoteHostProvider theme={{ fonts }}>{children}</RemoteHostProvider>;
+}
 
 export function Stage({
   children,
@@ -17,27 +33,29 @@ export function Stage({
   className?: string;
 }) {
   return (
-    <div className="not-prose my-6">
-      <div
-        className={cn(
-          field,
-          "text-foreground px-4 py-6 text-sm [--focus-ring:var(--ring)] sm:px-6",
-          className,
-        )}
-      >
-        {children}
-        {log !== undefined && (
-          <div className="text-muted-foreground mt-4 font-mono text-xs leading-relaxed [font-variant-ligatures:none]">
-            {log}
+    <DemoHost>
+      <div className="not-prose my-6">
+        <div
+          className={cn(
+            field,
+            "text-foreground px-4 py-6 text-sm [--focus-ring:var(--ring)] sm:px-6",
+            className,
+          )}
+        >
+          {children}
+          {log !== undefined && (
+            <div className="text-muted-foreground mt-4 font-mono text-xs leading-relaxed [font-variant-ligatures:none]">
+              {log}
+            </div>
+          )}
+        </div>
+        {controls && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+            {controls}
           </div>
         )}
       </div>
-      {controls && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
-          {controls}
-        </div>
-      )}
-    </div>
+    </DemoHost>
   );
 }
 
