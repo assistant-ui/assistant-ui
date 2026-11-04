@@ -476,6 +476,7 @@ export class PiThreadSupervisor {
     const generation = this.generation;
     this.throwIfOpenCancelled(signal, generation);
     const modelRuntime = await this.getModelRuntime();
+    this.throwIfOpenCancelled(signal, generation);
     const {
       cwd: _cwd,
       sessionManager: _sessionManager,

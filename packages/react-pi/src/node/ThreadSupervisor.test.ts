@@ -306,6 +306,37 @@ describe("PiThreadSupervisor", () => {
     expect(options).not.toHaveProperty("model");
   });
 
+  it("skips configuring a session whose open is cancelled while the model runtime loads", async () => {
+    let resolveRuntime!: (runtime: ModelRuntimeStub) => void;
+    sdk.modelRuntimeCreate.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRuntime = resolve;
+        }),
+    );
+    const configureSession = vi.fn(() => ({ tools: [] }));
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession,
+    });
+
+    const opening = supervisor.setThinkingLevel("t1", "high");
+    const openingResult = expect(opening).rejects.toThrow(
+      "Pi session open was cancelled",
+    );
+    await vi.waitFor(() => expect(resolveRuntime).toBeDefined());
+    await supervisor.dispose();
+    resolveRuntime({
+      refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
+      getAvailableSnapshot: vi.fn(() => []),
+      getModels: vi.fn(() => []),
+      getModel: vi.fn(() => undefined),
+    });
+
+    await openingResult;
+    expect(configureSession).not.toHaveBeenCalled();
+  });
+
   it("rejects an open when configuring the session throws", async () => {
     const error = new Error("configure failed");
     const supervisor = new PiThreadSupervisor({

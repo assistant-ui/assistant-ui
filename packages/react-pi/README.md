@@ -91,12 +91,14 @@ import { createPiNodeClient } from "@assistant-ui/react-pi/node";
 const workspacePath = process.env.PI_WORKSPACE_PATH ?? process.cwd();
 const agentDir = "/path/to/your-app/pi"; // the app's own Pi config directory
 const modelRuntime = await ModelRuntime.create({
+  authPath: join(agentDir, "auth.json"),
   modelsPath: join(agentDir, "models.json"),
 });
 const settingsManager = SettingsManager.inMemory();
 
 export const piClient = createPiNodeClient({
   workspacePath,
+  agentDir,
   modelRuntime,
   configureSession: async ({ cwd }) => {
     const resourceLoader = new DefaultResourceLoader({
