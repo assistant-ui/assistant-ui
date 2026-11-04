@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-feat: add an opt-in Streamfold backend for shared tool-argument parsing through `assistant-stream/streamfold`, preserving the native default and compatibility fallbacks.
+feat: expose generic JSON parser backend registration with shared registration, isolated snapshots, and native fallback.

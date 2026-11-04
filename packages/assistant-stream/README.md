@@ -37,43 +37,46 @@ export async function POST(request: Request) {
 
 For tool execution, pipe through `ToolExecutionStream`; for resumable streams (clients can reconnect and replay), import from the `assistant-stream/resumable` sub-path with a `redis` or `ioredis` adapter.
 
-## Streamfold parsing
+## JSON parser backends
 
-Install `streamfold@^0.1.16` alongside `assistant-stream` to opt into its Rust/WASM
-parser. Initialize it once before starting streams in each browser or server
-bundle that should use it:
+`registerJsonParserBackend` lets integration packages provide an optional backend
+for shared tool-argument parsing. The JavaScript parser remains the default;
+assistant-stream has no dependency on a particular backend.
 
 ```ts
-import { initializeStreamfold } from "assistant-stream/streamfold";
+import { registerJsonParserBackend } from "assistant-stream";
 
-const enabled = await initializeStreamfold();
+const unregister = registerJsonParserBackend(({ text, fallback, createSnapshot }) => {
+  return createCustomParser({ text, fallback, createSnapshot });
+});
+
+unregister();
 ```
 
-This enables Streamfold for subsequent shared tool-argument parsers in this
-`assistant-stream` instance, including the message accumulator, active tool
-argument readers, and React LangGraph. Existing parsers keep their backend.
-`enabled` is false if WASM preparation or finalization support is unavailable;
-the JavaScript parser remains usable. Import this optional entry only in
-bundles where you intend to enable Streamfold.
+`createCustomParser` is supplied by the integration. Its returned backend exposes
+`text`, `currentTextLength`, `currentArgs`, and `append(delta)`, which returns the
+next backend or `undefined`. Each backend must preserve its accepted text and
+arguments for historical reads and independent branches. `createSnapshot(value,
+state, partialPath)` detaches mutable containers and attaches assistant-stream's
+partial-field metadata. Preserve the caller's fallback object until parsing
+starts. Backends must match the native parser's values, metadata, and security
+filtering; return `undefined` for unsupported input. Creation and append failures
+fall back to native parsing using the accepted text and latest arguments.
 
-Only assistant-stream's shared parser is affected. Provider SDK parsers keep
-their own behavior. The AI SDK UI-message decoder currently buffers tool input
-until it is available, so that path does not benefit from incremental parsing.
+Registration is shared across copies of assistant-stream in the same JavaScript
+realm through a versioned global symbol. The latest registration is used for new
+parsers. Its unregister function removes only that registration, restoring the
+previous active registration, and can be called repeatedly. Existing parsers
+retain their backend. Register at application startup, not per request in a shared
+server process. Complete inputs retain the native fast path.
 
-The integration preserves partial values and metadata, security filtering,
-mutable published snapshots, and independent parser branches. Unsupported or
-malformed inputs and branches from an earlier parser fall back to native
-parsing. Complete inputs initialized in one call keep the native JSON fast
-path. Completed and rejected WASM parsers are disposed immediately; abandoned
-partial parsers are released through Streamfold's finalizer after collection.
-
-Streamfold is opt-in because performance depends on payload shape and chunk size;
-small chunks can be slower than the default incremental JavaScript parser.
-Measure representative payloads and chunk sizes in your runtime before enabling
-it. This entry adds Streamfold's WASM download and initialization cost only to bundles that import it.
+This affects the shared parser used by message accumulators, active tool readers,
+and runtimes built on it. Provider SDK parsers remain separate. The AI SDK
+UI-message decoder currently buffers tool input until it is available, so that
+path does not gain incremental parsing from a backend.
 
 ## Sub-paths
 
-`.`, `./utils`, `./ai-sdk`, `./internal`, `./streamfold`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it works with `ai@6` or `ai@7`, install it alongside (declared as an optional peer). `./internal` is an internal-use entry: it is published like every other export, but it only carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk` and is not a supported surface. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
+`.`, `./utils`, `./ai-sdk`, `./internal`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it works with `ai@6` or `ai@7`, install it alongside (declared as an optional peer). `./internal` is an internal-use entry: it is published like every other export, but it only carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk` and is not a supported surface. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
 
 Full reference for encoders, tool execution, message conversion, and resumable streams at [assistant-ui.com/docs/architecture](https://www.assistant-ui.com/docs/architecture).

@@ -1,7 +1,5 @@
 import { inspect } from "node:util";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { initializeStreamfold } from "../../streamfold";
-import { setJsonParserBackend } from "./json-parser-backend";
+import { describe, expect, it } from "vitest";
 import {
   getPartialJsonObjectMeta,
   parsePartialJsonObject,
@@ -268,15 +266,4 @@ const parserContract = () => {
   });
 };
 
-describe.each(["native", "streamfold"])(
-  "IncrementalJsonObjectParser (%s)",
-  (backend) => {
-    beforeAll(async () => {
-      if (backend === "streamfold")
-        expect(await initializeStreamfold()).toBe(true);
-      else setJsonParserBackend(undefined);
-    });
-    afterAll(() => setJsonParserBackend(undefined));
-    parserContract();
-  },
-);
+describe("IncrementalJsonObjectParser", parserContract);

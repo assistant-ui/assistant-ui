@@ -5,13 +5,6 @@ import {
   type AssistantStreamChunk,
 } from "assistant-stream";
 
-if (process.env["AUI_PERF_STREAMFOLD"] === "1") {
-  const { initializeStreamfold } = await import("assistant-stream/streamfold");
-  if (!(await initializeStreamfold())) {
-    throw new Error("Streamfold benchmark initialization failed");
-  }
-}
-
 const makeChunks = (
   argsText: string,
   chunkSize: number,

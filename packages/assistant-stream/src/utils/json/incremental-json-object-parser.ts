@@ -207,7 +207,14 @@ export class IncrementalJsonObjectParser {
       return parser;
     }
     if (allowBackend) {
-      parser.backend = createJsonParserBackend(text, fallback);
+      parser.backend = createJsonParserBackend({
+        text,
+        fallback,
+        createSnapshot: (value, state, partialPath) =>
+          materializeArgsSnapshot(
+            createArgsSnapshot(value, state, [...partialPath]),
+          ),
+      });
       if (parser.backend) return parser;
     }
     parser.consumeDelta(text, true);
@@ -232,7 +239,12 @@ export class IncrementalJsonObjectParser {
   append(delta: string) {
     if (delta.length === 0) return this;
     if (this.backend) {
-      const backend = this.backend.append(delta);
+      let backend: JsonParserBackend | undefined;
+      try {
+        backend = this.backend.append(delta);
+      } catch {
+        backend = undefined;
+      }
       if (!backend)
         return IncrementalJsonObjectParser.create(
           this.backend.text + delta,
