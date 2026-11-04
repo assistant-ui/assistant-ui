@@ -3,21 +3,21 @@ export function withPromiseOrValue<T>(
   thenHandler: (value: T) => PromiseLike<void> | void,
   catchHandler: (error: unknown) => PromiseLike<void> | void,
 ): PromiseLike<void> | void {
-  let promiseOrValue: T | PromiseLike<T>;
+  let value: T;
   try {
-    promiseOrValue = callback();
+    const promiseOrValue = callback();
+    if (
+      typeof promiseOrValue === "object" &&
+      promiseOrValue !== null &&
+      "then" in promiseOrValue
+    ) {
+      return promiseOrValue.then(thenHandler, catchHandler);
+    }
+    value = promiseOrValue;
   } catch (e) {
     catchHandler(e);
     return;
   }
 
-  if (
-    typeof promiseOrValue === "object" &&
-    promiseOrValue !== null &&
-    "then" in promiseOrValue
-  ) {
-    return promiseOrValue.then(thenHandler, catchHandler);
-  }
-
-  thenHandler(promiseOrValue);
+  thenHandler(value);
 }

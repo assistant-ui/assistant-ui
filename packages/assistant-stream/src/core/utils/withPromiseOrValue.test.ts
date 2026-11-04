@@ -52,6 +52,24 @@ describe("withPromiseOrValue", () => {
     expect(catchHandler).toHaveBeenCalledWith(error);
   });
 
+  it("routes a throwing thenable to the catch handler", () => {
+    const error = new Error("then getter failed");
+    const catchHandler = vi.fn();
+    const thenable = {
+      get then(): never {
+        throw error;
+      },
+    };
+
+    withPromiseOrValue(
+      () => thenable as unknown as PromiseLike<number>,
+      () => {},
+      catchHandler,
+    );
+
+    expect(catchHandler).toHaveBeenCalledWith(error);
+  });
+
   it("does not report a synchronous then-handler error as a callback failure", () => {
     const error = new Error("then handler failed");
     const catchHandler = vi.fn();

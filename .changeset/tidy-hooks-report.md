@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-Stop a synchronous `thenHandler` error from being reported as a failed callback in `withPromiseOrValue`, matching the asynchronous branch.
+Stop reporting an error thrown after a synchronous tool execution or stream `execute` succeeds as a failure of that execution; it now propagates to the caller, as it already did for asynchronous ones.
