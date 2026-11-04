@@ -268,6 +268,63 @@ describe("create failure cleanup", () => {
   });
 });
 
+describe("create next steps", () => {
+  let target: string;
+
+  beforeEach(() => {
+    const root = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    target = path.join(root, "my-extension");
+  });
+
+  afterEach(() => {
+    fs.rmSync(path.dirname(target), { recursive: true, force: true });
+  });
+
+  const nextSteps = async (pkg: object) => {
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.mkdirSync(destDir, { recursive: true });
+      fs.writeFileSync(path.join(destDir, "package.json"), JSON.stringify(pkg));
+    });
+    const info = vi.spyOn(logger, "info").mockImplementation(() => {});
+    try {
+      await create.parseAsync(
+        [
+          target,
+          "--template",
+          "vscode",
+          "--use-npm",
+          "--skip-install",
+          "--no-skills",
+        ],
+        { from: "user" },
+      );
+      return info.mock.calls.map(([line]) => line);
+    } finally {
+      info.mockRestore();
+    }
+  };
+
+  it("tells a VS Code extension to open the folder and press F5", async () => {
+    const lines = await nextSteps({ engines: { vscode: "^1.110.0" } });
+
+    expect(lines).toContain("  code .");
+    expect(lines).toContain("  # Press F5 to run the extension");
+    expect(lines.some((line) => line.includes("environment variables"))).toBe(
+      false,
+    );
+  });
+
+  it("tells any other project to set its environment and run dev", async () => {
+    const lines = await nextSteps({ scripts: { dev: "vite" } });
+
+    expect(lines).toContain("  # Set up your environment variables in .env");
+    expect(lines).toContain("  npm run dev");
+    expect(lines).not.toContain("  code .");
+  });
+});
+
 describe("resolveProject", () => {
   it("returns template metadata when --template is provided", async () => {
     const result = await resolveProject({
@@ -517,9 +574,9 @@ describe("resolveProject error handling", () => {
 });
 
 describe("PROJECT_METADATA", () => {
-  it("contains all 8 templates", () => {
+  it("contains all 9 templates", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    expect(templates).toHaveLength(8);
+    expect(templates).toHaveLength(9);
     expect(templates.map((t) => t.name)).toEqual([
       "default",
       "minimal",
@@ -529,6 +586,7 @@ describe("PROJECT_METADATA", () => {
       "langchain",
       "mcp",
       "eve",
+      "vscode",
     ]);
   });
 

@@ -103,6 +103,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     path: "templates/eve",
     hasLocalComponents: false,
   },
+  {
+    name: "vscode",
+    label: "VS Code",
+    description: "VS Code extension with a chat webview",
+    category: "template",
+    path: "templates/vscode",
+    hasLocalComponents: false,
+  },
   // Examples
   {
     name: "with-ag-ui",
@@ -819,6 +827,7 @@ export const create = new Command()
       const runCmd = pm === "npm" ? "npm run" : pm;
       let devScript = "dev";
       let envFile = ".env.local";
+      let isVSCodeExtension = false;
       try {
         const scaffoldedPkg = JSON.parse(
           fs.readFileSync(
@@ -832,6 +841,7 @@ export const create = new Command()
             ? "start"
             : "dev";
         envFile = scaffoldedPkg.dependencies?.next ? ".env.local" : ".env";
+        isVSCodeExtension = Boolean(scaffoldedPkg.engines?.vscode);
       } catch {
         // Fall back to defaults if package.json cannot be read
       }
@@ -844,8 +854,13 @@ export const create = new Command()
           logger.info(`  ${transformResult.registryInstallCommand}`);
         }
       }
-      logger.info(`  # Set up your environment variables in ${envFile}`);
-      logger.info(`  ${runCmd} ${devScript}`);
+      if (isVSCodeExtension) {
+        logger.info("  code .");
+        logger.info("  # Press F5 to run the extension");
+      } else {
+        logger.info(`  # Set up your environment variables in ${envFile}`);
+        logger.info(`  ${runCmd} ${devScript}`);
+      }
     } catch (error) {
       if (error instanceof SpawnSignalError) {
         cleanupOnExit();
