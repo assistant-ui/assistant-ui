@@ -1,0 +1,83 @@
+---
+title: Overlays
+description: A frame can't draw outside its box. So a remote asks the host to draw menus and dialogs for it.
+---
+
+import {
+  DialogDemo,
+  MenuDemo,
+} from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+## Popover
+
+The content is another remote component: a URL on the same origin, or an HTML string. Its props can hold functions. They call back into the remote that opened it.
+
+A plain page calls `rc.overlay()` and gets a handle with `update(props)` and `close()`. Content from a string runs in an opaque frame, under the same network policy as the page that opened it. The pages here keep the overlay's markup in a `<template>` and pass it with their stylesheet.
+
+<MenuDemo />
+
+<RemoteSource name="menu-button" />
+
+```tsx title="host.tsx"
+// Nothing to set up. The overlay layer comes with <RemoteComponent>.
+<RemoteComponent src="https://widgets.example/menu-button.html" />
+```
+
+In React, `useOverlay` is controlled, like a `<Popover open>`:
+
+```tsx title="remotes/menu-button.tsx"
+import { useRef, useState } from "react";
+import { useOverlay } from "@assistant-ui/remote-components-react";
+
+const SORTS = ["Newest", "Oldest", "Most viewed"];
+
+export default function MenuButton() {
+  const [open, setOpen] = useState(false);
+  const [sort, setSort] = useState("Newest");
+  const anchor = useRef<HTMLButtonElement>(null);
+  useOverlay(open, setOpen, {
+    kind: "popover",
+    src: "../menu/",
+    anchorRef: anchor,
+    placement: { side: "bottom", align: "start" },
+    props: {
+      items: SORTS,
+      onSelect: async (item: string) => {
+        setSort(item);
+        setOpen(false);
+      },
+    },
+  });
+  return (
+    <button ref={anchor} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      Sort: {sort}
+    </button>
+  );
+}
+```
+
+The host places the popover with `position: fixed` next to the anchor's rect. It flips to the other side when there is more room there, shifts into the viewport and follows the anchor while you scroll. `matchAnchorWidth` makes it as wide as the anchor.
+
+## Dialog
+
+A dialog gets a backdrop, `aria-modal`, an inert page behind it and a focus trap. Initial focus goes to the content's first tabbable element.
+
+<DialogDemo />
+
+<RemoteSource name="dialog-button" />
+
+## Dismissal and focus
+
+- Escape, in the content, the remote or your page, closes the topmost overlay. `onDismiss` gets `"escape"`, and `onOpenChange` gets `(false, "escape")`.
+- A pointer-down outside a popover closes it with `"outside"`. Clicks on its own anchor don't, so the trigger can toggle it.
+- When an overlay that had focus closes, focus goes back to the element that opened it. The ring shows after Escape and not after a click, as it would inline.
+- Overlays nest. Overlay content can open its own.
+
+## Who decides
+
+The remote picks only the content's props. Sandbox, permissions, network and isolation come from your `<RemoteComponent>`. `overlayOrigins` on the provider says where content may come from: `"same-origin"` (default), `"any"`, a list, or `[]` to turn overlays off.
+
+<Callout type="warn">
+  A remote can draw a convincing login form in a dialog. If you embed publishers you don't trust, label their overlays or turn them off.
+</Callout>
