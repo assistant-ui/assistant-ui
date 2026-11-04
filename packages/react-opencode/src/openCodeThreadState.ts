@@ -4,6 +4,7 @@ import type {
   OpenCodeServerMessage,
   OpenCodePermissionRequest,
   OpenCodeQuestionRequest,
+  OpenCodeRunState,
   OpenCodeStateEvent,
   OpenCodeThreadState,
   Part,
@@ -29,6 +30,21 @@ type OpenCodeReconciliationEvent =
 type OpenCodeThreadStateEvent =
   | OpenCodeStateEvent
   | OpenCodeReconciliationEvent;
+
+/**
+ * A streamed part means the server is still producing output, but `cancelling`
+ * and `reverting` record a request the client is still waiting on: the abort
+ * and the revert are in flight, so the server keeps emitting parts. Keep the
+ * transient state the way `session.status` does instead of reporting
+ * `streaming` again — `OpenCodeThreadController.revert` reads it back to decide
+ * whether a failed revert still concerns the current run.
+ */
+const nextRunStateOnPartEvent = (
+  runState: OpenCodeRunState,
+): OpenCodeRunState =>
+  runState.type === "cancelling" || runState.type === "reverting"
+    ? runState
+    : { type: "streaming" };
 
 const isSameRecord = <T>(
   left: Readonly<Record<string, T>>,
@@ -472,7 +488,7 @@ export const reduceOpenCodeThreadStateInternal = (
 
       return {
         ...nextState,
-        runState: { type: "streaming" },
+        runState: nextRunStateOnPartEvent(state.runState),
         sessionStatus:
           state.sessionStatus?.type === "retry"
             ? state.sessionStatus
@@ -502,7 +518,7 @@ export const reduceOpenCodeThreadStateInternal = (
           ...current,
           parts: nextParts,
         })),
-        runState: { type: "streaming" },
+        runState: nextRunStateOnPartEvent(state.runState),
         sessionStatus:
           state.sessionStatus?.type === "retry"
             ? state.sessionStatus

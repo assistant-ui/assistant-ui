@@ -6000,6 +6000,71 @@ describe("OpenCodeThreadController", () => {
       expect(controller.getState().runState.type).toBe("reverting");
     });
 
+    it("reports a failed revert when a part update arrives while it is in flight", async () => {
+      const revert = createDeferred<unknown>();
+      const error = new Error("revert failed");
+      const eventSource = createEventSource();
+      const client = { session: { revert: vi.fn(() => revert.promise) } };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      (
+        controller as unknown as { dispatch: (event: unknown) => void }
+      ).dispatch({ type: "run.started" });
+      eventSource.emit({
+        type: "message.updated",
+        sessionId: "ses_1",
+        properties: {
+          info: {
+            id: "msg_assistant",
+            role: "assistant",
+            sessionID: "ses_1",
+            providerID: "provider",
+            modelID: "model",
+            time: { created: 1001 },
+          },
+        },
+        raw: {},
+      });
+      eventSource.emit({
+        type: "message.part.updated",
+        sessionId: "ses_1",
+        properties: {
+          part: {
+            id: "prt_1",
+            type: "text",
+            text: "Hello",
+            sessionID: "ses_1",
+            messageID: "msg_assistant",
+          },
+        },
+        raw: {},
+      });
+
+      const reverting = controller.revert("msg_assistant");
+      expect(controller.getState().runState.type).toBe("reverting");
+
+      // The revert RPC is still in flight, so the server keeps streaming.
+      eventSource.emit({
+        type: "message.part.delta",
+        sessionId: "ses_1",
+        properties: {
+          messageID: "msg_assistant",
+          partID: "prt_1",
+          field: "text",
+          delta: " world",
+        },
+        raw: {},
+      });
+
+      revert.reject(error);
+      await expect(reverting).rejects.toBe(error);
+      expect(controller.getState().runState.type).toBe("error");
+    });
+
     it("surfaces a failed revert as a run error", async () => {
       const error = new Error("revert failed");
       const client = {
