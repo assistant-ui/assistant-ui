@@ -5,8 +5,10 @@ import type {
   PartSource,
   RunAgentParameters,
 } from "@ag-ui/client";
-import { generateId } from "@assistant-ui/core";
+import { fromThreadMessageLike, generateId } from "@assistant-ui/core";
 import type {
+  MessageStatus,
+  ThreadMessage,
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
   ReasoningMessagePart,
@@ -26,6 +28,7 @@ import {
   MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
+  MAX_SUBAGENT_DEPTH,
 } from "../types";
 import {
   applyA2uiOperations,
@@ -1133,7 +1136,211 @@ export type FromAgUiMessagesOptions = {
   showThinking?: boolean;
 };
 
+const readSubagentRunId = (record: Record<string, unknown>) => {
+  const runId = getString(record, "subagentRunId");
+  return runId?.trim() ? runId : undefined;
+};
+
+const readToolCallIds = (record: Record<string, unknown>) =>
+  Array.isArray(record["toolCalls"])
+    ? record["toolCalls"].flatMap((toolCall) =>
+        isObject(toolCall) && typeof toolCall["id"] === "string"
+          ? [toolCall["id"]]
+          : [],
+      )
+    : [];
+
 export function fromAgUiMessages(
+  messages: readonly unknown[],
+  options?: FromAgUiMessagesOptions,
+): CoreThreadMessageLike[] {
+  return fromAgUiSnapshotMessages(messages, options);
+}
+
+/**
+ * Converts AG-UI messages, nesting each subagent run's messages under the tool
+ * call `SUBAGENT_STARTED.parentToolCallId` announced for it. A message's
+ * `subagentRunId` names its run; a run with no announced spawning call in
+ * `messages` stays in the parent thread.
+ */
+export function fromAgUiSnapshotMessages(
+  messages: readonly unknown[],
+  options?: FromAgUiMessagesOptions,
+  subagentParentToolCallIds?: ReadonlyMap<string, string>,
+): CoreThreadMessageLike[] {
+  const records = messages.filter(isObject);
+  const callOwners = new Map<string, string | undefined>();
+  for (const record of records) {
+    if (getString(record, "role") !== "assistant") continue;
+    for (const toolCallId of readToolCallIds(record)) {
+      callOwners.set(toolCallId, readSubagentRunId(record));
+    }
+  }
+
+  const spawningCalls = new Map<string, string>();
+  for (const record of records) {
+    const runId = readSubagentRunId(record);
+    if (runId === undefined || spawningCalls.has(runId)) continue;
+    const toolCallId = subagentParentToolCallIds?.get(runId);
+    if (toolCallId !== undefined && callOwners.has(toolCallId))
+      spawningCalls.set(runId, toolCallId);
+  }
+  if (spawningCalls.size === 0) return convertAgUiMessages(messages, options);
+
+  const reachesRoot = (runId: string) => {
+    let current: string | undefined = runId;
+    for (let depth = 0; current !== undefined; depth++) {
+      const toolCallId = spawningCalls.get(current);
+      if (toolCallId === undefined || depth > MAX_SUBAGENT_DEPTH) return false;
+      current = callOwners.get(toolCallId);
+    }
+    return true;
+  };
+  const nestedRuns = new Set([...spawningCalls.keys()].filter(reachesRoot));
+
+  const groups = new Map<string | undefined, unknown[]>();
+  for (const record of records) {
+    const ownRunId = readSubagentRunId(record);
+    const answered =
+      getString(record, "role") === "tool" ? getToolCallId(record) : undefined;
+    const runId =
+      answered !== undefined && callOwners.has(answered)
+        ? callOwners.get(answered)
+        : ownRunId;
+    const group =
+      runId !== undefined && nestedRuns.has(runId) ? runId : undefined;
+    const members = groups.get(group) ?? [];
+    members.push(record);
+    groups.set(group, members);
+  }
+
+  const runsBySpawningCall = new Map<string, string[]>();
+  for (const runId of nestedRuns) {
+    const toolCallId = spawningCalls.get(runId)!;
+    runsBySpawningCall.set(toolCallId, [
+      ...(runsBySpawningCall.get(toolCallId) ?? []),
+      runId,
+    ]);
+  }
+
+  const convertGroup = (group: string | undefined): CoreThreadMessageLike[] =>
+    convertAgUiMessages(groups.get(group) ?? [], options).map((message) => {
+      if (message.role !== "assistant" || !Array.isArray(message.content))
+        return message;
+      const nested: ThreadMessage[] = [];
+      const content = message.content.map((part) => {
+        if (part.type !== "tool-call") return part;
+        const runIds = runsBySpawningCall.get(part.toolCallId);
+        if (!runIds) return part;
+        const subagents = runIds.map(toSubagentMessage);
+        nested.push(...subagents);
+        return { ...part, messages: [...(part.messages ?? []), ...subagents] };
+      });
+      return liftSubagentState({ ...message, content }, nested);
+    });
+
+  const toSubagentMessage = (runId: string): ThreadMessage => {
+    const folded = convertGroup(runId)
+      .filter((message) => message.role === "assistant")
+      .map((message) =>
+        typeof message.content === "string"
+          ? {
+              ...message,
+              content: message.content
+                ? [{ type: "text" as const, text: message.content }]
+                : [],
+            }
+          : message,
+      )
+      .reduce<CoreThreadMessageLike | undefined>(
+        (merged, message) =>
+          merged ? foldTurnRecords(merged, message) : message,
+        undefined,
+      );
+    const content = Array.isArray(folded?.content) ? folded.content : [];
+    return fromThreadMessageLike(
+      {
+        id: runId,
+        role: "assistant",
+        content,
+        ...(folded?.metadata ? { metadata: folded.metadata } : {}),
+      },
+      runId,
+      subagentStatus(folded?.metadata, content),
+    );
+  };
+
+  return convertGroup(undefined);
+}
+
+const hasUnresolvedToolCall = (content: readonly unknown[]) =>
+  content.some(
+    (part) =>
+      isObject(part) && part.type === "tool-call" && part.result === undefined,
+  );
+
+function subagentStatus(
+  metadata: unknown,
+  content: readonly unknown[],
+): MessageStatus {
+  const hasInterrupt = readPersistedInterrupts(metadata) !== undefined;
+  const hasPendingToolCall = hasUnresolvedToolCall(content);
+  return hasInterrupt || hasPendingToolCall
+    ? getAutoStatus(false, false, hasInterrupt, hasPendingToolCall, undefined)
+    : { type: "complete", reason: "unknown" };
+}
+
+/**
+ * A nested run's open interrupts and unanswered calls surface on the message
+ * that spawned it, as the live run does.
+ */
+function liftSubagentState(
+  message: CoreThreadMessageLike,
+  nested: readonly ThreadMessage[],
+): CoreThreadMessageLike {
+  const waiting = nested.filter(
+    (subagent) => subagent.status?.type === "requires-action",
+  );
+  if (waiting.length === 0) return message;
+  const interrupts = [
+    ...(readPersistedInterrupts(message.metadata) ?? []),
+    ...waiting.flatMap(
+      (subagent) => readPersistedInterrupts(subagent.metadata) ?? [],
+    ),
+  ];
+  const custom = readCustomMetadata(message.metadata);
+  const metadata = {
+    ...(isObject(message.metadata) ? message.metadata : {}),
+    custom: {
+      ...custom,
+      [AG_UI_METADATA_NAMESPACE]: {
+        ...readNamespacedMetadata(message.metadata),
+        ...(interrupts.length > 0 ? { interrupts } : {}),
+      },
+    },
+  };
+  const hasInterrupt = interrupts.length > 0;
+  const hasPendingToolCall =
+    waiting.some(
+      (subagent) =>
+        subagent.status?.type === "requires-action" &&
+        subagent.status.reason === "tool-calls",
+    ) ||
+    (Array.isArray(message.content) && hasUnresolvedToolCall(message.content));
+  return {
+    ...message,
+    metadata,
+    status: getAutoStatus(
+      false,
+      false,
+      hasInterrupt,
+      hasPendingToolCall,
+      undefined,
+    ),
+  };
+}
+
+function convertAgUiMessages(
   messages: readonly unknown[],
   options?: FromAgUiMessagesOptions,
 ): CoreThreadMessageLike[] {

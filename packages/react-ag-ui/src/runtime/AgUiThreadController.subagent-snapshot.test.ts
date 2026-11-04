@@ -1,0 +1,420 @@
+import { describe, expect, it, vi } from "vitest";
+import type { AbstractAgent } from "@ag-ui/client";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
+import { AgUiThreadController } from "./AgUiThreadController";
+import type { UseAgUiRuntimeOptions } from "./types";
+import { makeLogger } from "./logger";
+
+type Subscriber = Record<
+  string,
+  ((payload: { event: unknown }) => void) | undefined
+>;
+type Event = Record<string, unknown>;
+
+const handlerName = (type: string) =>
+  `on${type
+    .toLowerCase()
+    .split("_")
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join("")}Event`;
+
+async function run(
+  events: readonly Event[],
+  joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"],
+) {
+  let pending = events;
+  const agent = {
+    runAgent: vi.fn(
+      async (input: { runId: string }, subscriber: Subscriber) => {
+        const body = pending;
+        pending = [];
+        for (const event of [
+          { type: "RUN_STARTED", runId: input.runId },
+          ...body,
+          { type: "RUN_FINISHED", runId: input.runId },
+        ]) {
+          subscriber[handlerName(event.type as string)]?.({ event });
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      },
+    ),
+    abortRun: vi.fn(),
+  } as unknown as AbstractAgent;
+  const core = new AgUiThreadController({
+    agent,
+    logger: makeLogger(),
+    showThinking: true,
+    ...(joinStrategy ? { joinStrategy } : {}),
+  });
+  await core.append({
+    parentId: null,
+    role: "user",
+    content: [{ type: "text", text: "u" }],
+    startRun: true,
+  } as unknown as AppendMessage);
+  return core;
+}
+
+const rootIds = (core: AgUiThreadController) =>
+  core
+    .getMessages()
+    .filter((message) => message.role === "assistant")
+    .map((message) => message.id);
+
+const nestedUnder = (core: AgUiThreadController, toolCallId: string) =>
+  core
+    .getMessages()
+    .flatMap((message) => (message.role === "assistant" ? message.content : []))
+    .flatMap((part) =>
+      part.type === "tool-call" && part.toolCallId === toolCallId
+        ? (part.messages ?? [])
+        : [],
+    );
+
+const contentOf = (messages: readonly ThreadMessage[]) =>
+  messages.flatMap((message) =>
+    message.role === "assistant" ? message.content : [],
+  );
+
+const call = (id: string, name = "research") => ({
+  id,
+  type: "function",
+  function: { name, arguments: "{}" },
+});
+
+const spawn = (toolCallId: string): Event[] => [
+  {
+    type: "TOOL_CALL_START",
+    toolCallId,
+    toolCallName: "research",
+    parentMessageId: "a",
+  },
+  { type: "TOOL_CALL_END", toolCallId },
+];
+
+const subagentText = (runId: string, messageId: string, text: string) => [
+  { type: "TEXT_MESSAGE_START", messageId, subagentRunId: runId },
+  {
+    type: "TEXT_MESSAGE_CONTENT",
+    messageId,
+    delta: text,
+    subagentRunId: runId,
+  },
+  { type: "TEXT_MESSAGE_END", messageId, subagentRunId: runId },
+];
+
+const snapshot = (runId: string, spawnId: string) => ({
+  type: "MESSAGES_SNAPSHOT",
+  messages: [
+    { id: "u", role: "user", content: "u" },
+    { id: "a", role: "assistant", content: "", toolCalls: [call(spawnId)] },
+    {
+      id: "sub-text",
+      role: "assistant",
+      content: "Paris is sunny.",
+      subagentRunId: runId,
+    },
+    { id: "t", role: "tool", toolCallId: spawnId, content: '"done"' },
+  ],
+});
+
+describe("AgUiThreadController subagent messages in snapshots", () => {
+  it.each([
+    ["equals the spawning call's id", "spawn-1"],
+    ["is announced by SUBAGENT_STARTED", "run-1"],
+  ])(
+    "nests an attributed snapshot message once when its run id %s",
+    async (_case, runId) => {
+      const core = await run([
+        ...spawn("spawn-1"),
+        {
+          type: "SUBAGENT_STARTED",
+          subagentRunId: runId,
+          parentToolCallId: "spawn-1",
+          name: "researcher",
+        },
+        ...subagentText(runId, "sub-text", "Paris is sunny."),
+        { type: "SUBAGENT_FINISHED", subagentRunId: runId },
+        {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "spawn-1",
+          messageId: "t",
+          content: '"done"',
+        },
+        snapshot(runId, "spawn-1"),
+        snapshot(runId, "spawn-1"),
+      ]);
+
+      expect(rootIds(core)).toEqual(["a"]);
+      const nested = nestedUnder(core, "spawn-1");
+      expect(nested).toHaveLength(1);
+      expect(contentOf(nested)).toEqual([
+        { type: "text", text: "Paris is sunny." },
+      ]);
+      expect(nested[0]?.metadata.custom).toMatchObject({
+        agui: { name: "researcher" },
+      });
+    },
+  );
+
+  it.each([undefined, "concat-content"] as const)(
+    "keeps the live subagent's error status and reasoning through a snapshot (joinStrategy %s)",
+    async (joinStrategy) => {
+      const core = await run(
+        [
+          ...spawn("spawn-1"),
+          {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "run-1",
+            parentToolCallId: "spawn-1",
+            name: "researcher",
+          },
+          { type: "REASONING_START", messageId: "r", subagentRunId: "run-1" },
+          {
+            type: "REASONING_MESSAGE_START",
+            messageId: "r",
+            role: "reasoning",
+            subagentRunId: "run-1",
+          },
+          {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r",
+            delta: "Checking.",
+            subagentRunId: "run-1",
+          },
+          {
+            type: "REASONING_MESSAGE_END",
+            messageId: "r",
+            subagentRunId: "run-1",
+          },
+          { type: "REASONING_END", messageId: "r", subagentRunId: "run-1" },
+          ...subagentText("run-1", "sub-text", "Paris is sunny."),
+          { type: "SUBAGENT_ERROR", subagentRunId: "run-1", message: "boom" },
+          {
+            type: "TOOL_CALL_RESULT",
+            toolCallId: "spawn-1",
+            messageId: "t",
+            content: '"done"',
+          },
+          snapshot("run-1", "spawn-1"),
+        ],
+        joinStrategy,
+      );
+
+      const [nested] = nestedUnder(core, "spawn-1");
+      expect(nested?.status).toMatchObject({ type: "incomplete" });
+      expect(contentOf(nested ? [nested] : [])).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "reasoning", text: "Checking." }),
+          { type: "text", text: "Paris is sunny." },
+        ]),
+      );
+    },
+  );
+
+  it("keeps every snapshot's content for a run that grows across snapshots", async () => {
+    const turn = (text: Event[]) => ({
+      type: "MESSAGES_SNAPSHOT",
+      messages: [
+        { id: "u", role: "user", content: "u" },
+        {
+          id: "a",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("spawn-1")],
+        },
+        ...text,
+      ],
+    });
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      turn([
+        {
+          id: "s1",
+          role: "assistant",
+          content: "First.",
+          subagentRunId: "run-1",
+        },
+      ]),
+      turn([
+        {
+          id: "s1",
+          role: "assistant",
+          content: "First.",
+          subagentRunId: "run-1",
+        },
+        {
+          id: "s2",
+          role: "assistant",
+          content: "Second.",
+          subagentRunId: "run-1",
+        },
+      ]),
+    ]);
+
+    expect(rootIds(core)).toEqual(["a"]);
+    expect(contentOf(nestedUnder(core, "spawn-1"))).toEqual([
+      { type: "text", text: "First." },
+      { type: "text", text: "Second." },
+    ]);
+  });
+
+  it("resolves a live nested call whose result only arrives in a snapshot", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      {
+        type: "TOOL_CALL_START",
+        toolCallId: "inner",
+        toolCallName: "lookup",
+        subagentRunId: "run-1",
+      },
+      { type: "TOOL_CALL_END", toolCallId: "inner", subagentRunId: "run-1" },
+      { type: "SUBAGENT_FINISHED", subagentRunId: "run-1" },
+      {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "spawn-1",
+        messageId: "t",
+        content: '"done"',
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          { id: "u", role: "user", content: "u" },
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+          },
+          {
+            id: "s1",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("inner", "lookup")],
+            subagentRunId: "run-1",
+          },
+          {
+            id: "s1-result",
+            role: "tool",
+            toolCallId: "inner",
+            content: '"sunny"',
+            subagentRunId: "run-1",
+          },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"done"' },
+        ],
+      },
+    ]);
+
+    const inner = contentOf(nestedUnder(core, "spawn-1")).find(
+      (part) => part.type === "tool-call" && part.toolCallId === "inner",
+    );
+    expect(inner).toMatchObject({ result: "sunny" });
+    expect(core.getPendingToolCalls()).toBeNull();
+  });
+
+  it("keeps live subagent text that a lagging snapshot has not caught up with", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      ...subagentText("run-1", "s1", "First."),
+      ...subagentText("run-1", "s2", "Second."),
+      { type: "SUBAGENT_FINISHED", subagentRunId: "run-1" },
+      {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "spawn-1",
+        messageId: "t",
+        content: '"done"',
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          { id: "u", role: "user", content: "u" },
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+          },
+          {
+            id: "s1",
+            role: "assistant",
+            content: "First.",
+            subagentRunId: "run-1",
+          },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"done"' },
+        ],
+      },
+    ]);
+
+    expect(rootIds(core)).toEqual(["a"]);
+    expect(contentOf(nestedUnder(core, "spawn-1"))).toEqual([
+      { type: "text", text: "First." },
+      { type: "text", text: "Second." },
+    ]);
+  });
+
+  it("keeps a failed live subagent's status and metadata when the snapshot copy is empty", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      ...subagentText("run-1", "s1", "Working."),
+      {
+        type: "SUBAGENT_ERROR",
+        subagentRunId: "run-1",
+        message: "boom",
+        code: "TOOL_FAILED",
+      },
+      {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "spawn-1",
+        messageId: "t",
+        content: '"failed"',
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          { id: "u", role: "user", content: "u" },
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+          },
+          { id: "s0", role: "assistant", content: "", subagentRunId: "run-1" },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"failed"' },
+        ],
+      },
+    ]);
+
+    const [nested] = nestedUnder(core, "spawn-1");
+    expect(nested?.status).toMatchObject({ type: "incomplete" });
+    expect(nested?.metadata.custom).toMatchObject({
+      agui: { name: "researcher", errorCode: "TOOL_FAILED" },
+    });
+    expect(contentOf(nested ? [nested] : [])).toEqual([
+      { type: "text", text: "Working." },
+    ]);
+  });
+});
