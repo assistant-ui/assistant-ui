@@ -126,6 +126,22 @@ const library = {
 const generative = new JSONGenerativeUI({ library });
 ```
 
+### Use the Markdown renderer on its own
+
+Install `elements-generative-markdown` to use the same Markdown renderer independently of the diagram and map renderers. It is also installed by `generative-ui`.
+
+```bash
+npx assistant-ui@latest add elements-generative-markdown
+```
+
+```tsx
+import { GenerativeMarkdown } from "@/components/assistant-ui/elements/generative-markdown";
+
+<GenerativeMarkdown value="**Revenue** is up 12% this quarter." />;
+```
+
+`value` may be absent while content streams. Nested `children` render after the Markdown. In a `"use generative"` toolkit, set `render: GenerativeMarkdown` inside `defineGenerativeComponents` to reuse this renderer.
+
 ## API reference
 
 <RuntimeMode>

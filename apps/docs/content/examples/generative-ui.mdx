@@ -86,6 +86,8 @@ One toolkit entry exposes the whole vocabulary. `display: "standalone"` renders 
 ```tsx title="app/present-toolkit.tsx"
 "use generative";
 
+import { GenerativeMarkdown } from "@/components/assistant-ui/elements/generative-markdown";
+
 const markdown = defaultGenerativeUILibrary.Markdown!;
 
 const generative = new JSONGenerativeUI({
@@ -97,7 +99,7 @@ const generative = new JSONGenerativeUI({
         streamProperties: markdown.streamProperties,
         description:
           "A markdown string, rendered with GitHub-flavored markdown.",
-        render: styledGenerativeUILibrary.Markdown!.render,
+        render: GenerativeMarkdown,
       },
       DashboardHeader: {
         description:
