@@ -248,13 +248,14 @@ const toImageContent = (
         `Pi image attachment returned unsupported content type: ${parsed.mimeType}`,
       );
     }
-    if (parseBase64(parsed.data) === null) {
+    const data = parseBase64(parsed.data);
+    if (data === null) {
       throw new Error("Invalid Pi image attachment source");
     }
     return {
       type: "image",
       mimeType: parsed.mimeType,
-      data: parsed.data,
+      data,
     };
   }
 
@@ -272,14 +273,15 @@ const toImageContent = (
     throw new Error(`Unsupported Pi image attachment URL scheme: ${scheme}`);
   }
 
-  if (parseBase64(image) === null) {
+  const data = parseBase64(image);
+  if (data === null) {
     throw new Error("Invalid Pi image attachment source");
   }
 
   return {
     type: "image",
-    mimeType: resolveImageMediaType(image),
-    data: image,
+    mimeType: resolveImageMediaType(data),
+    data,
   };
 };
 
