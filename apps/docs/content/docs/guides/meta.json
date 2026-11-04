@@ -40,6 +40,7 @@
     "---Environments---",
     "electron",
     "tauri",
+    "vscode",
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",

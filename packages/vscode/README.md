@@ -2,7 +2,11 @@
 
 Run [assistant-ui](https://www.assistant-ui.com/) inside a VS Code extension webview.
 
-The package is private while it is evaluated: it is not published to npm, and `templates/vscode` and `examples/with-vscode` in this repository use it from the workspace.
+```sh
+npm install @assistant-ui/vscode
+```
+
+Start a new extension with `npx assistant-ui@latest create my-extension -t vscode`, or follow the [VS Code guide](https://www.assistant-ui.com/docs/guides/vscode) to add it to an existing one.
 
 A webview cannot reach your backend with `fetch`, so this package tunnels `fetch` over the webview's `postMessage` channel. Your route handlers (`(req: Request) => Response`) run unchanged in the extension host, and their responses stream back to the webview.
 
@@ -26,11 +30,11 @@ export function resolveWebviewView(view: vscode.WebviewView) {
 }
 ```
 
-Unknown paths answer `404`, unsupported methods `405`, and a handler that throws `500`. Aborting the request in the webview aborts `req.signal` in the handler, and disposing the server rejects the requests still in flight. `vscodeFetch` only reaches these routes, so a URL on another `http:` or `https:` origin rejects with a `TypeError`. `serveWebviewRoutes` serves routes only: host calls from `installLinkInterceptor` or `createVSCodeStorage` reject in the webview, so use [`serveWebviewHost`](#host-services) when the webview uses them.
+Unknown paths answer `404`, unsupported methods `405`, and a handler that throws `500`. Aborting the request in the webview aborts `req.signal` in the handler, and disposing the server rejects the requests still in flight. `vscodeFetch` only reaches these routes, so a URL on another `http:` or `https:` origin rejects with a `TypeError`, and the host answers a request for such a URL with an error instead of routing it. `serveWebviewRoutes` serves routes only: host calls from `installLinkInterceptor` or `createVSCodeStorage` reject in the webview, so use [`serveWebviewHost`](#host-services) when the webview uses them.
 
 ## Webview
 
-When a reloaded page first acquires the VS Code API, it notifies the host to abort requests from the previous page, including response streams still in progress. Creating another fetch client in the same page does not cancel active requests
+When a reloaded page first acquires the VS Code API, it notifies the host to abort requests from the previous page, including response streams still in progress. Creating another fetch client in the same page does not cancel active requests.
 
 Pass `vscodeFetch` to any runtime that takes a `fetch`:
 
@@ -60,7 +64,7 @@ view.onDidDispose(() => host.dispose());
 
 ### External links
 
-A webview cannot navigate away or open windows. `installLinkInterceptor()` catches clicks on absolute `http:`, `https:`, and `mailto:` links, plus `window.open` calls, and asks the host to open them with `openExternal`. The host checks the scheme again against `externalSchemes` before calling it. Relative links, `#anchors`, and clicks the app already `preventDefault`ed are left alone.
+A webview cannot navigate away or open windows. `installLinkInterceptor()` catches clicks on absolute `http:`, `https:`, and `mailto:` links, plus `window.open` calls, and asks the host to open them with `openExternal`. The host checks the scheme again against `externalSchemes` before calling it. Keep `command:`, `vscode:`, and `file:` out of `externalSchemes`, because a link in model output could then run a command or open a local file. Relative links, `#anchors`, and clicks the app already `preventDefault`ed are left alone.
 
 Pass the URL string itself to `vscode.env.openExternal`, as above. VS Code opens a string as it is, but it re-encodes a `vscode.Uri.parse(url)` result, which decodes characters such as `%2B` and `%26` and breaks signed URLs.
 
