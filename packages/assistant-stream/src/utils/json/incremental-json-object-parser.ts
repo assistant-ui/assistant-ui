@@ -89,6 +89,13 @@ const setValue = (
   key: string | number,
   value: ReadonlyJSONValue,
 ) => {
+  if (
+    key === "__proto__" ||
+    (key === "constructor" &&
+      isContainer(value) &&
+      Object.hasOwn(value, "prototype"))
+  )
+    throw new Error("Unsafe argument key");
   (target as Record<string | number, ReadonlyJSONValue>)[key] = value;
 };
 
@@ -96,7 +103,7 @@ const cloneContainer = (value: MutableJSONContainer): MutableJSONContainer => {
   if (Array.isArray(value)) return [...value];
   const copy: MutableJSONObject = {};
   for (const key of Object.keys(value)) {
-    copy[key] = value[key]!;
+    setValue(copy, key, value[key]!);
   }
   return copy;
 };
@@ -132,7 +139,7 @@ const writeAtPath = (
   return update(root, 0) as MutableJSONObject;
 };
 
-export const createArgsSnapshot = (
+const createArgsSnapshot = (
   root: MutableJSONObject,
   state: "complete" | "partial",
   partialPath: JSONPath,
@@ -148,7 +155,7 @@ export const createArgsSnapshot = (
   return result;
 };
 
-export const materializeArgsSnapshot = (
+const materializeArgsSnapshot = (
   args: ReadonlyJSONObject,
 ): ReadonlyJSONObject => {
   const pending: MutableJSONContainer[] = [args];

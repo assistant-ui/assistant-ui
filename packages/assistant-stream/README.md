@@ -50,8 +50,9 @@ const unregister = registerJsonParserBackend(({ text, fallback, createSnapshot }
   return createCustomParser({ text, fallback, createSnapshot });
 });
 
-unregister();
 ```
+
+Keep `unregister` for application cleanup when the backend is no longer needed.
 
 `createCustomParser` is supplied by the integration. Its returned backend exposes
 `text`, `currentTextLength`, `currentArgs`, and `append(delta)`, which returns the
@@ -65,8 +66,9 @@ fall back to native parsing using the accepted text and latest arguments.
 
 Registration is shared across copies of assistant-stream in the same JavaScript
 realm through a versioned global symbol. The latest registration is used for new
-parsers. Its unregister function removes only that registration, restoring the
-previous active registration, and can be called repeatedly. Existing parsers
+parsers. Its unregister function removes only that registration and can be called
+repeatedly. Removing the latest registration restores the previous active one;
+removing an older registration leaves the latest one active. Existing parsers
 retain their backend. Register at application startup, not per request in a shared
 server process. Complete inputs retain the native fast path.
 

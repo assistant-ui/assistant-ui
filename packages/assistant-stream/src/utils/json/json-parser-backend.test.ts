@@ -185,3 +185,24 @@ it("preserves the complete-input fast path", () => {
   expect(factory).toHaveBeenCalledOnce();
   expect(partial.append(' b"}').currentArgs).toMatchObject({ value: "a } b" });
 });
+
+it.each([
+  '{"__proto__":{"polluted":true}}',
+  '{"nested":[{"__proto__":{"polluted":true}}]}',
+  '{"nested":{"constructor":{"prototype":{"polluted":true}}}}',
+])("rejects unsafe backend snapshot keys and replays natively: %s", (input) => {
+  const root = JSON.parse(input);
+  cleanups.push(
+    registerJsonParserBackend((context) => ({
+      text: context.text,
+      currentTextLength: context.text.length,
+      currentArgs: context.createSnapshot(root, "partial", []),
+      append: () => undefined,
+    })),
+  );
+  const fallback = { value: "safe" };
+  const parser = IncrementalJsonObjectParser.from(input, fallback);
+  expect(parser.currentArgs).toBe(fallback);
+  expect(Object.getPrototypeOf(parser.currentArgs)).toBe(Object.prototype);
+  expect(parser.append(" ").currentArgs).toBe(fallback);
+});
