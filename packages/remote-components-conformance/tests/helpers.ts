@@ -11,7 +11,7 @@ export const VARIANT = process.env.RC_VARIANT
   ? `&variant=${process.env.RC_VARIANT}`
   : "";
 
-export interface Box {
+interface Box {
   x: number;
   y: number;
   width: number;
@@ -156,7 +156,7 @@ export async function remoteFrames(page: Page): Promise<Frame[]> {
 }
 
 /** Rects of `.subject` elements relative to their column. */
-export async function subjectRects(
+async function subjectRects(
   page: Page,
   column: "inline" | "remote",
 ): Promise<Box[]> {
@@ -170,7 +170,7 @@ export async function subjectRects(
 }
 
 /** Probe rects (data-probe) per subject, relative to the column. */
-export async function probeRects(
+async function probeRects(
   page: Page,
   column: "inline" | "remote",
 ): Promise<Record<string, Box>[]> {
@@ -248,9 +248,9 @@ export async function probeRects(
   return result;
 }
 
-export const TOLERANCE = 0.5;
+const TOLERANCE = 0.5;
 
-export function expectBoxesClose(a: Box[], b: Box[], label: string): void {
+function expectBoxesClose(a: Box[], b: Box[], label: string): void {
   expect(b.length, `${label}: count`).toBe(a.length);
   a.forEach((ra, i) => {
     const rb = b[i]!;

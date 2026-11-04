@@ -247,7 +247,7 @@ export function collectFontFaces(doc: Document): FontFaceSpec[] {
 }
 
 /** Rewrites `url(…)` tokens to absolute `url("…")`. */
-export function absolutizeUrls(src: string, base: string): string {
+function absolutizeUrls(src: string, base: string): string {
   return src.replace(
     /url\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|([^)\s]*))\s*\)/g,
     (_m, dq?: string, sq?: string, bare?: string) => {

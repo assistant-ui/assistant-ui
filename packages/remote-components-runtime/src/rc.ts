@@ -14,7 +14,7 @@ import { RemoteRuntime } from "./runtime.js";
  * `:where()` (specificity 0) and comes first in `<head>`, so any author
  * rule overrides it.
  */
-export const PAGE_CSS =
+const PAGE_CSS =
   "html{overflow:hidden!important;margin:0 auto 0 0!important;padding:0!important;border:0!important;box-sizing:border-box!important;" +
   "min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;transform:none!important;zoom:1!important}" +
   // A component has no UA page margin; body fills a definite slot height.

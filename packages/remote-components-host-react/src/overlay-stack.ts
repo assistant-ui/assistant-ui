@@ -43,7 +43,7 @@ export function pushOverlay(entry: OverlayEntry): () => void {
   };
 }
 
-export function topOverlay(): OverlayEntry | null {
+function topOverlay(): OverlayEntry | null {
   return stack[stack.length - 1] ?? null;
 }
 

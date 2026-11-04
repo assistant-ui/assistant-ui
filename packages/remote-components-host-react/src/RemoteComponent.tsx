@@ -16,7 +16,6 @@ import {
   type LayoutInfo,
   type OverlayKind,
   type OverlayOpenParams,
-  type Rect,
   type SizeReport,
 } from "@assistant-ui/remote-components-protocol";
 import { FrameController, type FrameSource } from "./controller.js";
@@ -971,14 +970,14 @@ const placed = new WeakMap<
  * and a grid line is both, so content placed relative to it lands where it
  * would inline in every engine.
  */
-export function frameGridStep(dpr: number): number {
+function frameGridStep(dpr: number): number {
   for (let k = 1; k <= 16; k++)
     if (Math.abs(k * dpr - Math.round(k * dpr)) < 1e-3) return k;
   return 1;
 }
 
 /** Smallest whole CSS px ≥ `need` that is also a whole number of device px (searching a few px). */
-export function frameExtent(need: number, dpr: number): number {
+function frameExtent(need: number, dpr: number): number {
   const start = Math.ceil(need - 1e-6);
   for (let w = start; w < start + 16; w++) {
     const device = w * dpr;
@@ -986,5 +985,3 @@ export function frameExtent(need: number, dpr: number): number {
   }
   return start;
 }
-
-export type { Rect };

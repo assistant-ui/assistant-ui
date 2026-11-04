@@ -10,7 +10,10 @@ import {
   type RemoteChannel,
 } from "@assistant-ui/remote-components-protocol";
 
-export const RUNTIME_VERSION = "0.3.0";
+const RUNTIME_VERSION =
+  typeof __AUI_PACKAGE_VERSION__ === "string"
+    ? __AUI_PACKAGE_VERSION__
+    : "0.0.0";
 
 export interface Connection {
   channel: RemoteChannel;
@@ -18,7 +21,7 @@ export interface Connection {
 }
 
 /** Reads the host-assigned nonce from a URL fragment (`#…rc-nonce=…`). */
-export function readNonce(hash: string): string | null {
+function readNonce(hash: string): string | null {
   const params = new URLSearchParams(
     hash.startsWith("#") ? hash.slice(1) : hash,
   );

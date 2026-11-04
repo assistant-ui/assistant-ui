@@ -36,7 +36,7 @@ export type ComponentName =
   | "buttons"
   | "radios";
 
-export interface SubjectOptions {
+interface SubjectOptions {
   c: ComponentName;
   id?: string;
   props?: Record<string, unknown>;

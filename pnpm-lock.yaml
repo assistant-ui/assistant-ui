@@ -6143,15 +6143,9 @@ importers:
       '@assistant-ui/remote-components-host-react':
         specifier: workspace:*
         version: link:../remote-components-host-react
-      '@assistant-ui/remote-components-protocol':
-        specifier: workspace:*
-        version: link:../remote-components-protocol
       '@assistant-ui/remote-components-react':
         specifier: workspace:*
         version: link:../remote-components-react
-      '@assistant-ui/remote-components-runtime':
-        specifier: workspace:*
-        version: link:../remote-components-runtime
       '@assistant-ui/remote-components-serve':
         specifier: workspace:*
         version: link:../remote-components-serve
@@ -6168,9 +6162,6 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      '@fontsource/lobster':
-        specifier: ^5.2.8
-        version: 5.3.0
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
@@ -6259,6 +6250,9 @@ importers:
       '@assistant-ui/remote-components-runtime':
         specifier: workspace:^
         version: link:../remote-components-runtime
+      react-dom:
+        specifier: ^18 || ^19
+        version: 19.3.1(react@19.3.1)
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -6269,15 +6263,9 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.3.0
-        version: 19.3.0(@types/react@19.3.0)
       react:
         specifier: ^19.3.1
         version: 19.3.1
-      react-dom:
-        specifier: ^19.3.1
-        version: 19.3.1(react@19.3.1)
 
   packages/remote-components-runtime:
     dependencies:
@@ -9563,9 +9551,6 @@ packages:
     engines: {node: '>=22.19.0'}
     peerDependencies:
       vite: ^8.0.0
-
-  '@fontsource/lobster@5.3.0':
-    resolution: {integrity: sha512-jt+RDk/8Sstl1Omhox62gTbvRSLbh06kn5BNfDFgf4rNuDPHF+19eWYFxzq5FsdkalbRJNtc5p5C3qE0+leNVg==}
 
   '@fuma-translate/react@1.0.2':
     resolution: {integrity: sha512-uOiOtBx3nRXR8Nu1GzBf1tApgF1FErDBTHxRIAQeyQdyOoZbrNRN6H4kDCWObY4qyGeGbHydG0DHzgeUgFDMIw==}
@@ -25841,8 +25826,6 @@ snapshots:
       - utf-8-validate
       - ws
       - zod
-
-  '@fontsource/lobster@5.3.0': {}
 
   '@fuma-translate/react@1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:

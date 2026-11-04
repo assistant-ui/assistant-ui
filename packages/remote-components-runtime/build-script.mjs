@@ -41,6 +41,7 @@ async function iife(entry, { split }) {
           },
         ]
       : [],
+    define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     build: {
       write: false,
       minify: true,

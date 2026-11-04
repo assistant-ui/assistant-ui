@@ -40,7 +40,7 @@ trap 'rm -f "$LIST"' EXIT
 {
   printf '%s\n' package.json pnpm-lock.yaml pnpm-workspace.yaml
   git ls-files -- '*/package.json' | grep -v '/node_modules/'
-  git ls-files --cached --others --exclude-standard -- packages/remote-components-* packages/x-buildutils packages/safe-content-frame
+  git ls-files --cached --others --exclude-standard -- packages/remote-components-* packages/x-buildutils packages/x-react18 packages/safe-content-frame
 } | sort -u | while read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done >"$LIST"
 COPYFILE_DISABLE=1 tar --no-xattrs -cf - -T "$LIST" |
 docker run --rm -i --init --ipc=host \
@@ -58,8 +58,8 @@ find /work/repo -path "*/node_modules" -prune -o -type f -print0 | xargs -0 rm -
 tar -xf - -C /work/repo
 cd /work/repo
 command -v pnpm >/dev/null && [ "$(pnpm --version)" = "$PNPM_VERSION" ] || npm i -g "pnpm@$PNPM_VERSION" >/dev/null 2>&1
-pnpm install --frozen-lockfile --ignore-scripts --filter "./$PKG..." >/tmp/install.log 2>&1 || { cat /tmp/install.log; exit 1; }
-pnpm --filter "./$PKG^..." run build >/tmp/build.log 2>&1 || { cat /tmp/build.log; exit 1; }
+pnpm install --frozen-lockfile --ignore-scripts --filter "{./$PKG}..." >/tmp/install.log 2>&1 || { cat /tmp/install.log; exit 1; }
+pnpm --filter "{./$PKG}^..." run build >/tmp/build.log 2>&1 || { cat /tmp/build.log; exit 1; }
 cd "$PKG"
 rm -rf test-results
 find .out -mindepth 1 -delete 2>/dev/null || true

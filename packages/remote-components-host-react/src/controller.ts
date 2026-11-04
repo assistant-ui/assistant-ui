@@ -45,7 +45,7 @@ export interface ControllerEvents {
 }
 
 /** Options for rendering through safe-content-frame. */
-export interface ScfFrameOptions {
+interface ScfFrameOptions {
   /** SCF product id (the shim path segment). */
   product: string;
   /** Salt for the hashed origin: same salt + product + host origin ⇒ same origin. */

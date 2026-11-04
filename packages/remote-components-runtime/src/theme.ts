@@ -94,7 +94,7 @@ export class ThemeApplier {
 }
 
 /** Builds a safe `@font-face` rule, or null if any descriptor fails validation. */
-export function fontFaceRule(f: FontFaceSpec): string | null {
+function fontFaceRule(f: FontFaceSpec): string | null {
   const src = sanitizeFontSrc(f.src);
   if (src === null || f.family.length === 0 || f.family.length > 200)
     return null;
@@ -132,7 +132,7 @@ const SRC_ITEM =
  * `local("…")` items with absolute http(s)/data URLs. Anything else is
  * rejected (returns null).
  */
-export function sanitizeFontSrc(src: string): string | null {
+function sanitizeFontSrc(src: string): string | null {
   if (src.length > 8192) return null;
   const items = splitTopLevel(src);
   if (items === null || items.length === 0) return null;
@@ -179,6 +179,6 @@ function splitTopLevel(s: string): string[] | null {
   return items;
 }
 
-export function cssString(s: string): string {
+function cssString(s: string): string {
   return `"${s.replace(/[\\"\n\r\f]/g, (c) => `\\${c.charCodeAt(0).toString(16)} `)}"`;
 }

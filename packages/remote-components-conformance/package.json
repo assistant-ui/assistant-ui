@@ -13,9 +13,7 @@
   },
   "dependencies": {
     "@assistant-ui/remote-components-host-react": "workspace:*",
-    "@assistant-ui/remote-components-protocol": "workspace:*",
     "@assistant-ui/remote-components-react": "workspace:*",
-    "@assistant-ui/remote-components-runtime": "workspace:*",
     "@assistant-ui/remote-components-serve": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -23,7 +21,6 @@
   "devDependencies": {
     "@assistant-ui/remote-components-vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@fontsource/lobster": "^5.2.8",
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "@types/pngjs": "^6.0.5",

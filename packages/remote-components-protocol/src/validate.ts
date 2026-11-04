@@ -16,29 +16,29 @@ import type {
 
 export type Check = (v: unknown) => boolean;
 
-export const str: Check = (v) => typeof v === "string";
-export const num: Check = (v) => typeof v === "number" && Number.isFinite(v);
-export const nonNeg: Check = (v) => num(v) && (v as number) >= 0;
-export const int: Check = (v) => Number.isSafeInteger(v);
-export const bool: Check = (v) => typeof v === "boolean";
-export const any: Check = () => true;
-export const oneOf =
+const str: Check = (v) => typeof v === "string";
+const num: Check = (v) => typeof v === "number" && Number.isFinite(v);
+const nonNeg: Check = (v) => num(v) && (v as number) >= 0;
+const int: Check = (v) => Number.isSafeInteger(v);
+const bool: Check = (v) => typeof v === "boolean";
+const any: Check = () => true;
+const oneOf =
   (...vals: readonly unknown[]): Check =>
   (v) =>
     vals.includes(v);
-export const opt =
+const opt =
   (c: Check): Check =>
   (v) =>
     v === undefined || c(v);
-export const nullable =
+const nullable =
   (c: Check): Check =>
   (v) =>
     v === null || c(v);
-export const arr =
+const arr =
   (c: Check, max = Infinity): Check =>
   (v) =>
     Array.isArray(v) && v.length <= max && v.every(c);
-export const obj = (shape: Record<string, Check>): Check => {
+const obj = (shape: Record<string, Check>): Check => {
   const entries = Object.entries(shape);
   return (v) =>
     v !== null &&
@@ -46,7 +46,7 @@ export const obj = (shape: Record<string, Check>): Check => {
     !Array.isArray(v) &&
     entries.every(([k, c]) => c((v as Record<string, unknown>)[k]));
 };
-export const record =
+const record =
   (c: Check): Check =>
   (v) =>
     v !== null &&
@@ -61,8 +61,8 @@ const pathKey: Check = (v) =>
     v !== "constructor" &&
     v !== "prototype") ||
   (int(v) && (v as number) >= 0);
-export const path = arr(pathKey, 64);
-export const encoded = obj({
+const path = arr(pathKey, 64);
+const encoded = obj({
   v: any,
   f: opt(arr(path, 10_000)),
   s: opt(arr(path, 64)),

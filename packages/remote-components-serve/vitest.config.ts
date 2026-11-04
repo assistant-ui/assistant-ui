@@ -6,6 +6,14 @@ export default defineConfig({
     environment: "node",
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
+      thresholds: {
+        lines: 49,
+        functions: 70,
+        branches: 49,
+        statements: 47,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
     },
   },
 });
