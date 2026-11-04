@@ -1,0 +1,6 @@
+{
+  "title": "Getting Started",
+  "description": "What a remote component is, a first page, and what a page can do.",
+  "icon": "Rocket",
+  "pages": ["index", "pages"]
+}
