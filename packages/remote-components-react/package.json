@@ -1,0 +1,66 @@
+{
+  "name": "@assistant-ui/remote-components-react",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Optional React hooks over window.rc for remote components",
+  "keywords": [
+    "remote-components",
+    "iframe",
+    "sandbox",
+    "assistant-ui"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "README.md"
+  ],
+  "sideEffects": true,
+  "scripts": {
+    "build": "aui-build",
+    "typecheck": "tsc --noEmit",
+    "test:types:peer-react18": "aui-react18-types"
+  },
+  "dependencies": {
+    "@assistant-ui/remote-components-runtime": "workspace:^"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "homepage": "https://www.assistant-ui.com/remote-components",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/remote-components-react"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
