@@ -282,6 +282,43 @@ describe("PiThreadSupervisor", () => {
     );
   });
 
+  it("keeps supervisor-owned fields out of configured session options", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      setThinkingLevel: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession: () =>
+        ({ tools: [], agentDir: "/elsewhere", model: {} }) as never,
+    });
+
+    await supervisor.setThinkingLevel("t1", "high");
+
+    const [options] = sdk.createAgentSession.mock.calls[0]!;
+    expect(options).toMatchObject({ tools: [] });
+    expect(options).not.toHaveProperty("agentDir");
+    expect(options).not.toHaveProperty("model");
+  });
+
+  it("rejects an open when configuring the session throws", async () => {
+    const error = new Error("configure failed");
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession: () => {
+        throw error;
+      },
+    });
+
+    await expect(supervisor.setThinkingLevel("t1", "high")).rejects.toBe(error);
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
+  });
+
   it("discards an open whose configured options resolve after supervisor disposal", async () => {
     let resolveOptions!: (value: { tools: string[] }) => void;
     const supervisor = new PiThreadSupervisor({

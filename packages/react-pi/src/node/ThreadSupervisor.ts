@@ -475,10 +475,18 @@ export class PiThreadSupervisor {
   ): Promise<ThreadRecord> {
     const generation = this.generation;
     this.throwIfOpenCancelled(signal, generation);
-    const [modelRuntime, sessionOptions] = await Promise.all([
-      this.getModelRuntime(),
-      this.configureSession?.({ cwd, signal }),
-    ]);
+    const modelRuntime = await this.getModelRuntime();
+    const {
+      cwd: _cwd,
+      sessionManager: _sessionManager,
+      agentDir: _agentDir,
+      model: _model,
+      modelRuntime: _modelRuntime,
+      ...sessionOptions
+    }: PiCreateSessionOptions = (await this.configureSession?.({
+      cwd,
+      signal,
+    })) ?? {};
     this.throwIfOpenCancelled(signal, generation);
     const { session } = await createAgentSession({
       ...sessionOptions,

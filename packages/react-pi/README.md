@@ -75,6 +75,9 @@ open's cancellation signal. The callback returns Pi SDK session options such as
 keeps the working directory, session storage, agent directory, model runtime,
 and model. The first `createPiNodeClient` call fixes these options for the
 process, so the runtime and the callback must live as long as the server.
+Sessions share the supervisor's runtime with or without this option, so a
+provider or model that a session's extension registers stays in the catalog for
+every workspace until the process exits.
 
 ```ts
 import {
@@ -82,9 +85,14 @@ import {
   ModelRuntime,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
+import { join } from "node:path";
 import { createPiNodeClient } from "@assistant-ui/react-pi/node";
 
-const modelRuntime = await ModelRuntime.create({ modelsPath: gatewayModelsPath });
+const workspacePath = process.env.PI_WORKSPACE_PATH ?? process.cwd();
+const agentDir = "/path/to/your-app/pi"; // the app's own Pi config directory
+const modelRuntime = await ModelRuntime.create({
+  modelsPath: join(agentDir, "models.json"),
+});
 const settingsManager = SettingsManager.inMemory();
 
 export const piClient = createPiNodeClient({
