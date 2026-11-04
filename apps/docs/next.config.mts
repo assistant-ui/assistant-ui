@@ -1,22 +1,28 @@
-import { createMDX } from "fumadocs-mdx/next";
+import { fileURLToPath } from "node:url";
+import { withDocs } from "@farming-labs/next/config";
+import docsConfig from "./docs.config.ts";
+import {
+  generateContentManifest,
+  watchContentManifest,
+} from "./scripts/content/manifest.mts";
 import { withAui } from "@assistant-ui/next";
 import type { NextConfig } from "next";
 import {
   AGENT_DISCOVERY_REWRITES,
   API_CATALOG_LINK_HEADER,
-} from "./lib/agent-discovery-routes";
-import { isWebMcpEnabled } from "./lib/feature-flags";
-import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
-import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
+} from "./lib/agent-discovery-routes.ts";
+import { isWebMcpEnabled } from "./lib/feature-flags.ts";
+import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer.ts";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs.ts";
 import {
   DOCS_SITE_REDIRECTS,
   docsSiteMarkdownAcceptRewrites,
   docsSiteMarkdownFileRewrites,
-} from "./lib/docs-sites";
+} from "./lib/docs-sites.ts";
 import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
-} from "./lib/markdown-rewrites";
+} from "./lib/markdown-rewrites.ts";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -595,7 +601,22 @@ const config: NextConfig = {
   }),
 };
 
-const withMDX = createMDX();
-
-// Keep MDX outermost so Next.js waits for its collection generation.
-export default withMDX(withAui(config));
+export default generateContentManifest(process.cwd()).then(() => {
+  if (process.env.NODE_ENV === "development")
+    watchContentManifest(process.cwd());
+  const compiled = withDocs(withAui(config), docsConfig, {
+    mdx: {
+      remarkPlugins: [
+        fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
+      ],
+      codeHighlighter: fileURLToPath(
+        new URL("./lib/rehype-docs-code.mjs", import.meta.url),
+      ),
+    },
+  });
+  return {
+    ...compiled,
+    rewrites: config.rewrites,
+    redirects: config.redirects,
+  };
+});

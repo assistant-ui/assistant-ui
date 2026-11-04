@@ -1,4 +1,4 @@
-import { CLOUD_URL } from "./constants";
+import { CLOUD_URL } from "./constants.ts";
 
 export const RENDERER_PATH = "/renderer";
 

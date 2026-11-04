@@ -25,7 +25,7 @@ vi.mock("@/lib/ai/provider", async (importOriginal) => ({
 }));
 
 // @/lib/source and @/lib/llm-components import the build-generated
-// "fumadocs-mdx:collections/server" module, which does not resolve in the test
+// ".source/content" module, which does not resolve in the test
 // environment, so these two mocks fully replace the modules instead of
 // spreading importOriginal().
 vi.mock("@/lib/llm-components", () => ({ LLM_COMPONENTS: {} }));
