@@ -191,7 +191,7 @@ function PageCase({ S }: { S: Subject }): ReactNode {
   const q = new URLSearchParams(location.search);
   const requested = q.get("src") ?? "";
   const src = requested.startsWith(`${REMOTE_ORIGIN}/`)
-    ? requested
+    ? `${REMOTE_ORIGIN}/${requested.slice(REMOTE_ORIGIN.length + 1)}`
     : "about:blank";
   const width = Number(q.get("width") ?? 480);
   const layout = q.get("layout") ?? "block";
