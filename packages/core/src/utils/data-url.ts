@@ -23,10 +23,10 @@ export function parseDataUrl(
   return {
     mimeType: match[1] ? match[1].toLowerCase() : fallbackMimeType,
     data: match[2]!
-      .replace(/[\t\n\r ]/g, "")
       .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
         String.fromCharCode(Number.parseInt(hex, 16)),
-      ),
+      )
+      .replace(/[\t\n\r ]/g, ""),
   };
 }
 
