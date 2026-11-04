@@ -4,6 +4,7 @@ import {
   type FetchRequestMessage,
   type HostToWebviewMessage,
 } from "../protocol";
+import { isForeignHttpUrl } from "../route-url";
 
 export type RouteHandler = (request: Request) => Response | Promise<Response>;
 
@@ -155,6 +156,9 @@ export function serveRoutes(
     inflight.set(id, controller);
     try {
       const url = new URL(message.url);
+      if (isForeignHttpUrl(url)) {
+        throw new TypeError(`Refused a request for ${url.origin}`);
+      }
       const request = new Request(url, {
         method: message.method,
         headers: message.headers,
