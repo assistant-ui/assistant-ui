@@ -664,6 +664,9 @@ describe("reduceOpenCodeThreadState", () => {
         field: "text",
         delta: " world",
       });
+      expect(afterDelta.messagesById.msg_assistant?.parts).toMatchObject([
+        { id: "prt_1", text: "Hello world" },
+      ]);
       expect(afterDelta.runState.type).toBe(expected);
 
       const afterPart = reduceOpenCodeThreadState(state, {
@@ -677,6 +680,7 @@ describe("reduceOpenCodeThreadState", () => {
           messageID: "msg_assistant",
         } as never,
       });
+      expect(afterPart.messagesById.msg_assistant?.parts).toHaveLength(2);
       expect(afterPart.runState.type).toBe(expected);
     },
   );

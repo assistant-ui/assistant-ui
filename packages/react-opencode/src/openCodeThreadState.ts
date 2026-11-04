@@ -32,16 +32,9 @@ type OpenCodeThreadStateEvent =
   | OpenCodeReconciliationEvent;
 
 /**
- * A streamed part means the server is still producing output, but `cancelling`
- * and `reverting` record a request the client is still waiting on: the abort
- * and the revert are in flight, so the server keeps emitting parts. Keep the
- * transient state the way `session.status` does instead of reporting
- * `streaming` again — `OpenCodeThreadController.revert` reads it back to decide
- * whether a failed revert still concerns the current run.
+ * `cancelling` and `reverting` mark a request still in flight, so server output keeps them.
  */
-const nextRunStateOnPartEvent = (
-  runState: OpenCodeRunState,
-): OpenCodeRunState =>
+const keepTransientRunState = (runState: OpenCodeRunState): OpenCodeRunState =>
   runState.type === "cancelling" || runState.type === "reverting"
     ? runState
     : { type: "streaming" };
@@ -396,10 +389,7 @@ export const reduceOpenCodeThreadStateInternal = (
         runState:
           event.status.type === "idle"
             ? { type: "idle" }
-            : state.runState.type === "cancelling" ||
-                state.runState.type === "reverting"
-              ? state.runState
-              : { type: "streaming" },
+            : keepTransientRunState(state.runState),
         sync: {
           ...state.sync,
           lastEventAt: Date.now(),
@@ -488,7 +478,7 @@ export const reduceOpenCodeThreadStateInternal = (
 
       return {
         ...nextState,
-        runState: nextRunStateOnPartEvent(state.runState),
+        runState: keepTransientRunState(state.runState),
         sessionStatus:
           state.sessionStatus?.type === "retry"
             ? state.sessionStatus
@@ -518,7 +508,7 @@ export const reduceOpenCodeThreadStateInternal = (
           ...current,
           parts: nextParts,
         })),
-        runState: nextRunStateOnPartEvent(state.runState),
+        runState: keepTransientRunState(state.runState),
         sessionStatus:
           state.sessionStatus?.type === "retry"
             ? state.sessionStatus
