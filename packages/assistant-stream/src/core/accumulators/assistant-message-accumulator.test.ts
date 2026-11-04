@@ -193,6 +193,47 @@ describe("AssistantMessageAccumulator tool argument status", () => {
     expect(messages.at(-1)?.parts[0]).not.toHaveProperty("modelContent");
   });
 
+  it("clears stale artifact and messages when a later result omits them", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "searching",
+        isError: false,
+        isPreliminary: true,
+        artifact: { reportId: 7 },
+        messages: [
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "in progress" }],
+          },
+        ],
+        modelContent: [{ type: "text", text: "Search in progress" }],
+      },
+      {
+        type: "result",
+        path: [0],
+        result: "done",
+        isError: false,
+      },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      status: { type: "complete", reason: "stop" },
+    });
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("modelContent");
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("artifact");
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("messages");
+  });
+
   it("ignores a preliminary result after the final one", async () => {
     const messages = await collectStream([
       {

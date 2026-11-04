@@ -295,8 +295,16 @@ const handleResult = (
       const {
         isPreliminary: _isPreliminary,
         modelContent: _modelContent,
+        artifact: _artifact,
         ...basePart
       } = part;
+      // `messages` is written by the result branches via object spread even
+      // though it is not declared on ToolCallPart (the public contract types
+      // it as readonly ThreadMessage[] downstream). Drop the stale value at
+      // runtime instead of widening that contract here.
+      if (chunk.messages === undefined) {
+        delete (basePart as { messages?: unknown }).messages;
+      }
       const runningStatus =
         part.status.type === "running"
           ? part.status
