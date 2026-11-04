@@ -67,8 +67,13 @@ export class ThreadMutationQueue {
     const finish = () => {
       release();
       const target = this.resolve(threadId);
-      const queue = this.pending.get(target)!;
-      queue.splice(queue.indexOf(current), 1);
+      const queue = this.pending.get(target);
+      // A handle can be cancelled and then run, so two passes are possible:
+      // already-gone means this reservation was drained with its bucket.
+      if (!queue) return;
+      const index = queue.indexOf(current);
+      if (index === -1) return;
+      queue.splice(index, 1);
       if (queue.length === 0) this.pending.delete(target);
     };
     const afterPrevious = async <T>(call: () => T | Promise<T>): Promise<T> => {
