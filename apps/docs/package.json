@@ -35,6 +35,7 @@
     "@assistant-ui/react-o11y": "workspace:*",
     "@assistant-ui/react-streamdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
+    "@assistant-ui/remote-components-host-react": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@aui-x/prism": "^0.0.5",

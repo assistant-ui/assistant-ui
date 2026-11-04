@@ -1,0 +1,37 @@
+{
+  "name": "@assistant-ui/remote-components-conformance",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Playwright conformance suite for remote components (SPEC.md), run in the Playwright Linux image",
+  "type": "module",
+  "scripts": {
+    "conformance": "bash scripts/conformance-docker.sh",
+    "conformance:local": "playwright test",
+    "dev:host": "vite --config vite.host.config.ts",
+    "dev:remote": "vite --config vite.remote.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@assistant-ui/remote-components-host-react": "workspace:*",
+    "@assistant-ui/remote-components-protocol": "workspace:*",
+    "@assistant-ui/remote-components-react": "workspace:*",
+    "@assistant-ui/remote-components-runtime": "workspace:*",
+    "@assistant-ui/remote-components-serve": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@assistant-ui/remote-components-vite": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@fontsource/lobster": "^5.2.8",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "@types/pngjs": "^6.0.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "pixelmatch": "^7.1.1",
+    "pngjs": "^7.0.0",
+    "vite": "^8.3.5"
+  }
+}

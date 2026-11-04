@@ -1,0 +1,52 @@
+<style>
+.bp{font-family:var(--font-sans);color:var(--color-text);max-width:640px;margin:0 auto;padding:4px}
+.bp-card{display:flex;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden}
+.bp-main{flex:1;padding:20px 22px;min-width:0}
+.bp-stub{width:150px;padding:20px 18px;border-left:2px dashed var(--color-border);position:relative;display:flex;flex-direction:column;gap:12px}
+.bp-stub::before,.bp-stub::after{content:"";position:absolute;left:-11px;width:20px;height:20px;border-radius:50%;background:var(--color-surface);border:1px solid var(--color-border)}
+.bp-stub::before{top:-11px}.bp-stub::after{bottom:-11px}
+.bp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.bp-air{font-weight:700;letter-spacing:.04em;color:var(--color-accent)}
+.bp-tag{font-size:12px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em}
+.bp-route{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bp-code{font-size:38px;font-weight:700;line-height:1}
+.bp-city{font-size:13px;color:var(--color-text-muted);margin-top:4px}
+.bp-time{font-size:18px;font-weight:600;margin-top:8px}
+.bp-mid{flex:1;text-align:center;color:var(--color-text-muted);font-size:12px}
+.bp-line{display:flex;align-items:center;gap:6px;margin:6px 0}
+.bp-line span{flex:1;border-top:1px dashed var(--color-border)}
+.bp-line svg{fill:var(--color-accent)}
+.bp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--color-border)}
+.bp-l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)}
+.bp-v{font-size:16px;font-weight:600;margin-top:2px}
+.bp-bar{display:flex;gap:2px;height:44px;margin-top:auto}
+.bp-bar i{background:var(--color-text);display:block}
+@media(max-width:520px){.bp-card{flex-direction:column}.bp-stub{width:auto;border-left:none;border-top:2px dashed var(--color-border)}.bp-stub::before,.bp-stub::after{display:none}.bp-grid{grid-template-columns:repeat(2,1fr)}.bp-code{font-size:30px}}
+</style>
+<div class="bp">
+  <div class="bp-card">
+    <div class="bp-main">
+      <div class="bp-head"><span class="bp-air">✈ SKYLINE AIR</span><span class="bp-tag">Boarding Pass</span></div>
+      <div class="bp-route">
+        <div><div class="bp-code">SFO</div><div class="bp-city">San Francisco</div><div class="bp-time">8:15 AM</div></div>
+        <div class="bp-mid">Nonstop<div class="bp-line"><span></span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" transform="rotate(90 12 12)"/></svg><span></span></div>5h 30m</div>
+        <div style="text-align:right"><div class="bp-code">JFK</div><div class="bp-city">New York</div><div class="bp-time">4:45 PM</div></div>
+      </div>
+      <div class="bp-grid">
+        <div><div class="bp-l">Passenger</div><div class="bp-v">A. Rivera</div></div>
+        <div><div class="bp-l">Flight</div><div class="bp-v">SK 214</div></div>
+        <div><div class="bp-l">Date</div><div class="bp-v">Jun 12</div></div>
+        <div><div class="bp-l">Boarding</div><div class="bp-v">7:35 AM</div></div>
+      </div>
+    </div>
+    <div class="bp-stub">
+      <div><div class="bp-l">Gate</div><div class="bp-v" style="font-size:24px">B22</div></div>
+      <div><div class="bp-l">Seat</div><div class="bp-v" style="font-size:24px">14A</div></div>
+      <div><div class="bp-l">Class</div><div class="bp-v">Economy</div></div>
+      <div class="bp-bar" id="bpbar"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){var b=document.getElementById('bpbar'),w=[1,3,1,2,1,1,3,2,1,2,3,1,1,2,1,3,1,2,2,1,3,1];w.forEach(function(x){var i=document.createElement('i');i.style.width=x+'px';b.appendChild(i);});})();
+</script>

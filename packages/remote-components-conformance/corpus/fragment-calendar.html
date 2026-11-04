@@ -1,0 +1,95 @@
+<div class="cal">
+  <div class="cal-head">
+    <h2>March 2026</h2>
+    <span class="cal-sub">2 events</span>
+  </div>
+  <div class="cal-grid" id="calGrid" role="grid" aria-label="March 2026"></div>
+  <ul class="cal-legend" id="calLegend"></ul>
+</div>
+
+<style>
+.cal {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.cal-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.cal-head h2 { margin: 0; font-size: 1.2rem; font-weight: 600; }
+.cal-sub { font-size: .85rem; color: var(--color-text-muted); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-muted); text-align: center; padding: 4px 0; }
+.cal-day {
+  min-height: 64px;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius-md) * .6);
+  padding: 4px 6px;
+  font-size: .85rem;
+  display: flex; flex-direction: column; gap: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.cal-day.empty { border-color: transparent; }
+.cal-day.weekend .num { color: var(--color-text-muted); }
+.cal-day.has-event {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.cal-day.has-event .num { color: var(--color-accent); font-weight: 700; }
+.cal-ev {
+  font-size: .7rem; line-height: 1.2;
+  background: var(--color-accent); color: #fff;
+  border-radius: 4px; padding: 2px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-legend { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: .85rem; }
+.cal-legend li { display: flex; gap: 8px; align-items: center; }
+.cal-legend .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); flex: none; }
+.cal-legend .when { color: var(--color-text-muted); }
+@media (max-width: 460px) {
+  .cal-day { min-height: 48px; }
+  .cal-ev { display: none; }
+}
+</style>
+
+<script>
+(function () {
+  const events = {
+    12: { title: "Team Offsite", time: "Thu, Mar 12 · 9:00 AM" },
+    24: { title: "Product Launch", time: "Tue, Mar 24 · 2:00 PM" }
+  };
+  const grid = document.getElementById("calGrid");
+  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d => {
+    const el = document.createElement("div");
+    el.className = "cal-dow"; el.textContent = d; grid.appendChild(el);
+  });
+  const first = new Date(2026, 2, 1).getDay(); // Sunday = 0
+  const days = 31;
+  for (let i = 0; i < first; i++) {
+    const e = document.createElement("div"); e.className = "cal-day empty"; grid.appendChild(e);
+  }
+  for (let d = 1; d <= days; d++) {
+    const cell = document.createElement("div");
+    const dow = (first + d - 1) % 7;
+    cell.className = "cal-day" + (dow === 0 || dow === 6 ? " weekend" : "");
+    cell.setAttribute("role", "gridcell");
+    cell.innerHTML = '<span class="num">' + d + '</span>';
+    if (events[d]) {
+      cell.classList.add("has-event");
+      cell.title = events[d].title + " — " + events[d].time;
+      cell.innerHTML += '<span class="cal-ev">' + events[d].title + '</span>';
+    }
+    grid.appendChild(cell);
+  }
+  const legend = document.getElementById("calLegend");
+  Object.values(events).forEach(ev => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="dot"></span><strong>' + ev.title + '</strong><span class="when">' + ev.time + '</span>';
+    legend.appendChild(li);
+  });
+})();
+</script>

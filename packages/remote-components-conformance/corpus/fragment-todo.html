@@ -1,0 +1,120 @@
+<style>
+  .todo {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .todo h3 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
+  .todo form { display: flex; gap: 8px; margin-bottom: 12px; }
+  .todo input[type="text"] {
+    flex: 1;
+    padding: 8px 10px;
+    font: inherit;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    outline: none;
+  }
+  .todo input[type="text"]:focus { border-color: var(--color-accent); }
+  .todo button.add {
+    padding: 8px 14px;
+    font: inherit;
+    font-weight: 500;
+    color: #fff;
+    background: var(--color-accent);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  .todo ul { list-style: none; margin: 0; padding: 0; }
+  .todo li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    margin-bottom: 6px;
+  }
+  .todo li input { accent-color: var(--color-accent); width: 16px; height: 16px; cursor: pointer; }
+  .todo li span { flex: 1; word-break: break-word; }
+  .todo li.done span { text-decoration: line-through; color: var(--color-text-muted); }
+  .todo li button {
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .todo li button:hover { color: #d33; }
+  .todo .empty, .todo .count { color: var(--color-text-muted); font-size: 0.85rem; }
+  .todo .empty { text-align: center; padding: 12px; }
+  .todo .count { margin-top: 8px; }
+</style>
+
+<div class="todo">
+  <h3>To-do list</h3>
+  <form id="todoForm">
+    <input type="text" id="todoInput" placeholder="Add a task…" autocomplete="off" aria-label="New task">
+    <button type="submit" class="add">Add</button>
+  </form>
+  <ul id="todoList"></ul>
+  <div class="count" id="todoCount"></div>
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById('todoForm');
+  const input = document.getElementById('todoInput');
+  const list = document.getElementById('todoList');
+  const count = document.getElementById('todoCount');
+  let items = [
+    { text: 'Buy groceries', done: false },
+    { text: 'Reply to emails', done: true }
+  ];
+
+  function render() {
+    list.innerHTML = '';
+    if (!items.length) {
+      list.innerHTML = '<li class="empty" style="border:none;background:none;justify-content:center">Nothing to do 🎉</li>';
+    }
+    items.forEach((item, i) => {
+      const li = document.createElement('li');
+      if (item.done) li.className = 'done';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = item.done;
+      cb.setAttribute('aria-label', 'Mark done');
+      cb.onchange = () => { item.done = cb.checked; render(); };
+      const span = document.createElement('span');
+      span.textContent = item.text;
+      const del = document.createElement('button');
+      del.textContent = '×';
+      del.title = 'Delete';
+      del.setAttribute('aria-label', 'Delete task');
+      del.onclick = () => { items.splice(i, 1); render(); };
+      li.append(cb, span, del);
+      list.appendChild(li);
+    });
+    const left = items.filter(x => !x.done).length;
+    count.textContent = items.length ? `${left} of ${items.length} remaining` : '';
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    items.push({ text, done: false });
+    input.value = '';
+    render();
+  });
+
+  render();
+})();
+</script>
