@@ -63,17 +63,47 @@ export function frameAncestorsDirective(origins: readonly string[]): string {
   return `frame-ancestors ${origins.join(" ") || "'none'"}`;
 }
 
+/** Index after the leading whitespace and comments (a BOM counts as whitespace). */
+function prologueEnd(html: string): number {
+  let i = 0;
+  for (;;) {
+    while (i < html.length && /\s/.test(html[i]!)) i++;
+    if (!html.startsWith("<!--", i)) return i;
+    const end = html.indexOf("-->", i + 4);
+    if (end === -1) return i;
+    i = end + 3;
+  }
+}
+
 /** True when the document starts (after comments and whitespace) with a doctype. */
 export function hasDoctype(html: string): boolean {
-  return /^﻿?\s*(<!--[\s\S]*?-->\s*)*<!doctype/i.test(html);
+  const i = prologueEnd(html);
+  return html.slice(i, i + 9).toLowerCase() === "<!doctype";
 }
 
 /** True when the page already loads the runtime itself. */
 export function hasRuntime(html: string): boolean {
-  return (
-    /<script[^>]+src\s*=\s*["']?[^"'\s>]*rc-runtime(\.full)?\.js/i.test(html) ||
-    html.includes("data-rc-runtime")
-  );
+  return html.includes("data-rc-runtime") || scriptLoadsRuntime(html);
+}
+
+// Scans each run of text between `>`s once, from its first `<script`, so
+// unclosed tags cost linear time.
+function scriptLoadsRuntime(html: string): boolean {
+  const open = /<script/gi;
+  let from = 0;
+  for (;;) {
+    open.lastIndex = from;
+    const tag = open.exec(html);
+    if (tag === null) return false;
+    const close = html.indexOf(">", tag.index);
+    const end = close === -1 ? html.length : close;
+    const attrs = html.slice(tag.index + 8, end);
+    for (const m of attrs.matchAll(/src\s*=\s*["']?([^"'\s>]*)/gi)) {
+      if (/rc-runtime(\.full)?\.js/i.test(m[1]!)) return true;
+    }
+    if (close === -1) return false;
+    from = close + 1;
+  }
 }
 
 export function runtimeTag(
@@ -88,27 +118,33 @@ function attr(v: string): string {
   return v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
+/** End of the first `<name>` or `<name …>` open tag, or -1. */
+function openTagEnd(html: string, name: string): number {
+  const open = new RegExp(`<${name}`, "gi");
+  for (let m = open.exec(html); m !== null; m = open.exec(html)) {
+    const next = m.index + name.length + 1;
+    const c = html[next];
+    if (c === ">") return next + 1;
+    if (c !== undefined && /\s/.test(c)) {
+      const close = html.indexOf(">", next);
+      return close === -1 ? -1 : close + 1;
+    }
+  }
+  return -1;
+}
+
 /** Inserts `tag` as the first thing in `<head>` (creating the context the parser would). */
 export function injectHead(html: string, tag: string): string {
-  const head = /<head(\s[^>]*)?>/i.exec(html);
-  if (head !== null)
-    return (
-      html.slice(0, head.index + head[0].length) +
-      tag +
-      html.slice(head.index + head[0].length)
-    );
-  const root = /<html(\s[^>]*)?>/i.exec(html);
-  if (root !== null)
-    return (
-      html.slice(0, root.index + root[0].length) +
-      `<head>${tag}</head>` +
-      html.slice(root.index + root[0].length)
-    );
+  const head = openTagEnd(html, "head");
+  if (head !== -1) return html.slice(0, head) + tag + html.slice(head);
+  const root = openTagEnd(html, "html");
+  if (root !== -1)
+    return html.slice(0, root) + `<head>${tag}</head>` + html.slice(root);
   // A fragment: after the doctype, a leading script lands in the implied <head>.
-  const dt = /^﻿?\s*(<!--[\s\S]*?-->\s*)*<!doctype[^>]*>/i.exec(html);
-  return dt === null
+  const dt = hasDoctype(html) ? html.indexOf(">", prologueEnd(html) + 9) : -1;
+  return dt === -1
     ? tag + html
-    : html.slice(0, dt[0].length) + tag + html.slice(dt[0].length);
+    : html.slice(0, dt + 1) + tag + html.slice(dt + 1);
 }
 
 /** Normalizes any HTML into a remote component document (see the module comment). */

@@ -185,9 +185,14 @@ const outline: CSSProperties = { outline: "1px solid #94a3b8" };
  * `width` (default 480), `layout` = block | fit (in a fit-content box) |
  * raw (a plain 300px iframe, no runtime) | scf.
  */
+const REMOTE_ORIGIN = "http://127.0.0.1:5181";
+
 function PageCase({ S }: { S: Subject }): ReactNode {
   const q = new URLSearchParams(location.search);
-  const src = q.get("src") ?? "";
+  const requested = q.get("src") ?? "";
+  const src = requested.startsWith(`${REMOTE_ORIGIN}/`)
+    ? requested
+    : "about:blank";
   const width = Number(q.get("width") ?? 480);
   const layout = q.get("layout") ?? "block";
   if (layout === "raw") {

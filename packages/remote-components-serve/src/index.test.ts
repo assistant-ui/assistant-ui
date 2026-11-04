@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   connectSrc,
   hasDoctype,
+  hasRuntime,
+  injectHead,
   normalizeHtml,
   streamPrefix,
 } from "./index.js";
@@ -55,6 +57,27 @@ describe("normalizeHtml", () => {
   it("detects doctypes after comments", () => {
     expect(hasDoctype("<!-- hi -->\n<!DOCTYPE html>")).toBe(true);
     expect(hasDoctype("<code><!doctype html>")).toBe(false);
+  });
+
+  it("ends a comment at its first -->, like the HTML parser", () => {
+    expect(hasDoctype("<!-- a --> text --> <!doctype html>")).toBe(false);
+    expect(hasDoctype("\ufeff <!----><!-- b -->\n<!DOCTYPE html>")).toBe(true);
+  });
+
+  it("finds the runtime tag and the head in linear time on unclosed tags", () => {
+    expect(hasRuntime("<script ".repeat(50_000))).toBe(false);
+    expect(hasRuntime("<script x src='/a/rc-runtime.full.js'")).toBe(true);
+    expect(hasRuntime("<scriptsrc=x src=rc-runtime.js>")).toBe(true);
+    expect(hasRuntime("<script>src=rc-runtime.js")).toBe(false);
+    expect(injectHead("<head ".repeat(50_000), "T")).toBe(
+      "T" + "<head ".repeat(50_000),
+    );
+    expect(injectHead("<header><HEAD lang=en>x", "T")).toBe(
+      "<header><HEAD lang=en>Tx",
+    );
+    expect(injectHead("<!-- c --><!doctype html><p>", "T")).toBe(
+      "<!-- c --><!doctype html>T<p>",
+    );
   });
 
   it("streams with the runtime first", () => {
