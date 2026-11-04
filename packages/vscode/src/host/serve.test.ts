@@ -90,6 +90,36 @@ describe("serveWebviewHost", () => {
     ).rejects.toThrow("openExternal is not served by this host");
   });
 
+  it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
+    "rejects the inherited method %s",
+    async (method) => {
+      const { bridge } = setup({ openExternal: vi.fn() });
+
+      await expect(callHost(bridge.port, method, [])).rejects.toThrow(
+        `${method} is not served by this host`,
+      );
+    },
+  );
+
+  it.each([
+    ["storage.getItem", [{ key: "threads" }], "key must be a string"],
+    ["storage.setItem", [1, "value"], "key must be a string"],
+    ["storage.setItem", ["threads", { value: 1 }], "value must be a string"],
+    ["storage.removeItem", [null], "key must be a string"],
+  ])(
+    "rejects %s(%j) without touching the Memento",
+    async (method, params, message) => {
+      const storage = { get: vi.fn(), update: vi.fn(async () => undefined) };
+      const { bridge } = setup({ storage });
+
+      await expect(callHost(bridge.port, method, params)).rejects.toThrow(
+        message,
+      );
+      expect(storage.get).not.toHaveBeenCalled();
+      expect(storage.update).not.toHaveBeenCalled();
+    },
+  );
+
   it("propagates a callback failure", async () => {
     const { bridge } = setup({
       openExternal: () => Promise.reject(new Error("no browser")),
