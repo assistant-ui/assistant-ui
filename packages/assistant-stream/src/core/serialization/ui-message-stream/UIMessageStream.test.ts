@@ -368,6 +368,37 @@ describe("UIMessageStreamDecoder", () => {
     }
   });
 
+  it("should decode source-document parts", async () => {
+    const messages = await collectChunks(
+      createUIMessageStream([
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          type: "source-document",
+          sourceId: "src_1",
+          mediaType: "text/plain",
+          title: "ai.pdf",
+          filename: "ai.pdf",
+        }),
+        JSON.stringify({ type: "finish", finishReason: "stop" }),
+        "[DONE]",
+      ])
+        .pipeThrough(new UIMessageStreamDecoder())
+        .pipeThrough(new AssistantMessageAccumulator()),
+    );
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({
+        type: "source",
+        sourceType: "document",
+        id: "src_1",
+        title: "ai.pdf",
+        mediaType: "text/plain",
+        filename: "ai.pdf",
+      }),
+    ]);
+    expect(messages.at(-1)!.parts[0]).not.toHaveProperty("url");
+  });
+
   it("should decode file parts", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),

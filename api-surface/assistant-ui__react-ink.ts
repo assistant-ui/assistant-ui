@@ -3132,6 +3132,15 @@ type PartInit = {
   readonly title?: string;
   readonly parentId?: string;
 } | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly parentId?: string;
+} | {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;

@@ -68,6 +68,33 @@ describe("AssistantMessageAccumulator reasoning summaries", () => {
   });
 });
 
+describe("AssistantMessageAccumulator document sources", () => {
+  it("defaults a missing document source media type", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: {
+          type: "source",
+          sourceType: "document",
+          id: "d1",
+          title: "Q3 report",
+        },
+      } as unknown as AssistantStreamChunk,
+    ]);
+
+    expect(messages.at(-1)?.parts).toEqual([
+      expect.objectContaining({
+        type: "source",
+        sourceType: "document",
+        id: "d1",
+        title: "Q3 report",
+        mediaType: "application/octet-stream",
+      }),
+    ]);
+  });
+});
+
 describe("AssistantMessageAccumulator tool argument status", () => {
   it("marks arguments complete before the result and preserves a settled result", async () => {
     const messages = await collectStream([

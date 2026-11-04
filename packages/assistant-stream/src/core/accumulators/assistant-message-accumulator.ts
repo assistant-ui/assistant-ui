@@ -126,14 +126,27 @@ const handlePartStart = (
     };
     return appendPart(message, newToolCallPart);
   } else if (partInit.type === "source") {
-    const newSourcePart: SourcePart = {
-      type: "source",
-      sourceType: partInit.sourceType,
-      id: partInit.id,
-      url: partInit.url,
-      ...(partInit.title ? { title: partInit.title } : undefined),
-      ...(partInit.parentId && { parentId: partInit.parentId }),
-    };
+    const newSourcePart: SourcePart =
+      partInit.sourceType === "document"
+        ? {
+            type: "source",
+            sourceType: "document",
+            id: partInit.id,
+            title: partInit.title,
+            mediaType: partInit.mediaType ?? "application/octet-stream",
+            ...(partInit.filename
+              ? { filename: partInit.filename }
+              : undefined),
+            ...(partInit.parentId && { parentId: partInit.parentId }),
+          }
+        : {
+            type: "source",
+            sourceType: partInit.sourceType,
+            id: partInit.id,
+            url: partInit.url,
+            ...(partInit.title ? { title: partInit.title } : undefined),
+            ...(partInit.parentId && { parentId: partInit.parentId }),
+          };
     return appendPart(message, newSourcePart);
   } else if (partInit.type === "file") {
     const newFilePart: FilePart = {
