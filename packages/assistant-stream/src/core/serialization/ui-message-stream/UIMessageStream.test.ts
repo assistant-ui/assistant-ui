@@ -5,6 +5,7 @@ import { NO_RESULT } from "../../tool/ToolResponse";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 import { toolResultStream } from "../../tool/toolResultStream";
 import type { AssistantMessage } from "../../utils/types";
+import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -38,6 +39,104 @@ function createUIMessageStream(events: string[]): ReadableStream<Uint8Array> {
 }
 
 describe("UIMessageStreamDecoder", () => {
+  it.each(["message-finish", "part-start"])(
+    "can cancel at %s with pending tool arguments",
+    async (cancelAt) => {
+      const source = createUIMessageStream([
+        JSON.stringify({
+          type: "tool-input-start",
+          toolCallId: "weather",
+          toolName: "weather",
+        }),
+        JSON.stringify({
+          type: "tool-input-delta",
+          toolCallId: "weather",
+          inputTextDelta: "{}",
+        }),
+        JSON.stringify({ type: "finish", finishReason: "error" }),
+        "[DONE]",
+      ]).pipeThrough(new UIMessageStreamDecoder());
+      const reader = source.getReader();
+      try {
+        let finished = false;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value.type === cancelAt) {
+            finished = true;
+            await reader.cancel("generation failed");
+            break;
+          }
+        }
+        expect(finished).toBe(true);
+        expect(await reader.read()).toEqual({ done: true, value: undefined });
+      } finally {
+        reader.releaseLock();
+      }
+      expect(source.locked).toBe(false);
+    },
+  );
+
+  it("flushes pending tool arguments and results when the done marker cancels an open input", async () => {
+    const cancelled = promiseWithResolvers<void>();
+    const frames = [
+      { type: "tool-input-start", toolCallId: "weather", toolName: "weather" },
+      {
+        type: "tool-input-delta",
+        toolCallId: "weather",
+        inputTextDelta: '{"city":"Berlin"}',
+      },
+      {
+        type: "tool-output-available",
+        toolCallId: "weather",
+        output: { temp: 20 },
+      },
+      { type: "tool-input-start", toolCallId: "clock", toolName: "clock" },
+      { type: "tool-input-delta", toolCallId: "clock", inputTextDelta: "{}" },
+      { type: "finish", finishReason: "tool-calls" },
+    ];
+    const input = new ReadableStream<Uint8Array<ArrayBuffer>>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            frames
+              .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+              .join("") +
+              'data: [DONE]\n\ndata: {"type":"error","errorText":"after done"}\n\n',
+          ),
+        );
+      },
+      cancel() {
+        cancelled.resolve();
+      },
+    });
+    const messages = await collectChunks(
+      input
+        .pipeThrough(new UIMessageStreamDecoder())
+        .pipeThrough(new AssistantMessageAccumulator()),
+    );
+    expect(messages.at(-1)?.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "weather",
+        toolName: "weather",
+        argsText: '{"city":"Berlin"}',
+        result: { temp: 20 },
+      }),
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "clock",
+        toolName: "clock",
+        argsText: "{}",
+      }),
+    ]);
+    expect(messages.at(-1)?.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    await cancelled.promise;
+  });
+
   it("enforces the configured SSE line limit", async () => {
     await expect(
       collectChunks(
