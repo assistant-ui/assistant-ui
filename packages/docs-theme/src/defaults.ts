@@ -18,7 +18,18 @@ export const assistantUiDefaults: Required<
     pager: true,
     copyMarkdown: { enabled: true },
     viewMarkdown: true,
-    openDocs: { enabled: true, providers: ["claude", "codex"] },
+    descriptions: true,
+    openDocs: {
+      enabled: true,
+      providers: [
+        "claude",
+        {
+          id: "codex",
+          urlTemplate: "https://chatgpt.com/codex/",
+          description: "Open Codex in ChatGPT",
+        },
+      ],
+    },
     connectMcp: true,
     toc: true,
     askAi: false,

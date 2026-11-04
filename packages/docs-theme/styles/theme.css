@@ -1081,10 +1081,11 @@ body:has([data-fd-theme="assistant-ui"]) .fd-page-actions-menu {
   max-width: calc(100vw - 2rem);
   padding: 0.375rem;
   border: 0;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   background: var(--color-fd-popover);
   color: var(--color-fd-popover-foreground);
-  box-shadow: 0 0 0 1px var(--color-fd-border);
+  box-shadow: 0 0 0 1px
+    color-mix(in oklab, var(--color-fd-foreground) 10%, transparent);
   font-family: var(--fd-font-sans);
 }
 
@@ -1125,6 +1126,54 @@ body:has([data-fd-theme="assistant-ui"])
   svg {
   width: 1rem;
   height: 1rem;
+}
+
+body:has([data-fd-theme="assistant-ui"])
+  .fd-page-actions-menu
+  .fd-page-action-menu-item:has(.fd-page-action-menu-description) {
+  align-items: flex-start;
+}
+
+body:has([data-fd-theme="assistant-ui"])
+  .fd-page-actions-menu
+  .fd-page-action-menu-item:has(.fd-page-action-menu-description)
+  .fd-page-action-menu-icon {
+  margin-top: 0.25rem;
+}
+
+body:has([data-fd-theme="assistant-ui"])
+  .fd-page-actions-menu
+  .fd-page-action-menu-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+body:has([data-fd-theme="assistant-ui"])
+  .fd-page-actions-menu
+  .fd-page-action-menu-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+body:has([data-fd-theme="assistant-ui"])
+  .fd-page-actions-menu
+  .fd-page-action-menu-description {
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1rem;
+  white-space: normal;
+}
+
+body:has([data-fd-theme="assistant-ui"])
+  .fd-page-actions-menu
+  .fd-page-actions-menu-separator {
+  height: 1px;
+  margin: 0.25rem -0.375rem;
+  border: 0;
+  background: color-mix(in oklab, var(--color-fd-foreground) 10%, transparent);
 }
 
 [data-fd-theme="assistant-ui"] .fd-actions-toc-portal {
