@@ -14,8 +14,8 @@ const walk = (suite, prefix, fileName) => {
   for (const spec of suite.specs ?? []) {
     for (const t of spec.tests) {
       const r = t.results.at(-1) ?? {};
-      // oxlint-disable-next-line no-control-regex -- strips ANSI escapes from Playwright messages
       const msg = (r.error?.message ?? "")
+        // oxlint-disable-next-line no-control-regex -- strips ANSI escapes from Playwright messages
         .replace(/\x1b\[[0-9;]*m/g, "")
         .split("\n")
         .filter(Boolean)
