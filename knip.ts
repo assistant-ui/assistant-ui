@@ -44,6 +44,12 @@ const extraEntries: Record<string, string[]> = {
   "packages/x-performance": ["fixtures/*.css"],
 };
 
+// Knip's vite plugin loads the config, which imports a workspace package
+// through its unbuilt dist; the config stays an entry and is parsed instead.
+const workspaceOverrides: Record<string, { vite: false }> = {
+  "packages/remote-components-conformance": { vite: false },
+};
+
 const packageWorkspaces = Object.fromEntries(
   readdirSync("packages", { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -59,7 +65,13 @@ const packageWorkspaces = Object.fromEntries(
         ),
       ];
       entry.push(...(extraEntries[dir] ?? []));
-      return [dir, entry.length > 0 ? { entry } : {}];
+      return [
+        dir,
+        {
+          ...(entry.length > 0 ? { entry } : {}),
+          ...workspaceOverrides[dir],
+        },
+      ];
     }),
 );
 
