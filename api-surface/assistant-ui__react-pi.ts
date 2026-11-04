@@ -1,4 +1,4 @@
-import { createAgentSession } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, createAgentSession } from "@earendil-works/pi-coding-agent";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -1660,6 +1660,8 @@ interface PiContextUsage {
   percent: number | null;
 }
 
+type PiCreateSessionOptions = NonNullable<Parameters<typeof createAgentSession>[0]>;
+
 interface PiCustomMessage {
   role: "custom";
   customType: string;
@@ -1904,7 +1906,9 @@ type PiSessionEntryBase = {
   timestamp: string;
 };
 
-type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
+type PiSessionModel = PiCreateSessionOptions["model"];
+
+type PiSessionOptions = Omit<PiCreateSessionOptions, "agentDir" | "cwd" | "model" | "modelRuntime" | "sessionManager">;
 
 type PiStopReason = "aborted" | "error" | "length" | "stop" | "toolUse";
 
@@ -2087,6 +2091,11 @@ interface PiThreadSupervisorOptions {
   workspacePath?: string;
   agentDir?: string;
   model?: PiSessionModel;
+  modelRuntime?: ModelRuntime;
+  configureSession?: (context: {
+    cwd: string;
+    signal: AbortSignal | undefined;
+  }) => PiSessionOptions | Promise<PiSessionOptions>;
 }
 
 interface PiToolCall {
