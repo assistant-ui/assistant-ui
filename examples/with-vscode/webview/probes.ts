@@ -92,6 +92,26 @@ const waitFor = async (
   }
 };
 
+const nextFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+/**
+ * Waits until `message` is in the DOM and two frames have passed, so the CSP
+ * violations and errors its render causes have been reported.
+ */
+const waitForPainted = async (message: { id: string } | undefined) => {
+  if (message) {
+    const selector = `[data-message-id="${CSS.escape(message.id)}"]`;
+    await waitFor(
+      () => document.querySelector(selector) !== null,
+      5_000,
+      () => `message ${message.id} to render`,
+    );
+  }
+  await nextFrame();
+  await nextFrame();
+};
+
 const requireThread = (ctx: WebviewProbeContext) => {
   if (ctx.aui) return ctx.aui;
   throw new Error("Thread is not mounted");
@@ -379,7 +399,7 @@ const checkFixture = async (aui: AssistantClient, fixture: Fixture) => {
   const csp = cspViolations.length;
   const errors = consoleErrors.length;
   const reply = await runFixtureInNewThread(aui, fixture.prompt);
-  await sleep(250);
+  await waitForPainted(reply);
   const problems: string[] = [];
   const status = reply.status;
   if (status?.type === "incomplete") {
@@ -547,8 +567,9 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
     if (ctx.boot.switchboard.csp !== "strict") {
       return { state: "fail", detail: "Requires auiTest.csp=strict" };
     }
-    if (ctx.aui) await sendAndSettle(ctx.aui, "markdown");
-    await sleep(250);
+    await waitForPainted(
+      ctx.aui ? await sendAndSettle(ctx.aui, "markdown") : undefined,
+    );
     if (ctx.cspViolations.length === 0) {
       return { state: "pass", detail: "0 violations" };
     }
