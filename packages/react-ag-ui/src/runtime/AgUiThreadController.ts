@@ -3336,9 +3336,15 @@ export class AgUiThreadController {
             existing?.role === "assistant" ? existing : undefined;
           const snapshot =
             reconcileSnapshot?.(convertedMessage, previous) ?? convertedMessage;
+          const preservesRunningStatus =
+            convertedMessage.id === activeAssistantId &&
+            previous?.status?.type === "running" &&
+            snapshot.status?.type === "requires-action" &&
+            snapshot.status.reason === "tool-calls";
           converted[index] = previous
             ? {
                 ...snapshot,
+                ...(preservesRunningStatus ? { status: previous.status } : {}),
                 content: this.mergeSnapshotAssistantContent(
                   previous.content,
                   snapshot.content,
