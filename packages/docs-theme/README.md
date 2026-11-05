@@ -13,10 +13,10 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.140 @farming-labs/next@0.2.140 @farming-labs/theme@0.2.140 fumadocs-core@16.17.8 fumadocs-ui@16.17.8 motion@^14
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.141 @farming-labs/next@0.2.141 @farming-labs/theme@0.2.141 fumadocs-core@16.17.8 fumadocs-ui@16.17.8 motion@^14
 ```
 
-Use the Farming Labs Docs, Next, and Theme stable patch 0.2.140 with Fumadocs UI 16.17.8. This version provides the theme options and shared-layout page features the theme relies on, and includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
+Use the Farming Labs Docs, Next, and Theme stable patch 0.2.141 with Fumadocs UI 16.17.8. This version provides the theme options, shared-layout page features and theme-supplied MDX components the theme relies on, and includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
 Fumadocs UI and Fumadocs Core are required peers because the theme imports their
 shared contexts and framework helpers. Package managers with automatic peer
 installation install them; otherwise, add `fumadocs-ui@16.17.8` and
