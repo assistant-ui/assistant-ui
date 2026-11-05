@@ -121,6 +121,16 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
 
       const end = (reason: "finished" | "error", error?: unknown) => {
         if (ready && !closed) {
+          // A typed reply holds its first frame for one macrotask so the runtime
+          // records the typed turn first; later frames queue behind it. The timer
+          // that would route them gives up once the session is closed, so a socket
+          // that closes inside that window would drop the reply entirely. Drain the
+          // queue here, while the turn is still open, before finishing it.
+          for (let pass = 0; pass < 8 && deferred !== undefined; pass += 1) {
+            const queue = deferred;
+            deferred = undefined;
+            for (const item of queue) routeContent(item);
+          }
           finishTurn();
           flushUser();
         }
