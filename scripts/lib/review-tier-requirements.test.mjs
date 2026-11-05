@@ -1098,7 +1098,10 @@ const ownedPolicy = {
     {
       id: "docs-theme",
       owners: ["owner-author"],
-      paths: ["packages/docs-theme/**"],
+      paths: [
+        "packages/docs-theme/**",
+        "api-surface/assistant-ui__docs-theme.ts",
+      ],
     },
   ],
 };
