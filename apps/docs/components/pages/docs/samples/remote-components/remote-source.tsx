@@ -4,7 +4,7 @@ import { codeToHtml } from "shiki";
 import { CodeBlock } from "@/components/ui/code-block";
 import { REMOTE_PAGES, UI_CSS, type RemotePageName } from "./pages";
 
-type Lang = "html" | "css" | "ts" | "tsx";
+type Lang = "html" | "css" | "ts" | "tsx" | "txt";
 
 async function highlight(code: string, lang: Lang): Promise<string> {
   "use cache";

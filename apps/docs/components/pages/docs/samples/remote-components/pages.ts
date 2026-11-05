@@ -153,7 +153,7 @@ export const REMOTE_PAGES = {
   <head>
     <style>
       .stars { display: flex; gap: 2px; }
-      button { font: inherit; font-size: 20px; line-height: 1; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--color-accent); cursor: pointer; }
+      button { font: inherit; font-size: 20px; line-height: 1; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--color-text); cursor: pointer; }
       button:hover { background: var(--color-surface-muted); }
       button:focus-visible { outline: 2px solid var(--focus-ring, var(--color-accent)); outline-offset: 0; }
     </style>
