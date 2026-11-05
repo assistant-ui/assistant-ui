@@ -42,7 +42,9 @@ class Socket {
   close = vi.fn(() => {
     this.readyState = 3;
   });
-  constructor(public url: string) {
+  url: string;
+  constructor(url: string) {
+    this.url = url;
     Socket.instances.push(this);
   }
   emit(message: unknown) {
