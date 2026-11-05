@@ -18,6 +18,14 @@ export function evaluateRequirements(input, policy) {
     ),
   }));
   const ownerMembers = new Set(owners.flatMap(({ members }) => [...members]));
+  const packageOwnerLists = input.ownedPackages.map(
+    (id) => policy.packageOwners.find((owner) => owner.id === id)?.owners ?? [],
+  );
+  const packageOwnerMembers = new Set(
+    packageOwnerLists[0]?.filter((login) =>
+      packageOwnerLists.every((owners) => owners.includes(login)),
+    ),
+  );
   const contributors = new Set(
     input.commits.flatMap(({ author, committer }) =>
       [author, committer].filter((login) => login !== null),
@@ -68,7 +76,9 @@ export function evaluateRequirements(input, policy) {
     const signal = overrideSignal(policy, label.name);
     if (
       signal !== null &&
-      (admins.has(label.addedBy) || ownerMembers.has(label.addedBy)) &&
+      (admins.has(label.addedBy) ||
+        ownerMembers.has(label.addedBy) ||
+        packageOwnerMembers.has(label.addedBy)) &&
       !overrides.has(signal)
     ) {
       overrides.set(signal, label.addedBy);
@@ -119,7 +129,11 @@ export function evaluateRequirements(input, policy) {
 
   if (input.tier === 3) {
     const decisionMembers =
-      input.areas.length === 0 ? maintainerSet : ownerMembers;
+      input.ownedPackages.length > 0
+        ? new Set([...admins, ...packageOwnerMembers])
+        : input.areas.length === 0
+          ? maintainerSet
+          : ownerMembers;
     const accepted = input.linkedIssues.some((issue) =>
       issue.labels.some(
         (label) =>

@@ -19,6 +19,7 @@ function input(overrides = {}) {
   return {
     tier: 0,
     areas: [],
+    ownedPackages: [],
     failures: [],
     author: "contributor",
     authorHasWriteAccess: false,
@@ -1088,4 +1089,139 @@ test("evaluation is deterministic and does not mutate the input or policy", () =
   assert.deepEqual(evaluateRequirements(request, originalPolicy), first);
   assert.deepEqual(request, originalInput);
   assert.deepEqual(originalPolicy, policy);
+});
+
+const ownedPolicy = {
+  ...policy,
+  packageOwners: [
+    {
+      id: "docs-theme",
+      owners: ["owner-author"],
+      paths: ["packages/docs-theme/**"],
+    },
+  ],
+};
+const ownedInput = (overrides = {}) =>
+  input({
+    tier: 3,
+    ownedPackages: ["docs-theme"],
+    author: "owner-author",
+    commits: [
+      { sha: "head", author: "owner-author", committer: "owner-author" },
+    ],
+    reviews: [review("alice")],
+    teams: {
+      maintainers: ["alice", "bob", "owner-author"],
+      owners: ["owner-only"],
+    },
+    ...overrides,
+  });
+
+test("a package's own API change needs no Public API owner", () => {
+  const request = ownedInput({
+    tier: 2,
+    linkedIssues: [],
+  });
+  assert.equal(evaluateRequirements(request, ownedPolicy).status, "success");
+});
+
+test("a package owner cannot approve their own pull request", () => {
+  const request = ownedInput({
+    tier: 2,
+    reviews: [review("owner-author")],
+  });
+  const result = evaluateRequirements(request, ownedPolicy);
+  assert.deepEqual(codes(result), ["approvals"]);
+  assert.deepEqual(result.approvals.ignored, [
+    { login: "owner-author", reason: "author" },
+  ]);
+});
+
+test("only the package owner team or an admin accepts a package decision", () => {
+  for (const [addedBy, status] of [
+    ["owner-author", "success"],
+    ["admin", "success"],
+    ["bob", "pending"],
+    ["owner-only", "pending"],
+  ]) {
+    const request = ownedInput({
+      linkedIssues: [decisionIssue(addedBy)],
+    });
+    assert.equal(evaluateRequirements(request, ownedPolicy).status, status);
+  }
+});
+
+test("a package owner waives the window and size of that package's pull request", () => {
+  const request = ownedInput({
+    readyForReviewAt: "2026-10-08T11:00:00Z",
+    linkedIssues: [decisionIssue("owner-author")],
+    failures: [{ code: "size-cap", detail: "too large", override: "size" }],
+    labels: [
+      overrideLabel("window", "owner-author"),
+      overrideLabel("size", "owner-author"),
+    ],
+  });
+  const result = evaluateRequirements(request, ownedPolicy);
+  assert.equal(result.status, "success");
+  assert.deepEqual(
+    result.waived.map(({ code, by }) => [code, by]),
+    [
+      ["window", "owner-author"],
+      ["size-cap", "owner-author"],
+    ],
+  );
+  request.labels = [
+    overrideLabel("window", "bob"),
+    overrideLabel("size", "bob"),
+  ];
+  assert.deepEqual(codes(evaluateRequirements(request, ownedPolicy)), [
+    "size-cap",
+    "window",
+  ]);
+});
+
+test("a package owner holds no authority once a signal leaves the package", () => {
+  const request = ownedInput({
+    ownedPackages: [],
+    areas: ["public-api"],
+    readyForReviewAt: "2026-10-08T11:00:00Z",
+    reviews: [review("alice"), review("owner-only")],
+    linkedIssues: [decisionIssue("owner-author")],
+    labels: [overrideLabel("window", "owner-author")],
+  });
+  assert.deepEqual(codes(evaluateRequirements(request, ownedPolicy)), [
+    "decision",
+    "window",
+  ]);
+});
+
+test("a pull request spanning owned packages needs an owner of all of them", () => {
+  const custom = {
+    ...policy,
+    packageOwners: [
+      {
+        id: "docs-theme",
+        owners: ["one-owner", "both-owners"],
+        paths: ["packages/docs-theme/**"],
+      },
+      {
+        id: "other",
+        owners: ["both-owners"],
+        paths: ["packages/other/**"],
+      },
+    ],
+  };
+  const request = (addedBy) =>
+    ownedInput({
+      ownedPackages: ["docs-theme", "other"],
+      linkedIssues: [decisionIssue(addedBy)],
+    });
+  assert.equal(
+    evaluateRequirements(request("both-owners"), custom).status,
+    "success",
+  );
+  assert.equal(
+    evaluateRequirements(request("one-owner"), custom).status,
+    "pending",
+  );
 });

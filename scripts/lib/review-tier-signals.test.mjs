@@ -76,6 +76,7 @@ test("a pull request without files has the complete T1 output shape", () => {
     tier: 1,
     type: "fix",
     areas: [],
+    ownedPackages: [],
     reasons: [{ tier: 1, code: "no-files", detail: "No changed files" }],
     failures: [],
     sourceLines: 0,
@@ -1033,4 +1034,152 @@ test("computeTier is deterministic and does not mutate its input or policy", () 
   const second = computeTier(request, frozenPolicy);
   assert.deepEqual(first, second);
   assert.deepEqual({ request, policy: frozenPolicy }, before);
+});
+
+const ownedSurface = "api-surface/assistant-ui__docs-theme.ts";
+const ownedManifest = "packages/docs-theme/package.json";
+
+test("a package's source change stays T1 with no package authority", () => {
+  const result = computeTier(
+    input({ files: [file("packages/docs-theme/src/a.ts")] }),
+    policy,
+  );
+  assert.equal(result.tier, 1);
+  assert.deepEqual(result.areas, []);
+  assert.deepEqual(result.ownedPackages, []);
+});
+
+test("a package's API change keeps its tier and moves to the package owner", () => {
+  const unchangedSurface = computeTier(
+    input({ files: [file(ownedSurface)] }),
+    policy,
+  );
+  assert.equal(unchangedSurface.tier, 2);
+  assert.deepEqual(unchangedSurface.areas, []);
+  assert.deepEqual(unchangedSurface.ownedPackages, ["docs-theme"]);
+
+  const decision = computeTier(
+    input({
+      files: [
+        file(ownedSurface),
+        file(ownedManifest),
+        file("packages/docs-theme/src/a.ts"),
+        file("pnpm-lock.yaml"),
+        file("pnpm-workspace.yaml"),
+        file("api-surface/package.json"),
+      ],
+      apiSurface: [
+        {
+          file: ownedSurface,
+          diff: apiDiff({
+            entriesAdded: ["entry_ui"],
+            exportsRemoved: { entry_root: ["Old"] },
+            changed: true,
+          }),
+        },
+      ],
+      exportsDiffs: [
+        { path: ownedManifest, diff: exportsDiff({ added: ["./ui"] }) },
+      ],
+      manifests: [
+        {
+          path: ownedManifest,
+          base: { peerDependencies: { react: "^19" } },
+          head: {
+            dependencies: { motion: "^12" },
+            peerDependencies: { react: "^20" },
+            sideEffects: false,
+          },
+        },
+      ],
+    }),
+    policy,
+  );
+  assert.equal(decision.tier, 3);
+  assert.deepEqual(decision.areas, []);
+  assert.deepEqual(decision.ownedPackages, ["docs-theme"]);
+});
+
+test("a deprecation in an owned package moves to the package owner", () => {
+  const result = computeTier(
+    input({
+      files: [
+        file("packages/docs-theme/src/a.ts", {
+          patch: "+ * @deprecated use b",
+        }),
+      ],
+    }),
+    policy,
+  );
+  assert.equal(result.tier, 2);
+  assert.deepEqual(result.areas, []);
+  assert.deepEqual(result.ownedPackages, ["docs-theme"]);
+});
+
+test("any signal outside the owned package withdraws package authority", () => {
+  const owned = file(ownedSurface);
+  for (const [overrides, areas] of [
+    [{ labels: [policy.labels.behaviorChange] }, []],
+    [{ files: [owned, file(".github/review-policy.json")] }, ["ci-policy"]],
+    [{ files: [owned, file("packages/tap/src/a.ts")] }, ["reactivity"]],
+    [
+      { files: [owned, file("api-surface/assistant-ui__react.ts")] },
+      ["public-api"],
+    ],
+    [
+      {
+        apiSurface: [
+          {
+            file: "api-surface/assistant-ui__react.ts",
+            diff: apiDiff({ exportsAdded: { entry_root: ["New"] } }),
+          },
+        ],
+      },
+      ["public-api"],
+    ],
+    [
+      {
+        files: [owned, file("packages/react/package.json")],
+        manifests: [
+          {
+            path: "packages/react/package.json",
+            base: {},
+            head: { dependencies: { motion: "^12" } },
+          },
+        ],
+      },
+      [],
+    ],
+    [
+      {
+        title: "refactor: move code",
+        files: [
+          owned,
+          file("packages/docs-theme/src/a.ts"),
+          file("packages/react/src/a.ts"),
+        ],
+      },
+      [],
+    ],
+  ]) {
+    const result = computeTier(input({ files: [owned], ...overrides }), policy);
+    assert.deepEqual(result.ownedPackages, []);
+    assert.deepEqual(result.areas, areas);
+  }
+});
+
+test("a package owner never takes over a contract area other than Public API", () => {
+  const custom = {
+    ...policy,
+    packageOwners: [
+      { id: "tap", owners: ["alice"], paths: ["packages/tap/**"] },
+    ],
+  };
+  const result = computeTier(
+    input({ files: [file("packages/tap/src/a.ts")] }),
+    custom,
+  );
+  assert.equal(result.tier, 2);
+  assert.deepEqual(result.areas, ["reactivity"]);
+  assert.deepEqual(result.ownedPackages, []);
 });
