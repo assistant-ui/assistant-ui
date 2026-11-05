@@ -564,5 +564,82 @@ describe("AgUiThreadController subagent messages in snapshots", () => {
       expect(nested?.status).toMatchObject({ type: "complete" });
       expect(innerOf(core)).toMatchObject({ result: "sunny" });
     });
+
+    const sequence = (core: AgUiThreadController) =>
+      contentOf(nestedUnder(core, "spawn-1")).map((part) =>
+        part.type === "tool-call"
+          ? `${part.toolCallId}=${JSON.stringify(part.result)}`
+          : part.type === "text"
+            ? part.text
+            : part.type,
+      );
+
+    it.each([
+      {
+        name: "a call between two texts",
+        live: [
+          ...subagentText("run-1", "s1", "A."),
+          ...innerCall("t1"),
+          innerResult("t1"),
+          ...subagentText("run-1", "s2", "B."),
+        ],
+        snapshot: [record("s1", "A.", ["t1"])],
+        expected: ["A.", 't1="sunny"', "B."],
+      },
+      {
+        name: "text after a call with no text before it",
+        live: [
+          ...innerCall("inner"),
+          innerResult("inner"),
+          ...subagentText("run-1", "s2", "Done."),
+        ],
+        snapshot: [record("s1", "", ["inner"])],
+        expected: ['inner="sunny"', "Done."],
+      },
+      {
+        name: "two calls with text around them",
+        live: [
+          ...subagentText("run-1", "s1", "A."),
+          ...innerCall("t1"),
+          innerResult("t1"),
+          ...subagentText("run-1", "s2", "B."),
+          ...innerCall("t2"),
+          innerResult("t2"),
+          ...subagentText("run-1", "s3", "C."),
+        ],
+        snapshot: [
+          record("s1", "A.", ["t1"]),
+          resultRecord("t1"),
+          record("s2", "B."),
+        ],
+        expected: ["A.", 't1="sunny"', "B.", 't2="sunny"', "C."],
+      },
+      {
+        name: "text between two calls it lacks",
+        live: [
+          ...subagentText("run-1", "s1", "A."),
+          ...innerCall("t1"),
+          innerResult("t1"),
+          ...subagentText("run-1", "s2", "B."),
+          ...innerCall("t2"),
+          innerResult("t2"),
+        ],
+        snapshot: [record("s1", "A.", ["t1"])],
+        expected: ["A.", 't1="sunny"', "B.", 't2="sunny"'],
+      },
+    ])(
+      "keeps the live order when a lagging snapshot has $name",
+      async ({ live, snapshot: records, expected }) => {
+        const core = await run([
+          ...spawn("spawn-1"),
+          started,
+          ...live,
+          ...finish,
+          snapshotOf(...records),
+        ]);
+
+        expect(sequence(core)).toEqual(expected);
+      },
+    );
   });
 });

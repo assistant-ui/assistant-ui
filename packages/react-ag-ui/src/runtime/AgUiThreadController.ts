@@ -233,7 +233,11 @@ const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 const textOf = (content: ThreadAssistantMessage["content"]) =>
   content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("");
 
-/** Swaps `content`'s text parts, in order, for `source`'s. */
+/**
+ * Swaps `content`'s text parts, in order, for `source`'s. A text part `source`
+ * has beyond `content`'s text slots goes after the part it followed in
+ * `source`, matched by identity or tool call id, else first.
+ */
 const replaceTextParts = (
   content: ThreadAssistantMessage["content"],
   source: ThreadAssistantMessage["content"],
@@ -241,21 +245,30 @@ const replaceTextParts = (
   const texts = source.filter((part) => part.type === "text");
   const result: ThreadAssistantMessage["content"][number][] = [];
   let used = 0;
-  let lastText = -1;
   for (const part of content) {
-    if (part.type !== "text") {
-      result.push(part);
-    } else if (used < texts.length) {
-      result.push(texts[used++]!);
-      lastText = result.length - 1;
-    }
+    if (part.type !== "text") result.push(part);
+    else if (used < texts.length) result.push(texts[used++]!);
   }
-  if (lastText === -1) return [...texts, ...result];
-  return [
-    ...result.slice(0, lastText + 1),
-    ...texts.slice(used),
-    ...result.slice(lastText + 1),
-  ];
+  for (const text of texts.slice(used)) {
+    let anchor = -1;
+    for (
+      let index = source.indexOf(text) - 1;
+      index >= 0 && anchor < 0;
+      index--
+    ) {
+      const before = source[index]!;
+      anchor =
+        before.type === "tool-call"
+          ? result.findIndex(
+              (part) =>
+                part.type === "tool-call" &&
+                part.toolCallId === before.toolCallId,
+            )
+          : result.indexOf(before);
+    }
+    result.splice(anchor + 1, 0, text);
+  }
+  return result;
 };
 
 const settleNestedContent = (
@@ -2996,8 +3009,9 @@ export class AgUiThreadController {
    * Merges one tool call's nested transcripts message by message. The incoming
    * copy is the base for tool calls and reasoning; resolved results and calls
    * only the prior copy has carry over, and the prior text wins when it extends
-   * the incoming text. Importing a snapshot keeps a prior status that is still
-   * running or ended in an error, and a settled one the snapshot only lags.
+   * the incoming text. Importing a snapshot keeps prior messages it lacks, a
+   * prior status that is running or incomplete, and the prior status when the
+   * snapshot waits on calls the merged content has already resolved.
    */
   private mergeNestedTranscripts(
     prior: readonly ThreadMessage[],
@@ -3053,6 +3067,7 @@ export class AgUiThreadController {
         },
       };
     });
+    if (!importingSnapshot) return merged;
     const mergedById = new Map(merged.map((message) => [message.id, message]));
     return [
       ...prior.map((message) => mergedById.get(message.id) ?? message),
