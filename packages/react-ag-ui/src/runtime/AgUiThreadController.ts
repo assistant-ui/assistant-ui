@@ -1085,6 +1085,7 @@ export class AgUiThreadController {
     });
     if (touched) {
       this.publishUpdate();
+      this.persistSettledAssistant(messageId);
     }
   }
 
@@ -3213,7 +3214,8 @@ export class AgUiThreadController {
     this.publishUpdate();
     // Not maybeResumeAfterToolResults: the delivering run is already in
     // flight, and a resume from the owner would reset the head past it.
-    this.maybeCompleteAfterToolResults(messageId);
+    if (this.maybeCompleteAfterToolResults(messageId)) return;
+    this.persistSettledAssistant(messageId);
   }
 
   private applyCrossRunActivitySnapshot(
@@ -3504,6 +3506,14 @@ export class AgUiThreadController {
   ) {
     if (!this.history) return;
     this.assistantHistoryParents.set(messageId, parentId);
+  }
+
+  private persistSettledAssistant(messageId: string): void {
+    const item = this.session.tryGetMessage(messageId);
+    if (!this.history?.update || !item) return;
+    if (!this.isTerminalStatus(item.message.status)) return;
+    this.markPendingAssistantHistory(messageId, item.parentId);
+    this.persistAssistantHistory(messageId);
   }
 
   private persistAssistantHistory(messageId: string) {
