@@ -1,6 +1,6 @@
 name: Scheduled Failure Issue
 
-# Shared by the scheduled docs checks so only this job holds issues: write. react18-weekly still reports inline.
+# Shared by the scheduled checks so only this job holds issues: write.
 on:
   workflow_call:
     inputs:
