@@ -1116,14 +1116,23 @@ test("a deprecation in an owned package moves to the package owner", () => {
   assert.deepEqual(result.ownedPackages, ["docs-theme"]);
 });
 
-test("any signal outside the owned package withdraws package authority", () => {
+test("any signal outside the owned package withdraws package authority and restores Public API", () => {
   const owned = file(ownedSurface);
-  for (const [overrides, areas] of [
-    [{ labels: [policy.labels.behaviorChange] }, []],
-    [{ files: [owned, file(".github/review-policy.json")] }, ["ci-policy"]],
-    [{ files: [owned, file("packages/tap/src/a.ts")] }, ["reactivity"]],
+  for (const [overrides, tier, areas] of [
+    [{ labels: [policy.labels.behaviorChange] }, 3, ["public-api"]],
+    [
+      { files: [owned, file(".github/review-policy.json")] },
+      3,
+      ["public-api", "ci-policy"],
+    ],
+    [
+      { files: [owned, file("packages/tap/src/a.ts")] },
+      2,
+      ["reactivity", "public-api"],
+    ],
     [
       { files: [owned, file("api-surface/assistant-ui__react.ts")] },
+      2,
       ["public-api"],
     ],
     [
@@ -1135,6 +1144,7 @@ test("any signal outside the owned package withdraws package authority", () => {
           },
         ],
       },
+      2,
       ["public-api"],
     ],
     [
@@ -1148,7 +1158,8 @@ test("any signal outside the owned package withdraws package authority", () => {
           },
         ],
       },
-      [],
+      3,
+      ["public-api"],
     ],
     [
       {
@@ -1159,13 +1170,28 @@ test("any signal outside the owned package withdraws package authority", () => {
           file("packages/react/src/a.ts"),
         ],
       },
-      [],
+      3,
+      ["public-api"],
     ],
   ]) {
     const result = computeTier(input({ files: [owned], ...overrides }), policy);
+    assert.equal(result.tier, tier);
     assert.deepEqual(result.ownedPackages, []);
     assert.deepEqual(result.areas, areas);
   }
+});
+
+test("withdrawing authority adds no Public API area to a signal with no owned API change", () => {
+  const result = computeTier(
+    input({
+      files: [file("packages/docs-theme/src/a.ts")],
+      labels: [policy.labels.behaviorChange],
+    }),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.deepEqual(result.areas, []);
+  assert.deepEqual(result.ownedPackages, []);
 });
 
 test("a package owner never takes over a contract area other than Public API", () => {

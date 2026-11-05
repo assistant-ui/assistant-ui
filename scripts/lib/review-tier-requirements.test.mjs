@@ -3,6 +3,7 @@ import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy } from "./review-policy.mjs";
 import { evaluateRequirements } from "./review-tier-requirements.mjs";
+import { computeTier } from "./review-tier-signals.mjs";
 
 const loadedPolicy = loadReviewPolicy(
   path.resolve(import.meta.dirname, "../.."),
@@ -1192,6 +1193,53 @@ test("a package owner holds no authority once a signal leaves the package", () =
   assert.deepEqual(codes(evaluateRequirements(request, ownedPolicy)), [
     "decision",
     "window",
+  ]);
+});
+
+test("a package owner cannot waive a type failure", () => {
+  const request = ownedInput({
+    linkedIssues: [decisionIssue("owner-author")],
+    failures: [
+      {
+        code: "refactor-changes-assertions",
+        detail: "packages/react/src/a.test.ts",
+        override: "type",
+      },
+    ],
+    labels: [overrideLabel("type", "owner-author")],
+  });
+  const result = evaluateRequirements(request, ownedPolicy);
+  assert.equal(result.status, "failure");
+  assert.deepEqual(result.waived, []);
+});
+
+test("a withdrawn package keeps the Public API approval and decision", () => {
+  const surface = "api-surface/assistant-ui__docs-theme.ts";
+  const { tier, areas, ownedPackages, failures } = computeTier(
+    {
+      title: "fix: update the implementation",
+      labels: [policy.labels.behaviorChange],
+      files: [
+        { path: surface, status: "modified", additions: 1, deletions: 0 },
+      ],
+      apiSurface: [],
+      exportsDiffs: [],
+      manifests: [],
+      invalidManifests: [],
+    },
+    ownedPolicy,
+  );
+  const request = ownedInput({
+    tier,
+    areas,
+    ownedPackages,
+    failures,
+    reviews: [review("alice")],
+    linkedIssues: [decisionIssue("bob")],
+  });
+  assert.deepEqual(codes(evaluateRequirements(request, ownedPolicy)), [
+    "decision",
+    "owner:public-api",
   ]);
 });
 

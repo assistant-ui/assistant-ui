@@ -78,7 +78,7 @@ export function evaluateRequirements(input, policy) {
       signal !== null &&
       (admins.has(label.addedBy) ||
         ownerMembers.has(label.addedBy) ||
-        packageOwnerMembers.has(label.addedBy)) &&
+        (signal !== "type" && packageOwnerMembers.has(label.addedBy))) &&
       !overrides.has(signal)
     ) {
       overrides.set(signal, label.addedBy);

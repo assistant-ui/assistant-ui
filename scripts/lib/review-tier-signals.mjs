@@ -43,6 +43,7 @@ export function computeTier(input, policy) {
   const packages = new Set();
   const signalOwners = new Set();
   let hasUnownedSignal = false;
+  let hasOwnedApiSignal = false;
   let sourceLines = 0;
 
   const addReason = (tier, code, detail, ownedPath) => {
@@ -55,7 +56,8 @@ export function computeTier(input, policy) {
   };
   const addApiReason = (tier, code, detail, ownedPath) => {
     addReason(tier, code, detail, ownedPath);
-    if (!packageOwnerOf(policy, ownedPath)) areas.add(PUBLIC_API_AREA);
+    if (packageOwnerOf(policy, ownedPath)) hasOwnedApiSignal = true;
+    else areas.add(PUBLIC_API_AREA);
   };
   const isSourcePath = (file) =>
     !isTestPath(policy, file) &&
@@ -88,7 +90,9 @@ export function computeTier(input, policy) {
         addReason(1, "source", path);
       }
       for (const area of fileAreas) {
-        if (area.id !== PUBLIC_API_AREA || !packageOwnerOf(policy, path)) {
+        if (area.id === PUBLIC_API_AREA && packageOwnerOf(policy, path)) {
+          hasOwnedApiSignal = true;
+        } else {
           areas.add(area.id);
         }
       }
@@ -284,14 +288,19 @@ export function computeTier(input, policy) {
     });
   }
 
+  const ownedPackages =
+    areas.size === 0 && !hasUnownedSignal ? [...signalOwners].toSorted() : [];
+  if (ownedPackages.length === 0 && hasOwnedApiSignal) {
+    areas.add(PUBLIC_API_AREA);
+  }
+
   return {
     tier,
     type,
     areas: policy.areas
       .filter((area) => areas.has(area.id))
       .map((area) => area.id),
-    ownedPackages:
-      areas.size === 0 && !hasUnownedSignal ? [...signalOwners].toSorted() : [],
+    ownedPackages,
     reasons: resultReasons,
     failures,
     sourceLines,
