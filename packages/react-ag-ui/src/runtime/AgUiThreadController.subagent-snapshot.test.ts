@@ -641,5 +641,41 @@ describe("AgUiThreadController subagent messages in snapshots", () => {
         expect(sequence(core)).toEqual(expected);
       },
     );
+
+    it("keeps snapshot text before live reasoning it preceded while streaming continues", async () => {
+      const core = await run([
+        ...spawn("spawn-1"),
+        started,
+        ...subagentText("run-1", "s1", "A."),
+        { type: "REASONING_START", messageId: "r", subagentRunId: "run-1" },
+        {
+          type: "REASONING_MESSAGE_START",
+          messageId: "r",
+          role: "reasoning",
+          subagentRunId: "run-1",
+        },
+        {
+          type: "REASONING_MESSAGE_CONTENT",
+          messageId: "r",
+          delta: "Hmm.",
+          subagentRunId: "run-1",
+        },
+        {
+          type: "REASONING_MESSAGE_END",
+          messageId: "r",
+          subagentRunId: "run-1",
+        },
+        { type: "REASONING_END", messageId: "r", subagentRunId: "run-1" },
+        snapshotOf(record("s1", "A."), record("s2", "B.")),
+        ...innerCall("inner"),
+      ]);
+
+      expect(sequence(core)).toEqual([
+        "A.",
+        "reasoning",
+        "B.",
+        "inner=undefined",
+      ]);
+    });
   });
 });

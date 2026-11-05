@@ -235,8 +235,9 @@ const textOf = (content: ThreadAssistantMessage["content"]) =>
 
 /**
  * Swaps `content`'s text parts, in order, for `source`'s. A text part `source`
- * has beyond `content`'s text slots goes after the part it followed in
- * `source`, matched by identity or tool call id, else first.
+ * has beyond `content`'s text slots goes after the nearest earlier part of
+ * `source` that `content` also has: a tool call by id, another part by its
+ * type and position among parts of that type. With none, it goes first.
  */
 const replaceTextParts = (
   content: ThreadAssistantMessage["content"],
@@ -249,6 +250,10 @@ const replaceTextParts = (
     if (part.type !== "text") result.push(part);
     else if (used < texts.length) result.push(texts[used++]!);
   }
+  const positionIn = (
+    parts: readonly ThreadAssistantMessage["content"][number][],
+    part: ThreadAssistantMessage["content"][number],
+  ) => parts.filter((other) => other.type === part.type).indexOf(part);
   for (const text of texts.slice(used)) {
     let anchor = -1;
     for (
@@ -257,14 +262,18 @@ const replaceTextParts = (
       index--
     ) {
       const before = source[index]!;
-      anchor =
-        before.type === "tool-call"
-          ? result.findIndex(
-              (part) =>
-                part.type === "tool-call" &&
-                part.toolCallId === before.toolCallId,
-            )
-          : result.indexOf(before);
+      if (before.type === "tool-call") {
+        anchor = result.findIndex(
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === before.toolCallId,
+        );
+      } else if (before.type === "text") {
+        anchor = result.indexOf(before);
+      } else {
+        const sameType = result.filter((part) => part.type === before.type);
+        const match = sameType[positionIn(source, before)];
+        anchor = match ? result.indexOf(match) : -1;
+      }
     }
     result.splice(anchor + 1, 0, text);
   }
