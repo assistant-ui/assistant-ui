@@ -624,6 +624,67 @@ describe("reduceOpenCodeThreadState", () => {
     ]);
   });
 
+  it.each([
+    ["cancel", "run.cancelling", "cancelling"],
+    ["revert", "run.reverting", "reverting"],
+  ] as const)(
+    "keeps the transient %s state when a part update still arrives",
+    (_label, transient, expected) => {
+      let state = createOpenCodeThreadState("ses_1");
+      state = reduceOpenCodeThreadState(state, {
+        type: "session.status",
+        status: { type: "busy" },
+      });
+      state = reduceOpenCodeThreadState(state, {
+        type: "message.updated",
+        info: {
+          id: "msg_assistant",
+          role: "assistant",
+          sessionID: "ses_1",
+          time: { created: 1001 },
+        } as never,
+      });
+      state = reduceOpenCodeThreadState(state, {
+        type: "part.updated",
+        messageId: "msg_assistant",
+        part: {
+          id: "prt_1",
+          type: "text",
+          text: "Hello",
+          sessionID: "ses_1",
+          messageID: "msg_assistant",
+        } as never,
+      });
+      state = reduceOpenCodeThreadState(state, { type: transient });
+
+      const afterDelta = reduceOpenCodeThreadState(state, {
+        type: "part.delta",
+        messageId: "msg_assistant",
+        partId: "prt_1",
+        field: "text",
+        delta: " world",
+      });
+      expect(afterDelta.messagesById.msg_assistant?.parts).toMatchObject([
+        { id: "prt_1", text: "Hello world" },
+      ]);
+      expect(afterDelta.runState.type).toBe(expected);
+
+      const afterPart = reduceOpenCodeThreadState(state, {
+        type: "part.updated",
+        messageId: "msg_assistant",
+        part: {
+          id: "prt_2",
+          type: "text",
+          text: "Hi",
+          sessionID: "ses_1",
+          messageID: "msg_assistant",
+        } as never,
+      });
+      expect(afterPart.messagesById.msg_assistant?.parts).toHaveLength(2);
+      expect(afterPart.runState.type).toBe(expected);
+    },
+  );
+
   it("ignores part removals for unknown messages", () => {
     const initial = createOpenCodeThreadState("ses_1");
 

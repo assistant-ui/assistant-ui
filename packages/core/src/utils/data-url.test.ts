@@ -122,6 +122,37 @@ describe("parseDataUrl", () => {
     expect(parseDataUrl("data:text/plain,hello")).toBeNull();
   });
 
+  it.each([
+    [
+      "line feed",
+      "data:image/png;base64,iVBORw0KGgo\nAAAANSUhEUg==",
+      "iVBORw0KGgoAAAANSUhEUg==",
+    ],
+    [
+      "CRLF folding as in MIME",
+      "data:image/png;base64,iVBORw0KGgo\r\nAAAANSUhEUg==",
+      "iVBORw0KGgoAAAANSUhEUg==",
+    ],
+    [
+      "a trailing newline only",
+      "data:image/png;base64,iVBORw0KGgo=\n",
+      "iVBORw0KGgo=",
+    ],
+    ["tab and space folding", "data:;base64,aGVs\tbG8g d29y", "aGVsbG8gd29y"],
+    [
+      "a percent-encoded line feed",
+      "data:image/png;base64,iVBORw0KGgo%0AAAAANSUhEUg==",
+      "iVBORw0KGgoAAAANSUhEUg==",
+    ],
+  ])("compacts a payload split by %s", (_label, value, expected) => {
+    expect(parseDataUrl(value)).toEqual({
+      mimeType: value.startsWith("data:image/png")
+        ? "image/png"
+        : "application/octet-stream",
+      data: expected,
+    });
+  });
+
   it("parses a data URL with an empty payload as zero-byte data", () => {
     expect(parseDataUrl("data:image/png;base64,")).toEqual({
       mimeType: "image/png",

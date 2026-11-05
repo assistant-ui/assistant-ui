@@ -2941,7 +2941,7 @@ export class AgUiThreadController {
       }
       if (part.type !== "tool-call") return [part];
       const prior = previousCalls.get(part.toolCallId);
-      return prior?.messages === undefined
+      return part.messages !== undefined || prior?.messages === undefined
         ? [part]
         : [{ ...part, messages: prior.messages }];
     });

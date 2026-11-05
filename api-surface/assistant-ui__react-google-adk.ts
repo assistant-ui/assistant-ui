@@ -124,6 +124,7 @@ type AdkEventPart = {
     name: string;
     id?: string;
     response: unknown;
+    parts?: Pick<AdkEventPart, "fileData" | "inlineData">[];
   };
   executableCode?: {
     code: string;
@@ -182,6 +183,7 @@ type AdkMessage = {
   name: string;
   status?: "success" | "error" | undefined;
   artifact?: unknown;
+  modelContent?: readonly ToolModelContentPart[] | undefined;
 };
 
 type AdkMessageContentPart = {
@@ -1234,6 +1236,7 @@ type ExternalMessageConverterMessage = (ThreadMessageLike & {
   toolName?: string | undefined;
   result: any;
   artifact?: any;
+  modelContent?: ToolCallMessagePart["modelContent"];
   isError?: boolean;
   messages?: readonly ThreadMessage[];
 };
@@ -1754,6 +1757,15 @@ type PartInit = {
   readonly id: string;
   readonly url: string;
   readonly title?: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
   readonly parentId?: string;
 } | {
   readonly type: "file";
