@@ -9,6 +9,9 @@ import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  type RangeSelection,
   type LexicalEditor,
 } from "lexical";
 import {
@@ -157,7 +160,7 @@ describe("LexicalComposerInput directive triggers", () => {
         select(container);
       });
 
-      const expected = "ask :tool[Weather]{name=get_weather}";
+      const expected = "ask :tool[Weather]{name=get_weather} ";
       expect(textSeenBy).toEqual({
         onInserted: expected,
         onDirectiveSelect: expected,
@@ -184,5 +187,51 @@ describe("LexicalComposerInput directive triggers", () => {
     });
 
     expect(textSeenBy).toEqual({});
+  });
+
+  it.each([
+    {
+      name: "inserts a space when the match ends the text",
+      input: "ask @wea",
+      expectedText: "ask :tool[Weather]{name=get_weather} ",
+      caretNodeText: " ",
+    },
+    {
+      name: "reuses an existing space after the match",
+      input: "ask @wea now",
+      expectedText: "ask :tool[Weather]{name=get_weather} now",
+      caretNodeText: " now",
+    },
+    {
+      name: "adds a space when the following text does not start with one",
+      input: "ask @wea,",
+      expectedText: "ask :tool[Weather]{name=get_weather} ,",
+      caretNodeText: " ,",
+    },
+  ])("$name and places the caret after the space", async (c) => {
+    await act(async () => {
+      editor.update(() => {
+        const text = $createTextNode(c.input);
+        $getRoot().clear().append($createParagraphNode().append(text));
+        text.select(8, 8);
+      });
+    });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'))
+        .find((element) => element.textContent === "Weather")!
+        .click();
+    });
+
+    expect(composerText()).toBe(c.expectedText);
+    editor.read(() => {
+      const selection = $getSelection();
+      expect($isRangeSelection(selection)).toBe(true);
+      const range = selection as RangeSelection;
+      expect(range.isCollapsed()).toBe(true);
+      const anchor = range.anchor;
+      expect(anchor.getNode().getTextContent()).toBe(c.caretNodeText);
+      expect(anchor.offset).toBe(1);
+    });
   });
 });

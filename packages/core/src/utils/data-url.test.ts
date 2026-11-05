@@ -2,9 +2,57 @@ import { describe, it, expect } from "vitest";
 import {
   dataUrlMediaType,
   httpUrlPattern,
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
 } from "./data-url";
+
+describe("parseBase64", () => {
+  it.each([
+    "aGk=",
+    "aGk",
+    "aA==",
+    "aA",
+    "PHN2Zy8+",
+    "AAABAAEAEBAAAAAAIABoBAAAFgAAACgAAAA=",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAA\r\nAABJRU5ErkJggg==\n",
+  ])(
+    "recognizes bare base64 %j without requiring an image signature",
+    (value) => {
+      expect(parseBase64(value)).not.toBeNull();
+    },
+  );
+
+  it.each([
+    "",
+    " \n",
+    "a",
+    "a===",
+    "aGk==",
+    "https://example.com/cat.png",
+    "data:image/png;base64,aGk=",
+    "/uploads/cat.png",
+    "/9j/uploads/cat.png",
+    "../cat.png",
+  ])("rejects non-base64 reference %j", (value) => {
+    expect(parseBase64(value)).toBeNull();
+  });
+
+  it.each(["/uploads/cat", "abc123"])(
+    "classifies the base64-alphabet reference %j as base64",
+    (value) => {
+      expect(parseBase64(value)).toBe(value);
+    },
+  );
+
+  it.each([
+    ["aGk=", "aGk="],
+    ["aGk", "aGk"],
+    [" /9j/4AAQ\r\nSkZJRg==\t\n", "/9j/4AAQSkZJRg=="],
+  ])("returns compact bytes for %j", (value, expected) => {
+    expect(parseBase64(value)).toBe(expected);
+  });
+});
 
 describe("parseDataUrl", () => {
   it.each([
@@ -72,6 +120,37 @@ describe("parseDataUrl", () => {
 
   it("returns null for non-base64 data URLs", () => {
     expect(parseDataUrl("data:text/plain,hello")).toBeNull();
+  });
+
+  it.each([
+    [
+      "line feed",
+      "data:image/png;base64,iVBORw0KGgo\nAAAANSUhEUg==",
+      "iVBORw0KGgoAAAANSUhEUg==",
+    ],
+    [
+      "CRLF folding as in MIME",
+      "data:image/png;base64,iVBORw0KGgo\r\nAAAANSUhEUg==",
+      "iVBORw0KGgoAAAANSUhEUg==",
+    ],
+    [
+      "a trailing newline only",
+      "data:image/png;base64,iVBORw0KGgo=\n",
+      "iVBORw0KGgo=",
+    ],
+    ["tab and space folding", "data:;base64,aGVs\tbG8g d29y", "aGVsbG8gd29y"],
+    [
+      "a percent-encoded line feed",
+      "data:image/png;base64,iVBORw0KGgo%0AAAAANSUhEUg==",
+      "iVBORw0KGgoAAAANSUhEUg==",
+    ],
+  ])("compacts a payload split by %s", (_label, value, expected) => {
+    expect(parseDataUrl(value)).toEqual({
+      mimeType: value.startsWith("data:image/png")
+        ? "image/png"
+        : "application/octet-stream",
+      data: expected,
+    });
   });
 
   it("parses a data URL with an empty payload as zero-byte data", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyButton } from "@/components/shared/copy-button";
+import { InstallCommands } from "@/components/pages/home/install-commands";
 import {
   LibraryShowcase,
   type SetupTab,
@@ -31,7 +31,7 @@ export function LibraryBody({
   reactVersion,
 }: {
   setupTabs: SetupTab[];
-  reactVersion: string | null;
+  reactVersion: string;
 }) {
   return (
     <div className="mt-16 flex flex-col gap-12 md:mt-20 md:gap-16">
@@ -95,16 +95,10 @@ export function LibraryBody({
                 The CLI copies the UI source into your project.
               </span>
             </p>
-            <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-w-0 flex-wrap items-center gap-3 px-4 py-3">
-              <p className="font-mono text-[14px] tracking-[-0.01em] break-all [font-variant-ligatures:none]">
-                npx assistant-ui init
-              </p>
-              <CopyButton text="npx assistant-ui init" />
-            </div>
+            <InstallCommands />
             <p className="text-muted-foreground text-xs">
               <span className="font-mono">
-                @assistant-ui/react
-                {reactVersion && <span>@{reactVersion}</span>}
+                @assistant-ui/react@{reactVersion}
               </span>{" "}
               · MIT License
             </p>

@@ -3,4 +3,5 @@
 .next
 .turbo
 dist
+.docs
 .lighthouseci

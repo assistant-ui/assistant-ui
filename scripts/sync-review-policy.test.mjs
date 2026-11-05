@@ -286,6 +286,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                 },
                 { context: "Review Policy Scripts", integration_id: 15368 },
                 { context: "Test Coverage", integration_id: 15368 },
+                { context: "TraceHub traces", integration_id: 5070843 },
               ],
             },
           },

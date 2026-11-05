@@ -30,6 +30,7 @@
     "---Audio---",
     "voice",
     "openai-realtime",
+    "gemini-live",
     "speech",
     "---Programmatic---",
     "context-api",

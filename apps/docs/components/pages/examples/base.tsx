@@ -926,9 +926,9 @@ export const Base: FC = () => {
             onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
             onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           />
-          <main className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden">
             <Thread />
-          </main>
+          </div>
         </div>
       </div>
     </CloneThreadShell>

@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { GitHubIcon } from "@/components/icons/github";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { NewTabCue } from "@/components/shared/new-tab-cue";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ function HighlightGrid({ items }: { items: typeof libraryHighlights }) {
       {items.map((item) => (
         <div key={item.title} className="flex flex-col gap-1.5">
           <dt className="text-[15px] font-medium">{item.title}</dt>
-          <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
+          <dd className="text-muted-foreground max-w-[52ch] text-sm leading-relaxed text-pretty">
             {item.description}
           </dd>
         </div>
@@ -65,10 +66,7 @@ export default function PricingPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              nativeButton={false}
-              render={<Link href="/docs/installation" />}
-            >
+            <Button nativeButton={false} render={<Link href="/docs" />}>
               Read the docs
             </Button>
             <a
@@ -79,6 +77,7 @@ export default function PricingPage() {
             >
               <GitHubIcon />
               GitHub
+              <NewTabCue />
             </a>
           </div>
         </div>
@@ -137,7 +136,7 @@ export default function PricingPage() {
           {faqs.map((faq) => (
             <div key={faq.question} className="flex flex-col gap-2">
               <dt className="text-[15px] font-medium">{faq.question}</dt>
-              <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
+              <dd className="text-muted-foreground max-w-[52ch] text-sm leading-relaxed text-pretty">
                 {faq.answer}
               </dd>
             </div>
@@ -149,7 +148,7 @@ export default function PricingPage() {
         <p className={typeSection}>Start with the library, add Cloud later.</p>
         <div className="flex flex-wrap items-center gap-3">
           <Button nativeButton={false} render={<Link href="/docs" />}>
-            Get started
+            Read the docs
           </Button>
           <a
             href={CLOUD_URL}
@@ -158,6 +157,7 @@ export default function PricingPage() {
             className={buttonVariants({ variant: "outline" })}
           >
             Open Cloud
+            <NewTabCue />
           </a>
         </div>
       </section>

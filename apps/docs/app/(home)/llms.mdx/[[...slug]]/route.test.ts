@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import "@/test/mock-fumadocs-collections";
+import "@/test/mock-content";
 
 const { getDocsMarkdown } = vi.hoisted(() => ({
   getDocsMarkdown: vi.fn(async () => "# React documentation"),

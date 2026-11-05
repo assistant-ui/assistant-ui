@@ -531,6 +531,9 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
+  readonly type: "tool-call-approval";
+  readonly approval: ToolCallApproval;
+} | {
   readonly type: "text-delta";
   readonly textDelta: string;
   readonly providerMetadata?: PartProviderMetadata$1;
@@ -1830,6 +1833,7 @@ type ExternalMessageConverterMessage = (ThreadMessageLike & {
   toolName?: string | undefined;
   result: any;
   artifact?: any;
+  modelContent?: ToolCallMessagePart["modelContent"];
   isError?: boolean;
   messages?: readonly ThreadMessage[];
 };
@@ -3126,6 +3130,15 @@ type PartInit = {
   readonly id: string;
   readonly url: string;
   readonly title?: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
   readonly parentId?: string;
 } | {
   readonly type: "file";
@@ -4890,6 +4903,18 @@ type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, T
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
   overwrite?: boolean;
+};
+
+type ToolCallApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly prompt?: string;
+  readonly isAutomatic?: boolean;
+  readonly signature?: string;
+  readonly requestReason?: string;
+  readonly descriptor?: ReadonlyJSONValue;
+  readonly inputSchemaInput?: ReadonlyJSONValue;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {

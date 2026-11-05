@@ -395,6 +395,9 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
+  readonly type: "tool-call-approval";
+  readonly approval: ToolCallApproval;
+} | {
   readonly type: "text-delta";
   readonly textDelta: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -653,6 +656,15 @@ type PartInit = {
   readonly title?: string;
   readonly parentId?: string;
 } | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly parentId?: string;
+} | {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;
@@ -784,6 +796,18 @@ type SamplingCallData = {
 type SdkIdentity = {
   name: string;
   version: string;
+};
+
+type ToolCallApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly prompt?: string;
+  readonly isAutomatic?: boolean;
+  readonly signature?: string;
+  readonly requestReason?: string;
+  readonly descriptor?: ReadonlyJSONValue;
+  readonly inputSchemaInput?: ReadonlyJSONValue;
 };
 
 type ToolModelContentPart = {

@@ -13,13 +13,17 @@ export type AssistantMetaStreamChunk =
       meta: PartInit;
     })
   | (AssistantStreamChunk & {
-      type: "result" | "tool-call-args-text-finish";
+      type: "result" | "tool-call-args-text-finish" | "tool-call-approval";
       meta: PartInit & { type: "tool-call" };
     })
   | (AssistantStreamChunk & {
       type: Exclude<
         AssistantStreamChunk["type"],
-        "text-delta" | "result" | "tool-call-args-text-finish" | "part-finish"
+        | "text-delta"
+        | "result"
+        | "tool-call-args-text-finish"
+        | "tool-call-approval"
+        | "part-finish"
       >;
     });
 export class AssistantMetaTransformStream extends TransformStream<
@@ -48,7 +52,8 @@ export class AssistantMetaTransformStream extends TransformStream<
           chunk.type === "text-delta" ||
           chunk.type === "result" ||
           chunk.type === "part-finish" ||
-          chunk.type === "tool-call-args-text-finish"
+          chunk.type === "tool-call-args-text-finish" ||
+          chunk.type === "tool-call-approval"
         ) {
           if (chunk.path.length !== 1) {
             controller.error(

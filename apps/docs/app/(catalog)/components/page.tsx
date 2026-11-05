@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import { DemoCard } from "@/components/pages/elements/demo-card";
-import { getElement } from "@/components/pages/elements/registry";
+import {
+  ELEMENT_COUNT,
+  getElement,
+} from "@/components/pages/elements/registry";
 import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
 import { NavGlyph } from "@/components/shared/nav-glyph";
@@ -302,7 +305,8 @@ export default function ShopPage() {
       ))}
       <div className="border-foreground/10 border-t pt-8">
         <p className="text-muted-foreground mt-8 max-w-[52ch] text-[0.9375rem] leading-relaxed">
-          {ELEMENT_PRODUCTS.length} elements can be added from their own pages.
+          {ELEMENT_PRODUCTS.length} of the {ELEMENT_COUNT} elements can be added
+          from their own pages.
         </p>
         <Link href="/elements" className={cn("mt-3", navLink)}>
           Browse elements

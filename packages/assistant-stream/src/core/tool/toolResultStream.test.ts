@@ -271,6 +271,25 @@ describe("unstable_runPendingTools", () => {
     });
   });
 
+  it("skips tool calls that carry an approval", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "frontend");
+    const message = createPendingToolMessage("gated");
+    const gated = {
+      ...message,
+      parts: [{ ...message.parts[0]!, approval: { id: "approval-1" } }],
+    } as AssistantMessage;
+
+    const settled = await unstable_runPendingTools(
+      gated,
+      { tool: { parameters: { type: "object", properties: {} }, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled).toBe(gated);
+  });
+
   it("skips tool calls that carry a result without a state", async () => {
     const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "fresh");
     const message: AssistantMessage = {
@@ -1736,4 +1755,133 @@ describe("unstable_runPendingTools", () => {
       humanResponse.resolve(undefined);
     },
   );
+});
+
+describe("toolResultStream inside a provider step", () => {
+  const toolCallChunks = (toolCallId: string): AssistantStreamChunk[] => [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId, toolName: "delete_file" },
+    },
+    { type: "text-delta", path: [0], textDelta: '{"path":"/tmp/a.txt"}' },
+    { type: "tool-call-args-text-finish", path: [0] },
+  ];
+
+  const startStream = (execute: NonNullable<Tool["execute"]>) => {
+    let input!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const output: AssistantStreamChunk[] = [];
+    const done = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        input = controller;
+      },
+    })
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            delete_file: {
+              parameters: { type: "object", properties: {} },
+              execute,
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(
+        new WritableStream({
+          write(chunk) {
+            output.push(chunk);
+          },
+        }),
+      );
+    const write = async (...chunks: AssistantStreamChunk[]) => {
+      for (const chunk of chunks) input.enqueue(chunk);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+    return { output, write, close: () => (input.close(), done) };
+  };
+
+  const stepFinish: AssistantStreamChunk = {
+    type: "step-finish",
+    path: [],
+    finishReason: "tool-calls",
+    usage: { inputTokens: 1, outputTokens: 1 },
+    isContinued: false,
+  };
+
+  it("runs a frontend tool when the step that streamed it finishes", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "done");
+    const { output, write, close } = startStream(execute);
+
+    await write(
+      { type: "step-start", path: [], messageId: "m1" },
+      ...toolCallChunks("call_1"),
+      { type: "part-finish", path: [0] },
+    );
+    expect(execute).not.toHaveBeenCalled();
+    expect(output.map((chunk) => chunk.type)).not.toContain("part-finish");
+
+    await write(stepFinish);
+    await close();
+
+    expect(execute).toHaveBeenCalledOnce();
+    expect(output.map((chunk) => chunk.type)).toEqual([
+      "step-start",
+      "part-start",
+      "text-delta",
+      "tool-call-args-text-finish",
+      "step-finish",
+      "result",
+      "part-finish",
+    ]);
+  });
+
+  it("leaves a call to the provider when the step gates it with an approval", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "done");
+    const { output, write, close } = startStream(execute);
+
+    await write(
+      { type: "step-start", path: [], messageId: "m1" },
+      ...toolCallChunks("call_1"),
+      {
+        type: "tool-call-approval",
+        path: [0],
+        approval: { id: "approval-1" },
+      },
+      stepFinish,
+      { type: "part-finish", path: [0] },
+    );
+    await close();
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(output.map((chunk) => chunk.type)).toEqual([
+      "step-start",
+      "part-start",
+      "text-delta",
+      "tool-call-args-text-finish",
+      "tool-call-approval",
+      "step-finish",
+      "part-finish",
+    ]);
+  });
+
+  it("runs a call still waiting on its step when the stream ends", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "done");
+    const { output, write, close } = startStream(execute);
+
+    await write(
+      { type: "step-start", path: [], messageId: "m1" },
+      ...toolCallChunks("call_1"),
+      { type: "part-finish", path: [0] },
+    );
+    expect(execute).not.toHaveBeenCalled();
+    await close();
+
+    expect(execute).toHaveBeenCalledOnce();
+    expect(output.slice(-2)).toEqual([
+      expect.objectContaining({ type: "result", result: "done" }),
+      expect.objectContaining({ type: "part-finish", path: [0] }),
+    ]);
+  });
 });

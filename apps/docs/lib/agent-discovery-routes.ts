@@ -1,4 +1,4 @@
-import { BASE_URL } from "./constants";
+import { BASE_URL } from "./constants.ts";
 
 export const AGENT_DISCOVERY_ROUTES = {
   agents: "/AGENTS.md",

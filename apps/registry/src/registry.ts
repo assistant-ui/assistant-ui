@@ -2301,6 +2301,28 @@ export const registry: RegistryItem[] = [
     css: generativeUiVocabularyCss,
   },
   {
+    name: "elements-generative-markdown",
+    type: "registry:component",
+    title: "Generative Markdown",
+    description: "Render streamed Markdown and nested generative UI content.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/generative-markdown.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/generative-markdown.tsx",
+      },
+    ],
+    dependencies: ["react-markdown", "remark-gfm"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/generative-ui-style.json",
+    ],
+    registryDependencyUsageExemptions: {
+      "https://r.assistant-ui.com/generative-ui-style.json":
+        "Styles the data-aui Markdown wrapper and its rendered content.",
+    },
+  },
+  {
     name: "generative-ui",
     type: "registry:component",
     title: "Generative UI",
@@ -2313,14 +2335,10 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/elements/generative-ui.tsx",
       },
     ],
-    dependencies: [
-      "@assistant-ui/generative-ui",
-      "react-markdown",
-      "remark-gfm",
-      "zod",
-    ],
+    dependencies: ["@assistant-ui/generative-ui", "zod"],
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
+      "https://r.assistant-ui.com/elements-generative-markdown.json",
       "https://r.assistant-ui.com/elements-mermaid-diagram.json",
       "https://r.assistant-ui.com/elements-geo-map.json",
     ],

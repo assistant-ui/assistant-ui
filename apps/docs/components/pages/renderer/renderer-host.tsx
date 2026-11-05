@@ -1,5 +1,6 @@
 "use client";
 
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import type { ReactNode } from "react";
 import {
   AuiConfig,
@@ -23,22 +24,24 @@ export function RendererHost(): ReactNode {
   });
 
   return (
-    <CloudRendererHost
-      allowedOrigins={RENDERER_ALLOWED_ORIGINS}
-      config={config}
-    >
-      <div
-        className="flex flex-col gap-y-6 px-4 py-6"
-        style={{ ["--thread-max-width" as string]: "44rem" }}
+    <main {...MAIN_CONTENT_PROPS}>
+      <CloudRendererHost
+        allowedOrigins={RENDERER_ALLOWED_ORIGINS}
+        config={config}
       >
-        <ThreadPrimitive.Messages>
-          {({ message }) => {
-            if (message.role === "user") return <UserMessage />;
-            if (message.role === "assistant") return <AssistantMessage />;
-            return null;
-          }}
-        </ThreadPrimitive.Messages>
-      </div>
-    </CloudRendererHost>
+        <div
+          className="flex flex-col gap-y-6 px-4 py-6"
+          style={{ ["--thread-max-width" as string]: "44rem" }}
+        >
+          <ThreadPrimitive.Messages>
+            {({ message }) => {
+              if (message.role === "user") return <UserMessage />;
+              if (message.role === "assistant") return <AssistantMessage />;
+              return null;
+            }}
+          </ThreadPrimitive.Messages>
+        </div>
+      </CloudRendererHost>
+    </main>
   );
 }
