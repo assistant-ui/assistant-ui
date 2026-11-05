@@ -1,5 +1,6 @@
 import { createTheme, type DocsTheme } from "@farming-labs/docs/config";
 import { shadcn } from "@farming-labs/theme/shadcn";
+import { assistantUiDefaults } from "./defaults";
 
 const createAssistantTheme = createTheme({
   ...shadcn({
@@ -8,13 +9,14 @@ const createAssistantTheme = createTheme({
         contentWidth: 848,
         sidebarWidth: 260,
         tocWidth: 224,
-        header: { height: 48 },
+        header: { height: 48, placement: "top" },
+        skipLink: true,
       },
       typography: {
         font: {
           style: {
-            sans: "var(--font-public-sans, ui-sans-serif), system-ui, sans-serif",
-            mono: "var(--font-jetbrains-mono, ui-monospace), monospace",
+            sans: 'var(--font-public-sans, "Public Sans"), system-ui, sans-serif',
+            mono: 'var(--font-jetbrains-mono, "JetBrains Mono"), monospace',
           },
           h1: { size: "1.5rem", weight: 500, letterSpacing: "-0.025em" },
           h2: { size: "1.25rem", weight: 500, letterSpacing: "-0.02em" },
@@ -22,10 +24,16 @@ const createAssistantTheme = createTheme({
           body: { size: "0.875rem", lineHeight: "1.7" },
         },
       },
-      codeBlock: { showCopyButton: true, showLineNumbers: false },
+      codeBlock: {
+        showCopyButton: true,
+        showLineNumbers: true,
+        theme: "catppuccin-latte",
+        darkTheme: "catppuccin-mocha",
+      },
     },
   }),
   name: "assistant-ui",
+  configDefaults: assistantUiDefaults,
 });
 
 export const assistantUi = (overrides: assistantUi.Options = {}): DocsTheme =>
@@ -36,3 +44,4 @@ export namespace assistantUi {
 }
 
 export { DocsBrand } from "./brand";
+export { assistantUiDefaults } from "./defaults";
