@@ -57,6 +57,8 @@ on:
       - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
+      - "scripts/vscode-test-bed.test.mjs"
+      - ".github/workflows/vscode-test-bed.yaml"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
@@ -155,6 +157,9 @@ jobs:
 
       - name: Test the shared script helpers
         run: node --test scripts/lib/*.test.mjs
+
+      - name: Test VS Code workflow input coverage
+        run: node --test scripts/vscode-test-bed.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
