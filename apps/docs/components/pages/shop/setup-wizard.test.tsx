@@ -1338,6 +1338,32 @@ describe("SetupWizard", () => {
     expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
+  it("closes the setup-agent details on Escape without asking to end the setup", async () => {
+    render(
+      <SetupWizard
+        checkout={context(initialCheckoutState(), false, false, {
+          introSeen: true,
+        })}
+      />,
+    );
+    const trigger = await screen.findByRole("button", {
+      name: "What it shares and how to stop",
+    });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByText("End this setup?")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(
+      await screen.findByRole("dialog", { name: "End this setup?" }),
+    ).toBeTruthy();
+  });
+
   it("keeps Cancel disabled while looking back at a finished setup", () => {
     const state = connected({
       status: "done",

@@ -1,25 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
+import { ArrowUpRight, Search } from "lucide-react";
 import { useSearchContext } from "@/components/shared/search-provider";
-import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
+import {
+  NAV_ITEMS,
+  CLOUD_URL,
+  megaGroups,
+  type NavItem,
+} from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
-import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
+import { DocsSiteHeader } from "@assistant-ui/docs-theme/ui";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { CartButton } from "@/components/shared/shop-entry";
-import {
-  headerBarClassName,
-  headerSlashClassName,
-} from "@/components/shared/header-chrome";
+import { headerSlashClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -46,7 +48,7 @@ function AskAIButton() {
       size="sm"
       onClick={toggle}
       className="shrink-0"
-      aria-label="Ask AI (⌘I)"
+      aria-keyshortcuts="Meta+I Control+I"
     >
       Ask AI
       <KbdGroup className="hidden xl:inline-flex">
@@ -153,12 +155,6 @@ function MobileSectionBreadcrumb({
 }
 
 export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
-  const {
-    open: sidebarOpen,
-    setOpen: setSidebarOpen,
-    toggle: toggleSidebar,
-  } = useDocsSidebar();
-  const [navMenuOpen, setNavMenuOpen] = useState(false);
   const scrolled = useScrolled();
   const { platform } = usePlatform();
   const homeHref = useMemo(
@@ -177,213 +173,159 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
       item.type === "link" && CONDENSED_HIDDEN.has(item.label),
   );
 
-  const handleNavMenuToggle = () => {
-    if (!navMenuOpen) setSidebarOpen(false);
-    setNavMenuOpen((prev) => !prev);
-  };
-
-  const handleSidebarToggle = () => {
-    if (!sidebarOpen) setNavMenuOpen(false);
-    toggleSidebar();
-  };
-
   return (
-    <header className="sticky top-0 z-50">
-      <NavItemsRoot>
-        <div
-          className={headerBarClassName(
-            scrolled,
-            "flex h-12 w-full items-center px-4",
-          )}
-        >
-          <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink showLabel={false} />
-            <span className={cn(headerSlashClassName, "max-md:hidden")}>/</span>
-            <Link
-              href={homeHref}
-              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
-            >
-              {section}
-            </Link>
-            <span className="flex items-center max-lg:hidden">
-              <span className="text-muted-foreground mx-1.5 text-sm">for</span>
-              <PlatformSwitcher tree={tree} />
-            </span>
-            <MobileSectionBreadcrumb tree={tree} section={section} />
-          </div>
-
-          {/* Mobile controls */}
-          <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+    <DocsSiteHeader
+      scrolled={scrolled}
+      navigationRoot={NavItemsRoot}
+      brand={
+        <>
+          <HeaderBrandLink showLabel={false} />
+          <span className={cn(headerSlashClassName, "max-md:hidden")}>/</span>
+          <Link
+            href={homeHref}
+            className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
+          >
+            {section}
+          </Link>
+          <span className="flex items-center max-lg:hidden">
+            <span className="text-muted-foreground mx-1.5 text-sm">for</span>
+            <PlatformSwitcher tree={tree} />
+          </span>
+          <MobileSectionBreadcrumb tree={tree} section={section} />
+        </>
+      }
+      mobileControls={
+        <>
+          <CartButton />
+          <SearchIconButton className="size-8" />
+          <AskAIButton />
+        </>
+      }
+      condensedNavigation={
+        <>
+          <div className="flex items-center gap-2">
             <CartButton />
+            <SearchIconButton className="size-7" />
             <AskAIButton />
-            <SearchIconButton className="size-8" />
-            <button
-              type="button"
-              onClick={handleNavMenuToggle}
-              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
-              aria-label="Site navigation"
-            >
-              {navMenuOpen ? (
-                <X className="size-4" />
-              ) : (
-                <LayoutGrid className="size-4" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={handleSidebarToggle}
-              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
-              aria-label="Toggle sidebar"
-            >
-              {sidebarOpen ? (
-                <X className="size-4" />
-              ) : (
-                <Menu className="size-4" />
-              )}
-            </button>
           </div>
-
-          {/* Condensed nav: md to lg */}
-          <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
-            <div className="flex items-center gap-2">
-              <CartButton />
-              <AskAIButton />
-              <SearchIconButton className="size-7" />
-            </div>
-            <div className="flex shrink-0 items-center">
-              <NavItems
-                items={condensedItems}
-                contentClassName="mx-auto max-w-7xl"
-              />
-              {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
-            </div>
-            <ThemeToggle />
-          </div>
-
-          {/* Full nav: lg+ */}
-          <div className="ml-auto hidden items-center gap-4 lg:flex">
-            <div className="flex min-w-0 items-center gap-2">
-              <CartButton />
-              <AskAIButton />
-              <SearchIconButton className="size-7 xl:hidden" />
-              <HeaderSearch />
-            </div>
+          <div className="flex shrink-0 items-center">
             <NavItems
-              items={filteredItems}
+              items={condensedItems}
               contentClassName="mx-auto max-w-7xl"
             />
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={CLOUD_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                }
-              >
-                Cloud
-              </Button>
-              <ThemeToggle />
-            </div>
+            {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
           </div>
-        </div>
-
-        {/* Mobile nav menu */}
-        <div
-          className={cn(
-            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
-            navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
-          )}
-        >
-          <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-            {filteredItems.map((item) => {
-              if (item.type === "link") {
-                return item.href.startsWith("http") ? (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setNavMenuOpen(false)}
-                    className="text-foreground py-3 text-lg transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setNavMenuOpen(false)}
-                    className="text-foreground py-3 text-lg transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                );
+          <ThemeToggle />
+        </>
+      }
+      desktopNavigation={
+        <>
+          <div className="flex min-w-0 items-center gap-2">
+            <CartButton />
+            <SearchIconButton className="size-7 xl:hidden" />
+            <HeaderSearch />
+            <AskAIButton />
+          </div>
+          <NavItems
+            items={filteredItems}
+            contentClassName="mx-auto max-w-7xl"
+          />
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={
+                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
               }
-
-              return (
-                <div key={item.label} className="flex flex-col">
-                  <span className="text-foreground py-3 text-lg">
-                    {item.label}
-                  </span>
-                  {item.groups.map((group) => (
-                    <div key={group.label} className="flex flex-col">
-                      <span className="text-muted-foreground py-3 text-sm">
-                        {group.label}
-                      </span>
-                      {group.items.map((link) =>
-                        link.external ? (
-                          <a
-                            key={link.href}
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setNavMenuOpen(false)}
-                            className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
-                          >
-                            {link.label}
-                            <ArrowUpRight className="size-3.5 opacity-40" />
-                          </a>
-                        ) : (
-                          <Link
-                            key={link.href}
-                            href={link.href}
-                            onClick={() => setNavMenuOpen(false)}
-                            className="text-foreground py-2 pl-4 text-lg transition-colors"
-                          >
-                            {link.label}
-                          </Link>
-                        ),
-                      )}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-            <div className="mt-auto flex items-center justify-between border-t py-6">
-              <Button
-                size="sm"
-                nativeButton={false}
-                className="w-fit"
-                onClick={() => setNavMenuOpen(false)}
-                render={
-                  <a
-                    href={CLOUD_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                }
-              >
-                Cloud
-              </Button>
-              <ThemeToggle />
-            </div>
+            >
+              Cloud
+            </Button>
+            <ThemeToggle />
           </div>
-        </div>
-      </NavItemsRoot>
-    </header>
+        </>
+      }
+      mobileNavigation={(close) => (
+        <>
+          {filteredItems.map((item) => {
+            if (item.type === "link") {
+              return item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => close()}
+                  className="text-foreground py-3 text-lg transition-colors"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => close()}
+                  className="text-foreground py-3 text-lg transition-colors"
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+
+            return (
+              <div key={item.label} className="flex flex-col">
+                <span className="text-foreground py-3 text-lg">
+                  {item.label}
+                </span>
+                {megaGroups(item).map((group) => (
+                  <div key={group.label} className="flex flex-col">
+                    <span className="text-muted-foreground py-3 text-sm">
+                      {group.label}
+                    </span>
+                    {group.items.map((link) =>
+                      link.external ? (
+                        <a
+                          key={link.href}
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => close()}
+                          className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
+                        >
+                          {link.label}
+                          <ArrowUpRight className="size-3.5 opacity-40" />
+                        </a>
+                      ) : (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => close()}
+                          className="text-foreground py-2 pl-4 text-lg transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          <div className="mt-auto flex items-center justify-between border-t py-6">
+            <Button
+              size="sm"
+              nativeButton={false}
+              className="w-fit"
+              onClick={() => close()}
+              render={
+                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
+              }
+            >
+              Cloud
+            </Button>
+            <ThemeToggle />
+          </div>
+        </>
+      )}
+    />
   );
 }

@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { parseAdkEventValue } from "./parseAdkEvent";
+import toolMedia from "./__fixtures__/tool-media.json";
 import {
   convertAdkMessage,
   createAdkMessageConverter,
@@ -36,6 +39,121 @@ describe("createAdkMessageConverter - queued replies", () => {
 });
 
 describe("convertAdkMessage - tool results", () => {
+  it("keeps ADK tool media on the same call live and after session replay", () => {
+    const live = new AdkEventAccumulator();
+    const first = live.processEvent(
+      parseAdkEventValue(toolMedia.events[0], "ADK recording"),
+    );
+    const initial = convertExternalMessages(
+      first,
+      convertAdkMessage,
+      true,
+      {},
+    )[0]!;
+    for (const event of toolMedia.events.slice(1)) {
+      live.processEvent(parseAdkEventValue(event, "ADK recording"));
+    }
+    const completed = convertExternalMessages(
+      live.getMessages(),
+      convertAdkMessage,
+      false,
+      {},
+    )[0]!;
+    const history = new AdkEventAccumulator();
+    for (const event of toolMedia.reloaded_events) {
+      history.processEvent(parseAdkEventValue(event, "ADK recording"));
+    }
+    const reloaded = convertExternalMessages(
+      history.getMessages(),
+      convertAdkMessage,
+      false,
+      {},
+    ).find((message) => message.role === "assistant")!;
+
+    const expected = {
+      type: "tool-call",
+      toolCallId: "adk-281b4c4b-c4b5-446c-b424-7b7c8c6820a8",
+      result: { status: "ok" },
+      modelContent: [
+        { type: "text", text: '{"status":"ok"}' },
+        {
+          type: "file",
+          mediaType: "image/png",
+          data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+        },
+      ],
+    };
+    expect(completed.content[0]).toMatchObject(expected);
+    expect(reloaded.content[0]).toMatchObject(expected);
+    expect(completed.id).toBe(initial.id);
+    expect(reloaded.id).toBe(initial.id);
+    expect(getMessagePartKeys(completed.content)[0]).toBe(
+      getMessagePartKeys(initial.content)[0],
+    );
+    expect(getMessagePartKeys(reloaded.content)[0]).toBe(
+      getMessagePartKeys(initial.content)[0],
+    );
+  });
+
+  it("preserves tool file URIs with and without MIME types", () => {
+    const messages = new AdkEventAccumulator().processEvent(
+      parseAdkEventValue(
+        {
+          id: "tool-event",
+          author: "agent",
+          content: {
+            parts: [
+              {
+                function_response: {
+                  name: "search",
+                  id: "call-1",
+                  response: { status: "ok" },
+                  parts: [
+                    {
+                      fileData: {
+                        fileUri: "gs://bucket/report.pdf",
+                        mimeType: "application/pdf",
+                        displayName: "report.pdf",
+                      },
+                    },
+                    {
+                      file_data: {
+                        file_uri: "gs://bucket/raw_data-v1",
+                        display_name: "raw_data-v1",
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        "ADK tool response",
+      ),
+    );
+
+    expect(convertAdkMessage(messages[0]!, {})).toMatchObject({
+      role: "tool",
+      toolCallId: "call-1",
+      result: { status: "ok" },
+      modelContent: [
+        { type: "text", text: '{"status":"ok"}' },
+        {
+          type: "file",
+          data: "gs://bucket/report.pdf",
+          mediaType: "application/pdf",
+          filename: "report.pdf",
+        },
+        {
+          type: "file",
+          data: "gs://bucket/raw_data-v1",
+          mediaType: "application/octet-stream",
+          filename: "raw_data-v1",
+        },
+      ],
+    });
+  });
+
   const convertResult = (content: string) =>
     convertAdkMessage(
       {
@@ -76,6 +194,80 @@ describe("convertAdkMessage - tool results", () => {
       });
     },
   );
+
+  it("preserves a loaded tool result artifact on the tool call", () => {
+    const artifact = { rows: [{ title: "Found document" }] };
+    const messages = convertExternalMessages<AdkMessage>(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: [],
+          tool_calls: [{ id: "call-1", name: "search", args: {} }],
+        },
+        {
+          id: "tool-1",
+          type: "tool",
+          tool_call_id: "call-1",
+          name: "search",
+          content: '{"count":1}',
+          artifact,
+          status: "success",
+        },
+      ],
+      (message) => convertAdkMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: { count: 1 },
+        artifact,
+        isError: false,
+      },
+    ]);
+  });
+
+  it("preserves a loaded error tool result artifact on the tool call", () => {
+    const artifact = { details: "Search service unavailable" };
+    const messages = convertExternalMessages<AdkMessage>(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: [],
+          tool_calls: [{ id: "call-1", name: "search", args: {} }],
+        },
+        {
+          id: "tool-1",
+          type: "tool",
+          tool_call_id: "call-1",
+          name: "search",
+          content: "Failed",
+          artifact,
+          status: "error",
+        },
+      ],
+      (message) => convertAdkMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Failed",
+        artifact,
+        isError: true,
+      },
+    ]);
+  });
 
   it("preserves string-valued results", () => {
     expect(convertResult('"ready"')).toMatchObject({

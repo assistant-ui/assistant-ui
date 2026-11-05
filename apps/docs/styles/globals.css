@@ -2,6 +2,7 @@
 
 @import "tw-animate-css";
 @import "tw-shimmer";
+@import "@assistant-ui/docs-theme/site.css";
 @import "./docs.css";
 @import "./animate.css";
 @import "./codehike.css";
@@ -267,6 +268,10 @@
     @apply overscroll-none scroll-smooth;
     scroll-padding-top: calc(var(--docs-header-height, 48px) + 2rem);
     overflow-y: scroll;
+  }
+  #main-content:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
   body {
     @apply bg-background text-foreground;

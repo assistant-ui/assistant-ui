@@ -95,12 +95,12 @@ type AssistantMetaStreamChunk = (AssistantStreamChunk & {
   type: "part-finish" | "text-delta";
   meta: PartInit;
 }) | (AssistantStreamChunk & {
-  type: "result" | "tool-call-args-text-finish";
+  type: "result" | "tool-call-approval" | "tool-call-args-text-finish";
   meta: PartInit & {
     type: "tool-call";
   };
 }) | (AssistantStreamChunk & {
-  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "tool-call-args-text-finish">;
+  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "tool-call-approval" | "tool-call-args-text-finish">;
 });
 
 declare class AssistantMetaTransformStream extends TransformStream<AssistantStreamChunk, AssistantMetaStreamChunk> {
@@ -126,6 +126,9 @@ type AssistantStreamChunk = {
   readonly providerMetadata?: PartProviderMetadata;
 } | {
   readonly type: "tool-call-args-text-finish";
+} | {
+  readonly type: "tool-call-approval";
+  readonly approval: ToolCallApproval;
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
@@ -571,6 +574,15 @@ type PartInit = {
   readonly title?: string;
   readonly parentId?: string;
 } | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly parentId?: string;
+} | {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;
@@ -790,6 +802,15 @@ type SourcePart = {
   url: string;
   title?: string;
   parentId?: string;
+} | {
+  type: "source";
+  sourceType: "document";
+  id: string;
+  url?: undefined;
+  title: string;
+  mediaType: string;
+  filename?: string;
+  parentId?: string;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
@@ -861,6 +882,18 @@ type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, T
   overwrite?: boolean;
 };
 
+type ToolCallApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly prompt?: string;
+  readonly isAutomatic?: boolean;
+  readonly signature?: string;
+  readonly requestReason?: string;
+  readonly descriptor?: ReadonlyJSONValue;
+  readonly inputSchemaInput?: ReadonlyJSONValue;
+};
+
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
   get<PathT extends TypePath<TArgs>>(...fieldPath: PathT): Promise<TypeAtPath<TArgs, PathT>>;
   streamValues<PathT extends TypePath<TArgs>>(...fieldPath: PathT): AsyncIterableStream<DeepPartial<TypeAtPath<TArgs, PathT>>>;
@@ -877,6 +910,7 @@ type ToolCallPartBase = {
   toolName: string;
   argsText: string;
   args: ReadonlyJSONObject;
+  approval?: ToolCallApproval;
   timing?: ToolCallTiming;
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
@@ -947,6 +981,7 @@ type ToolCallStatus = {
 type ToolCallStreamController = {
   argsText: TextStreamController;
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
+  setApproval(approval: ToolCallApproval): void;
   close(): void;
 };
 
@@ -1104,6 +1139,12 @@ type UIMessageStreamChunk = {
     title?: string;
   };
 } | {
+  type: "source-document";
+  sourceId: string;
+  mediaType: string;
+  title: string;
+  filename?: string;
+} | {
   type: "file";
   file: {
     mimeType: string;
@@ -1126,6 +1167,18 @@ type UIMessageStreamChunk = {
   isError?: boolean;
   isPreliminary?: boolean;
   messages?: ReadonlyJSONValue;
+} | {
+  type: "tool-approval-request";
+  toolCallId: string;
+  approval: ToolCallApproval;
+} | {
+  type: "tool-approval-response";
+  approvalId: string;
+  approved: boolean;
+  reason?: string;
+} | {
+  type: "tool-output-denied";
+  toolCallId: string;
 } | {
   type: "start-step";
   messageId?: string;
@@ -1224,7 +1277,7 @@ declare namespace entry_resumable_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, DataStreamOptions, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, DataStreamOptions, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallApproval, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 declare namespace entry_internal_exports {

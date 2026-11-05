@@ -11,18 +11,22 @@ const DEFAULT_BINARY_DATA_URL_MEDIA_TYPE = "application/octet-stream";
  * Extracts a base64 payload and the URL's media type without parameters.
  * An omitted type uses `fallbackMimeType`, which defaults to
  * `application/octet-stream` because this helper only accepts base64 payloads.
+ * A payload folded across lines is accepted and returned compact, matching
+ * `parseBase64`: real producers wrap at a fixed column.
  */
 export function parseDataUrl(
   value: string,
   fallbackMimeType = DEFAULT_BINARY_DATA_URL_MEDIA_TYPE,
 ): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,(.*)$/i);
+  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,([\s\S]*)$/i);
   if (!match) return null;
   return {
     mimeType: match[1] ? match[1].toLowerCase() : fallbackMimeType,
-    data: match[2]!.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
-      String.fromCharCode(Number.parseInt(hex, 16)),
-    ),
+    data: match[2]!
+      .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+        String.fromCharCode(Number.parseInt(hex, 16)),
+      )
+      .replace(/[\t\n\r ]/g, ""),
   };
 }
 
@@ -56,6 +60,24 @@ export function isParsableUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Returns compact bare base64, or null when the value, with whitespace
+ * removed, leaves the base64 alphabet or has invalid padding, so references
+ * such as /uploads/cat.png stay URLs. MIME line breaks are allowed; image
+ * signatures are not required because not every format can be sniffed. A
+ * reference made only of base64 characters and whitespace, such as
+ * /uploads/cat, is indistinguishable from a payload (JPEG base64 starts with
+ * /9j/) and is returned as base64.
+ */
+export function parseBase64(value: string): string | null {
+  const compact = value.replace(/[\t\n\r ]/g, "");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return null;
+  const validLength = compact.endsWith("=")
+    ? compact.length % 4 === 0
+    : compact.length % 4 !== 1;
+  return validLength ? compact : null;
 }
 
 /**

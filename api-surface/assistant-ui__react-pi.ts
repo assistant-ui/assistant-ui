@@ -1,4 +1,4 @@
-import { createAgentSession } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, createAgentSession } from "@earendil-works/pi-coding-agent";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -441,6 +441,9 @@ type AssistantStreamChunk = {
   readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "tool-call-args-text-finish";
+} | {
+  readonly type: "tool-call-approval";
+  readonly approval: ToolCallApproval;
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
@@ -1365,6 +1368,15 @@ type PartInit = {
   readonly title?: string;
   readonly parentId?: string;
 } | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly parentId?: string;
+} | {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;
@@ -1648,6 +1660,8 @@ interface PiContextUsage {
   percent: number | null;
 }
 
+type PiCreateSessionOptions = NonNullable<Parameters<typeof createAgentSession>[0]>;
+
 interface PiCustomMessage {
   role: "custom";
   customType: string;
@@ -1892,7 +1906,9 @@ type PiSessionEntryBase = {
   timestamp: string;
 };
 
-type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
+type PiSessionModel = PiCreateSessionOptions["model"];
+
+type PiSessionOptions = Omit<PiCreateSessionOptions, "agentDir" | "cwd" | "model" | "modelRuntime" | "sessionManager">;
 
 type PiStopReason = "aborted" | "error" | "length" | "stop" | "toolUse";
 
@@ -2075,6 +2091,11 @@ interface PiThreadSupervisorOptions {
   workspacePath?: string;
   agentDir?: string;
   model?: PiSessionModel;
+  modelRuntime?: ModelRuntime;
+  configureSession?: (context: {
+    cwd: string;
+    signal: AbortSignal | undefined;
+  }) => PiSessionOptions | Promise<PiSessionOptions>;
 }
 
 interface PiToolCall {
@@ -2786,6 +2807,18 @@ type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, T
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
   overwrite?: boolean;
+};
+
+type ToolCallApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly prompt?: string;
+  readonly isAutomatic?: boolean;
+  readonly signature?: string;
+  readonly requestReason?: string;
+  readonly descriptor?: ReadonlyJSONValue;
+  readonly inputSchemaInput?: ReadonlyJSONValue;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {

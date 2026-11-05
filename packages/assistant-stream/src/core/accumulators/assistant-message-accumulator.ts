@@ -126,14 +126,27 @@ const handlePartStart = (
     };
     return appendPart(message, newToolCallPart);
   } else if (partInit.type === "source") {
-    const newSourcePart: SourcePart = {
-      type: "source",
-      sourceType: partInit.sourceType,
-      id: partInit.id,
-      url: partInit.url,
-      ...(partInit.title ? { title: partInit.title } : undefined),
-      ...(partInit.parentId && { parentId: partInit.parentId }),
-    };
+    const newSourcePart: SourcePart =
+      partInit.sourceType === "document"
+        ? {
+            type: "source",
+            sourceType: "document",
+            id: partInit.id,
+            title: partInit.title,
+            mediaType: partInit.mediaType ?? "application/octet-stream",
+            ...(partInit.filename
+              ? { filename: partInit.filename }
+              : undefined),
+            ...(partInit.parentId && { parentId: partInit.parentId }),
+          }
+        : {
+            type: "source",
+            sourceType: partInit.sourceType,
+            id: partInit.id,
+            url: partInit.url,
+            ...(partInit.title ? { title: partInit.title } : undefined),
+            ...(partInit.parentId && { parentId: partInit.parentId }),
+          };
     return appendPart(message, newSourcePart);
   } else if (partInit.type === "file") {
     const newFilePart: FilePart = {
@@ -193,6 +206,23 @@ const handleToolCallArgsTextFinish = (
           ? { type: "running", isArgsComplete: true }
           : part.status,
     };
+  });
+};
+
+const handleToolCallApproval = (
+  message: AssistantMessage,
+  chunk: AssistantStreamChunk & { readonly type: "tool-call-approval" },
+  warnOnce: WarnOnce,
+): AssistantMessage => {
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
+    if (part.type !== "tool-call") {
+      warnOnce(
+        "wrong-part:tool-call-approval",
+        "Dropped tool-call-approval chunk: part is not a tool-call",
+      );
+      return part;
+    }
+    return { ...part, approval: chunk.approval };
   });
 };
 
@@ -278,8 +308,10 @@ const handleResult = (
       const {
         isPreliminary: _isPreliminary,
         modelContent: _modelContent,
+        artifact: _artifact,
+        messages: _messages,
         ...basePart
-      } = part;
+      }: typeof part & { readonly messages?: ReadonlyJSONValue } = part;
       const runningStatus =
         part.status.type === "running"
           ? part.status
@@ -592,6 +624,10 @@ export class AssistantMessageAccumulator extends TransformStream<
 
           case "tool-call-args-text-finish":
             message = handleToolCallArgsTextFinish(message, chunk, warnOnce);
+            break;
+
+          case "tool-call-approval":
+            message = handleToolCallApproval(message, chunk, warnOnce);
             break;
 
           case "part-finish":

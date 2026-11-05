@@ -211,6 +211,7 @@ export class RunAggregator {
   private interrupts: AgUiInterrupt[] | undefined;
   private pendingToolCallIds: string[] | undefined;
   private readonly textParts = new Map<string, { buffer: string }>();
+  private readonly pendingSnapshotText = new Map<string, string>();
   private readonly activeTextMessageIdByScope = new Map<string, string>();
   private readonly reasoningParts = new Map<
     string,
@@ -282,6 +283,20 @@ export class RunAggregator {
         this.totalChunks = 0;
         this.status = { type: "running" };
         this.emit();
+        break;
+      }
+      case "MESSAGES_SNAPSHOT": {
+        this.pendingSnapshotText.clear();
+        for (const message of event.messages) {
+          if (
+            message.role !== "assistant" ||
+            typeof message.content !== "string"
+          )
+            continue;
+          const part = this.textParts.get(message.id);
+          if (part) part.buffer = message.content;
+          else this.pendingSnapshotText.set(message.id, message.content);
+        }
         break;
       }
       case "RUN_FINISHED": {
@@ -370,7 +385,7 @@ export class RunAggregator {
         const incomingId = event.messageId;
         const scope = this.scopeOf(event);
         if (scope === ROOT_SCOPE) {
-          this.beginDistinctTextMessage(incomingId);
+          this.beginDistinctTextMessage(incomingId, true);
           this.reportServerMessageId(incomingId);
           if (incomingId) this.lastTextMessageId = incomingId;
         }
@@ -796,6 +811,7 @@ export class RunAggregator {
 
   private resetMessageParts(): void {
     this.clearTextParts();
+    this.pendingSnapshotText.clear();
     this.reasoningParts.clear();
     this.reasoningSignatures.clear();
     this.reasoningSignatureIds.clear();
@@ -840,7 +856,10 @@ export class RunAggregator {
     return scope === ROOT_SCOPE ? id : `${scope}\u0000${id}`;
   }
 
-  private beginDistinctTextMessage(messageId: string | undefined): void {
+  private beginDistinctTextMessage(
+    messageId: string | undefined,
+    preserveSnapshotText = false,
+  ): void {
     if (
       this.joinStrategy === "concat-content" ||
       !messageId ||
@@ -857,7 +876,13 @@ export class RunAggregator {
     const openToolCallIds = Array.from(this.toolCalls.values())
       .filter((call) => call.result === undefined)
       .map((call) => call.toolCallId);
+    const snapshotText = preserveSnapshotText
+      ? this.pendingSnapshotText.get(messageId)
+      : undefined;
     this.resetMessageParts();
+    if (snapshotText !== undefined) {
+      this.pendingSnapshotText.set(messageId, snapshotText);
+    }
     this.onTextMessageStart(messageId, openToolCallIds);
     this.restoreReasoning(carried);
   }
@@ -949,15 +974,21 @@ export class RunAggregator {
   private startTextMessage(scope: string, messageId?: string): string {
     const id = messageId ?? this.generateTextKey();
     const key = this.ensureTextPart(scope, id);
+    if (scope === ROOT_SCOPE && messageId) {
+      const snapshotText = this.pendingSnapshotText.get(messageId);
+      const part = this.textParts.get(key);
+      if (snapshotText !== undefined && part) {
+        part.buffer = snapshotText;
+        this.pendingSnapshotText.delete(messageId);
+      }
+    }
     this.activeTextMessageIdByScope.set(scope, key);
     return key;
   }
 
   private resolveTextMessageId(scope: string, messageId?: string): string {
     if (messageId) {
-      const key = this.ensureTextPart(scope, messageId);
-      this.activeTextMessageIdByScope.set(scope, key);
-      return key;
+      return this.startTextMessage(scope, messageId);
     }
 
     const active = this.activeTextMessageIdByScope.get(scope);

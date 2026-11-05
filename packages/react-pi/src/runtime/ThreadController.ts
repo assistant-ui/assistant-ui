@@ -20,6 +20,7 @@ import type { AppendMessage, ThreadMessageLike } from "@assistant-ui/react";
 import {
   bytesToBase64,
   detectImageMediaType,
+  parseBase64,
   parseDataUrl,
   resolveImageMediaType,
   RunLeases,
@@ -221,19 +222,6 @@ const loadImageContent = async (
   };
 };
 
-const isBase64Payload = (value: string) => {
-  const compact = value.replaceAll(/\s/g, "");
-  const match = /^([a-z\d+/]*)(={0,2})$/i.exec(compact);
-  if (!match) return false;
-
-  const paddingLength = match[2]!.length;
-  return (
-    compact.length > 0 &&
-    match[1]!.length % 4 !== 1 &&
-    (paddingLength === 0 || compact.length % 4 === 0)
-  );
-};
-
 const sendCancelledError = new MessageNotSentError(
   "Pi send was dropped because the run was cancelled.",
 );
@@ -260,13 +248,14 @@ const toImageContent = (
         `Pi image attachment returned unsupported content type: ${parsed.mimeType}`,
       );
     }
-    if (!isBase64Payload(parsed.data)) {
+    const data = parseBase64(parsed.data);
+    if (data === null) {
       throw new Error("Invalid Pi image attachment source");
     }
     return {
       type: "image",
       mimeType: parsed.mimeType,
-      data: parsed.data,
+      data,
     };
   }
 
@@ -284,14 +273,15 @@ const toImageContent = (
     throw new Error(`Unsupported Pi image attachment URL scheme: ${scheme}`);
   }
 
-  if (!isBase64Payload(image)) {
+  const data = parseBase64(image);
+  if (data === null) {
     throw new Error("Invalid Pi image attachment source");
   }
 
   return {
     type: "image",
-    mimeType: resolveImageMediaType(image),
-    data: image,
+    mimeType: resolveImageMediaType(data),
+    data,
   };
 };
 

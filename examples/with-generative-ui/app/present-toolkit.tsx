@@ -6,7 +6,7 @@ import {
   defaultGenerativeUILibrary,
   defineGenerativeComponents,
 } from "@assistant-ui/generative-ui/react";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
+import { GenerativeMarkdown } from "@/components/assistant-ui/elements/generative-markdown";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { z } from "zod";
 
@@ -21,7 +21,7 @@ const generative = new JSONGenerativeUI({
         streamProperties: markdown.streamProperties,
         description:
           "A markdown string, rendered with GitHub-flavored markdown.",
-        render: styledGenerativeUILibrary.Markdown!.render,
+        render: GenerativeMarkdown,
       },
       DashboardHeader: {
         description:

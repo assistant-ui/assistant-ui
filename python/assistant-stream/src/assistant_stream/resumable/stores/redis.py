@@ -253,13 +253,17 @@ class RedisResumableStreamStore:
         meta_key = self._meta_key(stream_id)
         existing_raw = await self._client.get(meta_key)
         if existing_raw is None:
+            if lease is not None:
+                self._clear_acquired_generation(stream_id, lease.token)
             raise RuntimeError(f"Stream not found: {stream_id}")
         existing = _parse_meta(existing_raw)
         if existing is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
-        if existing.get("status") != "streaming":
-            return False
-        if self._is_superseded_generation(stream_id, existing, lease):
+        if existing.get("status") != "streaming" or self._is_superseded_generation(
+            stream_id, existing, lease
+        ):
+            if lease is not None:
+                self._clear_acquired_generation(stream_id, lease.token)
             return False
         ttl_sec = existing.get("ttlSec")
         if not isinstance(ttl_sec, int):
@@ -291,10 +295,12 @@ class RedisResumableStreamStore:
                 "ttl_sec": ttl_sec,
             }
         )
-        if not finalized:
-            return False
-        self._clear_acquired_generation(stream_id, generation)
-        return True
+        # Lease-less producers still need their local fence after a lost finalize.
+        if finalized or lease is not None:
+            self._clear_acquired_generation(
+                stream_id, lease.token if lease is not None else generation
+            )
+        return finalized
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal

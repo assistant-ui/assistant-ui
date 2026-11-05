@@ -33,14 +33,9 @@ export function SetupIntro({ onContinue }: { onContinue: () => void }) {
     >
       {STEPS.map((step, index) => (
         <li key={step.title} className="group flex gap-4">
-          <div className="flex flex-col items-center">
-            <span className="bg-muted flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
-              {index + 1}
-            </span>
-            {index < STEPS.length - 1 ? (
-              <span aria-hidden className="bg-foreground/10 w-px flex-1" />
-            ) : null}
-          </div>
+          <span className="text-muted-foreground w-4 shrink-0 text-sm leading-7 tabular-nums">
+            {index + 1}
+          </span>
           <div className="pb-6 group-last:pb-0">
             <p className="text-sm leading-7 font-medium">{step.title}</p>
             <p className="text-muted-foreground text-sm">{step.detail}</p>

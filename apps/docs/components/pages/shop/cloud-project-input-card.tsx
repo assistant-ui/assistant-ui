@@ -82,7 +82,7 @@ export function CloudProjectInputCard({
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="sr-only">{inputPrompt(input)}</legend>
         {signingIn ? (
-          <div className="bg-muted flex flex-wrap items-center justify-between gap-3 rounded-lg p-4">
+          <div className="bg-muted rounded-document flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="text-sm">Sign in to pick one of your projects.</p>
             <a
               href={`/api/auth/login?redirect=${encodeURIComponent(pathname)}`}

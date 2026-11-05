@@ -168,6 +168,74 @@ describe("convertLangChainBaseMessage file content parts", () => {
   });
 });
 
+describe("getMessageContent image blocks", () => {
+  it.each([
+    "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+    "data:;base64,/9j/4AAQSkZJRg==",
+    "data:image/jpeg;base64,%2F9j%2F4AAQSkZJRg%3D%3D",
+  ])("normalizes image data URL %s through the converter", (image) => {
+    const message = {
+      content: [
+        { type: "text", text: "Describe this image" },
+        { type: "image", image },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getMessageContent(message)).toEqual([
+      { type: "text", text: "Describe this image" },
+      {
+        type: "image_url",
+        image_url: { url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" },
+      },
+    ]);
+  });
+
+  it.each([
+    [
+      "image/png",
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+    ],
+    ["image/jpeg", "/9j/4AAQSkZJRg=="],
+    ["image/jpeg", "/9j/4AAQ\r\nSkZJRg==", "/9j/4AAQSkZJRg=="],
+    ["image/png", "PHN2Zy8+"],
+  ])(
+    "wraps bare base64 %s images in a data URL",
+    (mimeType, image, data = image) => {
+      const message = {
+        content: [
+          { type: "text", text: "Describe this image" },
+          { type: "image", image },
+        ],
+      } as unknown as AppendMessage;
+
+      expect(getMessageContent(message)).toEqual([
+        { type: "text", text: "Describe this image" },
+        {
+          type: "image_url",
+          image_url: { url: `data:${mimeType};base64,${data}` },
+        },
+      ]);
+    },
+  );
+
+  it.each(["/uploads/cat.png", "/9j/uploads/cat.png"])(
+    "preserves relative image reference %s",
+    (image) => {
+      const message = {
+        content: [
+          { type: "text", text: "Describe this image" },
+          { type: "image", image },
+        ],
+      } as unknown as AppendMessage;
+
+      expect(getMessageContent(message)).toEqual([
+        { type: "text", text: "Describe this image" },
+        { type: "image_url", image_url: { url: image } },
+      ]);
+    },
+  );
+});
+
 describe("getMessageContent file blocks", () => {
   const appendMessage = (part: Record<string, unknown>) =>
     ({ content: [part] }) as unknown as AppendMessage;

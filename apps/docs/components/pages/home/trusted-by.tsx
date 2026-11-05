@@ -241,7 +241,7 @@ function LogoMark({
       {logo.darkSrc ? (
         <Image
           src={logo.darkSrc}
-          alt=""
+          alt={logo.alt}
           fill
           sizes="144px"
           onLoad={onSettle}
