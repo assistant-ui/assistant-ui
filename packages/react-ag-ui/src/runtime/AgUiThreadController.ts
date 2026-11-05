@@ -26,6 +26,7 @@ import {
   appendToolInteraction,
   createHistoryWriteChain,
   createMessageRepositorySession,
+  isJSONValueEqual,
   invokeUserCallback,
   iterateToolCallParts,
   mapToolCallPartsDeep,
@@ -319,6 +320,10 @@ export class AgUiThreadController {
   });
   private state: AgUiThreadState = createAgUiThreadState();
   private abortController: AbortController | null = null;
+  private agentStateSubscription:
+    | ReturnType<AbstractAgent["subscribe"]>
+    | undefined;
+  private agentStateSubscriptionGeneration = 0;
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
@@ -332,6 +337,13 @@ export class AgUiThreadController {
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
+    if (this.agent.state !== undefined) {
+      this.dispatch({
+        type: "stateSnapshot",
+        snapshot: this.agent.state as ReadonlyJSONValue,
+      });
+    }
+    this.subscribeToAgentState();
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.joinStrategy = options.joinStrategy;
@@ -361,13 +373,70 @@ export class AgUiThreadController {
     this.state = reduceAgUiThreadState(this.state, action);
   }
 
+  private subscribeToAgentState(): void {
+    const agent = this.agent;
+    if (typeof agent.subscribe !== "function") return;
+    const generation = ++this.agentStateSubscriptionGeneration;
+    this.agentStateSubscription = agent.subscribe({
+      onStateChanged: ({ state }) => {
+        if (
+          this.agent !== agent ||
+          this.agentStateSubscriptionGeneration !== generation
+        ) {
+          return;
+        }
+        const snapshot = state as ReadonlyJSONValue;
+        if (
+          this.state.stateSnapshot !== undefined &&
+          isJSONValueEqual(this.state.stateSnapshot, snapshot)
+        ) {
+          return;
+        }
+        this.dispatch({ type: "stateSnapshot", snapshot });
+        this.publishUpdate();
+      },
+    });
+  }
+
+  private unsubscribeFromAgentState(): void {
+    this.agentStateSubscriptionGeneration++;
+    this.agentStateSubscription?.unsubscribe();
+    this.agentStateSubscription = undefined;
+  }
+
+  private setAgentState(snapshot: ReadonlyJSONValue): void {
+    if (typeof this.agent.setState === "function") {
+      this.agent.setState(snapshot);
+    } else {
+      try {
+        this.agent.state = snapshot;
+      } catch {
+        return;
+      }
+    }
+  }
+
+  private clearAgentState(): void {
+    try {
+      this.agent.state = {};
+    } catch {
+      return;
+    }
+  }
+
   private publishUpdate(): void {
     this.snapshot = undefined;
     for (const listener of this.listeners) listener();
   }
 
   updateOptions(options: CoreOptions) {
+    const agentChanged = this.agent !== options.agent;
+    if (agentChanged) this.unsubscribeFromAgentState();
     this.agent = options.agent;
+    if (agentChanged) {
+      this.setAgentState(this.state.stateSnapshot ?? {});
+      this.subscribeToAgentState();
+    }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.joinStrategy = options.joinStrategy;
@@ -391,10 +460,12 @@ export class AgUiThreadController {
 
   attachRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
+    if (!this.agentStateSubscription) this.subscribeToAgentState();
   }
 
   detachRuntime() {
     this.runtime = undefined;
+    this.unsubscribeFromAgentState();
     void this.cancel().catch((error) => {
       this.logger.error("[agui] failed to cancel run during teardown", error);
     });
@@ -1460,6 +1531,7 @@ export class AgUiThreadController {
       snapshot: state,
     });
     this.publishUpdate();
+    this.setAgentState(state);
   }
 
   setState(
@@ -1474,9 +1546,11 @@ export class AgUiThreadController {
       snapshot,
     });
     this.publishUpdate();
+    this.setAgentState(snapshot);
   }
 
   resetState(): void {
+    this.clearAgentState();
     this.dispatch({ type: "resetState" });
     this.publishUpdate();
   }
@@ -1489,6 +1563,9 @@ export class AgUiThreadController {
     const activeRunAgent = this.activeRunAgent;
 
     this.dispatch({ type: "resetThread" });
+    this.unsubscribeFromAgentState();
+    this.clearAgentState();
+    this.subscribeToAgentState();
 
     if (controller) {
       this.abortController = null;
