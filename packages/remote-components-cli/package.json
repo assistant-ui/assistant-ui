@@ -1,0 +1,66 @@
+{
+  "name": "@assistant-ui/remote-components-cli",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Zero-config CLI for remote components: builds one React component into one self-contained HTML file",
+  "keywords": [
+    "remote-components",
+    "iframe",
+    "sandbox",
+    "cli",
+    "assistant-ui"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "remote-components": "./bin/remote-components.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "bin",
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@assistant-ui/remote-components-react": "workspace:^",
+    "@assistant-ui/remote-components-vite": "workspace:^",
+    "@vitejs/plugin-react": "^6.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.5"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.6.5",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "homepage": "https://www.assistant-ui.com/remote-components",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/remote-components-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

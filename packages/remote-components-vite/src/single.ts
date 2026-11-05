@@ -36,7 +36,12 @@ const ENTRY = "virtual:rc-single-entry";
 export async function buildSingleFile(
   options: SingleFileOptions,
 ): Promise<string> {
-  const { build } = await import("vite");
+  const { build, version } = await import("vite");
+  // Vite 8 (Rolldown) renamed inlineDynamicImports and warns on the old name.
+  const oneChunk =
+    Number(version.split(".")[0]) >= 8
+      ? { codeSplitting: false }
+      : { inlineDynamicImports: true };
   const file = path.resolve(options.file);
   const name = options.name ?? path.basename(file).replace(/\.[jt]sx?$/, "");
   const result = await build({
@@ -75,7 +80,7 @@ export async function buildSingleFile(
       modulePreload: false,
       assetsInlineLimit: () => true,
       target: "es2022",
-      rollupOptions: { input: ENTRY, output: { inlineDynamicImports: true } },
+      rollupOptions: { input: ENTRY, output: oneChunk as Rollup.OutputOptions },
       ...options.vite?.build,
     },
   });

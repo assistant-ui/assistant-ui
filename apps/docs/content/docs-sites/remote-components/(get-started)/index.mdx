@@ -78,7 +78,13 @@ Click Going. The page calls `onReply`, which runs in your app.
 
 ## With React
 
-A React app is a page too. Add the runtime tag to its `index.html` and read props with `useProps()` from `@assistant-ui/remote-components-react`. The [Vite plugin](/remote-components/docs/vite) can also turn each component file into its own page.
+The fastest path is the [CLI](/remote-components/docs/cli). It builds one component file into one HTML file, with no config:
+
+```sh title="terminal"
+npx remote-components build rating.tsx
+```
+
+A React app is a page too. Add the runtime tag to its `index.html` and read props with `useProps()` from `@assistant-ui/remote-components-react`. In an existing Vite app, the [Vite plugin](/remote-components/docs/vite) turns each component file into its own page.
 
 ```tsx title="remotes/counter.tsx"
 import { useState } from "react";
@@ -122,7 +128,8 @@ You can skip the server. `<RemoteComponent html={…} />` shows a string of HTML
 | `@assistant-ui/remote-components-host-react` | `<RemoteComponent>`, the provider and overlays. |
 | `@assistant-ui/remote-components-serve` | Normalizes any HTML into a remote. Node middleware at `/node`. |
 | `@assistant-ui/remote-components-react` | Optional hooks for React pages. |
+| `@assistant-ui/remote-components-cli` | `remote-components build`: one component to one HTML file. |
 | `@assistant-ui/remote-components-vite` | Optional Vite plugin. |
 | `@assistant-ui/remote-components-protocol` | Messages, value codec, channel and validation. Internal. |
 
-Next: [Pages](/remote-components/docs/pages) covers what a page can do. [Layout](/remote-components/docs/layout) covers how it fits.
+Next: [CLI](/remote-components/docs/cli) builds a React component. [Pages](/remote-components/docs/pages) covers what a page can do. [Layout](/remote-components/docs/layout) covers how it fits.

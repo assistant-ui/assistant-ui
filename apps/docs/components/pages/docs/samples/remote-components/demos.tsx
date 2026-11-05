@@ -169,7 +169,23 @@ export function CounterDemo() {
   );
 }
 
-export function StarsDemo() {
+/** Fetches public/rc/rating.html (scripts/build-remote-components.mjs); the plain stars page if it is missing. */
+function useBuiltRating(): string | undefined {
+  const [html, setHtml] = useState<string>();
+  useEffect(() => {
+    let live = true;
+    fetch("/rc/rating.html")
+      .then((r) => (r.ok ? r.text() : PAGES.stars))
+      .catch(() => PAGES.stars)
+      .then((text) => live && setHtml(text));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return html;
+}
+
+function Stars({ html }: { html: string | undefined }) {
   const [value, setValue] = useState(3);
   return (
     <Stage
@@ -178,16 +194,29 @@ export function StarsDemo() {
         <ControlButton onClick={() => setValue(0)}>Clear</ControlButton>
       }
     >
-      <RemoteComponent
-        html={PAGES.stars}
-        frameTitle="Rating"
-        fallback={<Placeholder className="h-8 w-44" />}
-        style={{ width: "fit-content" }}
-        value={value}
-        onRate={async (n: number) => setValue(n)}
-      />
+      {html === undefined ? (
+        <Placeholder className="h-8 w-44" />
+      ) : (
+        <RemoteComponent
+          html={html}
+          frameTitle="Rating"
+          fallback={<Placeholder className="h-8 w-44" />}
+          style={{ width: "fit-content" }}
+          value={value}
+          onRate={async (n: number) => setValue(n)}
+        />
+      )}
     </Stage>
   );
+}
+
+export function StarsDemo() {
+  return <Stars html={PAGES.stars} />;
+}
+
+/** The landing page's step-1 component (rating.tsx), as built by `remote-components build`. */
+export function RatingDemo() {
+  return <Stars html={useBuiltRating()} />;
 }
 
 const hostBox = "border-foreground/10 rounded-document border";

@@ -445,6 +445,9 @@ importers:
       '@assistant-ui/react-syntax-highlighter':
         specifier: workspace:*
         version: link:../../packages/react-syntax-highlighter
+      '@assistant-ui/remote-components-cli':
+        specifier: workspace:*
+        version: link:../../packages/remote-components-cli
       '@assistant-ui/remote-components-host-react':
         specifier: workspace:*
         version: link:../../packages/remote-components-host-react
@@ -6134,6 +6137,37 @@ importers:
       react-syntax-highlighter:
         specifier: ^16.1.2
         version: 16.1.2(react@19.3.1)
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/remote-components-cli:
+    dependencies:
+      '@assistant-ui/remote-components-react':
+        specifier: workspace:^
+        version: link:../remote-components-react
+      '@assistant-ui/remote-components-vite':
+        specifier: workspace:^
+        version: link:../remote-components-vite
+      '@vitejs/plugin-react':
+        specifier: ^6.1.2
+        version: 6.1.2(@rolldown/plugin-babel@0.2.4(@babel/core@8.0.9)(@babel/runtime@8.0.8)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.3.1
+        version: 19.3.1(react@19.3.1)
+      vite:
+        specifier: ^8.3.5
+        version: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))

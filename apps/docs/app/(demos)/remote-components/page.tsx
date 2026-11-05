@@ -5,7 +5,7 @@ import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import {
   BookingDemo,
-  StarsDemo,
+  RatingDemo,
 } from "@/components/pages/docs/samples/remote-components/demos";
 import { Code } from "@/components/pages/docs/samples/remote-components/remote-source";
 
@@ -29,30 +29,15 @@ export default function Rating({
   );
 }`;
 
-const STEP_CONFIG = `import react from "@vitejs/plugin-react";
-import {
-  remoteComponents,
-} from "@assistant-ui/remote-components-vite";
-
-export default {
-  plugins: [
-    react(),
-    remoteComponents({
-      components: "src/remotes",
-      singleFile: { plugins: [react()] },
-    }),
-  ],
-};`;
-
-const STEP_OUTPUT = `$ vite build
-dist/rating/single.html`;
+const STEP_BUILD = `$ npx remote-components build rating.tsx
+dist/rating.html`;
 
 const STEP_HOST = `import { useState } from "react";
 import {
   RemoteComponent,
 } from "@assistant-ui/remote-components-host-react";
 import rating from
-  "widgets/dist/rating/single.html?raw";
+  "widgets/dist/rating.html?raw";
 
 export function Review() {
   const [stars, setStars] = useState(3);
@@ -69,17 +54,12 @@ const STEPS = [
   {
     title: "Export a component",
     body: "A React component, default export. Props come from the host.",
-    blocks: [
-      { file: "src/remotes/rating.tsx", code: STEP_COMPONENT, lang: "tsx" },
-    ],
+    blocks: [{ file: "rating.tsx", code: STEP_COMPONENT, lang: "tsx" }],
   },
   {
     title: "Build it to one file",
-    body: "The Vite plugin inlines React, your code, CSS and the runtime.",
-    blocks: [
-      { file: "vite.config.ts", code: STEP_CONFIG, lang: "ts" },
-      { file: "terminal", code: STEP_OUTPUT, lang: "txt" },
-    ],
+    body: "React, your code, CSS and the runtime in one HTML file. No config.",
+    blocks: [{ file: "terminal", code: STEP_BUILD, lang: "txt" }],
   },
   {
     title: "Import it in another app",
@@ -126,9 +106,9 @@ const FACTS = [
 
 const PATHS = [
   {
-    title: "Vite plugin",
-    body: "Component files in, HTML files out.",
-    href: "/remote-components/docs/vite",
+    title: "CLI",
+    body: "One component in, one HTML file out.",
+    href: "/remote-components/docs/cli",
   },
   {
     title: "Generated HTML",
@@ -151,8 +131,8 @@ export default function RemoteComponentsPage() {
       <header className="mx-auto max-w-2xl text-center">
         <h1 className={typePage}>Build a component. Render it anywhere.</h1>
         <p className={cn(typeDeck, "mx-auto mt-4 max-w-[54ch]")}>
-          Export a React component. The Vite plugin builds it to a single HTML
-          file. Import that file in another app and render it like any other
+          Export a React component. One command builds it to a single HTML file.
+          Import that file in another app and render it like any other
           component, sandboxed in its own frame.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
@@ -212,7 +192,7 @@ export default function RemoteComponentsPage() {
           <div className="text-muted-foreground text-center text-sm">
             Result
           </div>
-          <StarsDemo />
+          <RatingDemo />
           <figcaption className="text-muted-foreground text-center text-xs">
             fig. 01 · the rating runs in a sandboxed frame. Its value lives on
             this page.
