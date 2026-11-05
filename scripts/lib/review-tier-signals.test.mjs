@@ -1100,6 +1100,27 @@ test("a package's API change keeps its tier and moves to the package owner", () 
   assert.deepEqual(decision.ownedPackages, ["docs-theme"]);
 });
 
+test("a manifest change alone moves to the package owner", () => {
+  const result = computeTier(
+    manifestInput({}, { dependencies: { motion: "^12" } }, ownedManifest),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.deepEqual(result.areas, []);
+  assert.deepEqual(result.ownedPackages, ["docs-theme"]);
+});
+
+test("the private API surface harness stays T1", () => {
+  for (const path of [
+    "api-surface/package.json",
+    "api-surface/tsconfig.json",
+  ]) {
+    const result = computeTier(input({ files: [file(path)] }), policy);
+    assert.equal(result.tier, 1);
+    assert.deepEqual(result.areas, []);
+  }
+});
+
 test("a deprecation in an owned package moves to the package owner", () => {
   const result = computeTier(
     input({
