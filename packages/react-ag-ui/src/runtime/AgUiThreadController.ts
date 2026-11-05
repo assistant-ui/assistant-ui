@@ -230,6 +230,34 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+const textOf = (content: ThreadAssistantMessage["content"]) =>
+  content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("");
+
+/** Swaps `content`'s text parts, in order, for `source`'s. */
+const replaceTextParts = (
+  content: ThreadAssistantMessage["content"],
+  source: ThreadAssistantMessage["content"],
+): ThreadAssistantMessage["content"] => {
+  const texts = source.filter((part) => part.type === "text");
+  const result: ThreadAssistantMessage["content"][number][] = [];
+  let used = 0;
+  let lastText = -1;
+  for (const part of content) {
+    if (part.type !== "text") {
+      result.push(part);
+    } else if (used < texts.length) {
+      result.push(texts[used++]!);
+      lastText = result.length - 1;
+    }
+  }
+  if (lastText === -1) return [...texts, ...result];
+  return [
+    ...result.slice(0, lastText + 1),
+    ...texts.slice(used),
+    ...result.slice(lastText + 1),
+  ];
+};
+
 const settleNestedContent = (
   content: ThreadAssistantMessage["content"],
   status: MessageStatus,
@@ -2965,11 +2993,11 @@ export class AgUiThreadController {
   }
 
   /**
-   * Merges one tool call's nested transcripts message by message. Of two copies
-   * of a message, the one whose text extends the other's is the base, else the
-   * incoming one; the base keeps the other copy's results, reasoning and
-   * metadata. Importing a snapshot also keeps a prior status that is still
-   * running or ended in an error, and prior messages the snapshot lacks.
+   * Merges one tool call's nested transcripts message by message. The incoming
+   * copy is the base for tool calls and reasoning; resolved results and calls
+   * only the prior copy has carry over, and the prior text wins when it extends
+   * the incoming text. Importing a snapshot keeps a prior status that is still
+   * running or ended in an error, and a settled one the snapshot only lags.
    */
   private mergeNestedTranscripts(
     prior: readonly ThreadMessage[],
@@ -2977,32 +3005,45 @@ export class AgUiThreadController {
     importingSnapshot: boolean,
   ): readonly ThreadMessage[] {
     const priorById = new Map(prior.map((message) => [message.id, message]));
-    const textOf = (content: ThreadAssistantMessage["content"]) =>
-      content
-        .flatMap((part) => (part.type === "text" ? [part.text] : []))
-        .join("");
-    const callIds = (content: ThreadAssistantMessage["content"]) =>
-      new Set(
-        Array.from(iterateToolCallParts(content), (call) => call.toolCallId),
-      );
     const merged = next.map((message) => {
       const previous = priorById.get(message.id);
       if (previous?.role !== "assistant" || message.role !== "assistant")
         return message;
+      let content = this.mergeSnapshotAssistantContent(
+        previous.content,
+        this.preserveToolResults(previous.content, message.content),
+        message.content.some((part) => part.type === "reasoning"),
+        message.content.some(isActivityPart),
+        new Set(
+          Array.from(
+            iterateToolCallParts(previous.content),
+            (call) => call.toolCallId,
+          ),
+        ),
+        importingSnapshot,
+      );
       const priorText = textOf(previous.content);
       const incomingText = textOf(message.content);
-      const [other, base] =
+      if (
         priorText.length > incomingText.length &&
         priorText.startsWith(incomingText)
-          ? [message, previous]
-          : [previous, message];
-      const keptStatus =
-        importingSnapshot &&
-        (previous.status.type === "running" ||
-          previous.status.type === "incomplete");
+      ) {
+        content = replaceTextParts(content, previous.content);
+      }
+      const status = !importingSnapshot
+        ? message.status
+        : previous.status.type === "running" ||
+            previous.status.type === "incomplete" ||
+            (message.status.type === "requires-action" &&
+              !Array.from(iterateToolCallParts(content)).some(
+                (call) => !isResolvedToolCall(call),
+              ))
+          ? previous.status
+          : message.status;
       return {
         ...message,
-        status: keptStatus ? previous.status : message.status,
+        status,
+        content,
         metadata: {
           ...message.metadata,
           custom: mergeAgUiNamespace(
@@ -3010,19 +3051,8 @@ export class AgUiThreadController {
             message.metadata.custom,
           ),
         },
-        content: this.mergeSnapshotAssistantContent(
-          other.content,
-          base.content,
-          base.content.some((part) => part.type === "reasoning"),
-          base.content.some(isActivityPart),
-          importingSnapshot || base === previous
-            ? callIds(other.content)
-            : new Set(),
-          importingSnapshot,
-        ),
       };
     });
-    if (!importingSnapshot) return merged;
     const mergedById = new Map(merged.map((message) => [message.id, message]));
     return [
       ...prior.map((message) => mergedById.get(message.id) ?? message),

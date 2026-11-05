@@ -417,4 +417,152 @@ describe("AgUiThreadController subagent messages in snapshots", () => {
       { type: "text", text: "Working." },
     ]);
   });
+
+  describe("merging a nested transcript with a snapshot copy", () => {
+    const started: Event = {
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "run-1",
+      parentToolCallId: "spawn-1",
+      name: "researcher",
+    };
+    const innerCall = (toolCallId: string): Event[] => [
+      {
+        type: "TOOL_CALL_START",
+        toolCallId,
+        toolCallName: "lookup",
+        subagentRunId: "run-1",
+      },
+      { type: "TOOL_CALL_END", toolCallId, subagentRunId: "run-1" },
+    ];
+    const innerResult = (toolCallId: string): Event => ({
+      type: "TOOL_CALL_RESULT",
+      toolCallId,
+      messageId: `${toolCallId}-result`,
+      content: '"sunny"',
+      subagentRunId: "run-1",
+    });
+    const finish: Event[] = [
+      { type: "SUBAGENT_FINISHED", subagentRunId: "run-1" },
+      {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "spawn-1",
+        messageId: "t",
+        content: '"done"',
+      },
+    ];
+    const snapshotOf = (...records: Event[]): Event => ({
+      type: "MESSAGES_SNAPSHOT",
+      messages: [
+        { id: "u", role: "user", content: "u" },
+        {
+          id: "a",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("spawn-1")],
+        },
+        ...records,
+      ],
+    });
+    const record = (id: string, content: string, toolCalls?: string[]) => ({
+      id,
+      role: "assistant",
+      content,
+      subagentRunId: "run-1",
+      ...(toolCalls
+        ? { toolCalls: toolCalls.map((t) => call(t, "lookup")) }
+        : {}),
+    });
+    const resultRecord = (toolCallId: string) => ({
+      id: `${toolCallId}-result`,
+      role: "tool",
+      toolCallId,
+      content: '"sunny"',
+      subagentRunId: "run-1",
+    });
+    const innerOf = (core: AgUiThreadController) =>
+      contentOf(nestedUnder(core, "spawn-1")).find(
+        (part) => part.type === "tool-call" && part.toolCallId === "inner",
+      );
+
+    it("applies a snapshot's result while live text is ahead of it", async () => {
+      const core = await run([
+        ...spawn("spawn-1"),
+        started,
+        ...subagentText("run-1", "s1", "Looking."),
+        ...innerCall("inner"),
+        ...subagentText("run-1", "s2", "Done."),
+        ...finish,
+        snapshotOf(record("s1", "Looking.", ["inner"]), resultRecord("inner")),
+      ]);
+
+      expect(innerOf(core)).toMatchObject({ result: "sunny" });
+      expect(core.getPendingToolCalls()).toBeNull();
+    });
+
+    it("keeps streaming results and reasoning after a snapshot whose text is ahead", async () => {
+      const core = await run([
+        ...spawn("spawn-1"),
+        started,
+        ...subagentText("run-1", "s1", "Hello world."),
+        snapshotOf(record("s1", "Hello world.\n")),
+        ...innerCall("inner"),
+        innerResult("inner"),
+        { type: "REASONING_START", messageId: "r", subagentRunId: "run-1" },
+        {
+          type: "REASONING_MESSAGE_START",
+          messageId: "r",
+          role: "reasoning",
+          subagentRunId: "run-1",
+        },
+        {
+          type: "REASONING_MESSAGE_CONTENT",
+          messageId: "r",
+          delta: "Hmm.",
+          subagentRunId: "run-1",
+        },
+        {
+          type: "REASONING_MESSAGE_END",
+          messageId: "r",
+          subagentRunId: "run-1",
+        },
+        { type: "REASONING_END", messageId: "r", subagentRunId: "run-1" },
+        ...finish,
+      ]);
+
+      expect(innerOf(core)).toMatchObject({ result: "sunny" });
+      expect(contentOf(nestedUnder(core, "spawn-1"))).toEqual(
+        expect.arrayContaining([
+          { type: "text", text: "Hello world.\n" },
+          expect.objectContaining({ type: "reasoning", text: "Hmm." }),
+        ]),
+      );
+    });
+
+    it("keeps a call that only a snapshot carried once live text continues", async () => {
+      const core = await run([
+        ...spawn("spawn-1"),
+        started,
+        snapshotOf(record("s1", "", ["inner"]), resultRecord("inner")),
+        ...subagentText("run-1", "s2", "Done."),
+        ...finish,
+      ]);
+
+      expect(innerOf(core)).toMatchObject({ result: "sunny" });
+    });
+
+    it("settles a finished subagent that a lagging snapshot shows waiting", async () => {
+      const core = await run([
+        ...spawn("spawn-1"),
+        started,
+        ...innerCall("inner"),
+        innerResult("inner"),
+        ...finish,
+        snapshotOf(record("s1", "", ["inner"])),
+      ]);
+
+      const [nested] = nestedUnder(core, "spawn-1");
+      expect(nested?.status).toMatchObject({ type: "complete" });
+      expect(innerOf(core)).toMatchObject({ result: "sunny" });
+    });
+  });
 });
