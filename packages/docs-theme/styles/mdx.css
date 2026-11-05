@@ -1,0 +1,846 @@
+body {
+  --aui-docs-line: color-mix(
+    in oklab,
+    var(--color-fd-foreground) 10%,
+    transparent
+  );
+  --aui-docs-field: color-mix(
+    in oklab,
+    var(--color-fd-foreground) 2.5%,
+    transparent
+  );
+  --aui-docs-destructive: oklch(0.577 0.245 27.325);
+  --aui-docs-mono: var(
+    --fd-font-mono,
+    var(--font-mono, ui-monospace, monospace)
+  );
+}
+
+.dark body {
+  --aui-docs-field: color-mix(
+    in oklab,
+    var(--color-fd-foreground) 4%,
+    transparent
+  );
+  --aui-docs-destructive: oklch(0.704 0.191 22.216);
+}
+
+/* Code blocks */
+
+:is(#nd-page, :root) .aui-docs-codeblock {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 1.5rem 0;
+  border: 1px solid var(--aui-docs-line);
+  border-radius: 0.375rem;
+  background: var(--aui-docs-field);
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-header {
+  display: flex;
+  height: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.5rem 0 0.875rem;
+  border-bottom: 1px solid var(--aui-docs-line);
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-header[data-tabs] {
+  padding-inline-start: 0.375rem;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--aui-docs-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-tabs {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-tab {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0 0.5rem;
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--aui-docs-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  transition: color 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-tab::after {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0;
+  left: 0.5rem;
+  height: 0.125rem;
+  background: var(--color-fd-foreground);
+  content: "";
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-tab:hover,
+:is(#nd-page, :root) .aui-docs-codeblock-tab[aria-selected="true"] {
+  color: var(--color-fd-foreground);
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-tab[aria-selected="true"]::after {
+  opacity: 1;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-copy {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.375rem;
+  color: var(--color-fd-muted-foreground);
+  transition: color 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-copy:hover {
+  color: var(--color-fd-foreground);
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-copy svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-copy[data-floating] {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+  background: color-mix(in oklab, var(--color-fd-background) 80%, transparent);
+  opacity: 0;
+  backdrop-filter: blur(8px);
+  transition:
+    color 150ms,
+    opacity 150ms;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-codeblock:hover
+  > .aui-docs-codeblock-copy[data-floating],
+:is(#nd-page, :root) .aui-docs-codeblock-copy[data-floating]:focus-visible {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  :is(#nd-page, :root) .aui-docs-codeblock-copy[data-floating] {
+    opacity: 1;
+  }
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport {
+  position: relative;
+  min-width: 0;
+  max-height: 21.875rem;
+  overflow-x: auto;
+  padding: 0.875rem 0;
+  font-family: var(--aui-docs-mono);
+  font-size: 12.5px;
+  font-variant-ligatures: none;
+  line-height: 1.625;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport:focus-visible {
+  outline: 1px solid
+    color-mix(in oklab, var(--color-fd-foreground) 20%, transparent);
+  outline-offset: -1px;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport pre {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  font: inherit;
+  font-variant-ligatures: none;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport code {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  font: inherit;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport .line {
+  display: inline-block;
+  width: 100%;
+  min-height: 1lh;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport code span {
+  color: var(--shiki-light, inherit);
+}
+
+:is(.dark #nd-page, :root.dark) .aui-docs-codeblock-viewport code span {
+  color: var(--shiki-dark) !important;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport .highlighted {
+  background: color-mix(in oklab, oklch(62.3% 0.214 259.815) 8%, transparent);
+  box-shadow: inset 2px 0 0 #3b82f6;
+}
+
+:is(.dark #nd-page, :root.dark) .aui-docs-codeblock-viewport .highlighted {
+  background: color-mix(in oklab, oklch(62.3% 0.214 259.815) 15%, transparent);
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport pre[data-line-numbers] {
+  counter-reset: line;
+}
+
+:is(#nd-page, :root) .aui-docs-codeblock-viewport pre[data-line-numbers] .line {
+  position: relative;
+  padding-left: 2rem;
+  counter-increment: line;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-codeblock-viewport
+  pre[data-line-numbers]
+  .line::before {
+  position: absolute;
+  left: 0;
+  width: 1.25rem;
+  color: color-mix(in oklab, var(--color-fd-muted-foreground) 40%, transparent);
+  content: counter(line);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Callouts */
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-inline-start: 2px solid oklch(62.3% 0.214 259.815);
+  background: var(--aui-docs-field);
+  font-size: 0.875rem;
+  line-height: calc(1.25 / 0.875);
+  --aui-docs-callout-label: oklch(54.6% 0.245 262.881);
+}
+
+:is(.dark #nd-page, :root.dark) .aui-docs-callout.not-prose {
+  --aui-docs-callout-label: oklch(70.7% 0.165 254.624);
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose[data-type="warning"] {
+  border-color: oklch(76.9% 0.188 70.08);
+  --aui-docs-callout-label: oklch(66.6% 0.179 58.318);
+}
+
+:is(.dark #nd-page, :root.dark)
+  .aui-docs-callout.not-prose[data-type="warning"] {
+  --aui-docs-callout-label: oklch(82.8% 0.189 84.429);
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose[data-type="error"] {
+  border-color: var(--aui-docs-destructive);
+  --aui-docs-callout-label: var(--aui-docs-destructive);
+}
+
+:is(.dark #nd-page, :root.dark) .aui-docs-callout.not-prose[data-type="error"] {
+  --aui-docs-callout-label: var(--aui-docs-destructive);
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose[data-type="success"] {
+  border-color: oklch(62.7% 0.194 149.214);
+  --aui-docs-callout-label: oklch(52.7% 0.154 150.069);
+}
+
+:is(.dark #nd-page, :root.dark)
+  .aui-docs-callout.not-prose[data-type="success"] {
+  border-color: oklch(72.3% 0.219 149.579);
+  --aui-docs-callout-label: oklch(79.2% 0.209 151.711);
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose[data-type="idea"] {
+  border-color: oklch(62.7% 0.265 303.9);
+  --aui-docs-callout-label: oklch(55.8% 0.288 302.321);
+}
+
+:is(.dark #nd-page, :root.dark) .aui-docs-callout.not-prose[data-type="idea"] {
+  --aui-docs-callout-label: oklch(71.4% 0.203 305.504);
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-label {
+  margin: 0 !important;
+  color: var(--aui-docs-callout-label);
+  font-family: var(--aui-docs-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body {
+  margin-top: 0.375rem;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-callout.not-prose
+  .aui-docs-callout-body
+  :is(p, li, blockquote) {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body p {
+  margin: 0 !important;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body p + p {
+  margin-top: 0.5rem !important;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body strong {
+  font-weight: 600;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body a {
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-callout.not-prose
+  .aui-docs-callout-body
+  blockquote {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 2px solid
+    color-mix(in oklab, var(--color-fd-foreground) 20%, transparent);
+  font-style: italic;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body kbd {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid
+    color-mix(in oklab, var(--color-fd-foreground) 15%, transparent);
+  background: color-mix(in oklab, var(--color-fd-foreground) 4%, transparent);
+  font-family: var(--aui-docs-mono);
+  font-size: 0.8125rem;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-callout.not-prose
+  .aui-docs-callout-body
+  :is(ul, ol) {
+  margin: 0.5rem 0;
+  padding-inline-start: 1rem;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body ul {
+  list-style: disc;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body ol {
+  list-style: decimal;
+}
+
+:is(#nd-page, :root) .aui-docs-callout.not-prose .aui-docs-callout-body li {
+  padding: 0.125rem 0;
+}
+
+/* Tabs */
+
+:is(#nd-page, :root) .aui-docs-tabs {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  margin: 1rem 0;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--aui-docs-line);
+  scrollbar-width: none;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-list::-webkit-scrollbar {
+  display: none;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-label {
+  margin: auto auto auto 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-trigger {
+  position: relative;
+  margin-bottom: -1px;
+  padding-bottom: 0.5rem;
+  color: var(--color-fd-muted-foreground);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: calc(1.25 / 0.875);
+  white-space: nowrap;
+  transition: color 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-trigger::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 0.125rem;
+  background: var(--color-fd-foreground);
+  content: "";
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-trigger:hover,
+:is(#nd-page, :root) .aui-docs-tabs-trigger[data-state="active"] {
+  color: var(--color-fd-foreground);
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-trigger[data-state="active"]::after {
+  opacity: 1;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-panel {
+  min-width: 0;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  line-height: calc(1.25 / 0.875);
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-panel[hidden] {
+  display: none;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-panel > :first-child {
+  margin-top: 0 !important;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-panel > :last-child {
+  margin-bottom: 0 !important;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-panel a {
+  color: var(--color-fd-foreground);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+:is(#nd-page, :root) .aui-docs-tabs-panel a:hover {
+  color: color-mix(in oklab, var(--color-fd-foreground) 80%, transparent);
+}
+
+:is(#nd-page, :root)
+  .aui-docs-tabs-panel
+  :is(.not-prose, :is(#nd-page, :root) .not-prose *)
+  a {
+  color: inherit;
+  font-weight: inherit;
+}
+
+/* Steps */
+
+:is(#nd-page, :root) .aui-docs-steps {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  counter-reset: step;
+}
+
+:is(#nd-page, :root) .aui-docs-step {
+  position: relative;
+  display: flex;
+  gap: 1rem;
+  counter-increment: step;
+}
+
+:is(#nd-page, :root) .aui-docs-step-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+:is(#nd-page, :root) .aui-docs-step-number {
+  display: flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-fd-muted);
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: calc(1.25 / 0.875);
+}
+
+:is(#nd-page, :root) .aui-docs-step-number::after {
+  content: counter(step);
+}
+
+:is(#nd-page, :root) .aui-docs-step-line {
+  width: 1px;
+  flex: 1;
+  background: var(--color-fd-border);
+}
+
+:is(#nd-page, :root) .aui-docs-step:last-child .aui-docs-step-line {
+  display: none;
+}
+
+:is(#nd-page, :root) .aui-docs-step-content {
+  min-width: 0;
+  flex: 1;
+  padding: 0.125rem 0 1.5rem;
+}
+
+:is(#nd-page, :root) .aui-docs-step:last-child .aui-docs-step-content {
+  padding-bottom: 0;
+}
+
+:is(#nd-page, :root) .aui-docs-step-content > h3 {
+  margin-top: 0 !important;
+  margin-bottom: 0.75rem !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+}
+
+/* Cards */
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 40rem) {
+  :is(#nd-page, :root) .aui-docs-cards.not-prose {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose .aui-docs-card {
+  font-weight: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in oklab, var(--color-fd-border) 60%, transparent);
+  border-radius: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose a.aui-docs-card {
+  transition:
+    border-color 150ms,
+    background-color 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose a.aui-docs-card:hover {
+  border-color: color-mix(
+    in oklab,
+    var(--color-fd-foreground) 15%,
+    transparent
+  );
+  background: color-mix(in oklab, var(--color-fd-muted) 50%, transparent);
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose .aui-docs-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: calc(1.25 / 0.875);
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose .aui-docs-card-title-text {
+  flex: 1;
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose .aui-docs-card-arrow {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--color-fd-muted-foreground);
+  transition: transform 150ms;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-cards.not-prose
+  a.aui-docs-card:hover
+  .aui-docs-card-arrow {
+  transform: translateX(0.125rem);
+}
+
+:is(#nd-page, :root)
+  .aui-docs-cards.not-prose
+  a.aui-docs-card:hover
+  .aui-docs-card-arrow[data-external] {
+  transform: translate(0.125rem, -0.125rem);
+}
+
+:is(#nd-page, :root) .aui-docs-cards.not-prose .aui-docs-card-description {
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.875rem;
+  line-height: calc(1.25 / 0.875);
+}
+
+/* Headings */
+
+:is(#nd-page, :root) .aui-docs-heading {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+  scroll-margin-top: 7rem;
+}
+
+:is(#nd-page, :root) .aui-docs-heading > a[data-card] {
+  color: inherit;
+  text-decoration: none;
+}
+
+:is(#nd-page, :root) .aui-docs-heading-anchor {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: var(--color-fd-muted-foreground);
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+:is(#nd-page, :root) .aui-docs-heading-anchor svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+:is(#nd-page, :root) .aui-docs-heading-anchor:hover {
+  background: var(--color-fd-accent);
+  color: var(--color-fd-accent-foreground);
+}
+
+:is(#nd-page, :root) .aui-docs-heading:hover > .aui-docs-heading-anchor,
+:is(#nd-page, :root) .aui-docs-heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+/* Tables */
+
+:is(#nd-page, :root) .aui-docs-table.not-prose {
+  position: relative;
+  width: 100%;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose table {
+  width: 100%;
+  margin: 0;
+  border: 0 !important;
+  border-collapse: collapse;
+  border-top: 1px solid var(--aui-docs-line) !important;
+  background: transparent !important;
+  caption-side: bottom;
+  font-size: 0.875rem;
+  line-height: calc(1.25 / 0.875);
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose tr {
+  border-bottom: 1px solid var(--aui-docs-line);
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose thead {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose :is(th, td) {
+  border: 0;
+  background: transparent !important;
+  color: inherit;
+  font-size: inherit;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose th {
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  color: var(--color-fd-muted-foreground) !important;
+  font-family: var(--aui-docs-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  text-align: start;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose td {
+  padding: 0.625rem 0.75rem;
+  line-height: 1.625;
+  vertical-align: top;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose :is(th, td):first-child {
+  padding-inline-start: 0;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose a:not([data-card]) {
+  font-weight: inherit;
+  text-decoration: none;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose tfoot {
+  color: var(--color-fd-foreground);
+  font-weight: 500;
+}
+
+:is(#nd-page, :root) .aui-docs-table.not-prose caption {
+  margin-top: 0.75rem;
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--aui-docs-mono);
+  font-size: 11px;
+  letter-spacing: 0.025em;
+  text-align: start;
+}
+
+/* Files */
+
+:is(#nd-page, :root) .aui-docs-files.not-prose {
+  padding: 0.5rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.5rem;
+  background: var(--color-fd-card);
+}
+
+:is(#nd-page, :root) .aui-docs-files.not-prose .aui-docs-files-item {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: calc(1.25 / 0.875);
+}
+
+:is(#nd-page, :root) .aui-docs-files.not-prose .aui-docs-files-item:hover {
+  background: var(--color-fd-accent);
+  color: var(--color-fd-accent-foreground);
+}
+
+:is(#nd-page, :root) .aui-docs-files.not-prose .aui-docs-files-item svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+:is(#nd-page, :root) .aui-docs-files.not-prose .aui-docs-files-chevron {
+  margin-inline-start: auto;
+  color: var(--color-fd-muted-foreground);
+  transition: transform 150ms;
+}
+
+:is(#nd-page, :root)
+  .aui-docs-files.not-prose
+  [aria-expanded="true"]
+  > .aui-docs-files-chevron {
+  transform: rotate(90deg);
+}
+
+:is(#nd-page, :root) .aui-docs-files.not-prose .aui-docs-files-children {
+  display: flex;
+  flex-direction: column;
+  margin-inline-start: 0.5rem;
+  padding-inline-start: 0.5rem;
+  border-inline-start: 1px solid var(--color-fd-border);
+}
+
+/* Inline */
+
+:is(#nd-page, :root) .aui-docs-kbd {
+  display: inline-flex;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.375rem;
+  border-radius: 0.375rem;
+  background: var(--color-fd-muted);
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--aui-docs-mono);
+  font-size: 0.75rem;
+  line-height: calc(1 / 0.75);
+}
+
+:is(#nd-page, :root) .aui-docs-code {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.5rem;
+  background: var(--color-fd-muted);
+  font-family: var(--aui-docs-mono);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+:is(#nd-page, :root) .aui-docs-theme-image {
+  border-radius: 0.5rem;
+}
+
+:is(#nd-page, :root) .aui-docs-theme-image[data-theme="dark"],
+:is(.dark #nd-page, :root.dark) .aui-docs-theme-image[data-theme="light"] {
+  display: none;
+}
+
+:is(.dark #nd-page, :root.dark) .aui-docs-theme-image[data-theme="dark"] {
+  display: block;
+}

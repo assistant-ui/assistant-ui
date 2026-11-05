@@ -16,6 +16,10 @@
       "types": "./dist/next.d.ts",
       "default": "./dist/next.js"
     },
+    "./mdx": {
+      "types": "./dist/mdx/index.d.ts",
+      "default": "./dist/mdx/index.js"
+    },
     "./provider": {
       "types": "./dist/provider.d.ts",
       "default": "./dist/provider.js"

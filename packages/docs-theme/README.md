@@ -72,6 +72,17 @@ change any of them, for example
 `pageActions: { connectMcp: { endpoint: "/api/docs/mcp" } }`.
 `assistantUiDefaults` exports the same defaults for spreading into a config.
 
+The theme also supplies the assistant-ui MDX components on React frameworks
+(Next.js, TanStack Start, Farm): numbered code blocks with a title bar and copy
+button, `CodeGroup` tabs, `Callout` (Markdown blockquotes render as one),
+`Tabs`/`Tab`, `Steps`/`Step`, `Cards`/`Card`, `Files`/`File`/`Folder`, linkable
+headings, tables, `Kbd`, `Code` and `ThemeImage`. Highlighting uses the
+`catppuccin-latte` and `catppuccin-mocha` Shiki themes. Pass `components` to
+replace any of them; the rest stay. `@assistant-ui/docs-theme/mdx` exports each
+component and the `assistantUiMdxComponents` map. On Farm, pass the Shiki themes
+to `withDocs` as `codeBlockThemes`, since its MDX compiler does not read them
+from the theme.
+
 Render the docs with your framework's own Farming Labs layout, as with any
 built-in theme, and import the stylesheet once, after Tailwind:
 

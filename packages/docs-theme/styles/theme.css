@@ -1,4 +1,5 @@
 @import "@farming-labs/theme/shadcn/css";
+@import "./mdx.css";
 
 .aui-docs-brand {
   display: inline-flex;
@@ -61,9 +62,9 @@ body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
   --color-fd-border: oklch(0.922 0.005 var(--tint));
   --color-fd-ring: oklch(0.708 0.006 var(--tint));
   --fd-font-sans:
-    var(--font-public-sans, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+    var(--font-public-sans, "Public Sans"), ui-sans-serif, system-ui, sans-serif;
   --fd-font-mono:
-    var(--font-jetbrains-mono, ui-monospace), ui-monospace, monospace;
+    var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, monospace;
   --fd-body-size: 0.875rem;
   --fd-body-line-height: 1.7;
   --fd-nav-height: 48px;
@@ -338,8 +339,30 @@ html.dark body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
 
 :is(.aui-docs, [data-fd-theme="assistant-ui"]) .fd-docs-content,
 :is(.aui-docs, [data-fd-theme="assistant-ui"]) #nd-page .prose {
+  color: color-mix(in oklab, var(--color-fd-foreground) 90%, transparent);
   font-size: 0.875rem;
   line-height: 1.7;
+}
+
+:is(.aui-docs, [data-fd-theme="assistant-ui"])
+  #nd-page
+  .prose
+  :is(p, li, td, blockquote) {
+  color: inherit;
+}
+
+:is(.aui-docs, [data-fd-theme="assistant-ui"])
+  #nd-page
+  .prose
+  :is(ul, ol):not(:where(.not-prose, .not-prose *)) {
+  margin: 1rem 0 !important;
+}
+
+:is(.aui-docs, [data-fd-theme="assistant-ui"])
+  #nd-page
+  .prose
+  li:not(:where(.not-prose, .not-prose *)) {
+  margin: 0.25rem 0 !important;
 }
 
 :is(.aui-docs, [data-fd-theme="assistant-ui"])
@@ -353,11 +376,11 @@ html.dark body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
   #nd-page
   .prose
   :where(p):not(:where(.not-prose, .not-prose *)) {
-  margin-block: 1.25rem;
+  margin-block: 1.25rem !important;
 }
 
 :is(.aui-docs, [data-fd-theme="assistant-ui"]) #nd-page h2 {
-  margin: 2.5rem 0 1rem;
+  margin: 2.5rem 0 1rem !important;
   font-size: 1.25rem !important;
   font-weight: 500 !important;
   line-height: 1.4 !important;
@@ -389,22 +412,43 @@ html.dark body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
   #nd-page
   .prose
   :where(h2 + p, h3 + p, h4 + p):not(:where(.not-prose, .not-prose *)) {
-  margin-top: 0;
+  margin-top: 0 !important;
 }
 
 :is(.aui-docs, [data-fd-theme="assistant-ui"])
   #nd-page
   :where(code):not(:where(pre code, .not-prose, .not-prose *)) {
-  padding: 0.15rem 0.4rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: var(--color-fd-muted);
-  font-family: var(--fd-font-mono);
-  font-size: 0.8125rem;
-  font-weight: 500;
+  padding: 0.15rem 0.4rem !important;
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  background: var(--color-fd-muted) !important;
+  color: var(--color-fd-foreground);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
 }
 
-:is(.aui-docs, [data-fd-theme="assistant-ui"]) #nd-page figure:has(pre) {
+:is(.aui-docs, [data-fd-theme="assistant-ui"])
+  #nd-page
+  .not-prose
+  :where(code):not(:where(pre code)) {
+  padding: 0.0625rem 0.3rem !important;
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  background: var(--color-fd-muted) !important;
+  color: inherit;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+:is(.aui-docs, [data-fd-theme="assistant-ui"])
+  #nd-page
+  figure:has(pre):not(.aui-docs-codeblock) {
   border: 0 !important;
   border-radius: 0.75rem !important;
   background: var(--fd-shadcn-code) !important;
