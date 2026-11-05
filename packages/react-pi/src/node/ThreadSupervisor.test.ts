@@ -856,45 +856,62 @@ describe("PiThreadSupervisor", () => {
     ]);
   });
 
-  it("lists a live thread's own runtime models when given its thread id", async () => {
-    const model: ReturnType<ModelRuntimeStub["getModels"]>[number] = {
-      provider: "extension",
+  it("lists each live thread's own runtime models by thread id", async () => {
+    const modelNamed = (
+      provider: string,
+    ): ReturnType<ModelRuntimeStub["getModels"]>[number] => ({
+      provider,
       id: "proxy",
-      name: "Extension proxy",
+      name: `${provider} proxy`,
       api: "openai-completions",
       baseUrl: "https://proxy.example",
-      reasoning: true,
+      reasoning: false,
       input: ["text"],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: 128_000,
       maxTokens: 8_192,
-    };
-    const modelRuntime = {
+    });
+    const runtimeListing = (provider: string) => ({
       refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
-      getAvailableSnapshot: vi.fn(() => [model]),
-      getModels: vi.fn(() => [model]),
-    };
-    const session = Object.assign(
-      createLiveSession(async () => {}),
-      { modelRuntime },
-    );
+      getAvailableSnapshot: vi.fn(() => [modelNamed(provider)]),
+      getModels: vi.fn(() => [modelNamed(provider)]),
+      getModel: vi.fn(),
+    });
+    const liveSession = (sessionId: string) =>
+      Object.assign(
+        createLiveSession(async () => {}),
+        {
+          sessionId,
+          sessionFile: `/sessions/${sessionId}.jsonl`,
+          modelRuntime: runtimeListing(`${sessionId}-extension`),
+        },
+      );
+    const catalog = (provider: string) => [
+      {
+        provider,
+        modelId: "proxy",
+        name: `${provider} proxy`,
+        supportsThinking: false,
+      },
+    ];
     sdk.create.mockReturnValue({});
-    sdk.createAgentSession.mockResolvedValue({ session });
+    sdk.createAgentSession
+      .mockResolvedValueOnce({ session: liveSession("t1") })
+      .mockResolvedValueOnce({ session: liveSession("t2") });
+    sdk.modelRuntimeCreate.mockResolvedValueOnce(runtimeListing("process"));
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.createThread();
     await supervisor.createThread();
 
     await expect(
       supervisor.getAvailableModels({ threadId: "t1" }),
-    ).resolves.toEqual([
-      {
-        provider: "extension",
-        modelId: "proxy",
-        name: "Extension proxy",
-        supportsThinking: true,
-      },
-    ]);
-    expect(modelRuntime.refresh).toHaveBeenCalledOnce();
-    expect(sdk.modelRuntimeCreate).not.toHaveBeenCalled();
+    ).resolves.toEqual(catalog("t1-extension"));
+    await expect(
+      supervisor.getAvailableModels({ threadId: "t2" }),
+    ).resolves.toEqual(catalog("t2-extension"));
+    await expect(
+      supervisor.getAvailableModels({ threadId: "unknown" }),
+    ).resolves.toEqual(catalog("process"));
   });
 
   it("lists the process-wide catalog for a thread that is not live", async () => {
