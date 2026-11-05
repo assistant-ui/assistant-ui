@@ -3276,7 +3276,8 @@ export class AgUiThreadController {
 
     if (!updated) return;
     this.publishUpdate();
-    this.maybeCompleteAfterToolResults(messageId);
+    if (this.maybeCompleteAfterToolResults(messageId)) return;
+    this.persistSettledAssistant(messageId);
   }
 
   private importMessagesSnapshot(
@@ -3528,7 +3529,9 @@ export class AgUiThreadController {
     const update = history.update;
     const shouldUpdate =
       update !== undefined &&
-      (wasPersisted || this.snapshotHistoryIds.has(messageId));
+      (wasPersisted ||
+        this.snapshotHistoryIds.has(messageId) ||
+        this.historyWrites.pending(messageId) !== undefined);
 
     if (shouldUpdate) {
       const write = this.historyWrites.chain(messageId, () =>

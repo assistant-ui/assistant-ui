@@ -31,19 +31,27 @@ const userMessage = {
   content: [{ type: "text", text: "order item 7" }],
 } as unknown as AppendMessage;
 
-function storedHistory(): ThreadHistoryAdapter {
+function storedHistory(heldAppendId?: string) {
   const rows = new Map<string, ExportedMessageRepositoryItem>();
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const write = async (item: ExportedMessageRepositoryItem) => {
     rows.set(item.message.id, item);
   };
-  return {
+  const history: ThreadHistoryAdapter = {
     load: async () => ({
       headId: [...rows.keys()].at(-1) ?? null,
       messages: [...rows.values()],
     }),
-    append: write,
+    append: async (item) => {
+      if (item.message.id === heldAppendId) await held;
+      await write(item);
+    },
     update: write,
   };
+  return { history, release };
 }
 
 function createController(
@@ -111,16 +119,29 @@ function createController(
 
 describe("AgUiThreadController answered interrupt history", () => {
   it.each([
-    { status: "resolved" as const, resumeWithResult: true },
-    { status: "cancelled" as const, resumeWithResult: false },
+    { status: "resolved" as const, resumeWithResult: true, append: "settled" },
+    {
+      status: "cancelled" as const,
+      resumeWithResult: false,
+      append: "settled",
+    },
+    { status: "resolved" as const, resumeWithResult: true, append: "pending" },
+    {
+      status: "cancelled" as const,
+      resumeWithResult: false,
+      append: "pending",
+    },
   ])(
-    "keeps a $status interrupt answered after a reload",
-    async ({ status, resumeWithResult }) => {
-      const history = storedHistory();
+    "keeps a $status interrupt answered after a reload when the first append is $append",
+    async ({ status, resumeWithResult, append }) => {
+      const { history, release } = storedHistory(
+        append === "pending" ? "assistant-1" : undefined,
+      );
       const { core, runAgent } = createController(history, resumeWithResult);
       await core.append(userMessage);
       await flush();
       await core.submitInterruptResponses([{ interruptId: "int-1", status }]);
+      release();
       await flush();
 
       const reloaded = createController(history, false).core;
