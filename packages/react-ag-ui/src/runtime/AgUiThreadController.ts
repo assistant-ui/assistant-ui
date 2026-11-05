@@ -3336,17 +3336,25 @@ export class AgUiThreadController {
             existing?.role === "assistant" ? existing : undefined;
           const snapshot =
             reconcileSnapshot?.(convertedMessage, previous) ?? convertedMessage;
-          converted[index] = previous
-            ? {
-                ...snapshot,
-                content: this.mergeSnapshotAssistantContent(
-                  previous.content,
-                  snapshot.content,
-                  snapshotHasReasoning,
-                  snapshotHasActivity,
-                ),
-              }
-            : snapshot;
+          if (previous) {
+            const preserveRunningStatus =
+              convertedMessage.id === activeAssistantId &&
+              previous.status?.type === "running" &&
+              snapshot.status?.type === "requires-action" &&
+              snapshot.status.reason === "tool-calls";
+            converted[index] = {
+              ...snapshot,
+              status: preserveRunningStatus ? previous.status : snapshot.status,
+              content: this.mergeSnapshotAssistantContent(
+                previous.content,
+                snapshot.content,
+                snapshotHasReasoning,
+                snapshotHasActivity,
+              ),
+            };
+          } else {
+            converted[index] = snapshot;
+          }
         }
       }
       if (joinStrategy === "concat-content") {
