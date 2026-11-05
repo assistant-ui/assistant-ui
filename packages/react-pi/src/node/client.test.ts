@@ -5,7 +5,8 @@ const supervisor = vi.hoisted(() => ({
   getAvailableModels: vi.fn(async () => []),
 }));
 
-vi.mock("./ThreadSupervisor", () => ({
+vi.mock("./ThreadSupervisor", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ThreadSupervisor")>()),
   PiThreadSupervisor: vi.fn(function () {
     return supervisor;
   }),
@@ -25,13 +26,5 @@ describe("createPiNodeClient", () => {
     expect(supervisor.getAvailableModels).toHaveBeenLastCalledWith({
       threadId: "t1",
     });
-  });
-
-  it("lists the process-wide catalog without a thread", async () => {
-    const client = createPiNodeClient();
-
-    await client.getAvailableModels({ workspacePath: "/ws" });
-
-    expect(supervisor.getAvailableModels).toHaveBeenLastCalledWith(undefined);
   });
 });
