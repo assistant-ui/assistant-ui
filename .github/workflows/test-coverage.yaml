@@ -12,6 +12,9 @@ on:
       - "scripts/example-bundles.json"
       - "scripts/coverage-shards.mjs"
       - "scripts/coverage-shards.test.mjs"
+      - "scripts/coverage-runtimes.mjs"
+      - "scripts/coverage-runtimes.test.mjs"
+      - "scripts/coverage-runtimes.json"
       - "scripts/coverage-summary.mjs"
       - "scripts/coverage-summary.test.mjs"
       - "scripts/test-coverage-contract.test.mjs"
@@ -70,6 +73,9 @@ jobs:
             scripts/example-bundles.json \
             scripts/coverage-shards.mjs \
             scripts/coverage-shards.test.mjs \
+            scripts/coverage-runtimes.mjs \
+            scripts/coverage-runtimes.test.mjs \
+            scripts/coverage-runtimes.json \
             scripts/coverage-summary.mjs \
             scripts/coverage-summary.test.mjs \
             scripts/test-coverage-contract.test.mjs \
@@ -124,7 +130,7 @@ jobs:
 
       - name: Test coverage routing and summary
         if: matrix.shard == 0
-        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs
+        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs scripts/coverage-runtimes.test.mjs
 
       # Each vitest run already spreads its files across every core, so prebuild its prerequisites at turbo's default concurrency before coverage limits concurrency to two.
       - name: Build packages

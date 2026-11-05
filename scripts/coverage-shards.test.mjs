@@ -74,6 +74,42 @@ test("installed dependency tests do not affect shard assignment", (t) => {
   assert.deepEqual(coverageShards(root), before);
 });
 
+test("balances recorded runtimes when equal file counts hide unequal work", (t) => {
+  const root = workspace(
+    t,
+    ["a", "b", "c", "d"].map((name) => ({ name, tests: 1 })),
+  );
+  const runtimesMs = { a: 9000, b: 1000, c: 8000, d: 2000 };
+  const shards = coverageShards(root, runtimesMs);
+  assert.deepEqual(shards.flat().sort(), ["a", "b", "c", "d"]);
+  assert.deepEqual(
+    shards.map((names) =>
+      names.reduce((sum, name) => sum + runtimesMs[name], 0),
+    ),
+    [10000, 10000],
+  );
+});
+
+test("retains unmeasured workspaces with the largest recorded runtime", (t) => {
+  const root = workspace(t, [
+    { name: "known", tests: 1 },
+    { name: "new", tests: 0 },
+    { name: "small", tests: 20 },
+  ]);
+  const shards = coverageShards(root, { known: 9000, small: 1000 });
+  assert.deepEqual(shards, [["known", "small"], ["new"]]);
+});
+
+test("rejects unusable timing profiles instead of assigning invalid weights", (t) => {
+  const root = workspace(t, [{ name: "a", tests: 1 }]);
+  for (const profile of [{}, { a: 0 }, { a: -1 }, { a: "100" }, { a: NaN }]) {
+    assert.throws(
+      () => coverageShards(root, profile),
+      /positive millisecond values/,
+    );
+  }
+});
+
 test("the CLI emits the selected shard filters and rejects invalid shard indexes", () => {
   const script = fileURLToPath(
     new URL("./coverage-shards.mjs", import.meta.url),
@@ -111,7 +147,11 @@ for (const [shard, empty] of [
     ]);
     const repoRoot = fileURLToPath(new URL("../", import.meta.url));
     mkdirSync(path.join(root, "scripts"));
-    for (const file of ["coverage-shards.mjs", "lib"]) {
+    for (const file of [
+      "coverage-shards.mjs",
+      "coverage-runtimes.json",
+      "lib",
+    ]) {
       cpSync(
         path.join(repoRoot, "scripts", file),
         path.join(root, "scripts", file),
