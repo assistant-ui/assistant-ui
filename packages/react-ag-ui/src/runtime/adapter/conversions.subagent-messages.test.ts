@@ -510,4 +510,41 @@ describe("fromAgUiSnapshotMessages subagent attribution", () => {
       ),
     ).toEqual(["int-1"]);
   });
+  it("keeps tagged reasoning and activity with their run", () => {
+    const converted = fromAgUiSnapshotMessages(
+      [
+        { id: "a1", role: "assistant", content: "", toolCalls: [call("top")] },
+        { id: "t1", role: "tool", toolCallId: "top", content: '"ok"' },
+        {
+          id: "r1",
+          role: "reasoning",
+          content: "sub thought",
+          subagentRunId: "top",
+        },
+        {
+          id: "act1",
+          role: "activity",
+          activityType: "progress",
+          content: { step: 1 },
+          subagentRunId: "top",
+        },
+        {
+          id: "m1",
+          role: "assistant",
+          content: "sub answer",
+          subagentRunId: "top",
+        },
+        { id: "a2", role: "assistant", content: "parent answer" },
+      ],
+      { showThinking: true },
+      new Map([["top", "top"]]),
+    ) as Message[];
+
+    expect(JSON.stringify(converted.at(-1))).not.toContain("sub thought");
+    const [nested] = findCall(converted, "top")!.messages!;
+    expect(JSON.stringify(nested)).toContain("sub thought");
+    expect(JSON.stringify(nested)).toContain("sub answer");
+    expect(JSON.stringify(converted.at(-1))).not.toContain('"step":1');
+    expect(JSON.stringify(nested)).toContain('"step":1');
+  });
 });

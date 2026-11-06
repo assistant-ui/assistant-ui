@@ -1203,12 +1203,14 @@ export function fromAgUiSnapshotMessages(
       answered !== undefined && callOwners.has(answered)
         ? callOwners.get(answered)
         : ownRunId;
+    const role = getString(record, "role");
     const group =
-      getString(record, "role") === "assistant" ||
-      getString(record, "role") === "tool"
-        ? runId !== undefined && nestedRuns.has(runId)
-          ? runId
-          : undefined
+      role !== "user" &&
+      role !== "system" &&
+      role !== "developer" &&
+      runId !== undefined &&
+      nestedRuns.has(runId)
+        ? runId
         : undefined;
     const members = groups.get(group) ?? [];
     members.push(record);
