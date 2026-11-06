@@ -76,15 +76,17 @@ describe("ai-sdk: system-message metadata conversion through the runtime", () =>
               .slice(0, -1)
               .map((part) => part.text)
               .join("") + ending,
-          providerMetadata: {
-            [distinct ? `provider_${count - 1}` : "provider"]: {
-              index: count - 1,
-            },
-          },
         });
         const textPart = content.find((part) => part.type === "text")!;
-        expect(Object.keys(textPart.providerMetadata!)).toHaveLength(
-          distinct ? count : 1,
+        expect(textPart.providerMetadata).toStrictEqual(
+          distinct
+            ? Object.fromEntries(
+                Array.from({ length: count }, (_, index) => [
+                  `provider_${index}`,
+                  { index },
+                ]),
+              )
+            : { provider: { index: count - 1 } },
         );
       };
       try {
