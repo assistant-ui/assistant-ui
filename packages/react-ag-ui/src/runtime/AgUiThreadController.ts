@@ -1085,6 +1085,7 @@ export class AgUiThreadController {
     });
     if (touched) {
       this.publishUpdate();
+      this.persistSettledAssistant(messageId);
     }
   }
 
@@ -1330,7 +1331,11 @@ export class AgUiThreadController {
     );
     if (!updated) return false;
     this.publishUpdate();
-    this.persistAssistantHistory(messageId);
+    if (this.history?.update) {
+      this.persistSettledAssistant(messageId);
+    } else {
+      this.persistAssistantHistory(messageId);
+    }
     return true;
   }
 
@@ -3213,7 +3218,8 @@ export class AgUiThreadController {
     this.publishUpdate();
     // Not maybeResumeAfterToolResults: the delivering run is already in
     // flight, and a resume from the owner would reset the head past it.
-    this.maybeCompleteAfterToolResults(messageId);
+    if (this.maybeCompleteAfterToolResults(messageId)) return;
+    this.persistSettledAssistant(messageId);
   }
 
   private applyCrossRunActivitySnapshot(
@@ -3274,7 +3280,8 @@ export class AgUiThreadController {
 
     if (!updated) return;
     this.publishUpdate();
-    this.maybeCompleteAfterToolResults(messageId);
+    if (this.maybeCompleteAfterToolResults(messageId)) return;
+    this.persistSettledAssistant(messageId);
   }
 
   private importMessagesSnapshot(
@@ -3512,6 +3519,19 @@ export class AgUiThreadController {
     this.assistantHistoryParents.set(messageId, parentId);
   }
 
+  private persistSettledAssistant(messageId: string): void {
+    const item = this.session.tryGetMessage(messageId);
+    if (!this.history?.update || !item) return;
+    if (!this.isTerminalStatus(item.message.status)) return;
+    if (
+      !this.persistedHistoryIds.has(messageId) &&
+      this.historyWrites.pending(messageId) === undefined
+    )
+      return;
+    this.markPendingAssistantHistory(messageId, item.parentId);
+    this.persistAssistantHistory(messageId);
+  }
+
   private persistAssistantHistory(messageId: string) {
     const history = this.history;
     if (!history) return;
@@ -3524,7 +3544,9 @@ export class AgUiThreadController {
     const update = history.update;
     const shouldUpdate =
       update !== undefined &&
-      (wasPersisted || this.snapshotHistoryIds.has(messageId));
+      (wasPersisted ||
+        this.snapshotHistoryIds.has(messageId) ||
+        this.historyWrites.pending(messageId) !== undefined);
 
     if (shouldUpdate) {
       const write = this.historyWrites.chain(messageId, () =>
