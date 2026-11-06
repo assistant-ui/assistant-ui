@@ -62,6 +62,16 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       // `start-step` for that same step.
       let stepOpenedByStart = false;
       const approvalsByToolCallId = new Map<string, ToolCallApproval>();
+      const toolCallIdsByApprovalId = new Map<string, string>();
+      const refreshApprovalLookup = (approvalId: string) => {
+        toolCallIdsByApprovalId.delete(approvalId);
+        // Reused IDs retain the order in which calls first requested approval.
+        for (const [toolCallId, approval] of approvalsByToolCallId) {
+          if (approval.id !== approvalId) continue;
+          toolCallIdsByApprovalId.set(approvalId, toolCallId);
+          break;
+        }
+      };
 
       const transformer = {
         transform(
@@ -247,17 +257,38 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 chunk.toolCallId,
               );
               if (!toolCallController) break;
+              const previousApproval = approvalsByToolCallId.get(
+                chunk.toolCallId,
+              );
               approvalsByToolCallId.set(chunk.toolCallId, chunk.approval);
+              if (
+                previousApproval &&
+                previousApproval.id !== chunk.approval.id
+              ) {
+                if (
+                  toolCallIdsByApprovalId.get(previousApproval.id) ===
+                  chunk.toolCallId
+                ) {
+                  refreshApprovalLookup(previousApproval.id);
+                }
+                if (toolCallIdsByApprovalId.has(chunk.approval.id)) {
+                  refreshApprovalLookup(chunk.approval.id);
+                }
+              }
+              if (!toolCallIdsByApprovalId.has(chunk.approval.id)) {
+                toolCallIdsByApprovalId.set(
+                  chunk.approval.id,
+                  chunk.toolCallId,
+                );
+              }
               toolCallController.setApproval(chunk.approval);
               break;
             }
 
             case "tool-approval-response": {
-              const entry = [...approvalsByToolCallId].find(
-                ([, approval]) => approval.id === chunk.approvalId,
-              );
-              if (!entry) break;
-              const [toolCallId, approval] = entry;
+              const toolCallId = toolCallIdsByApprovalId.get(chunk.approvalId);
+              if (toolCallId === undefined) break;
+              const approval = approvalsByToolCallId.get(toolCallId)!;
               const decided = {
                 ...approval,
                 approved: chunk.approved,
