@@ -1331,7 +1331,7 @@ export class AgUiThreadController {
     );
     if (!updated) return false;
     this.publishUpdate();
-    if (this.history?.update && this.persistedHistoryIds.has(messageId)) {
+    if (this.history?.update) {
       this.persistSettledAssistant(messageId);
     } else {
       this.persistAssistantHistory(messageId);
@@ -3517,6 +3517,11 @@ export class AgUiThreadController {
     const item = this.session.tryGetMessage(messageId);
     if (!this.history?.update || !item) return;
     if (!this.isTerminalStatus(item.message.status)) return;
+    if (
+      !this.persistedHistoryIds.has(messageId) &&
+      this.historyWrites.pending(messageId) === undefined
+    )
+      return;
     this.markPendingAssistantHistory(messageId, item.parentId);
     this.persistAssistantHistory(messageId);
   }

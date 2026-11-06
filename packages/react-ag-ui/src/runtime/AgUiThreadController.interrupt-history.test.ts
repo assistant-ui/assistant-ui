@@ -257,6 +257,66 @@ describe("AgUiThreadController answered interrupt history", () => {
     );
   });
 
+  it("does not write an externally applied message that a later run's result reaches", async () => {
+    const { history, rows } = storedHistory();
+    const update = vi.spyOn(history, "update" as never) as unknown as Mock<
+      NonNullable<ThreadHistoryAdapter["update"]>
+    >;
+    const core = new AgUiThreadController({
+      agent: {
+        runAgent: vi.fn(
+          async (input: { runId: string }, subscriber: Subscriber) => {
+            emit(subscriber, {
+              type: "TOOL_CALL_RESULT",
+              messageId: "tool-1",
+              toolCallId: "call-1",
+              content: "order placed",
+            });
+            emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+          },
+        ),
+        abortRun: vi.fn(),
+      } as unknown as AbstractAgent,
+      history,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    core.applyExternalMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "place_order",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+        status: { type: "complete", reason: "unknown" },
+        createdAt: new Date(0),
+        metadata: {
+          custom: {},
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+        },
+      },
+    ]);
+    await core.append({ ...userMessage, parentId: "assistant-1" });
+    await flush();
+
+    expect(
+      core.getMessages().find(({ id }) => id === "assistant-1")?.content,
+    ).toMatchObject([{ toolCallId: "call-1", result: "order placed" }]);
+    const written = [...rows, ...update.mock.calls.map(([item]) => item)];
+    expect(written.map(({ message }) => message.id)).not.toContain(
+      "assistant-1",
+    );
+  });
+
   it("updates one stored interrupt when it is answered after a reload", async () => {
     const { history, rows } = storedHistory();
     const first = createController(history, false).core;
