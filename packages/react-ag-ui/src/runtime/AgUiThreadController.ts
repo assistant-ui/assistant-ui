@@ -62,7 +62,7 @@ import {
   tryParseJSON,
 } from "./adapter/run-aggregator";
 import {
-  fromAgUiMessages,
+  fromAgUiSnapshotMessages,
   toAgUiMessages,
   toAgUiTools,
   withAgUiPartMessageMetadata,
@@ -230,6 +230,56 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+const textOf = (content: ThreadAssistantMessage["content"]) =>
+  content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("");
+
+/**
+ * Swaps `content`'s text parts, in order, for `source`'s. A text part `source`
+ * has beyond `content`'s text slots goes after the nearest earlier part of
+ * `source` that `content` also has: a tool call by id, another part by its
+ * type and position among parts of that type. With none, it goes first.
+ */
+const replaceTextParts = (
+  content: ThreadAssistantMessage["content"],
+  source: ThreadAssistantMessage["content"],
+): ThreadAssistantMessage["content"] => {
+  const texts = source.filter((part) => part.type === "text");
+  const result: ThreadAssistantMessage["content"][number][] = [];
+  let used = 0;
+  for (const part of content) {
+    if (part.type !== "text") result.push(part);
+    else if (used < texts.length) result.push(texts[used++]!);
+  }
+  const positionIn = (
+    parts: readonly ThreadAssistantMessage["content"][number][],
+    part: ThreadAssistantMessage["content"][number],
+  ) => parts.filter((other) => other.type === part.type).indexOf(part);
+  for (const text of texts.slice(used)) {
+    let anchor = -1;
+    for (
+      let index = source.indexOf(text) - 1;
+      index >= 0 && anchor < 0;
+      index--
+    ) {
+      const before = source[index]!;
+      if (before.type === "tool-call") {
+        anchor = result.findIndex(
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === before.toolCallId,
+        );
+      } else if (before.type === "text") {
+        anchor = result.indexOf(before);
+      } else {
+        const sameType = result.filter((part) => part.type === before.type);
+        const match = sameType[positionIn(source, before)];
+        anchor = match ? result.indexOf(match) : -1;
+      }
+    }
+    result.splice(anchor + 1, 0, text);
+  }
+  return result;
+};
+
 const settleNestedContent = (
   content: ThreadAssistantMessage["content"],
   status: MessageStatus,
@@ -324,6 +374,10 @@ export class AgUiThreadController {
   private activeRunAgent: AbstractAgent | null = null;
   private history: ThreadHistoryAdapter | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
+  private readonly subagentParentToolCallIds = new Map<
+    string,
+    string | undefined
+  >();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyWrites = createHistoryWriteChain();
@@ -430,6 +484,7 @@ export class AgUiThreadController {
 
       this.session.applyExternalMessageRepository(repo);
       this.assistantHistoryParents.clear();
+      this.subagentParentToolCallIds.clear();
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
       for (const { message } of repo.messages) {
@@ -1154,7 +1209,35 @@ export class AgUiThreadController {
         };
       });
       if (!matchedToolCall) return message;
-      return { ...assistant, content };
+      const settled = mapToolCallPartsDeep(content, (part) => {
+        if (!part.messages) return part;
+        let changed = false;
+        const messages = part.messages.map((nested) => {
+          if (
+            nested.role !== "assistant" ||
+            nested.status.type !== "requires-action" ||
+            nested.status.reason !== "tool-calls"
+          )
+            return nested;
+          const listed = listedPendingToolCallIds(nested);
+          if (
+            Array.from(iterateToolCallParts(nested.content)).some(
+              (call) =>
+                !isResolvedToolCall(call) &&
+                (!listed || listed.has(call.toolCallId)),
+            )
+          )
+            return nested;
+          changed = true;
+          return {
+            ...nested,
+            status: { type: "complete" as const, reason: "unknown" as const },
+            metadata: withoutPendingToolCallIds(nested.metadata),
+          };
+        });
+        return changed ? { ...part, messages } : part;
+      }).content;
+      return { ...assistant, content: settled };
     });
 
     if (!updated) return;
@@ -1494,6 +1577,7 @@ export class AgUiThreadController {
     const activeRunAgent = this.activeRunAgent;
 
     this.dispatch({ type: "resetThread" });
+    this.subagentParentToolCallIds.clear();
 
     if (controller) {
       this.abortController = null;
@@ -2827,6 +2911,7 @@ export class AgUiThreadController {
     snapshotHasReasoning: boolean,
     snapshotHasActivity: boolean,
     keepMissingToolCalls: ReadonlySet<string> = new Set(),
+    keepPriorTranscripts = false,
   ): ThreadAssistantMessage["content"] {
     const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
       part.type === "tool-call"
@@ -2848,6 +2933,7 @@ export class AgUiThreadController {
     const merged = this.reconcileSnapshotNestedContent(
       previous,
       this.preserveToolInteractions(previous, next),
+      keepPriorTranscripts,
     );
     if (kept.length === 0) return merged;
 
@@ -2897,6 +2983,7 @@ export class AgUiThreadController {
   private reconcileSnapshotNestedContent(
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
+    keepPriorTranscripts: boolean,
   ): ThreadAssistantMessage["content"] {
     const nestedIds = new Set<string>();
     for (const part of previous) {
@@ -2946,10 +3033,92 @@ export class AgUiThreadController {
       }
       if (part.type !== "tool-call") return [part];
       const prior = previousCalls.get(part.toolCallId);
-      return part.messages !== undefined || prior?.messages === undefined
-        ? [part]
-        : [{ ...part, messages: prior.messages }];
+      if (prior?.messages === undefined) return [part];
+      if (part.messages === undefined)
+        return [{ ...part, messages: prior.messages }];
+      if (part.messages.length === 0) return [part];
+      return [
+        {
+          ...part,
+          messages: this.mergeNestedTranscripts(
+            prior.messages,
+            part.messages,
+            keepPriorTranscripts,
+          ),
+        },
+      ];
     });
+  }
+
+  /**
+   * Merges one tool call's nested transcripts message by message. The incoming
+   * copy is the base for tool calls and reasoning; resolved results and calls
+   * only the prior copy has carry over, and the prior text wins when it extends
+   * the incoming text. Importing a snapshot keeps prior messages it lacks, a
+   * prior status that is running or incomplete, and the prior status when the
+   * snapshot waits on calls the merged content has already resolved.
+   */
+  private mergeNestedTranscripts(
+    prior: readonly ThreadMessage[],
+    next: readonly ThreadMessage[],
+    importingSnapshot: boolean,
+  ): readonly ThreadMessage[] {
+    const priorById = new Map(prior.map((message) => [message.id, message]));
+    const merged = next.map((message) => {
+      const previous = priorById.get(message.id);
+      if (previous?.role !== "assistant" || message.role !== "assistant")
+        return message;
+      let content = this.mergeSnapshotAssistantContent(
+        previous.content,
+        this.preserveToolResults(previous.content, message.content),
+        message.content.some((part) => part.type === "reasoning"),
+        message.content.some(isActivityPart),
+        new Set(
+          Array.from(
+            iterateToolCallParts(previous.content),
+            (call) => call.toolCallId,
+          ),
+        ),
+        importingSnapshot,
+      );
+      const priorText = textOf(previous.content);
+      const incomingText = textOf(message.content);
+      if (
+        priorText.length > incomingText.length &&
+        priorText.startsWith(incomingText)
+      ) {
+        content = replaceTextParts(content, previous.content);
+      }
+      const status = !importingSnapshot
+        ? message.status
+        : previous.status.type === "running" ||
+            previous.status.type === "incomplete" ||
+            (message.status.type === "requires-action" &&
+              message.status.reason === "tool-calls" &&
+              !Array.from(iterateToolCallParts(content)).some(
+                (call) => !isResolvedToolCall(call),
+              ))
+          ? previous.status
+          : message.status;
+      return {
+        ...message,
+        status,
+        content,
+        metadata: {
+          ...message.metadata,
+          custom: mergeAgUiNamespace(
+            previous.metadata.custom,
+            message.metadata.custom,
+          ),
+        },
+      };
+    });
+    if (!importingSnapshot) return merged;
+    const mergedById = new Map(merged.map((message) => [message.id, message]));
+    return [
+      ...prior.map((message) => mergedById.get(message.id) ?? message),
+      ...merged.filter((message) => !priorById.has(message.id)),
+    ];
   }
 
   private mergeAssistantMetadata(
@@ -2990,6 +3159,15 @@ export class AgUiThreadController {
     hasRunUserBoundary: boolean,
     reconcileSnapshot?: SnapshotMessageReconciler,
   ): string | undefined {
+    if (
+      event.type === "SUBAGENT_STARTED" &&
+      !this.subagentParentToolCallIds.has(event.subagentRunId)
+    ) {
+      this.subagentParentToolCallIds.set(
+        event.subagentRunId,
+        event.parentToolCallId,
+      );
+    }
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.dispatch({
@@ -3300,9 +3478,11 @@ export class AgUiThreadController {
       const activeAssistantParentId = activeAssistantItem?.parentId;
       const activeAssistant =
         activeMessage?.role === "assistant" ? activeMessage : undefined;
-      const normalized = fromAgUiMessages(rawMessages, {
-        showThinking: this.showThinking,
-      });
+      const normalized = fromAgUiSnapshotMessages(
+        rawMessages,
+        { showThinking: this.showThinking },
+        this.subagentParentToolCallIds,
+      );
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
@@ -3357,6 +3537,8 @@ export class AgUiThreadController {
                   snapshot.content,
                   snapshotHasReasoning,
                   snapshotHasActivity,
+                  new Set(),
+                  true,
                 ),
               }
             : snapshot;
