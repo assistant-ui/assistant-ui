@@ -2107,6 +2107,10 @@ export class AgUiThreadController {
           assistantMessageId === undefined
             ? undefined
             : this.session.tryGetMessage(assistantMessageId)?.message;
+        const listedSnapshotToolCallIds =
+          currentSnapshotAssistant?.role === "assistant"
+            ? listedPendingToolCallIds(currentSnapshotAssistant)
+            : undefined;
         const hasPendingSnapshotToolCall =
           latestSnapshot?.id === assistantMessageId &&
           currentSnapshotAssistant?.role === "assistant" &&
@@ -2114,8 +2118,11 @@ export class AgUiThreadController {
             iterateToolCallParts(currentSnapshotAssistant.content),
           ).some(
             (part) =>
-              snapshotToolCallIds.has(part.toolCallId) &&
-              !isResolvedToolCall(part),
+              !isResolvedToolCall(part) &&
+              (!listedSnapshotToolCallIds ||
+                listedSnapshotToolCallIds.has(part.toolCallId)) &&
+              (!restrictedPendingToolCallIds ||
+                restrictedPendingToolCallIds.has(part.toolCallId)),
           );
         const reconciledUpdate =
           settlingRun &&

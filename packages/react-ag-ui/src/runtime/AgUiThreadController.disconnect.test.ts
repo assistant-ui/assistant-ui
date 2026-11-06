@@ -419,6 +419,159 @@ describe("AgUiThreadController HTTP stream closure", () => {
     });
   });
 
+  it("keeps a nested snapshot call pending after RUN_FINISHED", async () => {
+    const core = createController([
+      start,
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub",
+        name: "worker",
+        parentToolCallId: "task",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "snapshot-answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+            ],
+          },
+          {
+            id: "task-result",
+            role: "tool",
+            toolCallId: "task",
+            content: "started",
+          },
+          {
+            id: "sub-answer",
+            role: "assistant",
+            content: "waiting",
+            toolCalls: [
+              {
+                id: "inner",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+            subagentRunId: "sub",
+          },
+        ],
+      },
+      { type: "SUBAGENT_FINISHED", subagentRunId: "sub" },
+      { type: "RUN_FINISHED", threadId: "thread", runId: "run" },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "snapshot-answer",
+      toolCallIds: ["inner"],
+    });
+  });
+
+  it("does not reopen a snapshot call excluded by the producer", async () => {
+    const core = createController([
+      start,
+      ...text,
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+              {
+                id: "resolved",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+          },
+          {
+            id: "resolved-result",
+            role: "tool",
+            toolCallId: "resolved",
+            content: "done",
+          },
+        ],
+      },
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "success", pendingToolCallIds: ["resolved"] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(core.getPendingToolCalls()).toBeNull();
+  });
+
+  it.each([false, true])(
+    "settles a known answer with a top-level snapshot call (RUN_FINISHED: %s)",
+    async (runFinished) => {
+      const core = createController([
+        start,
+        ...text,
+        { type: "TEXT_MESSAGE_END", messageId: "answer" },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            {
+              id: "answer",
+              role: "assistant",
+              content: "snapshot answer",
+              toolCalls: [
+                {
+                  id: "task",
+                  type: "function",
+                  function: { name: "task", arguments: "{}" },
+                },
+              ],
+            },
+          ],
+        },
+        ...(runFinished
+          ? [{ type: "RUN_FINISHED", threadId: "thread", runId: "run" }]
+          : []),
+      ]);
+
+      await core.append(userMessage);
+
+      expect(core.getMessages().at(-1)?.status).toMatchObject(
+        runFinished
+          ? { type: "requires-action", reason: "tool-calls" }
+          : { type: "incomplete", reason: "error" },
+      );
+      expect(core.getPendingToolCalls()).toEqual(
+        runFinished ? { messageId: "answer", toolCallIds: ["task"] } : null,
+      );
+    },
+  );
+
   it.each(["eof", "finished", "error"])(
     "preserves snapshot content when the stream closes (%s)",
     async (terminal) => {
@@ -702,6 +855,11 @@ describe("AgUiThreadController HTTP stream closure", () => {
       expect(
         core.getMessages().find(({ id }) => id === "snapshot-answer")?.status,
       ).toMatchObject(expectedStatus);
+      expect(core.getPendingToolCalls()).toEqual(
+        runFinished
+          ? { messageId: "snapshot-answer", toolCallIds: ["snapshot-task"] }
+          : null,
+      );
       expect(statusDuringRun).toMatchObject({
         isRunning: true,
         answerStatus: { type: "running" },
