@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import type {
-  PiLoadState,
-  PiModelInfo,
-  PiRunStatus,
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createPiHttpClient,
+  type PiLoadState,
+  type PiRunStatus,
 } from "@assistant-ui/react-pi";
 import { toPiModelOptions, type PiModelOption } from "./pi-model-catalog";
 
@@ -30,6 +30,7 @@ export const usePiModelCatalog = ({
     models: PiModelOption[];
   } | null>(null);
   const knownModels = useRef(new Map<string, PiModelOption>());
+  const client = useMemo(() => createPiHttpClient(), []);
   const hasLoadedThread = enabled && loadState === "loaded";
 
   useEffect(() => {
@@ -41,15 +42,9 @@ export const usePiModelCatalog = ({
   useEffect(() => {
     if (!hasLoadedThread) return;
 
-    const controller = new AbortController();
     let current = true;
-    void fetch(`/api/pi/models?threadId=${encodeURIComponent(threadId)}`, {
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to load Pi model catalog");
-        return response.json() as Promise<PiModelInfo[]>;
-      })
+    void client
+      .getAvailableModels({ threadId })
       .then((catalog) => {
         if (!current) return;
         const models = toPiModelOptions(catalog);
@@ -65,9 +60,9 @@ export const usePiModelCatalog = ({
 
     return () => {
       current = false;
-      controller.abort();
     };
   }, [
+    client,
     enabled,
     handshakeModels,
     hasLoadedThread,

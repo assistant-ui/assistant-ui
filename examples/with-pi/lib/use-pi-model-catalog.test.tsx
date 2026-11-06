@@ -129,9 +129,6 @@ describe("usePiModelCatalog", () => {
 
     rerender({ threadId: "thread-b" });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const firstSignal = fetchMock.mock.calls[0]?.[1]?.signal;
-    expect(firstSignal).toBeDefined();
-    expect(firstSignal?.aborted).toBe(true);
 
     await act(async () => {
       secondRequest.resolve(responseFor([extensionModel]));
@@ -305,7 +302,7 @@ describe("Thread composer model selector", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/pi/models?threadId=${threadId}`,
-        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        expect.objectContaining({ method: "GET" }),
       ),
     );
     fireEvent.click(
