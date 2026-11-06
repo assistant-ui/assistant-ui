@@ -1331,7 +1331,11 @@ export class AgUiThreadController {
     );
     if (!updated) return false;
     this.publishUpdate();
-    this.persistAssistantHistory(messageId);
+    if (this.history?.update) {
+      this.persistSettledAssistant(messageId);
+    } else {
+      this.persistAssistantHistory(messageId);
+    }
     return true;
   }
 

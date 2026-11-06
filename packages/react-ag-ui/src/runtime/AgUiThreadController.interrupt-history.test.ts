@@ -3,6 +3,7 @@ import type { AbstractAgent } from "@ag-ui/client";
 import type {
   AppendMessage,
   ExportedMessageRepositoryItem,
+  ThreadAssistantMessage,
   ThreadHistoryAdapter,
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
@@ -32,35 +33,40 @@ const userMessage = {
 } as unknown as AppendMessage;
 
 function storedHistory(heldAppendId?: string) {
-  const rows = new Map<string, ExportedMessageRepositoryItem>();
+  const rows: ExportedMessageRepositoryItem[] = [];
   let release = () => {};
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
   const write = async (item: ExportedMessageRepositoryItem) => {
-    rows.set(item.message.id, item);
+    const index = rows.findIndex(
+      ({ message }) => message.id === item.message.id,
+    );
+    if (index < 0) throw new Error(`Missing history row ${item.message.id}`);
+    rows[index] = item;
   };
   const history: ThreadHistoryAdapter = {
     load: async () => ({
-      headId: [...rows.keys()].at(-1) ?? null,
-      messages: [...rows.values()],
+      headId: rows.at(-1)?.message.id ?? null,
+      messages: [...rows],
     }),
     append: async (item) => {
       if (item.message.id === heldAppendId) await held;
-      await write(item);
+      rows.push(item);
     },
     update: write,
   };
-  return { history, release };
+  return { history, release, rows };
 }
 
 function createController(
   history: ThreadHistoryAdapter,
   resumeWithResult: boolean,
+  startsWithResume = false,
 ) {
   const runAgent = vi.fn(
     async (input: { runId: string }, subscriber: Subscriber) => {
-      if (runAgent.mock.calls.length === 1) {
+      if (runAgent.mock.calls.length === 1 && !startsWithResume) {
         emit(subscriber, {
           type: "TOOL_CALL_START",
           toolCallId: "call-1",
@@ -118,6 +124,110 @@ function createController(
 }
 
 describe("AgUiThreadController answered interrupt history", () => {
+  it("persists a loaded pending tool call after its result completes it", async () => {
+    const { history, rows } = storedHistory();
+    const pending: ThreadAssistantMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "place_order",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+      createdAt: new Date(0),
+      metadata: {
+        custom: {},
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+      },
+    };
+    await history.append({ parentId: null, message: pending });
+
+    const agent = {
+      runAgent: vi.fn(
+        async (input: { runId: string }, subscriber: Subscriber) => {
+          emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+        },
+      ),
+      abortRun: vi.fn(),
+    } as unknown as AbstractAgent;
+    const core = new AgUiThreadController({
+      agent,
+      history,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    await core.__internal_load();
+    core.addToolResult({
+      messageId: "assistant-1",
+      toolCallId: "call-1",
+      toolName: "place_order",
+      result: "order placed",
+      isError: false,
+    });
+    await flush();
+
+    expect(core.getMessages()[0]).toMatchObject({
+      status: { type: "complete" },
+      content: [{ toolCallId: "call-1", result: "order placed" }],
+    });
+
+    const reloaded = new AgUiThreadController({
+      agent,
+      history,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    await reloaded.__internal_load();
+
+    const storedAssistant = rows.filter(
+      ({ message }) => message.id === "assistant-1",
+    );
+    expect(storedAssistant).toHaveLength(1);
+    expect(storedAssistant[0]?.message).toMatchObject({
+      status: { type: "complete" },
+      content: [{ toolCallId: "call-1", result: "order placed" }],
+    });
+    expect(reloaded.getMessages()[0]).toMatchObject({
+      status: { type: "complete" },
+      content: [{ toolCallId: "call-1", result: "order placed" }],
+    });
+  });
+
+  it("updates one stored interrupt when it is answered after a reload", async () => {
+    const { history, rows } = storedHistory();
+    const first = createController(history, false).core;
+    await first.append(userMessage);
+    await flush();
+
+    const second = createController(history, true, true).core;
+    await second.__internal_load();
+    await second.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved" },
+    ]);
+    await flush();
+
+    const third = createController(history, false).core;
+    await third.__internal_load();
+
+    expect(
+      rows.filter(({ message }) => message.id === "assistant-1"),
+    ).toHaveLength(1);
+    expect(
+      third.getMessages().find(({ id }) => id === "assistant-1"),
+    ).toMatchObject({
+      status: { type: "complete" },
+      content: [{ toolCallId: "call-1", result: "order placed" }],
+    });
+  });
+
   it.each([
     { status: "resolved" as const, resumeWithResult: true, append: "settled" },
     {
