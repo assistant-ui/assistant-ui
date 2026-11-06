@@ -69,6 +69,66 @@ const announced = (messages: readonly unknown[], parents: [string, string][]) =>
   fromAgUiSnapshotMessages(messages, undefined, new Map(parents)) as Message[];
 
 describe("fromAgUiSnapshotMessages subagent attribution", () => {
+  it.each([
+    ["snake case", { tool_calls: [call("spawn")] }],
+    [
+      "inline",
+      {
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "spawn",
+            toolName: "research",
+            args: {},
+          },
+        ],
+      },
+    ],
+  ])("nests a run spawned by a %s call", (_name, shape) => {
+    const converted = announced(
+      [
+        { id: "a", role: "assistant", content: "", ...shape },
+        {
+          id: "s",
+          role: "assistant",
+          content: "Nested.",
+          subagentRunId: "run",
+        },
+      ],
+      [["run", "spawn"]],
+    );
+    expect(converted.map((message) => message.id)).toEqual(["a"]);
+    expect(texts(findCall(converted, "spawn")?.messages?.[0])).toEqual([
+      "Nested.",
+    ]);
+  });
+
+  it.each(["user", "system", "developer"])(
+    "preserves a tagged %s record",
+    (role) => {
+      const converted = announced(
+        [
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn")],
+          },
+          { id: "tagged", role, content: "Keep me.", subagentRunId: "run" },
+          {
+            id: "s",
+            role: "assistant",
+            content: "Nested.",
+            subagentRunId: "run",
+          },
+        ],
+        [["run", "spawn"]],
+      );
+      expect(converted.find((message) => message.id === "tagged")).toEqual(
+        fromAgUiMessages([{ id: "tagged", role, content: "Keep me." }])[0],
+      );
+    },
+  );
   it("nests a subagent's messages under the tool call that spawned it", () => {
     const converted = announced(subagentTurn, [["spawn-1", "spawn-1"]]);
 
@@ -273,6 +333,78 @@ describe("fromAgUiSnapshotMessages subagent attribution", () => {
     })[];
     expect(nested?.status?.type).toBe("requires-action");
     expect(converted[0]?.status?.type).toBe("requires-action");
+  });
+
+  it("admits a nested pending call despite the spawning message's own pending list", () => {
+    const converted = announced(
+      [
+        {
+          id: "a",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("spawn")],
+          metadata: { custom: { agui: { pendingToolCallIds: ["spawn"] } } },
+        },
+        { id: "t", role: "tool", toolCallId: "spawn", content: '"ok"' },
+        {
+          id: "s",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("inner")],
+          subagentRunId: "run",
+          metadata: { custom: { agui: { pendingToolCallIds: ["inner"] } } },
+        },
+      ],
+      [["run", "spawn"]],
+    ) as (Message & {
+      metadata?: { custom?: { agui?: { pendingToolCallIds?: string[] } } };
+    })[];
+    expect(converted[0]?.metadata?.custom?.agui?.pendingToolCallIds).toContain(
+      "inner",
+    );
+  });
+
+  it("retains each nested record's pending-call admission", () => {
+    const converted = announced(
+      [
+        { id: "a", role: "assistant", content: "", toolCalls: [call("spawn")] },
+        { id: "t", role: "tool", toolCallId: "spawn", content: '"ok"' },
+        {
+          id: "s1",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("one"), call("excluded")],
+          subagentRunId: "run",
+          metadata: {
+            custom: { agui: { pendingToolCallIds: ["one", "future"] } },
+          },
+        },
+        {
+          id: "s2",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("two")],
+          subagentRunId: "run",
+          metadata: { custom: { agui: { pendingToolCallIds: ["two"] } } },
+        },
+      ],
+      [["run", "spawn"]],
+    ) as (Message & {
+      metadata?: { custom?: { agui?: { pendingToolCallIds?: string[] } } };
+    })[];
+    const nested = findCall(converted, "spawn")?.messages?.[0] as Message & {
+      metadata?: { custom?: { agui?: { pendingToolCallIds?: string[] } } };
+    };
+    expect(nested.metadata?.custom?.agui?.pendingToolCallIds).toEqual([
+      "one",
+      "future",
+      "two",
+    ]);
+    expect(converted[0]?.metadata?.custom?.agui?.pendingToolCallIds).toEqual([
+      "one",
+      "future",
+      "two",
+    ]);
   });
 
   it("keeps a deeply nested pending call visible through resolved spawning calls", () => {

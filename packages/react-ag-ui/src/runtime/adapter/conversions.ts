@@ -1142,13 +1142,9 @@ const readSubagentRunId = (record: Record<string, unknown>) => {
 };
 
 const readToolCallIds = (record: Record<string, unknown>) =>
-  Array.isArray(record["toolCalls"])
-    ? record["toolCalls"].flatMap((toolCall) =>
-        isObject(toolCall) && typeof toolCall["id"] === "string"
-          ? [toolCall["id"]]
-          : [],
-      )
-    : [];
+  extractAssistantToolCalls(record).flatMap((part) =>
+    part.toolCallId ? [part.toolCallId] : [],
+  );
 
 export function fromAgUiMessages(
   messages: readonly unknown[],
@@ -1166,7 +1162,7 @@ export function fromAgUiMessages(
 export function fromAgUiSnapshotMessages(
   messages: readonly unknown[],
   options?: FromAgUiMessagesOptions,
-  subagentParentToolCallIds?: ReadonlyMap<string, string>,
+  subagentParentToolCallIds?: ReadonlyMap<string, string | undefined>,
 ): CoreThreadMessageLike[] {
   const records = messages.filter(isObject);
   const callOwners = new Map<string, string | undefined>();
@@ -1208,7 +1204,12 @@ export function fromAgUiSnapshotMessages(
         ? callOwners.get(answered)
         : ownRunId;
     const group =
-      runId !== undefined && nestedRuns.has(runId) ? runId : undefined;
+      getString(record, "role") === "assistant" ||
+      getString(record, "role") === "tool"
+        ? runId !== undefined && nestedRuns.has(runId)
+          ? runId
+          : undefined
+        : undefined;
     const members = groups.get(group) ?? [];
     members.push(record);
     groups.set(group, members);
@@ -1260,12 +1261,24 @@ export function fromAgUiSnapshotMessages(
         undefined,
       );
     const content = Array.isArray(folded?.content) ? folded.content : [];
+    const pendingToolCallIds = new Set(
+      messages
+        .filter(
+          (message) =>
+            message.status?.type === "requires-action" &&
+            message.status.reason === "tool-calls",
+        )
+        .flatMap((message) => admittedUnresolvedToolCallIds(message, true)),
+    );
+    const metadata = pendingToolCallIds.size
+      ? withPendingToolCallIds(folded?.metadata, pendingToolCallIds)
+      : folded?.metadata;
     return fromThreadMessageLike(
       {
         id: runId,
         role: "assistant",
         content,
-        ...(folded?.metadata ? { metadata: folded.metadata } : {}),
+        ...(metadata ? { metadata } : {}),
       },
       runId,
       subagentStatus(folded?.metadata, messages),
@@ -1280,6 +1293,47 @@ const hasUnresolvedToolCall = (content: readonly unknown[]) =>
     (part) =>
       isObject(part) && part.type === "tool-call" && part.result === undefined,
   );
+
+function admittedUnresolvedToolCallIds(
+  message: CoreThreadMessageLike,
+  includeNested: boolean,
+): string[] {
+  if (message.role !== "assistant" || !Array.isArray(message.content))
+    return [];
+  const listed = readPersistedPendingToolCallIds(message.metadata);
+  if (listed) return listed;
+  return message.content.flatMap((part) => {
+    if (part.type !== "tool-call") return [];
+    const calls = includeNested
+      ? [
+          part,
+          ...Array.from(
+            walkToolCallTree(part.messages ?? []),
+            ({ part }) => part,
+          ),
+        ]
+      : [part];
+    return calls.flatMap((call) =>
+      call.result === undefined && call.toolCallId ? [call.toolCallId] : [],
+    );
+  });
+}
+
+function withPendingToolCallIds(
+  metadata: CoreThreadMessageLike["metadata"],
+  ids: ReadonlySet<string>,
+): CoreThreadMessageLike["metadata"] {
+  return {
+    ...(isObject(metadata) ? metadata : {}),
+    custom: {
+      ...readCustomMetadata(metadata),
+      [AG_UI_METADATA_NAMESPACE]: {
+        ...readNamespacedMetadata(metadata),
+        pendingToolCallIds: [...ids],
+      },
+    },
+  };
+}
 
 function subagentStatus(
   metadata: unknown,
@@ -1333,9 +1387,20 @@ function liftSubagentState(
         subagent.status.reason === "tool-calls",
     ) ||
     (Array.isArray(message.content) && hasUnresolvedToolCall(message.content));
+  const pendingToolCallIds = new Set([
+    ...admittedUnresolvedToolCallIds(message, false),
+    ...waiting.flatMap((subagent) =>
+      subagent.status?.type === "requires-action" &&
+      subagent.status.reason === "tool-calls"
+        ? admittedUnresolvedToolCallIds(subagent, true)
+        : [],
+    ),
+  ]);
   return {
     ...message,
-    metadata,
+    metadata: pendingToolCallIds.size
+      ? withPendingToolCallIds(metadata, pendingToolCallIds)
+      : metadata,
     status: getAutoStatus(
       false,
       false,

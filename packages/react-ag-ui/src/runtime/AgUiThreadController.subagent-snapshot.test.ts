@@ -119,6 +119,179 @@ const snapshot = (runId: string, spawnId: string) => ({
 });
 
 describe("AgUiThreadController subagent messages in snapshots", () => {
+  it("keeps a run at root when its first start has no parent", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      { type: "SUBAGENT_STARTED", subagentRunId: "run-1", name: "researcher" },
+      ...subagentText("run-1", "s1", "First."),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      snapshot("run-1", "spawn-1"),
+      ...subagentText("run-1", "s2", "Second."),
+    ]);
+    expect(nestedUnder(core, "spawn-1")).toHaveLength(0);
+    expect(rootIds(core)).toContain("sub-text");
+  });
+
+  it("reopens a completed nested message when a snapshot adds an interrupt", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      ...subagentText("run-1", "s1", "Done."),
+      { type: "SUBAGENT_FINISHED", subagentRunId: "run-1" },
+      {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "spawn-1",
+        messageId: "t",
+        content: '"done"',
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+          },
+          {
+            id: "s1",
+            role: "assistant",
+            content: "Done.",
+            subagentRunId: "run-1",
+            metadata: {
+              custom: {
+                agui: { interrupts: [{ id: "int", reason: "approval" }] },
+              },
+            },
+          },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"done"' },
+        ],
+      },
+    ]);
+    expect(nestedUnder(core, "spawn-1")[0]?.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+  it("settles a snapshot nested wait when its frontend result arrives", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+          },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"ok"' },
+          {
+            id: "s",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("inner")],
+            subagentRunId: "run-1",
+          },
+        ],
+      },
+    ]);
+    expect(nestedUnder(core, "spawn-1")[0]?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    core.addToolResult({
+      messageId: "run-1",
+      toolCallId: "inner",
+      toolName: "research",
+      result: "done",
+      isError: false,
+    });
+    expect(nestedUnder(core, "spawn-1")[0]?.status).toMatchObject({
+      type: "complete",
+    });
+  });
+
+  it("keeps a snapshot-only nested call pending after run completion", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+          },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"ok"' },
+          {
+            id: "s",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("inner")],
+            subagentRunId: "run-1",
+          },
+        ],
+      },
+    ]);
+    expect(core.getPendingToolCalls()?.toolCallIds).toContain("inner");
+  });
+  it("admits a snapshot nested call past the spawning message's pending list", async () => {
+    const core = await run([
+      ...spawn("spawn-1"),
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "run-1",
+        parentToolCallId: "spawn-1",
+        name: "researcher",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn-1")],
+            metadata: { custom: { agui: { pendingToolCallIds: ["spawn-1"] } } },
+          },
+          { id: "t", role: "tool", toolCallId: "spawn-1", content: '"ok"' },
+          {
+            id: "s",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("inner")],
+            subagentRunId: "run-1",
+            metadata: { custom: { agui: { pendingToolCallIds: ["inner"] } } },
+          },
+        ],
+      },
+    ]);
+    expect(core.getPendingToolCalls()?.toolCallIds).toContain("inner");
+  });
   it.each([
     ["equals the spawning call's id", "spawn-1"],
     ["is announced by SUBAGENT_STARTED", "run-1"],

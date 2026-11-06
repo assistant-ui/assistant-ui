@@ -374,7 +374,10 @@ export class AgUiThreadController {
   private activeRunAgent: AbstractAgent | null = null;
   private history: ThreadHistoryAdapter | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
-  private readonly subagentParentToolCallIds = new Map<string, string>();
+  private readonly subagentParentToolCallIds = new Map<
+    string,
+    string | undefined
+  >();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyWrites = createHistoryWriteChain();
@@ -1205,7 +1208,35 @@ export class AgUiThreadController {
         };
       });
       if (!matchedToolCall) return message;
-      return { ...assistant, content };
+      const settled = mapToolCallPartsDeep(content, (part) => {
+        if (!part.messages) return part;
+        let changed = false;
+        const messages = part.messages.map((nested) => {
+          if (
+            nested.role !== "assistant" ||
+            nested.status.type !== "requires-action" ||
+            nested.status.reason !== "tool-calls"
+          )
+            return nested;
+          const listed = listedPendingToolCallIds(nested);
+          if (
+            Array.from(iterateToolCallParts(nested.content)).some(
+              (call) =>
+                !isResolvedToolCall(call) &&
+                (!listed || listed.has(call.toolCallId)),
+            )
+          )
+            return nested;
+          changed = true;
+          return {
+            ...nested,
+            status: { type: "complete" as const, reason: "unknown" as const },
+            metadata: withoutPendingToolCallIds(nested.metadata),
+          };
+        });
+        return changed ? { ...part, messages } : part;
+      }).content;
+      return { ...assistant, content: settled };
     });
 
     if (!updated) return;
@@ -3058,6 +3089,7 @@ export class AgUiThreadController {
         : previous.status.type === "running" ||
             previous.status.type === "incomplete" ||
             (message.status.type === "requires-action" &&
+              message.status.reason === "tool-calls" &&
               !Array.from(iterateToolCallParts(content)).some(
                 (call) => !isResolvedToolCall(call),
               ))
@@ -3124,7 +3156,6 @@ export class AgUiThreadController {
   ): string | undefined {
     if (
       event.type === "SUBAGENT_STARTED" &&
-      event.parentToolCallId &&
       !this.subagentParentToolCallIds.has(event.subagentRunId)
     ) {
       this.subagentParentToolCallIds.set(
