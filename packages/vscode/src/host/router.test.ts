@@ -302,6 +302,52 @@ describe("serveRoutes input from the webview", () => {
     }
   });
 
+  it.each([
+    "ftp://169.254.169.254/api/test?q=1",
+    "ws://169.254.169.254/api/test?q=1",
+    "vscode-webview://169.254.169.254/api/test?q=1",
+  ])("hands a route the virtual origin for %s", async (url) => {
+    const { bridge, handler, server, answersFor } = setup();
+    try {
+      bridge.port.postMessage({ ...request("scheme"), url });
+      await waitFor(() =>
+        answersFor("scheme").some((message) => message.kind === "fetch:end"),
+      );
+
+      expect(handler).toHaveBeenCalledOnce();
+      const [routed] = handler.mock.calls[0] as unknown as [Request];
+      expect(routed.url).toBe(`${VSCODE_VIRTUAL_ORIGIN}/api/test?q=1`);
+    } finally {
+      server.dispose();
+    }
+  });
+
+  it("keeps a path that starts with two slashes on the virtual origin", async () => {
+    const bridge = createInMemoryBridge();
+    const seen: string[] = [];
+    const server = serveRoutes(bridge.webview, {
+      "//169.254.169.254/api/test": {
+        GET: (req) => {
+          seen.push(req.url);
+          return new Response("ok");
+        },
+      },
+    });
+    try {
+      bridge.port.postMessage({
+        ...request("slashes"),
+        url: "vscode-webview://panel//169.254.169.254/api/test",
+      });
+      await waitFor(() => seen.length > 0);
+
+      expect(seen).toEqual([
+        `${VSCODE_VIRTUAL_ORIGIN}//169.254.169.254/api/test`,
+      ]);
+    } finally {
+      server.dispose();
+    }
+  });
+
   it.each<[string, Partial<FetchRequestMessage>]>([
     ["a URL that does not parse", { url: "not a url" }],
     ["an invalid method", { method: "GET /api/test" }],
