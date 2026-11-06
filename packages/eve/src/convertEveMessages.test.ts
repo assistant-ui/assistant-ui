@@ -2726,6 +2726,56 @@ describe("collectInterruptedTurnEvents", () => {
       data: { turnId, outcome: "cancelled" },
     }) as const satisfies SessionStreamEvent;
 
+  it.each([
+    [0, 128],
+    [0, 512],
+    [4, 128],
+    [4, 512],
+  ])(
+    "copies %i cached interruptions once when collecting %i more",
+    (cachedCount, appendedCount) => {
+      const previousEvents = Array.from({ length: cachedCount }, (_, index) =>
+        failed(`previous_${index}`, index),
+      );
+      const previousInterruptions = [...previousEvents];
+      const cache: InterruptedTurnEventCache = {
+        lastEvents: previousEvents,
+        interruptions: previousInterruptions,
+      };
+      const events = [
+        ...previousEvents,
+        ...Array.from({ length: appendedCount }, (_, index) =>
+          cancelled(`next_${index}`, cachedCount + index),
+        ),
+      ];
+      const iterator = Array.prototype[Symbol.iterator];
+      let copiedEntries = 0;
+      let interruptions: readonly SessionStreamEvent[];
+      try {
+        // A different copying primitive needs its own work counter.
+        Array.prototype[Symbol.iterator] = function* (this: unknown[]) {
+          for (const entry of iterator.call(this)) {
+            copiedEntries++;
+            yield entry;
+          }
+          return undefined;
+        };
+        interruptions = collectInterruptedTurnEvents(events, cache);
+      } finally {
+        Array.prototype[Symbol.iterator] = iterator;
+      }
+
+      expect(interruptions).toEqual(events);
+      expect(
+        interruptions.every((event, index) => event === events[index]),
+      ).toBe(true);
+      expect(previousInterruptions).toEqual(previousEvents);
+      expect(cache.interruptions).toBe(interruptions);
+      expect(cache.lastEvents).toBe(events);
+      expect(copiedEntries).toBe(cachedCount);
+    },
+  );
+
   it("scans only appended events and keeps the array until an interruption arrives", () => {
     const cache: InterruptedTurnEventCache = {
       lastEvents: [],
