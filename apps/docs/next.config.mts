@@ -95,6 +95,11 @@ const csp = (frameAncestors: string) =>
 
 const config: NextConfig = {
   cacheComponents: true,
+  // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
+  // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
+  ...(process.env.NEXT_ALLOWED_DEV_ORIGINS
+    ? { allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS.split(",") }
+    : {}),
   // A prerender cannot read the clock, so the copyright year is fixed at build time.
   env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
   // This app keeps a hand-written AGENTS.md, and the root one already points

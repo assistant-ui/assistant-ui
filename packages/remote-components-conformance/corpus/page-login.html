@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text, #222); }
+  .card {
+    max-width: 380px;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 10px);
+    padding: 24px;
+  }
+  h2 { margin: 0 0 4px; font-size: 1.25rem; }
+  p.sub { margin: 0 0 20px; color: var(--color-text-muted, #666); font-size: .9rem; }
+  label.field { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; }
+  .group { margin-bottom: 16px; }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; padding: 10px 12px; font: inherit; color: inherit;
+    background: transparent;
+    border: 1px solid var(--color-border, #ccc);
+    border-radius: var(--radius-md, 8px);
+    outline: none;
+  }
+  input:focus { border-color: var(--color-accent, #3b82f6); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent, #3b82f6) 25%, transparent); }
+  .pw { position: relative; }
+  .pw input { padding-right: 60px; }
+  .toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--color-accent, #3b82f6);
+    font: inherit; font-size: .8rem; cursor: pointer; padding: 4px 8px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: .9rem; }
+  .row label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .row input { accent-color: var(--color-accent, #3b82f6); width: 16px; height: 16px; }
+  .row a { color: var(--color-accent, #3b82f6); text-decoration: none; }
+  button.submit {
+    width: 100%; padding: 11px; font: inherit; font-weight: 600;
+    color: #fff; background: var(--color-accent, #3b82f6);
+    border: none; border-radius: var(--radius-md, 8px); cursor: pointer;
+  }
+  button.submit:hover { filter: brightness(1.08); }
+  button.submit:disabled { opacity: .7; cursor: default; }
+  .err { color: #d33; font-size: .8rem; margin-top: 4px; min-height: 1em; }
+  .msg { margin-top: 14px; font-size: .9rem; text-align: center; min-height: 1.2em; }
+</style>
+</head>
+<body>
+  <form class="card" id="f" novalidate>
+    <h2>Sign in</h2>
+    <p class="sub">Welcome back! Please enter your details.</p>
+    <div class="group">
+      <label class="field" for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+      <div class="err" id="emailErr"></div>
+    </div>
+    <div class="group">
+      <label class="field" for="pw">Password</label>
+      <div class="pw">
+        <input id="pw" type="password" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="toggle" id="tg">Show</button>
+      </div>
+      <div class="err" id="pwErr"></div>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="rem"> Remember me</label>
+      <a href="#" onclick="return false">Forgot password?</a>
+    </div>
+    <button class="submit" type="submit" id="btn">Sign in</button>
+    <div class="msg" id="msg"></div>
+  </form>
+<script>
+  const $ = id => document.getElementById(id);
+  $('tg').onclick = () => {
+    const p = $('pw'), show = p.type === 'password';
+    p.type = show ? 'text' : 'password';
+    $('tg').textContent = show ? 'Hide' : 'Show';
+  };
+  $('f').onsubmit = e => {
+    e.preventDefault();
+    const em = $('email').value.trim(), pw = $('pw').value;
+    let ok = true;
+    $('emailErr').textContent = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em) ? '' : (ok = false, 'Enter a valid email address.');
+    $('pwErr').textContent = pw.length >= 6 ? '' : (ok = false, 'Password must be at least 6 characters.');
+    $('msg').textContent = '';
+    if (!ok) return;
+    const b = $('btn'); b.disabled = true; b.textContent = 'Signing in…';
+    setTimeout(() => {
+      b.disabled = false; b.textContent = 'Sign in';
+      $('msg').textContent = '✓ Signed in as ' + em + ($('rem').checked ? ' (remembered)' : '');
+    }, 900);
+  };
+</script>
+</body>
+</html>

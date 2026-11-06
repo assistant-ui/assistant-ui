@@ -1,0 +1,64 @@
+<div class="rc">
+  <style>
+    .rc{font-family:var(--font-sans);color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px;max-width:640px;box-sizing:border-box}
+    .rc h2{margin:0 0 4px;font-size:1.4em}
+    .rc .sub{color:var(--color-text-muted);font-size:.9em;margin:0 0 16px}
+    .rc .bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 0;border-top:1px solid var(--color-border);border-bottom:1px solid var(--color-border);margin-bottom:16px}
+    .rc .step{display:flex;align-items:center;gap:8px}
+    .rc button{width:32px;height:32px;border-radius:50%;border:1px solid var(--color-border);background:transparent;color:var(--color-text);font-size:18px;cursor:pointer;line-height:1}
+    .rc button:hover{border-color:var(--color-accent);color:var(--color-accent)}
+    .rc button:disabled{opacity:.4;cursor:default}
+    .rc .n{min-width:24px;text-align:center;font-weight:600;font-size:1.1em}
+    .rc h3{font-size:1em;margin:0 0 8px;color:var(--color-accent)}
+    .rc ul{list-style:none;padding:0;margin:0 0 18px}
+    .rc li{padding:5px 0;border-bottom:1px dashed var(--color-border);display:flex;gap:10px}
+    .rc li b{min-width:90px;font-weight:600}
+    .rc ol{margin:0;padding-left:20px}
+    .rc ol li{display:list-item;border:none;padding:4px 0;line-height:1.45}
+    .rc .meta{color:var(--color-text-muted);font-size:.85em}
+  </style>
+  <h2>🥞 Fluffy Pancakes</h2>
+  <p class="sub">Classic buttermilk-style pancakes, golden and light.</p>
+  <div class="bar">
+    <span class="meta">Prep 10 min · Cook 15 min</span>
+    <div class="step">
+      <span class="meta">Servings</span>
+      <button id="dec" aria-label="Fewer servings">−</button>
+      <span class="n" id="srv">4</span>
+      <button id="inc" aria-label="More servings">+</button>
+    </div>
+  </div>
+  <h3>Ingredients</h3>
+  <ul id="ing"></ul>
+  <h3>Steps</h3>
+  <ol>
+    <li>Whisk flour, sugar, baking powder and salt in a large bowl.</li>
+    <li>In another bowl, whisk milk, eggs and melted butter.</li>
+    <li>Pour wet into dry and stir until just combined — a few lumps are fine.</li>
+    <li>Rest the batter 5 minutes while you heat a lightly greased pan over medium heat.</li>
+    <li>Pour ¼ cup batter per pancake. Flip when bubbles form and edges look set, about 2 minutes.</li>
+    <li>Cook another 1–2 minutes until golden. Serve warm with syrup or fruit.</li>
+  </ol>
+  <script>
+    (function(){
+      const base=4;
+      const items=[[1.5,"cups","all-purpose flour"],[2,"tbsp","sugar"],[3.5,"tsp","baking powder"],[0.25,"tsp","salt"],[1.25,"cups","milk"],[1,"","egg"],[3,"tbsp","butter, melted"]];
+      let s=base;
+      const fr=v=>{const w=Math.floor(v),r=v-w,m=[[0,""],[.125,"⅛"],[.25,"¼"],[.333,"⅓"],[.5,"½"],[.667,"⅔"],[.75,"¾"],[1,""]];
+        let b=m.reduce((a,c)=>Math.abs(c[0]-r)<Math.abs(a[0]-r)?c:a);
+        let W=b[0]===1?w+1:w;return (W?W:"")+(b[1]?(W?" ":"")+b[1]:"")||"⅛";};
+      const ing=document.getElementById("ing"),n=document.getElementById("srv"),d=document.getElementById("dec");
+      function render(){
+        n.textContent=s;d.disabled=s<=1;
+        ing.innerHTML=items.map(([q,u,name])=>{
+          const v=q*s/base;let unit=u;
+          if(!u){const c=Math.max(1,Math.round(v));return `<li><b>${c}</b>${name}${c>1?"s":""}</li>`;}
+          return `<li><b>${fr(v)} ${unit}</b>${name}</li>`;
+        }).join("");
+      }
+      d.onclick=()=>{if(s>1){s--;render();}};
+      document.getElementById("inc").onclick=()=>{if(s<24){s++;render();}};
+      render();
+    })();
+  </script>
+</div>

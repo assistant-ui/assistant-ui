@@ -415,9 +415,9 @@ export async function gatherPeople(client, policy) {
 
 export function evaluatePullRequest(gathered, policy) {
   const tierResult = computeTier(gathered.signalsInput, policy);
-  const { tier, areas, failures } = tierResult;
+  const { tier, areas, ownedPackages, failures } = tierResult;
   const requirementResult = evaluateRequirements(
-    { ...gathered.people, tier, areas, failures },
+    { ...gathered.people, tier, areas, ownedPackages, failures },
     policy,
   );
   return {

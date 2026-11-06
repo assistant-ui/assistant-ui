@@ -1,9 +1,11 @@
 import {
   isWebviewToHostMessage,
   VSCODE_BRIDGE_CHANNEL,
+  VSCODE_VIRTUAL_ORIGIN,
   type FetchRequestMessage,
   type HostToWebviewMessage,
 } from "../protocol";
+import { isForeignHttpUrl } from "../route-url";
 
 export type RouteHandler = (request: Request) => Response | Promise<Response>;
 
@@ -155,7 +157,14 @@ export function serveRoutes(
     inflight.set(id, controller);
     try {
       const url = new URL(message.url);
-      const request = new Request(url, {
+      if (isForeignHttpUrl(url)) {
+        throw new TypeError(`Refused a request for ${url.origin}`);
+      }
+      // The webview chooses this URL, so a route sees only its path and query.
+      const requestUrl = new URL(VSCODE_VIRTUAL_ORIGIN);
+      requestUrl.pathname = url.pathname;
+      requestUrl.search = url.search;
+      const request = new Request(requestUrl, {
         method: message.method,
         headers: message.headers,
         body: BODYLESS_METHODS.has(message.method.toUpperCase())

@@ -1,0 +1,48 @@
+---
+title: Keyboard and focus
+description: Tab moves through your page and the remote as if they were one document.
+---
+
+import { ShippingDemo } from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+## Tab order
+
+Click the Name field and press Tab. Focus goes into the remote, through its stops, and out to Pay. Shift+Tab goes back the same way. The radio group is one stop, and the arrow keys move inside it.
+
+<ShippingDemo />
+
+```tsx title="host.tsx"
+const ref = useRef<RemoteComponentHandle>(null);
+
+<input placeholder="Name" />
+<RemoteComponent ref={ref} src="https://widgets.example/shipping.html" onSave={save} />
+<button>Pay</button>
+
+// Move focus into the remote yourself, e.g. after an error:
+ref.current?.focus("first", { focusVisible: true });
+```
+
+<RemoteSource name="shipping" />
+
+Browsers disagree at the frame edge. Firefox stops on the frame itself, and WebKit can refuse focus right after a frame appears. So the host and the runtime handle Tab at the edge themselves and move focus to the next stop in document order. Nested remotes work the same way.
+
+The tab order follows positive `tabindex` first, then document order. Open shadow roots are walked in place; closed ones are skipped.
+
+## Focus ring
+
+`:focus-visible` is a guess the browser makes from the last input. Inside a frame it only sees input in the frame, so a Tab on your page would show no ring after an earlier click in the remote. The host tells the remote when focus came from the keyboard. The ring shows when it would inline.
+
+Give both sides the same ring. The examples here define `--focus-ring` on the page and use it in the remote stylesheet.
+
+## Focus from code
+
+`ref.focus("first" | "last", { focusVisible })` focuses the remote's first or last stop. Leave `focusVisible` out to let the browser decide. A remote with no stops passes focus on to the next one.
+
+## Keys
+
+- Key events inside the remote stay there. Your page's shortcuts don't fire while the remote has focus.
+- Escape is the exception. If the remote doesn't handle it, the host closes the topmost overlay.
+- When something in the remote gets focus, the host scrolls your scroll containers so it is visible.
+
+Screen readers announce the frame by its title. Pass a short `frameTitle` that names the component.

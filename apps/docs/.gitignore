@@ -5,3 +5,4 @@
 dist
 .docs
 .lighthouseci
+/public/rc/
