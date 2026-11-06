@@ -1305,3 +1305,31 @@ test("a rename out of a protected path is protected", () => {
     ["packages/tap/src/tap.ts"],
   );
 });
+
+test("protected paths cover packages with their own owners", () => {
+  const custom = {
+    ...policy,
+    packageOwners: [
+      {
+        id: "docs-theme",
+        owners: ["someone"],
+        paths: ["packages/docs-theme/**"],
+      },
+    ],
+  };
+  assert.deepEqual(
+    protectedPaths(
+      [
+        file("packages/docs-theme/src/index.ts", { patch: "+const a = 1;" }),
+        file("packages/react/src/theme.ts", {
+          status: "renamed",
+          previousPath: "packages/docs-theme/src/theme.ts",
+          patch: "",
+        }),
+        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
+      ],
+      custom,
+    ),
+    ["packages/docs-theme/src/index.ts", "packages/docs-theme/src/theme.ts"],
+  );
+});

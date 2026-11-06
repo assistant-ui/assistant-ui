@@ -317,7 +317,8 @@ const protectedCodes = new Set([
 ]);
 
 // The paths among `files` that an approval cannot carry over: owner areas and
-// their contract docs (what CODEOWNERS is generated from), decision paths,
+// their contract docs (what CODEOWNERS is generated from), the paths of
+// packages with their own owners, decision paths,
 // package manifests (entry points, exports maps and contract fields), and any
 // change the signals treat as public API. A package source file without a
 // patch counts too, since a new @deprecated cannot be ruled out.
@@ -341,7 +342,11 @@ export function protectedPaths(files, policy) {
   );
   for (const file of files) {
     for (const path of [file.path, file.previousPath]) {
-      if (path && matchesAny(path, ["packages/*/package.json"])) {
+      if (
+        path &&
+        (matchesAny(path, ["packages/*/package.json"]) ||
+          packageOwnerOf(policy, path))
+      ) {
         paths.add(path);
       }
     }

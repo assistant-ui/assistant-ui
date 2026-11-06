@@ -1366,6 +1366,27 @@ for (const [name, path] of [
   });
 }
 
+test("a push touching a package with its own owners leaves the approval stale", () => {
+  const path = "packages/docs-theme/src/index.ts";
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("README.md"), changed(path)])),
+    ownedPolicy,
+  );
+  assert.equal(result.status, "pending");
+  assert.deepEqual(result.approvals, {
+    counted: [],
+    ignored: [{ login: "alice", reason: "stale", paths: [path] }],
+    carried: [],
+  });
+  assert.deepEqual(
+    evaluateRequirements(
+      pushedAfter(ahead([changed("packages/react/src/index.ts")])),
+      ownedPolicy,
+    ).approvals.counted,
+    ["alice"],
+  );
+});
+
 for (const [name, comparison, detail] of [
   [
     "a force-push",
