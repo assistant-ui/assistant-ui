@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-Preserve the active assistant status when snapshots contain pending tool calls.
+Keep an active answer running when an AG-UI snapshot includes an unresolved tool call, so stream cleanup and snapshot head moves can settle the answer and nested assistants.
