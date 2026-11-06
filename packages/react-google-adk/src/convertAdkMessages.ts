@@ -226,6 +226,7 @@ export const createAdkMessageConverter = (
           toolName: message.name,
           result: decodeToolResult(message.content),
           artifact: message.artifact,
+          modelContent: message.modelContent,
           isError: message.status === "error",
         };
       }

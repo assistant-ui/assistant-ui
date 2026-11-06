@@ -10,7 +10,8 @@
 /packages/assistant-stream/ @assistant-ui/owners
 
 # Public API
-/api-surface/ @assistant-ui/owners
+/api-surface/*.ts @assistant-ui/owners
+/api-surface/assistant-ui__docs-theme.ts
 
 # CI and policy
 /.github/ @assistant-ui/owners

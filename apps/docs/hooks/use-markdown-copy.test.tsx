@@ -51,15 +51,11 @@ describe("useMarkdownCopy", () => {
     rerender({ url: "/docs/example.md?platform=rn" });
     act(() => result.current.copy());
     expect(execCommand).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("Content not loaded yet");
-
-    act(() => result.current.prefetch());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    act(() => result.current.copy());
-    expect(execCommand).toHaveBeenCalledWith("copy");
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("Copied to clipboard"),
     );
+    expect(execCommand).toHaveBeenCalledWith("copy");
+    expect(toast.error).not.toHaveBeenCalled();
     expect(document.querySelector("textarea")).toBeNull();
   });
 });

@@ -7247,6 +7247,54 @@ describe("AGUIThreadRuntimeCore", () => {
     );
   });
 
+  it("writes a cross-run mcp-apps ACTIVITY_SNAPSHOT through history updates", async () => {
+    const assistant = createToolCallAssistant();
+    const update = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append: vi.fn(async () => {}),
+      update,
+    };
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            resourceUri: "ui://srv/mcp-app.html",
+            serverId: "srv",
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent, { history });
+    await core.__internal_load();
+
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        message: expect.objectContaining({
+          id: assistant.id,
+          content: [
+            expect.objectContaining({
+              toolCallId: "call-1",
+              mcp: {
+                app: { resourceUri: "ui://srv/mcp-app.html", serverId: "srv" },
+              },
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("records nested tool interactions on their owning session message", async () => {
     const nestedAssistant: ThreadAssistantMessage = {
       ...createToolCallAssistant(),

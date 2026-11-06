@@ -49,6 +49,13 @@ export type UIMessageStreamChunk =
       type: "source";
       source: { sourceType: "url"; id: string; url: string; title?: string };
     }
+  | {
+      type: "source-document";
+      sourceId: string;
+      mediaType: string;
+      title: string;
+      filename?: string;
+    }
   | { type: "file"; file: { mimeType: string; data: string } }
   | {
       type: "tool-call-start";

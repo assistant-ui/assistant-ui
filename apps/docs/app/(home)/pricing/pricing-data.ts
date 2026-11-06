@@ -106,7 +106,7 @@ export const pricingPlans = [
       "Your own backend integration",
       "Data replication",
       "Dedicated support",
-      "99.99% uptime SLA",
+      "99.9% uptime SLA",
       "On-premises deployment",
     ],
     cta: "Contact sales",

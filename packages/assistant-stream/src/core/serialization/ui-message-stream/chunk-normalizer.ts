@@ -2,14 +2,16 @@ import { generateId } from "../../utils/generateId";
 import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
 import type { UIMessageStreamChunk } from "./chunk-types";
 
+type ChunkController = {
+  enqueue(chunk: UIMessageStreamChunk): void;
+};
+
 export const createChunkNormalizer = (): {
   normalize(
     chunk: { type: string } & Record<string, any>,
-    controller: TransformStreamDefaultController<UIMessageStreamChunk>,
+    controller: ChunkController,
   ): void;
-  flush(
-    controller: TransformStreamDefaultController<UIMessageStreamChunk>,
-  ): void;
+  flush(controller: ChunkController): void;
 } => {
   type PendingTool = {
     toolCallId: string;
@@ -35,10 +37,7 @@ export const createChunkNormalizer = (): {
     hasFinalResult: false,
     pendingResults: [],
   });
-  const emitPendingTool = (
-    out: TransformStreamDefaultController<UIMessageStreamChunk>,
-    tool: PendingTool,
-  ) => {
+  const emitPendingTool = (out: ChunkController, tool: PendingTool) => {
     if (!tool.emitted) {
       tool.emitted = true;
       out.enqueue({

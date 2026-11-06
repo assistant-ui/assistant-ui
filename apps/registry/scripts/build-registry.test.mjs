@@ -2645,6 +2645,43 @@ describe("built registry artifacts", { concurrency: false }, () => {
     );
   });
 
+  test("standalone generative Markdown installs without diagram or map dependencies", async () => {
+    for (const prefix of ["", "base/"]) {
+      const markdown = JSON.parse(
+        await readFile(
+          `dist/${prefix}elements-generative-markdown.json`,
+          "utf8",
+        ),
+      );
+      assert.deepEqual(markdown.dependencies.toSorted(), [
+        "react-markdown",
+        "remark-gfm",
+      ]);
+      assert.deepEqual(
+        markdown.files.map((file) => file.path),
+        ["components/assistant-ui/elements/generative-markdown.tsx"],
+      );
+      assert.deepEqual(markdown.registryDependencies, [
+        `https://r.assistant-ui.com/${prefix}generative-ui-style.json`,
+      ]);
+
+      const library = JSON.parse(
+        await readFile(`dist/${prefix}generative-ui.json`, "utf8"),
+      );
+      for (const name of [
+        "generative-markdown",
+        "mermaid-diagram",
+        "geo-map",
+      ]) {
+        assert.ok(
+          library.registryDependencies.includes(
+            `https://r.assistant-ui.com/${prefix}elements-${name}.json`,
+          ),
+        );
+      }
+    }
+  });
+
   test("native registry build emits the React Native kit", async () => {
     const [registryContent, threadContent] = await Promise.all([
       readFile("dist/native/registry.json", "utf8"),

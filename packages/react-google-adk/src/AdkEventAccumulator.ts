@@ -1,6 +1,6 @@
 import { generateId } from "@assistant-ui/core";
 import { isRecord } from "@assistant-ui/core/internal";
-import type { MessageStatus } from "@assistant-ui/core";
+import type { MessageStatus, ToolModelContentPart } from "@assistant-ui/core";
 import type {
   AdkEvent,
   AdkEventPart,
@@ -172,6 +172,37 @@ const toContentPart = (
     };
   }
   return mediaToContentPart(part);
+};
+
+const getToolModelContent = (
+  response: NonNullable<AdkEventPart["functionResponse"]>,
+): ToolModelContentPart[] | undefined => {
+  if (!Array.isArray(response.parts)) return;
+  const files = response.parts.flatMap<ToolModelContentPart>((part) => {
+    if (!isRecord(part)) return [];
+    const { inlineData, fileData } = normalizeAdkPart(part);
+    const media = inlineData ?? fileData;
+    if (!isRecord(media)) return [];
+    const mediaType =
+      media.mimeType ??
+      (media === fileData ? "application/octet-stream" : undefined);
+    if (typeof mediaType !== "string") return [];
+    const data = media.data ?? media.fileUri;
+    if (typeof data !== "string") return [];
+    return [
+      {
+        type: "file",
+        data,
+        mediaType,
+        ...(typeof media.displayName === "string" && {
+          filename: media.displayName,
+        }),
+      },
+    ];
+  });
+  return files.length > 0
+    ? [{ type: "text", text: JSON.stringify(response.response) }, ...files]
+    : undefined;
 };
 
 // ── Snake_case normalization ──
@@ -363,6 +394,7 @@ export class AdkEventAccumulator {
             tool_call_id: part.functionResponse.id,
             name: part.functionResponse.name,
             content: JSON.stringify(part.functionResponse.response),
+            modelContent: getToolModelContent(part.functionResponse),
             status: isAdkFunctionError(part.functionResponse.response)
               ? "error"
               : "success",
@@ -524,6 +556,7 @@ export class AdkEventAccumulator {
         tool_call_id: part.functionResponse.id ?? "",
         name: part.functionResponse.name,
         content: JSON.stringify(part.functionResponse.response),
+        modelContent: getToolModelContent(part.functionResponse),
         status: isAdkFunctionError(part.functionResponse.response)
           ? "error"
           : "success",

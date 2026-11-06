@@ -9,9 +9,8 @@ export const SSE_HEADERS = {
   Connection: "keep-alive",
 };
 
-type SSEJsonDoneOptions<T> = {
+type SSEJsonDoneOptions = {
   marker: string;
-  onDone?: (controller: TransformStreamDefaultController<T>) => void;
   onMissing?: () => void;
 };
 
@@ -20,7 +19,7 @@ type SSEJsonDecoderOptions<T> = {
     data: string,
     controller: TransformStreamDefaultController<T>,
   ) => void;
-  done?: SSEJsonDoneOptions<T>;
+  done?: SSEJsonDoneOptions;
   maxLineLength?: number | undefined;
   maxEventLength?: number | undefined;
 } & (
@@ -78,7 +77,6 @@ export const createSSEJsonDecoder =
               options.done !== undefined &&
               event.data === options.done.marker
             ) {
-              options.done.onDone?.(controller);
               receivedDone = true;
               controller.terminate();
               return;
