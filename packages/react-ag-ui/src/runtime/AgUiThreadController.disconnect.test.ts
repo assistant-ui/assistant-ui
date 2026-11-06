@@ -459,4 +459,139 @@ describe("AgUiThreadController HTTP stream closure", () => {
       ).toMatchObject({ type: "complete" });
     },
   );
+
+  it("keeps an unresolved-call snapshot running until the stream ends", async () => {
+    let releaseStream!: () => void;
+    const streamCanClose = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const events = [
+      start,
+      ...text,
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "TOOL_CALL_START", toolCallId: "task", toolCallName: "task" },
+      { type: "TOOL_CALL_END", toolCallId: "task" },
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub",
+        name: "worker",
+        parentToolCallId: "task",
+      },
+      {
+        type: "TEXT_MESSAGE_START",
+        messageId: "sub-answer",
+        role: "assistant",
+        subagentRunId: "sub",
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "sub-answer",
+        delta: "working",
+        subagentRunId: "sub",
+      },
+      {
+        type: "TEXT_MESSAGE_END",
+        messageId: "sub-answer",
+        subagentRunId: "sub",
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "partial answer",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      { type: "STATE_SNAPSHOT", snapshot: { marker: "snapshot-imported" } },
+    ];
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            async start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  events
+                    .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                    .join(""),
+                ),
+              );
+              await streamCanClose;
+              controller.close();
+            },
+          }),
+          { headers: { "Content-Type": "text/event-stream" } },
+        ),
+    });
+    const core = new AgUiThreadController({
+      agent,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    const snapshotImported = new Promise<void>((resolve) => {
+      const unsubscribe = core.subscribe(() => {
+        if (
+          JSON.stringify(core.getState()) ===
+          JSON.stringify({ marker: "snapshot-imported" })
+        ) {
+          unsubscribe();
+          resolve();
+        }
+      });
+    });
+
+    const run = core.append(userMessage);
+    await snapshotImported;
+    const answerDuringRun = core
+      .getMessages()
+      .find(({ id }) => id === "answer");
+    const toolCallDuringRun = answerDuringRun?.content.find(
+      (part) => part.type === "tool-call",
+    );
+    const subagentDuringRun =
+      toolCallDuringRun?.type === "tool-call"
+        ? toolCallDuringRun.messages?.find(({ id }) => id === "sub")
+        : undefined;
+    const statusDuringRun = {
+      isRunning: core.isRunning(),
+      answerStatus: answerDuringRun?.status,
+      subagentStatus: subagentDuringRun?.status,
+    };
+
+    releaseStream();
+    await run;
+
+    expect(statusDuringRun).toMatchObject({
+      isRunning: true,
+      answerStatus: { type: "running" },
+      subagentStatus: { type: "running" },
+    });
+    expect(core.isRunning()).toBe(false);
+    const answerAfterRun = core.getMessages().find(({ id }) => id === "answer");
+    expect(answerAfterRun?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+    });
+    const toolCallAfterRun = answerAfterRun?.content.find(
+      (part) => part.type === "tool-call",
+    );
+    const subagentAfterRun =
+      toolCallAfterRun?.type === "tool-call"
+        ? toolCallAfterRun.messages?.find(({ id }) => id === "sub")
+        : undefined;
+    expect(subagentAfterRun?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+    });
+  });
 });
