@@ -1,0 +1,67 @@
+---
+title: Pages
+description: A remote component is an HTML document with the runtime in it. Everything on this page is optional.
+---
+
+import { StarsDemo } from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+## The runtime
+
+One classic script, first in the head:
+
+```html title="index.html"
+<script src="https://widgets.example/rc-runtime.js"></script>
+```
+
+You rarely write it yourself. The serving layer adds it, the Vite plugin adds it, and the host inlines it for documents it shows itself. Before it, the serving layer also adds a doctype if the page has none.
+
+The runtime handles layout, theme, focus and the channel to the host. A page that only shows content needs nothing else. Opened directly in a browser tab, it is a normal page: `rc.props` is empty and nothing changes.
+
+## window.rc
+
+Props and overlays are on `window.rc`. It is an `EventTarget`. `props-changed` fires once when the first props arrive and again on every change. `theme-changed` fires when the host's styles change.
+
+```js
+rc.props.value;                                 // current props
+rc.addEventListener("props-changed", render);   // first props, then every change
+await rc.props.onRate(4);                       // function props return Promises
+rc.overlay({ kind: "popover", src: "menu.html", anchor: button });
+```
+
+Both events fire after the document is parsed, so a script at the end of the body is in time. The usual shape is a `render` function: call it once with `rc.props`, then on every `props-changed`.
+
+This page draws its stars from a prop and reports clicks back. Click a star.
+
+<StarsDemo />
+
+<RemoteSource name="stars" />
+
+```tsx title="host.tsx"
+const [value, setValue] = useState(3);
+
+<RemoteComponent
+  src="https://widgets.example/stars.html"
+  value={value}
+  onRate={async (n: number) => setValue(n)}
+/>
+```
+
+A page with only text and buttons needs a few lines of the same. `rsvp.html` on the [Introduction](/remote-components/docs) is one.
+
+## React
+
+Any React app works as it is. To read props, use `useProps()` from `@assistant-ui/remote-components-react`. Keep component state in React as usual.
+
+```tsx title="Counter.tsx"
+import { useState } from "react";
+import { useProps } from "@assistant-ui/remote-components-react";
+
+export function Counter() {
+  const { label } = useProps<{ label: string }>();
+  const [n, setN] = useState(0);
+  return <button onClick={() => setN(n + 1)}>{label}: {n}</button>;
+}
+```
+
+The full list is in the [Page API](/remote-components/docs/page-api).

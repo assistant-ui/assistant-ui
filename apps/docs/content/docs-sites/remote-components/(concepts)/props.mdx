@@ -1,0 +1,88 @@
+---
+title: Props and callbacks
+description: Every prop that isn't a host prop goes to the remote. Functions become async calls back to your page.
+---
+
+import {
+  GreetingDemo,
+  SearchDemo,
+} from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+In the page, props are on `rc.props`. React pages get them as component props or from `useProps()`.
+
+## Props
+
+Props cross with the structured clone algorithm. Dates, Maps, Sets, typed arrays and Blobs arrive intact. Class instances lose their prototype. Symbols, Promises and DOM nodes are a `data` error.
+
+Only changed props are sent, coalesced per task. The remote renders once per update.
+
+## Function props
+
+A function prop becomes a proxy in the remote. So does a function inside a plain object or array prop. Calling it returns a Promise of your function's return value. If your function throws, the promise rejects.
+
+<GreetingDemo />
+
+```tsx title="host.tsx"
+const [name, setName] = useState("Ada");
+const likes = useRef(0);
+
+<input value={name} onChange={(e) => setName(e.target.value)} />
+<RemoteComponent
+  src="https://widgets.example/greeting.html"
+  name={name}
+  onLike={(who: string) => {
+    likes.current += 1;
+    return likes.current; // the remote gets a Promise of this
+  }}
+/>
+```
+
+<RemoteSource name="greeting" />
+
+The proxy calls whatever function is at that prop *now*. Inline arrow functions are fine: a new identity sends no message, and the proxy stays stable for `useEffect` dependencies. A prop you removed fails with `stale-function`. So does any path you never sent a function at, such as one inside a prop that failed to send.
+
+Arguments and return values must be data. Passing a function across fails with `data`.
+
+The same remote as a React component:
+
+```tsx title="remotes/greeting.tsx"
+import { useState } from "react";
+
+interface Props {
+  name?: string;
+  onLike?: (name: string) => Promise<number>;
+}
+
+export default function Greeting({ name = "there", onLike }: Props) {
+  const [likes, setLikes] = useState<number | null>(null);
+  return (
+    <div className="row">
+      <span>Hello, {name}.</span>
+      <button onClick={() => void onLike?.(name).then(setLikes)}>Like</button>
+      {likes !== null && <span className="muted">Host says {likes} likes</span>}
+    </div>
+  );
+}
+```
+
+## Cancellation
+
+Pass an `AbortSignal` anywhere in the arguments. Your function gets its own signal in the same place. When the remote aborts, its call rejects at once and your signal aborts too.
+
+<SearchDemo />
+
+```tsx title="host.tsx"
+<RemoteComponent
+  src="https://widgets.example/search.html"
+  onSearch={async (query: string, { signal }: { signal: AbortSignal }) => {
+    // signal aborts when the remote aborts its own signal.
+    await sleep(1500, signal);
+    return cities.filter((c) => c.toLowerCase().includes(query));
+  }}
+/>
+```
+
+<RemoteSource name="search" />
+
+Unmounting closes the channel. Calls in flight reject with `closed`, and calls the host is still serving get an aborted signal.

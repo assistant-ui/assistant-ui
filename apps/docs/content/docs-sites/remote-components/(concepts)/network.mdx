@@ -1,0 +1,64 @@
+---
+title: Network
+description: Remotes call public APIs with plain fetch. Your page decides how much network they get.
+---
+
+import { WeatherDemo } from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+## Public by default
+
+A remote may reach any `https:` or `wss:` endpoint. Requests carry none of your page's cookies. The remote runs on its own origin, or on an opaque one with no cookies at all. CORS applies as usual.
+
+Pick a policy below and click Get weather. The data comes from [Open-Meteo](https://open-meteo.com), which needs no key.
+
+<WeatherDemo />
+
+```tsx title="host.tsx"
+<RemoteComponent src="https://widgets.example/weather.html" />
+<RemoteComponent src="https://widgets.example/weather.html" network="none" />
+<RemoteComponent src="https://widgets.example/weather.html" network={["https://api.open-meteo.com"]} />
+<RemoteComponent src="https://widgets.example/weather.html" network={["https://example.com"]} />
+```
+
+<RemoteSource name="weather" />
+
+## Network policy
+
+| `network` | `connect-src` | |
+| --- | --- | --- |
+| `"public"` | `https: wss:` | Default. Any public endpoint. |
+| `"none"` | `'none'` | No network at all. |
+| `["https://api.example.com"]` | those origins | Exactly these. `https://*.example.com` matches subdomains. |
+
+Set it per element with `network`, or for every remote on `<RemoteHostProvider network>`. It is a Content Security Policy. For documents your page shows itself (the `html` prop, Safe Content Frame) the host writes it into the document. For URL remotes it goes on the iframe's `csp` attribute, which the serving layer accepts.
+
+<Callout type="warn">
+  Only Chromium enforces the iframe `csp` attribute. In Firefox and Safari, a URL remote gets the policy its own server sends. To be sure everywhere, show the document yourself with the `html` prop or `isolation="scf"`.
+</Callout>
+
+## What a page needs
+
+A page can narrow its own network with a Content Security Policy of its own. The browser enforces every policy on the document, so the page's meta tag can take origins away from the host's policy but never add one.
+
+```html title="weather.html"
+<meta http-equiv="Content-Security-Policy" content="connect-src https://api.open-meteo.com">
+```
+
+## Your data and the user's authority
+
+There is no relay through the host, and the remote never gets your credentials. When it needs your data or acts for the user, pass a prop or a function. You implement it and check it like any API.
+
+```tsx title="host.tsx"
+// The remote never sees the token. Your code decides what it may ask for.
+<RemoteComponent
+  src="https://widgets.example/orders.html"
+  loadOrders={async (status: string) => api.orders({ status, user: session.userId })}
+/>
+```
+
+## What to trust it with
+
+With network on, a remote can send anything it can read to any public endpoint: its props, what it stores, what the user types. Treat it like a third-party script. Only pass data you would give that publisher. For code you don't trust with data, such as widgets from strangers or a model's output, use `network="none"`.
+
+CSP can't express address ranges. `https:` also matches private and loopback addresses. Those requests carry none of your cookies, and Chromium blocks public frames from private addresses without a preflight. If that is not enough, use `"none"` or a list. See [Security](/remote-components/docs/security).
