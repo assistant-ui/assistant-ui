@@ -1,6 +1,6 @@
 const port = 3331;
 const origin = `http://localhost:${port}`;
-const production = "https://(?:www\\.)?assistant-ui\\.com";
+const production = "https://(?:www\\.)?assistant-ui\\.com(?=[/?#]|$)";
 
 // Local runs check only links into this build, so they never load third-party
 // sites; the weekly and manual CI runs set LINKINATOR_EXTERNAL=1 to add them.
