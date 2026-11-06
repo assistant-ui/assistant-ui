@@ -283,7 +283,9 @@ describe("create next steps", () => {
   });
 
   const nextSteps = async (pkg: object) => {
-    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+    let templatePath: string | undefined;
+    mocks.scaffoldProject.mockImplementationOnce(async (repoPath, destDir) => {
+      templatePath = repoPath;
       fs.mkdirSync(destDir, { recursive: true });
       fs.writeFileSync(path.join(destDir, "package.json"), JSON.stringify(pkg));
     });
@@ -300,15 +302,21 @@ describe("create next steps", () => {
         ],
         { from: "user" },
       );
-      return info.mock.calls.map(([line]) => line);
+      return {
+        templatePath,
+        lines: info.mock.calls.map(([line]) => line),
+      };
     } finally {
       info.mockRestore();
     }
   };
 
-  it("tells a VS Code extension to open the folder and press F5", async () => {
-    const lines = await nextSteps({ engines: { vscode: "^1.110.0" } });
+  it("scaffolds templates/vscode and tells it to open the folder and press F5", async () => {
+    const { templatePath, lines } = await nextSteps({
+      engines: { vscode: "^1.110.0" },
+    });
 
+    expect(templatePath).toBe("templates/vscode");
     expect(lines).toContain("  code .");
     expect(lines).toContain("  # Press F5 to run the extension");
     expect(lines.some((line) => line.includes("environment variables"))).toBe(
@@ -317,7 +325,7 @@ describe("create next steps", () => {
   });
 
   it("tells any other project to set its environment and run dev", async () => {
-    const lines = await nextSteps({ scripts: { dev: "vite" } });
+    const { lines } = await nextSteps({ scripts: { dev: "vite" } });
 
     expect(lines).toContain("  # Set up your environment variables in .env");
     expect(lines).toContain("  npm run dev");

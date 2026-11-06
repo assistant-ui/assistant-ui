@@ -122,7 +122,7 @@ font-src <cspSource> data:; connect-src <cspSource>; frame-src 'none'
 ```
 
 - `csp: "relaxed"` replaces the style nonce with `'unsafe-inline'`, for libraries that inject `<style>` tags without a nonce. Browsers ignore `'unsafe-inline'` next to a nonce, so the nonce is dropped from `style-src`. `script-src` keeps it.
-- `connectSrc`, `frameSrc`, and `scriptSrc` append sources, one host or scheme per entry. Code-split chunks need no `scriptSrc` entry, because a module script's imports, `import()` included, inherit its nonce.
+- `connectSrc`, `frameSrc`, and `scriptSrc` append sources, one host or scheme per entry. Code-split chunks should need no `scriptSrc` entry, because a module script's imports, `import()` included, inherit its nonce. The VS Code test bed only covers a single classic bundle, so check the webview's developer tools for CSP errors if you split.
 - `imgSrc` and `mediaSrc` append sources to `img-src` and `media-src`. Remote images and media are blocked by default, because an image URL in model output loads as soon as the message renders and can carry chat data away. Allow the hosts you trust, such as `https://icons.duckduckgo.com` for the favicons of the `Sources` component (which falls back to an icon when they are blocked), or `"https:"` for every remote image.
 - `wasmUnsafeEval: true` adds `'wasm-unsafe-eval'` for WebAssembly. `'unsafe-eval'` is never added.
 - `surface` sets `data-aui-vscode-surface` on `<body>` for the theme, `rootId` names the mount element (`"root"`, or `null` for none), and `scriptType: "classic"` emits deferred classic scripts instead of modules.
