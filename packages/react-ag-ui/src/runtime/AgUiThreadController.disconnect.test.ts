@@ -594,4 +594,118 @@ describe("AgUiThreadController HTTP stream closure", () => {
       reason: "error",
     });
   });
+
+  it.each([
+    {
+      ending: "EOF",
+      runFinished: false,
+      expectedStatus: { type: "incomplete", reason: "error" },
+    },
+    {
+      ending: "RUN_FINISHED",
+      runFinished: true,
+      expectedStatus: { type: "requires-action", reason: "tool-calls" },
+    },
+  ])(
+    "tracks an answer introduced only by a snapshot through $ending",
+    async ({ runFinished, expectedStatus }) => {
+      let releaseStream!: () => void;
+      const streamCanClose = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const snapshotAnswer = {
+        id: "snapshot-answer",
+        role: "assistant",
+        content: "Let me check.",
+        toolCalls: [
+          {
+            id: "snapshot-task",
+            type: "function",
+            function: { name: "task", arguments: "{}" },
+          },
+        ],
+      };
+      const agent = new HttpAgent({
+        url: "https://example.invalid",
+        fetch: async (_url: unknown, init: RequestInit) => {
+          const messages = JSON.parse(init.body as string).messages ?? [];
+          const events = [
+            start,
+            {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [...messages, snapshotAnswer],
+            },
+            {
+              type: "STATE_SNAPSHOT",
+              snapshot: { marker: "snapshot-imported" },
+            },
+          ];
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              async start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    events
+                      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                      .join(""),
+                  ),
+                );
+                await streamCanClose;
+                if (runFinished) {
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `data: ${JSON.stringify({
+                        type: "RUN_FINISHED",
+                        threadId: "thread",
+                        runId: "run",
+                      })}\n\n`,
+                    ),
+                  );
+                }
+                controller.close();
+              },
+            }),
+            { headers: { "Content-Type": "text/event-stream" } },
+          );
+        },
+      });
+      const core = new AgUiThreadController({
+        agent,
+        logger: makeLogger(),
+        showThinking: false,
+      });
+      const snapshotImported = new Promise<void>((resolve) => {
+        const unsubscribe = core.subscribe(() => {
+          if (
+            JSON.stringify(core.getState()) ===
+            JSON.stringify({ marker: "snapshot-imported" })
+          ) {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+      const run = core.append(userMessage);
+      await snapshotImported;
+      const answerDuringRun = core
+        .getMessages()
+        .find(({ id }) => id === "snapshot-answer");
+      const statusDuringRun = {
+        isRunning: core.isRunning(),
+        answerStatus: answerDuringRun?.status,
+      };
+
+      releaseStream();
+      await run;
+
+      expect(
+        core.getMessages().find(({ id }) => id === "snapshot-answer")?.status,
+      ).toMatchObject(expectedStatus);
+      expect(statusDuringRun).toMatchObject({
+        isRunning: true,
+        answerStatus: { type: "running" },
+      });
+    },
+  );
 });

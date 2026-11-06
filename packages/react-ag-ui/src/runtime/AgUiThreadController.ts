@@ -2014,15 +2014,41 @@ export class AgUiThreadController {
       joinStrategy,
       logger: this.logger,
       emit: (update) => {
+        const currentSnapshotAssistant =
+          assistantMessageId === undefined
+            ? undefined
+            : this.session.tryGetMessage(assistantMessageId)?.message;
+        const hasPendingSnapshotToolCall =
+          latestSnapshot?.id === assistantMessageId &&
+          currentSnapshotAssistant?.role === "assistant" &&
+          Array.from(
+            iterateToolCallParts(currentSnapshotAssistant.content),
+          ).some(
+            (part) =>
+              snapshotToolCallIds.has(part.toolCallId) &&
+              !isResolvedToolCall(part),
+          );
+        const reconciledUpdate =
+          settlingRun &&
+          update.status?.type === "complete" &&
+          hasPendingSnapshotToolCall
+            ? {
+                ...update,
+                status: {
+                  type: "requires-action",
+                  reason: "tool-calls",
+                } as const,
+              }
+            : update;
         if (
           settlingRun &&
           latestSnapshot &&
           latestSnapshot.id === assistantMessageId &&
-          update.status &&
-          update.status.type !== "running" &&
-          update.status.type !== "requires-action"
+          reconciledUpdate.status &&
+          reconciledUpdate.status.type !== "running" &&
+          reconciledUpdate.status.type !== "requires-action"
         ) {
-          const status = update.status;
+          const status = reconciledUpdate.status;
           const current =
             this.session.tryGetMessage(assistantMessageId)?.message;
           const content = settleNestedContent(
@@ -2031,22 +2057,22 @@ export class AgUiThreadController {
               : latestSnapshot.content,
             status,
           );
-          applyUpdate({ ...update, content });
+          applyUpdate({ ...reconciledUpdate, content });
         } else if (
           latestSnapshot &&
           latestSnapshot.id === assistantMessageId &&
-          update.content !== undefined
+          reconciledUpdate.content !== undefined
         ) {
           const content = this.mergeSnapshotAssistantContent(
             latestSnapshot.content,
-            update.content as ThreadAssistantMessage["content"],
-            update.content.some((part) => part.type === "reasoning"),
-            update.content.some(isActivityPart),
+            reconciledUpdate.content as ThreadAssistantMessage["content"],
+            reconciledUpdate.content.some((part) => part.type === "reasoning"),
+            reconciledUpdate.content.some(isActivityPart),
             snapshotToolCallIds,
           );
-          applyUpdate({ ...update, content });
+          applyUpdate({ ...reconciledUpdate, content });
         } else {
-          applyUpdate(update);
+          applyUpdate(reconciledUpdate);
         }
         const current = assistantMessageId
           ? this.session.tryGetMessage(assistantMessageId)?.message
@@ -3032,11 +3058,19 @@ export class AgUiThreadController {
           reconcileSnapshot,
         );
         const headId = this.session.headId;
-        if (hasActiveText && headId !== previousHeadId) {
-          const head =
-            headId === null
-              ? undefined
-              : this.session.tryGetMessage(headId)?.message;
+        const head =
+          headId === null
+            ? undefined
+            : this.session.tryGetMessage(headId)?.message;
+        const hasNewPendingToolCallAnswer =
+          head?.role === "assistant" &&
+          !runStartMessageIds.has(head.id) &&
+          head.status?.type === "requires-action" &&
+          head.status.reason === "tool-calls";
+        if (
+          headId !== previousHeadId &&
+          (hasActiveText || hasNewPendingToolCallAnswer)
+        ) {
           const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
           if (
@@ -3059,6 +3093,11 @@ export class AgUiThreadController {
             }
           }
           activeAssistantId = nextActiveAssistantId;
+          if (hasNewPendingToolCallAnswer && head) {
+            this.updateAssistantMessage(head.id, {
+              status: { type: "running" },
+            });
+          }
         }
         this.updateActiveAssistantState(activeAssistantId);
         break;
