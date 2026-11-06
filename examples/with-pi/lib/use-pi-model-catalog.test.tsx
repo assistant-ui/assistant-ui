@@ -1,9 +1,69 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook, waitFor } from "@testing-library/react";
-import type { PiModelInfo } from "@assistant-ui/react-pi";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  usePiRuntime,
+  type PiClient,
+  type PiModelInfo,
+} from "@assistant-ui/react-pi";
+import { Thread } from "../components/assistant-ui/elements/thread";
+import { PiHandshakeProvider } from "../components/pi-handshake";
 import type { PiModelOption } from "./pi-model-catalog";
 import { usePiModelCatalog } from "./use-pi-model-catalog";
+
+vi.mock("@/components/assistant-ui/elements/markdown-text", () => ({
+  MarkdownText: () => null,
+}));
+
+vi.mock(
+  "@/components/assistant-ui/elements/model-selector.aui",
+  async (importOriginal) => {
+    const original =
+      await importOriginal<
+        typeof import("@/components/assistant-ui/elements/model-selector.aui")
+      >();
+    const { createElement } = await import("react");
+    return {
+      ...original,
+      ModelSelector: {
+        Root: ({
+          models,
+          onValueChange,
+        }: {
+          models: PiModelOption[];
+          onValueChange: (value: string) => void;
+        }) =>
+          createElement(
+            "div",
+            null,
+            ...models.map((model) =>
+              createElement(
+                "button",
+                {
+                  key: model.id,
+                  type: "button",
+                  onClick: () => onValueChange(model.id),
+                },
+                model.name,
+              ),
+            ),
+          ),
+        Trigger: () => null,
+        Content: () => null,
+        Search: () => null,
+        List: () => null,
+      },
+    };
+  },
+);
 
 const handshakeModels: PiModelOption[] = [
   {
@@ -198,6 +258,64 @@ describe("usePiModelCatalog", () => {
         "openai:gpt-5",
         "local-extension:custom-model",
       ]),
+    );
+  });
+});
+
+describe("Thread composer model selector", () => {
+  it("selects a thread extension model absent from the handshake", async () => {
+    const threadId = "pi-thread-123";
+    const snapshot = {
+      metadata: { id: threadId, status: "idle" as const },
+      messages: [],
+    };
+    const setModel = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      listThreads: vi.fn().mockResolvedValue([snapshot.metadata]),
+      getThread: vi.fn().mockResolvedValue(snapshot),
+      subscribe: vi.fn().mockReturnValue(() => {}),
+      setModel,
+    } as unknown as PiClient;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(responseFor([extensionModel]));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+
+    const Harness = () => {
+      const runtime = usePiRuntime({ client, initialThreadId: threadId });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <PiHandshakeProvider value={{ models: handshakeModels }}>
+            <Thread />
+          </PiHandshakeProvider>
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/pi/models?threadId=${threadId}`,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Extension model" }),
+    );
+    await waitFor(() =>
+      expect(setModel).toHaveBeenCalledWith(threadId, {
+        provider: "local-extension",
+        modelId: "custom-model",
+      }),
     );
   });
 });
