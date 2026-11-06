@@ -2306,6 +2306,55 @@ describe("AISDKMessageConverter", () => {
     expect(Object.hasOwn(firstMetadata, "__proto__")).toBe(false);
   });
 
+  it.each(["customProvider", Symbol("provider")])(
+    "copies provider %s without invoking an inherited setter",
+    (key) => {
+      const previous = Object.getOwnPropertyDescriptor(Object.prototype, key);
+      const value = Object.freeze({ token: "last" });
+      let setterCalls = 0;
+      Object.defineProperty(Object.prototype, key, {
+        configurable: true,
+        set: () => {
+          setterCalls++;
+        },
+      });
+      try {
+        const converted = AISDKMessageConverter.toThreadMessages([
+          {
+            id: "system",
+            role: "system",
+            parts: [
+              { type: "text", text: "one" },
+              {
+                type: "text",
+                text: "two",
+                providerMetadata: Object.freeze({
+                  visible: { token: "kept" },
+                  [key]: value,
+                }),
+              },
+            ],
+          },
+        ]);
+        const joined = converted[0]?.content.find(
+          (part) => part.type === "text",
+        );
+        expect(setterCalls).toBe(0);
+        expect(
+          Object.getOwnPropertyDescriptor(joined?.providerMetadata, key),
+        ).toEqual({
+          value,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      } finally {
+        if (previous) Object.defineProperty(Object.prototype, key, previous);
+        else Reflect.deleteProperty(Object.prototype, key);
+      }
+    },
+  );
+
   it("reads a user text part without text as empty text", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       { id: "u1", role: "user", parts: [{ type: "text" }] },

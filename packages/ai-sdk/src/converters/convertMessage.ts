@@ -469,27 +469,17 @@ const uiPartStateToStatus = (
 const toSystemContent = (content: MessageContent): MessageContent => {
   const text = content.filter((part) => part.type === "text");
   if (text.length === 1) return text;
-  const providerMetadata: PartProviderMetadata = {
-    ...text[0]?.providerMetadata,
-  };
-  for (let index = 1; index < text.length; index++) {
-    const source = text[index]!.providerMetadata;
-    if (source == null) continue;
-    if (Object.hasOwn(source, "__proto__")) {
-      // Preserve the data key without invoking Object.prototype's setter.
-      Object.defineProperties(
-        providerMetadata,
-        Object.getOwnPropertyDescriptors({ ...source }),
-      );
-    } else {
-      Object.assign(providerMetadata, source);
-    }
+  const providerMetadata = Object.create(null) as PartProviderMetadata;
+  for (const part of text) {
+    Object.assign(providerMetadata, part.providerMetadata);
   }
   return [
     {
       type: "text",
       text: text.map((part) => part.text).join(""),
-      ...(Object.keys(providerMetadata).length > 0 && { providerMetadata }),
+      ...(Object.keys(providerMetadata).length > 0 && {
+        providerMetadata: { ...providerMetadata },
+      }),
     },
   ];
 };
