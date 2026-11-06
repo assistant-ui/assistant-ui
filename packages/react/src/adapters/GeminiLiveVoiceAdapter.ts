@@ -63,6 +63,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       let player: PcmPlayer | undefined;
       let muted = false;
       let closed = false;
+      let ending = false;
       let ready = false;
       let generating = false;
       let cancelled = false;
@@ -120,16 +121,19 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const end = (reason: "finished" | "error", error?: unknown) => {
+        if (ending) return;
+        ending = true;
         if (ready && !closed) {
-          // A typed reply holds its first frame for one macrotask so the runtime
-          // records the typed turn first; later frames queue behind it. The timer
-          // that would route them gives up once the session is closed, so a socket
-          // that closes inside that window would drop the reply entirely. Drain the
-          // queue here, while the turn is still open, before finishing it.
-          for (let pass = 0; pass < 8 && deferred !== undefined; pass += 1) {
-            const queue = deferred;
-            deferred = undefined;
-            for (const item of queue) routeContent(item);
+          // The deferral timer skips disconnected sessions, so route queued frames before finishing the turn.
+          try {
+            while (deferred !== undefined) {
+              const queue = deferred;
+              deferred = undefined;
+              for (const item of queue) routeContent(item);
+            }
+          } catch (drainError) {
+            reason = "error";
+            error = drainError;
           }
           finishTurn();
           flushUser();
@@ -139,7 +143,7 @@ export class GeminiLiveVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const send = (message: Record<string, unknown>) => {
-        if (closed || !ready || socket?.readyState !== WebSocket.OPEN)
+        if (closed || ending || !ready || socket?.readyState !== WebSocket.OPEN)
           throw new Error("Gemini Live session is not connected.");
         socket.send(JSON.stringify(message));
       };
