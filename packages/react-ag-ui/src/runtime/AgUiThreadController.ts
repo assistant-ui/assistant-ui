@@ -1331,7 +1331,7 @@ export class AgUiThreadController {
     );
     if (!updated) return false;
     this.publishUpdate();
-    if (this.history?.update) {
+    if (this.history?.update && this.persistedHistoryIds.has(messageId)) {
       this.persistSettledAssistant(messageId);
     } else {
       this.persistAssistantHistory(messageId);

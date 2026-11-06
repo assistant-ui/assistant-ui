@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
 import type {
   AppendMessage,
@@ -199,6 +199,62 @@ describe("AgUiThreadController answered interrupt history", () => {
       status: { type: "complete" },
       content: [{ toolCallId: "call-1", result: "order placed" }],
     });
+  });
+
+  it("does not write an externally applied tool call when its result completes it", async () => {
+    const { history, rows } = storedHistory();
+    const update = vi.spyOn(history, "update" as never) as unknown as Mock<
+      NonNullable<ThreadHistoryAdapter["update"]>
+    >;
+    const core = new AgUiThreadController({
+      agent: {
+        runAgent: vi.fn(),
+        abortRun: vi.fn(),
+      } as unknown as AbstractAgent,
+      history,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    core.applyExternalMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "place_order",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(0),
+        metadata: {
+          custom: {},
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+        },
+      },
+    ]);
+    core.addToolResult({
+      messageId: "assistant-1",
+      toolCallId: "call-1",
+      toolName: "place_order",
+      result: "order placed",
+      isError: false,
+    });
+    await flush();
+
+    expect(core.getMessages()[0]).toMatchObject({
+      status: { type: "complete" },
+    });
+    const written = [...rows, ...update.mock.calls.map(([item]) => item)];
+    expect(written.map(({ message }) => message.id)).not.toContain(
+      "assistant-1",
+    );
   });
 
   it("updates one stored interrupt when it is answered after a reload", async () => {
