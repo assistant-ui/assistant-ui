@@ -275,6 +275,66 @@ describe("fromAgUiSnapshotMessages subagent attribution", () => {
     expect(converted[0]?.status?.type).toBe("requires-action");
   });
 
+  it("keeps a deeply nested pending call visible through resolved spawning calls", () => {
+    const messages = [
+      { id: "a1", role: "assistant", content: "", toolCalls: [call("top")] },
+      { id: "t1", role: "tool", toolCallId: "top", content: '"ok"' },
+      {
+        id: "m1",
+        role: "assistant",
+        content: "",
+        toolCalls: [call("top::mid")],
+        subagentRunId: "top",
+      },
+      {
+        id: "m-result",
+        role: "tool",
+        toolCallId: "top::mid",
+        content: '"ok"',
+        subagentRunId: "top",
+      },
+      {
+        id: "l1",
+        role: "assistant",
+        content: "",
+        toolCalls: [call("top::mid::leaf", "confirm")],
+        subagentRunId: "top::mid",
+      },
+    ];
+    const parents: [string, string][] = [
+      ["top", "top"],
+      ["top::mid", "top::mid"],
+    ];
+    const converted = announced(messages, parents);
+
+    const [middle] = findCall(converted, "top")!.messages!;
+    const [leaf] = findCall([middle!], "top::mid")!.messages!;
+    expect(leaf).toMatchObject({ status: { type: "requires-action" } });
+    expect(middle).toMatchObject({ status: { type: "requires-action" } });
+    expect(converted[0]).toMatchObject({
+      status: { type: "requires-action" },
+    });
+
+    const resolved = announced(
+      [
+        ...messages,
+        {
+          id: "l-result",
+          role: "tool",
+          toolCallId: "top::mid::leaf",
+          content: '"confirmed"',
+          subagentRunId: "top::mid",
+        },
+      ],
+      parents,
+    );
+    const [resolvedMiddle] = findCall(resolved, "top")!.messages!;
+    const [resolvedLeaf] = findCall([resolvedMiddle!], "top::mid")!.messages!;
+    expect(resolvedLeaf).toMatchObject({ status: { type: "complete" } });
+    expect(resolvedMiddle).toMatchObject({ status: { type: "complete" } });
+    expect(resolved[0]).not.toHaveProperty("status");
+  });
+
   it("surfaces a nested run's open interrupt on its spawning message", () => {
     const converted = announced(
       [

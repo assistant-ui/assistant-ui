@@ -1240,8 +1240,10 @@ export function fromAgUiSnapshotMessages(
     });
 
   const toSubagentMessage = (runId: string): ThreadMessage => {
-    const folded = convertGroup(runId)
-      .filter((message) => message.role === "assistant")
+    const messages = convertGroup(runId).filter(
+      (message) => message.role === "assistant",
+    );
+    const folded = messages
       .map((message) =>
         typeof message.content === "string"
           ? {
@@ -1266,7 +1268,7 @@ export function fromAgUiSnapshotMessages(
         ...(folded?.metadata ? { metadata: folded.metadata } : {}),
       },
       runId,
-      subagentStatus(folded?.metadata, content),
+      subagentStatus(folded?.metadata, messages),
     );
   };
 
@@ -1281,10 +1283,14 @@ const hasUnresolvedToolCall = (content: readonly unknown[]) =>
 
 function subagentStatus(
   metadata: unknown,
-  content: readonly unknown[],
+  messages: readonly CoreThreadMessageLike[],
 ): MessageStatus {
   const hasInterrupt = readPersistedInterrupts(metadata) !== undefined;
-  const hasPendingToolCall = hasUnresolvedToolCall(content);
+  const hasPendingToolCall = messages.some(
+    (message) =>
+      message.status?.type === "requires-action" &&
+      message.status.reason === "tool-calls",
+  );
   return hasInterrupt || hasPendingToolCall
     ? getAutoStatus(false, false, hasInterrupt, hasPendingToolCall, undefined)
     : { type: "complete", reason: "unknown" };
