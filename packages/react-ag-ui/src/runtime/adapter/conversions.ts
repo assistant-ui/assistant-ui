@@ -1294,7 +1294,9 @@ export function fromAgUiSnapshotMessages(
       )
       .reduce<CoreThreadMessageLike | undefined>(
         (merged, message) =>
-          merged ? foldTurnRecords(merged, message) : message,
+          // Pending-call admission is taken from the original records below.
+          // Merging lists in this fold would union ids that admission skips.
+          merged ? foldTurnRecords(merged, message, false) : message,
         undefined,
       );
     const content = Array.isArray(folded?.content) ? folded.content : [];
