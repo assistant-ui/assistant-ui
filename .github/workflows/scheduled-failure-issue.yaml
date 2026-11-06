@@ -32,7 +32,7 @@ jobs:
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          # Anyone can open an issue with this title, so only the one this workflow opened counts.
+          # Anyone can open an issue with this title, so only GitHub Actions-authored issues count.
           issue=$(gh issue list --state open --author app/github-actions --search "\"$TITLE\" in:title" --limit 100 --json number,title,author --jq 'map(select(.title == env.TITLE and .author.login == "app/github-actions")) | first | .number // empty')
           if [ "$FAILED" != "true" ]; then
             if [ -n "$issue" ]; then
