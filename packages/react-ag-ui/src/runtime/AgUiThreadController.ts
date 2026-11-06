@@ -2134,6 +2134,24 @@ export class AgUiThreadController {
                   type: "requires-action",
                   reason: "tool-calls",
                 } as const,
+                ...(restrictedPendingToolCallIds
+                  ? {
+                      metadata: {
+                        ...update.metadata,
+                        custom: {
+                          ...update.metadata?.custom,
+                          [AG_UI_METADATA_NAMESPACE]: {
+                            ...(update.metadata?.custom?.[
+                              AG_UI_METADATA_NAMESPACE
+                            ] as AgUiCustomMetadata | undefined),
+                            pendingToolCallIds: [
+                              ...restrictedPendingToolCallIds,
+                            ],
+                          },
+                        },
+                      },
+                    }
+                  : {}),
               }
             : update;
         if (

@@ -530,6 +530,51 @@ describe("AgUiThreadController HTTP stream closure", () => {
     expect(core.getPendingToolCalls()).toBeNull();
   });
 
+  it("lists only the snapshot calls the producer left pending", async () => {
+    const core = createController([
+      start,
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "snapshot answer",
+            toolCalls: [
+              {
+                id: "listed",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+              {
+                id: "unlisted",
+                type: "function",
+                function: { name: "task", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "success", pendingToolCallIds: ["listed"] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "answer",
+      toolCallIds: ["listed"],
+    });
+  });
+
   it.each([false, true])(
     "settles a known answer with a top-level snapshot call (RUN_FINISHED: %s)",
     async (runFinished) => {
