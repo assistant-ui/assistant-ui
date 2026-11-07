@@ -22,6 +22,11 @@ export type ActionDispatcherOptions = {
   catalog?: Catalog;
   /** Handlers by action name; they take precedence over `onAction`. */
   handlers?: Record<string, ActionHandler>;
+  confirm?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
   /** Called for catalog actions without a handler. */
   onAction?: (
     name: string,
@@ -84,6 +89,27 @@ export function createActionDispatcher(
         state: options.store,
       };
       try {
+        if (options.catalog?.action(binding.action)?.confirm === true) {
+          if (kind === "watch") {
+            throw new Error(
+              `Action "${binding.action}" requires a user event for confirmation`,
+            );
+          }
+          if (!options.confirm) {
+            throw new Error(
+              `Action "${binding.action}" requires the confirm option`,
+            );
+          }
+          const confirmed = await options.confirm({
+            action: binding.action,
+            params,
+            ...(elementId !== undefined ? { elementId } : {}),
+          });
+          if (!confirmed) {
+            results.push(undefined);
+            break;
+          }
+        }
         const handler = options.handlers?.[binding.action];
         if (handler) {
           results.push(await handler(params, source));

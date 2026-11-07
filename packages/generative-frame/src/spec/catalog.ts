@@ -28,6 +28,7 @@ export type ComponentDefinition = {
 export type ActionDefinition = {
   description: string;
   params?: PropsSchema;
+  confirm?: true;
 };
 
 export type CatalogDefinition<

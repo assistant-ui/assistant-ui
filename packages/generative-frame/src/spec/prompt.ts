@@ -151,7 +151,7 @@ const actionSection = (
     ...Object.entries(catalog.actions).map(([name, def]) => {
       const params = catalog.paramsSchema(name);
       const schema = params ? describeSchema(params) : undefined;
-      return `- \`${name}\` — ${schema && schema !== "unknown" ? `params \`${schema}\`. ` : ""}${def.description}`;
+      return `- \`${name}\` — ${schema && schema !== "unknown" ? `params \`${schema}\`. ` : ""}${def.description}${def.confirm === true ? " Asks the user to confirm first." : ""}`;
     }),
   ];
   return `## Actions

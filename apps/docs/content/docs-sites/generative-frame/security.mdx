@@ -149,4 +149,6 @@ What a widget knows is what the model wrote into it plus what you send it. Theme
 
 In [spec mode](/generative-frame/docs/spec-mode) there is no frame and no model-written code. The model writes data: which of your catalog's components to render, with which props, bound to which of your actions. With the catalog passed to `SpecRenderer`, props are validated before rendering. Expressions only read and write the spec's state, and every action other than the built-in `setState` runs through a handler you wrote. The components and handlers you supply are the whole attack surface.
 
+For sensitive host actions, set `confirm: true` in the catalog and supply a host owned `confirmAction` callback; the spec cannot change the gate, and a `watch` cannot trigger it.
+
 The model chooses every image URL, so loading an image sends a request to an origin the model picked, and that URL can carry anything the model has read. When your app handles private data, pass `imageOrigins` to `toSpecCatalog` with the origins you trust; the built-in `Image` renders its alt text for an image from any other origin. The built-in `Image` also loads with `referrerPolicy="no-referrer"`, so the request does not carry the page's address. A custom component that renders images must apply both itself.

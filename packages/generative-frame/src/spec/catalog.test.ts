@@ -83,6 +83,20 @@ const validSpec = (): Spec => ({
 });
 
 describe("defineCatalog", () => {
+  it("preserves host confirmation metadata without putting it in the spec", () => {
+    const protectedCatalog = defineCatalog({
+      components: {},
+      actions: {
+        deleteItem: { description: "Deletes an item.", confirm: true },
+      },
+    });
+    expect(protectedCatalog.action("deleteItem")?.confirm).toBe(true);
+    expect(protectedCatalog.prompt()).toContain(
+      "- `deleteItem` — Deletes an item. Asks the user to confirm first.",
+    );
+    expect(catalog.prompt()).not.toContain("Asks the user to confirm first.");
+  });
+
   it("validates props and treats expressions as placeholders", () => {
     expect(
       catalog.validateProps("Metric", { label: "x", value: { $state: "/n" } }),
@@ -659,6 +673,163 @@ describe("state store and actions", () => {
     expect(
       onError.mock.calls.map(([error]) => (error as Error).message),
     ).toEqual(["offline"]);
+  });
+
+  it("confirms a protected action after an unmarked action and before its handler", async () => {
+    const protectedCatalog = defineCatalog({
+      components: {},
+      actions: {
+        refresh: { description: "Refreshes." },
+        deleteItem: { description: "Deletes.", confirm: true },
+      },
+    });
+    const calls: string[] = [];
+    const confirm = vi.fn(async () => {
+      calls.push("confirm");
+      return true;
+    });
+    const handler = vi.fn(() => calls.push("delete"));
+    const dispatch = createActionDispatcher({
+      store: createStateStore(),
+      catalog: protectedCatalog,
+      confirm,
+      handlers: {
+        refresh: () => calls.push("refresh"),
+        deleteItem: handler,
+      },
+    });
+    const modelBindings = [
+      { action: "refresh", params: { confirm: true } },
+      {
+        action: "deleteItem",
+        confirm: false,
+        params: { id: 7, confirm: false },
+      },
+    ];
+    await dispatch(modelBindings, { elementId: "button", kind: "event" });
+    expect(calls).toEqual(["refresh", "confirm", "delete"]);
+    expect(confirm).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 7, confirm: false },
+      elementId: "button",
+    });
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it("stops after a declined confirmation without reporting an error", async () => {
+    const protectedCatalog = defineCatalog({
+      components: {},
+      actions: { deleteItem: { description: "Deletes.", confirm: true } },
+    });
+    const handler = vi.fn();
+    const onAction = vi.fn();
+    const onError = vi.fn();
+    const store = createStateStore();
+    const dispatch = createActionDispatcher({
+      store,
+      catalog: protectedCatalog,
+      confirm: () => false,
+      handlers: { deleteItem: handler },
+      onAction,
+      onError,
+    });
+    expect(
+      await dispatch(
+        [
+          { action: "deleteItem" },
+          { action: "setState", params: { path: "/done", value: true } },
+        ],
+        { kind: "event" },
+      ),
+    ).toEqual([undefined]);
+    expect(handler).not.toHaveBeenCalled();
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(store.get("/done")).toBeUndefined();
+  });
+
+  it("confirms before calling onAction without a named handler", async () => {
+    const protectedCatalog = defineCatalog({
+      components: {},
+      actions: { deleteItem: { description: "Deletes.", confirm: true } },
+    });
+    const calls: string[] = [];
+    const onAction = vi.fn(() => calls.push("action"));
+    const dispatch = createActionDispatcher({
+      store: createStateStore(),
+      catalog: protectedCatalog,
+      confirm: () => {
+        calls.push("confirm");
+        return true;
+      },
+      onAction,
+    });
+    await dispatch({ action: "deleteItem" }, { kind: "event" });
+    expect(calls).toEqual(["confirm", "action"]);
+    expect(onAction).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed without a confirm option and on a watch dispatch", async () => {
+    const protectedCatalog = defineCatalog({
+      components: {},
+      actions: { deleteItem: { description: "Deletes.", confirm: true } },
+    });
+    const handler = vi.fn();
+    const confirm = vi.fn(() => true);
+    const onError = vi.fn();
+    const options = {
+      store: createStateStore(),
+      catalog: protectedCatalog,
+      handlers: { deleteItem: handler },
+      onError,
+    };
+    await createActionDispatcher(options)(
+      { action: "deleteItem" },
+      { kind: "event" },
+    );
+    expect(onError.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("confirm option"),
+      }),
+    );
+    await createActionDispatcher({ ...options, confirm })(
+      { action: "deleteItem" },
+      { kind: "watch" },
+    );
+    expect(onError.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("user event"),
+      }),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("reports a thrown confirmation as a failed action", async () => {
+    const protectedCatalog = defineCatalog({
+      components: {},
+      actions: { deleteItem: { description: "Deletes.", confirm: true } },
+    });
+    const handler = vi.fn();
+    const onError = vi.fn();
+    const dispatch = createActionDispatcher({
+      store: createStateStore(),
+      catalog: protectedCatalog,
+      confirm: () => {
+        throw new Error("dialog failed");
+      },
+      handlers: { deleteItem: handler },
+      onError,
+    });
+    expect(
+      await dispatch([{ action: "deleteItem" }, { action: "deleteItem" }], {
+        kind: "event",
+      }),
+    ).toEqual([undefined]);
+    expect(handler).not.toHaveBeenCalled();
+    expect(onError.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ message: "dialog failed" }),
+    );
   });
 
   it("routes unhandled catalog actions to onAction and reports unknown ones", async () => {

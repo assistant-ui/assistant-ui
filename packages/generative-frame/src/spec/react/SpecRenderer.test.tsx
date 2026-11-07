@@ -61,6 +61,14 @@ const catalog = defineCatalog({
   actions: { refresh: { description: "Reload" } },
 });
 
+const confirmationCatalog = defineCatalog({
+  components: catalog.components,
+  actions: {
+    refresh: { description: "Reload" },
+    deleteItem: { description: "Deletes an item", confirm: true },
+  },
+});
+
 const components: SpecComponents = {
   Stack: ({ id, children, slots }: SpecComponentProps) => (
     <section data-id={id}>
@@ -408,6 +416,90 @@ describe("SpecRenderer", () => {
       { from: 1 },
       expect.objectContaining({ elementId: "a" }),
     );
+  });
+
+  it("confirms protected actions, then stops a declined list without an error", async () => {
+    const calls: string[] = [];
+    const confirmAction = vi.fn(async () => {
+      calls.push("confirm");
+      return true;
+    });
+    const deleteItem = vi.fn(() => calls.push("delete"));
+    const onError = vi.fn();
+    const store = createStateStore();
+    const tree = spec({
+      main: {
+        type: "Button",
+        props: { label: "Delete" },
+        on: {
+          press: [
+            { action: "refresh" },
+            { action: "deleteItem", params: { id: { $event: "/at" } } },
+            { action: "setState", params: { path: "/done", value: true } },
+          ],
+        },
+      },
+    });
+    const props = {
+      spec: tree,
+      catalog: confirmationCatalog,
+      components,
+      state: store,
+      handlers: { refresh: () => calls.push("refresh"), deleteItem },
+      onError,
+    };
+    const view = render(
+      <SpecRenderer {...props} confirmAction={confirmAction} />,
+    );
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(calls).toEqual(["refresh", "confirm", "delete"]);
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 1 },
+      elementId: "main",
+    });
+    expect(store.get("/done")).toBe(true);
+
+    store.set("/done", false);
+    calls.length = 0;
+    view.rerender(<SpecRenderer {...props} confirmAction={() => false} />);
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(calls).toEqual(["refresh"]);
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(store.get("/done")).toBe(false);
+    expect(onError).not.toHaveBeenCalled();
+
+    view.rerender(<SpecRenderer {...props} />);
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[0].message).toContain("confirm option");
+  });
+
+  it("never confirms a protected watch action", async () => {
+    const confirmAction = vi.fn(() => true);
+    const deleteItem = vi.fn();
+    const onError = vi.fn();
+    const store = createStateStore({ value: 0 });
+    render(
+      <SpecRenderer
+        catalog={confirmationCatalog}
+        components={components}
+        state={store}
+        handlers={{ deleteItem }}
+        confirmAction={confirmAction}
+        onError={onError}
+        spec={spec({
+          main: {
+            type: "Stack",
+            watch: { "/value": { action: "deleteItem" } },
+          },
+        })}
+      />,
+    );
+    await act(async () => store.set("/value", 1));
+    expect(confirmAction).not.toHaveBeenCalled();
+    expect(deleteItem).not.toHaveBeenCalled();
+    expect(onError.mock.calls[0]?.[0].message).toContain("user event");
   });
 
   it.each(["plain", "not", "$cond"] as const)(
