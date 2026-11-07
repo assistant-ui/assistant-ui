@@ -1,0 +1,636 @@
+{
+  "schema": "aui-perf/history@1",
+  "date": "2026-11-07T04:28:12.025Z",
+  "sha": "d9c70b322",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 8,
+    "arch": "x64",
+    "platform": "linux",
+    "node": "v26.13.0",
+    "runs": 4,
+    "estimator": "best"
+  },
+  "rows": [
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: raw controller enqueue overhead > 10,000 chunks from one source stream",
+      "mean": 0.37328158805970446,
+      "rme": 0.5896490378186339
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: raw controller enqueue overhead > 10,000 controller.enqueue calls",
+      "mean": 0.5264543284210567,
+      "rme": 0.8049260781509233
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: same 4000-char text, chunk size A/B > 16 deltas × 250 chars",
+      "mean": 0.025320904491819844,
+      "rme": 1.3813020067918573
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: same 4000-char text, chunk size A/B > 250 deltas × 16 chars",
+      "mean": 0.30027618487395413,
+      "rme": 1.037279792508783
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: same 4000-char text, chunk size A/B > 4000 deltas × 1 char (per-token)",
+      "mean": 4.737614254716982,
+      "rme": 1.0344530269151417
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: stream + accumulator per-delta cost (16-char deltas) > 100 deltas",
+      "mean": 0.1275928897677964,
+      "rme": 1.3983215309700878
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: stream + accumulator per-delta cost (16-char deltas) > 1000 deltas",
+      "mean": 1.1787354635294054,
+      "rme": 1.3388818562289584
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: stream + accumulator per-delta cost (16-char deltas) > 4000 deltas",
+      "mean": 4.7032150934579375,
+      "rme": 1.2596835150117358
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: stream round trip baseline, no accumulator > 100 deltas",
+      "mean": 0.0043626493586940256,
+      "rme": 0.30242455857410705
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: stream round trip baseline, no accumulator > 1000 deltas",
+      "mean": 0.03602212326201373,
+      "rme": 0.34226716764951326
+    },
+    {
+      "id": "bench/accumulator.bench.ts > assistant-stream: stream round trip baseline, no accumulator > 4000 deltas",
+      "mean": 0.1419116606129341,
+      "rme": 0.3784674728409522
+    },
+    {
+      "id": "bench/ai-sdk-system-metadata.bench.tsx > ai-sdk: system-message metadata conversion through the runtime > 128 parts, distinct providers (stress)",
+      "mean": 0.03788753709176253,
+      "rme": 1.509976922664391
+    },
+    {
+      "id": "bench/ai-sdk-system-metadata.bench.tsx > ai-sdk: system-message metadata conversion through the runtime > 16 parts, one repeated provider",
+      "mean": 0.018643936799373165,
+      "rme": 2.4228160854222796
+    },
+    {
+      "id": "bench/ai-sdk-system-metadata.bench.tsx > ai-sdk: system-message metadata conversion through the runtime > 2 parts, one repeated provider",
+      "mean": 0.018168281494131782,
+      "rme": 2.4761618631771354
+    },
+    {
+      "id": "bench/ai-sdk-system-metadata.bench.tsx > ai-sdk: system-message metadata conversion through the runtime > 512 parts, distinct providers (stress)",
+      "mean": 0.13962902038536418,
+      "rme": 1.906312127287036
+    },
+    {
+      "id": "bench/ai-sdk-toolkit.bench.ts > ai-sdk: convert fresh AISDKToolkit schemas > 10 static tools",
+      "mean": 0.03253392946841305,
+      "rme": 4.950148021167954
+    },
+    {
+      "id": "bench/ai-sdk-toolkit.bench.ts > ai-sdk: convert fresh AISDKToolkit schemas > 100 static tools",
+      "mean": 0.31530758638083073,
+      "rme": 5.166276832846148
+    },
+    {
+      "id": "bench/ai-sdk-toolkit.bench.ts > ai-sdk: reuse converted AISDKToolkit schemas > 10 static tools",
+      "mean": 0.004391703624003134,
+      "rme": 2.1528774834248185
+    },
+    {
+      "id": "bench/ai-sdk-toolkit.bench.ts > ai-sdk: reuse converted AISDKToolkit schemas > 100 static tools",
+      "mean": 0.03538997402505343,
+      "rme": 2.1772311824528
+    },
+    {
+      "id": "bench/data-stream.bench.ts > assistant-stream: data stream decode (16-char deltas) > 100 deltas",
+      "mean": 0.28581350799999344,
+      "rme": 0.5733312777003122
+    },
+    {
+      "id": "bench/data-stream.bench.ts > assistant-stream: data stream decode (16-char deltas) > 1000 deltas",
+      "mean": 2.5538370510204085,
+      "rme": 0.515044896097653
+    },
+    {
+      "id": "bench/data-stream.bench.ts > assistant-stream: data stream decode (16-char deltas) > 4000 deltas",
+      "mean": 10.061411959999985,
+      "rme": 0.7492276893229908
+    },
+    {
+      "id": "bench/data-stream.bench.ts > assistant-stream: data stream encode (16-char deltas) > 100 deltas",
+      "mean": 0.14341704158302254,
+      "rme": 0.6104629638913578
+    },
+    {
+      "id": "bench/data-stream.bench.ts > assistant-stream: data stream encode (16-char deltas) > 1000 deltas",
+      "mean": 1.3464634731182785,
+      "rme": 0.6107530981085592
+    },
+    {
+      "id": "bench/data-stream.bench.ts > assistant-stream: data stream encode (16-char deltas) > 4000 deltas",
+      "mean": 5.325595691489358,
+      "rme": 0.8246305048516148
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: cached external message conversion, one streaming delta > 1000 messages, 6-part replies",
+      "mean": 0.11287968577879706,
+      "rme": 0.7234604408020273
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: cached external message conversion, one streaming delta > 5000 messages, 20-part replies",
+      "mean": 0.8702874121739379,
+      "rme": 1.100470316870654
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message reasoning continuations > 100 matches",
+      "mean": 0.030023315960121037,
+      "rme": 0.4916983407050492
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message reasoning continuations > 1000 matches",
+      "mean": 0.303164748484863,
+      "rme": 0.7602101286083623
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message reasoning continuations > 5000 matches",
+      "mean": 1.5668483218750349,
+      "rme": 1.552017996852335
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message tool results > 100 matches",
+      "mean": 0.036276274811375464,
+      "rme": 0.3804714660318308
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message tool results > 1000 matches",
+      "mean": 0.36970597191427124,
+      "rme": 0.6141926692430238
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message tool results > 5000 matches",
+      "mean": 1.9459257635658864,
+      "rme": 0.8788097941405602
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message unique tool calls > 100 matches",
+      "mean": 0.018915580086252017,
+      "rme": 0.3952605151884787
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message unique tool calls > 1000 matches",
+      "mean": 0.18299636187340215,
+      "rme": 0.59360016610959
+    },
+    {
+      "id": "bench/external-message-conversion.bench.ts > core: external message unique tool calls > 5000 matches",
+      "mean": 0.9996571816367166,
+      "rme": 1.107002713485582
+    },
+    {
+      "id": "bench/from-thread-message-like.bench.ts > core: fromThreadMessageLike text parts > 1 text parts",
+      "mean": 0.00011835656001877472,
+      "rme": 1.3792211901814724
+    },
+    {
+      "id": "bench/from-thread-message-like.bench.ts > core: fromThreadMessageLike text parts > 10 text parts",
+      "mean": 0.0002058086095489648,
+      "rme": 0.3006431249322094
+    },
+    {
+      "id": "bench/from-thread-message-like.bench.ts > core: fromThreadMessageLike text parts > 100 text parts",
+      "mean": 0.0010900632040435967,
+      "rme": 0.16634851336232495
+    },
+    {
+      "id": "bench/from-thread-message-like.bench.ts > core: fromThreadMessageLike tool calls > 1 tool calls",
+      "mean": 0.0002713846262813138,
+      "rme": 0.32877771997680044
+    },
+    {
+      "id": "bench/from-thread-message-like.bench.ts > core: fromThreadMessageLike tool calls > 10 tool calls",
+      "mean": 0.0014772244344446134,
+      "rme": 0.25451288497022634
+    },
+    {
+      "id": "bench/from-thread-message-like.bench.ts > core: fromThreadMessageLike tool calls > 100 tool calls",
+      "mean": 0.013388103033711013,
+      "rme": 0.27841844979126645
+    },
+    {
+      "id": "bench/interactable-array-patches.bench.ts > core: id-keyed interactable array patches > 1000 items and patches",
+      "mean": 0.07309562563952537,
+      "rme": 10.389675428901684
+    },
+    {
+      "id": "bench/interactable-array-patches.bench.ts > core: id-keyed interactable array patches > 5000 items and patches",
+      "mean": 0.4159292495854055,
+      "rme": 10.12645408071531
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > escapeCurrencyDollars, 20,000 tilde runs on one line",
+      "mean": 1.3626778882833772,
+      "rme": 0.663673287467167
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > escapeCurrencyDollars, 20,000 tildes after prose",
+      "mean": 0.07957598679186297,
+      "rme": 0.058045963210769796
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > escapeCurrencyDollars, 20,000 triple-backtick spans on one line",
+      "mean": 1.776292627659585,
+      "rme": 1.3536654228016072
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > escapeCurrencyDollars, 5,000 code spans in one paragraph",
+      "mean": 0.23350391596638614,
+      "rme": 0.5698230616961921
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > escapeCurrencyDollars, mixed message, 100 sections",
+      "mean": 0.34186748667121997,
+      "rme": 0.5343373846536719
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > normalizeMathDelimiters, 20,000 tilde runs on one line",
+      "mean": 4.0873552032520335,
+      "rme": 0.3573961263997225
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > normalizeMathDelimiters, 20,000 tildes after prose",
+      "mean": 0.3194753199233792,
+      "rme": 0.16515379617601655
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > normalizeMathDelimiters, 20,000 triple-backtick spans on one line",
+      "mean": 10.324619816326559,
+      "rme": 1.5213861276013934
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > normalizeMathDelimiters, 5,000 code spans in one paragraph",
+      "mean": 1.6331746840390846,
+      "rme": 0.8246674420226476
+    },
+    {
+      "id": "bench/markdown-preprocess.bench.ts > react-markdown: preprocess > normalizeMathDelimiters, mixed message, 100 sections",
+      "mean": 1.1312923461538142,
+      "rme": 0.5320402922478293
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token after an unchanged fenced code block > 10 KB fenced Markdown",
+      "mean": 1.3241605105820313,
+      "rme": 9.185001576033383
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token after an unchanged fenced code block > 10 KB fenced Markdown deferred",
+      "mean": 1.5029785255255426,
+      "rme": 1.0209034831629307
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token after an unchanged fenced code block > 100 KB fenced Markdown",
+      "mean": 9.618285788461558,
+      "rme": 27.643741893590366
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token after an unchanged fenced code block > 100 KB fenced Markdown deferred",
+      "mean": 11.140277111111168,
+      "rme": 0.7415494760088459
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token changed in the last paragraph, by message length > 1 paragraphs",
+      "mean": 0.5338598837953088,
+      "rme": 4.551744503850727
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token changed in the last paragraph, by message length > 10 paragraphs",
+      "mean": 1.1721744345794407,
+      "rme": 8.325424492550205
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: one token changed in the last paragraph, by message length > 50 paragraphs",
+      "mean": 4.485703187499991,
+      "rme": 18.07271499707909
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: the same token with defer on > 1 paragraphs deferred",
+      "mean": 1.1087595575221267,
+      "rme": 4.525555613718548
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: the same token with defer on > 10 paragraphs deferred",
+      "mean": 1.1214962953019973,
+      "rme": 3.372277620466141
+    },
+    {
+      "id": "bench/markdown-streaming.bench.tsx > react-markdown: the same token with defer on > 50 paragraphs deferred",
+      "mean": 3.0373070303029914,
+      "rme": 9.173776720421227
+    },
+    {
+      "id": "bench/react-langgraph.bench.ts > react-langgraph: streamed tool argument accumulation > 1000 character argument in 16-character deltas",
+      "mean": 0.12074424945665309,
+      "rme": 5.26309175031663
+    },
+    {
+      "id": "bench/react-langgraph.bench.ts > react-langgraph: streamed tool argument accumulation > 10000 character argument in 16-character deltas",
+      "mean": 1.1179174062499988,
+      "rme": 5.10556583875382
+    },
+    {
+      "id": "bench/react-langgraph.bench.ts > react-langgraph: streamed tool argument accumulation > 500 short object entries in 16-character deltas",
+      "mean": 126.16811899999999,
+      "rme": 1.5741046373886463
+    },
+    {
+      "id": "bench/react-langgraph.bench.ts > react-langgraph: streamed tool argument accumulation > 50000 character argument in 16-character deltas",
+      "mean": 5.60900033333333,
+      "rme": 4.033130417910529
+    },
+    {
+      "id": "bench/react-pi-message-projection.bench.ts > react-pi: streaming tail projection > 10 stable messages",
+      "mean": 0.00101451027596705,
+      "rme": 1.6539713136560081
+    },
+    {
+      "id": "bench/react-pi-message-projection.bench.ts > react-pi: streaming tail projection > 1000 stable messages",
+      "mean": 0.005437603210336187,
+      "rme": 0.5865317820452574
+    },
+    {
+      "id": "bench/react-pi-message-projection.bench.ts > react-pi: streaming tail projection > 5000 stable messages",
+      "mean": 0.02453483002944017,
+      "rme": 0.6091751556619743
+    },
+    {
+      "id": "bench/sse-fragmentation.bench.ts > assistant-stream: fragmented SSE events > 100 KiB, 1 chunks",
+      "mean": 0.0030845888511200096,
+      "rme": 0.17399812071708487
+    },
+    {
+      "id": "bench/sse-fragmentation.bench.ts > assistant-stream: fragmented SSE events > 100 KiB, 101 chunks",
+      "mean": 0.013845829004209118,
+      "rme": 0.4794932231325342
+    },
+    {
+      "id": "bench/sse-fragmentation.bench.ts > assistant-stream: fragmented SSE events > 1024 KiB, 1 chunks",
+      "mean": 0.03034600133519432,
+      "rme": 0.2219933911866792
+    },
+    {
+      "id": "bench/sse-fragmentation.bench.ts > assistant-stream: fragmented SSE events > 1024 KiB, 1025 chunks",
+      "mean": 0.139034448707257,
+      "rme": 1.1936520787156464
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: mount+unmount by message count > 10 messages",
+      "mean": 2.0625844691358033,
+      "rme": 5.482692818484282
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: mount+unmount by message count > 100 messages",
+      "mean": 13.960082277777765,
+      "rme": 3.5929408705185164
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: mount+unmount by message count > 1000 messages",
+      "mean": 182.08730740000018,
+      "rme": 5.464692849688968
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > 20 message window, 10 messages",
+      "mean": 0.2055576185778786,
+      "rme": 1.77286671605514
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > 20 message window, 100 messages",
+      "mean": 0.36635224395608684,
+      "rme": 1.4584262915396855
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > 20 message window, 1000 messages",
+      "mean": 1.6764570535118382,
+      "rme": 2.335562110237795
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > all messages by id, 10 messages",
+      "mean": 0.2086837954924778,
+      "rme": 1.448807766696927
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > all messages by id, 100 messages",
+      "mean": 0.6457408967741941,
+      "rme": 1.9955768851368623
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > all messages by id, 1000 messages",
+      "mean": 5.3882025106382505,
+      "rme": 2.789578325088282
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > all messages, 10 messages",
+      "mean": 0.19767566245058543,
+      "rme": 1.4406007744165816
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > all messages, 100 messages",
+      "mean": 0.46255408973171125,
+      "rme": 1.6217101428547747
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > all messages, 1000 messages",
+      "mean": 3.1765355696202797,
+      "rme": 3.489814814953433
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > provider only, 10 messages",
+      "mean": 0.0848366097726446,
+      "rme": 1.2556642863929266
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > provider only, 100 messages",
+      "mean": 0.2048364952887929,
+      "rme": 1.1703487146143012
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > provider only, 1000 messages",
+      "mean": 1.4422186829971426,
+      "rme": 2.281963223181571
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > runtime only, 10 messages",
+      "mean": 0.006938932165753962,
+      "rme": 2.2601061133505223
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > runtime only, 100 messages",
+      "mean": 0.015790187867111703,
+      "rme": 1.2297076094053827
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by layer > runtime only, 1000 messages",
+      "mean": 0.13172111749209928,
+      "rme": 0.923109075355303
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by thread length > 10 messages",
+      "mean": 0.19693452697913233,
+      "rme": 3.5938376412939954
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by thread length > 100 messages",
+      "mean": 0.4581787948717899,
+      "rme": 3.758826211170961
+    },
+    {
+      "id": "bench/thread-scaling.bench.tsx > external-store thread: one token changed in the last message, by thread length > 1000 messages",
+      "mean": 3.426123506849378,
+      "rme": 9.934604100660824
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: accumulator tool arguments (16-char deltas) > 1000 bytes",
+      "mean": 0.11606177628219645,
+      "rme": 0.8546115957996994
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: accumulator tool arguments (16-char deltas) > 10000 bytes",
+      "mean": 1.0601070063559292,
+      "rme": 0.8201218521011091
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: accumulator tool arguments (16-char deltas) > 5000 bytes",
+      "mean": 0.5354765835117813,
+      "rme": 0.7915911618654308
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: active-reader tool arguments (16-char deltas) > 1000 bytes",
+      "mean": 0.12585832083543166,
+      "rme": 0.40178244995869455
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: active-reader tool arguments (16-char deltas) > 10000 bytes",
+      "mean": 1.1573195889145274,
+      "rme": 0.7687525617632104
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: active-reader tool arguments (16-char deltas) > 5000 bytes",
+      "mean": 0.5830912750582752,
+      "rme": 0.6701301259890319
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: complete accumulated arguments (single delta) > 10,000 array elements",
+      "mean": 0.170100634353738,
+      "rme": 0.43707497043786925
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: dense accumulated arguments (16-char deltas) > 2,000 array entries",
+      "mean": 12.137509333333321,
+      "rme": 0.8653362679684019
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: dense accumulated arguments (16-char deltas) > 2,000 object entries",
+      "mean": 438.11378900000034,
+      "rme": 0.8319729741905936
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: execute-only tool arguments (16-char deltas) > 1000 bytes",
+      "mean": 0.0932755407573205,
+      "rme": 0.632127244078711
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: execute-only tool arguments (16-char deltas) > 10000 bytes",
+      "mean": 0.7866050361635282,
+      "rme": 0.5809894803160763
+    },
+    {
+      "id": "bench/tool-args.bench.ts > assistant-stream: execute-only tool arguments (16-char deltas) > 5000 bytes",
+      "mean": 0.3918957562695946,
+      "rme": 0.3751713666258349
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree mount+unmount, 500 leaves x 10 hooks > createTapRoot",
+      "mean": 1.6810036879194585,
+      "rme": 1.1158947250461453
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree mount+unmount, 500 leaves x 10 hooks > createTapRootDeps",
+      "mean": 1.693794054054048,
+      "rme": 1.1275656242541463
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree mount+unmount, 500 leaves x 10 hooks > createTapRootStable",
+      "mean": 1.6634303853820556,
+      "rme": 1.3511337277763809
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree mount+unmount, 500 leaves x 10 hooks > react",
+      "mean": 1.3970537437325923,
+      "rme": 1.1728018535095768
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree mount+unmount, 500 leaves x 10 hooks > tapRoot",
+      "mean": 0.9996541137724535,
+      "rme": 1.3046394255121332
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree update: one leaf dispatch, 500 leaves x 10 hooks > createTapRoot",
+      "mean": 1.453110773913106,
+      "rme": 0.7237330596834946
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree update: one leaf dispatch, 500 leaves x 10 hooks > createTapRootDeps",
+      "mean": 1.4716630617647122,
+      "rme": 0.7053844342909307
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree update: one leaf dispatch, 500 leaves x 10 hooks > createTapRootStable",
+      "mean": 0.11399416959197957,
+      "rme": 0.6919463770236954
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree update: one leaf dispatch, 500 leaves x 10 hooks > react",
+      "mean": 0.06409010061522713,
+      "rme": 0.6180166415178604
+    },
+    {
+      "id": "bench/tree.bench.tsx > tree update: one leaf dispatch, 500 leaves x 10 hooks > tapRoot",
+      "mean": 0.7565581467473367,
+      "rme": 0.7445943911305277
+    },
+    {
+      "id": "bench/useResources.bench.tsx > useResources mount+unmount, 500 children x 10 hooks > deps",
+      "mean": 0.8509998945578217,
+      "rme": 1.0111608137034256
+    },
+    {
+      "id": "bench/useResources.bench.tsx > useResources mount+unmount, 500 children x 10 hooks > no-deps",
+      "mean": 0.8938265499999971,
+      "rme": 1.0820709096239536
+    },
+    {
+      "id": "bench/useResources.bench.tsx > useResources: one child dispatch, 500 children x 10 hooks > deps",
+      "mean": 0.021863957322138805,
+      "rme": 0.5407659157146212
+    },
+    {
+      "id": "bench/useResources.bench.tsx > useResources: one child dispatch, 500 children x 10 hooks > no-deps",
+      "mean": 0.022020009600563245,
+      "rme": 0.5445779554446264
+    },
+    {
+      "id": "bench/useResources.bench.tsx > useResources: rebuild elements array, 500 children x 10 hooks > deps",
+      "mean": 0.034711165081569455,
+      "rme": 0.6291747540149581
+    },
+    {
+      "id": "bench/useResources.bench.tsx > useResources: rebuild elements array, 500 children x 10 hooks > no-deps",
+      "mean": 0.6845295512995899,
+      "rme": 0.6703134895572592
+    }
+  ]
+}
