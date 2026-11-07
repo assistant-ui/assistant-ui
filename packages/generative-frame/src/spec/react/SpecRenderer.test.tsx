@@ -6,7 +6,7 @@ import {
   render,
   renderHook,
 } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import { createStateStore, type SpecStateStore } from "../state";
@@ -1192,6 +1192,197 @@ describe("SpecRenderer", () => {
       { range: "30d" },
       expect.objectContaining({ trigger: "/range" }),
     );
+  });
+
+  it("does not dispatch a watch for streamed model state writes", () => {
+    const refresh = vi.fn();
+    const draw = (x: number) => (
+      <SpecRenderer
+        components={components}
+        handlers={{ refresh }}
+        spec={spec(
+          { main: { type: "Stack", watch: { "/x": { action: "refresh" } } } },
+          { x },
+        )}
+        streaming
+      />
+    );
+    const view = render(draw(0));
+    view.rerender(draw(1));
+    view.rerender(draw(2));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a watched set batched with a seed and compares later sets with the seeded value", () => {
+    const store = createStateStore({ x: 0 });
+    const refresh = vi.fn();
+    render(
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        })}
+        streaming
+      />,
+    );
+    act(() => store.seed({ x: 1 }));
+    expect(refresh).not.toHaveBeenCalled();
+
+    act(() => {
+      store.set("/x", 2);
+      store.seed({ x: 3 });
+    });
+    expect(store.get("/x")).toBe(2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    act(() => store.seed({ x: 4 }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    act(() => store.set("/x", 5));
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["/y", "/xy"])(
+    "does not dispatch an unrelated %s set batched with a watched seed",
+    (writePath) => {
+      const store = createStateStore({ x: 0, y: 0, xy: 0 });
+      const refresh = vi.fn();
+      render(
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh }}
+          spec={spec({
+            main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+          })}
+        />,
+      );
+      act(() => {
+        store.set(writePath, 1);
+        store.seed({ x: 2, y: 0, xy: 0 });
+      });
+      expect(store.get("/x")).toBe(2);
+      expect(refresh).not.toHaveBeenCalled();
+    },
+  );
+
+  it("pairs the watched value with the revision from its render", () => {
+    const store = createStateStore({ x: 0 });
+    const refresh = vi.fn();
+    const Writer = ({ props }: SpecComponentProps<{ write: boolean }>) => {
+      useLayoutEffect(() => {
+        if (props.write) store.set("/x", 1);
+      }, [props.write]);
+      return null;
+    };
+    const draw = (write: boolean) => (
+      <SpecRenderer
+        components={{ ...components, Writer }}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: {
+            type: "Stack",
+            watch: { "/x": { action: "refresh" } },
+            children: ["writer"],
+          },
+          writer: { type: "Writer", props: { write } },
+        })}
+      />
+    );
+    const view = render(draw(false));
+    view.rerender(draw(true));
+    expect(store.get("/x")).toBe(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { watchPath: "/x/value", writePath: "/x", value: { value: 1 } },
+    { watchPath: "/x", writePath: "/x/value", value: 1 },
+    { watchPath: "", writePath: "/x/value", value: 1 },
+  ])(
+    "dispatches a $watchPath watch for a $writePath write",
+    ({ watchPath, writePath, value }) => {
+      const store = createStateStore({ x: { value: 0 } });
+      const refresh = vi.fn();
+      render(
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh }}
+          spec={spec({
+            main: {
+              type: "Stack",
+              watch: { [watchPath]: { action: "refresh" } },
+            },
+          })}
+        />,
+      );
+      act(() => store.set(writePath, value));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({ trigger: watchPath }),
+      );
+    },
+  );
+
+  it.each([
+    { writePath: "/items/0", watchPath: "/items/1", items: ["a", "a", "b"] },
+    { writePath: "/items/-", watchPath: "/items/2", items: ["a", "b", "a"] },
+  ])(
+    "dispatches changed array index watches after a $writePath insert",
+    ({ writePath, watchPath, items }) => {
+      const store = createStateStore({ items: ["a", "b"] });
+      const refresh = vi.fn();
+      const unchanged = vi.fn();
+      render(
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh, unchanged }}
+          spec={spec({
+            main: {
+              type: "Stack",
+              watch: {
+                [watchPath]: {
+                  action: "refresh",
+                  params: { value: { $state: watchPath } },
+                },
+                "/items/0": { action: "unchanged" },
+              },
+            },
+          })}
+        />,
+      );
+      expect(refresh).not.toHaveBeenCalled();
+      act(() => store.set(writePath, "a"));
+      expect(store.get("/items")).toEqual(items);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).toHaveBeenCalledWith(
+        { value: "a" },
+        expect.objectContaining({ trigger: watchPath, kind: "watch" }),
+      );
+      expect(unchanged).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps watch dispatch for stores outside createStateStore", () => {
+    const store = { ...createStateStore({ x: 0 }) };
+    const refresh = vi.fn();
+    render(
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        })}
+      />,
+    );
+    act(() => store.seed({ x: 1 }));
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
 

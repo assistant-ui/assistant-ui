@@ -1,6 +1,6 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import type { ComponentType } from "react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import { SpecRenderer, type SpecComponentProps } from "../react/SpecRenderer";
 import { specToolkitFor } from "./toolkit";
@@ -33,6 +33,86 @@ type Entry = {
   render: ComponentType<{ args: Record<string, unknown>; toolCallId: string }>;
   execute?: (input: unknown, call: { toolCallId: string }) => Promise<unknown>;
 };
+
+it("dispatches a bound write while streaming without dispatching model state patches", () => {
+  const refresh = vi.fn();
+  const watchCatalog = defineCatalog({
+    components: catalog.components,
+    actions: { refresh: { description: "Refresh" } },
+  });
+  const base = {
+    root: "label",
+    elements: {
+      label: {
+        type: "Label",
+        props: { text: { $bindState: "/text" } },
+        watch: { "/text": { action: "refresh" } },
+      },
+    },
+    state: { text: "model" },
+  };
+  const messages = [
+    {
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "previous",
+          toolName: "render_spec",
+          args: { title: "board", spec: base },
+        },
+        {
+          type: "tool-call",
+          toolCallId: "next",
+          toolName: "render_spec",
+          args: {},
+        },
+      ],
+    },
+  ];
+  const toolkit = specToolkitFor({
+    useMessages: () => messages,
+    useArgsComplete: () => false,
+    SpecRenderer,
+    Frame: ({ children }) => <>{children}</>,
+    useSendMessage: () => () => {},
+    useModelContext: () => {},
+  })(watchCatalog, {
+    components: {
+      Label: ({ props, setProp }: SpecComponentProps) => (
+        <button onClick={() => setProp("text", "user")}>
+          {String(props.text)}
+        </button>
+      ),
+    },
+    handlers: { refresh },
+  });
+  const Render = (
+    toolkit.entries({ execution: "frontend", display: "standalone" })
+      .render_spec as Entry
+  ).render;
+  const patch = (text: string) =>
+    JSON.stringify({ op: "replace", path: "/state/text", value: text }) + "\n";
+  const first = patch("streamed");
+  const view = render(<Render toolCallId="next" args={{ title: "board" }} />);
+  view.rerender(
+    <Render toolCallId="next" args={{ title: "board", patches: first }} />,
+  );
+  expect(view.getByRole("button").textContent).toBe("streamed");
+  expect(refresh).not.toHaveBeenCalled();
+
+  fireEvent.click(view.getByRole("button"));
+  expect(view.getByRole("button").textContent).toBe("user");
+  expect(refresh).toHaveBeenCalledTimes(1);
+
+  view.rerender(
+    <Render
+      toolCallId="next"
+      args={{ title: "board", patches: first + patch("later") }}
+    />,
+  );
+  expect(view.getByRole("button").textContent).toBe("user");
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
 
 it.each(["frontend", "backend"] as const)(
   "renders %s patches when the title arrives after mount",
