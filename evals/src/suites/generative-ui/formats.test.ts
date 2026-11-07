@@ -92,27 +92,30 @@ test("json-render lists events and checks a spec against the kit's catalog", asy
     input: { patches: string },
     options: never,
   ) => Promise<{ ok: boolean; errors?: string[] }>;
-  const result = await execute(
-    {
-      patches: [
-        patch("/root", "main"),
-        patch("/elements/main", {
-          type: "Button",
-          props: { label: "Go" },
-          children: [],
-          on: {
-            click: {
-              action: "setState",
-              params: { statePath: "/a", value: 1 },
+  const run = (event: string) =>
+    execute(
+      {
+        patches: [
+          patch("/root", "main"),
+          patch("/elements/main", {
+            type: "Button",
+            props: { label: "Go" },
+            children: [],
+            on: {
+              [event]: {
+                action: "setState",
+                params: { statePath: "/a", value: 1 },
+              },
             },
-          },
-        }),
-      ].join("\n"),
-    },
-    undefined as never,
-  );
+          }),
+        ].join("\n"),
+      },
+      undefined as never,
+    );
+  const result = await run("click");
   assert.equal(result.ok, false);
   assert.match(result.errors!.join("\n"), /click/);
+  assert.equal((await run("press")).ok, true);
 });
 
 test("the vocabulary tells the model what the kit's element renders", () => {

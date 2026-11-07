@@ -213,7 +213,7 @@ function jsonRenderTools(attempts: Attempt[]): ToolSet {
         let artifact = "null";
         let errors: string[] = [];
         try {
-          for (const line of patches.split("\n")) {
+          for (const [index, line] of patches.split("\n").entries()) {
             if (!line.trim()) continue;
             const patch = parseSpecStreamLine(line);
             if (
@@ -228,13 +228,14 @@ function jsonRenderTools(attempts: Attempt[]): ToolSet {
                 !Object.hasOwn(patch, "value"))
             )
               throw new Error(
-                "SpecStream contains a line that is not a JSON patch.",
+                `Patch line ${index + 1} is not a JSON patch. Line: ${line}`,
               );
           }
           const spec = compileSpecStream(patches, {
             root: "",
             elements: {},
           }) as JsonSpec;
+          artifact = JSON.stringify(spec, null, 2);
           const structural = validateSpec(spec);
           if (!structural.valid) {
             errors = [formatSpecIssues(structural.issues)];
@@ -249,10 +250,9 @@ function jsonRenderTools(attempts: Attempt[]): ToolSet {
                 errors = ["The spec does not match the json-render catalog."];
             } else {
               const converted = jsonRenderToSpec(spec);
+              artifact = JSON.stringify(converted, null, 2);
               const rendered = validateRenderSpec(converted, catalog);
-              if (rendered.ok) {
-                artifact = JSON.stringify(converted, null, 2);
-              } else {
+              if (!rendered.ok) {
                 errors = rendered.issues
                   .filter((issue) => issue.severity === "error")
                   .map((issue) => `${issue.path || "spec"}: ${issue.message}`);

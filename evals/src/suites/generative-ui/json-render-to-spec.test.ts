@@ -110,6 +110,42 @@ test("moves repeat item visibility onto isolated child templates", () => {
   assert.deepEqual(converted.elements.row, spec.elements.row);
 });
 
+test("splits a nested repeat's item filter before its parent copies it", () => {
+  const spec: JsonSpec = {
+    root: "outer",
+    elements: {
+      outer: {
+        type: "Col",
+        props: {},
+        children: ["inner"],
+        repeat: { statePath: "/groups" },
+        visible: { $item: "open", eq: true },
+      },
+      inner: {
+        type: "Col",
+        props: {},
+        children: ["leaf"],
+        repeat: { statePath: "/rows" },
+        visible: { $item: "done", eq: false },
+      },
+      leaf: { type: "Text", props: {}, children: [] },
+    },
+  };
+  const { elements } = jsonRenderToSpec(spec);
+  assert.deepEqual(elements.outer?.children, ["outer/0"]);
+  assert.equal(elements.outer?.visible, undefined);
+  assert.deepEqual(elements["outer/0"]?.children, ["inner/0"]);
+  assert.deepEqual(elements["outer/0"]?.visible, {
+    $item: "open",
+    eq: true,
+  });
+  assert.equal(elements.inner?.visible, undefined);
+  assert.deepEqual(elements["inner/0"]?.visible, {
+    $item: "done",
+    eq: false,
+  });
+});
+
 test("rejects json-render behavior the kit renderer cannot preserve", () => {
   const spec: JsonSpec = {
     root: "row",

@@ -84,10 +84,16 @@ export function jsonRenderToSpec(spec: JsonSpec): Spec {
       ];
     }),
   );
-  for (const [key, element] of Object.entries(spec.elements)) {
-    if (!element.repeat || element.visible === undefined) continue;
+  const split = new Set<string>();
+  const applySplit = (key: string): void => {
+    if (split.has(key)) return;
+    split.add(key);
+    const element = spec.elements[key];
+    if (!element) return;
+    for (const childKey of element.children ?? []) applySplit(childKey);
+    if (!element.repeat || element.visible === undefined) return;
     const { container, itemFilter } = splitRepeatVisibility(element.visible);
-    if (itemFilter === undefined) continue;
+    if (itemFilter === undefined) return;
     const target = elements[key]!;
     if (container === undefined) delete target.visible;
     else target.visible = container;
@@ -104,7 +110,8 @@ export function jsonRenderToSpec(spec: JsonSpec): Spec {
       };
       return copyKey;
     });
-  }
+  };
+  Object.keys(spec.elements).forEach(applySplit);
   return {
     root: spec.root,
     elements,
