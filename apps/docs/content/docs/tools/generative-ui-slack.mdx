@@ -31,7 +31,7 @@ A spec from [spec mode](/generative-frame/docs/spec-mode) converts with `specToU
 
 ## Update a message as the spec streams
 
-Feed complete JSONL patch lines into `createSpecStream`. Post when the root element exists and produces blocks, then update that message at most once every 500 ms. `specLines` below is an async iterable of lines from your model:
+Feed complete JSONL patch lines into `createSpecStream`. Post when the root element exists and produces blocks, then update that message at most once every 1500 ms. `specLines` below is an async iterable of lines from your model:
 
 ```ts
 import { WebClient } from "@slack/web-api";
@@ -59,7 +59,7 @@ async function publish(spec: Spec, final = false) {
   }
 
   const now = Date.now();
-  if (!final && now - lastUpdate < 500) return;
+  if (!final && now - lastUpdate < 1500) return;
   await slack.chat.update({ ...message, blocks });
   lastUpdate = Date.now();
 }
@@ -70,7 +70,7 @@ for await (const line of specLines) {
 await publish(stream.result().spec, true);
 ```
 
-The host owns the stream transport and Slack rate limits. Keep interactive elements out of intermediate updates and add them in the final update, because Slack may deliver a click for an element a later update removes.
+The host owns the stream transport and Slack rate limits. A control can be clicked as soon as an update shows it, so your action handler has to accept a click for an element a later update removed.
 
 ## Warnings
 
