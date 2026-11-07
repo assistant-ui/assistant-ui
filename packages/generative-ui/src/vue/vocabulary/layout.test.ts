@@ -383,3 +383,113 @@ describe("layout vocabulary in Vue", () => {
     expect(vue.state.getState()).toEqual(react.state.getState());
   });
 });
+
+describe("invalid controls in Tabs", () => {
+  it("reveals an inactive required control before retrying browser validation", async () => {
+    for (const framework of ["react", "vue"] as const) {
+      for (const surface of ["Form", "Card"] as const) {
+        const save = vi.fn();
+        const input = spec({
+          main:
+            surface === "Form"
+              ? {
+                  type: "Form",
+                  children: ["tabs"],
+                  on: {
+                    submit: {
+                      action: "save",
+                      params: { values: { $event: "" } },
+                    },
+                  },
+                }
+              : {
+                  type: "Card",
+                  props: {
+                    asForm: true,
+                    confirm: { label: "Save" },
+                  },
+                  children: ["tabs"],
+                  on: {
+                    confirm: {
+                      action: "save",
+                      params: { values: { $event: "" } },
+                    },
+                  },
+                },
+          tabs: {
+            type: "Tabs",
+            props: { tabs: ["Overview", "Contact", "More"] },
+            children: ["overview", "contact", "more"],
+          },
+          overview: { type: "Text", props: { value: "Overview" } },
+          contact: { type: "Text", props: { value: "Contact" } },
+          more: {
+            type: "Tabs",
+            props: { tabs: ["Billing", "Address"] },
+            children: ["billing", "address"],
+          },
+          billing: { type: "Text", props: { value: "Billing" } },
+          address: { type: "Text", props: { value: "Address" } },
+        });
+        const rendered = renderEventSpec(input, framework, { save });
+        const form = rendered.container.querySelector("form")!;
+        const tabs = rendered.container.querySelector('[data-aui="tabs"]')!;
+        const panels = [...tabs.children].filter(
+          (child): child is HTMLElement =>
+            child instanceof HTMLElement &&
+            child.getAttribute("data-aui") === "tabs-panel",
+        );
+        const innerTabs =
+          rendered.container.querySelectorAll<HTMLElement>(
+            '[data-aui="tabs"]',
+          )[1]!;
+        const innerPanels = [...innerTabs.children].filter(
+          (child): child is HTMLElement =>
+            child instanceof HTMLElement &&
+            child.getAttribute("data-aui") === "tabs-panel",
+        );
+        const field = document.createElement("input");
+        field.name = "email";
+        field.required = true;
+        panels[1]!.append(field);
+        const secondField = document.createElement("input");
+        secondField.name = "address";
+        secondField.required = true;
+        innerPanels[1]!.append(secondField);
+
+        const submit = async () => {
+          if (framework === "react") {
+            await act(async () => {
+              form.requestSubmit();
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            });
+          } else {
+            form.requestSubmit();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            await nextTick();
+          }
+        };
+
+        await submit();
+        expect(save).not.toHaveBeenCalled();
+        expect(panels[1]!.hidden).toBe(false);
+        expect(panels[2]!.hidden).toBe(true);
+        expect(document.activeElement).toBe(field);
+
+        field.value = "a@example.com";
+        await submit();
+        expect(save).not.toHaveBeenCalled();
+        expect(panels[2]!.hidden).toBe(false);
+        expect(innerPanels[1]!.hidden).toBe(false);
+        expect(document.activeElement).toBe(secondField);
+
+        secondField.value = "1 Main St";
+        await submit();
+        expect(save).toHaveBeenCalledOnce();
+        expect(save.mock.calls[0]?.[0]).toEqual({
+          values: { email: "a@example.com", address: "1 Main St" },
+        });
+      }
+    }
+  });
+});
