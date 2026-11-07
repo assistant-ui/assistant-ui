@@ -458,15 +458,20 @@ describe("invalid controls in Tabs", () => {
         innerPanels[1]!.append(secondField);
 
         const submit = async () => {
-          if (framework === "react") {
-            await act(async () => {
+          vi.useFakeTimers();
+          try {
+            if (framework === "react") {
+              await act(async () => {
+                form.requestSubmit();
+                await vi.runAllTimersAsync();
+              });
+            } else {
               form.requestSubmit();
-              await new Promise((resolve) => setTimeout(resolve, 0));
-            });
-          } else {
-            form.requestSubmit();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-            await nextTick();
+              await vi.runAllTimersAsync();
+              await nextTick();
+            }
+          } finally {
+            vi.useRealTimers();
           }
         };
 
