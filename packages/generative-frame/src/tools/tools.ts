@@ -326,6 +326,10 @@ export async function buildWidgetInstructions(
       guidance = await tools.read_me.execute(preload);
     } catch (error) {
       if (options.preload) throw error;
+      console.warn(
+        "[generative-frame] Spec guidance could not be preloaded, so the model loads it with read_me:",
+        error,
+      );
       preload = undefined;
     }
   }

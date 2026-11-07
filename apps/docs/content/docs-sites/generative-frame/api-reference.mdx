@@ -126,7 +126,7 @@ Options and result are on [Repair loop and screenshots](/generative-frame/docs/r
 | `createWidgetTools({ registry?, guidance?, preview?, modules?, extraTools? })` | `{ read_me, show_widget, edit_widget, preview_widget }`, plus `extraTools`. See [Tools and prompts](/generative-frame/docs/tools). |
 | `toAISDKTools(tools, { jsonSchema })` | The tools in the Vercel AI SDK shape. |
 | `getToolDeclarations(tools)` | `{ description, inputSchema }` per tool, without `execute`. |
-| `buildWidgetInstructions(tools, { preload? }): Promise<string>` | A system prompt section for the tools. When `read_me` offers a `spec` module, its guidance is preloaded unless `preload` names other modules. |
+| `buildWidgetInstructions(tools, { preload? }): Promise<string>` | A system prompt section for the tools. When `read_me` offers a `spec` module, its guidance is preloaded by default. An explicit `preload` replaces that default: `{}` and `{ platform: "mobile" }` leave `spec` on demand, and `{ modules: ["spec", "chart"] }` preloads both. |
 | `createWidgetRegistry(initial?)` | The latest code per title. |
 | `applyWidgetEdits(code, edits)` | `{ ok: true, code }` or `{ ok: false, error, index }`. |
 

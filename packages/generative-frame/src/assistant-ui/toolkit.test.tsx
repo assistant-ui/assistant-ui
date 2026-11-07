@@ -1898,6 +1898,7 @@ describe("useWidgetInstructions", () => {
   });
 
   it("registers on-demand instructions when default spec guidance fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     const { tools } = createWidgetToolkit({
       spec: createSpecToolkit(catalog, { components }),
     });

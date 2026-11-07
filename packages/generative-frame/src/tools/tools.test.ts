@@ -410,6 +410,7 @@ describe("server helpers", () => {
     const tools = withSpec();
     const error = new Error("Guidance unavailable");
     vi.spyOn(tools.read_me, "execute").mockRejectedValue(error);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const instructions = await buildWidgetInstructions(tools);
     expect(instructions).toContain("## Choosing how to answer");
     expect(instructions).toContain(
@@ -420,6 +421,10 @@ describe("server helpers", () => {
     );
     expect(instructions).not.toContain("follows, so never load it");
     expect(instructions).not.toContain("# Declarative UI");
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining("[generative-frame]"),
+      error,
+    );
     await expect(
       buildWidgetInstructions(tools, { preload: { modules: ["spec"] } }),
     ).rejects.toBe(error);
