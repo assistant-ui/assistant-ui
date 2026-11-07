@@ -100,6 +100,105 @@ describe("generativeUIToJSX", () => {
 });
 
 describe("generativeUIToJSX with escape: true", () => {
+  it.each(["Card onClick={alert(1)}", "a><script>"])(
+    "omits an invalid element type %s and its children",
+    (type) => {
+      for (const pretty of [false, true]) {
+        expect(
+          generativeUIToJSX(
+            { _type: type, children: { _type: "Text", children: "hidden" } },
+            { escape: true, pretty },
+          ),
+        ).toBe("");
+      }
+    },
+  );
+
+  it("omits invalid children without dropping valid siblings", () => {
+    expect(
+      generativeUIToJSX(
+        {
+          _type: "Card",
+          children: [
+            { _type: "a><script>", children: "hidden" },
+            { _type: "Text", children: "visible" },
+          ],
+        },
+        { escape: true, pretty: true },
+      ),
+    ).toBe("<Card>\n  <Text>visible</Text>\n</Card>");
+  });
+
+  it("keeps text beside an omitted element inline", () => {
+    expect(
+      generativeUIToJSX(
+        {
+          _type: "Card",
+          children: [{ _type: "a><script>" }, "hello"],
+        },
+        { escape: true, pretty: true },
+      ),
+    ).toBe("<Card>hello</Card>");
+  });
+
+  it.each(["Foo.bar-baz", "a-b.c", "Foo."])(
+    "omits the member tag name %s",
+    (type) => {
+      expect(generativeUIToJSX({ _type: type }, { escape: true })).toBe("");
+    },
+  );
+
+  it("keeps hyphens in plain and namespaced tag names", () => {
+    expect(generativeUIToJSX({ _type: "my-tag" }, { escape: true })).toBe(
+      "<my-tag />",
+    );
+    expect(generativeUIToJSX({ _type: "a-b:c-d" }, { escape: true })).toBe(
+      "<a-b:c-d />",
+    );
+  });
+
+  it.each(["x={1} y", 'a"b'])("omits an invalid prop key %s", (key) => {
+    expect(
+      generativeUIToJSX(
+        { _type: "Card", id: "kept", [key]: "injected" },
+        { escape: true },
+      ),
+    ).toBe('<Card id="kept" />');
+  });
+
+  it("keeps valid JSX tag and attribute names", () => {
+    expect(
+      generativeUIToJSX(
+        {
+          _type: "Foo.Bar",
+          "data-x": "x",
+          "aria-label": "label",
+          _private: 1,
+          "a:b": true,
+          _action: "go",
+        },
+        { escape: true },
+      ),
+    ).toBe(
+      '<Foo.Bar data-x="x" aria-label="label" _private={1} a:b $action="go" />',
+    );
+    expect(generativeUIToJSX({ _type: "a:b" }, { escape: true })).toBe(
+      "<a:b />",
+    );
+  });
+
+  it("keeps unescaped view-source output byte-identical", () => {
+    const node = {
+      _type: "Card onClick={alert(1)}",
+      'a"b': "value",
+      children: "visible",
+    };
+    const source =
+      '<Card onClick={alert(1)} a"b="value">visible</Card onClick={alert(1)}>';
+    expect(generativeUIToJSX(node)).toBe(source);
+    expect(generativeUIToJSX(node, { escape: false })).toBe(source);
+  });
+
   it.each([false, true])(
     "preserves literal entities in string props and keys with pretty=%s",
     (pretty) => {
