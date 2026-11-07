@@ -1098,7 +1098,7 @@ type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
-  locale?: string;
+  locale?: string | undefined;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
