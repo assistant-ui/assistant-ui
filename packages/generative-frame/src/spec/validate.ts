@@ -2,6 +2,7 @@ import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
 import { isExpressionKey } from "./expressions";
 import { escapePointerToken } from "./pointer";
+import { exceedsRenderBudget } from "./tree";
 import type { ActionBinding, Spec, SpecElement } from "./types";
 
 export type SpecIssueCode =
@@ -23,6 +24,7 @@ export type SpecIssueCode =
   | "unreachable"
   | "invalid-patch"
   | "invalid-state"
+  | "too-large"
   | "missing-tool-result";
 
 export type SpecIssue = {
@@ -96,6 +98,14 @@ export function validateSpec(
       code: "invalid-state",
       message: "The spec's state is not an object.",
       path: "/state",
+    });
+  }
+  if (exceedsRenderBudget(spec, specState ?? {})) {
+    error({
+      code: "too-large",
+      message:
+        "The rendered spec exceeds 5000 elements or 64 levels. Reduce the number of elements or repeat items.",
+      path: "/elements",
     });
   }
 

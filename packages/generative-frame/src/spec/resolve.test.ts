@@ -62,6 +62,59 @@ const spec: Spec = {
 };
 
 describe("resolveSpec", () => {
+  it("returns no tree for nested repeats that would render millions of elements", () => {
+    const nested: Spec = {
+      root: "outer",
+      state: { items: Array(200).fill(null) },
+      elements: {
+        outer: {
+          type: "Box",
+          repeat: { path: "/items" },
+          children: ["middle"],
+        },
+        middle: {
+          type: "Box",
+          repeat: { path: "/items" },
+          children: ["inner"],
+        },
+        inner: { type: "Box", repeat: { path: "/items" }, children: ["leaf"] },
+        leaf: { type: "Text" },
+      },
+    };
+    expect(resolveSpec(nested)).toBeNull();
+    expect(resolveSpec(nested, { state: { items: [] } })?.id).toBe("outer");
+  });
+
+  it("allows 5000 elements and 64 levels, but rejects the next element or level", () => {
+    const repeated: Spec = {
+      root: "root",
+      elements: {
+        root: { type: "Box", repeat: { path: "/items" }, children: ["leaf"] },
+        leaf: { type: "Text" },
+      },
+    };
+    expect(
+      resolveSpec(repeated, { state: { items: Array(4999).fill(null) } })
+        ?.children,
+    ).toHaveLength(4999);
+    expect(
+      resolveSpec(repeated, { state: { items: Array(5000).fill(null) } }),
+    ).toBeNull();
+
+    const elements: Spec["elements"] = {};
+    for (let i = 1; i <= 65; i++) {
+      elements[`n${i}`] = {
+        type: "Box",
+        ...(i < 65 ? { children: [`n${i + 1}`] } : {}),
+      };
+    }
+    const deep: Spec = { root: "n1", elements };
+    expect(resolveSpec(deep)).toBeNull();
+    delete elements["n65"];
+    delete elements["n64"]!.children;
+    expect(resolveSpec(deep)).not.toBeNull();
+  });
+
   it("resolves props, visibility, repeat, slots, and action params", () => {
     expect(resolveSpec(spec)).toEqual({
       id: "card",

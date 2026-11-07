@@ -107,6 +107,43 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it("keeps the last fitting tree while streaming and replaces oversized nested repeats with one placeholder", () => {
+    const nested = spec({
+      main: { type: "Stack", repeat: { path: "/items" }, children: ["middle"] },
+      middle: {
+        type: "Stack",
+        repeat: { path: "/items" },
+        children: ["inner"],
+      },
+      inner: { type: "Stack", repeat: { path: "/items" }, children: ["leaf"] },
+      leaf: { type: "Text", props: { text: "Safe" } },
+    });
+    const state = createStateStore({ items: [1] });
+    const view = render(
+      <SpecRenderer
+        components={components}
+        spec={nested}
+        state={state}
+        streaming
+      />,
+    );
+    expect(view.container.querySelectorAll("p")).toHaveLength(1);
+
+    act(() => state.set("/items", Array(200).fill(1)));
+    expect(view.container.querySelectorAll("p")).toHaveLength(1);
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="too-large"]'),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer components={components} spec={nested} state={state} />,
+    );
+    expect(view.container.querySelectorAll("p")).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="too-large"]'),
+    ).toHaveLength(1);
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     (slot) => {

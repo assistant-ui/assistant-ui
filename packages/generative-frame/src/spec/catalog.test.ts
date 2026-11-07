@@ -83,6 +83,45 @@ const validSpec = (): Spec => ({
 });
 
 describe("defineCatalog", () => {
+  it("reports oversized rendered repeats for model repair", () => {
+    const spec: Spec = {
+      root: "main",
+      state: { items: Array(200).fill(null) },
+      elements: {
+        main: {
+          type: "Stack",
+          repeat: { path: "/items" },
+          children: ["middle"],
+        },
+        middle: {
+          type: "Stack",
+          repeat: { path: "/items" },
+          children: ["inner"],
+        },
+        inner: {
+          type: "Stack",
+          repeat: { path: "/items" },
+          children: ["leaf"],
+        },
+        leaf: { type: "Metric", props: { label: "Value", value: 1 } },
+      },
+    };
+    const result = validateSpec(spec, catalog);
+    expect(result.ok).toBe(false);
+    expect(result.issues.filter((issue) => issue.code === "too-large")).toEqual(
+      [
+        expect.objectContaining({
+          path: "/elements",
+          severity: "error",
+          message: expect.stringContaining("Reduce the number of elements"),
+        }),
+      ],
+    );
+    expect(formatSpecIssues(result.issues)).toContain(
+      "Reduce the number of elements",
+    );
+  });
+
   it("validates props and treats expressions as placeholders", () => {
     expect(
       catalog.validateProps("Metric", { label: "x", value: { $state: "/n" } }),

@@ -1,6 +1,7 @@
 import {
   defineComponent,
   camelize,
+  computed,
   Fragment,
   h,
   inject,
@@ -35,7 +36,12 @@ import {
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
-import { childIdsOf, repeatItems, safePointer } from "../tree";
+import {
+  childIdsOf,
+  exceedsRenderBudget,
+  repeatItems,
+  safePointer,
+} from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 export type SpecComponents = Record<string, Component>;
@@ -46,6 +52,7 @@ export type SpecPlaceholderProps = {
     | "pending"
     | "unknown-type"
     | "invalid-props"
+    | "too-large"
     | "cycle"
     | "error";
   message: string;
@@ -477,6 +484,17 @@ export const SpecRenderer = defineComponent({
       },
       { immediate: true, flush: "sync" },
     );
+    const checked = computed(() => ({
+      spec: props.spec,
+      state: snapshot.value,
+      tooLarge: exceedsRenderBudget(props.spec, snapshot.value),
+    }));
+    let lastFit: { spec: Spec; state: Record<string, unknown> } | undefined;
+    const shown = computed(() => {
+      const current = checked.value;
+      if (!current.tooLarge) lastFit = current;
+      return current.tooLarge && props.streaming ? lastFit : current;
+    });
     let cachedCatalog: Catalog | undefined;
     let cache = new WeakMap<SpecElement, string | null>();
     const invalid = (element: SpecElement) => {
@@ -507,7 +525,7 @@ export const SpecRenderer = defineComponent({
     let dispatcher: ActionDispatcher;
     const ctx: RenderContext = {
       get spec() {
-        return props.spec;
+        return shown.value?.spec ?? props.spec;
       },
       get components() {
         return props.components;
@@ -519,7 +537,7 @@ export const SpecRenderer = defineComponent({
         return props.state ?? ownStore;
       },
       get state() {
-        return snapshot.value;
+        return shown.value?.state ?? snapshot.value;
       },
       get dispatch() {
         const store = props.state ?? ownStore;
@@ -557,9 +575,19 @@ export const SpecRenderer = defineComponent({
     };
     provide(renderContextKey, ctx);
     return () => [
-      props.spec.root
-        ? h(ElementView, { id: props.spec.root, scope: {}, ancestors: [] })
-        : null,
+      checked.value.tooLarge && !props.streaming
+        ? h(props.placeholder, {
+            id: props.spec.root,
+            reason: "too-large",
+            message: "The spec exceeds 5000 elements or 64 levels",
+          })
+        : shown.value?.spec.root
+          ? h(ElementView, {
+              id: shown.value.spec.root,
+              scope: {},
+              ancestors: [],
+            })
+          : null,
       props.streaming
         ? h(props.placeholder, {
             id: "",

@@ -1,5 +1,10 @@
 import { evaluateCondition, resolveProps, resolveValue } from "./expressions";
-import { childIdsOf, repeatItems, type RepeatScope } from "./tree";
+import {
+  childIdsOf,
+  exceedsRenderBudget,
+  repeatItems,
+  type RepeatScope,
+} from "./tree";
 import type { ActionBinding, Spec } from "./types";
 
 /** An action bound to an element's event, with its params resolved. */
@@ -47,6 +52,7 @@ export function resolveSpec(
 ): ResolvedElement | null {
   const state =
     options.state === undefined ? (spec.state ?? {}) : options.state;
+  if (exceedsRenderBudget(spec, state)) return null;
   const resolve = (
     id: unknown,
     scope: RepeatScope,
