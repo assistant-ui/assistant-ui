@@ -775,37 +775,43 @@ describe("state store and actions", () => {
     },
   );
 
-  it("stops after a declined confirmation without reporting an error", async () => {
-    const protectedCatalog = defineCatalog({
-      components: {},
-      actions: { deleteItem: { description: "Deletes.", confirm: true } },
-    });
-    const handler = vi.fn();
-    const onAction = vi.fn();
-    const onError = vi.fn();
-    const store = createStateStore();
-    const dispatch = createActionDispatcher({
-      store,
-      catalog: protectedCatalog,
-      confirm: () => false,
-      handlers: { deleteItem: handler },
-      onAction,
-      onError,
-    });
-    expect(
-      await dispatch(
-        [
-          { action: "deleteItem" },
-          { action: "setState", params: { path: "/done", value: true } },
-        ],
-        { kind: "event" },
-      ),
-    ).toEqual([undefined]);
-    expect(handler).not.toHaveBeenCalled();
-    expect(onAction).not.toHaveBeenCalled();
-    expect(onError).not.toHaveBeenCalled();
-    expect(store.get("/done")).toBeUndefined();
-  });
+  it.each([
+    ["synchronous", () => false],
+    ["asynchronous", () => Promise.resolve(false)],
+  ])(
+    "stops after a %s declined confirmation without reporting an error",
+    async (_, decline) => {
+      const protectedCatalog = defineCatalog({
+        components: {},
+        actions: { deleteItem: { description: "Deletes.", confirm: true } },
+      });
+      const handler = vi.fn();
+      const onAction = vi.fn();
+      const onError = vi.fn();
+      const store = createStateStore();
+      const dispatch = createActionDispatcher({
+        store,
+        catalog: protectedCatalog,
+        confirm: decline,
+        handlers: { deleteItem: handler },
+        onAction,
+        onError,
+      });
+      expect(
+        await dispatch(
+          [
+            { action: "deleteItem" },
+            { action: "setState", params: { path: "/done", value: true } },
+          ],
+          { kind: "event" },
+        ),
+      ).toEqual([undefined]);
+      expect(handler).not.toHaveBeenCalled();
+      expect(onAction).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(store.get("/done")).toBeUndefined();
+    },
+  );
 
   it("confirms before calling onAction without a named handler", async () => {
     const protectedCatalog = defineCatalog({
