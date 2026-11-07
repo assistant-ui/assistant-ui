@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useInsertionEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import * as React from "react";
 import {
   AccessibilityInfo,
   Pressable,
@@ -129,17 +123,20 @@ function Button({
   block?: boolean;
   submit?: boolean;
   undoable?: boolean;
-  children?: ReactNode;
+  children?: React.ReactNode;
 }) {
   const scope = useFieldScope();
-  const [remaining, setRemaining] = useState<number | undefined>(undefined);
-  const pending = useRef<{ $action: Action; $dispatch: GenerativeUIDispatch }>(
+  const [remaining, setRemaining] = React.useState<number | undefined>(
     undefined,
   );
+  const pending = React.useRef<{
+    $action: Action;
+    $dispatch: GenerativeUIDispatch;
+  }>(undefined);
   const labelText = toTextContent(label) ?? "";
   const undoLabel = labelText.trim();
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (remaining === undefined) return;
     const timer = setTimeout(() => {
       if (remaining > 1) {
@@ -203,7 +200,14 @@ type InputProps = ActionProps & {
   label?: string;
   name?: string;
   defaultValue?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
 };
+
+const NUMBER_TEXT = /^-?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$/;
 
 function InputField({
   value,
@@ -213,6 +217,11 @@ function InputField({
   label,
   name,
   initialValue,
+  required,
+  minLength,
+  maxLength,
+  min,
+  max,
   $action,
   $dispatch,
 }: Omit<InputProps, "defaultValue"> & { initialValue: string | undefined }) {
@@ -225,13 +234,41 @@ function InputField({
       ? answeredValue
       : (value ?? "")
     : undefined;
-  const typed = useRef(initialValue ?? "");
-  const latest = useRef(shown);
-  useInsertionEffect(() => {
-    latest.current = shown;
-  });
-  const read = () => latest.current ?? typed.current;
-  const scope = useField(name, "value", read);
+  const typed = React.useRef(initialValue ?? "");
+  const edited = React.useRef(false);
+  const [, refresh] = React.useReducer((count: number) => count + 1, 0);
+  const read = () => shown ?? typed.current;
+  const constrained =
+    required === true ||
+    (inputType === "number"
+      ? min !== undefined || max !== undefined
+      : minLength !== undefined || maxLength !== undefined);
+  const { scope, invalid } = useField(
+    name,
+    "value",
+    read,
+    constrained
+      ? (raw) => {
+          const text = String(raw ?? "");
+          if (required && text === "") return false;
+          if (text === "") return true;
+          if (inputType === "number") {
+            const number = Number(text);
+            return (
+              NUMBER_TEXT.test(text) &&
+              Number.isFinite(number) &&
+              (min === undefined || number >= min) &&
+              (max === undefined || number <= max)
+            );
+          }
+          if (!edited.current) return true;
+          return (
+            (minLength === undefined || text.length >= minLength) &&
+            (maxLength === undefined || text.length <= maxLength)
+          );
+        }
+      : undefined,
+  );
   const isMultiline =
     multiline === true && (inputType === undefined || inputType === "text");
 
@@ -248,8 +285,11 @@ function InputField({
       secureTextEntry={inputType === "password"}
       {...(inputType === "number" ? { keyboardType: "numeric" as const } : {})}
       multiline={isMultiline}
+      aria-invalid={invalid || undefined}
       onChangeText={(text) => {
+        edited.current = true;
         typed.current = text;
+        if (invalid) refresh();
         updateBinding?.(text);
       }}
       {...(isMultiline
@@ -261,7 +301,7 @@ function InputField({
       style={[
         styles.field,
         isMultiline && styles.multiline,
-        { borderColor: theme.input, color: ink },
+        { borderColor: invalid ? theme.destructive : theme.input, color: ink },
       ]}
     />
   );
@@ -283,6 +323,7 @@ type DatePickerProps = ActionProps & {
   max?: string;
   label?: string;
   name?: string;
+  required?: boolean;
 };
 
 const dateText = (value: string | undefined, inputType: string) =>
@@ -297,6 +338,7 @@ function DatePickerField({
   max,
   label,
   name,
+  required,
   initialValue,
   $action,
   $dispatch,
@@ -310,7 +352,7 @@ function DatePickerField({
       ? answeredValue
       : value
     : initialValue;
-  const [selection, setSelection] = useState(() => ({
+  const [selection, setSelection] = React.useState(() => ({
     initialValue: boundValue,
     anchor: boundValue,
     committed: boundValue,
@@ -367,7 +409,17 @@ function DatePickerField({
       ? fromLocalDateTime(normalized, selection.anchor)
       : normalized;
   };
-  useField(name, "value", () => parse(selection.text) ?? "");
+  const { invalid } = useField(
+    name,
+    "value",
+    () => parse(selection.text) ?? "",
+    required
+      ? () => {
+          const parsed = parse(selection.text);
+          return parsed !== undefined && parsed !== "";
+        }
+      : undefined,
+  );
   const commit = () => {
     if (!selection.edited) return;
     const next = parse(selection.text);
@@ -394,6 +446,7 @@ function DatePickerField({
       ) : null}
       <TextInput
         accessibilityLabel={label}
+        aria-invalid={selection.invalid || invalid || undefined}
         placeholder={
           inputType === "time"
             ? "HH:MM"
@@ -416,7 +469,8 @@ function DatePickerField({
         style={[
           styles.field,
           {
-            borderColor: selection.invalid ? theme.destructive : theme.input,
+            borderColor:
+              selection.invalid || invalid ? theme.destructive : theme.input,
             color: ink,
           },
         ]}
@@ -446,7 +500,8 @@ type ChoiceProps = ActionProps & {
   label?: string;
   name?: string;
   defaultValue?: string;
-  children?: ReactNode;
+  required?: boolean;
+  children?: React.ReactNode;
 };
 
 function ChoiceRows({
@@ -456,6 +511,7 @@ function ChoiceRows({
   onSelect,
   radio,
   showLabel = true,
+  invalid = false,
   children,
 }: {
   options: Option[];
@@ -464,7 +520,8 @@ function ChoiceRows({
   onSelect: (value: string) => void;
   radio: boolean;
   showLabel?: boolean;
-  children?: ReactNode;
+  invalid?: boolean;
+  children?: React.ReactNode;
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
@@ -482,7 +539,11 @@ function ChoiceRows({
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
-        style={[styles.choiceGroup, { borderColor: theme.input }]}
+        aria-invalid={invalid || undefined}
+        style={[
+          styles.choiceGroup,
+          { borderColor: invalid ? theme.destructive : theme.input },
+        ]}
       >
         {entries.map(({ option, key }, index) => {
           const checked = selected === option.value;
@@ -552,6 +613,7 @@ function SelectField({
   placeholder,
   label,
   name,
+  required,
   children,
   $action,
   $dispatch,
@@ -559,7 +621,7 @@ function SelectField({
   const ink = useInk();
   const answeredValue = useAnsweredValue(name);
   const updateBinding = useA2uiBinding(name);
-  const [choice, setChoice] = useState(initialValue);
+  const [choice, setChoice] = React.useState(initialValue);
   const selected = updateBinding
     ? typeof answeredValue === "string"
       ? answeredValue
@@ -571,10 +633,15 @@ function SelectField({
   );
   const effective = entries.some((option) => option.value === selected)
     ? selected
-    : placeholderText && selected === ""
+    : (placeholderText || required) && selected === ""
       ? ""
       : (entries[0]?.value ?? "");
-  useField(name, "value", () => effective);
+  const { invalid } = useField(
+    name,
+    "value",
+    () => effective,
+    required ? (value) => typeof value === "string" && value !== "" : undefined,
+  );
   return (
     <View style={styles.choiceField}>
       {label !== undefined ? (
@@ -591,6 +658,7 @@ function SelectField({
         options={options}
         label={label}
         showLabel={false}
+        invalid={invalid}
         selected={effective}
         radio={false}
         onSelect={(next) => {
@@ -624,17 +692,20 @@ type CheckboxProps = ActionProps & {
   name?: string;
   defaultChecked?: boolean;
   variant?: "checkbox" | "switch";
+  required?: boolean;
 };
 
 function CheckboxRow({
   label,
   description,
   checked,
+  invalid = false,
   onPress,
 }: {
   label: string;
   description?: string | undefined;
   checked: boolean;
+  invalid?: boolean;
   onPress: () => void;
 }) {
   const theme = useNativeTheme();
@@ -645,13 +716,14 @@ function CheckboxRow({
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       aria-checked={checked}
+      aria-invalid={invalid || undefined}
       onPress={onPress}
       style={styles.checkboxRow}
     >
       <View
         style={[
           styles.checkboxBox,
-          { borderColor: theme.input },
+          { borderColor: invalid ? theme.destructive : theme.input },
           checked && { backgroundColor: theme.primary },
         ]}
       >
@@ -678,10 +750,12 @@ function CheckboxRow({
 function SwitchRow({
   label,
   checked,
+  invalid = false,
   onPress,
 }: {
   label: string;
   checked: boolean;
+  invalid?: boolean;
   onPress: () => void;
 }) {
   const theme = useNativeTheme();
@@ -692,6 +766,7 @@ function SwitchRow({
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       aria-checked={checked}
+      aria-invalid={invalid || undefined}
       onPress={onPress}
       style={styles.checkboxRow}
     >
@@ -711,24 +786,31 @@ function CheckboxField({
   checked,
   label,
   name,
+  required,
   variant,
   $action,
   $dispatch,
 }: CheckboxProps & { initialChecked: boolean }) {
   const answeredValue = useAnsweredValue(name);
   const updateBinding = useA2uiBinding(name);
-  const [choice, setChoice] = useState(initialChecked);
+  const [choice, setChoice] = React.useState(initialChecked);
   const selected = updateBinding
     ? typeof answeredValue === "boolean"
       ? answeredValue
       : checked === true
     : choice;
-  useField(name, "value", () => selected);
+  const { invalid } = useField(
+    name,
+    "value",
+    () => selected,
+    required ? (value) => value === true : undefined,
+  );
   const Row = variant === "switch" ? SwitchRow : CheckboxRow;
   return (
     <Row
       label={toTextContent(label) ?? ""}
       checked={selected}
+      invalid={invalid}
       onPress={() => {
         const next = !selected;
         setChoice(next);
@@ -784,7 +866,7 @@ function SliderField({
   const safeMin = finiteNumber(min) ? min : 0;
   const safeMax = finiteNumber(max) ? Math.max(max, safeMin) : safeMin + 100;
   const safeStep = finiteNumber(step) && step > 0 ? step : 1;
-  const [localValue, setLocalValue] = useState(initialValue);
+  const [localValue, setLocalValue] = React.useState(initialValue);
   const selected = updateBinding
     ? clamp(
         finiteNumber(answeredValue)
@@ -911,7 +993,8 @@ type GroupProps = ActionProps & {
   name?: string;
   label?: string;
   defaultValue?: string;
-  children?: ReactNode;
+  required?: boolean;
+  children?: React.ReactNode;
 };
 
 function RadioGroupField({
@@ -919,6 +1002,7 @@ function RadioGroupField({
   value,
   options,
   name,
+  required,
   label,
   children,
   $action,
@@ -926,7 +1010,7 @@ function RadioGroupField({
 }: GroupProps & { initialValue: string | undefined }) {
   const answeredValue = useAnsweredValue(name);
   const updateBinding = useA2uiBinding(name);
-  const [choice, setChoice] = useState(initialValue);
+  const [choice, setChoice] = React.useState(initialValue);
   const selected = updateBinding
     ? typeof answeredValue === "string"
       ? answeredValue
@@ -935,14 +1019,21 @@ function RadioGroupField({
   const entries = mapOptions(options, (option) => option).filter(
     (option) => option !== null,
   );
-  useField(name, "radio", () =>
-    entries.some((option) => option.value === selected) ? selected : undefined,
+  const { invalid } = useField(
+    name,
+    "radio",
+    () =>
+      entries.some((option) => option.value === selected)
+        ? selected
+        : undefined,
+    required ? (value) => value !== undefined : undefined,
   );
   return (
     <ChoiceRows
       options={options}
       label={label}
       selected={selected}
+      invalid={invalid}
       radio
       onSelect={(next) => {
         setChoice(next);
@@ -975,7 +1066,8 @@ type CheckboxGroupProps = ActionProps & {
   label?: string;
   defaultValue?: string[];
   progress?: boolean;
-  children?: ReactNode;
+  required?: boolean;
+  children?: React.ReactNode;
 };
 
 function CheckboxGroupField({
@@ -985,6 +1077,7 @@ function CheckboxGroupField({
   name,
   label,
   progress,
+  required,
   children,
   $action,
   $dispatch,
@@ -997,7 +1090,7 @@ function CheckboxGroupField({
     option,
     key,
   })).filter((entry) => entry !== null);
-  const [choice, setChoice] = useState(() =>
+  const [choice, setChoice] = React.useState(() =>
     entries
       .filter(({ option }) => initialValues.includes(option.value))
       .map(({ key }) => key),
@@ -1013,9 +1106,19 @@ function CheckboxGroupField({
   const values = entries
     .filter(({ key }) => selected.includes(key))
     .map(({ option }) => option.value);
-  useField(name, "checkboxes", () => values);
+  const { invalid } = useField(
+    name,
+    "checkboxes",
+    () => values,
+    required ? (value) => Array.isArray(value) && value.length > 0 : undefined,
+  );
   return (
-    <View role="group" accessibilityLabel={label} style={styles.choiceField}>
+    <View
+      role="group"
+      accessibilityLabel={label}
+      aria-invalid={invalid || undefined}
+      style={styles.choiceField}
+    >
       {label !== undefined ? (
         <Text style={[styles.choiceLabel, { color: fade(ink, 0.62) }]}>
           {label}
@@ -1052,6 +1155,7 @@ function CheckboxGroupField({
           label={option.label}
           description={option.description}
           checked={selected.includes(key)}
+          invalid={invalid}
           onPress={() => {
             const nextKeys = selected.includes(key)
               ? selected.filter((item) => item !== key)

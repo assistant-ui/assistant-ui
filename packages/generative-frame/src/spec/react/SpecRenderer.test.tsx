@@ -258,6 +258,76 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it("removes one repeated item with a formula and appends another", () => {
+    const store = createStateStore({
+      items: [
+        { id: "a", title: "First" },
+        { id: "b", title: "Second" },
+        { id: "c", title: "Third" },
+      ],
+    });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={spec({
+          main: { type: "Stack", children: ["list", "add"] },
+          list: {
+            type: "Stack",
+            repeat: { path: "/items", key: "id" },
+            children: ["title", "remove"],
+          },
+          title: { type: "Text", props: { text: { $item: "/title" } } },
+          remove: {
+            type: "Button",
+            props: { label: "Remove" },
+            on: {
+              press: {
+                action: "setState",
+                params: {
+                  path: "/items",
+                  value: { $calc: "without(${/items}, ${$index})" },
+                },
+              },
+            },
+          },
+          add: {
+            type: "Button",
+            props: { label: "Add" },
+            on: {
+              press: {
+                action: "setState",
+                params: {
+                  path: "/items/-",
+                  value: { id: "d", title: "Fourth" },
+                },
+              },
+            },
+          },
+        })}
+      />,
+    );
+    expect(view.container.textContent).toBe(
+      "FirstRemoveSecondRemoveThirdRemoveAdd",
+    );
+    fireEvent.click(view.getAllByRole("button", { name: "Remove" })[1]!);
+    expect(store.get("/items")).toEqual([
+      { id: "a", title: "First" },
+      { id: "c", title: "Third" },
+    ]);
+    expect(view.container.textContent).toBe("FirstRemoveThirdRemoveAdd");
+    fireEvent.click(view.getByRole("button", { name: "Add" }));
+    expect(store.get("/items")).toEqual([
+      { id: "a", title: "First" },
+      { id: "c", title: "Third" },
+      { id: "d", title: "Fourth" },
+    ]);
+    expect(view.container.textContent).toBe(
+      "FirstRemoveThirdRemoveFourthRemoveAdd",
+    );
+  });
+
   it("writes a root binding and preserves it through reseeding and restoration", () => {
     const store = createStateStore({ name: "model" });
     const view = render(
