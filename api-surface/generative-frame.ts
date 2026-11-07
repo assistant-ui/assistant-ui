@@ -781,6 +781,7 @@ type ReservedScopeNames = "on" | "optional" | "subscribe";
 
 type ResolveSpecOptions = {
   state?: unknown;
+  locale?: string;
 };
 
 type ResolvedAction = {
@@ -1010,6 +1011,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
+  locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
   confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
@@ -1063,6 +1065,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
+  locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
   confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
@@ -1113,6 +1116,7 @@ type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string | undefined;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
@@ -1130,6 +1134,7 @@ type SpecRendererProps$1 = {
   components: SpecComponents$1;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
@@ -1187,6 +1192,7 @@ type SpecStreamUpdate = {
 
 type SpecToolkitOptions = {
   components: SpecComponents;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
@@ -1201,6 +1207,7 @@ type SpecToolkitOptions = {
 
 type SpecToolkitOptions$1 = {
   components: SpecComponents$1;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   confirmAction?: SpecRendererProps$1["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {

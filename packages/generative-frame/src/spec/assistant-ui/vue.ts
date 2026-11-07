@@ -54,6 +54,8 @@ import {
 export type SpecToolkitOptions = {
   /** Vue components for the catalog's components. */
   components: SpecComponents;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
   confirmAction?: SpecRendererProps["confirmAction"];
@@ -253,6 +255,9 @@ export function createSpecToolkit(
                     state: store,
                     catalog,
                     components: options.components,
+                    ...(options.locale !== undefined
+                      ? { locale: options.locale }
+                      : {}),
                     streaming: streaming.value,
                     handlers,
                     confirmAction: options.confirmAction,

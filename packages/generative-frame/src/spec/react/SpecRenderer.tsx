@@ -93,6 +93,8 @@ export type SpecRendererProps = {
   catalog?: Catalog;
   /** An external store; otherwise one is created and seeded from `spec.state`. */
   state?: SpecStateStore;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string | undefined;
   /** Handlers by action name. */
   handlers?: Record<string, ActionHandler>;
   /** Called for catalog actions without a handler. */
@@ -115,6 +117,7 @@ type RenderContext = {
   catalog: Catalog | undefined;
   store: SpecStateStore;
   state: Record<string, unknown>;
+  locale: string | undefined;
   revision: number | undefined;
   dispatch: ActionDispatcher;
   streaming: boolean;
@@ -172,12 +175,17 @@ export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
 type ElementBoundaryProps = {
   id: string;
   element: SpecElement;
+  locale: string | undefined;
   children: ReactNode;
   onError: (error: Error) => void;
   fallback: (error: Error) => ReactNode;
 };
 
-type ElementBoundaryState = { error: Error | null; element: SpecElement };
+type ElementBoundaryState = {
+  error: Error | null;
+  element: SpecElement;
+  locale: string | undefined;
+};
 
 class ElementBoundary extends Component<
   ElementBoundaryProps,
@@ -186,18 +194,19 @@ class ElementBoundary extends Component<
   override state: ElementBoundaryState = {
     error: null,
     element: this.props.element,
+    locale: this.props.locale,
   };
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
-  // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
+  // A streaming element can pass through values its component rejects, such as a state path cut short, and formatting can depend on the locale, so a changed element or locale renders again.
   static getDerivedStateFromProps(
     props: ElementBoundaryProps,
     state: ElementBoundaryState,
   ): Partial<ElementBoundaryState> | null {
-    return props.element === state.element
+    return props.element === state.element && props.locale === state.locale
       ? null
-      : { error: null, element: props.element };
+      : { error: null, element: props.element, locale: props.locale };
   }
   override componentDidCatch(error: Error, _info: ErrorInfo) {
     this.props.onError(error);
@@ -279,7 +288,13 @@ function ElementView({
       />
     );
   }
-  if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
+  if (
+    !evaluateCondition(element.visible, {
+      ...scope,
+      state: ctx.state,
+      locale: ctx.locale,
+    })
+  )
     return null;
 
   const Impl = Object.hasOwn(ctx.components, element.type)
@@ -305,6 +320,7 @@ function ElementView({
     <ElementBoundary
       id={id}
       element={shown}
+      locale={ctx.locale}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
       fallback={(error) =>
         ctx.streaming ? null : (
@@ -345,6 +361,7 @@ function ResolvedElement({
   const resolved = resolveProps(element.props, {
     ...scope,
     state: ctx.state,
+    locale: ctx.locale,
   });
   const rejected = rejectedPropType(
     ctx.catalog?.propsSchema(element.type),
@@ -381,6 +398,7 @@ function ResolvedElement({
       ) {
         void ctx.dispatch(element.watch![path], {
           ...scope,
+          locale: ctx.locale,
           elementId: id,
           trigger: path,
           kind: "watch",
@@ -402,6 +420,7 @@ function ResolvedElement({
         if (!bound) return;
         void currentCtx.dispatch(bound, {
           ...currentScope,
+          locale: currentCtx.locale,
           elementId: id,
           trigger: event,
           kind: "event",
@@ -483,6 +502,7 @@ export function SpecRenderer({
   components,
   catalog,
   state,
+  locale,
   handlers,
   onAction,
   confirmAction,
@@ -560,6 +580,7 @@ export function SpecRenderer({
     catalog,
     store,
     state: snapshot,
+    locale,
     revision,
     dispatch,
     streaming,
