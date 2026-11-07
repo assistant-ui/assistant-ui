@@ -221,6 +221,36 @@ describe("SpecRenderer", () => {
     ).toHaveLength(1);
   });
 
+  it("runs a watch for a write made while the last fitting tree is shown", () => {
+    const onAction = vi.fn();
+    const nested = spec({
+      main: { type: "Stack", children: ["label", "grid"] },
+      label: {
+        type: "Text",
+        props: { text: { $state: "/x" } },
+        watch: { "/x": { action: "refresh" } },
+      },
+      grid: { type: "Stack", repeat: { path: "/items" }, children: ["row"] },
+      row: { type: "Stack", repeat: { path: "/items" }, children: ["leaf"] },
+      leaf: { type: "Text", props: { text: "Cell" } },
+    });
+    const state = createStateStore({ x: "a", items: [1] });
+    render(
+      <SpecRenderer
+        components={components}
+        spec={nested}
+        state={state}
+        onAction={onAction}
+        streaming
+      />,
+    );
+    act(() => state.set("/items", Array(100).fill(1)));
+    act(() => state.set("/x", "b"));
+    expect(onAction).not.toHaveBeenCalled();
+    act(() => state.set("/items", [1]));
+    expect(onAction).toHaveBeenCalledOnce();
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     (slot) => {

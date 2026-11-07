@@ -515,9 +515,11 @@ export function SpecRenderer({
     () => exceedsRenderBudget(spec, snapshot),
     [spec, snapshot],
   );
-  const lastFit = useLastCommitted(tooLarge ? undefined : { spec, snapshot });
-  const shown = tooLarge && streaming ? lastFit : { spec, snapshot };
   const revision = getStateStoreRevision(store);
+  const lastFit = useLastCommitted(
+    tooLarge ? undefined : { spec, snapshot, revision },
+  );
+  const shown = tooLarge && streaming ? lastFit : { spec, snapshot, revision };
 
   const callbacks = useRef({ handlers, onAction, onError });
   useInsertionEffect(() => {
@@ -573,7 +575,7 @@ export function SpecRenderer({
     catalog,
     store,
     state: shown?.snapshot ?? snapshot,
-    revision,
+    revision: shown ? shown.revision : revision,
     dispatch,
     streaming,
     placeholder,
