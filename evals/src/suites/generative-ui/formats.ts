@@ -255,7 +255,7 @@ function jsonRenderTools(attempts: Attempt[]): ToolSet {
               } else {
                 errors = rendered.issues
                   .filter((issue) => issue.severity === "error")
-                  .map((issue) => `${issue.path}: ${issue.message}`);
+                  .map((issue) => `${issue.path || "spec"}: ${issue.message}`);
               }
             }
           }
