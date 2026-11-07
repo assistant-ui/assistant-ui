@@ -13,7 +13,7 @@ export interface GenerativeUIToJSXOptions {
  *
  * By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no type yet, `null`, booleans).
  *
- * Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim. An element whose type is not a valid JSX tag name, and a prop whose key is not a valid JSX attribute name, are left out.
+ * Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim. An element whose type is not a valid JSX tag name, and a prop whose key is not a valid JSX attribute name, are left out, and an omitted element takes its children with it.
  *
  * Pass `{ pretty: true }` to pretty-print nested element trees with two-space indentation, while pure text children stay on one line.
  */
@@ -34,8 +34,9 @@ const MAX_DEPTH = 64;
 /** Characters that would break JSX if emitted verbatim inside a text child. */
 const UNSAFE_CHILD_CHARS = /[<>&{}]/;
 const JSX_IDENTIFIER = String.raw`[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D-]*`;
+const IDENTIFIER = String.raw`[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D]*`;
 const JSX_TAG_NAME = new RegExp(
-  `^(?:${JSX_IDENTIFIER}(?:\\.${JSX_IDENTIFIER})*|${JSX_IDENTIFIER}:${JSX_IDENTIFIER})$`,
+  `^(?:${JSX_IDENTIFIER}(?::${JSX_IDENTIFIER})?|${IDENTIFIER}(?:\\.${IDENTIFIER})+)$`,
   "u",
 );
 const JSX_ATTRIBUTE_NAME = new RegExp(
@@ -75,8 +76,7 @@ function toJSX(
 
   const record = node as Record<string, unknown>;
   const type = readReserved(record, "type");
-  if (typeof type !== "string" || (escape && !JSX_TAG_NAME.test(type)))
-    return "";
+  if (!isRenderableType(type, escape)) return "";
   const { children } = record;
 
   const attrs =
@@ -100,7 +100,7 @@ function toJSX(
 
   const pad = "  ".repeat(indent);
 
-  if (children === undefined || !hasElementChild(children)) {
+  if (children === undefined || !hasElementChild(children, escape)) {
     const inner =
       children === undefined
         ? ""
@@ -117,14 +117,21 @@ function toJSX(
   return `${pad}<${type}${attrs}>\n${lines.join("\n")}\n${pad}</${type}>`;
 }
 
-function hasElementChild(node: unknown, depth = 0): boolean {
+function isRenderableType(type: unknown, escape: boolean): type is string {
+  return typeof type === "string" && (!escape || JSX_TAG_NAME.test(type));
+}
+
+function hasElementChild(node: unknown, escape: boolean, depth = 0): boolean {
   if (depth > MAX_DEPTH) return false;
   if (Array.isArray(node))
-    return node.some((child) => hasElementChild(child, depth + 1));
+    return node.some((child) => hasElementChild(child, escape, depth + 1));
   return (
     node != null &&
     typeof node === "object" &&
-    typeof readReserved(node as Record<string, unknown>, "type") === "string"
+    isRenderableType(
+      readReserved(node as Record<string, unknown>, "type"),
+      escape,
+    )
   );
 }
 

@@ -129,6 +129,34 @@ describe("generativeUIToJSX with escape: true", () => {
     ).toBe("<Card>\n  <Text>visible</Text>\n</Card>");
   });
 
+  it("keeps text beside an omitted element inline", () => {
+    expect(
+      generativeUIToJSX(
+        {
+          _type: "Card",
+          children: [{ _type: "a><script>" }, "hello"],
+        },
+        { escape: true, pretty: true },
+      ),
+    ).toBe("<Card>hello</Card>");
+  });
+
+  it.each(["Foo.bar-baz", "a-b.c", "Foo."])(
+    "omits the member tag name %s",
+    (type) => {
+      expect(generativeUIToJSX({ _type: type }, { escape: true })).toBe("");
+    },
+  );
+
+  it("keeps hyphens in plain and namespaced tag names", () => {
+    expect(generativeUIToJSX({ _type: "my-tag" }, { escape: true })).toBe(
+      "<my-tag />",
+    );
+    expect(generativeUIToJSX({ _type: "a-b:c-d" }, { escape: true })).toBe(
+      "<a-b:c-d />",
+    );
+  });
+
   it.each(["x={1} y", 'a"b'])("omits an invalid prop key %s", (key) => {
     expect(
       generativeUIToJSX(
