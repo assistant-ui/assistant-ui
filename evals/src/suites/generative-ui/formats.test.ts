@@ -99,6 +99,7 @@ test("json-render lists events and checks a spec against the kit's catalog", asy
         patch("/elements/main", {
           type: "Button",
           props: { label: "Go" },
+          children: [],
           on: {
             click: {
               action: "setState",
