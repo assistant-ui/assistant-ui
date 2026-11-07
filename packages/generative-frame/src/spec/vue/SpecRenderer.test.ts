@@ -1077,6 +1077,45 @@ describe("SpecRenderer", () => {
     },
   );
 
+  it.each([
+    { writePath: "/items/0", watchPath: "/items/1", items: ["a", "a", "b"] },
+    { writePath: "/items/-", watchPath: "/items/2", items: ["a", "b", "a"] },
+  ])(
+    "dispatches changed array index watches after a $writePath insert",
+    async ({ writePath, watchPath, items }) => {
+      const store = createStateStore({ items: ["a", "b"] });
+      const refresh = vi.fn();
+      const unchanged = vi.fn();
+      mount({
+        components,
+        state: store,
+        handlers: { refresh, unchanged },
+        spec: spec({
+          main: {
+            type: "Stack",
+            watch: {
+              [watchPath]: {
+                action: "refresh",
+                params: { value: { $state: watchPath } },
+              },
+              "/items/0": { action: "unchanged" },
+            },
+          },
+        }),
+      });
+      expect(refresh).not.toHaveBeenCalled();
+      store.set(writePath, "a");
+      await nextTick();
+      expect(store.get("/items")).toEqual(items);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).toHaveBeenCalledWith(
+        { value: "a" },
+        expect.objectContaining({ trigger: watchPath, kind: "watch" }),
+      );
+      expect(unchanged).not.toHaveBeenCalled();
+    },
+  );
+
   it("keeps watch dispatch for stores outside createStateStore", async () => {
     const store = { ...createStateStore({ x: 0 }) };
     const refresh = vi.fn();

@@ -188,7 +188,10 @@ export function createStateStore(
       record(entryFor(path, value, mode, result.arrayParents), result.inserted);
       state = result.next;
       const revisions = setRevisions.get(store)!;
-      revisions.paths.set(path, ++revisions.revision);
+      revisions.paths.set(
+        result.inserted ? parentOf(path) : path,
+        ++revisions.revision,
+      );
       emit();
     },
     writes: () => writes,
