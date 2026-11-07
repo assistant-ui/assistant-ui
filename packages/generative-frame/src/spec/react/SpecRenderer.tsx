@@ -87,6 +87,7 @@ export type SpecRendererProps = {
   catalog?: Catalog;
   /** An external store; otherwise one is created and seeded from `spec.state`. */
   state?: SpecStateStore;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
   locale?: string;
   /** Handlers by action name. */
   handlers?: Record<string, ActionHandler>;

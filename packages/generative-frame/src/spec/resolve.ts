@@ -30,6 +30,7 @@ export type ResolvedElement = {
 export type ResolveSpecOptions = {
   /** The state to resolve against, such as a store's `getState()` after the user's changes. Defaults to `spec.state`. */
   state?: unknown;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
   locale?: string;
 };
 

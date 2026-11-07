@@ -55,6 +55,7 @@ export type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
   locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (
