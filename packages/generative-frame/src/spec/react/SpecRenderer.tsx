@@ -39,7 +39,12 @@ import {
   wasStateStorePathWrittenSince,
   type SpecStateStore,
 } from "../state";
-import { childIdsOf, repeatItems, safePointer } from "../tree";
+import {
+  childIdsOf,
+  exceedsRenderBudget,
+  repeatItems,
+  safePointer,
+} from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
@@ -80,6 +85,7 @@ export type SpecPlaceholderProps = {
     | "pending"
     | "unknown-type"
     | "invalid-props"
+    | "too-large"
     | "cycle"
     | "error";
   message: string;
@@ -456,7 +462,8 @@ function ResolvedElement({
 
   const slots: Record<string, ReactNode> = {};
   for (const [slot, ids] of Object.entries(element.slots ?? {})) {
-    if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
+    if (slot !== "default" && Array.isArray(ids))
+      slots[slot] = renderChildren(ids, scope, ancestors);
   }
 
   if (rejected && !ctx.streaming) {
@@ -524,7 +531,15 @@ export function SpecRenderer({
     store.getState,
     store.getState,
   );
+  const tooLarge = useMemo(
+    () => exceedsRenderBudget(spec, snapshot),
+    [spec, snapshot],
+  );
   const revision = getStateStoreRevision(store);
+  const lastFit = useLastCommitted(
+    tooLarge ? undefined : { spec, snapshot, revision },
+  );
+  const shown = tooLarge && streaming ? lastFit : { spec, snapshot, revision };
 
   const callbacks = useRef({ handlers, onAction, onError });
   useInsertionEffect(() => {
@@ -575,13 +590,13 @@ export function SpecRenderer({
   }, [catalog]);
 
   const ctx: RenderContext = {
-    spec,
+    spec: shown?.spec ?? spec,
     components,
     catalog,
     store,
-    state: snapshot,
+    state: shown?.snapshot ?? snapshot,
     locale,
-    revision,
+    revision: shown ? shown.revision : revision,
     dispatch,
     streaming,
     placeholder,
@@ -592,8 +607,14 @@ export function SpecRenderer({
   const Placeholder = placeholder;
   return (
     <SpecContext.Provider value={ctx}>
-      {spec.root ? (
-        <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      {tooLarge && !streaming ? (
+        <Placeholder
+          id={spec.root}
+          reason="too-large"
+          message="The spec exceeds 5000 elements or 64 levels"
+        />
+      ) : shown?.spec.root ? (
+        <ElementView id={shown.spec.root} scope={{}} ancestors={[]} />
       ) : null}
       {streaming ? (
         <Placeholder id="" reason="pending" message="The spec is streaming" />

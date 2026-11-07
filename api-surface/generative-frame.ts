@@ -941,7 +941,7 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "missing-tool-result" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "missing-tool-result" | "too-large" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
 declare function SpecPlaceholder(_param0: SpecPlaceholderProps): import("react").JSX.Element;
 
@@ -977,13 +977,13 @@ declare const SpecPlaceholder$1: import("vue").DefineComponent<import("vue").Ext
 
 type SpecPlaceholderProps = {
   id: string;
-  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "unknown-type";
+  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "too-large" | "unknown-type";
   message: string;
 };
 
 type SpecPlaceholderProps$1 = {
   id: string;
-  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "unknown-type";
+  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "too-large" | "unknown-type";
   message: string;
 };
 

@@ -267,6 +267,115 @@ describe("SpecRenderer", () => {
     expect(editor.value).toBe("draft");
   });
 
+  it.each([
+    { children: [], copies: 5000 },
+    { children: ["missing"], copies: 100 },
+    { children: ["main"], copies: 100 },
+    { children: ["missing", "main"], copies: 100 },
+    { children: ["invalid"], copies: 100 },
+  ])(
+    "bounds repeat expansion for $children children",
+    async ({ children, copies }) => {
+      const repeated = spec(
+        {
+          main: {
+            type: "Stack",
+            repeat: { path: "/items" },
+            children: Array.from({ length: 50 }, () => children).flat(),
+          },
+          invalid: { props: {} } as never,
+        },
+        { items: Array(copies).fill(null) },
+      );
+      const view = mount({ components, spec: repeated });
+      expect(view.container.querySelectorAll("section")).toHaveLength(0);
+      expect(
+        view.container.querySelectorAll(
+          '[data-gf-spec-placeholder="too-large"]',
+        ),
+      ).toHaveLength(1);
+
+      await view.update({ components, spec: repeated, streaming: true });
+      expect(view.container.querySelectorAll("section")).toHaveLength(0);
+      expect(
+        view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]'),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("ignores default entries in named slots when applying the budget", () => {
+    const view = mount({
+      components,
+      spec: spec({
+        main: {
+          type: "Stack",
+          children: ["leaf"],
+          slots: { default: Array(5000).fill("leaf"), footer: ["leaf"] },
+        },
+        leaf: { type: "Text", props: { text: "Safe" } },
+      }),
+    });
+    expect(view.container.querySelectorAll("p")).toHaveLength(2);
+    expect(view.container.querySelector("footer")?.textContent).toBe("Safe");
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="too-large"]'),
+    ).toBeNull();
+  });
+
+  it("keeps the last fitting tree while streaming and replaces oversized nested repeats with one placeholder", async () => {
+    const nested = spec({
+      main: { type: "Stack", repeat: { path: "/items" }, children: ["middle"] },
+      middle: {
+        type: "Stack",
+        repeat: { path: "/items" },
+        children: ["inner"],
+      },
+      inner: { type: "Stack", repeat: { path: "/items" }, children: ["leaf"] },
+      leaf: { type: "Text", props: { text: "Safe" } },
+    });
+    const state = createStateStore({ items: [1] });
+    const view = mount({ components, spec: nested, state, streaming: true });
+    expect(view.container.querySelectorAll("p")).toHaveLength(1);
+
+    state.set("/items", Array(200).fill(1));
+    await nextTick();
+    expect(view.container.querySelectorAll("p")).toHaveLength(1);
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="too-large"]'),
+    ).toBeNull();
+
+    await view.update({ components, spec: nested, state, streaming: false });
+    expect(view.container.querySelectorAll("p")).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="too-large"]'),
+    ).toHaveLength(1);
+  });
+
+  it("runs a watch for a write made while the last fitting tree is shown", async () => {
+    const onAction = vi.fn();
+    const nested = spec({
+      main: { type: "Stack", children: ["label", "grid"] },
+      label: {
+        type: "Text",
+        props: { text: { $state: "/x" } },
+        watch: { "/x": { action: "refresh" } },
+      },
+      grid: { type: "Stack", repeat: { path: "/items" }, children: ["row"] },
+      row: { type: "Stack", repeat: { path: "/items" }, children: ["leaf"] },
+      leaf: { type: "Text", props: { text: "Cell" } },
+    });
+    const state = createStateStore({ x: "a", items: [1] });
+    mount({ components, spec: nested, state, onAction, streaming: true });
+    state.set("/items", Array(100).fill(1));
+    await nextTick();
+    state.set("/x", "b");
+    await nextTick();
+    expect(onAction).not.toHaveBeenCalled();
+    state.set("/items", [1]);
+    await nextTick();
+    expect(onAction).toHaveBeenCalledOnce();
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     async (slot) => {
