@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy } from "./review-policy.mjs";
-import { computeTier } from "./review-tier-signals.mjs";
+import { computeTier, protectedPaths } from "./review-tier-signals.mjs";
 
 const policy = loadReviewPolicy(path.resolve(import.meta.dirname, "../.."));
 
@@ -1229,4 +1229,107 @@ test("a package owner never takes over a contract area other than Public API", (
   assert.equal(result.tier, 2);
   assert.deepEqual(result.areas, ["reactivity"]);
   assert.deepEqual(result.ownedPackages, []);
+});
+
+test("protected paths skip docs, tests and package source with a patch", () => {
+  assert.deepEqual(
+    protectedPaths(
+      [
+        file("README.md", { patch: "+docs" }),
+        file("apps/docs/content/docs/guides/x.mdx", { patch: "+docs" }),
+        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
+        file("packages/react/src/index.test.ts"),
+      ],
+      policy,
+    ),
+    [],
+  );
+});
+
+test("protected paths cover owner areas, contract docs and decision paths", () => {
+  assert.deepEqual(
+    protectedPaths(
+      [
+        file("packages/tap/src/core/scheduler.ts", { patch: "+x" }),
+        file("apps/docs/content/docs/store/index.mdx", { patch: "+x" }),
+        file(".github/review-policy.json", { patch: "+x" }),
+        file("scripts/lib/review-tier-signals.mjs", { patch: "+x" }),
+      ],
+      policy,
+    ),
+    [
+      ".github/review-policy.json",
+      "apps/docs/content/docs/store/index.mdx",
+      "packages/tap/src/core/scheduler.ts",
+      "scripts/lib/review-tier-signals.mjs",
+    ],
+  );
+});
+
+test("protected paths cover the public API surface", () => {
+  assert.deepEqual(
+    protectedPaths(
+      [
+        file("api-surface/assistant-ui__react.ts", { patch: "+x" }),
+        file("packages/react/package.json", { patch: "+x" }),
+        file("packages/new-pkg/package.json", { status: "added" }),
+        file("packages/react/src/a.ts", {
+          patch: "@@ -1 +1 @@\n+/** @deprecated use b */",
+        }),
+        file("packages/react/src/b.ts", { patch: null }),
+      ],
+      policy,
+    ),
+    [
+      "api-surface/assistant-ui__react.ts",
+      "packages/new-pkg/package.json",
+      "packages/react/package.json",
+      "packages/react/src/a.ts",
+      "packages/react/src/b.ts",
+    ],
+  );
+});
+
+test("a rename out of a protected path is protected", () => {
+  assert.deepEqual(
+    protectedPaths(
+      [
+        file("packages/react/src/tap.ts", {
+          status: "renamed",
+          previousPath: "packages/tap/src/tap.ts",
+          patch: "",
+        }),
+      ],
+      policy,
+    ),
+    ["packages/tap/src/tap.ts"],
+  );
+});
+
+test("protected paths cover packages with their own owners", () => {
+  const custom = {
+    ...policy,
+    packageOwners: [
+      {
+        id: "docs-theme",
+        owners: ["someone"],
+        paths: ["packages/docs-theme/**"],
+      },
+    ],
+  };
+  assert.deepEqual(
+    protectedPaths(
+      [
+        file("packages/docs-theme/src/index.ts", { patch: "+const a = 1;" }),
+        file("packages/react/src/theme.ts", {
+          status: "renamed",
+          previousPath: "packages/docs-theme/src/theme.ts",
+          patch: "",
+        }),
+        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
+      ],
+      custom,
+    ),
+    ["packages/docs-theme/src/index.ts", "packages/docs-theme/src/theme.ts"],
+  );
 });
