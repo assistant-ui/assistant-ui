@@ -16,7 +16,10 @@ export type WebviewCspOptions = {
    * that inject `<style>` tags without a nonce.
    */
   csp?: WebviewCspMode;
-  /** Extra `script-src` sources, such as `webview.cspSource` for code-split chunks. */
+  /**
+   * Extra `script-src` sources, one host or scheme per entry. Code-split
+   * chunks need none: a module script's imports inherit its nonce.
+   */
   scriptSrc?: readonly string[];
   connectSrc?: readonly string[];
   /**

@@ -4,7 +4,7 @@ import {
   VSCODE_VIRTUAL_ORIGIN,
   type FetchRequestMessage,
 } from "../protocol";
-import { createInMemoryBridge } from "../testUtils";
+import { createInMemoryBridge, failsAfter } from "../testUtils";
 import { createVSCodeFetch } from "../webview/fetch";
 import { serveRoutes } from "./router";
 
@@ -94,16 +94,7 @@ describe("serveRoutes", () => {
       bridge.webview,
       {
         "/api/test": {
-          GET: () =>
-            new Response(
-              new ReadableStream({
-                async start(controller) {
-                  controller.enqueue(new TextEncoder().encode("partial"));
-                  await new Promise((resolve) => setTimeout(resolve, 1));
-                  controller.error(new Error("boom"));
-                },
-              }),
-            ),
+          GET: () => new Response(failsAfter("partial", new Error("boom"))),
         },
       },
       { flushInterval: 1000, onError },
@@ -250,8 +241,17 @@ describe("serveRoutes", () => {
       });
       bridge.port.postMessage(request("reused"));
       await waitFor(() => calls === 2);
-      release(new Response());
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      let cancelled = false;
+      release(
+        new Response(
+          new ReadableStream({
+            cancel: () => {
+              cancelled = true;
+            },
+          }),
+        ),
+      );
+      await waitFor(() => cancelled);
       bridge.port.postMessage(request("reused"));
       await waitFor(() => onError.mock.calls.length === 1);
       expect(calls).toBe(2);

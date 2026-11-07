@@ -74,7 +74,7 @@ export const cliSurface: CliSurfaceSnapshot = {
       "options": [
         {
           "flags": "-t, --template <template>",
-          "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve)",
+          "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve, vscode)",
           "required": true
         },
         {
