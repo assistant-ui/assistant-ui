@@ -20,7 +20,7 @@ export function exceedsRenderBudget(spec: Spec, state: unknown): boolean {
   if (!spec?.elements || typeof spec.elements !== "object") return false;
   const ancestors = new Set<string>();
   const count = (id: unknown, depth: number): number => {
-    if (typeof id !== "string") return 0;
+    if (typeof id !== "string") return 1;
     if (depth > 64) return 5001;
     if (ancestors.has(id) || !Object.hasOwn(spec.elements, id)) return 1;
     const element = spec.elements[id];
