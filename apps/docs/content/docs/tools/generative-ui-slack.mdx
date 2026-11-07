@@ -29,6 +29,49 @@ A spec from [spec mode](/generative-frame/docs/spec-mode) converts with `specToU
 
 `toSlackBlocks(node, options?)` returns `{ blocks, warnings }` and never throws: an input it cannot convert at all comes back as empty `blocks` plus one warning rather than an exception. Pass `{ surface: "modal" }` to target a modal instead of a message; the surface changes the block budget and unlocks the native `alert` block.
 
+## Update a message as the spec streams
+
+Feed complete JSONL patch lines into `createSpecStream`. Post when the root element exists and produces blocks, then update that message at most once every 500 ms. `specLines` below is an async iterable of lines from your model:
+
+```ts
+import { WebClient } from "@slack/web-api";
+import { createSpecStream, type Spec } from "generative-frame/spec";
+import { specToUISpec } from "@assistant-ui/generative-ui/spec/tree";
+import { toSlackBlocks } from "@assistant-ui/generative-ui/slack";
+
+const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
+const stream = createSpecStream();
+const channel = "#orders";
+let message: { channel: string; ts: string } | undefined;
+let lastUpdate = 0;
+
+async function publish(spec: Spec, final = false) {
+  if (!spec.elements[spec.root]) return;
+  const { blocks } = toSlackBlocks(specToUISpec(spec));
+  if (blocks.length === 0) return;
+
+  if (!message) {
+    const posted = await slack.chat.postMessage({ channel, blocks });
+    if (!posted.channel || !posted.ts) throw new Error("Slack did not return a message location.");
+    message = { channel: posted.channel, ts: posted.ts };
+    lastUpdate = Date.now();
+    return;
+  }
+
+  const now = Date.now();
+  if (!final && now - lastUpdate < 500) return;
+  await slack.chat.update({ ...message, blocks });
+  lastUpdate = Date.now();
+}
+
+for await (const line of specLines) {
+  await publish(stream.push(`${line}\n`).spec);
+}
+await publish(stream.result().spec, true);
+```
+
+The host owns the stream transport and Slack rate limits. Keep interactive elements out of intermediate updates and add them in the final update, because Slack may deliver a click for an element a later update removes.
+
 ## Warnings
 
 Conversion is total. Every downgrade is reported rather than thrown, so one unsupported node does not fail the whole message:

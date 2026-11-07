@@ -35,6 +35,50 @@ A spec from [spec mode](/generative-frame/docs/spec-mode) converts with `specToU
 
 Cards are stamped at Adaptive Cards schema **1.5**, the version [Teams supports on desktop](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference). Teams mobile clients cap at 1.2, so a card using 1.5-only elements (notably `Table`) may not render there.
 
+## Update a message as the spec streams
+
+Feed complete JSONL patch lines into `createSpecStream`. Send when the root element exists and produces card content, then update that activity at most once every 500 ms. `specLines` below is an async iterable of lines from your model:
+
+```ts
+import { createSpecStream, type Spec } from "generative-frame/spec";
+import { specToUISpec } from "@assistant-ui/generative-ui/spec/tree";
+import { toAdaptiveCard } from "@assistant-ui/generative-ui/teams";
+
+const stream = createSpecStream();
+let activityId: string | undefined;
+let lastUpdate = 0;
+
+async function publish(spec: Spec, final = false) {
+  if (!spec.elements[spec.root]) return;
+  const { card } = toAdaptiveCard(specToUISpec(spec));
+  if (card.body.length === 0 && card.actions.length === 0) return;
+  const attachments = [{
+    contentType: "application/vnd.microsoft.card.adaptive",
+    content: card,
+  }];
+
+  if (!activityId) {
+    const sent = await context.sendActivity({ attachments });
+    if (!sent?.id) throw new Error("Teams did not return an activity ID.");
+    activityId = sent.id;
+    lastUpdate = Date.now();
+    return;
+  }
+
+  const now = Date.now();
+  if (!final && now - lastUpdate < 500) return;
+  await context.updateActivity({ id: activityId, type: "message", attachments });
+  lastUpdate = Date.now();
+}
+
+for await (const line of specLines) {
+  await publish(stream.push(`${line}\n`).spec);
+}
+await publish(stream.result().spec, true);
+```
+
+The host owns the stream transport and Teams rate limits. Keep interactive elements out of intermediate updates and add them in the final update, because Teams may deliver a click for an element a later update removes.
+
 ## Warnings
 
 Conversion is total. Every downgrade is reported rather than thrown:
