@@ -109,12 +109,21 @@ gate is late by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
 The entry is marked `skipExecute` at creation, exactly like a call
-observed with a `result`. `unstable_isClientToolCall` is read once, when
-the call is first observed live, and never re-read: ownership is fixed
-when the provider emits the call, so a later snapshot cannot revoke it
-and drop the result of an execute already in flight. `streamCall` still
-fires once, as under A.8; only the wrapped `execute` and its result
-chunk are withheld.
+observed with a `result`. A definite answer — `true` or `false` — is read
+once, when the call is first observed live, and never re-read: ownership
+is fixed when the provider emits the call, so a later snapshot cannot
+revoke it and drop the result of an execute already in flight.
+`streamCall` still fires once, as under A.8; only the wrapped `execute`
+and its result chunk are withheld.
+
+`undefined` is a deferral, not an answer. A stream can deliver the call
+and the pause that holds it in separate reads, so an adapter that cannot
+classify the call yet is asked again once the run settles — the same
+point at which the args stream would otherwise close and hand the call to
+the executor. A `false` then marks `skipExecute`, exactly as at creation.
+The re-ask reaches only entries that never had a definite answer and runs
+before `execute` starts, so it cannot revoke ownership an execution
+already relies on.
 
 Outside production, a provider-owned call whose name resolves to a tool
 with an `execute` logs a `console.warn`. The two together are a

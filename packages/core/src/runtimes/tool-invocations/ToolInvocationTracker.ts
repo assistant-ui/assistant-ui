@@ -64,6 +64,12 @@ type ToolCallEntry = {
       controller: ToolCallStreamController;
       argsComplete: boolean;
       clientOwned: boolean;
+      /**
+       * The adapter could not say whose call this is when it was first seen.
+       * Asked again once the run settles, before the call is handed to the
+       * executor. See {@link _resolveDeferredOwnership}.
+       */
+      ownershipDeferred: boolean;
     }
 );
 
@@ -692,6 +698,32 @@ export class ToolInvocationTracker {
    * ending is the only universal signal for that; an adapter that reports the
    * call as client-owned has said it earlier, per call.
    */
+  /**
+   * A stream can deliver a call and the pause that holds it in separate reads,
+   * so the adapter is asked a second time once the run has settled — the same
+   * point at which the call would otherwise be handed to the executor. The
+   * answer `false` keeps the call with the provider and stops the executor;
+   * `true` lets it close early on the adapter's word.
+   */
+  private _resolveDeferredOwnership(
+    entry: ToolCallEntry,
+    content: ToolCallMessagePart,
+  ): void {
+    // `controller` narrows to the active phase, the only one that can carry a
+    // deferred answer or reach the executor.
+    if (!entry.controller || !entry.ownershipDeferred || this._isRunning)
+      return;
+    entry.ownershipDeferred = false;
+    const ownership = this._isClientToolCall?.(content);
+    if (ownership === false) {
+      if (content.result !== undefined) return;
+      entry.skipExecute = true;
+      this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
+      return;
+    }
+    if (ownership === true) entry.clientOwned = true;
+  }
+
   private _shouldCloseArgsStream({
     argsText,
     hasResult,
@@ -712,6 +744,7 @@ export class ToolInvocationTracker {
     skipExecute: boolean,
     discarded: boolean,
     clientOwned: boolean,
+    ownershipDeferred: boolean,
   ): ToolCallEntry {
     const toolCallController = this._controller.addToolCallPart({
       toolName,
@@ -726,6 +759,7 @@ export class ToolInvocationTracker {
       discarded,
       argsComplete: false,
       clientOwned,
+      ownershipDeferred,
     };
     this._entries.set(toolCallId, entry);
     return entry;
@@ -930,12 +964,15 @@ export class ToolInvocationTracker {
           content.result !== undefined || providerOwned || discarded,
           discarded,
           ownership === true,
+          ownership === undefined,
         );
       }
 
       if (content.result !== undefined) entry.skipExecute = true;
 
       if (content.approval !== undefined) entry.skipExecute = true;
+
+      this._resolveDeferredOwnership(entry, content);
 
       this._processArgsText(entry, content);
 

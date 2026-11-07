@@ -2901,4 +2901,60 @@ describe("ToolInvocationTracker reset", () => {
       warnSpy.mockRestore();
     }
   });
+
+  it("asks ownership again once the run settles, so a call read before the pause is not executed", async () => {
+    const execute = vi.fn(async () => ({ ok: true }));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      // The adapter cannot answer while the pause is still unknown, and only
+      // the settled run can say the call was the provider's.
+      let held = false;
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        { onResult: vi.fn(), onStatusesChange: () => {} },
+        () => (held ? false : undefined),
+      );
+
+      tracker.setState(createState([]));
+      // The call is observed while the run is live: `undefined` at that point.
+      tracker.setState(createState([createAssistantMessage("{}", {})], true));
+      // The pause lands, then the run settles.
+      held = true;
+      tracker.setState(createState([createAssistantMessage("{}", {})], false));
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(execute).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("provider-owned"),
+        expect.objectContaining({ toolCallId: "tool-1" }),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("runs a call whose ownership stayed unknown once the run settles", async () => {
+    const execute = vi.fn(async () => ({ ok: true }));
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+        } satisfies Tool,
+      }),
+      { onResult: vi.fn(), onStatusesChange: () => {} },
+      () => undefined,
+    );
+
+    tracker.setState(createState([]));
+    tracker.setState(createState([createAssistantMessage("{}", {})], true));
+    tracker.setState(createState([createAssistantMessage("{}", {})], false));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+  });
 });

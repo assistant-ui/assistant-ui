@@ -338,6 +338,34 @@ const useLangGraphRuntimeImpl = (
     interruptRef.current = interrupt;
   }, [interrupt]);
 
+  // A graph that paused on an interrupt is holding the calls it had not
+  // answered when it paused: they are the graph's, not the client's. Capture
+  // them at that interrupt and key the capture on it, so a call that only
+  // arrives with the next run is not what this pause holds and an empty
+  // capture stays empty instead of adopting the next run's calls. A stream can
+  // deliver the call before the pause, so the capture is read when the tracker
+  // settles the run as well as when it first sees the call.
+  const heldToolCallIdsRef = useRef<{
+    interrupt: LangGraphInterruptState;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  // Built locally and published only once this render commits, so a render
+  // React abandons cannot leave its speculative capture in the ref.
+  const heldToolCallIds =
+    interrupt === undefined
+      ? null
+      : heldToolCallIdsRef.current?.interrupt === interrupt
+        ? heldToolCallIdsRef.current
+        : {
+            interrupt,
+            ids: new Set(
+              getPendingToolCalls(messages).map((toolCall) => toolCall.id),
+            ),
+          };
+  useInsertionEffect(() => {
+    heldToolCallIdsRef.current = heldToolCallIds;
+  }, [heldToolCallIds]);
+
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
@@ -990,6 +1018,16 @@ const useLangGraphRuntimeImpl = (
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
+    unstable_isClientToolCall: (toolCall) => {
+      const held = heldToolCallIdsRef.current;
+      // A capture published for an earlier pause must not vote on this one.
+      // Until this interrupt's capture lands — the adapter is built during
+      // render, before insertion effects — the call is simply unknown, and
+      // the tracker asks again once the run settles.
+      if (held === null || held.interrupt !== interruptRef.current)
+        return undefined;
+      return held.ids.has(toolCall.toolCallId) ? false : undefined;
+    },
     setToolStatuses,
     adapters: {
       attachments,
