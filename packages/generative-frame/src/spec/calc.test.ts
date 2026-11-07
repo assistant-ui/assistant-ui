@@ -433,6 +433,18 @@ describe("formula bounds and parsing", () => {
     ).toBeNull();
   });
 
+  it.each([-1, 0.5, 20_000, null, "0", undefined])(
+    "preserves a large list when without has no item at index %j",
+    (index) => {
+      const list = Array.from({ length: 20_000 }, (_, i) => i);
+      const result = evaluateFormula("without(${/list}, ${/index})", {
+        state: { list, index },
+      });
+      expect(result).not.toBeNull();
+      expect(result).toEqual(list);
+    },
+  );
+
   it("reads a list field once per call and bounds its length and depth", () => {
     const rows = [{ price: 2 }, { price: 3 }];
     expect(

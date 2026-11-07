@@ -204,6 +204,13 @@ const functions = new Map<string, FormulaFunction>([
       max: 2,
       run: ([list, index], step) => {
         if (!Array.isArray(list)) return null;
+        if (
+          typeof index !== "number" ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= list.length
+        )
+          return list;
         const result: unknown[] = [];
         for (let i = 0; i < list.length; i++) {
           step();
