@@ -33,6 +33,15 @@ const MAX_DEPTH = 64;
 
 /** Characters that would break JSX if emitted verbatim inside a text child. */
 const UNSAFE_CHILD_CHARS = /[<>&{}]/;
+const JSX_IDENTIFIER = String.raw`[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D-]*`;
+const JSX_TAG_NAME = new RegExp(
+  `^(?:${JSX_IDENTIFIER}(?:\\.${JSX_IDENTIFIER})*|${JSX_IDENTIFIER}:${JSX_IDENTIFIER})$`,
+  "u",
+);
+const JSX_ATTRIBUTE_NAME = new RegExp(
+  `^${JSX_IDENTIFIER}(?::${JSX_IDENTIFIER})?$`,
+  "u",
+);
 
 const MAPPED_KEYS: ReadonlySet<string> = new Set([
   TYPE_KEY,
@@ -66,7 +75,8 @@ function toJSX(
 
   const record = node as Record<string, unknown>;
   const type = readReserved(record, "type");
-  if (typeof type !== "string") return "";
+  if (typeof type !== "string" || (escape && !JSX_TAG_NAME.test(type)))
+    return "";
   const { children } = record;
 
   const attrs =
@@ -149,7 +159,8 @@ function formatChildText(value: string, escape: boolean): string {
 
 /** Formats one prop as a JSX attribute (`id="x"`, `count={3}`, `open`, …). */
 function formatAttr(key: string, value: unknown, escape: boolean): string {
-  if (value === undefined) return "";
+  if (value === undefined || (escape && !JSX_ATTRIBUTE_NAME.test(key)))
+    return "";
   if (value === true) return ` ${key}`;
   if (typeof value === "string") {
     return /["\n]/.test(value) || (escape && value.includes("&"))
