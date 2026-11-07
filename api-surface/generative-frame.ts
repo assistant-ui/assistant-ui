@@ -22,6 +22,7 @@ type ActionBinding = {
 type ActionDefinition = {
   description: string;
   params?: PropsSchema;
+  confirm?: true;
 };
 
 type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
@@ -996,6 +997,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   state: PropType<SpecStateStore>;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
+  confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
@@ -1048,6 +1050,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   state: PropType<SpecStateStore>;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
+  confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
@@ -1099,6 +1102,11 @@ type SpecRendererProps = {
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
+  confirmAction?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1115,6 +1123,11 @@ type SpecRendererProps$1 = {
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
+  confirmAction?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1168,6 +1181,7 @@ type SpecStreamUpdate = {
 type SpecToolkitOptions = {
   components: SpecComponents;
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
     trigger?: string;
@@ -1181,6 +1195,7 @@ type SpecToolkitOptions = {
 type SpecToolkitOptions$1 = {
   components: SpecComponents$1;
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps$1["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
     trigger?: string;

@@ -147,6 +147,7 @@ type ActionBinding = {
 type ActionDefinition = {
   description: string;
   params?: PropsSchema;
+  confirm?: true;
 };
 
 type ActionDispatchContext = {
