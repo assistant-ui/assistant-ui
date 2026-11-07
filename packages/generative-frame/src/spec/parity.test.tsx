@@ -38,6 +38,7 @@ const catalog = defineCatalog({
         properties: { checked: { type: "boolean" } },
       },
     },
+    Boom: { description: "Throws" },
   },
   actions: {
     first: { description: "First" },
@@ -85,6 +86,9 @@ const reactComponents = {
       onChange={(event) => setProp("checked", event.target.checked)}
     />
   ),
+  Boom: () => {
+    throw new Error("kaboom");
+  },
 };
 
 const vueComponents = {
@@ -128,6 +132,13 @@ const vueComponents = {
         });
     },
   }),
+  Boom: defineComponent({
+    setup() {
+      return () => {
+        throw new Error("kaboom");
+      };
+    },
+  }),
 };
 
 type ActionCall = {
@@ -136,11 +147,25 @@ type ActionCall = {
   elementId: string;
   trigger: string;
 };
-type Result = { text: string[]; actions: ActionCall[]; placeholders: string[] };
+type ReportedError = { message: string; elementId: string | null };
+type Result = {
+  text: string[];
+  actions: ActionCall[];
+  placeholders: string[];
+  inputs: boolean[];
+  containers: string[];
+  errors: ReportedError[];
+};
 type Step =
   | { kind: "update"; spec?: Spec; streaming?: boolean; expected: Result }
   | { kind: "click"; selector: string; expected: Result }
-  | { kind: "setState"; path: string; value: unknown; expected: Result };
+  | {
+      kind: "setState";
+      path: string;
+      value: unknown;
+      expected: Result;
+      retainedInputOrder?: number[];
+    };
 type Fixture = {
   name: string;
   spec: Spec;
@@ -158,10 +183,16 @@ const result = (
   text: string[],
   placeholders: string[] = [],
   actions: ActionCall[] = [],
+  containers: string[] = [],
+  inputs: boolean[] = [],
+  errors: ReportedError[] = [],
 ): Result => ({
   text,
   actions,
   placeholders,
+  containers,
+  inputs,
+  errors,
 });
 const call = (
   name: string,
@@ -183,7 +214,7 @@ const fixtures: Fixture[] = [
       a: { type: "Text", props: { text: "A" } },
     }),
     streaming: true,
-    expected: result(["A"], ["pending"]),
+    expected: result(["A"], ["pending"], [], ["section"]),
     steps: [
       {
         kind: "update",
@@ -192,21 +223,25 @@ const fixtures: Fixture[] = [
           a: { type: "Text", props: { text: "A" } },
           b: { type: "Text", props: { text: "B" } },
         }),
-        expected: result(["A", "B"], ["pending"]),
+        expected: result(["A", "B"], ["pending"], [], ["section", "section"]),
       },
-      { kind: "update", streaming: false, expected: result(["A", "B"]) },
+      {
+        kind: "update",
+        streaming: false,
+        expected: result(["A", "B"], [], [], ["section", "section"]),
+      },
     ],
   },
   {
     name: "invalid props retain the last valid render only while streaming",
     spec: tree({ main: { type: "Text", props: { text: "Valid" } } }),
     streaming: true,
-    expected: result(["Valid"], ["pending"]),
+    expected: result(["Valid"], ["pending"], [], ["root"]),
     steps: [
       {
         kind: "update",
         spec: tree({ main: { type: "Text", props: { text: 5 } } }),
-        expected: result(["Valid"], ["pending"]),
+        expected: result(["Valid"], ["pending"], [], ["root"]),
       },
       {
         kind: "update",
@@ -226,27 +261,64 @@ const fixtures: Fixture[] = [
     expected: result([], ["cycle"]),
   },
   {
+    name: "throwing component reports its error and renders a placeholder",
+    spec: tree({ main: { type: "Boom" } }),
+    expected: result(
+      [],
+      ["error"],
+      [],
+      [],
+      [],
+      [{ message: "kaboom", elementId: "main" }],
+    ),
+  },
+  {
     name: "repeat resolves item and index with a stable key",
     spec: tree(
       {
         main: {
           type: "Stack",
           repeat: { path: "/items", key: "id" },
-          children: ["row"],
+          children: ["row", "toggle"],
         },
         row: {
           type: "Text",
           props: { text: { $template: "${$index}: ${$item/title}" } },
         },
+        toggle: { type: "Toggle", props: { checked: { $bindItem: "/done" } } },
       },
       {
         items: [
-          { id: "a", title: "Alpha" },
-          { id: "b", title: "Beta" },
+          { id: "a", title: "Alpha", done: false },
+          { id: "b", title: "Beta", done: true },
         ],
       },
     ),
-    expected: result(["0: Alpha", "1: Beta"]),
+    expected: result(
+      ["0: Alpha", "1: Beta"],
+      [],
+      [],
+      ["section", "section", "section", "section"],
+      [false, true],
+    ),
+    steps: [
+      {
+        kind: "setState",
+        path: "/items",
+        value: [
+          { id: "b", title: "Beta", done: true },
+          { id: "a", title: "Alpha", done: false },
+        ],
+        expected: result(
+          ["0: Beta", "1: Alpha"],
+          [],
+          [],
+          ["section", "section", "section", "section"],
+          [true, false],
+        ),
+        retainedInputOrder: [1, 0],
+      },
+    ],
   },
   {
     name: "named slots follow default children",
@@ -255,7 +327,7 @@ const fixtures: Fixture[] = [
       body: { type: "Text", props: { text: "Body" } },
       foot: { type: "Text", props: { text: "Footer" } },
     }),
-    expected: result(["Body", "Footer"]),
+    expected: result(["Body", "Footer"], [], [], ["section", "footer"]),
   },
   {
     name: "visibility comparisons, conjunction, disjunction, negation, and unknown shapes",
@@ -293,7 +365,12 @@ const fixtures: Fixture[] = [
       },
       { count: 3, open: false },
     ),
-    expected: result(["Compare", "And", "Or", "Not"]),
+    expected: result(
+      ["Compare", "And", "Or", "Not"],
+      [],
+      [],
+      ["section", "section", "section", "section"],
+    ),
   },
   {
     name: "template and calculation resolve state",
@@ -311,7 +388,7 @@ const fixtures: Fixture[] = [
       },
       { count: 3 },
     ),
-    expected: result(["Count: 3", "6 total"]),
+    expected: result(["Count: 3", "6 total"], [], [], ["section", "section"]),
   },
   {
     name: "conditional expression chooses a branch",
@@ -330,13 +407,13 @@ const fixtures: Fixture[] = [
       },
       { ready: false },
     ),
-    expected: result(["Waiting"]),
+    expected: result(["Waiting"], [], [], ["root"]),
     steps: [
       {
         kind: "setState",
         path: "/ready",
         value: true,
-        expected: result(["Ready"]),
+        expected: result(["Ready"], [], [], ["root"]),
       },
     ],
   },
@@ -355,7 +432,7 @@ const fixtures: Fixture[] = [
         },
       },
     }),
-    expected: result(["Run"]),
+    expected: result(["Run"], [], [], ["root"]),
     steps: [
       {
         kind: "click",
@@ -367,6 +444,9 @@ const fixtures: Fixture[] = [
             call("first", { from: 1 }, "main", "press"),
             call("fail", { step: 2 }, "main", "press"),
           ],
+          ["root"],
+          [],
+          [{ message: "action failed", elementId: null }],
         ),
       },
     ],
@@ -384,9 +464,37 @@ const fixtures: Fixture[] = [
       },
       { on: false },
     ),
-    expected: result(["Enabled: false"]),
+    expected: result(
+      ["Enabled: false"],
+      [],
+      [],
+      ["section", "section"],
+      [false],
+    ),
     steps: [
-      { kind: "click", selector: "input", expected: result(["Enabled: true"]) },
+      {
+        kind: "click",
+        selector: "input",
+        expected: result(
+          ["Enabled: true"],
+          [],
+          [],
+          ["section", "section"],
+          [true],
+        ),
+      },
+      {
+        kind: "setState",
+        path: "/on",
+        value: false,
+        expected: result(
+          ["Enabled: false"],
+          [],
+          [],
+          ["section", "section"],
+          [false],
+        ),
+      },
     ],
   },
   {
@@ -410,7 +518,7 @@ const fixtures: Fixture[] = [
       },
       { range: "7d" },
     ),
-    expected: result(["Range: 7d"]),
+    expected: result(["Range: 7d"], [], [], ["section"]),
     steps: [
       {
         kind: "setState",
@@ -420,6 +528,7 @@ const fixtures: Fixture[] = [
           ["Range: 30d"],
           [],
           [call("refresh", { range: "30d" }, "main", "/range")],
+          ["section"],
         ),
       },
     ],
@@ -433,12 +542,28 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function normalize(container: HTMLElement, actions: ActionCall[]): Result {
+function normalize(
+  container: HTMLElement,
+  actions: ActionCall[],
+  errors: ReportedError[],
+): Result {
   return {
     text: [...container.querySelectorAll("p, button")].map(
       (node) => node.textContent ?? "",
     ),
     actions: [...actions],
+    inputs: [...container.querySelectorAll("input")].map(
+      (node) => node.checked,
+    ),
+    containers: [...container.querySelectorAll("p, button, input")].map(
+      (node) =>
+        node.closest("footer")
+          ? "footer"
+          : node.closest("section")
+            ? "section"
+            : "root",
+    ),
+    errors: [...errors],
     placeholders: [
       ...container.querySelectorAll("[data-gf-spec-placeholder]"),
     ].map((node) => node.getAttribute("data-gf-spec-placeholder") ?? ""),
@@ -451,6 +576,16 @@ describe("React and Vue spec renderer parity", () => {
     const vueStore = createStateStore(fixture.spec.state ?? {});
     const reactActions: ActionCall[] = [];
     const vueActions: ActionCall[] = [];
+    const reactErrors: ReportedError[] = [];
+    const vueErrors: ReportedError[] = [];
+    const onError =
+      (reports: ReportedError[]) =>
+      (error: Error, context: { elementId?: string }) => {
+        reports.push({
+          message: error.message,
+          elementId: context.elementId ?? null,
+        });
+      };
     const onAction =
       (calls: ActionCall[]) =>
       (
@@ -472,7 +607,7 @@ describe("React and Vue spec renderer parity", () => {
       state: reactStore,
       streaming,
       onAction: onAction(reactActions),
-      onError: () => {},
+      onError: onError(reactErrors),
     });
     const vueProps = (): VueSpecRendererProps => ({
       catalog,
@@ -481,7 +616,7 @@ describe("React and Vue spec renderer parity", () => {
       state: vueStore,
       streaming,
       onAction: onAction(vueActions),
-      onError: () => {},
+      onError: onError(vueErrors),
     });
     const reactView = render(<ReactSpecRenderer {...reactProps()} />);
     const vueContainer = document.createElement("div");
@@ -492,10 +627,18 @@ describe("React and Vue spec renderer parity", () => {
     );
     app.mount(vueContainer);
     mounted.push(app);
+    await nextTick();
+    const initialReactInputs = [
+      ...reactView.container.querySelectorAll("input"),
+    ];
+    const initialVueInputs = [...vueContainer.querySelectorAll("input")];
 
     const check = (expected: Result) => {
-      expect(normalize(reactView.container, reactActions)).toEqual(expected);
-      expect(normalize(vueContainer, vueActions)).toEqual(expected);
+      expect(normalize(reactView.container, reactActions, reactErrors)).toEqual(
+        expected,
+      );
+      expect(normalize(vueContainer, vueActions, vueErrors)).toEqual(expected);
+      expect(reactErrors).toEqual(vueErrors);
     };
     check(fixture.expected);
 
@@ -522,6 +665,16 @@ describe("React and Vue spec renderer parity", () => {
         await nextTick();
       }
       check(step.expected);
+      if (step.kind === "setState" && step.retainedInputOrder) {
+        const reactInputs = [...reactView.container.querySelectorAll("input")];
+        const vueInputs = [...vueContainer.querySelectorAll("input")];
+        expect(reactInputs).toHaveLength(step.retainedInputOrder.length);
+        expect(vueInputs).toHaveLength(step.retainedInputOrder.length);
+        step.retainedInputOrder.forEach((index, position) => {
+          expect(reactInputs[position]).toBe(initialReactInputs[index]);
+          expect(vueInputs[position]).toBe(initialVueInputs[index]);
+        });
+      }
     }
   });
 });
