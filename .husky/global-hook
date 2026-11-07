@@ -1,6 +1,10 @@
-# Runs the user's global git hook (core.hooksPath in global/system config),
-# which Husky's repo-local core.hooksPath would otherwise shadow.
 # Sourced from .husky/<hook>; uses that hook's name, args and stdin.
+# HUSKY=0 skips the repository hooks. Otherwise the user's global git hook
+# (core.hooksPath in global/system config), which the repository's
+# core.hooksPath would shadow, runs first.
+
+[ "${HUSKY-}" = "0" ] && exit 0
+set -e
 
 hook=$(basename "$0")
 dir=$(git config --global --get core.hooksPath || git config --system --get core.hooksPath || true)
