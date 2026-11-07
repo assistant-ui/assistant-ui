@@ -6,14 +6,14 @@ import {
 } from "@/components/assistant-ui/elements/research-report";
 import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
-const HEADINGS = [
+export const HEADINGS = [
   "What changed in 0.14",
   "Who is affected",
   "Migration path",
   "Open questions",
 ] as const;
 
-const PREVIEWS = [
+export const PREVIEWS = [
   "Drafts moved from parent state into a per-thread slot owned by the composer.",
   "Anyone mirroring the draft in their own useState reads a value that never updates.",
   "Replace the mirror with useDraft(threadId) and delete the hydrate effect.",
