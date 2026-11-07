@@ -28,9 +28,9 @@ export const mediaVocabulary = {
             "data-aui-size": numericSize === undefined ? props.size : undefined,
             "data-aui-sized": numericSize !== undefined || undefined,
             "data-aui-round": props.round || undefined,
+            referrerpolicy: "no-referrer",
             src: props.src,
             alt: props.alt,
-            referrerpolicy: "no-referrer",
             style,
           });
         };
