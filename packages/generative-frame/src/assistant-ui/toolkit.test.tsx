@@ -1890,9 +1890,33 @@ describe("useWidgetInstructions", () => {
     };
     expect(last.disabled).toBe(false);
     expect(last.instruction).not.toContain("# Declarative UI");
+    expect(last.instruction).not.toMatch(/^# Widgets$/m);
+    expect(last.instruction).not.toContain("## Modules");
     expect(last.instruction).toContain(
       "Load the `spec` module with `read_me` before your first `render_spec` call.",
     );
+  });
+
+  it("registers on-demand instructions when default spec guidance fails", async () => {
+    const { tools } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    vi.spyOn(tools.read_me, "execute").mockRejectedValue(
+      new Error("Guidance unavailable"),
+    );
+    renderHook(() => useWidgetInstructions(tools));
+    await act(async () => {});
+    const last = mocks.instructions.at(-1) as {
+      instruction: string;
+      disabled: boolean;
+    };
+    expect(last.disabled).toBe(false);
+    expect(last.instruction).toContain("## Choosing how to answer");
+    expect(last.instruction).toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
+    expect(last.instruction).not.toContain("follows, so never load it");
+    expect(last.instruction).not.toContain("# Declarative UI");
   });
 
   it("registers the instructions once built", async () => {

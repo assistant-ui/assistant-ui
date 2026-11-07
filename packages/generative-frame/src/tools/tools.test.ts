@@ -346,6 +346,8 @@ describe("server helpers", () => {
     );
     expect(onDemand).not.toContain("follows, so never load it");
     expect(onDemand).not.toContain("# Declarative UI");
+    expect(onDemand).not.toMatch(/^# Widgets$/m);
+    expect(onDemand).not.toContain("## Modules");
     const chartOnly = await buildWidgetInstructions(withSpec(), {
       preload: { modules: ["chart"] },
     });
@@ -381,5 +383,45 @@ describe("server helpers", () => {
     const withoutModule = await buildWidgetInstructions(createWidgetTools());
     expect(withoutModule).not.toContain("# Declarative UI");
     expect(withoutModule).not.toContain("The guidance for `spec` follows");
+  });
+
+  it("does not read guidance when preloading is disabled", async () => {
+    const tools = withSpec();
+    const readMe = vi.spyOn(tools.read_me, "execute");
+    await buildWidgetInstructions(tools, { preload: { modules: [] } });
+    expect(readMe).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {},
+    { platform: "mobile" as const },
+    { modules: [], platform: "mobile" as const },
+  ])("retains base guidance for an explicit preload %j", async (preload) => {
+    const instructions = await buildWidgetInstructions(withSpec(), { preload });
+    expect(instructions).toMatch(/^# Widgets$/m);
+    expect(instructions).toContain("## Modules");
+    expect(instructions).not.toContain("# Declarative UI");
+    expect(instructions).toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
+  });
+
+  it("retains on-demand instructions when default spec guidance fails", async () => {
+    const tools = withSpec();
+    const error = new Error("Guidance unavailable");
+    vi.spyOn(tools.read_me, "execute").mockRejectedValue(error);
+    const instructions = await buildWidgetInstructions(tools);
+    expect(instructions).toContain("## Choosing how to answer");
+    expect(instructions).toContain(
+      "Call `read_me` once, silently, before your first `show_widget` call",
+    );
+    expect(instructions).toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
+    expect(instructions).not.toContain("follows, so never load it");
+    expect(instructions).not.toContain("# Declarative UI");
+    await expect(
+      buildWidgetInstructions(tools, { preload: { modules: ["spec"] } }),
+    ).rejects.toBe(error);
   });
 });

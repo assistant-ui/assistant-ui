@@ -317,9 +317,18 @@ export async function buildWidgetInstructions(
   tools: WidgetTools & Record<string, AnyTool>,
   options: WidgetInstructionsOptions = {},
 ): Promise<string> {
-  const preload =
+  let preload: ReadMeInput | undefined =
     options.preload ??
     (readMeOffers(tools, "spec") ? { modules: ["spec"] } : undefined);
+  let guidance: string | undefined;
+  if (preload && (preload.modules?.length !== 0 || preload.platform)) {
+    try {
+      guidance = await tools.read_me.execute(preload);
+    } catch (error) {
+      if (options.preload) throw error;
+      preload = undefined;
+    }
+  }
   const lines =
     "render_spec" in tools
       ? [
@@ -357,8 +366,8 @@ export async function buildWidgetInstructions(
       `- The guidance for ${preloaded.map((module) => `\`${module}\``).join(", ")} follows, so never load it with \`read_me\`.`,
     );
   }
-  if (preload) {
-    lines.push("", await tools.read_me.execute(preload));
+  if (guidance !== undefined) {
+    lines.push("", guidance);
   }
   return lines.join("\n");
 }
