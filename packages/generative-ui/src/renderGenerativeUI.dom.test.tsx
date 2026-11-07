@@ -158,4 +158,52 @@ describe("renderGenerativeUI element errors", () => {
       errors.mockRestore();
     }
   });
+
+  it("retries a failed element when its parent rerenders with the same value", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    let broken = true;
+    const library: GenerativeUILibrary = {
+      Fragile: {
+        description: "A component with a transient failure.",
+        properties: z.object({ value: z.string() }),
+        streamProperties: true,
+        render: ({ value }) => {
+          if (broken) throw new Error("transient failure");
+          return <span>{value}</span>;
+        },
+      },
+      Stable: {
+        description: "A sibling.",
+        properties: z.object({}),
+        streamProperties: true,
+        render: () => <strong>stable</strong>,
+      },
+    };
+    const render = () =>
+      root.render(
+        <>
+          {renderGenerativeUI(
+            [{ $type: "Fragile", value: "same" }, { $type: "Stable" }],
+            library,
+            { status: "streaming" },
+          )}
+        </>,
+      );
+
+    try {
+      await act(async () => render());
+      const sibling = container.querySelector("strong");
+      expect(container.textContent).toBe("stable");
+
+      broken = false;
+      await act(async () => render());
+      expect(container.querySelector("strong")).toBe(sibling);
+      expect(container.textContent).toBe("samestable");
+    } finally {
+      await act(async () => root.unmount());
+      errors.mockRestore();
+    }
+  });
 });
