@@ -25,6 +25,21 @@ type ActionDefinition = {
   confirm?: true;
 };
 
+type ActionDispatcherOptions = {
+  store: SpecStateStore;
+  catalog?: Catalog;
+  handlers?: Record<string, ActionHandler>;
+  confirm?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
+  onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
+    state: SpecStateStore;
+  }) => unknown;
+  onError?: (error: Error, binding: ActionBinding) => void;
+};
+
 type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
   state: SpecStateStore;
 }) => unknown;
@@ -1102,11 +1117,7 @@ type SpecRendererProps = {
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
-  confirmAction?: (request: {
-    action: string;
-    params: Record<string, unknown>;
-    elementId?: string;
-  }) => boolean | Promise<boolean>;
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1123,11 +1134,7 @@ type SpecRendererProps$1 = {
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
-  confirmAction?: (request: {
-    action: string;
-    params: Record<string, unknown>;
-    elementId?: string;
-  }) => boolean | Promise<boolean>;
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
