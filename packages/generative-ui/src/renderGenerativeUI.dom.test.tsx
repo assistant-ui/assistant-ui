@@ -90,3 +90,72 @@ describe("renderGenerativeUI type identity", () => {
     },
   );
 });
+
+describe("renderGenerativeUI element errors", () => {
+  it("keeps the parent and sibling mounted when an element throws, then retries a new value", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const library: GenerativeUILibrary = {
+      Parent: {
+        description: "A parent.",
+        properties: z.object({}),
+        streamProperties: true,
+        render: ({ children }) => <section>{children}</section>,
+      },
+      Fragile: {
+        description: "A value that may fail while streaming.",
+        properties: z.object({ value: z.string() }),
+        streamProperties: true,
+        render: ({ value }) => {
+          if (value === "bad") throw new Error("bad present value");
+          return <span>{value}</span>;
+        },
+      },
+      Stable: {
+        description: "A sibling.",
+        properties: z.object({}),
+        streamProperties: true,
+        render: () => <strong>stable</strong>,
+      },
+    };
+    const render = (value: string) =>
+      root.render(
+        <main>
+          <p>host</p>
+          {renderGenerativeUI(
+            {
+              $type: "Parent",
+              children: [{ $type: "Fragile", value }, { $type: "Stable" }],
+            },
+            library,
+            { status: "streaming" },
+          )}
+        </main>,
+      );
+
+    try {
+      await act(async () => render("good"));
+      const host = container.querySelector("main");
+      const parent = container.querySelector("section");
+      const sibling = container.querySelector("strong");
+      expect(parent?.textContent).toBe("goodstable");
+
+      await act(async () => render("bad"));
+      expect(container.querySelector("main")).toBe(host);
+      expect(host?.querySelector("p")?.textContent).toBe("host");
+      expect(container.querySelector("section")).toBe(parent);
+      expect(container.querySelector("strong")).toBe(sibling);
+      expect(parent?.textContent).toBe("stable");
+
+      await act(async () => render("recovered"));
+      expect(container.querySelector("main")).toBe(host);
+      expect(container.querySelector("section")).toBe(parent);
+      expect(container.querySelector("strong")).toBe(sibling);
+      expect(parent?.textContent).toBe("recoveredstable");
+    } finally {
+      await act(async () => root.unmount());
+      errors.mockRestore();
+    }
+  });
+});
