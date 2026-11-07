@@ -250,7 +250,9 @@ export function createSpecToolkit(
                     state: store,
                     catalog,
                     components: options.components,
-                    locale: options.locale ?? "en-US",
+                    ...(options.locale !== undefined
+                      ? { locale: options.locale }
+                      : {}),
                     streaming: streaming.value,
                     handlers,
                     ...(options.onAction ? { onAction: options.onAction } : {}),

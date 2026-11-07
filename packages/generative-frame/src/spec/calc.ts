@@ -137,7 +137,10 @@ const formatNumber = (
   let formatter = formatters.get(key);
   if (!formatter) {
     try {
-      formatter = new Intl.NumberFormat(locale, options);
+      formatter = new Intl.NumberFormat(
+        Intl.NumberFormat.supportedLocalesOf(locale)[0] ?? "en-US",
+        options,
+      );
     } catch {
       try {
         formatter = new Intl.NumberFormat("en-US", options);

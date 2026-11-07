@@ -134,6 +134,67 @@ describe("SpecRenderer", () => {
     expect(view.container.textContent).toBe("1.234,5Save1.234,5");
   });
 
+  it("retries a failed element when the locale changes", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    const hosts: SpecComponents = {
+      ...components,
+      Price: ({ props }: SpecComponentProps<{ text: string }>) => {
+        if (props.text !== "1,234.5") throw new Error("Unsupported format");
+        return <p>{props.text}</p>;
+      },
+      Editor: () => {
+        const [value, setValue] = useState("");
+        return (
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        );
+      },
+    };
+    const input = spec({
+      main: { type: "Stack", children: ["price", "editor"] },
+      price: { type: "Price", props: { text: { $calc: "number(1234.5)" } } },
+      editor: { type: "Editor" },
+    });
+    try {
+      const view = render(
+        <SpecRenderer
+          components={hosts}
+          spec={input}
+          locale="de-DE"
+          onError={onError}
+        />,
+      );
+      expect(view.container.textContent).toBe(
+        "Price failed: Unsupported format",
+      );
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Unsupported format" }),
+        { elementId: "price" },
+      );
+      const editor = view.container.querySelector("input")!;
+      fireEvent.change(editor, { target: { value: "draft" } });
+      view.rerender(
+        <SpecRenderer
+          components={hosts}
+          spec={input}
+          locale="en-US"
+          onError={onError}
+        />,
+      );
+      expect(view.container.textContent).toBe("1,234.5");
+      expect(
+        view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+      ).toBeNull();
+      expect(view.container.querySelector("input")).toBe(editor);
+      expect(editor.value).toBe("draft");
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     (slot) => {

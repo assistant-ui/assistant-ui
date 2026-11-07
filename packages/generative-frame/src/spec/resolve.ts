@@ -70,7 +70,7 @@ export function resolveSpec(
     ) {
       return null;
     }
-    const ctx = { ...scope, state, locale: options.locale ?? "en-US" };
+    const ctx = { ...scope, state, locale: options.locale };
     if (!evaluateCondition(element.visible, ctx)) return null;
     const { props, bindings } = resolveProps(element.props, ctx);
     const on: Record<string, ResolvedAction[]> = {};

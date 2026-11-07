@@ -123,7 +123,7 @@ type RenderContext = {
   readonly catalog: Catalog | undefined;
   readonly store: SpecStateStore;
   readonly state: Record<string, unknown>;
-  readonly locale: string;
+  readonly locale: string | undefined;
   readonly dispatch: ActionDispatcher;
   readonly streaming: boolean;
   readonly placeholder: Component;
@@ -205,13 +205,9 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
-    // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
-    watch(
-      () => props.element,
-      () => {
-        error.value = null;
-      },
-    );
+    watch([() => props.element, () => ctx.locale], () => {
+      error.value = null;
+    });
     onErrorCaptured((caught) => {
       const normalized =
         caught instanceof Error ? caught : new Error(String(caught));
@@ -538,7 +534,7 @@ export const SpecRenderer = defineComponent({
         return snapshot.value;
       },
       get locale() {
-        return props.locale ?? "en-US";
+        return props.locale;
       },
       get dispatch() {
         const store = props.state ?? ownStore;

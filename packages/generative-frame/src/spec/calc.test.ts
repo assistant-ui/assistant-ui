@@ -381,6 +381,18 @@ describe("formula functions", () => {
       }),
     ).toBe("$1,234.50");
   });
+
+  it.each(["zz", "und", "zz-ZZ-x-private"])(
+    "uses en-US when the locale tag %s is unsupported",
+    (locale) => {
+      const context = { ...ctx, locale };
+      expect(evaluateFormula("number(1234.5)", context)).toBe("1,234.5");
+      expect(evaluateFormula("currency(1234.5, 'USD')", context)).toBe(
+        "$1,234.50",
+      );
+      expect(evaluateFormula("percent(0.15)", context)).toBe("15%");
+    },
+  );
 });
 
 describe("formula bounds and parsing", () => {

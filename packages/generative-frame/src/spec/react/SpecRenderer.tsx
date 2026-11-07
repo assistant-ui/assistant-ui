@@ -88,7 +88,7 @@ export type SpecRendererProps = {
   /** An external store; otherwise one is created and seeded from `spec.state`. */
   state?: SpecStateStore;
   /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
-  locale?: string;
+  locale?: string | undefined;
   /** Handlers by action name. */
   handlers?: Record<string, ActionHandler>;
   /** Called for catalog actions without a handler. */
@@ -109,7 +109,7 @@ type RenderContext = {
   catalog: Catalog | undefined;
   store: SpecStateStore;
   state: Record<string, unknown>;
-  locale: string;
+  locale: string | undefined;
   dispatch: ActionDispatcher;
   streaming: boolean;
   placeholder: ComponentType<SpecPlaceholderProps>;
@@ -166,12 +166,17 @@ export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
 type ElementBoundaryProps = {
   id: string;
   element: SpecElement;
+  locale: string | undefined;
   children: ReactNode;
   onError: (error: Error) => void;
   fallback: (error: Error) => ReactNode;
 };
 
-type ElementBoundaryState = { error: Error | null; element: SpecElement };
+type ElementBoundaryState = {
+  error: Error | null;
+  element: SpecElement;
+  locale: string | undefined;
+};
 
 class ElementBoundary extends Component<
   ElementBoundaryProps,
@@ -180,18 +185,18 @@ class ElementBoundary extends Component<
   override state: ElementBoundaryState = {
     error: null,
     element: this.props.element,
+    locale: this.props.locale,
   };
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
-  // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
   static getDerivedStateFromProps(
     props: ElementBoundaryProps,
     state: ElementBoundaryState,
   ): Partial<ElementBoundaryState> | null {
-    return props.element === state.element
+    return props.element === state.element && props.locale === state.locale
       ? null
-      : { error: null, element: props.element };
+      : { error: null, element: props.element, locale: props.locale };
   }
   override componentDidCatch(error: Error, _info: ErrorInfo) {
     this.props.onError(error);
@@ -305,6 +310,7 @@ function ElementView({
     <ElementBoundary
       id={id}
       element={shown}
+      locale={ctx.locale}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
       fallback={(error) =>
         ctx.streaming ? null : (
@@ -473,7 +479,7 @@ export function SpecRenderer({
   components,
   catalog,
   state,
-  locale = "en-US",
+  locale,
   handlers,
   onAction,
   onError,

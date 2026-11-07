@@ -199,6 +199,67 @@ describe("SpecRenderer", () => {
     expect(view.container.textContent).toBe("1.234,5Save1.234,5");
   });
 
+  it("retries a failed element when the locale changes", async () => {
+    const onError = vi.fn();
+    const hosts: SpecComponents = {
+      ...components,
+      Price: defineComponent({
+        props: { text: String },
+        setup(props) {
+          return () => {
+            if (props.text !== "1,234.5") throw new Error("Unsupported format");
+            return h("p", props.text);
+          };
+        },
+      }),
+      Editor: defineComponent({
+        setup() {
+          const value = ref("");
+          return () =>
+            h("input", {
+              value: value.value,
+              onInput: (event: Event) => {
+                value.value = (event.target as HTMLInputElement).value;
+              },
+            });
+        },
+      }),
+    };
+    const input = spec({
+      main: { type: "Stack", children: ["price", "editor"] },
+      price: { type: "Price", props: { text: { $calc: "number(1234.5)" } } },
+      editor: { type: "Editor" },
+    });
+    const view = mount({
+      components: hosts,
+      spec: input,
+      locale: "de-DE",
+      onError,
+    });
+    await nextTick();
+    expect(view.container.textContent).toBe("Price failed: Unsupported format");
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Unsupported format" }),
+      { elementId: "price" },
+    );
+    const editor = view.container.querySelector("input")!;
+    editor.value = "draft";
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    await nextTick();
+    await view.update({
+      components: hosts,
+      spec: input,
+      locale: "en-US",
+      onError,
+    });
+    expect(view.container.textContent).toBe("1,234.5");
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+    expect(view.container.querySelector("input")).toBe(editor);
+    expect(editor.value).toBe("draft");
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     async (slot) => {

@@ -273,7 +273,7 @@ export const specToolkitFor =
               state={store}
               catalog={catalog}
               components={options.components}
-              locale={options.locale ?? "en-US"}
+              locale={options.locale}
               streaming={streaming}
               handlers={handlers}
               {...(options.onAction ? { onAction: options.onAction } : {})}
