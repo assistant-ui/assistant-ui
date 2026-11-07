@@ -338,11 +338,22 @@ describe("server helpers", () => {
       "- The `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art` modules of `read_me` guide `show_widget` code, so a `render_spec` answer never needs them.",
     );
     expect(preloaded).toContain("# Declarative UI");
-    const onDemand = await buildWidgetInstructions(withSpec());
+    const onDemand = await buildWidgetInstructions(withSpec(), {
+      preload: { modules: [] },
+    });
     expect(onDemand).toContain(
       "Load the `spec` module with `read_me` before your first `render_spec` call.",
     );
     expect(onDemand).not.toContain("follows, so never load it");
+    expect(onDemand).not.toContain("# Declarative UI");
+    const chartOnly = await buildWidgetInstructions(withSpec(), {
+      preload: { modules: ["chart"] },
+    });
+    expect(chartOnly).toContain("## Module: chart");
+    expect(chartOnly).not.toContain("# Declarative UI");
+    expect(chartOnly).toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
     const withoutModule = await buildWidgetInstructions(
       createWidgetTools({ extraTools: createSpecTools(catalog) }),
     );
@@ -354,5 +365,21 @@ describe("server helpers", () => {
     expect(withoutModule).toContain(
       "- The `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art` modules of `read_me` guide `show_widget` code, so a `render_spec` answer never needs them.",
     );
+  });
+
+  it("preloads spec guidance by default only when read_me offers it", async () => {
+    const withModule = await buildWidgetInstructions(withSpec());
+    expect(withModule).toContain("# Declarative UI");
+    expect(withModule).toContain("### Metric");
+    expect(withModule).toContain(
+      "- The guidance for `spec` follows, so never load it with `read_me`.",
+    );
+    expect(withModule).not.toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
+
+    const withoutModule = await buildWidgetInstructions(createWidgetTools());
+    expect(withoutModule).not.toContain("# Declarative UI");
+    expect(withoutModule).not.toContain("The guidance for `spec` follows");
   });
 });

@@ -42,7 +42,7 @@ function WidgetInstructions() {
 
 `createWidgetToolkit` returns `{ toolkit, tools, registry }`. `toolkit` holds entries for `read_me`, `show_widget`, `edit_widget`, `preview_widget`, and, when you pass `spec`, `render_spec`. `tools` are the underlying [tool definitions](/generative-frame/docs/tools), and `registry` holds the latest code per widget title.
 
-`useWidgetInstructions(tools, { preload })` adds a short system prompt section that tells the model when to use the tools. Pass `preload: { modules: ["chart"] }` to inline the `read_me` guidance for those modules, which saves the model a round trip at the cost of a longer prompt.
+`useWidgetInstructions(tools, { preload })` adds a system prompt section that tells the model when to use the tools. When `read_me` offers a `spec` module, its guidance is preloaded by default so the model can call `render_spec` without first calling `read_me`. `buildWidgetInstructions` uses the same default on the server. This adds the catalog guidance to every request's input tokens, about 5,000 extra tokens per request in the example app. A toolkit without a `spec` module keeps the shorter prompt. Pass `preload: { modules: ["chart"] }` to choose different modules, or `preload: { modules: [] }` to opt out of preloading `spec`.
 
 ## What renders in the thread
 

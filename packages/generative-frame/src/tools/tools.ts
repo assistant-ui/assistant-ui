@@ -291,6 +291,7 @@ export type WidgetInstructionsOptions = {
   /**
    * Inline `read_me` output for these modules into the instructions, which
    * saves the model a round trip at the cost of a larger system prompt.
+   * Defaults to `spec` when the tools offer that module.
    */
   preload?: ReadMeInput;
 };
@@ -316,6 +317,9 @@ export async function buildWidgetInstructions(
   tools: WidgetTools & Record<string, AnyTool>,
   options: WidgetInstructionsOptions = {},
 ): Promise<string> {
+  const preload =
+    options.preload ??
+    (readMeOffers(tools, "spec") ? { modules: ["spec"] } : undefined);
   const lines =
     "render_spec" in tools
       ? [
@@ -335,8 +339,7 @@ export async function buildWidgetInstructions(
           "",
           ...WIDGET_TOOL_RULES,
           `- The ${WIDGET_MODULES.map((module) => `\`${module}\``).join(", ")} modules of \`read_me\` guide \`show_widget\` code, so a \`render_spec\` answer never needs them.`,
-          ...(readMeOffers(tools, "spec") &&
-          !options.preload?.modules?.includes("spec")
+          ...(readMeOffers(tools, "spec") && !preload?.modules?.includes("spec")
             ? [
                 "- Load the `spec` module with `read_me` before your first `render_spec` call.",
               ]
@@ -348,14 +351,14 @@ export async function buildWidgetInstructions(
           "When a visual would explain better than text (charts, diagrams, comparisons, small interactive tools, forms), show it with `show_widget` instead of describing it. Keep surrounding prose short and do not repeat what the widget shows.",
           ...WIDGET_TOOL_RULES,
         ];
-  const preloaded = options.preload?.modules ?? [];
+  const preloaded = preload?.modules ?? [];
   if (preloaded.length) {
     lines.push(
       `- The guidance for ${preloaded.map((module) => `\`${module}\``).join(", ")} follows, so never load it with \`read_me\`.`,
     );
   }
-  if (options.preload) {
-    lines.push("", await tools.read_me.execute(options.preload));
+  if (preload) {
+    lines.push("", await tools.read_me.execute(preload));
   }
   return lines.join("\n");
 }

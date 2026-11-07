@@ -1859,6 +1859,42 @@ describe("render_spec validation", () => {
 });
 
 describe("useWidgetInstructions", () => {
+  it("preloads the toolkit's spec guidance by default", async () => {
+    const { tools } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    renderHook(() => useWidgetInstructions(tools));
+    await act(async () => {});
+    const last = mocks.instructions.at(-1) as {
+      instruction: string;
+      disabled: boolean;
+    };
+    expect(last.disabled).toBe(false);
+    expect(last.instruction).toContain("# Declarative UI");
+    expect(last.instruction).not.toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
+  });
+
+  it("keeps spec guidance on demand with an explicit empty preload", async () => {
+    const { tools } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    renderHook(() =>
+      useWidgetInstructions(tools, { preload: { modules: [] } }),
+    );
+    await act(async () => {});
+    const last = mocks.instructions.at(-1) as {
+      instruction: string;
+      disabled: boolean;
+    };
+    expect(last.disabled).toBe(false);
+    expect(last.instruction).not.toContain("# Declarative UI");
+    expect(last.instruction).toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
+  });
+
   it("registers the instructions once built", async () => {
     const { tools } = createWidgetToolkit({
       spec: createSpecToolkit(catalog, { components }),
