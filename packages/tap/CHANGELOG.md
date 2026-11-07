@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.25
+
+### Patch Changes
+
+- [#10161](https://github.com/assistant-ui/assistant-ui/pull/10161) [`8328f46`](https://github.com/assistant-ui/assistant-ui/commit/8328f46f6f8f56c74e3cd06fbb6e1c7f552c8e63) - fix(tap): re-export every React 18 and 19 runtime export from `@assistant-ui/tap/react-shim` explicitly, so Vite dev's pre-bundled shim no longer drops named exports such as `Component` and `version` that `@assistant-ui/react` imports ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.24
 
 ### Patch Changes

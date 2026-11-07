@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.14.25
+
+### Patch Changes
+
+- [#10317](https://github.com/assistant-ui/assistant-ui/pull/10317) [`b78c1c1`](https://github.com/assistant-ui/assistant-ui/commit/b78c1c146f91adc0cc90c6c1ed97af588fa8f99b) - Only treat a standalone `language-*` class token as the code language, so a class such as `my-language-js` no longer selects the wrong syntax highlighter. ([@lhy-dcf](https://github.com/lhy-dcf))
+
 ## 0.14.24
 
 ### Patch Changes
