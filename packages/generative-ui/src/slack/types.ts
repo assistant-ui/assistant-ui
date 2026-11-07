@@ -157,7 +157,6 @@ export interface SlackInputBlock {
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
   readonly dispatch_action?: boolean;
-  readonly optional?: boolean;
 }
 
 /** A text cell in a Slack data-table block. */

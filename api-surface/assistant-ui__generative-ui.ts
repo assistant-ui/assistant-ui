@@ -893,7 +893,6 @@ interface SlackInputBlock {
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
   readonly dispatch_action?: boolean;
-  readonly optional?: boolean;
 }
 
 interface SlackMarkdownBlock {
