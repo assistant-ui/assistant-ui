@@ -80,6 +80,8 @@ test("json-render prompts with the kit's component catalog", async () => {
     assert.ok(format.system.includes(name), name);
   }
   assert.match(format.system, /Output ONLY JSONL patches/);
+  assert.match(format.system, /Never use the \$item statePath form/);
+  assert.match(format.system, /Use only setState actions/);
   assert.equal(format.prose, false);
 });
 
