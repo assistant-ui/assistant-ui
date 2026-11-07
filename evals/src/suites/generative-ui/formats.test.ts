@@ -46,6 +46,7 @@ test("each format exposes only the tools it answers with", async () => {
   assert.deepEqual(await tools("text"), []);
   assert.deepEqual(await tools("present"), ["present"]);
   assert.deepEqual(await tools("spec"), ["render_spec"]);
+  assert.deepEqual(await tools("json-render"), ["render_json"]);
   assert.deepEqual(await tools("frame"), [
     "read_me",
     "show_widget",
@@ -71,6 +72,15 @@ test("auto gets the rules for choosing a format and the spec catalog", async () 
   );
   assert.equal(auto.prose, true);
   assert.equal(spec.prose, false);
+});
+
+test("json-render prompts with the kit's component catalog", async () => {
+  const format = await startFormat("json-render");
+  for (const name of Object.keys(kitLibrary)) {
+    assert.ok(format.system.includes(name), name);
+  }
+  assert.match(format.system, /Output ONLY JSONL patches/);
+  assert.equal(format.prose, false);
 });
 
 test("the vocabulary tells the model what the kit's element renders", () => {

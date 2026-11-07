@@ -7,6 +7,14 @@ import {
   type NormalizedUINode,
 } from "@assistant-ui/generative-ui/react";
 import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+import {
+  compileSpecStream,
+  formatSpecIssues,
+  parseSpecStreamLine,
+  validateSpec,
+  type Spec as JsonSpec,
+} from "@json-render/core";
+import { schema as jsonRenderSchema } from "@json-render/react/schema";
 import { jsonSchema, tool, type JSONSchema7, type ToolSet } from "ai";
 import type { Spec } from "generative-frame/spec";
 import { createSpecTools } from "generative-frame/spec/tools";
@@ -18,6 +26,8 @@ import {
   type ToolDefinition,
 } from "generative-frame/tools";
 import { renderToStaticMarkup } from "react-dom/server";
+import { z } from "zod";
+import { jsonRenderToSpec } from "./json-render-to-spec.ts";
 import type { CandidateFormat, Format } from "./types.ts";
 
 /** One call of an answer tool, the format it answers in, and the validation errors it returned. */
@@ -59,6 +69,20 @@ const present = new JSONGenerativeUI({ library }).present();
 
 /** The components `present` offers, as the catalog a spec mode host builds with `toSpecCatalog`, so spec mode differs only in format. */
 const { catalog } = toSpecCatalog(library);
+const jsonCatalog = jsonRenderSchema.createCatalog({
+  components: Object.fromEntries(
+    Object.entries(library).map(([name, entry]) => [
+      name,
+      {
+        props: entry.properties,
+        slots: [...(catalog.component(name)?.slots ?? [])],
+        description: catalog.component(name)?.description ?? entry.description,
+        example: {},
+      },
+    ]),
+  ),
+  actions: {},
+});
 
 const sdk = {
   jsonSchema: (schema: object) => jsonSchema(schema as JSONSchema7),
@@ -175,6 +199,64 @@ function specTools(attempts: Attempt[]): ToolSet {
   );
 }
 
+function jsonRenderTools(attempts: Attempt[]): ToolSet {
+  return {
+    render_json: tool({
+      description:
+        "Render a json-render SpecStream. Send newline-separated JSON patches in patches.",
+      inputSchema: z.object({ patches: z.string() }),
+      async execute({ patches }) {
+        let artifact = "null";
+        let errors: string[] = [];
+        try {
+          for (const line of patches.split("\n")) {
+            if (!line.trim()) continue;
+            const patch = parseSpecStreamLine(line);
+            if (
+              !patch ||
+              typeof patch.path !== "string" ||
+              !["add", "replace", "remove", "move", "copy", "test"].includes(
+                patch.op,
+              ) ||
+              (["move", "copy"].includes(patch.op) &&
+                typeof patch.from !== "string") ||
+              (["add", "replace", "test"].includes(patch.op) &&
+                !Object.hasOwn(patch, "value"))
+            )
+              throw new Error(
+                "SpecStream contains a line that is not a JSON patch.",
+              );
+          }
+          const spec = compileSpecStream(patches, {
+            root: "",
+            elements: {},
+          }) as JsonSpec;
+          const structural = validateSpec(spec);
+          if (!structural.valid) {
+            errors = [formatSpecIssues(structural.issues)];
+          } else {
+            const checked = jsonCatalog.validate(spec);
+            if (!checked.success) {
+              errors = (checked.error?.issues ?? []).map(
+                (issue) =>
+                  `${issue.path.map(String).join(".")}: ${issue.message}`,
+              );
+              if (errors.length === 0)
+                errors = ["The spec does not match the json-render catalog."];
+            } else {
+              artifact = JSON.stringify(jsonRenderToSpec(spec), null, 2);
+            }
+          }
+        } catch (error) {
+          errors = [error instanceof Error ? error.message : String(error)];
+        }
+        attempts.push({ format: "json-render", artifact, errors });
+        return errors.length ? { ok: false, errors } : { ok: true };
+      },
+    }),
+  };
+}
+
 function frameTools(attempts: Attempt[]) {
   const registry = createWidgetRegistry();
   const widgetTools = createWidgetTools({ registry });
@@ -241,6 +323,15 @@ export async function startFormat(format: CandidateFormat): Promise<FormatRun> {
         answerTools: ["render_spec"],
         prose: false,
         toolFormats: { render_spec: "spec" },
+        attempts,
+      };
+    case "json-render":
+      return {
+        system: `${INTRO} Answer by calling \`render_json\` with json-render SpecStream patches in its \`patches\` argument; the user sees the rendered spec. The output rules below apply inside that argument.\n\n${jsonCatalog.prompt({ customRules: ["For this renderer, repeat.statePath must be an absolute string path, even inside another repeat. Never use the $item statePath form.", "Use only setState actions with statePath and value parameters. Do not use action confirmations, callbacks, or preventDefault."] })}`,
+        tools: jsonRenderTools(attempts),
+        answerTools: ["render_json"],
+        prose: false,
+        toolFormats: { render_json: "json-render" },
         attempts,
       };
     case "frame": {
