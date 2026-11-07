@@ -17,7 +17,6 @@ import {
 import { schema as jsonRenderSchema } from "@json-render/react/schema";
 import { jsonSchema, tool, type JSONSchema7, type ToolSet } from "ai";
 import {
-  formatSpecIssues as formatRenderIssues,
   validateSpec as validateRenderSpec,
   type Spec,
 } from "generative-frame/spec";
@@ -254,7 +253,9 @@ function jsonRenderTools(attempts: Attempt[]): ToolSet {
               if (rendered.ok) {
                 artifact = JSON.stringify(converted, null, 2);
               } else {
-                errors = [formatRenderIssues(rendered.issues)];
+                errors = rendered.issues
+                  .filter((issue) => issue.severity === "error")
+                  .map((issue) => `${issue.path}: ${issue.message}`);
               }
             }
           }
