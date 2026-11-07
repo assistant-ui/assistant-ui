@@ -84,12 +84,60 @@ describe("Form on React Native", () => {
       actions,
     );
     const submit = byRole(rendered.container, "button", "Save");
-    await typeText(rendered.container.querySelector("input")!, "8");
+    const amount = rendered.container.querySelector("input")!;
+    await typeText(amount, "8");
     await press(byRole(rendered.container, "checkbox", "Agree"));
     await press(submit);
     expect(save).not.toHaveBeenCalled();
-    await typeText(rendered.container.querySelector("input")!, "3");
+    await typeText(amount, "3");
+    await press(byRole(rendered.container, "checkbox", "Agree"));
     await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await press(byRole(rendered.container, "checkbox", "Agree"));
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
+  it.each([" ", "0x10"])("blocks malformed number text %j", async (text) => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["amount", "send"],
+          on: { submit: { action: "save" } },
+        },
+        amount: {
+          type: "Input",
+          props: { name: "amount", inputType: "number", min: 0, max: 20 },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    await typeText(rendered.container.querySelector("input")!, text);
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).not.toHaveBeenCalled();
+  });
+  it("accepts an untouched default shorter than minLength", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["name", "send"],
+          on: { submit: { action: "save" } },
+        },
+        name: {
+          type: "Input",
+          props: { name: "name", defaultValue: "A", minLength: 3 },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    await press(byRole(rendered.container, "button", "Save"));
     expect(save).toHaveBeenCalledOnce();
   });
   it("marks a blocked required checkbox invalid until it is checked", async () => {

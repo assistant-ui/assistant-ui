@@ -300,7 +300,7 @@ function SelectRender({
         fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
       }}
     >
-      {placeholderText ? (
+      {placeholderText || required ? (
         <option value="" disabled>
           {placeholderText}
         </option>
@@ -354,8 +354,10 @@ function InputRender({
   const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : defaultValue;
-  const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
+  const submit = (control: HTMLInputElement | HTMLTextAreaElement) => {
+    if (!control.reportValidity()) return;
     fire($action, $dispatch, control.value, control);
+  };
   return multiline && (inputType === undefined || inputType === "text") ? (
     <textarea
       key={initialValue}

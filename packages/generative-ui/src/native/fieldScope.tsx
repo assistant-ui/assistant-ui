@@ -101,12 +101,13 @@ export function useField(
   React.useInsertionEffect(() => {
     reader.current = read;
   });
+  const hasValidator = validate !== undefined;
   const validator = React.useRef(validate);
   React.useInsertionEffect(() => {
     validator.current = validate;
   });
   React.useEffect(() => {
-    if (!scope || (!validate && (typeof name !== "string" || name === "")))
+    if (!scope || (!hasValidator && (typeof name !== "string" || name === "")))
       return;
     return scope.register({
       name: typeof name === "string" ? name : "",
@@ -118,7 +119,7 @@ export function useField(
         return valid;
       },
     });
-  }, [scope, name, kind, validate !== undefined]);
+  }, [scope, name, kind, hasValidator]);
   return {
     scope,
     invalid: failed !== undefined && failed === JSON.stringify(read()),

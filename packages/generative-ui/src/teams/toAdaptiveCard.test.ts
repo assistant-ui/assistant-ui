@@ -52,6 +52,18 @@ const hostileSpecies = <T>(
 };
 
 describe("toAdaptiveCard", () => {
+  it.each([-1, 1.5, 0])(
+    "drops and warns for malformed maxLength %j",
+    (value) => {
+      const { card, warnings } = toAdaptiveCard([
+        { $type: "Input", name: "name", maxLength: value },
+      ]);
+      expect(card.body[0]).not.toHaveProperty("maxLength");
+      expect(warnings).toEqual([
+        expect.objectContaining({ component: "Input", code: "dropped" }),
+      ]);
+    },
+  );
   it("maps required and maximum text length, warning for unsupported bounds", () => {
     const { card, warnings } = toAdaptiveCard([
       {

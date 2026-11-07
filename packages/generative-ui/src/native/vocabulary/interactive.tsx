@@ -207,6 +207,8 @@ type InputProps = ActionProps & {
   max?: number;
 };
 
+const NUMBER_TEXT = /^-?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$/;
+
 function InputField({
   value,
   inputType,
@@ -233,6 +235,7 @@ function InputField({
       : (value ?? "")
     : undefined;
   const typed = React.useRef(initialValue ?? "");
+  const edited = React.useRef(false);
   const latest = React.useRef(shown);
   React.useInsertionEffect(() => {
     latest.current = shown;
@@ -255,11 +258,13 @@ function InputField({
           if (inputType === "number") {
             const number = Number(text);
             return (
+              NUMBER_TEXT.test(text) &&
               Number.isFinite(number) &&
               (min === undefined || number >= min) &&
               (max === undefined || number <= max)
             );
           }
+          if (!edited.current) return true;
           return (
             (minLength === undefined || text.length >= minLength) &&
             (maxLength === undefined || text.length <= maxLength)
@@ -285,6 +290,7 @@ function InputField({
       multiline={isMultiline}
       aria-invalid={invalid || undefined}
       onChangeText={(text) => {
+        edited.current = true;
         typed.current = text;
         updateBinding?.(text);
       }}
@@ -631,7 +637,7 @@ function SelectField({
   );
   const effective = entries.some((option) => option.value === selected)
     ? selected
-    : placeholderText && selected === ""
+    : (placeholderText || required) && selected === ""
       ? ""
       : (entries[0]?.value ?? "");
   const { invalid } = useField(

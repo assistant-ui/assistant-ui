@@ -48,6 +48,15 @@ describe("form vocabulary in Vue", () => {
     form.requestSubmit();
     await nextTick();
     expect(handler).not.toHaveBeenCalled();
+    name.value = "ada";
+    amount.value = "9";
+    form.requestSubmit();
+    await nextTick();
+    expect(handler).not.toHaveBeenCalled();
+    amount.value = "3";
+    form.requestSubmit();
+    await nextTick();
+    expect(handler).toHaveBeenCalledOnce();
   });
   it("does not emit submit for an invalid form", async () => {
     const handler = vi.fn();

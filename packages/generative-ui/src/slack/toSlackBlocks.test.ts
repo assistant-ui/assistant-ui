@@ -106,6 +106,21 @@ describe("toSlackBlocks", () => {
       ]),
     );
   });
+  it.each([
+    ["minLength", 1.5],
+    ["maxLength", 1.5],
+    ["maxLength", 0],
+  ])("drops and warns for malformed Input %s %j", (key, value) => {
+    const { blocks, warnings } = toSlackBlocks([
+      { $type: "Input", name: "name", [key]: value },
+    ]);
+    expect(
+      (blocks[0] as unknown as { element: Record<string, unknown> }).element,
+    ).not.toHaveProperty(key === "minLength" ? "min_length" : "max_length");
+    expect(warnings).toEqual([
+      expect.objectContaining({ component: "Input", code: "dropped" }),
+    ]);
+  });
   describe("numeric text props", () => {
     it("stringifies numeric labels and descriptions", () => {
       const { blocks } = toSlackBlocks([

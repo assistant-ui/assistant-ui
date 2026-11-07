@@ -648,12 +648,25 @@ export function convertElement(
       return withCompanionSubmit(element, input, context);
     }
     case "Input": {
-      if (props["minLength"] !== undefined)
+      const maxLength = props["maxLength"];
+      const textual = props["inputType"] !== "number";
+      const maxLengthValid =
+        typeof maxLength === "number" &&
+        Number.isInteger(maxLength) &&
+        maxLength > 0;
+      if (props["minLength"] !== undefined && props["minLength"] !== 0)
         warn(
           context,
           "dropped",
           "Input",
           "minLength cannot be enforced by Teams text inputs.",
+        );
+      if (maxLength !== undefined && textual && !maxLengthValid)
+        warn(
+          context,
+          "dropped",
+          "Input",
+          "maxLength must be a positive integer for Teams text inputs.",
         );
       if (props["min"] !== undefined || props["max"] !== undefined)
         warn(
@@ -669,9 +682,7 @@ export function convertElement(
       const input: TeamsCardElement = {
         type: "Input.Text",
         ...(props["required"] === true ? { isRequired: true } : {}),
-        ...(typeof props["maxLength"] === "number"
-          ? { maxLength: props["maxLength"] }
-          : {}),
+        ...(textual && maxLengthValid ? { maxLength } : {}),
         id: reservedSafeId(name || "input", "Input", context),
         ...(props["inputType"] === "password" ? { style: "password" } : {}),
         ...(label ? { label } : {}),

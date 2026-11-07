@@ -227,7 +227,7 @@ export const interactiveVocabulary = {
               },
             },
             [
-              ...(placeholder
+              ...(placeholder || props.required
                 ? [
                     h(
                       "option",
@@ -236,7 +236,7 @@ export const interactiveVocabulary = {
                         disabled: true,
                         selected: selected === "",
                       },
-                      placeholder,
+                      placeholder ?? "",
                     ),
                   ]
                 : []),

@@ -1821,7 +1821,10 @@ const convertElement = (
       ] as const) {
         if (
           value !== undefined &&
-          (typeof value !== "number" || value < 0 || value > 3000)
+          (typeof value !== "number" ||
+            !Number.isInteger(value) ||
+            value < (key === "minLength" ? 0 : 1) ||
+            value > 3000)
         )
           warn(
             context,
@@ -1855,11 +1858,13 @@ const convertElement = (
             type: "plain_text_input",
             action_id: actionId,
             ...(typeof minLength === "number" &&
+            Number.isInteger(minLength) &&
             minLength > 0 &&
             minLength <= 3000
               ? { min_length: minLength }
               : {}),
             ...(typeof maxLength === "number" &&
+            Number.isInteger(maxLength) &&
             maxLength > 0 &&
             maxLength <= 3000
               ? { max_length: maxLength }
