@@ -135,7 +135,7 @@ describe("interactiveVocabulary $action dispatch", () => {
           onKeyDown: (e: {
             key: string;
             nativeEvent: { isComposing: boolean };
-            currentTarget: { value: string; reportValidity(): boolean };
+            currentTarget: { value: string };
           }) => void;
         };
       }
@@ -143,7 +143,7 @@ describe("interactiveVocabulary $action dispatch", () => {
     onKeyDown({
       key: "Enter",
       nativeEvent: { isComposing: false },
-      currentTarget: { value: "typed text", reportValidity: () => true },
+      currentTarget: { value: "typed text" },
     });
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "submit", $input: "typed text" },
@@ -191,7 +191,7 @@ describe("interactiveVocabulary $action dispatch", () => {
         onKeyDown: (event: {
           key: string;
           nativeEvent: { isComposing: boolean };
-          currentTarget: { value: string; reportValidity(): boolean };
+          currentTarget: { value: string };
         }) => void;
       }>;
 
@@ -200,7 +200,7 @@ describe("interactiveVocabulary $action dispatch", () => {
       out.props.onKeyDown({
         key: "Enter",
         nativeEvent: { isComposing: false },
-        currentTarget: { value, reportValidity: () => true },
+        currentTarget: { value },
       });
       expect(handler).toHaveBeenCalledWith({
         payload: { type: "submit", $input: value },
@@ -246,7 +246,6 @@ describe("interactiveVocabulary $action dispatch", () => {
     currentTarget: {
       value: string;
       form: { requestSubmit: () => void } | null;
-      reportValidity?: () => boolean;
     };
     preventDefault: () => void;
   };
@@ -319,11 +318,7 @@ describe("interactiveVocabulary $action dispatch", () => {
       ctrlKey: true,
       metaKey: false,
       nativeEvent: { isComposing: false },
-      currentTarget: {
-        value: "typed text",
-        form: null,
-        reportValidity: () => true,
-      },
+      currentTarget: { value: "typed text", form: null },
       preventDefault,
     });
     expect(preventDefault).not.toHaveBeenCalled();

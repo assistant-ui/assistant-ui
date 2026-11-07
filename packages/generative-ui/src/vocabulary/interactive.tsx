@@ -354,10 +354,8 @@ function InputRender({
   const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : defaultValue;
-  const submit = (control: HTMLInputElement | HTMLTextAreaElement) => {
-    if (!control.reportValidity()) return;
+  const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
     fire($action, $dispatch, control.value, control);
-  };
   return multiline && (inputType === undefined || inputType === "text") ? (
     <textarea
       key={initialValue}
