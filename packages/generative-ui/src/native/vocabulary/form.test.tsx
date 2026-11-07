@@ -31,6 +31,40 @@ const input = spec({
 });
 
 describe("Form on React Native", () => {
+  it("clears a bound Input's error border when its rendered value becomes valid", async () => {
+    const rendered = renderNativeSpec(
+      spec(
+        {
+          main: {
+            type: "Form",
+            children: ["name", "send"],
+            on: { submit: { action: "save" } },
+          },
+          name: {
+            type: "Input",
+            props: {
+              name: "name",
+              required: true,
+              defaultValue: { $bindState: "/name" },
+            },
+          },
+          send: { type: "Button", props: { label: "Save", submit: true } },
+        },
+        { name: "" },
+      ),
+      { save: vi.fn() },
+      actions,
+    );
+    const field = rendered.container.querySelector("input")!;
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    const errorBorder = getComputedStyle(field).borderColor;
+    await typeText(field, "Ada");
+    expect(rendered.state.get("/name")).toBe("Ada");
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    expect(getComputedStyle(field).borderColor).not.toBe(errorBorder);
+  });
+
   it("blocks required and length constrained values until valid", async () => {
     const save = vi.fn();
     const rendered = renderNativeSpec(

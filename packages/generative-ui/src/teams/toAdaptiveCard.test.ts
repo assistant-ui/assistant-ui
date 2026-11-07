@@ -52,6 +52,14 @@ const hostileSpecies = <T>(
 };
 
 describe("toAdaptiveCard", () => {
+  it("does not warn about text length constraints on a numeric Input", () => {
+    const { card, warnings } = toAdaptiveCard([
+      { $type: "Input", name: "amount", inputType: "number", minLength: 2 },
+    ]);
+    expect(card.body[0]).not.toHaveProperty("maxLength");
+    expect(warnings).toEqual([]);
+  });
+
   it.each([-1, 1.5, 0])(
     "drops and warns for malformed maxLength %j",
     (value) => {

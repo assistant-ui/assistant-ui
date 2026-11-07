@@ -50,6 +50,57 @@ const submitWeb = (container: HTMLElement) =>
   act(async () => container.querySelector("form")!.requestSubmit());
 
 describe("form scope on React Native", () => {
+  it("marks an unselected required radio group invalid after submission", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["size"],
+          on: { confirm: { action: "save" } },
+        },
+        size: {
+          type: "RadioGroup",
+          props: { name: "size", label: "Size", required: true, options },
+        },
+      }),
+      { save },
+      actions,
+    );
+    const group = byRole(rendered.container, "radiogroup", "Size");
+    expect(group.hasAttribute("aria-invalid")).toBe(false);
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).not.toHaveBeenCalled();
+    expect(group.getAttribute("aria-invalid")).toBe("true");
+    await press(byRole(rendered.container, "radio", "Small"));
+    expect(group.hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("clears a failed field when its length constraint changes", async () => {
+    const view = (minLength: number) =>
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["name"],
+          on: { confirm: { action: "save" } },
+        },
+        name: { type: "Input", props: { name: "name", minLength } },
+      });
+    const save = vi.fn();
+    const rendered = renderNativeSpec(view(5), { save }, actions);
+    const field = rendered.container.querySelector("input")!;
+    await typeText(field, "Ada");
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).not.toHaveBeenCalled();
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    await rendered.update(view(2));
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    await rendered.update(view(5));
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+  });
+
   it("requires a radio choice and at least one checkbox group option in a Card form", async () => {
     const save = vi.fn();
     const rendered = renderNativeSpec(

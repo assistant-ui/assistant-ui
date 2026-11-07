@@ -654,7 +654,11 @@ export function convertElement(
         typeof maxLength === "number" &&
         Number.isInteger(maxLength) &&
         maxLength > 0;
-      if (props["minLength"] !== undefined && props["minLength"] !== 0)
+      if (
+        textual &&
+        props["minLength"] !== undefined &&
+        props["minLength"] !== 0
+      )
         warn(
           context,
           "dropped",

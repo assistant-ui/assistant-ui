@@ -96,7 +96,9 @@ export function useField(
   validate?: (value: unknown) => boolean,
 ): { scope: FieldScope | undefined; invalid: boolean } {
   const scope = React.useContext(FieldScopeContext);
-  const [failed, setFailed] = React.useState<string | undefined>();
+  const [failed, setFailed] = React.useState<
+    { value: string | undefined } | undefined
+  >();
   const reader = React.useRef(read);
   React.useInsertionEffect(() => {
     reader.current = read;
@@ -113,13 +115,19 @@ export function useField(
       read: () => reader.current(),
       validate: (value) => {
         const valid = validator.current?.(value) ?? true;
-        setFailed(valid ? undefined : JSON.stringify(value));
+        setFailed(valid ? undefined : { value: JSON.stringify(value) });
         return valid;
       },
     });
   }, [scope, name, kind]);
+  const value = read();
+  const valid = failed === undefined || (validate?.(value) ?? true);
+  React.useEffect(() => {
+    if (failed !== undefined && valid) setFailed(undefined);
+  }, [failed, valid]);
   return {
     scope,
-    invalid: failed !== undefined && failed === JSON.stringify(read()),
+    invalid:
+      failed !== undefined && !valid && failed.value === JSON.stringify(value),
   };
 }

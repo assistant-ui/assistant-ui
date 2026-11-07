@@ -237,11 +237,7 @@ function InputField({
   const typed = React.useRef(initialValue ?? "");
   const edited = React.useRef(false);
   const [, refresh] = React.useReducer((count: number) => count + 1, 0);
-  const latest = React.useRef(shown);
-  React.useInsertionEffect(() => {
-    latest.current = shown;
-  });
-  const read = () => latest.current ?? typed.current;
+  const read = () => shown ?? typed.current;
   const constrained =
     required === true ||
     (inputType === "number"
@@ -413,17 +409,14 @@ function DatePickerField({
       ? fromLocalDateTime(normalized, selection.anchor)
       : normalized;
   };
-  useField(
+  const { invalid } = useField(
     name,
     "value",
     () => parse(selection.text) ?? "",
     required
       ? () => {
           const parsed = parse(selection.text);
-          const valid = parsed !== undefined && parsed !== "";
-          if (!valid)
-            setSelection((current) => ({ ...current, invalid: true }));
-          return valid;
+          return parsed !== undefined && parsed !== "";
         }
       : undefined,
   );
@@ -453,7 +446,7 @@ function DatePickerField({
       ) : null}
       <TextInput
         accessibilityLabel={label}
-        aria-invalid={selection.invalid || undefined}
+        aria-invalid={selection.invalid || invalid || undefined}
         placeholder={
           inputType === "time"
             ? "HH:MM"
@@ -476,7 +469,8 @@ function DatePickerField({
         style={[
           styles.field,
           {
-            borderColor: selection.invalid ? theme.destructive : theme.input,
+            borderColor:
+              selection.invalid || invalid ? theme.destructive : theme.input,
             color: ink,
           },
         ]}
