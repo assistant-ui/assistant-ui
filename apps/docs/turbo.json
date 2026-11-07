@@ -48,6 +48,11 @@
         "generated/primitiveDocs.ts"
       ]
     },
+    "check:links": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["LINKINATOR_EXTERNAL"]
+    },
     "dev": {
       "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,
