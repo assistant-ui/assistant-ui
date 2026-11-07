@@ -252,6 +252,8 @@ describe("formula functions", () => {
     ["max(1, min(2, 3))", 2],
     ["count(${/values})", 7],
     ["count(${/empty})", 0],
+    ["without(${/tags}, 0)", ["y"]],
+    ["without(${/tags}, 1)", ["x"]],
     ["sum(${/values})", 6],
     ["avg(${/values})", 3],
     ["min(${/values})", 2],
@@ -316,6 +318,14 @@ describe("formula functions", () => {
     "min(${/values}, '/x', 1)",
     "count(1)",
     "count('abc')",
+    "without(1, 0)",
+    "without(${/tags}, null)",
+    "without(${/tags}, '0')",
+    "without(${/tags}, ${/nan})",
+    "without(${/tags}, 0.5)",
+    "without(${/tags}, -1)",
+    "without(${/tags}, 2)",
+    "without(${/empty}, 0)",
     "sum(1)",
     "avg(null)",
     "sum(${/values}, 1)",
@@ -358,6 +368,13 @@ describe("formula functions", () => {
     expect(evaluateFormula("number(1, 2)", ctx)).toBe("1.00");
     expect(evaluateFormula("number(2, 0)", ctx)).toBe("2");
     expect(evaluateFormula("number(3, 2)", ctx)).toBe("3.00");
+  });
+
+  it("returns a new list without changing the source", () => {
+    const result = evaluateFormula("without(${/tags}, 1)", ctx);
+    expect(result).toEqual(["x"]);
+    expect(result).not.toBe(ctx.state.tags);
+    expect(ctx.state.tags).toEqual(["x", "y"]);
   });
 });
 
@@ -407,6 +424,14 @@ describe("formula bounds and parsing", () => {
     expect(evaluateFormula("sum(${/a}) + sum(${/b})", shared)).toBe(9995);
     shared.state.b.push(1);
     expect(evaluateFormula("sum(${/a}) + sum(${/b})", shared)).toBeNull();
+    const list = Array.from({ length: 9997 }, (_, i) => i);
+    expect(
+      evaluateFormula("without(${/list}, 0)", { state: { list } }),
+    ).toHaveLength(9996);
+    list.push(9997);
+    expect(
+      evaluateFormula("without(${/list}, 0)", { state: { list } }),
+    ).toBeNull();
   });
 
   it("reads a list field once per call and bounds its length and depth", () => {
@@ -476,6 +501,8 @@ describe("formula bounds and parsing", () => {
     ["min()", /argument count/i],
     ["max()", /argument count/i],
     ["count()", /argument count/i],
+    ["without(${/tags})", /argument count/i],
+    ["without(${/tags}, 0, 1)", /argument count/i],
     ["sum()", /argument count/i],
     ["avg(1, 2, 3)", /argument count/i],
     ["number()", /argument count/i],
@@ -547,6 +574,7 @@ describe("formulaValueReads", () => {
     ["${/a} ? 'x' : ${/a}", ["/a"]],
     ["!${/a} || ${/b} == 1 ? 'x' : ${/c}", ["/c"]],
     ["round(${/a}, 1)", ["/a"]],
+    ["without(${/items}, ${$index})", ["/items"]],
     ["round(", []],
   ])("shows %s as %j", (formula, reads) => {
     expect(formulaValueReads(formula)).toEqual(reads);
