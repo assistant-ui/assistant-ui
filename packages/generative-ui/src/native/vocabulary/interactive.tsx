@@ -236,6 +236,7 @@ function InputField({
     : undefined;
   const typed = React.useRef(initialValue ?? "");
   const edited = React.useRef(false);
+  const [, refresh] = React.useReducer((count: number) => count + 1, 0);
   const latest = React.useRef(shown);
   React.useInsertionEffect(() => {
     latest.current = shown;
@@ -292,6 +293,7 @@ function InputField({
       onChangeText={(text) => {
         edited.current = true;
         typed.current = text;
+        if (invalid) refresh();
         updateBinding?.(text);
       }}
       {...(isMultiline

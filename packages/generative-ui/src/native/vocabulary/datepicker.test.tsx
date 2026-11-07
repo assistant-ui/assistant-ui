@@ -42,7 +42,9 @@ describe("native DatePicker", () => {
         main: {
           type: "Form",
           children: ["when", "send"],
-          on: { submit: { action: "capture" } },
+          on: {
+            submit: { action: "capture", params: { values: { $event: "" } } },
+          },
         },
         when: {
           type: "DatePicker",
@@ -60,6 +62,9 @@ describe("native DatePicker", () => {
     await typeText(field(container), "2026-07-20");
     await press(byRole(container, "button", "Send"));
     expect(capture).toHaveBeenCalledOnce();
+    expect(capture.mock.calls[0]![0]).toEqual({
+      values: { when: "2026-07-20" },
+    });
     expect(field(container).hasAttribute("aria-invalid")).toBe(false);
   });
   it("does not change an optional empty value without an edit", async () => {

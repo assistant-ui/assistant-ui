@@ -204,7 +204,7 @@ function CheckboxGroupRender({
         <label key={key} data-aui="checkboxgroup-option">
           <input
             type="checkbox"
-            required={required && done === 0}
+            required={required && done === 0 && key === optionKeys[0]}
             name={fieldName}
             {...{ [CHECKBOX_GROUP_ATTR]: "" }}
             {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}

@@ -1004,7 +1004,8 @@ export const interactiveVocabulary = {
                 h("label", { key, "data-aui": "checkboxgroup-option" }, [
                   h("input", {
                     type: "checkbox",
-                    required: props.required && done === 0,
+                    required:
+                      props.required && done === 0 && key === optionKeys[0],
                     name: name() ?? generatedName,
                     [CHECKBOX_GROUP_ATTR]: "",
                     [GENERATED_NAME_ATTR]: name() == null ? "" : undefined,

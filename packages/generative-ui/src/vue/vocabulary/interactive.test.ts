@@ -50,6 +50,9 @@ describe("CheckboxGroup progress in Vue", () => {
     form.querySelector<HTMLInputElement>('input[value="l"]')!.click();
     await nextTick();
     expect(form.reportValidity()).toBe(true);
+    form.querySelector<HTMLInputElement>('input[value="l"]')!.click();
+    await nextTick();
+    expect(form.reportValidity()).toBe(false);
   });
   it.each([false, true])(
     "tracks selection like React with binding %s",

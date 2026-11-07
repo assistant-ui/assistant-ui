@@ -53,10 +53,15 @@ describe("Form on React Native", () => {
     const submit = byRole(rendered.container, "button", "Save");
     await press(submit);
     expect(save).not.toHaveBeenCalled();
+    expect(field.getAttribute("aria-invalid")).toBe("true");
     await typeText(field, "Al");
     await press(submit);
     expect(save).not.toHaveBeenCalled();
+    await typeText(field, "Alice");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
     await typeText(field, "Ada");
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
     await press(submit);
     expect(save).toHaveBeenCalledOnce();
   });

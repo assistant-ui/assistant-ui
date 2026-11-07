@@ -104,6 +104,13 @@ describe("Input", () => {
     );
     expect(form.reportValidity()).toBe(true);
     await React.act(async () =>
+      form.querySelector<HTMLInputElement>('input[value="two"]')!.click(),
+    );
+    expect(form.reportValidity()).toBe(false);
+    await React.act(async () =>
+      form.querySelector<HTMLInputElement>('input[value="two"]')!.click(),
+    );
+    await React.act(async () =>
       form.dispatchEvent(
         new Event("submit", { bubbles: true, cancelable: true }),
       ),
