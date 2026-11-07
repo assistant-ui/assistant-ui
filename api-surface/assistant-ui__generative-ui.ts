@@ -918,6 +918,8 @@ interface SlackPlainText {
 interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
+  readonly min_length?: number;
+  readonly max_length?: number;
   readonly dispatch_action_config?: {
     readonly trigger_actions_on?: readonly ("on_character_entered" | "on_enter_pressed")[];
   };
@@ -1207,6 +1209,7 @@ interface TeamsInputChoice {
 interface TeamsInputChoiceSet {
   readonly type: "Input.ChoiceSet";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly style: "compact" | "expanded";
   readonly isMultiSelect?: true;
   readonly choices: readonly TeamsInputChoice[];
@@ -1220,6 +1223,7 @@ interface TeamsInputChoiceSet {
 interface TeamsInputDate {
   readonly type: "Input.Date";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly label?: string;
   readonly value?: string;
   readonly min?: string;
@@ -1231,6 +1235,8 @@ interface TeamsInputDate {
 interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly isRequired?: boolean;
+  readonly maxLength?: number;
   readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
@@ -1243,6 +1249,7 @@ interface TeamsInputText {
 interface TeamsInputTime {
   readonly type: "Input.Time";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly label?: string;
   readonly value?: string;
   readonly min?: string;
@@ -1254,6 +1261,7 @@ interface TeamsInputTime {
 interface TeamsInputToggle {
   readonly type: "Input.Toggle";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly title: string;
   readonly value: "false" | "true";
   readonly valueOn: "true";

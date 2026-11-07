@@ -132,7 +132,7 @@ const actionSection = (
   hostApi: NonNullable<SpecPromptOptions["hostApi"]>,
 ) => {
   const entries = [
-    "- `setState` — params `{ path: string; value?: unknown }`. Writes `value` at the JSON Pointer `path` in state. Built in.",
+    '- `setState` — params `{ path: string; value?: unknown }`. Writes `value` at the JSON Pointer `path` in state. Built in. Append with `{ "action": "setState", "params": { "path": "/items/-", "value": … } }`; inside `repeat`, remove with `{ "action": "setState", "params": { "path": "/items", "value": { "$calc": "without(${/items}, ${$index})" } } }`.',
     ...(hostApi.prompt
       ? [
           "- `sendMessage` — params `{ text: string }`. Sends `text` as the user's next message, as if they typed it. Use it behind a button for a follow-up the user asks for. Built in.",
@@ -191,7 +191,7 @@ ${list([
   '`{ "$bindState": "/path" }` reads state and lets the component write it back (inputs, toggles, selects).',
   '`{ "$template": "Hello ${/user/name}" }` fills `${…}` placeholders with state values; outside `$template` and `$calc`, a placeholder shows as written.',
   '`{ "$cond": condition, "$then": a, "$else": b }` picks a value.',
-  "`{ \"$calc\": \"round(${/guests} * 0.5, 1) + ' lb'\" }` computes a value with a formula over `${…}` references, numbers, and `'text'`: `+ - * / %`, `== != < <= > >=`, `a ? b : c`, and `&& || !`, which give `true` or `false` (write a default as `${/name} ? ${/name} : 'Guest'`). Functions: `round(x, digits)`, `floor`, `ceil`, `abs`, `clamp(x, low, high)`, `min` and `max` (of numbers, or of a list), `count(list)`, `sum(list)` and `avg(list)` (or of a field, `sum(list, '/price')`), and `number(x, digits)`, `currency(x, 'USD')`, and `percent(fraction)` (formatted in the explicitly configured host locale, defaulting to `en-US`), plus `time(minutesAfterMidnight)` and `plural(n, 'item', 'items')`. `+` joins text when either side is text. A formula that cannot compute gives `null`.",
+  "`{ \"$calc\": \"round(${/guests} * 0.5, 1) + ' lb'\" }` computes a value with a formula over `${…}` references, numbers, and `'text'`: `+ - * / %`, `== != < <= > >=`, `a ? b : c`, and `&& || !`, which give `true` or `false` (write a default as `${/name} ? ${/name} : 'Guest'`). Functions: `round(x, digits)`, `floor`, `ceil`, `abs`, `clamp(x, low, high)`, `min` and `max` (of numbers, or of a list), `count(list)`, `without(list, index)`, `sum(list)` and `avg(list)` (or of a field, `sum(list, '/price')`), and `number(x, digits)`, `currency(x, 'USD')`, and `percent(fraction)` (formatted in the explicitly configured host locale, defaulting to `en-US`), plus `time(minutesAfterMidnight)` and `plural(n, 'item', 'items')`. `+` joins text when either side is text. A formula that cannot compute gives `null`.",
   'Inside `repeat`: `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }`, and `${$item/field}` in templates.',
 ])}
 

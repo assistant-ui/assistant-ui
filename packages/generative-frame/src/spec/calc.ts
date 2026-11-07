@@ -216,6 +216,29 @@ const functions = new Map<string, FormulaFunction>([
       run: ([list]) => (Array.isArray(list) ? list.length : null),
     },
   ],
+  [
+    "without",
+    {
+      min: 2,
+      max: 2,
+      run: ([list, index], step) => {
+        if (!Array.isArray(list)) return null;
+        if (
+          typeof index !== "number" ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= list.length
+        )
+          return list;
+        const result: unknown[] = [];
+        for (let i = 0; i < list.length; i++) {
+          step();
+          if (i !== index) result.push(list[i]);
+        }
+        return result;
+      },
+    },
+  ],
   ...(["sum", "avg"] as const).map((name): [string, FormulaFunction] => [
     name,
     {
