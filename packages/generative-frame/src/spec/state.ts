@@ -31,16 +31,41 @@ export type SpecStateStore = {
   subscribe(listener: StateListener): () => void;
 };
 
-const setCounts = new WeakMap<SpecStateStore, number>();
-
-export function getStateStoreSetCount(
-  store: SpecStateStore,
-): number | undefined {
-  return setCounts.get(store);
-}
-
 const normalize = (path: string) =>
   path === "" || path.startsWith("/") ? path : `/${path}`;
+
+const setRevisions = new WeakMap<
+  SpecStateStore,
+  { revision: number; paths: Map<string, number> }
+>();
+
+export function getStateStoreRevision(
+  store: SpecStateStore,
+): number | undefined {
+  return setRevisions.get(store)?.revision;
+}
+
+export function wasStateStorePathWrittenSince(
+  store: SpecStateStore,
+  path: string,
+  revision: number,
+): boolean {
+  const written = setRevisions.get(store)?.paths;
+  if (!written) return false;
+  const watched = normalize(path);
+  for (const [candidate, writtenAt] of written) {
+    if (
+      writtenAt > revision &&
+      (watched === "" ||
+        candidate === "" ||
+        candidate === watched ||
+        candidate.startsWith(`${watched}/`) ||
+        watched.startsWith(`${candidate}/`))
+    )
+      return true;
+  }
+  return false;
+}
 
 export type StateStoreOptions = {
   /** Writes to apply over the initial state and keep, such as changes saved from an earlier session. One that no longer applies is dropped. */
@@ -162,7 +187,8 @@ export function createStateStore(
       const result = apply(state, path, value, mode);
       record(entryFor(path, value, mode, result.arrayParents), result.inserted);
       state = result.next;
-      setCounts.set(store, setCounts.get(store)! + 1);
+      const revisions = setRevisions.get(store)!;
+      revisions.paths.set(path, ++revisions.revision);
       emit();
     },
     writes: () => writes,
@@ -199,6 +225,6 @@ export function createStateStore(
       return () => listeners.delete(listener);
     },
   };
-  setCounts.set(store, 0);
+  setRevisions.set(store, { revision: 0, paths: new Map() });
   return store;
 }

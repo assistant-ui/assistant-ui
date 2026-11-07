@@ -34,7 +34,8 @@ import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import {
   createStateStore,
-  getStateStoreSetCount,
+  getStateStoreRevision,
+  wasStateStorePathWrittenSince,
   type SpecStateStore,
 } from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
@@ -111,6 +112,7 @@ type RenderContext = {
   catalog: Catalog | undefined;
   store: SpecStateStore;
   state: Record<string, unknown>;
+  revision: number | undefined;
   dispatch: ActionDispatcher;
   streaming: boolean;
   placeholder: ComponentType<SpecPlaceholderProps>;
@@ -356,22 +358,23 @@ function ResolvedElement({
   const previousWatch = useRef<{
     values: Map<string, unknown>;
     store: SpecStateStore;
-    setCount: number | undefined;
+    revision: number | undefined;
   } | null>(null);
   useEffect(() => {
     const previous = previousWatch.current;
     const next = new Map<string, unknown>();
     const store = ctx.store;
-    const setCount = getStateStoreSetCount(store);
+    const revision = ctx.revision;
     for (const path of Object.keys(element.watch ?? {})) {
       const value = getAtPointer(ctx.state, safePointer(path));
       next.set(path, value);
       if (
         previous?.values.has(path) &&
         !Object.is(previous.values.get(path), value) &&
-        (setCount === undefined ||
+        (revision === undefined ||
           previous.store !== store ||
-          previous.setCount !== setCount)
+          previous.revision === undefined ||
+          wasStateStorePathWrittenSince(store, path, previous.revision))
       ) {
         void ctx.dispatch(element.watch![path], {
           ...scope,
@@ -381,7 +384,7 @@ function ResolvedElement({
         });
       }
     }
-    previousWatch.current = { values: next, store, setCount };
+    previousWatch.current = { values: next, store, revision };
   });
 
   const api = useMemo(
@@ -497,6 +500,7 @@ export function SpecRenderer({
     store.getState,
     store.getState,
   );
+  const revision = getStateStoreRevision(store);
 
   const callbacks = useRef({ handlers, onAction, onError });
   callbacks.current = { handlers, onAction, onError };
@@ -549,6 +553,7 @@ export function SpecRenderer({
     catalog,
     store,
     state: snapshot,
+    revision,
     dispatch,
     streaming,
     placeholder,

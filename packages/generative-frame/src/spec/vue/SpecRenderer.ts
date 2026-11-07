@@ -36,7 +36,8 @@ import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import {
   createStateStore,
-  getStateStoreSetCount,
+  getStateStoreRevision,
+  wasStateStorePathWrittenSince,
   type SpecStateStore,
 } from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
@@ -346,7 +347,7 @@ const ResolvedElement = defineComponent({
             [path, getAtPointer(ctx.state, safePointer(path))] as const,
         ),
         store: ctx.store,
-        setCount: getStateStoreSetCount(ctx.store),
+        revision: getStateStoreRevision(ctx.store),
       }),
       (next, previous) => {
         const prior = new Map(previous.values);
@@ -354,9 +355,14 @@ const ResolvedElement = defineComponent({
           if (
             prior.has(path) &&
             !Object.is(prior.get(path), value) &&
-            (next.setCount === undefined ||
+            (next.revision === undefined ||
               previous.store !== next.store ||
-              previous.setCount !== next.setCount)
+              previous.revision === undefined ||
+              wasStateStorePathWrittenSince(
+                next.store,
+                path,
+                previous.revision,
+              ))
           )
             void ctx.dispatch(props.element.watch?.[path], {
               ...props.scope,

@@ -200,7 +200,7 @@ ${list([
 ${list([
   '`"visible"` takes a condition: `true`/`false`, `{ "$state": "/open" }` (truthy), a comparison `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, a formula `{ "$calc": "${/count} > 2" }`, `{ "not": condition }`, `{ "$or": [ … ] }`, `{ "$and": [ … ] }`, or an array (all must hold).',
   '`"repeat": { "path": "/items", "key": "id" }` renders the element\'s children once per item of the state array at `path`.',
-  '`"watch": { "/path": action }` runs an action whenever that state value changes.',
+  '`"watch": { "/path": action }` runs an action only when a control, action, or handler writes a changed value, not when the spec\'s own state changes.',
 ])}`;
 
 const EXAMPLE = `## Example

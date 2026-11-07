@@ -1026,6 +1026,57 @@ describe("SpecRenderer", () => {
     expect(refresh).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["/y", "/xy"])(
+    "does not dispatch an unrelated %s set batched with a watched seed",
+    async (writePath) => {
+      const store = createStateStore({ x: 0, y: 0, xy: 0 });
+      const refresh = vi.fn();
+      mount({
+        components,
+        state: store,
+        handlers: { refresh },
+        spec: spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        }),
+      });
+      store.set(writePath, 1);
+      store.seed({ x: 2, y: 0, xy: 0 });
+      await nextTick();
+      expect(store.get("/x")).toBe(2);
+      expect(refresh).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { watchPath: "/x/value", writePath: "/x", value: { value: 1 } },
+    { watchPath: "/x", writePath: "/x/value", value: 1 },
+    { watchPath: "", writePath: "/x/value", value: 1 },
+  ])(
+    "dispatches a $watchPath watch for a $writePath write",
+    async ({ watchPath, writePath, value }) => {
+      const store = createStateStore({ x: { value: 0 } });
+      const refresh = vi.fn();
+      mount({
+        components,
+        state: store,
+        handlers: { refresh },
+        spec: spec({
+          main: {
+            type: "Stack",
+            watch: { [watchPath]: { action: "refresh" } },
+          },
+        }),
+      });
+      store.set(writePath, value);
+      await nextTick();
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({ trigger: watchPath }),
+      );
+    },
+  );
+
   it("keeps watch dispatch for stores outside createStateStore", async () => {
     const store = { ...createStateStore({ x: 0 }) };
     const refresh = vi.fn();
