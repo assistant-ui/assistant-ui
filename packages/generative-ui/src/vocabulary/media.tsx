@@ -19,6 +19,7 @@ export const mediaVocabulary = {
           data-aui-round={round || undefined}
           src={src}
           alt={alt}
+          referrerPolicy="no-referrer"
           style={style}
         />
       );

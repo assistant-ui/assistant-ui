@@ -48,8 +48,9 @@ describe("mediaVocabulary", () => {
       size: "md",
     });
     expect(html).toContain(
-      '<img data-aui="image" data-aui-size="md" src="/a.png" alt="alt"/>',
+      '<img data-aui="image" data-aui-size="md" src="/a.png" alt="alt"',
     );
+    expect(html).toMatch(/<img[^>]*\breferrerPolicy="no-referrer"/);
   });
 
   it("Image loads listed origins and data images", () => {

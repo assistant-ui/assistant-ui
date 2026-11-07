@@ -27,6 +27,9 @@ describe("media vocabulary in Vue", () => {
     expect(renderImage("https://cdn.example.com/photo.png")).toContain(
       'src="https://cdn.example.com/photo.png"',
     );
+    expect(renderImage("https://cdn.example.com/photo.png")).toContain(
+      'referrerpolicy="no-referrer"',
+    );
   });
   it.each<[string, Spec["elements"]]>([
     [

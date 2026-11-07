@@ -30,6 +30,7 @@ export const mediaVocabulary = {
             "data-aui-round": props.round || undefined,
             src: props.src,
             alt: props.alt,
+            referrerpolicy: "no-referrer",
             style,
           });
         };
