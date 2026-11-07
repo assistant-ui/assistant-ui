@@ -32,7 +32,12 @@ import {
 } from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
-import { createStateStore, type SpecStateStore } from "../state";
+import {
+  createStateStore,
+  getStateStoreRevision,
+  wasStateStorePathWrittenSince,
+  type SpecStateStore,
+} from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
@@ -107,6 +112,7 @@ type RenderContext = {
   catalog: Catalog | undefined;
   store: SpecStateStore;
   state: Record<string, unknown>;
+  revision: number | undefined;
   dispatch: ActionDispatcher;
   streaming: boolean;
   placeholder: ComponentType<SpecPlaceholderProps>;
@@ -349,14 +355,27 @@ function ResolvedElement({
     latest.current = { element, scope, ctx, bindings: shown?.bindings };
   });
 
-  const previousWatch = useRef<Map<string, unknown> | null>(null);
+  const previousWatch = useRef<{
+    values: Map<string, unknown>;
+    store: SpecStateStore;
+    revision: number | undefined;
+  } | null>(null);
   useEffect(() => {
     const previous = previousWatch.current;
     const next = new Map<string, unknown>();
+    const store = ctx.store;
+    const revision = ctx.revision;
     for (const path of Object.keys(element.watch ?? {})) {
       const value = getAtPointer(ctx.state, safePointer(path));
       next.set(path, value);
-      if (previous?.has(path) && !Object.is(previous.get(path), value)) {
+      if (
+        previous?.values.has(path) &&
+        !Object.is(previous.values.get(path), value) &&
+        (revision === undefined ||
+          previous.store !== store ||
+          previous.revision === undefined ||
+          wasStateStorePathWrittenSince(store, path, previous.revision))
+      ) {
         void ctx.dispatch(element.watch![path], {
           ...scope,
           elementId: id,
@@ -365,7 +384,7 @@ function ResolvedElement({
         });
       }
     }
-    previousWatch.current = next;
+    previousWatch.current = { values: next, store, revision };
   });
 
   const api = useMemo(
@@ -481,6 +500,7 @@ export function SpecRenderer({
     store.getState,
     store.getState,
   );
+  const revision = getStateStoreRevision(store);
 
   const callbacks = useRef({ handlers, onAction, onError });
   callbacks.current = { handlers, onAction, onError };
@@ -533,6 +553,7 @@ export function SpecRenderer({
     catalog,
     store,
     state: snapshot,
+    revision,
     dispatch,
     streaming,
     placeholder,
