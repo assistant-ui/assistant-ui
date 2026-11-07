@@ -896,6 +896,31 @@ const useRemoteThreadList = (
     store,
   ]);
 
+  const reloadAfterAdapterChange = useCallback(
+    (
+      adapterGeneration: number,
+      data: RemoteThreadData,
+      status: "regular" | "archived",
+    ) => {
+      if (adapterGeneration === session.adapterGeneration) {
+        return RESOLVED_PROMISE;
+      }
+      const current = getThreadData(store.baseValue, data.id);
+      if (
+        current &&
+        current.remoteId === data.remoteId &&
+        current.status !== "new"
+      ) {
+        store.update(updateStatusReducer(store.baseValue, current.id, status));
+      }
+      session.loadGeneration++;
+      session.loadPromise = undefined;
+      session.loadMorePromise = undefined;
+      return getLoadThreadsPromise();
+    },
+    [getLoadThreadsPromise, session, store],
+  );
+
   useEffect(() => {
     void getLoadThreadsPromise();
   }, [getLoadThreadsPromise]);
@@ -1694,6 +1719,7 @@ const useRemoteThreadList = (
               ? updateStatusReducer(state, data.id, "archived")
               : state,
         });
+        await reloadAfterAdapterChange(adapterGeneration, data, "archived");
       } finally {
         mutation.cancel();
       }
@@ -1702,6 +1728,7 @@ const useRemoteThreadList = (
     [
       ensureNotMain,
       leaveRemovedMainThread,
+      reloadAfterAdapterChange,
       requireAdapterGeneration,
       session,
       store,
@@ -1732,7 +1759,7 @@ const useRemoteThreadList = (
         );
       }
       const mutation = session.mutations.reserve(data.id, data);
-      return store.optimisticUpdate({
+      await store.optimisticUpdate({
         execute: () =>
           mutation.run(async () => {
             try {
@@ -1753,8 +1780,15 @@ const useRemoteThreadList = (
           }),
         optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
       });
+      await reloadAfterAdapterChange(adapterGeneration, data, "regular");
     },
-    [ensureNotMain, requireAdapterGeneration, session, store],
+    [
+      ensureNotMain,
+      reloadAfterAdapterChange,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const deleteThread = useCallback(

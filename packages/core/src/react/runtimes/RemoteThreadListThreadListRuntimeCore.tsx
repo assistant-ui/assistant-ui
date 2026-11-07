@@ -477,6 +477,25 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
+  private async _reloadAfterAdapterChange(
+    generation: number,
+    data: RemoteThreadData,
+    status: "regular" | "archived",
+  ) {
+    if (generation === this._adapterGeneration) return;
+    const current = getThreadData(this._state.baseValue, data.id);
+    if (
+      current &&
+      current.remoteId === data.remoteId &&
+      current.status !== "new"
+    ) {
+      this._state.update(
+        updateStatusReducer(this._state.baseValue, current.id, status),
+      );
+    }
+    await this.reload();
+  }
+
   // Adapters can list threads under the same id. Until a replacement list
   // lands, a stale slot still holds the thread of the adapter it came from.
   // Owners compare by adapter identity, not generation, so a deletion made
@@ -1608,6 +1627,7 @@ export class RemoteThreadListThreadListRuntimeCore
         optimistic: (state) =>
           this._updateStatusFromAdapter(state, adapter, data.id, "archived"),
       });
+      await this._reloadAfterAdapterChange(adapterGeneration, data, "archived");
     } finally {
       mutation.cancel();
     }
@@ -1639,7 +1659,7 @@ export class RemoteThreadListThreadListRuntimeCore
     }
 
     const mutation = this._mutations.reserve(data.id, data);
-    return this._state.optimisticUpdate({
+    await this._state.optimisticUpdate({
       execute: () =>
         mutation.run(async () => {
           try {
@@ -1661,6 +1681,7 @@ export class RemoteThreadListThreadListRuntimeCore
       optimistic: (state) =>
         this._updateStatusFromAdapter(state, adapter, data.id, "regular"),
     });
+    await this._reloadAfterAdapterChange(adapterGeneration, data, "regular");
   }
 
   public async delete(threadIdOrRemoteId: string) {
