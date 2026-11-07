@@ -115,6 +115,94 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it("formats props and action params with the host locale", () => {
+    const input = spec(
+      {
+        main: { type: "Stack", children: ["amount", "save", "saved"] },
+        amount: { type: "Text", props: { text: { $calc: "number(1234.5)" } } },
+        save: {
+          type: "Button",
+          props: { label: "Save" },
+          on: {
+            press: {
+              action: "setState",
+              params: { path: "/saved", value: { $calc: "number(1234.5)" } },
+            },
+          },
+        },
+        saved: { type: "Text", props: { text: { $state: "/saved" } } },
+      },
+      { saved: "" },
+    );
+    const view = render(
+      <SpecRenderer components={components} spec={input} locale="de-DE" />,
+    );
+    expect(view.container.textContent).toBe("1.234,5Save");
+    fireEvent.click(view.getByText("Save"));
+    expect(view.container.textContent).toBe("1.234,5Save1.234,5");
+  });
+
+  it("retries a failed element when the locale changes", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    const hosts: SpecComponents = {
+      ...components,
+      Price: ({ props }: SpecComponentProps<{ text: string }>) => {
+        if (props.text !== "1,234.5") throw new Error("Unsupported format");
+        return <p>{props.text}</p>;
+      },
+      Editor: () => {
+        const [value, setValue] = useState("");
+        return (
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        );
+      },
+    };
+    const input = spec({
+      main: { type: "Stack", children: ["price", "editor"] },
+      price: { type: "Price", props: { text: { $calc: "number(1234.5)" } } },
+      editor: { type: "Editor" },
+    });
+    try {
+      const view = render(
+        <SpecRenderer
+          components={hosts}
+          spec={input}
+          locale="de-DE"
+          onError={onError}
+        />,
+      );
+      expect(view.container.textContent).toBe(
+        "Price failed: Unsupported format",
+      );
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Unsupported format" }),
+        { elementId: "price" },
+      );
+      const editor = view.container.querySelector("input")!;
+      fireEvent.change(editor, { target: { value: "draft" } });
+      view.rerender(
+        <SpecRenderer
+          components={hosts}
+          spec={input}
+          locale="en-US"
+          onError={onError}
+        />,
+      );
+      expect(view.container.textContent).toBe("1,234.5");
+      expect(
+        view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+      ).toBeNull();
+      expect(view.container.querySelector("input")).toBe(editor);
+      expect(editor.value).toBe("draft");
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it.each([
     { children: [], copies: 5000 },
     { children: ["missing"], copies: 100 },

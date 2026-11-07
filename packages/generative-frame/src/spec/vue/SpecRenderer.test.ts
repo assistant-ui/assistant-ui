@@ -175,6 +175,98 @@ afterEach(() => {
 });
 
 describe("SpecRenderer", () => {
+  it("formats props and action params with the host locale", async () => {
+    const view = mount({
+      components,
+      locale: "de-DE",
+      spec: spec(
+        {
+          main: { type: "Stack", children: ["amount", "save", "saved"] },
+          amount: {
+            type: "Text",
+            props: { text: { $calc: "number(1234.5)" } },
+          },
+          save: {
+            type: "Button",
+            props: { label: "Save" },
+            on: {
+              press: {
+                action: "setState",
+                params: { path: "/saved", value: { $calc: "number(1234.5)" } },
+              },
+            },
+          },
+          saved: { type: "Text", props: { text: { $state: "/saved" } } },
+        },
+        { saved: "" },
+      ),
+    });
+    expect(view.container.textContent).toBe("1.234,5Save");
+    await click(view.container.querySelector("button")!);
+    expect(view.container.textContent).toBe("1.234,5Save1.234,5");
+  });
+
+  it("retries a failed element when the locale changes", async () => {
+    const onError = vi.fn();
+    const hosts: SpecComponents = {
+      ...components,
+      Price: defineComponent({
+        props: { text: String },
+        setup(props) {
+          return () => {
+            if (props.text !== "1,234.5") throw new Error("Unsupported format");
+            return h("p", props.text);
+          };
+        },
+      }),
+      Editor: defineComponent({
+        setup() {
+          const value = ref("");
+          return () =>
+            h("input", {
+              value: value.value,
+              onInput: (event: Event) => {
+                value.value = (event.target as HTMLInputElement).value;
+              },
+            });
+        },
+      }),
+    };
+    const input = spec({
+      main: { type: "Stack", children: ["price", "editor"] },
+      price: { type: "Price", props: { text: { $calc: "number(1234.5)" } } },
+      editor: { type: "Editor" },
+    });
+    const view = mount({
+      components: hosts,
+      spec: input,
+      locale: "de-DE",
+      onError,
+    });
+    await nextTick();
+    expect(view.container.textContent).toBe("Price failed: Unsupported format");
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Unsupported format" }),
+      { elementId: "price" },
+    );
+    const editor = view.container.querySelector("input")!;
+    editor.value = "draft";
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    await nextTick();
+    await view.update({
+      components: hosts,
+      spec: input,
+      locale: "en-US",
+      onError,
+    });
+    expect(view.container.textContent).toBe("1,234.5");
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+    expect(view.container.querySelector("input")).toBe(editor);
+    expect(editor.value).toBe("draft");
+  });
+
   it.each([
     { children: [], copies: 5000 },
     { children: ["missing"], copies: 100 },

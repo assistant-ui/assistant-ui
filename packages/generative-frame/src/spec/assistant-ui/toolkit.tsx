@@ -49,6 +49,8 @@ import {
 export type SpecToolkitOptions = {
   /** Implementations for the catalog's components. */
   components: SpecComponents;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
   confirmAction?: SpecRendererProps["confirmAction"];
@@ -272,6 +274,7 @@ export const specToolkitFor =
               state={store}
               catalog={catalog}
               components={options.components}
+              locale={options.locale}
               streaming={streaming}
               handlers={handlers}
               {...(options.confirmAction

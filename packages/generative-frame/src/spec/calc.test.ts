@@ -369,6 +369,40 @@ describe("formula functions", () => {
     expect(evaluateFormula("number(3, 2)", ctx)).toBe("3.00");
   });
 
+  it("formats currency, number, and percent with the host locale", () => {
+    const german = { ...ctx, locale: "de-DE" };
+    expect(evaluateFormula("currency(1234.5, 'EUR')", german)).toBe(
+      "1.234,50 €",
+    );
+    expect(evaluateFormula("number(1234.5)", german)).toBe("1.234,5");
+    expect(evaluateFormula("percent(0.15)", german)).toBe("15 %");
+    expect(evaluateFormula("number(1234.5)", ctx)).toBe("1,234.5");
+  });
+
+  it("uses en-US when the locale tag is invalid", () => {
+    expect(
+      evaluateFormula("number(1234.5)", { ...ctx, locale: "not_a_locale" }),
+    ).toBe("1,234.5");
+    expect(
+      evaluateFormula("currency(1234.5, 'USD')", {
+        ...ctx,
+        locale: "not_a_locale",
+      }),
+    ).toBe("$1,234.50");
+  });
+
+  it.each(["zz", "und", "zz-ZZ-x-private"])(
+    "uses en-US when the locale tag %s is unsupported",
+    (locale) => {
+      const context = { ...ctx, locale };
+      expect(evaluateFormula("number(1234.5)", context)).toBe("1,234.5");
+      expect(evaluateFormula("currency(1234.5, 'USD')", context)).toBe(
+        "$1,234.50",
+      );
+      expect(evaluateFormula("percent(0.15)", context)).toBe("15%");
+    },
+  );
+
   it("returns a new list without changing the source", () => {
     const result = evaluateFormula("without(${/tags}, 1)", ctx);
     expect(result).toEqual(["x"]);

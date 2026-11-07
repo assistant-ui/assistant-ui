@@ -35,6 +35,8 @@ export type ResolvedElement = {
 export type ResolveSpecOptions = {
   /** The state to resolve against, such as a store's `getState()` after the user's changes. Defaults to `spec.state`. */
   state?: unknown;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
 };
 
 /**
@@ -74,7 +76,7 @@ export function resolveSpec(
     ) {
       return null;
     }
-    const ctx = { ...scope, state };
+    const ctx = { ...scope, state, locale: options.locale };
     if (!evaluateCondition(element.visible, ctx)) return null;
     const { props, bindings } = resolveProps(element.props, ctx);
     const on: Record<string, ResolvedAction[]> = {};

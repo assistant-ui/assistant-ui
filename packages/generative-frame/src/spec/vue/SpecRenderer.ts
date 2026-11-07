@@ -68,6 +68,8 @@ export type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (
     name: string,
@@ -136,6 +138,7 @@ type RenderContext = {
   readonly catalog: Catalog | undefined;
   readonly store: SpecStateStore;
   readonly state: Record<string, unknown>;
+  readonly locale: string | undefined;
   readonly dispatch: ActionDispatcher;
   readonly streaming: boolean;
   readonly placeholder: Component;
@@ -217,13 +220,10 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
-    // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
-    watch(
-      () => props.element,
-      () => {
-        error.value = null;
-      },
-    );
+    // A streaming element can pass through values its component rejects, such as a state path cut short, and formatting can depend on the locale, so a changed element or locale renders again.
+    watch([() => props.element, () => ctx.locale], () => {
+      error.value = null;
+    });
     onErrorCaptured((caught) => {
       const normalized =
         caught instanceof Error ? caught : new Error(String(caught));
@@ -276,7 +276,13 @@ const ElementView = defineComponent({
         return ctx.streaming
           ? null
           : placeholder("missing", `Missing element "${id}"`);
-      if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
+      if (
+        !evaluateCondition(element.visible, {
+          ...scope,
+          state: ctx.state,
+          locale: ctx.locale,
+        })
+      )
         return null;
       const impl = Object.hasOwn(ctx.components, element.type)
         ? ctx.components[element.type]
@@ -325,7 +331,11 @@ const ResolvedElement = defineComponent({
   setup(props) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const resolved = () =>
-      resolveProps(props.element.props, { ...props.scope, state: ctx.state });
+      resolveProps(props.element.props, {
+        ...props.scope,
+        state: ctx.state,
+        locale: ctx.locale,
+      });
     let settled: ReturnType<typeof resolved> | undefined;
     provide<SpecElementContext>(elementContextKey, {
       get id() {
@@ -376,6 +386,7 @@ const ResolvedElement = defineComponent({
           )
             void ctx.dispatch(props.element.watch?.[path], {
               ...props.scope,
+              locale: ctx.locale,
               elementId: props.id,
               trigger: path,
               kind: "watch",
@@ -416,6 +427,7 @@ const ResolvedElement = defineComponent({
           previous?.(payload);
           void ctx.dispatch(props.element.on?.[event], {
             ...props.scope,
+            locale: ctx.locale,
             elementId: props.id,
             trigger: event,
             kind: "event",
@@ -475,6 +487,7 @@ export const SpecRenderer = defineComponent({
     components: { type: Object as PropType<SpecComponents>, required: true },
     catalog: Object as PropType<Catalog>,
     state: Object as PropType<SpecStateStore>,
+    locale: String,
     handlers: Object as PropType<Record<string, ActionHandler>>,
     onAction: Function as PropType<SpecRendererProps["onAction"]>,
     confirmAction: Function as PropType<SpecRendererProps["confirmAction"]>,
@@ -562,6 +575,9 @@ export const SpecRenderer = defineComponent({
       },
       get state() {
         return shown.value?.state ?? snapshot.value;
+      },
+      get locale() {
+        return props.locale;
       },
       get dispatch() {
         const store = props.state ?? ownStore;

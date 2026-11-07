@@ -6,6 +6,7 @@ import type { Condition } from "./types";
 /** What expressions can read while an element renders or an action runs. */
 export type ExpressionContext = {
   state: unknown;
+  locale?: string | undefined;
   /** The current item and index inside a `repeat`. */
   item?: unknown;
   index?: number;
