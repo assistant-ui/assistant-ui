@@ -1815,11 +1815,13 @@ const convertElement = (
       const defaultValue = props["defaultValue"];
       const minLength = props["minLength"];
       const maxLength = props["maxLength"];
+      const textual = props["inputType"] !== "number";
       for (const [key, value] of [
         ["minLength", minLength],
         ["maxLength", maxLength],
       ] as const) {
         if (
+          textual &&
           value !== undefined &&
           (typeof value !== "number" ||
             !Number.isInteger(value) ||
@@ -1857,13 +1859,15 @@ const convertElement = (
           element: {
             type: "plain_text_input",
             action_id: actionId,
-            ...(typeof minLength === "number" &&
+            ...(textual &&
+            typeof minLength === "number" &&
             Number.isInteger(minLength) &&
             minLength > 0 &&
             minLength <= 3000
               ? { min_length: minLength }
               : {}),
-            ...(typeof maxLength === "number" &&
+            ...(textual &&
+            typeof maxLength === "number" &&
             Number.isInteger(maxLength) &&
             maxLength > 0 &&
             maxLength <= 3000

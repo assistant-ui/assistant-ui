@@ -121,6 +121,15 @@ describe("toSlackBlocks", () => {
       expect.objectContaining({ component: "Input", code: "dropped" }),
     ]);
   });
+  it("omits length constraints on number inputs, like the web", () => {
+    const { blocks, warnings } = toSlackBlocks([
+      { $type: "Input", name: "qty", inputType: "number", maxLength: 2 },
+    ]);
+    expect(
+      (blocks[0] as unknown as { element: Record<string, unknown> }).element,
+    ).not.toHaveProperty("max_length");
+    expect(warnings).toEqual([]);
+  });
   describe("numeric text props", () => {
     it("stringifies numeric labels and descriptions", () => {
       const { blocks } = toSlackBlocks([

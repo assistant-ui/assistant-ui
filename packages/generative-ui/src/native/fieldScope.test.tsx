@@ -82,6 +82,29 @@ describe("form scope on React Native", () => {
     await press(submit);
     expect(save).toHaveBeenCalledOnce();
   });
+  it("keeps submission order when a first field starts requiring a value", async () => {
+    const save = vi.fn();
+    const props = (required: boolean) =>
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["first", "second"],
+          on: {
+            confirm: { action: "save", params: { values: { $event: "" } } },
+          },
+        },
+        first: { type: "Input", props: { name: "note", required } },
+        second: { type: "Input", props: { name: "note" } },
+      });
+    const rendered = renderNativeSpec(props(false), { save }, actions);
+    const [first, second] = rendered.container.querySelectorAll("input");
+    await typeText(first!, "one");
+    await typeText(second!, "two");
+    await rendered.update(props(true));
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save.mock.calls[0]![0].values.note).toEqual(["one", "two"]);
+  });
   it("collects repeated names, checkboxes, groups, and numbers like the web", async () => {
     const input = form([
       "first",
