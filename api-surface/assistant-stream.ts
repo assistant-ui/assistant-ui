@@ -443,6 +443,19 @@ type JSONValue = null | string | number | boolean | {
   [key: string]: JSONValue | undefined;
 } | JSONValue[];
 
+type JsonParserBackend = {
+  readonly currentArgs: ReadonlyJSONObject;
+  append(delta: string): JsonParserBackend | undefined;
+};
+
+type JsonParserBackendContext = {
+  readonly text: string;
+  readonly fallback: ReadonlyJSONObject;
+  readonly createSnapshot: (value: ReadonlyJSONObject, state: "complete" | "partial", partialPath: readonly (string | number)[]) => ReadonlyJSONObject;
+};
+
+type JsonParserBackendFactory = (context: JsonParserBackendContext) => JsonParserBackend | undefined;
+
 type LegacyAISDKContent = {
   type: "content";
   value: (AISDKTextPart | LegacyFilePart)[];
@@ -1277,7 +1290,7 @@ declare namespace entry_resumable_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, DataStreamOptions, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallApproval, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, DataStreamOptions, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, JsonParserBackend, JsonParserBackendContext, JsonParserBackendFactory, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallApproval, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, registerJsonParserBackend, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 declare namespace entry_internal_exports {
@@ -1297,6 +1310,8 @@ declare const parsePartialJsonObject: (json: string) => (ReadonlyJSONObject & {
 declare namespace entry_resumable_redis_exports {
   export { NodeRedisLike, createRedisResumableStreamStore };
 }
+
+declare const registerJsonParserBackend: (factory: JsonParserBackendFactory) => (() => void);
 
 declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
   taggedFileData: true;
