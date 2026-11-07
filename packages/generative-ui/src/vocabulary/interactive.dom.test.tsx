@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, useState } from "react";
+import * as React from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -32,7 +32,7 @@ const toppings = [
 let root: Root | undefined;
 
 afterEach(async () => {
-  await act(async () => root?.unmount());
+  await React.act(async () => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
   vi.useRealTimers();
@@ -56,7 +56,7 @@ const mount = async (
   parent.append(container);
   const registry = createActionRegistry(handlers);
   root = createRoot(container);
-  await act(async () => {
+  await React.act(async () => {
     root!.render(view(node, registry.dispatch));
   });
   return container;
@@ -73,10 +73,88 @@ const confirmComposition = async (
     bubbles: true,
   });
   Object.defineProperty(event, "keyCode", { value: 229 });
-  await act(async () => control.dispatchEvent(event));
+  await React.act(async () => control.dispatchEvent(event));
 };
 
 describe("Input", () => {
+  it("requires one CheckboxGroup option in a browser form", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "save" },
+        children: [
+          {
+            $type: "CheckboxGroup",
+            name: "tags",
+            required: true,
+            options: [
+              { label: "One", value: "one" },
+              { label: "Two", value: "two" },
+            ],
+          },
+        ],
+      },
+      { save },
+    );
+    const form = container.querySelector("form")!;
+    expect(form.reportValidity()).toBe(false);
+    await React.act(async () =>
+      form.querySelector<HTMLInputElement>('input[value="two"]')!.click(),
+    );
+    expect(form.reportValidity()).toBe(true);
+    await React.act(async () =>
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(save).toHaveBeenCalledOnce();
+  });
+  it("passes text and numeric constraints to browser controls", async () => {
+    const container = await mount(
+      {
+        $type: "Form",
+        children: [
+          {
+            $type: "Input",
+            name: "name",
+            required: true,
+            minLength: 2,
+            maxLength: 8,
+          },
+          {
+            $type: "Input",
+            name: "amount",
+            inputType: "number",
+            required: true,
+            min: 1,
+            max: 5,
+          },
+          {
+            $type: "Input",
+            name: "note",
+            multiline: true,
+            minLength: 3,
+            maxLength: 10,
+          },
+        ],
+      },
+      {},
+    );
+    const text =
+      container.querySelector<HTMLInputElement>('input[name="name"]')!;
+    const number = container.querySelector<HTMLInputElement>(
+      'input[name="amount"]',
+    )!;
+    const area = container.querySelector("textarea")!;
+    expect([text.required, text.minLength, text.maxLength]).toEqual([
+      true,
+      2,
+      8,
+    ]);
+    expect([number.required, number.min, number.max]).toEqual([true, "1", "5"]);
+    expect([area.minLength, area.maxLength]).toEqual([3, 10]);
+  });
   it("does not submit a single-line input on an IME confirmation Enter", async () => {
     const submit = vi.fn();
     const container = await mount(
@@ -157,9 +235,9 @@ describe("RadioGroup", () => {
       { save },
     );
     const inputs = container.querySelectorAll("input");
-    await act(async () => inputs[4]!.click());
-    await act(async () => inputs[0]!.click());
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => inputs[4]!.click());
+    await React.act(async () => inputs[0]!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(inputs[4]!.checked).toBe(false);
     expect(save).toHaveBeenCalledWith({
@@ -198,9 +276,9 @@ describe("RadioGroup", () => {
         { save },
       );
       const inputs = container.querySelectorAll("input");
-      await act(async () => inputs[4]!.click());
-      await act(async () => inputs[0]!.click());
-      await act(async () => container.querySelector("button")!.click());
+      await React.act(async () => inputs[4]!.click());
+      await React.act(async () => inputs[0]!.click());
+      await React.act(async () => container.querySelector("button")!.click());
 
       expect(inputs[4]!.checked).toBe(false);
       expect(save).toHaveBeenCalledWith({
@@ -235,7 +313,7 @@ describe("RadioGroup", () => {
     const hydratedRoots: Root[] = [];
     const onRecoverableError = vi.fn();
     try {
-      await act(async () => {
+      await React.act(async () => {
         for (const { container, identifierPrefix } of containers) {
           hydratedRoots.push(
             hydrateRoot(container, tree, {
@@ -246,12 +324,12 @@ describe("RadioGroup", () => {
         }
       });
       for (const [index, { container }] of containers.entries()) {
-        await act(async () =>
+        await React.act(async () =>
           container.querySelectorAll("input")[index]!.click(),
         );
       }
       for (const { container } of containers) {
-        await act(async () => container.querySelector("button")!.click());
+        await React.act(async () => container.querySelector("button")!.click());
       }
 
       expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
@@ -260,7 +338,9 @@ describe("RadioGroup", () => {
       ]);
       expect(onRecoverableError).not.toHaveBeenCalled();
     } finally {
-      await act(async () => hydratedRoots.forEach((item) => item.unmount()));
+      await React.act(async () =>
+        hydratedRoots.forEach((item) => item.unmount()),
+      );
     }
   });
 
@@ -281,7 +361,7 @@ describe("RadioGroup", () => {
         },
       ],
     });
-    await act(async () => {
+    await React.act(async () => {
       root!.render(
         <>
           {view(card("first"), registry.dispatch)}
@@ -292,10 +372,10 @@ describe("RadioGroup", () => {
     const inputs = container.querySelectorAll("input");
     const [firstSave, secondSave] = container.querySelectorAll("button");
 
-    await act(async () => inputs[0]!.click());
-    await act(async () => inputs[4]!.click());
-    await act(async () => firstSave!.click());
-    await act(async () => secondSave!.click());
+    await React.act(async () => inputs[0]!.click());
+    await React.act(async () => inputs[4]!.click());
+    await React.act(async () => firstSave!.click());
+    await React.act(async () => secondSave!.click());
 
     expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
       { type: "save", id: "first", choice: "basil" },
@@ -304,7 +384,7 @@ describe("RadioGroup", () => {
     expect(inputs[0]!.checked).toBe(true);
     expect(inputs[4]!.checked).toBe(true);
 
-    await act(async () => inputs[2]!.click());
+    await React.act(async () => inputs[2]!.click());
     expect(inputs[0]!.checked).toBe(false);
     expect(inputs[2]!.checked).toBe(true);
     expect(inputs[4]!.checked).toBe(true);
@@ -325,9 +405,9 @@ describe("RadioGroup", () => {
       { save },
     );
     const inputs = container.querySelectorAll("input");
-    await act(async () => inputs[0]!.click());
-    await act(async () => inputs[4]!.click());
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => inputs[0]!.click());
+    await React.act(async () => inputs[4]!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(save).toHaveBeenCalledWith({
       payload: { type: "save", $input: { choice: "basil" } },
@@ -353,11 +433,13 @@ describe("option identity", () => {
       if (type === "Select") {
         container.querySelector("select")!.value = "olives";
       } else {
-        await act(async () => container.querySelectorAll("input")[1]!.click());
+        await React.act(async () =>
+          container.querySelectorAll("input")[1]!.click(),
+        );
       }
-      await act(async () => container.querySelector("button")!.click());
+      await React.act(async () => container.querySelector("button")!.click());
 
-      await act(async () => {
+      await React.act(async () => {
         root!.render(
           view(
             form([
@@ -371,7 +453,7 @@ describe("option identity", () => {
           ),
         );
       });
-      await act(async () => container.querySelector("button")!.click());
+      await React.act(async () => container.querySelector("button")!.click());
 
       const payload = {
         type: "save",
@@ -430,11 +512,11 @@ describe("CheckboxGroup", () => {
     expect(label()).toBe("1 of 3");
     const [basil, olives] = container.querySelectorAll("input");
 
-    await act(async () => basil!.click());
-    await act(async () => olives!.click());
+    await React.act(async () => basil!.click());
+    await React.act(async () => olives!.click());
     expect(label()).toBe("3 of 3");
     expect(fill()).toBe("100%");
-    await act(async () => basil!.click());
+    await React.act(async () => basil!.click());
     expect(label()).toBe("2 of 3");
   });
 
@@ -455,11 +537,11 @@ describe("CheckboxGroup", () => {
       container.querySelector('[data-aui="checkboxgroup-progress-label"]')
         ?.textContent;
     const [levers, pump] = container.querySelectorAll("input");
-    await act(async () => levers!.click());
+    await React.act(async () => levers!.click());
     expect(label()).toBe("1 of 3");
-    await act(async () => pump!.click());
+    await React.act(async () => pump!.click());
     expect(label()).toBe("2 of 3");
-    await act(async () => levers!.click());
+    await React.act(async () => levers!.click());
     expect(label()).toBe("1 of 3");
   });
 
@@ -471,9 +553,9 @@ describe("CheckboxGroup", () => {
     });
     const container = await mount(tree(toppings), {});
     const [basil, olives] = container.querySelectorAll("input");
-    await act(async () => basil!.click());
-    await act(async () => olives!.click());
-    await act(async () => root!.render(view(tree(toppings.slice(1)))));
+    await React.act(async () => basil!.click());
+    await React.act(async () => olives!.click());
+    await React.act(async () => root!.render(view(tree(toppings.slice(1)))));
     expect(
       container.querySelector('[data-aui="checkboxgroup-progress-label"]')
         ?.textContent,
@@ -487,8 +569,8 @@ describe("CheckboxGroup", () => {
       options: toppings,
     });
     const container = await mount(tree(false), {});
-    await act(async () => container.querySelector("input")!.click());
-    await act(async () => root!.render(view(tree(true))));
+    await React.act(async () => container.querySelector("input")!.click());
+    await React.act(async () => root!.render(view(tree(true))));
     expect(
       container.querySelector('[data-aui="checkboxgroup-progress-label"]')
         ?.textContent,
@@ -519,9 +601,9 @@ describe("CheckboxGroup", () => {
     );
     const [basil, , onion, cheese] = container.querySelectorAll("input");
 
-    await act(async () => basil!.click());
-    await act(async () => cheese!.click());
-    await act(async () => onion!.click());
+    await React.act(async () => basil!.click());
+    await React.act(async () => cheese!.click());
+    await React.act(async () => onion!.click());
 
     expect(pick.mock.calls.map(([{ payload }]) => payload)).toEqual([
       { type: "pick", $input: ["basil", "onion"] },
@@ -590,8 +672,8 @@ describe("CheckboxGroup", () => {
       { submit },
     );
 
-    await act(async () => container.querySelector("input")!.click());
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("input")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(submit).toHaveBeenCalledWith({
       payload: {
@@ -611,7 +693,7 @@ describe("Button undo window", () => {
     const registry = createActionRegistry({ save });
     const BindingContext = A2uiBindingContext!;
     const Surface = () => {
-      const [name, setName] = useState("Initial");
+      const [name, setName] = React.useState("Initial");
       return (
         <BindingContext.Provider
           value={{
@@ -638,26 +720,26 @@ describe("Button undo window", () => {
       );
     };
     root = createRoot(container);
-    await act(async () => root!.render(<Surface />));
+    await React.act(async () => root!.render(<Surface />));
     const button = container.querySelector<HTMLButtonElement>("button")!;
     const input = container.querySelector<HTMLInputElement>("input")!;
-    await act(async () => button.click());
-    await act(async () => {
+    await React.act(async () => button.click());
+    await React.act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
-    await act(async () => {
+    await React.act(async () => {
       Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         "value",
       )!.set!.call(input, "Edited");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await act(async () => {
+    await React.act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
     expect(button.textContent).toContain("Undo 4");
     for (let seconds = 0; seconds < 4; seconds++) {
-      await act(async () => {
+      await React.act(async () => {
         await vi.advanceTimersByTimeAsync(1_000);
       });
     }
@@ -680,7 +762,7 @@ describe("Button undo window", () => {
     );
     const button = container.querySelector<HTMLButtonElement>("button")!;
 
-    await act(async () => button.click());
+    await React.act(async () => button.click());
 
     expect(button.dataset.auiState).toBe("pending");
     expect(button.textContent).toContain("Undo 5");
@@ -691,14 +773,14 @@ describe("Button undo window", () => {
     expect(purchase).not.toHaveBeenCalled();
 
     for (const seconds of [4, 3, 2, 1]) {
-      await act(async () => {
+      await React.act(async () => {
         await vi.advanceTimersByTimeAsync(1_000);
       });
       expect(button.textContent).toContain(`Undo ${seconds}`);
       expect(purchase).not.toHaveBeenCalled();
     }
 
-    await act(async () => {
+    await React.act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);
     });
 
@@ -722,7 +804,7 @@ describe("Button undo window", () => {
     );
     const button = container.querySelector<HTMLButtonElement>("button")!;
 
-    await act(async () => button.click());
+    await React.act(async () => button.click());
 
     expect(button.getAttribute("aria-label")).toBe("Undo");
   });
@@ -741,9 +823,9 @@ describe("Button undo window", () => {
     );
     const button = container.querySelector<HTMLButtonElement>("button")!;
 
-    await act(async () => button.click());
-    await act(async () => button.click());
-    await act(async () => {
+    await React.act(async () => button.click());
+    await React.act(async () => button.click());
+    await React.act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
 
@@ -766,14 +848,14 @@ describe("Button undo window", () => {
     );
     const button = container.querySelector<HTMLButtonElement>("button")!;
 
-    await act(async () => button.click());
+    await React.act(async () => button.click());
     button.focus();
-    await act(async () => {
+    await React.act(async () => {
       button.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
       );
     });
-    await act(async () => {
+    await React.act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
 
@@ -795,10 +877,10 @@ describe("Button undo window", () => {
       { purchase },
     );
 
-    await act(async () => container.querySelector("button")!.click());
-    await act(async () => root!.unmount());
+    await React.act(async () => container.querySelector("button")!.click());
+    await React.act(async () => root!.unmount());
     root = undefined;
-    await act(async () => {
+    await React.act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
 
@@ -810,7 +892,7 @@ describe("Button undo window", () => {
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    await act(async () => {
+    await React.act(async () => {
       root!.render(
         view({
           $type: "Button",
@@ -822,7 +904,7 @@ describe("Button undo window", () => {
     });
     const button = container.querySelector<HTMLButtonElement>("button")!;
 
-    await act(async () => button.click());
+    await React.act(async () => button.click());
 
     expect(button.dataset.auiState).toBeUndefined();
     expect(button.textContent).toBe("Purchase");
@@ -889,7 +971,7 @@ describe("Slider", () => {
       '[data-aui="slider"]',
     )!;
 
-    await act(async () => {
+    await React.act(async () => {
       slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
       slider.value = "7";
       slider.dispatchEvent(new Event("input", { bubbles: true }));
@@ -920,7 +1002,7 @@ describe("Slider", () => {
       '[data-aui="slider"]',
     )!;
 
-    await act(async () => {
+    await React.act(async () => {
       slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
       slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
     });
@@ -948,7 +1030,7 @@ describe("Slider", () => {
       { submit },
     );
 
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(submit).toHaveBeenCalledWith({
       payload: { type: "submit", $input: { volume: 3 } },
@@ -998,7 +1080,7 @@ describe("Checkbox and option descriptions", () => {
     );
 
     expect(container.querySelector('input[role="switch"]')).not.toBeNull();
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
     expect(submit).toHaveBeenCalledWith({
       payload: { type: "submit", $input: { enabled: true } },
     });
@@ -1083,8 +1165,8 @@ describe("$field references", () => {
     expect(container.querySelector("select")!.value).toBe("l");
     title!.value = "Final";
     note!.value = "Ship it";
-    await act(async () => saveNote!.click());
-    await act(async () => saveAll!.click());
+    await React.act(async () => saveNote!.click());
+    await React.act(async () => saveAll!.click());
 
     expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
       { type: "save", note: "Ship it" },
@@ -1112,7 +1194,7 @@ describe("$field references", () => {
     nested.innerHTML = '<input name="note" value="inner">';
     container.querySelector('[data-aui="root"]')!.append(nested);
 
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(save).toHaveBeenCalledWith({
       payload: { type: "save", note: "outer" },
@@ -1134,7 +1216,7 @@ describe("$field references", () => {
       hostForm,
     );
 
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(save).toHaveBeenCalledWith({ payload: { type: "save" } });
   });
@@ -1148,7 +1230,7 @@ describe("$field references", () => {
     hostForm.append(inHost);
     document.body.append(hostForm, standalone);
     const roots = [createRoot(inHost), createRoot(standalone)];
-    await act(async () => {
+    await React.act(async () => {
       roots[0]!.render(
         renderGenerativeUI(
           {
@@ -1179,9 +1261,9 @@ describe("$field references", () => {
       );
     });
 
-    await act(async () => inHost.querySelector("button")!.click());
-    await act(async () => standalone.querySelector("button")!.click());
-    await act(async () => roots.forEach((r) => r.unmount()));
+    await React.act(async () => inHost.querySelector("button")!.click());
+    await React.act(async () => standalone.querySelector("button")!.click());
+    await React.act(async () => roots.forEach((r) => r.unmount()));
 
     expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
       { type: "save" },
@@ -1260,8 +1342,8 @@ describe("A2UI two-way binding", () => {
     expect(name.value).toBe("Ada");
     expect(free!.checked).toBe(true);
     name.value = "Grace";
-    await act(async () => pro!.click());
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => pro!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(send).toHaveBeenCalledWith({
       payload: {
@@ -1308,7 +1390,7 @@ describe("A2UI two-way binding", () => {
     container.querySelector<HTMLInputElement>(
       'input[data-aui="input"]',
     )!.value = "Ship it";
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(send).toHaveBeenCalledWith({
       payload: {
@@ -1382,7 +1464,7 @@ describe("A2UI two-way binding", () => {
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    await act(async () => {
+    await React.act(async () => {
       root!.render(
         <div data-aui="root">
           {renderGenerativeUI(
@@ -1397,7 +1479,7 @@ describe("A2UI two-way binding", () => {
     container.querySelector<HTMLInputElement>(
       'input[data-aui="input"]',
     )!.value = "new@example.com";
-    await act(async () => container.querySelector("button")!.click());
+    await React.act(async () => container.querySelector("button")!.click());
 
     expect(send).toHaveBeenCalledWith({
       payload: {
@@ -1530,10 +1612,10 @@ describe("A2UI two-way binding", () => {
     container.querySelector<HTMLInputElement>('input[type="date"]')!.value =
       edited.day;
 
-    await act(async () => root!.render(view(surface(initial))));
+    await React.act(async () => root!.render(view(surface(initial))));
     expect(read()).toEqual(edited);
 
-    await act(async () =>
+    await React.act(async () =>
       root!.render(
         view(
           surface({
@@ -1625,7 +1707,7 @@ describe.each([
       )!;
       const converted = convertSurfaceToUISpec(surface);
       expect(converted.warnings).toEqual([]);
-      await act(async () =>
+      await React.act(async () =>
         root!.render(
           live ? (
             <div data-aui="root">
@@ -1646,7 +1728,7 @@ describe.each([
     };
     await render(initial);
     const submit = async (value: unknown) => {
-      await act(async () => container.querySelector("button")!.click());
+      await React.act(async () => container.querySelector("button")!.click());
       expect(send).toHaveBeenLastCalledWith({
         payload: {
           type: "a2ui:action",
@@ -1768,7 +1850,7 @@ describe.each([
       const preview = () =>
         container.querySelector('[data-aui="markdown"]')?.textContent ?? "";
       const edit = async (value: string) => {
-        await act(async () => {
+        await React.act(async () => {
           const control = input();
           Object.getOwnPropertyDescriptor(
             HTMLInputElement.prototype,
@@ -1821,7 +1903,7 @@ describe.each([
     );
     await submit(initial);
 
-    await act(async () => {
+    await React.act(async () => {
       Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         "value",
@@ -1864,7 +1946,7 @@ describe.each([
       ).toBe("Value");
       expect(selected()).toEqual([]);
 
-      await act(async () => radios()[1]!.click());
+      await React.act(async () => radios()[1]!.click());
       expect(selected()).toEqual(["b"]);
       if (live)
         expect(

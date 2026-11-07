@@ -52,6 +52,47 @@ const hostileSpecies = <T>(
 };
 
 describe("toAdaptiveCard", () => {
+  it("maps required and maximum text length, warning for unsupported bounds", () => {
+    const { card, warnings } = toAdaptiveCard([
+      {
+        $type: "Input",
+        name: "name",
+        required: true,
+        minLength: 2,
+        maxLength: 8,
+      },
+      {
+        $type: "Select",
+        name: "size",
+        required: true,
+        options: [{ label: "A", value: "a" }],
+      },
+      { $type: "Input", inputType: "number", min: 1, max: 5 },
+    ]);
+    expect(card.body[0]).toMatchObject({
+      type: "Input.Text",
+      isRequired: true,
+      maxLength: 8,
+    });
+    expect(card.body[1]).toMatchObject({
+      type: "Input.ChoiceSet",
+      isRequired: true,
+    });
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          component: "Input",
+          code: "dropped",
+          detail: expect.stringContaining("minLength"),
+        }),
+        expect.objectContaining({
+          component: "Input",
+          code: "dropped",
+          detail: expect.stringContaining("min and max"),
+        }),
+      ]),
+    );
+  });
   describe("numeric text props", () => {
     it("stringifies numeric labels and descriptions", () => {
       const { card } = toAdaptiveCard([

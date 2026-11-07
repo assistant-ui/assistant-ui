@@ -6,6 +6,7 @@ import { equalData } from "../equalData";
 import { CHECKBOX_GROUP_ATTR, FIELD_NAME_ATTR } from "../constants";
 import {
   collectFormValues,
+  collectFormValuesFromEvent,
   type FormControlElementLike,
 } from "./collectFormValues";
 
@@ -80,4 +81,19 @@ export const fire = (
       throw error;
     });
   });
+};
+
+export const submitForm = (
+  $action: Action | undefined,
+  $dispatch: GenerativeUIDispatch | undefined,
+  event: { preventDefault(): void; currentTarget: HTMLFormElement },
+) => {
+  event.preventDefault();
+  if (!event.currentTarget.reportValidity()) return;
+  fire(
+    $action,
+    $dispatch,
+    collectFormValuesFromEvent(event),
+    event.currentTarget,
+  );
 };

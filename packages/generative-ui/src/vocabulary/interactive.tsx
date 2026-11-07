@@ -43,6 +43,7 @@ type RadioGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string;
+  required?: boolean;
   children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
@@ -55,6 +56,7 @@ function RadioGroupRender({
   name,
   label,
   defaultValue,
+  required,
   children,
   $action,
   $dispatch,
@@ -76,6 +78,7 @@ function RadioGroupRender({
         <label key={key} data-aui="radiogroup-option">
           <input
             type="radio"
+            required={required}
             name={groupName}
             {...{ [FIELD_NAME_ATTR]: name }}
             {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
@@ -110,6 +113,7 @@ type CheckboxGroupRenderProps = {
   label?: string;
   defaultValue?: string[];
   progress?: boolean;
+  required?: boolean;
   children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
@@ -133,6 +137,7 @@ function CheckboxGroupRender({
   label,
   defaultValue,
   progress,
+  required,
   children,
   $action,
   $dispatch,
@@ -199,6 +204,7 @@ function CheckboxGroupRender({
         <label key={key} data-aui="checkboxgroup-option">
           <input
             type="checkbox"
+            required={required && done === 0}
             name={fieldName}
             {...{ [CHECKBOX_GROUP_ATTR]: "" }}
             {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
@@ -246,6 +252,7 @@ type SelectRenderProps = {
   label?: string;
   name?: string;
   defaultValue?: string;
+  required?: boolean;
   children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
@@ -259,6 +266,7 @@ function SelectRender({
   label,
   name,
   defaultValue,
+  required,
   $action,
   $dispatch,
   children,
@@ -280,6 +288,7 @@ function SelectRender({
       data-aui-action={actionAttr($action)}
       name={name}
       aria-label={label}
+      required={required}
       {...(isBound
         ? {
             value:
@@ -314,6 +323,11 @@ type InputRenderProps = {
   label?: string;
   name?: string;
   defaultValue?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -327,6 +341,11 @@ function InputRender({
   label,
   name,
   defaultValue,
+  required,
+  minLength,
+  maxLength,
+  min,
+  max,
   $action,
   $dispatch,
 }: InputRenderProps) {
@@ -346,6 +365,9 @@ function InputRender({
       name={name}
       aria-label={label}
       placeholder={placeholder}
+      required={required}
+      minLength={minLength}
+      maxLength={maxLength}
       {...(isBound
         ? {
             value:
@@ -376,6 +398,11 @@ function InputRender({
       name={name}
       aria-label={label}
       placeholder={placeholder}
+      required={required}
+      minLength={inputType === "number" ? undefined : minLength}
+      maxLength={inputType === "number" ? undefined : maxLength}
+      min={inputType === "number" ? min : undefined}
+      max={inputType === "number" ? max : undefined}
       {...(isBound
         ? {
             value:
@@ -400,6 +427,7 @@ type DatePickerRenderProps = {
   max?: string;
   label?: string;
   name?: string;
+  required?: boolean;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -416,6 +444,7 @@ function DatePickerRender({
   max,
   label,
   name,
+  required,
   $action,
   $dispatch,
 }: DatePickerRenderProps) {
@@ -508,6 +537,7 @@ function DatePickerRender({
       }}
       name={name}
       aria-label={label}
+      required={required}
       {...(isBound || inputType === "datetime"
         ? { value: displayValue ?? "" }
         : { defaultValue: displayValue })}
@@ -609,6 +639,7 @@ type CheckboxRenderProps = {
   checked?: boolean;
   label: string;
   name?: string;
+  required?: boolean;
   defaultChecked?: boolean;
   variant?: "checkbox" | "switch";
   $status: GenerativeUIStatus;
@@ -620,6 +651,7 @@ function CheckboxRender({
   checked,
   label,
   name,
+  required,
   defaultChecked,
   variant = "checkbox",
   $action,
@@ -641,6 +673,7 @@ function CheckboxRender({
         role={variant === "switch" ? "switch" : undefined}
         data-aui-action={actionAttr($action)}
         name={name}
+        required={required}
         {...(isBound
           ? {
               checked:

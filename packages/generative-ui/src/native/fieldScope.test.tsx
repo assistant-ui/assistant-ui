@@ -50,6 +50,38 @@ const submitWeb = (container: HTMLElement) =>
   act(async () => container.querySelector("form")!.requestSubmit());
 
 describe("form scope on React Native", () => {
+  it("requires a radio choice and at least one checkbox group option in a Card form", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["size", "tags"],
+          on: { confirm: { action: "save" } },
+        },
+        size: {
+          type: "RadioGroup",
+          props: { name: "size", required: true, options },
+        },
+        tags: {
+          type: "CheckboxGroup",
+          props: { name: "tags", required: true, options },
+        },
+      }),
+      { save },
+      actions,
+    );
+    const submit = byRole(rendered.container, "button", "Save");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await press(byRole(rendered.container, "radio", "Small"));
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await press(byRole(rendered.container, "checkbox", "Large"));
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
   it("collects repeated names, checkboxes, groups, and numbers like the web", async () => {
     const input = form([
       "first",

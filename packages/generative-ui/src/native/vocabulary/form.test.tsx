@@ -31,6 +31,67 @@ const input = spec({
 });
 
 describe("Form on React Native", () => {
+  it("blocks required and length constrained values until valid", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["name", "send"],
+          on: { submit: { action: "save" } },
+        },
+        name: {
+          type: "Input",
+          props: { name: "name", required: true, minLength: 3, maxLength: 4 },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    const field = rendered.container.querySelector("input")!;
+    const submit = byRole(rendered.container, "button", "Save");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await typeText(field, "Al");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await typeText(field, "Ada");
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
+
+  it("blocks an out-of-range number and an unchecked required checkbox", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["amount", "agree", "send"],
+          on: { submit: { action: "save" } },
+        },
+        amount: {
+          type: "Input",
+          props: { name: "amount", inputType: "number", min: 2, max: 5 },
+        },
+        agree: {
+          type: "Checkbox",
+          props: { name: "agree", label: "Agree", required: true },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    const submit = byRole(rendered.container, "button", "Save");
+    await typeText(rendered.container.querySelector("input")!, "8");
+    await press(byRole(rendered.container, "checkbox", "Agree"));
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await typeText(rendered.container.querySelector("input")!, "3");
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
   it.each(["button", "return key (web requestSubmit)"])(
     "submits named values from %s like the web",
     async (trigger) => {

@@ -79,6 +79,34 @@ const hostileSpecies = <T>(
 };
 
 describe("toSlackBlocks", () => {
+  it("maps input constraints and warns for actions that cannot require a value", () => {
+    const { blocks, warnings } = toSlackBlocks([
+      {
+        $type: "Input",
+        name: "name",
+        required: true,
+        minLength: 2,
+        maxLength: 8,
+      },
+      {
+        $type: "Select",
+        required: true,
+        options: [{ label: "A", value: "a" }],
+      },
+      { $type: "Input", inputType: "number", min: 1, max: 5 },
+    ]);
+    expect(blocks[0]).toMatchObject({
+      type: "input",
+      optional: false,
+      element: { min_length: 2, max_length: 8 },
+    });
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: "Select", code: "dropped" }),
+        expect.objectContaining({ component: "Input", code: "dropped" }),
+      ]),
+    );
+  });
   describe("numeric text props", () => {
     it("stringifies numeric labels and descriptions", () => {
       const { blocks } = toSlackBlocks([

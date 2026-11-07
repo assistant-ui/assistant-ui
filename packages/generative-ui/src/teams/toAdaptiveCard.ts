@@ -567,6 +567,7 @@ export function convertElement(
       const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.ChoiceSet",
+        ...(props["required"] === true ? { isRequired: true } : {}),
         id: reservedSafeId(name || "select", "Select", context),
         style: "compact",
         choices: choicesFrom(props["options"], "Select", context),
@@ -584,6 +585,7 @@ export function convertElement(
       const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.ChoiceSet",
+        ...(props["required"] === true ? { isRequired: true } : {}),
         id: reservedSafeId(name || "radiogroup", "RadioGroup", context),
         style: "expanded",
         choices: choicesFrom(props["options"], "RadioGroup", context),
@@ -605,6 +607,7 @@ export function convertElement(
         : [];
       const input: TeamsCardElement = {
         type: "Input.ChoiceSet",
+        ...(props["required"] === true ? { isRequired: true } : {}),
         id: reservedSafeId(name || "checkboxgroup", "CheckboxGroup", context),
         style: "expanded",
         isMultiSelect: true,
@@ -619,6 +622,7 @@ export function convertElement(
       const label = asTextValue(props["label"]);
       const input: TeamsCardElement = {
         type: "Input.Toggle",
+        ...(props["required"] === true ? { isRequired: true } : {}),
         id: reservedSafeId(name || label || "checkbox", "Checkbox", context),
         title: label,
         value: props["defaultChecked"] === true ? "true" : "false",
@@ -644,12 +648,30 @@ export function convertElement(
       return withCompanionSubmit(element, input, context);
     }
     case "Input": {
+      if (props["minLength"] !== undefined)
+        warn(
+          context,
+          "dropped",
+          "Input",
+          "minLength cannot be enforced by Teams text inputs.",
+        );
+      if (props["min"] !== undefined || props["max"] !== undefined)
+        warn(
+          context,
+          "dropped",
+          "Input",
+          "Numeric min and max cannot be enforced by Teams text inputs.",
+        );
       const name = asString(props["name"]);
       const label = asString(props["label"]);
       const placeholder = asString(props["placeholder"]);
       const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.Text",
+        ...(props["required"] === true ? { isRequired: true } : {}),
+        ...(typeof props["maxLength"] === "number"
+          ? { maxLength: props["maxLength"] }
+          : {}),
         id: reservedSafeId(name || "input", "Input", context),
         ...(props["inputType"] === "password" ? { style: "password" } : {}),
         ...(label ? { label } : {}),
@@ -727,6 +749,7 @@ export function convertElement(
         }
         const input: TeamsCardElement = {
           type: "Input.Time",
+          ...(props["required"] === true ? { isRequired: true } : {}),
           id,
           ...(label ? { label } : {}),
           ...(classifyTemporal(rawValue).kind === "time" && value !== undefined
@@ -778,6 +801,7 @@ export function convertElement(
         const max = boundDate(props["max"]);
         const dateInput: TeamsCardElement = {
           type: "Input.Date",
+          ...(props["required"] === true ? { isRequired: true } : {}),
           id: dateId,
           ...(label ? { label } : {}),
           ...(parts?.date !== undefined ? { value: parts.date } : {}),
@@ -786,6 +810,7 @@ export function convertElement(
         };
         const timeInput: TeamsCardElement = {
           type: "Input.Time",
+          ...(props["required"] === true ? { isRequired: true } : {}),
           id: timeId,
           ...(label || offsetLabel
             ? {
@@ -827,6 +852,7 @@ export function convertElement(
           : undefined;
       const input: TeamsCardElement = {
         type: "Input.Date",
+        ...(props["required"] === true ? { isRequired: true } : {}),
         id: reservedSafeId(name || "datepicker", "DatePicker", context),
         ...(label ? { label } : {}),
         ...(value !== undefined ? { value } : {}),

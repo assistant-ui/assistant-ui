@@ -155,6 +155,7 @@ export const interactiveVocabulary = {
         "name",
         "defaultValue",
         "value",
+        "required",
       ],
       emits: ["change", "update:defaultValue", "update:value"],
       setup: function useSelect(props, { emit, slots }) {
@@ -211,6 +212,7 @@ export const interactiveVocabulary = {
               "data-aui-action": action(),
               name: fieldName(props.name, context.id, bound()),
               "aria-label": props.label,
+              required: props.required,
               onChange: (event: Event) => {
                 const next = target<HTMLSelectElement>(event).value;
                 if (!bound()) selectedValue = next;
@@ -268,6 +270,11 @@ export const interactiveVocabulary = {
         "label",
         "name",
         "defaultValue",
+        "required",
+        "minLength",
+        "maxLength",
+        "min",
+        "max",
       ],
       emits: ["submit", "update:defaultValue", "update:value"],
       setup: function useInput(props, { emit }) {
@@ -305,6 +312,11 @@ export const interactiveVocabulary = {
             name,
             "aria-label": props.label,
             placeholder: props.placeholder,
+            required: props.required,
+            minlength:
+              props.inputType === "number" ? undefined : props.minLength,
+            maxlength:
+              props.inputType === "number" ? undefined : props.maxLength,
             onInput: (event: Event) => {
               const next = target<HTMLInputElement | HTMLTextAreaElement>(
                 event,
@@ -338,6 +350,8 @@ export const interactiveVocabulary = {
                 {
                   ...attrs,
                   "data-aui-multiline": "true",
+                  minlength: props.minLength,
+                  maxlength: props.maxLength,
                   ...(bound() ? { value } : {}),
                 },
                 bound() || props.defaultValue === undefined
@@ -349,6 +363,8 @@ export const interactiveVocabulary = {
                 ref: control,
                 type: props.inputType,
                 step: props.inputType === "number" ? "any" : undefined,
+                min: props.inputType === "number" ? props.min : undefined,
+                max: props.inputType === "number" ? props.max : undefined,
                 value,
               });
         };
@@ -359,7 +375,7 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.DatePicker,
     component: defineComponent({
       name: "GenerativeUIDatePicker",
-      props: ["inputType", "value", "min", "max", "label", "name"],
+      props: ["inputType", "value", "min", "max", "label", "name", "required"],
       emits: ["change", "update:value"],
       setup: function useDatePicker(props, { emit }) {
         const { context, live, action, boundProp } = useEventProps("change");
@@ -477,6 +493,7 @@ export const interactiveVocabulary = {
             [FIELD_VALUE_ATTR]: canonical(current),
             name: fieldName(props.name, context.id, bound()),
             "aria-label": props.label,
+            required: props.required,
             value: display ?? (bound() || kind === "datetime" ? "" : undefined),
             min: limit(props.min),
             max: limit(props.max),
@@ -557,7 +574,14 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.Checkbox,
     component: defineComponent({
       name: "GenerativeUICheckbox",
-      props: ["checked", "label", "name", "defaultChecked", "variant"],
+      props: [
+        "checked",
+        "label",
+        "name",
+        "defaultChecked",
+        "variant",
+        "required",
+      ],
       emits: ["change", "update:defaultChecked"],
       setup: function useCheckbox(props, { emit }) {
         const { context, live, action, boundProp } = useEventProps("change");
@@ -601,6 +625,7 @@ export const interactiveVocabulary = {
                 role: variant === "switch" ? "switch" : undefined,
                 "data-aui-action": action(),
                 name: fieldName(props.name, context.id, bound()),
+                required: props.required,
                 checked,
                 onChange: (event: Event) => {
                   const value = target<HTMLInputElement>(event).checked;
@@ -775,7 +800,7 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.RadioGroup,
     component: defineComponent({
       name: "GenerativeUIRadioGroup",
-      props: ["value", "options", "name", "label", "defaultValue"],
+      props: ["value", "options", "name", "label", "defaultValue", "required"],
       emits: ["change", "update:defaultValue", "update:value"],
       setup: function useRadioGroup(props, { emit, slots }) {
         const { context, live, action, boundProp } = useEventProps("change");
@@ -817,6 +842,7 @@ export const interactiveVocabulary = {
                 h("label", { key, "data-aui": "radiogroup-option" }, [
                   h("input", {
                     type: "radio",
+                    required: props.required,
                     name: name() ?? generatedName,
                     [FIELD_NAME_ATTR]: name(),
                     [GENERATED_NAME_ATTR]: name() == null ? "" : undefined,
@@ -863,7 +889,15 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.CheckboxGroup,
     component: defineComponent({
       name: "GenerativeUICheckboxGroup",
-      props: ["value", "options", "name", "label", "defaultValue", "progress"],
+      props: [
+        "value",
+        "options",
+        "name",
+        "label",
+        "defaultValue",
+        "progress",
+        "required",
+      ],
       emits: ["change", "update:defaultValue", "update:value"],
       setup: function useCheckboxGroup(props, { emit, slots }) {
         const { context, live, action, boundProp } = useEventProps("change");
@@ -925,15 +959,13 @@ export const interactiveVocabulary = {
           )
             ? (props.value ?? props.defaultValue)
             : [];
-          const done = !props.progress
-            ? 0
-            : bound()
-              ? mapOptions(props.options, (option) =>
-                  boundValues.includes(option.value),
-                ).filter(Boolean).length
-              : optionKeys.filter((key) =>
-                  (tally.value ?? defaultKeys).includes(key),
-                ).length;
+          const done = bound()
+            ? mapOptions(props.options, (option) =>
+                boundValues.includes(option.value),
+              ).filter(Boolean).length
+            : optionKeys.filter((key) =>
+                (tally.value ?? defaultKeys).includes(key),
+              ).length;
           return h(
             "fieldset",
             {
@@ -972,6 +1004,7 @@ export const interactiveVocabulary = {
                 h("label", { key, "data-aui": "checkboxgroup-option" }, [
                   h("input", {
                     type: "checkbox",
+                    required: props.required && done === 0,
                     name: name() ?? generatedName,
                     [CHECKBOX_GROUP_ATTR]: "",
                     [GENERATED_NAME_ATTR]: name() == null ? "" : undefined,

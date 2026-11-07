@@ -35,6 +35,22 @@ const options = [
 ];
 
 describe("CheckboxGroup progress in Vue", () => {
+  it("requires one option before a form is valid", async () => {
+    const rendered = renderVueSpec(
+      spec({
+        main: { type: "Form", children: ["tags"] },
+        tags: {
+          type: "CheckboxGroup",
+          props: { name: "tags", required: true, options },
+        },
+      }),
+    );
+    const form = rendered.container.querySelector("form")!;
+    expect(form.reportValidity()).toBe(false);
+    form.querySelector<HTMLInputElement>('input[value="l"]')!.click();
+    await nextTick();
+    expect(form.reportValidity()).toBe(true);
+  });
   it.each([false, true])(
     "tracks selection like React with binding %s",
     async (isBound) => {
