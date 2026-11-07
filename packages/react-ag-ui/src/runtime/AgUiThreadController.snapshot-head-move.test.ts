@@ -58,9 +58,12 @@ const answerRecord = {
   ],
 };
 const otherRecord = { id: "other", role: "assistant", content: "Next step." };
-const taskAndSubagentEvents = [
+const taskCallEvents = [
   { type: "TOOL_CALL_START", toolCallId: "task", toolCallName: "task" },
   { type: "TOOL_CALL_END", toolCallId: "task" },
+];
+const taskAndSubagentEvents = [
+  ...taskCallEvents,
   {
     type: "SUBAGENT_STARTED",
     subagentRunId: "sub",
@@ -106,6 +109,14 @@ function statuses(core: AgUiThreadController) {
   return { answer: answer.status?.type, subagent: nested?.status?.type };
 }
 
+function taskPartFor(core: AgUiThreadController, messageId: string) {
+  const message = core.getMessages().find(({ id }) => id === messageId);
+  if (message?.role !== "assistant") return undefined;
+  return message.content.find(
+    (part) => part.type === "tool-call" && part.toolCallId === "task",
+  );
+}
+
 describe("AgUiThreadController snapshot head moves", () => {
   it("settles the moved-off answer when the snapshot has no tool call", async () => {
     const core = createController((wire) => [
@@ -141,6 +152,27 @@ describe("AgUiThreadController snapshot head moves", () => {
       answer: "complete",
       subagent: "complete",
     });
+  });
+
+  it("keeps a moved-off answer settled and owns the result after repeated snapshots", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, otherRecord),
+      snapshot(wire, otherRecord),
+      taskResult,
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(core.isRunning()).toBe(false);
+    expect(statuses(core).answer).toBe("complete");
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+    ).toBe("complete");
+    expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
+    expect(taskPartFor(core, "other")).toBeUndefined();
   });
 
   it("does not show a complete answer with a running sub-agent after a result snapshot", async () => {
