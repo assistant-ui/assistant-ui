@@ -28,6 +28,7 @@ export type ComponentDefinition = {
 export type ActionDefinition = {
   description: string;
   params?: PropsSchema;
+  /** Requires the host to confirm before the action runs. A spec cannot set or remove this. */
   confirm?: true;
 };
 

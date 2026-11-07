@@ -227,6 +227,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
     { name: "catalog", type: "Catalog", description: "Validates props before rendering; invalid elements render a placeholder." },
     { name: "state", type: "SpecStateStore", description: "An external store. Otherwise one is created and seeded from `spec.state`." },
     { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
+    { name: "confirmAction", type: "(request: { action, params, elementId? }) => boolean | Promise<boolean>", description: "Called before an action whose catalog definition has `confirm: true` runs. Return `true` to run it or `false` to stop the action list." },
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
     { name: "onError", type: "(error, { elementId? }) => void", description: "A component threw or an action failed." },
     { name: "streaming", type: "boolean", default: "false", description: "Missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec." },

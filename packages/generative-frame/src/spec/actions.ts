@@ -22,6 +22,7 @@ export type ActionDispatcherOptions = {
   catalog?: Catalog;
   /** Handlers by action name; they take precedence over `onAction`. */
   handlers?: Record<string, ActionHandler>;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
   confirm?: (request: {
     action: string;
     params: Record<string, unknown>;
