@@ -97,6 +97,7 @@ const Inline = defineComponent(
               src: node.url,
               alt: node.alt,
               title: node.title,
+              referrerpolicy: "no-referrer",
             });
         }
       });

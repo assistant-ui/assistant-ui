@@ -105,7 +105,14 @@ const Inline: FC<{ node: InlineNode; components: MarkdownComponents }> = ({
           </a>
         );
       case "image":
-        return <img src={node.url} alt={node.alt} title={node.title} />;
+        return (
+          <img
+            src={node.url}
+            alt={node.alt}
+            title={node.title}
+            referrerPolicy="no-referrer"
+          />
+        );
     }
   });
 };

@@ -79,6 +79,7 @@ describe("Markdown", () => {
     expect(image?.getAttribute("src")).toBe("/cat.png");
     expect(image?.getAttribute("alt")).toBe("a cat");
     expect(image?.getAttribute("title")).toBe("Cat");
+    expect(image?.getAttribute("referrerpolicy")).toBe("no-referrer");
   });
 
   test("closes syntax left open at the end until the text is final", () => {
