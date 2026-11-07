@@ -509,7 +509,7 @@ describe("validateSpec", () => {
       [
         "invalid-formula",
         "/elements/m/visible/$calc",
-        'Formula in "m": Unknown function "sqrt"; known: round, floor, ceil, abs, clamp, min, max, count, sum, avg, number, currency, percent, time, plural.',
+        'Formula in "m": Unknown function "sqrt"; known: round, floor, ceil, abs, clamp, min, max, count, without, sum, avg, number, currency, percent, time, plural.',
       ],
       [
         "invalid-formula",
