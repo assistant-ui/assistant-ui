@@ -53,6 +53,7 @@ export type SpecToolkitOptions = {
   locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (
     name: string,
     params: Record<string, unknown>,
@@ -276,6 +277,9 @@ export const specToolkitFor =
               locale={options.locale}
               streaming={streaming}
               handlers={handlers}
+              {...(options.confirmAction
+                ? { confirmAction: options.confirmAction }
+                : {})}
               {...(options.onAction ? { onAction: options.onAction } : {})}
               {...(options.placeholder
                 ? { placeholder: options.placeholder }

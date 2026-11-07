@@ -30,7 +30,11 @@ import {
   type SpecStateStore,
   type SpecStateWrite,
 } from "../state";
-import { SpecRenderer, type SpecComponents } from "../vue/SpecRenderer";
+import {
+  SpecRenderer,
+  type SpecComponents,
+  type SpecRendererProps,
+} from "../vue/SpecRenderer";
 import { useSpecStream } from "../vue/useSpecStream";
 import {
   callHistory,
@@ -54,6 +58,7 @@ export type SpecToolkitOptions = {
   locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (
     name: string,
     params: Record<string, unknown>,
@@ -255,6 +260,7 @@ export function createSpecToolkit(
                       : {}),
                     streaming: streaming.value,
                     handlers,
+                    confirmAction: options.confirmAction,
                     ...(options.onAction ? { onAction: options.onAction } : {}),
                     ...(options.placeholder
                       ? { placeholder: options.placeholder }

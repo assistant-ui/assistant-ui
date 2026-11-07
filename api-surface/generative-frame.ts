@@ -22,6 +22,22 @@ type ActionBinding = {
 type ActionDefinition = {
   description: string;
   params?: PropsSchema;
+  confirm?: true;
+};
+
+type ActionDispatcherOptions = {
+  store: SpecStateStore;
+  catalog?: Catalog;
+  handlers?: Record<string, ActionHandler>;
+  confirm?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
+  onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
+    state: SpecStateStore;
+  }) => unknown;
+  onError?: (error: Error, binding: ActionBinding) => void;
 };
 
 type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
@@ -998,6 +1014,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
+  confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
@@ -1051,6 +1068,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
+  confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
@@ -1103,6 +1121,7 @@ type SpecRendererProps = {
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1120,6 +1139,7 @@ type SpecRendererProps$1 = {
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1174,6 +1194,7 @@ type SpecToolkitOptions = {
   components: SpecComponents;
   locale?: string;
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
     trigger?: string;
@@ -1188,6 +1209,7 @@ type SpecToolkitOptions$1 = {
   components: SpecComponents$1;
   locale?: string;
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps$1["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
     trigger?: string;

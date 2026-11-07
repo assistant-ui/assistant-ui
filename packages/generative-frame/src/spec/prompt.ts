@@ -151,7 +151,7 @@ const actionSection = (
     ...Object.entries(catalog.actions).map(([name, def]) => {
       const params = catalog.paramsSchema(name);
       const schema = params ? describeSchema(params) : undefined;
-      return `- \`${name}\` — ${schema && schema !== "unknown" ? `params \`${schema}\`. ` : ""}${def.description}`;
+      return `- \`${name}\` — ${schema && schema !== "unknown" ? `params \`${schema}\`. ` : ""}${def.description}${def.confirm === true ? `${/[.!?]$/.test(def.description) ? "" : "."} Requires host confirmation before running. Bind it to a user event; \`watch\` cannot dispatch it.` : ""}`;
     }),
   ];
   return `## Actions
