@@ -164,8 +164,10 @@ function reset() {
 }
 
 async function renderFrame(code: string, errors: string[], host: HTMLElement) {
+  // An opaque frame loads no Safe Content Frame shim from the network, so a render cannot stall on that fetch.
   const widget = createWidget({
     container: host,
+    opaqueOrigin: true,
     tokens,
     animate: false,
     onOpenLink: () => {},
