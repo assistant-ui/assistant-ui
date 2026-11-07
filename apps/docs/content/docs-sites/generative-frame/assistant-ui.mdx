@@ -42,7 +42,11 @@ function WidgetInstructions() {
 
 `createWidgetToolkit` returns `{ toolkit, tools, registry }`. `toolkit` holds entries for `read_me`, `show_widget`, `edit_widget`, `preview_widget`, and, when you pass `spec`, `render_spec`. `tools` are the underlying [tool definitions](/generative-frame/docs/tools), and `registry` holds the latest code per widget title.
 
-`useWidgetInstructions(tools, { preload })` adds a short system prompt section that tells the model when to use the tools. Pass `preload: { modules: ["chart"] }` to inline the `read_me` guidance for those modules, which saves the model a round trip at the cost of a longer prompt.
+`useWidgetInstructions(tools, { preload })` adds a system prompt section that tells the model when to use the tools. When `read_me` offers a `spec` module, its guidance is preloaded by default so the model can call `render_spec` without first calling `read_me`. `buildWidgetInstructions` uses the same default on the server. If default preloading fails, the instructions tell the model to load the guidance on demand.
+
+Preloading adds the catalog guidance to every request's input tokens. The added token count scales with the catalog exposed by `read_me`; about 5,000 extra tokens per request applies only to the example app's catalog. A toolkit without a `spec` module keeps the shorter prompt.
+
+Passing `preload` replaces the default module list. `preload: { modules: ["chart"] }` preloads only `chart`, leaving `spec` on demand; use `preload: { modules: ["spec", "chart"] }` to preload both. Pass `preload: { modules: [] }` to inline no guidance and load modules on demand. Explicit `preload: {}` or `preload: { platform: "mobile" }` still inlines the base widget guidance.
 
 ## What renders in the thread
 
@@ -66,7 +70,7 @@ const widgets = createWidgetToolkit({
 });
 ```
 
-This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `placeholder`, and `specPrompt`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
+This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `confirmAction`, `placeholder`, `specPrompt`, and `toolResults`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
 
 Each `render_spec` call renders inside a `div` whose `data-gf-spec` holds the call's title and which carries `data-gf-streaming` while the arguments stream, so your styles can ease elements in as they arrive without animating a thread that loads already complete.
 

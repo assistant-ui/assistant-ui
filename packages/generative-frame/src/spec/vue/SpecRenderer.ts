@@ -19,6 +19,7 @@ import {
 import {
   createActionDispatcher,
   type ActionDispatcher,
+  type ActionDispatcherOptions,
   type ActionHandler,
   type ActionSource,
 } from "../actions";
@@ -73,6 +74,8 @@ export type SpecRendererProps = {
     params: Record<string, unknown>,
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: { elementId?: string }) => void;
   streaming?: boolean;
   placeholder?: Component;
@@ -474,6 +477,7 @@ export const SpecRenderer = defineComponent({
     state: Object as PropType<SpecStateStore>,
     handlers: Object as PropType<Record<string, ActionHandler>>,
     onAction: Function as PropType<SpecRendererProps["onAction"]>,
+    confirmAction: Function as PropType<SpecRendererProps["confirmAction"]>,
     onError: Function as PropType<SpecRendererProps["onError"]>,
     streaming: { type: Boolean, default: false },
     placeholder: {
@@ -541,6 +545,7 @@ export const SpecRenderer = defineComponent({
     };
     let dispatcherStore: SpecStateStore | undefined;
     let dispatcherCatalog: Catalog | undefined;
+    let dispatcherConfirm: SpecRendererProps["confirmAction"];
     let dispatcher: ActionDispatcher;
     const ctx: RenderContext = {
       get spec() {
@@ -560,12 +565,18 @@ export const SpecRenderer = defineComponent({
       },
       get dispatch() {
         const store = props.state ?? ownStore;
-        if (dispatcherStore !== store || dispatcherCatalog !== props.catalog) {
+        if (
+          dispatcherStore !== store ||
+          dispatcherCatalog !== props.catalog ||
+          dispatcherConfirm !== props.confirmAction
+        ) {
           dispatcherStore = store;
           dispatcherCatalog = props.catalog;
+          dispatcherConfirm = props.confirmAction;
           dispatcher = createActionDispatcher({
             store,
             ...(props.catalog ? { catalog: props.catalog } : {}),
+            ...(props.confirmAction ? { confirm: props.confirmAction } : {}),
             onAction: (name, params, context) => {
               if (props.handlers && Object.hasOwn(props.handlers, name))
                 return props.handlers[name]!(params, context);

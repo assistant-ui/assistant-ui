@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
@@ -33,6 +33,56 @@ type Entry = {
   render: ComponentType<{ args: Record<string, unknown>; toolCallId: string }>;
   execute?: (input: unknown, call: { toolCallId: string }) => Promise<unknown>;
 };
+
+it("forwards host confirmation to rendered catalog actions", async () => {
+  const protectedCatalog = defineCatalog({
+    components: { Button: { description: "Button", events: ["press"] } },
+    actions: { deleteItem: { description: "Deletes an item", confirm: true } },
+  });
+  const confirmAction = vi.fn(() => true);
+  const deleteItem = vi.fn();
+  const toolkit = specToolkitFor({
+    useMessages: () => [],
+    useArgsComplete: () => true,
+    SpecRenderer,
+    Frame: ({ children }) => <>{children}</>,
+    useSendMessage: () => () => {},
+    useModelContext: () => {},
+  })(protectedCatalog, {
+    components: {
+      Button: ({ emit }: SpecComponentProps) => (
+        <button onClick={() => emit("press")}>Delete</button>
+      ),
+    },
+    handlers: { deleteItem },
+    confirmAction,
+  });
+  const Render = (
+    toolkit.entries({ execution: "frontend", display: "standalone" })
+      .render_spec as Entry
+  ).render;
+  const view = render(
+    <Render
+      toolCallId="s"
+      args={{
+        title: "s",
+        spec: {
+          root: "b",
+          elements: {
+            b: { type: "Button", on: { press: { action: "deleteItem" } } },
+          },
+        },
+      }}
+    />,
+  );
+  await act(async () => fireEvent.click(view.getByText("Delete")));
+  expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+    action: "deleteItem",
+    params: {},
+    elementId: "b",
+  });
+  expect(deleteItem).toHaveBeenCalledOnce();
+});
 
 it("dispatches a bound write while streaming without dispatching model state patches", () => {
   const refresh = vi.fn();
