@@ -65,3 +65,21 @@ it("links each heading to itself without changing its id", () => {
   expect(heading.id).toBe("setup");
   expect(heading.querySelector("a")?.getAttribute("href")).toBe("#setup");
 });
+
+it("copies a link to the heading from its anchor button", async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal("navigator", { clipboard: { writeText } });
+  const container = render(
+    createElement(assistantUiMdxComponents.h3, { id: "install" }, "Install"),
+  );
+
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(
+        'button[aria-label="Copy anchor link"]',
+      )!
+      .click(),
+  );
+
+  expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/#install$/));
+});
