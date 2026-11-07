@@ -37,7 +37,7 @@ Cards are stamped at Adaptive Cards schema **1.5**, the version [Teams supports 
 
 ## Update a message as the spec streams
 
-Feed complete JSONL patch lines into `createSpecStream`. Send when the root element exists and produces card content, then update that activity at most once every 1500 ms. `specLines` below is an async iterable of lines from your model:
+Feed complete JSONL patch lines into `createSpecStream`. Send when the root element exists and produces card content, then update that activity at most once every 1500 ms, and once more when the stream ends. `specLines` below is an async iterable of lines from your model:
 
 ```ts
 import { createSpecStream, type Spec } from "generative-frame/spec";
@@ -50,6 +50,7 @@ let lastUpdate = 0;
 
 async function publish(spec: Spec, final = false) {
   if (!spec.elements[spec.root]) return;
+  if (activityId && !final && Date.now() - lastUpdate < 1500) return;
   const { card } = toAdaptiveCard(specToUISpec(spec));
   if (card.body.length === 0 && card.actions.length === 0) return;
   const attachments = [{
@@ -65,8 +66,6 @@ async function publish(spec: Spec, final = false) {
     return;
   }
 
-  const now = Date.now();
-  if (!final && now - lastUpdate < 1500) return;
   await context.updateActivity({ id: activityId, type: "message", attachments });
   lastUpdate = Date.now();
 }
