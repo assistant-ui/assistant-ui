@@ -1035,6 +1035,72 @@ describe("SpecRenderer", () => {
       expect.objectContaining({ trigger: "/range" }),
     );
   });
+
+  it("does not dispatch a watch for streamed model state writes", () => {
+    const refresh = vi.fn();
+    const draw = (x: number) => (
+      <SpecRenderer
+        components={components}
+        handlers={{ refresh }}
+        spec={spec(
+          { main: { type: "Stack", watch: { "/x": { action: "refresh" } } } },
+          { x },
+        )}
+        streaming
+      />
+    );
+    const view = render(draw(0));
+    view.rerender(draw(1));
+    view.rerender(draw(2));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a watched set batched with a seed and compares later sets with the seeded value", () => {
+    const store = createStateStore({ x: 0 });
+    const refresh = vi.fn();
+    render(
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        })}
+        streaming
+      />,
+    );
+    act(() => store.seed({ x: 1 }));
+    expect(refresh).not.toHaveBeenCalled();
+
+    act(() => {
+      store.set("/x", 2);
+      store.seed({ x: 3 });
+    });
+    expect(store.get("/x")).toBe(2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    act(() => store.seed({ x: 4 }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    act(() => store.set("/x", 5));
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps watch dispatch for stores outside createStateStore", () => {
+    const store = { ...createStateStore({ x: 0 }) };
+    const refresh = vi.fn();
+    render(
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        })}
+      />,
+    );
+    act(() => store.seed({ x: 1 }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("useSpecStream", () => {

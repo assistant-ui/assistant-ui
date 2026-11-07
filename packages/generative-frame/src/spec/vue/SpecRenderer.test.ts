@@ -979,6 +979,69 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it("does not dispatch a watch for streamed model state writes", async () => {
+    const refresh = vi.fn();
+    const draw = (x: number): SpecRendererProps => ({
+      components,
+      handlers: { refresh },
+      spec: spec(
+        { main: { type: "Stack", watch: { "/x": { action: "refresh" } } } },
+        { x },
+      ),
+      streaming: true,
+    });
+    const view = mount(draw(0));
+    await view.update(draw(1));
+    await view.update(draw(2));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a watched set batched with a seed and compares later sets with the seeded value", async () => {
+    const store = createStateStore({ x: 0 });
+    const refresh = vi.fn();
+    mount({
+      components,
+      state: store,
+      handlers: { refresh },
+      spec: spec({
+        main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+      }),
+      streaming: true,
+    });
+    store.seed({ x: 1 });
+    await nextTick();
+    expect(refresh).not.toHaveBeenCalled();
+
+    store.set("/x", 2);
+    store.seed({ x: 3 });
+    await nextTick();
+    expect(store.get("/x")).toBe(2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    store.seed({ x: 4 });
+    await nextTick();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    store.set("/x", 5);
+    await nextTick();
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps watch dispatch for stores outside createStateStore", async () => {
+    const store = { ...createStateStore({ x: 0 }) };
+    const refresh = vi.fn();
+    mount({
+      components,
+      state: store,
+      handlers: { refresh },
+      spec: spec({
+        main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+      }),
+    });
+    store.seed({ x: 1 });
+    await nextTick();
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("provides element context to the host component", () => {
     let context: ReturnType<typeof useSpecElement> | undefined;
     const Probe: Component = defineComponent({
@@ -1349,7 +1412,7 @@ describe("SpecRenderer model state", () => {
       });
       expect(view.container.textContent).toBe(external ? "external" : "");
       expect(view.container.querySelector("input")!.checked).toBe(true);
-      expect(refresh).toHaveBeenCalledTimes(external ? 1 : 2);
+      expect(refresh).toHaveBeenCalledTimes(1);
     },
   );
 });

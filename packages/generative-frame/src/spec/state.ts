@@ -31,6 +31,14 @@ export type SpecStateStore = {
   subscribe(listener: StateListener): () => void;
 };
 
+const setCounts = new WeakMap<SpecStateStore, number>();
+
+export function getStateStoreSetCount(
+  store: SpecStateStore,
+): number | undefined {
+  return setCounts.get(store);
+}
+
 const normalize = (path: string) =>
   path === "" || path.startsWith("/") ? path : `/${path}`;
 
@@ -146,7 +154,7 @@ export function createStateStore(
     } catch {}
   }
 
-  return {
+  const store: SpecStateStore & { writes(): readonly SpecStateWrite[] } = {
     getState: () => state,
     get: (path) => getAtPointer(state, normalize(path)),
     set(rawPath, value, mode = "add") {
@@ -154,6 +162,7 @@ export function createStateStore(
       const result = apply(state, path, value, mode);
       record(entryFor(path, value, mode, result.arrayParents), result.inserted);
       state = result.next;
+      setCounts.set(store, setCounts.get(store)! + 1);
       emit();
     },
     writes: () => writes,
@@ -190,4 +199,6 @@ export function createStateStore(
       return () => listeners.delete(listener);
     },
   };
+  setCounts.set(store, 0);
+  return store;
 }

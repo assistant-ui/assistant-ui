@@ -32,7 +32,11 @@ import {
 } from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
-import { createStateStore, type SpecStateStore } from "../state";
+import {
+  createStateStore,
+  getStateStoreSetCount,
+  type SpecStateStore,
+} from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
@@ -349,14 +353,26 @@ function ResolvedElement({
     latest.current = { element, scope, ctx, bindings: shown?.bindings };
   });
 
-  const previousWatch = useRef<Map<string, unknown> | null>(null);
+  const previousWatch = useRef<{
+    values: Map<string, unknown>;
+    store: SpecStateStore;
+    setCount: number | undefined;
+  } | null>(null);
   useEffect(() => {
     const previous = previousWatch.current;
     const next = new Map<string, unknown>();
+    const store = ctx.store;
+    const setCount = getStateStoreSetCount(store);
     for (const path of Object.keys(element.watch ?? {})) {
       const value = getAtPointer(ctx.state, safePointer(path));
       next.set(path, value);
-      if (previous?.has(path) && !Object.is(previous.get(path), value)) {
+      if (
+        previous?.values.has(path) &&
+        !Object.is(previous.values.get(path), value) &&
+        (setCount === undefined ||
+          previous.store !== store ||
+          previous.setCount !== setCount)
+      ) {
         void ctx.dispatch(element.watch![path], {
           ...scope,
           elementId: id,
@@ -365,7 +381,7 @@ function ResolvedElement({
         });
       }
     }
-    previousWatch.current = next;
+    previousWatch.current = { values: next, store, setCount };
   });
 
   const api = useMemo(
