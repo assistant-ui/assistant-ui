@@ -61,6 +61,13 @@ const catalog = defineCatalog({
   },
   actions: { refresh: { description: "Reload" } },
 });
+const confirmationCatalog = defineCatalog({
+  components: catalog.components,
+  actions: {
+    refresh: { description: "Reload" },
+    deleteItem: { description: "Deletes an item", confirm: true },
+  },
+});
 const components: SpecComponents = {
   Stack: defineComponent({
     setup(_, { slots }) {
@@ -409,6 +416,160 @@ describe("SpecRenderer", () => {
       { from: 1 },
       expect.objectContaining({ elementId: "a" }),
     );
+  });
+
+  it("confirms protected actions, then stops a declined list without an error", async () => {
+    const calls: string[] = [];
+    const confirmAction = vi.fn(async () => {
+      calls.push("confirm");
+      return true;
+    });
+    const deleteItem = vi.fn(() => calls.push("delete"));
+    const onError = vi.fn();
+    const store = createStateStore();
+    const tree = spec({
+      main: {
+        type: "Button",
+        props: { label: "Delete" },
+        on: {
+          press: [
+            { action: "refresh" },
+            { action: "deleteItem", params: { id: { $event: "/at" } } },
+            { action: "setState", params: { path: "/done", value: true } },
+          ],
+        },
+      },
+    });
+    const props = {
+      spec: tree,
+      catalog: confirmationCatalog,
+      components,
+      state: store,
+      handlers: { refresh: () => calls.push("refresh"), deleteItem },
+      onError,
+    };
+    const view = mount({ ...props, confirmAction });
+    await click(view.container.querySelector("button")!);
+    await vi.waitFor(() => expect(store.get("/done")).toBe(true));
+    expect(calls).toEqual(["refresh", "confirm", "delete"]);
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 1 },
+      elementId: "main",
+    });
+    expect(store.get("/done")).toBe(true);
+
+    store.set("/done", false);
+    calls.length = 0;
+    await view.update({ ...props, confirmAction: () => false });
+    await click(view.container.querySelector("button")!);
+    expect(calls).toEqual(["refresh"]);
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(store.get("/done")).toBe(false);
+    expect(onError).not.toHaveBeenCalled();
+
+    await view.update(props);
+    await click(view.container.querySelector("button")!);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[0].message).toContain("confirm option");
+  });
+
+  it("runs the confirmed action when its binding changes while approval is pending", async () => {
+    let approve!: (approved: boolean) => void;
+    const approval = new Promise<boolean>((resolve) => {
+      approve = resolve;
+    });
+    const confirmAction = vi.fn(() => approval);
+    const deleteItem = vi.fn();
+    const refresh = vi.fn();
+    const binding = { action: "deleteItem", params: { id: 7 } };
+    const view = mount({
+      catalog: confirmationCatalog,
+      components,
+      handlers: { deleteItem, refresh },
+      confirmAction,
+      spec: spec({
+        main: {
+          type: "Button",
+          props: { label: "Delete" },
+          on: { press: binding },
+        },
+      }),
+    });
+    await click(view.container.querySelector("button")!);
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 7 },
+      elementId: "main",
+    });
+    expect(deleteItem).not.toHaveBeenCalled();
+    binding.action = "refresh";
+    approve(true);
+    await vi.waitFor(() =>
+      expect(deleteItem).toHaveBeenCalledExactlyOnceWith(
+        { id: 7 },
+        expect.objectContaining({ elementId: "main", kind: "event" }),
+      ),
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest host handler committed while approval is pending", async () => {
+    let approve!: (approved: boolean) => void;
+    const approval = new Promise<boolean>((resolve) => {
+      approve = resolve;
+    });
+    const confirmAction = vi.fn(() => approval);
+    const previous = vi.fn();
+    const current = vi.fn();
+    const props = {
+      catalog: confirmationCatalog,
+      components,
+      confirmAction,
+      spec: spec({
+        main: {
+          type: "Button",
+          props: { label: "Delete" },
+          on: { press: { action: "deleteItem" } },
+        },
+      }),
+    };
+    const view = mount({ ...props, handlers: { deleteItem: previous } });
+    await click(view.container.querySelector("button")!);
+    expect(confirmAction).toHaveBeenCalledOnce();
+    await view.update({ ...props, handlers: { deleteItem: current } });
+    approve(true);
+    await vi.waitFor(() =>
+      expect(current).toHaveBeenCalledExactlyOnceWith(
+        {},
+        expect.objectContaining({ elementId: "main", kind: "event" }),
+      ),
+    );
+    expect(previous).not.toHaveBeenCalled();
+  });
+
+  it("never confirms a protected watch action", async () => {
+    const confirmAction = vi.fn(() => true);
+    const deleteItem = vi.fn();
+    const onError = vi.fn();
+    const store = createStateStore({ value: 0 });
+    mount({
+      catalog: confirmationCatalog,
+      components,
+      state: store,
+      handlers: { deleteItem },
+      confirmAction,
+      onError,
+      spec: spec({
+        main: { type: "Stack", watch: { "/value": { action: "deleteItem" } } },
+      }),
+    });
+    store.set("/value", 1);
+    await nextTick();
+    expect(confirmAction).not.toHaveBeenCalled();
+    expect(deleteItem).not.toHaveBeenCalled();
+    expect(onError.mock.calls[0]?.[0].message).toContain("user event");
   });
 
   it("renders an element again once it changes after its component threw", async () => {
