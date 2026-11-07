@@ -49,6 +49,7 @@ import {
 export type SpecToolkitOptions = {
   /** Implementations for the catalog's components. */
   components: SpecComponents;
+  locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
   onAction?: (
@@ -271,6 +272,7 @@ export const specToolkitFor =
               state={store}
               catalog={catalog}
               components={options.components}
+              locale={options.locale ?? "en-US"}
               streaming={streaming}
               handlers={handlers}
               {...(options.onAction ? { onAction: options.onAction } : {})}

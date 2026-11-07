@@ -107,6 +107,33 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it("formats props and action params with the host locale", () => {
+    const input = spec(
+      {
+        main: { type: "Stack", children: ["amount", "save", "saved"] },
+        amount: { type: "Text", props: { text: { $calc: "number(1234.5)" } } },
+        save: {
+          type: "Button",
+          props: { label: "Save" },
+          on: {
+            press: {
+              action: "setState",
+              params: { path: "/saved", value: { $calc: "number(1234.5)" } },
+            },
+          },
+        },
+        saved: { type: "Text", props: { text: { $state: "/saved" } } },
+      },
+      { saved: "" },
+    );
+    const view = render(
+      <SpecRenderer components={components} spec={input} locale="de-DE" />,
+    );
+    expect(view.container.textContent).toBe("1.234,5Save");
+    fireEvent.click(view.getByText("Save"));
+    expect(view.container.textContent).toBe("1.234,5Save1.234,5");
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     (slot) => {

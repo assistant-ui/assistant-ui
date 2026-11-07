@@ -359,6 +359,28 @@ describe("formula functions", () => {
     expect(evaluateFormula("number(2, 0)", ctx)).toBe("2");
     expect(evaluateFormula("number(3, 2)", ctx)).toBe("3.00");
   });
+
+  it("formats currency, number, and percent with the host locale", () => {
+    const german = { ...ctx, locale: "de-DE" };
+    expect(evaluateFormula("currency(1234.5, 'EUR')", german)).toBe(
+      "1.234,50 €",
+    );
+    expect(evaluateFormula("number(1234.5)", german)).toBe("1.234,5");
+    expect(evaluateFormula("percent(0.15)", german)).toBe("15 %");
+    expect(evaluateFormula("number(1234.5)", ctx)).toBe("1,234.5");
+  });
+
+  it("uses en-US when the locale tag is invalid", () => {
+    expect(
+      evaluateFormula("number(1234.5)", { ...ctx, locale: "not_a_locale" }),
+    ).toBe("1,234.5");
+    expect(
+      evaluateFormula("currency(1234.5, 'USD')", {
+        ...ctx,
+        locale: "not_a_locale",
+      }),
+    ).toBe("$1,234.50");
+  });
 });
 
 describe("formula bounds and parsing", () => {

@@ -168,6 +168,37 @@ afterEach(() => {
 });
 
 describe("SpecRenderer", () => {
+  it("formats props and action params with the host locale", async () => {
+    const view = mount({
+      components,
+      locale: "de-DE",
+      spec: spec(
+        {
+          main: { type: "Stack", children: ["amount", "save", "saved"] },
+          amount: {
+            type: "Text",
+            props: { text: { $calc: "number(1234.5)" } },
+          },
+          save: {
+            type: "Button",
+            props: { label: "Save" },
+            on: {
+              press: {
+                action: "setState",
+                params: { path: "/saved", value: { $calc: "number(1234.5)" } },
+              },
+            },
+          },
+          saved: { type: "Text", props: { text: { $state: "/saved" } } },
+        },
+        { saved: "" },
+      ),
+    });
+    expect(view.container.textContent).toBe("1.234,5Save");
+    await click(view.container.querySelector("button")!);
+    expect(view.container.textContent).toBe("1.234,5Save1.234,5");
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     async (slot) => {

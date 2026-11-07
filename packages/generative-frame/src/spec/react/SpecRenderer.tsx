@@ -87,6 +87,7 @@ export type SpecRendererProps = {
   catalog?: Catalog;
   /** An external store; otherwise one is created and seeded from `spec.state`. */
   state?: SpecStateStore;
+  locale?: string;
   /** Handlers by action name. */
   handlers?: Record<string, ActionHandler>;
   /** Called for catalog actions without a handler. */
@@ -107,6 +108,7 @@ type RenderContext = {
   catalog: Catalog | undefined;
   store: SpecStateStore;
   state: Record<string, unknown>;
+  locale: string;
   dispatch: ActionDispatcher;
   streaming: boolean;
   placeholder: ComponentType<SpecPlaceholderProps>;
@@ -270,7 +272,13 @@ function ElementView({
       />
     );
   }
-  if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
+  if (
+    !evaluateCondition(element.visible, {
+      ...scope,
+      state: ctx.state,
+      locale: ctx.locale,
+    })
+  )
     return null;
 
   const Impl = Object.hasOwn(ctx.components, element.type)
@@ -336,6 +344,7 @@ function ResolvedElement({
   const resolved = resolveProps(element.props, {
     ...scope,
     state: ctx.state,
+    locale: ctx.locale,
   });
   const rejected = rejectedPropType(
     ctx.catalog?.propsSchema(element.type),
@@ -359,6 +368,7 @@ function ResolvedElement({
       if (previous?.has(path) && !Object.is(previous.get(path), value)) {
         void ctx.dispatch(element.watch![path], {
           ...scope,
+          locale: ctx.locale,
           elementId: id,
           trigger: path,
           kind: "watch",
@@ -380,6 +390,7 @@ function ResolvedElement({
         if (!bound) return;
         void currentCtx.dispatch(bound, {
           ...currentScope,
+          locale: currentCtx.locale,
           elementId: id,
           trigger: event,
           kind: "event",
@@ -461,6 +472,7 @@ export function SpecRenderer({
   components,
   catalog,
   state,
+  locale = "en-US",
   handlers,
   onAction,
   onError,
@@ -533,6 +545,7 @@ export function SpecRenderer({
     catalog,
     store,
     state: snapshot,
+    locale,
     dispatch,
     streaming,
     placeholder,

@@ -50,6 +50,7 @@ import {
 export type SpecToolkitOptions = {
   /** Vue components for the catalog's components. */
   components: SpecComponents;
+  locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
   onAction?: (
@@ -248,6 +249,7 @@ export function createSpecToolkit(
                     state: store,
                     catalog,
                     components: options.components,
+                    locale: options.locale ?? "en-US",
                     streaming: streaming.value,
                     handlers,
                     ...(options.onAction ? { onAction: options.onAction } : {}),

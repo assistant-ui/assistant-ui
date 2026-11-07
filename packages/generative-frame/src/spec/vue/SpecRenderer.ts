@@ -55,6 +55,7 @@ export type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (
     name: string,
@@ -121,6 +122,7 @@ type RenderContext = {
   readonly catalog: Catalog | undefined;
   readonly store: SpecStateStore;
   readonly state: Record<string, unknown>;
+  readonly locale: string;
   readonly dispatch: ActionDispatcher;
   readonly streaming: boolean;
   readonly placeholder: Component;
@@ -261,7 +263,13 @@ const ElementView = defineComponent({
         return ctx.streaming
           ? null
           : placeholder("missing", `Missing element "${id}"`);
-      if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
+      if (
+        !evaluateCondition(element.visible, {
+          ...scope,
+          state: ctx.state,
+          locale: ctx.locale,
+        })
+      )
         return null;
       const impl = Object.hasOwn(ctx.components, element.type)
         ? ctx.components[element.type]
@@ -310,7 +318,11 @@ const ResolvedElement = defineComponent({
   setup(props) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const resolved = () =>
-      resolveProps(props.element.props, { ...props.scope, state: ctx.state });
+      resolveProps(props.element.props, {
+        ...props.scope,
+        state: ctx.state,
+        locale: ctx.locale,
+      });
     let settled: ReturnType<typeof resolved> | undefined;
     provide<SpecElementContext>(elementContextKey, {
       get id() {
@@ -347,6 +359,7 @@ const ResolvedElement = defineComponent({
           if (prior.has(path) && !Object.is(prior.get(path), value))
             void ctx.dispatch(props.element.watch?.[path], {
               ...props.scope,
+              locale: ctx.locale,
               elementId: props.id,
               trigger: path,
               kind: "watch",
@@ -387,6 +400,7 @@ const ResolvedElement = defineComponent({
           previous?.(payload);
           void ctx.dispatch(props.element.on?.[event], {
             ...props.scope,
+            locale: ctx.locale,
             elementId: props.id,
             trigger: event,
             kind: "event",
@@ -446,6 +460,7 @@ export const SpecRenderer = defineComponent({
     components: { type: Object as PropType<SpecComponents>, required: true },
     catalog: Object as PropType<Catalog>,
     state: Object as PropType<SpecStateStore>,
+    locale: String,
     handlers: Object as PropType<Record<string, ActionHandler>>,
     onAction: Function as PropType<SpecRendererProps["onAction"]>,
     onError: Function as PropType<SpecRendererProps["onError"]>,
@@ -520,6 +535,9 @@ export const SpecRenderer = defineComponent({
       },
       get state() {
         return snapshot.value;
+      },
+      get locale() {
+        return props.locale ?? "en-US";
       },
       get dispatch() {
         const store = props.state ?? ownStore;
