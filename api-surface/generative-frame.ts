@@ -765,6 +765,7 @@ type ReservedScopeNames = "on" | "optional" | "subscribe";
 
 type ResolveSpecOptions = {
   state?: unknown;
+  locale?: string;
 };
 
 type ResolvedAction = {
@@ -994,6 +995,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
+  locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
@@ -1046,6 +1048,7 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
+  locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
@@ -1095,6 +1098,7 @@ type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
@@ -1111,6 +1115,7 @@ type SpecRendererProps$1 = {
   components: SpecComponents$1;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
@@ -1167,6 +1172,7 @@ type SpecStreamUpdate = {
 
 type SpecToolkitOptions = {
   components: SpecComponents;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
@@ -1180,6 +1186,7 @@ type SpecToolkitOptions = {
 
 type SpecToolkitOptions$1 = {
   components: SpecComponents$1;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
