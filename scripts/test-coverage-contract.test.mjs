@@ -337,10 +337,7 @@ test("pull requests restore the Turbo cache that only main pushes save", () => {
   assert(restore && save);
   assert.match(restore, /if: github\.event_name == 'pull_request'\n/);
   assert.match(restore, /uses: actions\/cache\/restore@/);
-  assert.match(
-    save,
-    /if: \(github\.event_name == 'push' \|\| github\.event_name == 'pull_request'\) && !cancelled\(\)\n/,
-  );
+  assert.match(save, /if: github\.event_name == 'push' && !cancelled\(\)\n/);
   assert.match(save, /uses: actions\/cache\/save@/);
   const key = (text) => text.match(/^ {10}key: (.+)$/m)?.[1];
   assert.equal(key(restore), key(save));
