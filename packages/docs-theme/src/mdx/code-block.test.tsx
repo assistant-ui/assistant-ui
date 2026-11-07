@@ -3,7 +3,8 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { CodeGroup, Pre } from "./code-block";
+import { Pre } from "./code-block";
+import { CodeGroup } from "./code-group";
 
 let cleanup: (() => void) | undefined;
 afterEach(() => cleanup?.());

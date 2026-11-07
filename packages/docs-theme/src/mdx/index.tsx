@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Callout } from "./callout";
-import { CodeGroup, Pre } from "./code-block";
+import { Pre } from "./code-block";
+import { CodeGroup } from "./code-group";
 import {
   Card,
   Cards,
@@ -11,11 +12,13 @@ import {
   Table,
   ThemeImage,
 } from "./content";
-import { File, Files, Folder, Heading } from "./interactive";
+import { Heading } from "./heading";
+import { File, Files, Folder } from "./interactive";
 import { Tab, Tabs } from "./tabs";
 
 export { Callout, type CalloutProps, type CalloutType } from "./callout";
-export { CodeBlock, CodeGroup, Pre, type CodeBlockProps } from "./code-block";
+export { CodeBlock, Pre, type CodeBlockProps } from "./code-block";
+export { CodeGroup } from "./code-group";
 export {
   Card,
   Cards,
@@ -27,7 +30,8 @@ export {
   ThemeImage,
   type CardProps,
 } from "./content";
-export { File, Files, Folder, Heading } from "./interactive";
+export { Heading } from "./heading";
+export { File, Files, Folder } from "./interactive";
 export { Tab, Tabs, type TabProps, type TabsProps } from "./tabs";
 
 /** The MDX components that give docs content the assistant-ui look. */
