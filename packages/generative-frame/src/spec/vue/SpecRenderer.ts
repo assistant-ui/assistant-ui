@@ -18,6 +18,7 @@ import {
 import {
   createActionDispatcher,
   type ActionDispatcher,
+  type ActionDispatcherOptions,
   type ActionHandler,
   type ActionSource,
 } from "../actions";
@@ -61,11 +62,8 @@ export type SpecRendererProps = {
     params: Record<string, unknown>,
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
-  confirmAction?: (request: {
-    action: string;
-    params: Record<string, unknown>;
-    elementId?: string;
-  }) => boolean | Promise<boolean>;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: { elementId?: string }) => void;
   streaming?: boolean;
   placeholder?: Component;

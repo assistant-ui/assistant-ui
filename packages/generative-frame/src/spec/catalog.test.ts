@@ -83,19 +83,27 @@ const validSpec = (): Spec => ({
 });
 
 describe("defineCatalog", () => {
-  it("preserves host confirmation metadata without putting it in the spec", () => {
-    const protectedCatalog = defineCatalog({
-      components: {},
-      actions: {
-        deleteItem: { description: "Deletes an item.", confirm: true },
-      },
-    });
-    expect(protectedCatalog.action("deleteItem")?.confirm).toBe(true);
-    expect(protectedCatalog.prompt()).toContain(
-      "- `deleteItem` — Deletes an item. Asks the user to confirm first.",
-    );
-    expect(catalog.prompt()).not.toContain("Asks the user to confirm first.");
-  });
+  it.each([
+    ["Deletes an item", "Deletes an item."],
+    ["Deletes an item.", "Deletes an item."],
+    ["Deletes an item!", "Deletes an item!"],
+    ["Deletes an item?", "Deletes an item?"],
+  ])(
+    "describes host confirmation for %s without putting it in the spec",
+    (description, sentence) => {
+      const protectedCatalog = defineCatalog({
+        components: {},
+        actions: {
+          deleteItem: { description, confirm: true },
+        },
+      });
+      expect(protectedCatalog.action("deleteItem")?.confirm).toBe(true);
+      expect(protectedCatalog.prompt()).toContain(
+        `- \`deleteItem\` — ${sentence} Requires host confirmation before running. Bind it to a user event; \`watch\` cannot dispatch it.`,
+      );
+      expect(catalog.prompt()).not.toContain("Requires host confirmation");
+    },
+  );
 
   it("validates props and treats expressions as placeholders", () => {
     expect(
@@ -715,6 +723,57 @@ describe("state store and actions", () => {
     });
     expect(handler).toHaveBeenCalledOnce();
   });
+
+  it.each(["handlers", "onAction"])(
+    "dispatches the confirmed name through %s when its binding changes",
+    async (destination) => {
+      const protectedCatalog = defineCatalog({
+        components: {},
+        actions: {
+          deleteItem: { description: "Deletes an item.", confirm: true },
+          deleteAll: { description: "Deletes all items.", confirm: true },
+        },
+      });
+      let approve!: (approved: boolean) => void;
+      const approval = new Promise<boolean>((resolve) => {
+        approve = resolve;
+      });
+      const confirm = vi.fn(() => approval);
+      const deleteItem = vi.fn();
+      const deleteAll = vi.fn();
+      const onAction = vi.fn();
+      const dispatch = createActionDispatcher({
+        store: createStateStore(),
+        catalog: protectedCatalog,
+        confirm,
+        ...(destination === "handlers"
+          ? { handlers: { deleteItem, deleteAll } }
+          : { onAction }),
+      });
+      const binding = { action: "deleteItem", params: { id: 7 } };
+      const pending = dispatch(binding, { kind: "event" });
+      expect(confirm).toHaveBeenCalledExactlyOnceWith({
+        action: "deleteItem",
+        params: { id: 7 },
+      });
+      binding.action = "deleteAll";
+      approve(true);
+      await pending;
+      if (destination === "handlers") {
+        expect(deleteItem).toHaveBeenCalledExactlyOnceWith(
+          { id: 7 },
+          expect.objectContaining({ kind: "event" }),
+        );
+        expect(deleteAll).not.toHaveBeenCalled();
+      } else {
+        expect(onAction).toHaveBeenCalledExactlyOnceWith(
+          "deleteItem",
+          { id: 7 },
+          expect.objectContaining({ kind: "event" }),
+        );
+      }
+    },
+  );
 
   it("stops after a declined confirmation without reporting an error", async () => {
     const protectedCatalog = defineCatalog({

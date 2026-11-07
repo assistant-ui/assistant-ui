@@ -269,6 +269,7 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
     { name: "components", type: "SpecComponents", required: true, description: "Implementations for the catalog's components." },
     { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
+    { name: "confirmAction", type: "(request: { action, params, elementId? }) => boolean | Promise<boolean>", description: "Called before an action whose catalog definition has `confirm: true` runs. Return `true` to run it or `false` to stop the action list." },
     { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for elements that cannot render." },
     { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`); `customRules` also go into `render_spec`'s description." },
     { name: "toolResults", type: "boolean", description: "Mounts earlier tool results under `/tools` in backend execution too, as frontend execution always does. Pair it with `SPEC_TOOL_RESULTS_RULE` in the server's `render_spec` and spec guidance, which tells the model the results are there." },

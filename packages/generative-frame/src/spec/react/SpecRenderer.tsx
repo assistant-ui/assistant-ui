@@ -16,6 +16,7 @@ import {
 import {
   createActionDispatcher,
   type ActionDispatcher,
+  type ActionDispatcherOptions,
   type ActionHandler,
   type ActionSource,
 } from "../actions";
@@ -95,11 +96,8 @@ export type SpecRendererProps = {
     params: Record<string, unknown>,
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
-  confirmAction?: (request: {
-    action: string;
-    params: Record<string, unknown>;
-    elementId?: string;
-  }) => boolean | Promise<boolean>;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: { elementId?: string }) => void;
   /** The spec is still streaming: missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec. */
   streaming?: boolean;
@@ -489,7 +487,9 @@ export function SpecRenderer({
   );
 
   const callbacks = useRef({ handlers, onAction, onError });
-  callbacks.current = { handlers, onAction, onError };
+  useInsertionEffect(() => {
+    callbacks.current = { handlers, onAction, onError };
+  });
 
   const dispatch = useMemo(
     () =>

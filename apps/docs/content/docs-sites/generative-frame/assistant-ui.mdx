@@ -66,7 +66,7 @@ const widgets = createWidgetToolkit({
 });
 ```
 
-This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `placeholder`, and `specPrompt`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
+This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `confirmAction`, `placeholder`, `specPrompt`, and `toolResults`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
 
 Each `render_spec` call renders inside a `div` whose `data-gf-spec` holds the call's title and which carries `data-gf-streaming` while the arguments stream, so your styles can ease elements in as they arrive without animating a thread that loads already complete.
 

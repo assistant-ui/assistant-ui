@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { startTransition, Suspense, useState } from "react";
 import {
   act,
   cleanup,
@@ -460,7 +460,7 @@ describe("SpecRenderer", () => {
     });
     expect(store.get("/done")).toBe(true);
 
-    store.set("/done", false);
+    act(() => store.set("/done", false));
     calls.length = 0;
     view.rerender(<SpecRenderer {...props} confirmAction={() => false} />);
     await act(async () => fireEvent.click(view.getByText("Delete")));
@@ -474,6 +474,111 @@ describe("SpecRenderer", () => {
     expect(deleteItem).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0]?.[0].message).toContain("confirm option");
   });
+
+  it("runs the confirmed action when its binding changes while approval is pending", async () => {
+    let approve!: (approved: boolean) => void;
+    const approval = new Promise<boolean>((resolve) => {
+      approve = resolve;
+    });
+    const confirmAction = vi.fn(() => approval);
+    const deleteItem = vi.fn();
+    const refresh = vi.fn();
+    const binding = { action: "deleteItem", params: { id: 7 } };
+    const view = render(
+      <SpecRenderer
+        catalog={confirmationCatalog}
+        components={components}
+        handlers={{ deleteItem, refresh }}
+        confirmAction={confirmAction}
+        spec={spec({
+          main: {
+            type: "Button",
+            props: { label: "Delete" },
+            on: { press: binding },
+          },
+        })}
+      />,
+    );
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 7 },
+      elementId: "main",
+    });
+    expect(deleteItem).not.toHaveBeenCalled();
+    binding.action = "refresh";
+    await act(async () => approve(true));
+    expect(deleteItem).toHaveBeenCalledExactlyOnceWith(
+      { id: 7 },
+      expect.objectContaining({ elementId: "main", kind: "event" }),
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "uses committed handlers when replacement suspension is %s",
+    async (blocked) => {
+      let approve!: (approved: boolean) => void;
+      const approval = new Promise<boolean>((resolve) => {
+        approve = resolve;
+      });
+      const confirmAction = vi.fn(() => approval);
+      const committed = vi.fn();
+      const replacement = vi.fn();
+      const didSuspend = vi.fn();
+      const suspension = new Promise<void>(() => {});
+      function Suspender({ blocked }: { blocked: boolean }) {
+        if (blocked) {
+          didSuspend();
+          throw suspension;
+        }
+        return null;
+      }
+      const tree = spec({
+        main: {
+          type: "Button",
+          props: { label: "Delete" },
+          on: { press: { action: "deleteItem" } },
+        },
+      });
+      const content = (handler: typeof committed, blocked = false) => (
+        <Suspense fallback={<p>Loading</p>}>
+          <SpecRenderer
+            spec={tree}
+            catalog={confirmationCatalog}
+            components={components}
+            handlers={{ deleteItem: handler }}
+            confirmAction={confirmAction}
+          />
+          <Suspender blocked={blocked} />
+        </Suspense>
+      );
+      const view = render(content(committed));
+      await act(async () => fireEvent.click(view.getByText("Delete")));
+      expect(confirmAction).toHaveBeenCalledOnce();
+      await act(async () => {
+        startTransition(() => view.rerender(content(replacement, blocked)));
+      });
+      if (blocked) expect(didSuspend).toHaveBeenCalled();
+      else expect(didSuspend).not.toHaveBeenCalled();
+      expect(view.queryByText("Loading")).toBeNull();
+      await act(async () => approve(true));
+      if (blocked) {
+        expect(committed).toHaveBeenCalledExactlyOnceWith(
+          {},
+          expect.objectContaining({ elementId: "main", kind: "event" }),
+        );
+        expect(replacement).not.toHaveBeenCalled();
+      } else {
+        expect(replacement).toHaveBeenCalledExactlyOnceWith(
+          {},
+          expect.objectContaining({ elementId: "main", kind: "event" }),
+        );
+        expect(committed).not.toHaveBeenCalled();
+      }
+      view.rerender(content(committed));
+    },
+  );
 
   it("never confirms a protected watch action", async () => {
     const confirmAction = vi.fn(() => true);

@@ -2,4 +2,4 @@
 "generative-frame": patch
 ---
 
-Require host confirmation before dispatching catalog actions marked for confirmation.
+add `confirm: true` on catalog actions and the `confirmAction` callback on `SpecRenderer` and `createSpecToolkit` for host confirmation before dispatch. reject protected actions dispatched by `watch`.
