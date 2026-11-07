@@ -168,6 +168,61 @@ afterEach(() => {
 });
 
 describe("SpecRenderer", () => {
+  it.each([
+    { children: [], copies: 5000 },
+    { children: ["missing"], copies: 100 },
+    { children: ["main"], copies: 100 },
+    { children: ["missing", "main"], copies: 100 },
+    { children: ["invalid"], copies: 100 },
+  ])(
+    "bounds repeat expansion for $children children",
+    async ({ children, copies }) => {
+      const repeated = spec(
+        {
+          main: {
+            type: "Stack",
+            repeat: { path: "/items" },
+            children: Array.from({ length: 50 }, () => children).flat(),
+          },
+          invalid: { props: {} } as never,
+        },
+        { items: Array(copies).fill(null) },
+      );
+      const view = mount({ components, spec: repeated });
+      expect(view.container.querySelectorAll("section")).toHaveLength(0);
+      expect(
+        view.container.querySelectorAll(
+          '[data-gf-spec-placeholder="too-large"]',
+        ),
+      ).toHaveLength(1);
+
+      await view.update({ components, spec: repeated, streaming: true });
+      expect(view.container.querySelectorAll("section")).toHaveLength(0);
+      expect(
+        view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]'),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("ignores default entries in named slots when applying the budget", () => {
+    const view = mount({
+      components,
+      spec: spec({
+        main: {
+          type: "Stack",
+          children: ["leaf"],
+          slots: { default: Array(5000).fill("leaf"), footer: ["leaf"] },
+        },
+        leaf: { type: "Text", props: { text: "Safe" } },
+      }),
+    });
+    expect(view.container.querySelectorAll("p")).toHaveLength(2);
+    expect(view.container.querySelector("footer")?.textContent).toBe("Safe");
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="too-large"]'),
+    ).toBeNull();
+  });
+
   it("keeps the last fitting tree while streaming and replaces oversized nested repeats with one placeholder", async () => {
     const nested = spec({
       main: { type: "Stack", repeat: { path: "/items" }, children: ["middle"] },

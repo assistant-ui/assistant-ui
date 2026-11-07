@@ -62,6 +62,51 @@ const spec: Spec = {
 };
 
 describe("resolveSpec", () => {
+  it.each([
+    { children: [], copies: 5000 },
+    { children: ["missing"], copies: 100 },
+    { children: ["root"], copies: 100 },
+    { children: ["missing", "root"], copies: 100 },
+    { children: ["invalid"], copies: 100 },
+  ])(
+    "bounds repeat expansion for $children children",
+    ({ children, copies }) => {
+      expect(
+        resolveSpec({
+          root: "root",
+          state: { items: Array(copies).fill(null) },
+          elements: {
+            root: {
+              type: "Box",
+              repeat: { path: "/items" },
+              children: Array.from({ length: 50 }, () => children).flat(),
+            },
+            invalid: { props: {} } as never,
+          },
+        }),
+      ).toBeNull();
+    },
+  );
+
+  it("ignores default entries in named slots when applying the budget", () => {
+    const resolved = resolveSpec({
+      root: "root",
+      elements: {
+        root: {
+          type: "Box",
+          children: ["leaf"],
+          slots: { default: Array(5000).fill("leaf"), footer: ["leaf"] },
+        },
+        leaf: { type: "Text" },
+      },
+    });
+    expect(resolved?.children.map((child) => child.id)).toEqual(["leaf"]);
+    expect(resolved?.slots["footer"]?.map((child) => child.id)).toEqual([
+      "leaf",
+    ]);
+    expect(resolved?.slots["default"]).toBeUndefined();
+  });
+
   it("returns no tree for nested repeats that would render millions of elements", () => {
     const nested: Spec = {
       root: "outer",

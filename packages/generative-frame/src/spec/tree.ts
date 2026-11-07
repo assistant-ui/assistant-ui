@@ -20,47 +20,38 @@ export function exceedsRenderBudget(spec: Spec, state: unknown): boolean {
   if (!spec?.elements || typeof spec.elements !== "object") return false;
   const ancestors = new Set<string>();
   const count = (id: unknown, depth: number): number => {
-    if (
-      typeof id !== "string" ||
-      ancestors.has(id) ||
-      !Object.hasOwn(spec.elements, id)
-    )
-      return 0;
+    if (typeof id !== "string") return 0;
+    if (depth > 64) return 5001;
+    if (ancestors.has(id) || !Object.hasOwn(spec.elements, id)) return 1;
     const element = spec.elements[id];
     if (
       !element ||
       typeof element !== "object" ||
       typeof element.type !== "string"
     )
-      return 0;
-    if (depth > 64) return 5001;
+      return 1;
     ancestors.add(id);
     let total = 1;
     const children = childIdsOf(element, "default");
     if (Array.isArray(children)) {
       const repeat = element.repeat;
-      const items =
-        repeat && typeof repeat.path === "string"
-          ? getAtPointer(state, safePointer(repeat.path))
-          : undefined;
-      const copies =
-        repeat && typeof repeat.path === "string"
-          ? Array.isArray(items)
-            ? items.length
-            : 0
-          : 1;
+      const repeating = repeat && typeof repeat.path === "string";
+      const items = repeating
+        ? getAtPointer(state, safePointer(repeat.path))
+        : undefined;
+      const copies = repeating ? (Array.isArray(items) ? items.length : 0) : 1;
       if (copies) {
         let perItem = 0;
         for (const child of children) {
           perItem += count(child, depth + 1);
           if (perItem > 5000) break;
         }
-        total += perItem * copies;
+        total += Math.max(repeating ? 1 : 0, perItem) * copies;
       }
     }
     if (total <= 5000) {
-      for (const ids of Object.values(element.slots ?? {})) {
-        if (!Array.isArray(ids)) continue;
+      for (const [slot, ids] of Object.entries(element.slots ?? {})) {
+        if (slot === "default" || !Array.isArray(ids)) continue;
         for (const child of ids) {
           total += count(child, depth + 1);
           if (total > 5000) break;

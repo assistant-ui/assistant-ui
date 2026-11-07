@@ -83,6 +83,25 @@ const validSpec = (): Spec => ({
 });
 
 describe("defineCatalog", () => {
+  it("returns repair issues for a deep graph without overflowing the stack", () => {
+    const elements: Spec["elements"] = {};
+    for (let i = 0; i < 12000; i++) {
+      elements[`n${i}`] = {
+        type: "Stack",
+        children: [i === 11999 ? "n11999" : `n${i + 1}`],
+      };
+    }
+    const result = validateSpec({ root: "n0", elements }, catalog);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "too-large",
+      "cycle",
+    ]);
+    expect(result.issues[1]?.message).toBe(
+      "Children form a cycle: n11999 → n11999.",
+    );
+  });
+
   it("reports oversized rendered repeats for model repair", () => {
     const spec: Spec = {
       root: "main",

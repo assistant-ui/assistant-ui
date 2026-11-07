@@ -421,7 +421,8 @@ function ResolvedElement({
 
   const slots: Record<string, ReactNode> = {};
   for (const [slot, ids] of Object.entries(element.slots ?? {})) {
-    if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
+    if (slot !== "default" && Array.isArray(ids))
+      slots[slot] = renderChildren(ids, scope, ancestors);
   }
 
   if (rejected && !ctx.streaming) {
