@@ -122,9 +122,7 @@ export function useField(
   }, [scope, name, kind]);
   const value = read();
   const valid = failed === undefined || (validate?.(value) ?? true);
-  React.useEffect(() => {
-    if (failed !== undefined && valid) setFailed(undefined);
-  }, [failed, valid]);
+  if (failed !== undefined && valid) setFailed(undefined);
   return {
     scope,
     invalid:
