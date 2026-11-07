@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AccessibilityInfo } from "react-native";
 
 /** How a control contributes to a submitted form, mirroring the web's `collectFormValues`. */
 export type FieldKind = "value" | "radio" | "checkboxes";
@@ -74,7 +75,12 @@ export function useFieldScopeOwner(
         for (const field of fields) {
           if (field.validate && !field.validate(field.read())) valid = false;
         }
-        if (!valid) return;
+        if (!valid) {
+          AccessibilityInfo.announceForAccessibility(
+            "Fix the highlighted fields to continue",
+          );
+          return;
+        }
         handler.current(collect(fields));
       },
     };
@@ -88,8 +94,9 @@ export function useField(
   kind: FieldKind,
   read: () => unknown,
   validate?: (value: unknown) => boolean,
-): FieldScope | undefined {
+): { scope: FieldScope | undefined; invalid: boolean } {
   const scope = React.useContext(FieldScopeContext);
+  const [failed, setFailed] = React.useState<string | undefined>();
   const reader = React.useRef(read);
   React.useInsertionEffect(() => {
     reader.current = read;
@@ -105,8 +112,15 @@ export function useField(
       name: typeof name === "string" ? name : "",
       kind,
       read: () => reader.current(),
-      validate: (value) => validator.current?.(value) ?? true,
+      validate: (value) => {
+        const valid = validator.current?.(value) ?? true;
+        setFailed(valid ? undefined : JSON.stringify(value));
+        return valid;
+      },
     });
   }, [scope, name, kind, validate !== undefined]);
-  return scope;
+  return {
+    scope,
+    invalid: failed !== undefined && failed === JSON.stringify(read()),
+  };
 }

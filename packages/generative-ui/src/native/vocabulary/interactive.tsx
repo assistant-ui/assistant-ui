@@ -243,7 +243,7 @@ function InputField({
     (inputType === "number"
       ? min !== undefined || max !== undefined
       : minLength !== undefined || maxLength !== undefined);
-  const scope = useField(
+  const { scope, invalid } = useField(
     name,
     "value",
     read,
@@ -283,6 +283,7 @@ function InputField({
       secureTextEntry={inputType === "password"}
       {...(inputType === "number" ? { keyboardType: "numeric" as const } : {})}
       multiline={isMultiline}
+      aria-invalid={invalid || undefined}
       onChangeText={(text) => {
         typed.current = text;
         updateBinding?.(text);
@@ -296,7 +297,7 @@ function InputField({
       style={[
         styles.field,
         isMultiline && styles.multiline,
-        { borderColor: theme.input, color: ink },
+        { borderColor: invalid ? theme.destructive : theme.input, color: ink },
       ]}
     />
   );
@@ -508,6 +509,7 @@ function ChoiceRows({
   onSelect,
   radio,
   showLabel = true,
+  invalid = false,
   children,
 }: {
   options: Option[];
@@ -516,6 +518,7 @@ function ChoiceRows({
   onSelect: (value: string) => void;
   radio: boolean;
   showLabel?: boolean;
+  invalid?: boolean;
   children?: React.ReactNode;
 }) {
   const theme = useNativeTheme();
@@ -534,7 +537,11 @@ function ChoiceRows({
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
-        style={[styles.choiceGroup, { borderColor: theme.input }]}
+        aria-invalid={invalid || undefined}
+        style={[
+          styles.choiceGroup,
+          { borderColor: invalid ? theme.destructive : theme.input },
+        ]}
       >
         {entries.map(({ option, key }, index) => {
           const checked = selected === option.value;
@@ -627,7 +634,7 @@ function SelectField({
     : placeholderText && selected === ""
       ? ""
       : (entries[0]?.value ?? "");
-  useField(
+  const { invalid } = useField(
     name,
     "value",
     () => effective,
@@ -649,6 +656,7 @@ function SelectField({
         options={options}
         label={label}
         showLabel={false}
+        invalid={invalid}
         selected={effective}
         radio={false}
         onSelect={(next) => {
@@ -689,11 +697,13 @@ function CheckboxRow({
   label,
   description,
   checked,
+  invalid = false,
   onPress,
 }: {
   label: string;
   description?: string | undefined;
   checked: boolean;
+  invalid?: boolean;
   onPress: () => void;
 }) {
   const theme = useNativeTheme();
@@ -704,13 +714,14 @@ function CheckboxRow({
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       aria-checked={checked}
+      aria-invalid={invalid || undefined}
       onPress={onPress}
       style={styles.checkboxRow}
     >
       <View
         style={[
           styles.checkboxBox,
-          { borderColor: theme.input },
+          { borderColor: invalid ? theme.destructive : theme.input },
           checked && { backgroundColor: theme.primary },
         ]}
       >
@@ -737,10 +748,12 @@ function CheckboxRow({
 function SwitchRow({
   label,
   checked,
+  invalid = false,
   onPress,
 }: {
   label: string;
   checked: boolean;
+  invalid?: boolean;
   onPress: () => void;
 }) {
   const theme = useNativeTheme();
@@ -751,6 +764,7 @@ function SwitchRow({
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       aria-checked={checked}
+      aria-invalid={invalid || undefined}
       onPress={onPress}
       style={styles.checkboxRow}
     >
@@ -783,7 +797,7 @@ function CheckboxField({
       ? answeredValue
       : checked === true
     : choice;
-  useField(
+  const { invalid } = useField(
     name,
     "value",
     () => selected,
@@ -794,6 +808,7 @@ function CheckboxField({
     <Row
       label={toTextContent(label) ?? ""}
       checked={selected}
+      invalid={invalid}
       onPress={() => {
         const next = !selected;
         setChoice(next);
@@ -1002,7 +1017,7 @@ function RadioGroupField({
   const entries = mapOptions(options, (option) => option).filter(
     (option) => option !== null,
   );
-  useField(
+  const { invalid } = useField(
     name,
     "radio",
     () =>
@@ -1016,6 +1031,7 @@ function RadioGroupField({
       options={options}
       label={label}
       selected={selected}
+      invalid={invalid}
       radio
       onSelect={(next) => {
         setChoice(next);
@@ -1088,14 +1104,19 @@ function CheckboxGroupField({
   const values = entries
     .filter(({ key }) => selected.includes(key))
     .map(({ option }) => option.value);
-  useField(
+  const { invalid } = useField(
     name,
     "checkboxes",
     () => values,
     required ? (value) => Array.isArray(value) && value.length > 0 : undefined,
   );
   return (
-    <View role="group" accessibilityLabel={label} style={styles.choiceField}>
+    <View
+      role="group"
+      accessibilityLabel={label}
+      aria-invalid={invalid || undefined}
+      style={styles.choiceField}
+    >
       {label !== undefined ? (
         <Text style={[styles.choiceLabel, { color: fade(ink, 0.62) }]}>
           {label}
@@ -1132,6 +1153,7 @@ function CheckboxGroupField({
           label={option.label}
           description={option.description}
           checked={selected.includes(key)}
+          invalid={invalid}
           onPress={() => {
             const nextKeys = selected.includes(key)
               ? selected.filter((item) => item !== key)

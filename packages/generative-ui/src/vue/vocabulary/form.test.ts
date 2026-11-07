@@ -45,9 +45,7 @@ describe("form vocabulary in Vue", () => {
       8,
     ]);
     expect([amount.min, amount.max]).toEqual(["1", "5"]);
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    form.requestSubmit();
     await nextTick();
     expect(handler).not.toHaveBeenCalled();
   });
@@ -66,9 +64,7 @@ describe("form vocabulary in Vue", () => {
     );
     const form = rendered.container.querySelector("form")!;
     expect(form.querySelector("input")?.required).toBe(true);
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    form.requestSubmit();
     await nextTick();
     expect(handler).not.toHaveBeenCalled();
   });

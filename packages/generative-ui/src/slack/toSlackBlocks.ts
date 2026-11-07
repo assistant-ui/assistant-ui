@@ -1850,7 +1850,6 @@ const convertElement = (
           type: "input",
           ...(blockId !== undefined ? { block_id: blockId } : {}),
           label: plainText(label),
-          ...(props["required"] === true ? { optional: false } : {}),
           ...(dispatchAction ? { dispatch_action: true } : {}),
           element: {
             type: "plain_text_input",

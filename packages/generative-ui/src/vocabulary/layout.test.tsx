@@ -299,27 +299,6 @@ describe("layoutVocabulary Card asForm/confirm/cancel", () => {
 });
 
 describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
-  it("Card asForm does not dispatch when browser validation fails", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ save: handler });
-    const out = layoutVocabulary.Card.render({
-      asForm: true,
-      $action: { type: "save" },
-      $status: "done",
-      $dispatch: registry.dispatch,
-    }) as ReactElement;
-    const onSubmit = (out.props as { onSubmit: (e: unknown) => void }).onSubmit;
-    const reportValidity = vi.fn(() => false);
-    onSubmit({
-      preventDefault: vi.fn(),
-      currentTarget: {
-        reportValidity,
-        elements: [el({ name: "name", value: "" })],
-      },
-    });
-    expect(reportValidity).toHaveBeenCalledOnce();
-    expect(handler).not.toHaveBeenCalled();
-  });
   it("Card asForm submit collects named values and dispatches confirm.$action with $input", () => {
     const handler = vi.fn();
     const cardHandler = vi.fn();
@@ -338,7 +317,6 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     const event = {
       preventDefault: vi.fn(),
       currentTarget: {
-        reportValidity: () => true,
         elements: [el({ name: "email", type: "email", value: "a@x.com" })],
       },
     };
@@ -370,7 +348,6 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
       onSubmit({
         preventDefault: vi.fn(),
         currentTarget: {
-          reportValidity: () => true,
           elements: [el({ name: "email", type: "email", value: "a@x.com" })],
         },
       });
@@ -466,7 +443,6 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     onSubmit({
       preventDefault: vi.fn(),
       currentTarget: {
-        reportValidity: () => true,
         elements: [el({ name: "email", type: "email", value: "a@x.com" })],
       },
     });

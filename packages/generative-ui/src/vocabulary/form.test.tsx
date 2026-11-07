@@ -22,26 +22,10 @@ const el = (
 
 const fakeSubmitEvent = (elements: FormControlElementLike[]) => ({
   preventDefault: vi.fn(),
-  currentTarget: { elements, reportValidity: () => true },
+  currentTarget: { elements },
 });
 
 describe("formVocabulary", () => {
-  it("does not dispatch an invalid form", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ save: handler });
-    const out = formVocabulary.Form.render({
-      $status: "done",
-      $action: { type: "save" },
-      $dispatch: registry.dispatch,
-    }) as ReactElement;
-    const event = fakeSubmitEvent([el({ name: "name", value: "" })]);
-    const reportValidity = vi.fn(() => false);
-    event.currentTarget.reportValidity = reportValidity;
-    (out.props as { onSubmit: (e: unknown) => void }).onSubmit(event);
-    expect(reportValidity).toHaveBeenCalledOnce();
-    expect(event.preventDefault).toHaveBeenCalledOnce();
-    expect(handler).not.toHaveBeenCalled();
-  });
   it("Form renders a form element with children and a gap hook", () => {
     const html = render({
       $type: "Form",

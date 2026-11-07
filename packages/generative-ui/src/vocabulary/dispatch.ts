@@ -89,7 +89,6 @@ export const submitForm = (
   event: { preventDefault(): void; currentTarget: HTMLFormElement },
 ) => {
   event.preventDefault();
-  if (!event.currentTarget.reportValidity()) return;
   fire(
     $action,
     $dispatch,

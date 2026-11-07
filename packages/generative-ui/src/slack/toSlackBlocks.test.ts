@@ -97,7 +97,6 @@ describe("toSlackBlocks", () => {
     ]);
     expect(blocks[0]).toMatchObject({
       type: "input",
-      optional: false,
       element: { min_length: 2, max_length: 8 },
     });
     expect(warnings).toEqual(

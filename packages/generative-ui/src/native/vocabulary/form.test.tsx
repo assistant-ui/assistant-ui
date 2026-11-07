@@ -92,6 +92,30 @@ describe("Form on React Native", () => {
     await press(submit);
     expect(save).toHaveBeenCalledOnce();
   });
+  it("marks a blocked required checkbox invalid until it is checked", async () => {
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["agree", "send"],
+          on: { submit: { action: "save" } },
+        },
+        agree: {
+          type: "Checkbox",
+          props: { name: "agree", label: "Agree", required: true },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save: vi.fn() },
+      actions,
+    );
+    const agree = () => byRole(rendered.container, "checkbox", "Agree");
+    expect(agree().hasAttribute("aria-invalid")).toBe(false);
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(agree().getAttribute("aria-invalid")).toBe("true");
+    await press(agree());
+    expect(agree().hasAttribute("aria-invalid")).toBe(false);
+  });
   it.each(["button", "return key (web requestSubmit)"])(
     "submits named values from %s like the web",
     async (trigger) => {

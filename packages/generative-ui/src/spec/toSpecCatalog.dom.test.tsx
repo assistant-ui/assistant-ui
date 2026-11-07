@@ -94,7 +94,9 @@ describe("toSpecCatalog components", () => {
       { save },
     );
     expect(query<HTMLInputElement>(container, "input").required).toBe(true);
-    await dispatch(query(container, "form"), "submit");
+    await act(async () =>
+      query<HTMLFormElement>(container, "form").requestSubmit(),
+    );
     expect(save).not.toHaveBeenCalled();
   });
   it("dispatches a custom event with its input payload", async () => {

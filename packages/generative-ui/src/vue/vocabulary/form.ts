@@ -26,8 +26,6 @@ export const formVocabulary = {
                 : undefined,
               onSubmit: (event: Event) => {
                 event.preventDefault();
-                if (!(event.currentTarget as HTMLFormElement).reportValidity())
-                  return;
                 if (Object.hasOwn(context.element.on ?? {}, "submit")) {
                   emit(
                     "submit",

@@ -75,10 +75,6 @@ export const layoutVocabulary = {
               onSubmit: asForm
                 ? (event: Event) => {
                     event.preventDefault();
-                    if (
-                      !(event.currentTarget as HTMLFormElement).reportValidity()
-                    )
-                      return;
                     if (live("confirm")) {
                       emit(
                         "confirm",
