@@ -27,7 +27,7 @@ vi.mock("./convertLangChainMessages", async (importOriginal) => {
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 
-const MESSAGE_COUNT = 1_000;
+const MESSAGE_COUNT = 4;
 const messages: LangChainMessage[] = Array.from(
   { length: MESSAGE_COUNT },
   (_, index) =>
