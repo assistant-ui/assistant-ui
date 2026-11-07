@@ -16,7 +16,11 @@ import {
 } from "@json-render/core";
 import { schema as jsonRenderSchema } from "@json-render/react/schema";
 import { jsonSchema, tool, type JSONSchema7, type ToolSet } from "ai";
-import type { Spec } from "generative-frame/spec";
+import {
+  formatSpecIssues as formatRenderIssues,
+  validateSpec as validateRenderSpec,
+  type Spec,
+} from "generative-frame/spec";
 import { createSpecTools } from "generative-frame/spec/tools";
 import {
   buildWidgetInstructions,
@@ -76,6 +80,7 @@ const jsonCatalog = jsonRenderSchema.createCatalog({
       {
         props: entry.properties,
         slots: [...(catalog.component(name)?.slots ?? [])],
+        events: [...(catalog.component(name)?.events ?? [])],
         description: catalog.component(name)?.description ?? entry.description,
         example: {},
       },
@@ -244,7 +249,13 @@ function jsonRenderTools(attempts: Attempt[]): ToolSet {
               if (errors.length === 0)
                 errors = ["The spec does not match the json-render catalog."];
             } else {
-              artifact = JSON.stringify(jsonRenderToSpec(spec), null, 2);
+              const converted = jsonRenderToSpec(spec);
+              const rendered = validateRenderSpec(converted, catalog);
+              if (rendered.ok) {
+                artifact = JSON.stringify(converted, null, 2);
+              } else {
+                errors = [formatRenderIssues(rendered.issues)];
+              }
             }
           }
         } catch (error) {

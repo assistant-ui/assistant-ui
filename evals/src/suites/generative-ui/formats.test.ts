@@ -83,6 +83,37 @@ test("json-render prompts with the kit's component catalog", async () => {
   assert.equal(format.prose, false);
 });
 
+test("json-render lists events and checks a spec against the kit's catalog", async () => {
+  const format = await startFormat("json-render");
+  assert.match(format.system, /Button[^\n]*\[events: press\]/);
+  const patch = (path: string, value: unknown) =>
+    JSON.stringify({ op: "add", path, value });
+  const execute = format.tools!.render_json!.execute as (
+    input: { patches: string },
+    options: never,
+  ) => Promise<{ ok: boolean; errors?: string[] }>;
+  const result = await execute(
+    {
+      patches: [
+        patch("/root", "main"),
+        patch("/elements/main", {
+          type: "Button",
+          props: { label: "Go" },
+          on: {
+            click: {
+              action: "setState",
+              params: { statePath: "/a", value: 1 },
+            },
+          },
+        }),
+      ].join("\n"),
+    },
+    undefined as never,
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.errors!.join("\n"), /click/);
+});
+
 test("the vocabulary tells the model what the kit's element renders", () => {
   const element = readFileSync(
     fileURLToPath(
