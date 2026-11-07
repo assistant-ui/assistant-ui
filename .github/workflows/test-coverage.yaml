@@ -160,7 +160,7 @@ jobs:
 
       # A main push starts with an empty local cache, and Turbo writes both its remote hits and the tasks it runs there, so the saved cache holds exactly this run's tasks.
       - name: Save the Turbo cache for pull requests
-        if: github.event_name == 'push' && !cancelled()
+        if: (github.event_name == 'push' || github.event_name == 'pull_request') && !cancelled()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/save@v6.1.0
         with:
           path: .turbo/cache
