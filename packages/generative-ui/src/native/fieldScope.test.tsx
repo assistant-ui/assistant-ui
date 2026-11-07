@@ -50,6 +50,112 @@ const submitWeb = (container: HTMLElement) =>
   act(async () => container.querySelector("form")!.requestSubmit());
 
 describe("form scope on React Native", () => {
+  it("marks an unselected required radio group invalid after submission", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["size"],
+          on: { confirm: { action: "save" } },
+        },
+        size: {
+          type: "RadioGroup",
+          props: { name: "size", label: "Size", required: true, options },
+        },
+      }),
+      { save },
+      actions,
+    );
+    const group = byRole(rendered.container, "radiogroup", "Size");
+    expect(group.hasAttribute("aria-invalid")).toBe(false);
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).not.toHaveBeenCalled();
+    expect(group.getAttribute("aria-invalid")).toBe("true");
+    await press(byRole(rendered.container, "radio", "Small"));
+    expect(group.hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("clears a failed field when its length constraint changes", async () => {
+    const view = (minLength: number) =>
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["name"],
+          on: { confirm: { action: "save" } },
+        },
+        name: { type: "Input", props: { name: "name", minLength } },
+      });
+    const save = vi.fn();
+    const rendered = renderNativeSpec(view(5), { save }, actions);
+    const field = rendered.container.querySelector("input")!;
+    await typeText(field, "Ada");
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).not.toHaveBeenCalled();
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    await rendered.update(view(2));
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    await rendered.update(view(5));
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("requires a radio choice and at least one checkbox group option in a Card form", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["size", "tags"],
+          on: { confirm: { action: "save" } },
+        },
+        size: {
+          type: "RadioGroup",
+          props: { name: "size", required: true, options },
+        },
+        tags: {
+          type: "CheckboxGroup",
+          props: { name: "tags", required: true, options },
+        },
+      }),
+      { save },
+      actions,
+    );
+    const submit = byRole(rendered.container, "button", "Save");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await press(byRole(rendered.container, "radio", "Small"));
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await press(byRole(rendered.container, "checkbox", "Large"));
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
+  it("keeps submission order when a first field starts requiring a value", async () => {
+    const save = vi.fn();
+    const props = (required: boolean) =>
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["first", "second"],
+          on: {
+            confirm: { action: "save", params: { values: { $event: "" } } },
+          },
+        },
+        first: { type: "Input", props: { name: "note", required } },
+        second: { type: "Input", props: { name: "note" } },
+      });
+    const rendered = renderNativeSpec(props(false), { save }, actions);
+    const [first, second] = rendered.container.querySelectorAll("input");
+    await typeText(first!, "one");
+    await typeText(second!, "two");
+    await rendered.update(props(true));
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save.mock.calls[0]![0].values.note).toEqual(["one", "two"]);
+  });
   it("collects repeated names, checkboxes, groups, and numbers like the web", async () => {
     const input = form([
       "first",

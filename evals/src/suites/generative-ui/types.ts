@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 import type { SuiteCandidate, SuiteCase } from "../../types.ts";
 
-export type Format = "text" | "present" | "spec" | "frame";
+export type Format = "text" | "present" | "spec" | "frame" | "json-render";
 
 /** The format a candidate asks for; `auto` offers text, spec, and frame and lets the model choose. */
 export type CandidateFormat = Format | "auto";

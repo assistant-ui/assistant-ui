@@ -35,7 +35,12 @@ import {
 } from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
-import { createStateStore, type SpecStateStore } from "../state";
+import {
+  createStateStore,
+  getStateStoreRevision,
+  wasStateStorePathWrittenSince,
+  type SpecStateStore,
+} from "../state";
 import {
   childIdsOf,
   exceedsRenderBudget,
@@ -343,15 +348,29 @@ const ResolvedElement = defineComponent({
       },
     });
     watch(
-      () =>
-        Object.entries(props.element.watch ?? {}).map(
+      () => ({
+        values: Object.entries(props.element.watch ?? {}).map(
           ([path]) =>
             [path, getAtPointer(ctx.state, safePointer(path))] as const,
         ),
+        store: ctx.store,
+        revision: getStateStoreRevision(ctx.store),
+      }),
       (next, previous) => {
-        const prior = new Map(previous);
-        for (const [path, value] of next) {
-          if (prior.has(path) && !Object.is(prior.get(path), value))
+        const prior = new Map(previous.values);
+        for (const [path, value] of next.values) {
+          if (
+            prior.has(path) &&
+            !Object.is(prior.get(path), value) &&
+            (next.revision === undefined ||
+              previous.store !== next.store ||
+              previous.revision === undefined ||
+              wasStateStorePathWrittenSince(
+                next.store,
+                path,
+                previous.revision,
+              ))
+          )
             void ctx.dispatch(props.element.watch?.[path], {
               ...props.scope,
               elementId: props.id,

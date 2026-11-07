@@ -22,6 +22,89 @@ const task: Task = {
 };
 const greeting = { $type: "Text", value: "Hello" };
 
+test("json-render compiles patches, feeds validation errors into repair, and renders the kit spec", async () => {
+  const patches = (type: string) =>
+    [
+      { op: "add", path: "/root", value: "main" },
+      {
+        op: "add",
+        path: "/elements/main",
+        value: { type, props: { value: "Hello" }, children: [] },
+      },
+    ]
+      .map((patch) => JSON.stringify(patch))
+      .join("\n");
+  const model = streamingModel(
+    call("render_json", { patches: patches("Nope") }),
+    call("render_json", { patches: patches("Text") }),
+  );
+  const answer = await generateAnswer(model, task, "json-render", 2);
+  assert.deepEqual(answer.errors, []);
+  assert.equal(answer.repairRounds, 1);
+  assert.equal(answer.answeredIn, "json-render");
+  assert.deepEqual(JSON.parse(answer.artifact), {
+    root: "main",
+    elements: {
+      main: { type: "Text", props: { value: "Hello" }, children: [] },
+    },
+  });
+  assert.match(
+    JSON.stringify(model.doStreamCalls[1]?.prompt),
+    /elements\.main\.type: Invalid option/,
+  );
+});
+
+test("json-render keeps the compiled spec when validation fails", async () => {
+  const patches = [
+    { op: "add", path: "/root", value: "main" },
+    {
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Nope", props: {}, children: [] },
+    },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const answer = await generateAnswer(
+    streamingModel(call("render_json", { patches })),
+    task,
+    "json-render",
+    0,
+  );
+  assert.ok(answer.errors.length > 0);
+  assert.equal(JSON.parse(answer.artifact).elements.main.type, "Nope");
+});
+
+test("json-render reports structural and malformed stream errors for repair", async () => {
+  const missingChild = [
+    { op: "add", path: "/root", value: "main" },
+    {
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Col", props: {}, children: ["missing"] },
+    },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const structural = await generateAnswer(
+    streamingModel(call("render_json", { patches: missingChild })),
+    task,
+    "json-render",
+    0,
+  );
+  assert.match(structural.errors[0] ?? "", /references child "missing"/);
+
+  const malformed = await generateAnswer(
+    streamingModel(
+      call("render_json", { patches: `${missingChild}\nnot a patch` }),
+    ),
+    task,
+    "json-render",
+    0,
+  );
+  assert.match(malformed.errors[0] ?? "", /not a JSON patch/);
+});
+
 test("a text answer is its Markdown", async () => {
   const answer = await generateAnswer(
     streamingModel(text("# Plan")),
