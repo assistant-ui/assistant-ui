@@ -199,6 +199,7 @@ class ElementBoundary extends Component<
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
+  // A streaming element can pass through values its component rejects, such as a state path cut short, and formatting can depend on the locale, so a changed element or locale renders again.
   static getDerivedStateFromProps(
     props: ElementBoundaryProps,
     state: ElementBoundaryState,

@@ -213,6 +213,7 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
+    // A streaming element can pass through values its component rejects, such as a state path cut short, and formatting can depend on the locale, so a changed element or locale renders again.
     watch([() => props.element, () => ctx.locale], () => {
       error.value = null;
     });
