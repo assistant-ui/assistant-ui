@@ -26,5 +26,3 @@ export type {
   UseAgUiRuntimeAdapters,
   UseAgUiThreadListAdapter,
 } from "./runtime/types";
-
-// Temporary trial edit so typecheck has a changed package; reverted before merge.
