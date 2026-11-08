@@ -745,6 +745,15 @@ describe("writeEnvSecret", () => {
     expect(take).not.toHaveBeenCalled();
   });
 
+  it("leaves the file intact when the secret is refused", async () => {
+    const file = join(await tempDir(), ".env.local");
+    await writeFile(file, "A=1\nB=2\n");
+    await expect(
+      writeEnvSecret(file, "OPENAI_API_KEY", async () => "sk-test\nEVIL=1"),
+    ).rejects.toThrow();
+    expect(await readFile(file, "utf8")).toBe("A=1\nB=2\n");
+  });
+
   it("keeps lines another writer added while the secret was being taken", async () => {
     const file = join(await tempDir(), ".env.local");
     await writeEnvSecret(file, "OPENAI_API_KEY", async () => {

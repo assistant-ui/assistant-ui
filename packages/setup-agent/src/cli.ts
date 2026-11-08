@@ -778,8 +778,10 @@ export const writeEnvSecret = async (
     await handle.chmod(0o600);
     const value = await take();
     const current = await handle.readFile("utf8");
+    // Built before truncating, so a refused value leaves the file intact.
+    const next = upsertEnvLine(current, key, value);
     await handle.truncate(0);
-    await handle.writeFile(upsertEnvLine(current, key, value));
+    await handle.writeFile(next);
   } finally {
     await handle.close();
   }
