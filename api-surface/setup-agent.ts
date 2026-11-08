@@ -236,7 +236,7 @@ declare const HELP: string;
 
 declare const INPUT_PRESETS: Record<PresetId, Preset>;
 
-declare const INSTRUCTIONS: (url: string) => string;
+declare const INSTRUCTIONS: (setupUrl: string) => string;
 
 declare const OPTION_ICONS: readonly [
   "code",
@@ -354,7 +354,7 @@ type StreamEvent = {
   products: string[];
 };
 
-declare const agentInstructions: (url: string) => string;
+declare const agentInstructions: (setupUrl: string) => string;
 
 declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Checkout.InputSeed & {
   stepId?: string;
@@ -363,7 +363,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, parseSetupUrl, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -424,6 +424,8 @@ declare const parseModelAnswer: (answer: string) => Checkout.ModelAnswer | undef
 declare const parseMultipleAnswer: (answer: string) => string[] | undefined;
 
 declare const parsePreviewUrl: (value: string | undefined) => URL | undefined;
+
+declare const parseSetupUrl: (value: string) => string;
 
 declare const planNeedsReview: (state: Checkout.State) => boolean;
 

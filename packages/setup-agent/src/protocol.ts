@@ -339,10 +339,12 @@ export const parsePreviewUrl = (value: string | undefined) => {
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
   if (url.username !== "" || url.password !== "") return undefined;
-  const loopback =
-    LOOPBACK_HOSTS.has(url.hostname) || url.hostname.endsWith(".localhost");
-  return loopback ? url : undefined;
+  return isLoopbackHostname(url.hostname) ? url : undefined;
 };
+
+/** True for a hostname that names this machine. */
+export const isLoopbackHostname = (hostname: string) =>
+  LOOPBACK_HOSTS.has(hostname) || hostname.endsWith(".localhost");
 
 export const openInputs = (state: Checkout.State) =>
   state.inputs.filter((input) => input.status === "open");
