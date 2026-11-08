@@ -780,7 +780,7 @@ type SSEEvent = {
 declare class SSEEventDecoder {
   #private;
   constructor(options?: SSEEventDecoderOptions);
-  push(text: string, stopAfter?: (event: SSEEvent) => boolean): SSEEvent[];
+  push(text: string): SSEEvent[];
   flush(): SSEEvent | null;
 }
 

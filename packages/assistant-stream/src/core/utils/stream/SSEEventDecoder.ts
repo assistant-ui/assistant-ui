@@ -44,7 +44,7 @@ const readLimit = (
   return limit;
 };
 
-export class SSEEventDecoder {
+class SSEEventDecoderImpl {
   private lineChunks: string[] = [];
   private lineLength = 0;
   private linePreview = "";
@@ -55,11 +55,17 @@ export class SSEEventDecoder {
   private retry: number | undefined;
   private pendingLF = false;
   private started = false;
+  private finished = false;
+  private readonly stopAfter: ((event: SSEEvent) => boolean) | undefined;
   private readonly trailing: "drop" | "dispatch";
   private readonly maxLineLength: number;
   private readonly maxEventLength: number;
 
-  constructor(options?: SSEEventDecoderOptions) {
+  constructor(
+    options?: SSEEventDecoderOptions,
+    stopAfter?: (event: SSEEvent) => boolean,
+  ) {
+    this.stopAfter = stopAfter;
     this.trailing = options?.trailing ?? "drop";
     this.maxLineLength = readLimit(
       options?.maxLineLength,
@@ -73,10 +79,9 @@ export class SSEEventDecoder {
     );
   }
 
-  /** Include the first event matching stopAfter, then discard the rest of this input. */
-  push(text: string, stopAfter?: (event: SSEEvent) => boolean): SSEEvent[] {
+  push(text: string): SSEEvent[] {
     const events: SSEEvent[] = [];
-    if (text === "") return events;
+    if (this.finished || text === "") return events;
 
     if (!this.started) {
       this.started = true;
@@ -89,10 +94,15 @@ export class SSEEventDecoder {
     if (this.pendingLF && text.startsWith("\n")) text = text.slice(1);
     this.pendingLF = text.endsWith("\r");
 
-    const lines = text.split(/\r\n|\r|\n/);
-    const remainder = lines.pop()!;
-
-    for (const line of lines) {
+    const delimiter = /\r\n|\r|\n/g;
+    let lineStart = 0;
+    for (
+      let match = delimiter.exec(text);
+      match !== null;
+      match = delimiter.exec(text)
+    ) {
+      const line = text.slice(lineStart, match.index);
+      lineStart = match.index + match[0].length;
       let completeLine = line;
       if (this.lineChunks.length > 0) {
         this.appendLineChunk(line);
@@ -109,19 +119,21 @@ export class SSEEventDecoder {
       const event = this.processLine(completeLine);
       if (event) {
         events.push(event);
-        if (stopAfter?.(event)) {
+        if (this.stopAfter?.(event)) {
+          this.finished = true;
           this.pendingLF = false;
           return events;
         }
       }
     }
+    const remainder = text.slice(lineStart);
     if (remainder !== "") this.appendLineChunk(remainder);
 
     return events;
   }
 
   flush(): SSEEvent | null {
-    if (this.trailing === "drop") {
+    if (this.finished || this.trailing === "drop") {
       this.resetFrame();
       this.resetLine();
       this.pendingLF = false;
@@ -236,5 +248,27 @@ export class SSEEventDecoder {
     this.lineChunks = [];
     this.lineLength = 0;
     this.linePreview = "";
+  }
+}
+
+// Internal pipeline construction; not re-exported from assistant-stream/utils.
+export const createSSEEventDecoder = (
+  options: SSEEventDecoderOptions,
+  stopAfter?: (event: SSEEvent) => boolean,
+) => new SSEEventDecoderImpl(options, stopAfter);
+
+export class SSEEventDecoder {
+  private readonly decoder: SSEEventDecoderImpl;
+
+  constructor(options?: SSEEventDecoderOptions) {
+    this.decoder = new SSEEventDecoderImpl(options);
+  }
+
+  push(text: string): SSEEvent[] {
+    return this.decoder.push(text);
+  }
+
+  flush(): SSEEvent | null {
+    return this.decoder.flush();
   }
 }
