@@ -73,7 +73,8 @@ export class SSEEventDecoder {
     );
   }
 
-  push(text: string): SSEEvent[] {
+  /** Include the first event matching stopAfter, then discard the rest of this input. */
+  push(text: string, stopAfter?: (event: SSEEvent) => boolean): SSEEvent[] {
     const events: SSEEvent[] = [];
     if (text === "") return events;
 
@@ -106,7 +107,13 @@ export class SSEEventDecoder {
         );
       }
       const event = this.processLine(completeLine);
-      if (event) events.push(event);
+      if (event) {
+        events.push(event);
+        if (stopAfter?.(event)) {
+          this.pendingLF = false;
+          return events;
+        }
+      }
     }
     if (remainder !== "") this.appendLineChunk(remainder);
 

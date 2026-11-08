@@ -12,7 +12,11 @@ export class SSEEventDecoderStream extends TransformStream<
   string,
   PipelineSSEEvent
 > {
-  constructor(options: Omit<SSEEventDecoderOptions, "trailing"> = {}) {
+  constructor(
+    options: Omit<SSEEventDecoderOptions, "trailing"> & {
+      stopAfter?: ((event: SSEEvent) => boolean) | undefined;
+    } = {},
+  ) {
     const decoder = new SSEEventDecoder({ ...options, trailing: "drop" });
     const normalize = (event: SSEEvent): PipelineSSEEvent => ({
       ...event,
@@ -21,7 +25,7 @@ export class SSEEventDecoderStream extends TransformStream<
 
     super({
       transform(chunk, controller) {
-        for (const event of decoder.push(chunk)) {
+        for (const event of decoder.push(chunk, options.stopAfter)) {
           controller.enqueue(normalize(event));
         }
       },
