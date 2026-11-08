@@ -42747,3 +42747,5 @@ snapshots:
       use-sync-external-store: 1.7.0(react@19.3.1)
 
   zwitch@2.0.4: {}
+
+# Temporary: gives pnpm/setup a lockfile hash no cache entry has yet. Reverted before merge.
