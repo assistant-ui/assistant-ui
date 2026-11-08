@@ -314,6 +314,7 @@ describe("upsertEnvLine", () => {
     "sk-1\rNODE_OPTIONS=x",
     "sk-1\u0000",
     "sk-1\u2028NODE_OPTIONS=x",
+    "sk-1\u0085NODE_OPTIONS=x",
   ])("refuses a value that would add lines: %j", (value) => {
     expect(() => upsertEnvLine("A=1\n", "OPENAI_API_KEY", value)).toThrow(
       "must be a single line",
@@ -1094,6 +1095,10 @@ describe("model key handoff", () => {
     "sk 1",
     'sk-"1"',
     "sk-$(id)",
+    "sk-1;id",
+    "sk-1|id",
+    "sk-1&id",
+    "sk-1>out",
   ])(
     "refuses a deposited key that is not one API key word: %j",
     async (key) => {

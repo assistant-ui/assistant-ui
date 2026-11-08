@@ -706,7 +706,10 @@ export const upsertEnvLine = (content: string, key: string, value: string) => {
   // A line break or other control character would end the line and let the
   // value write lines of its own.
   const isLineBreaking = (code: number) =>
-    code < 0x20 || code === 0x7f || code === 0x2028 || code === 0x2029;
+    code < 0x20 ||
+    (code >= 0x7f && code <= 0x9f) ||
+    code === 0x2028 ||
+    code === 0x2029;
   if ([...value].some((char) => isLineBreaking(char.charCodeAt(0)))) {
     throw new Error(`the value for ${key} must be a single line`);
   }
@@ -1112,9 +1115,10 @@ export const main = async (argv: readonly string[]) => {
           }
           if (!response.ok) fail(`could not fetch the key: ${response.status}`);
           const key = await response.text();
-          // An API key is one word of printable ASCII; anything else could
-          // break out of the env line or be read differently by dotenv.
-          if (!/^[\x21-\x7e]+$/.test(key) || /["'`#$\\]/.test(key)) {
+          // An API key is one word of letters, digits and a few separators;
+          // anything else could break out of the env line, be read differently
+          // by dotenv, or run as shell syntax when the file is sourced.
+          if (!/^[A-Za-z0-9._~+/=:@%,-]+$/.test(key)) {
             fail("the deposited key is not a valid API key");
           }
           return key;
