@@ -161,6 +161,51 @@ describe("A2AClient", () => {
       expect(init.headers.Authorization).toBe("Bearer tok123");
     });
 
+    it.each(["static", "async"] as const)(
+      "sends protocol fields once with %s headers regardless of casing",
+      async (headerMode) => {
+        const customHeaders = {
+          "cOnTeNt-TyPe": "application/custom+json",
+          "a2A-vErSiOn": "2.0",
+          ACCEPT: "application/custom",
+          "a2a-extensions": "urn:custom",
+          Authorization: "Bearer token",
+        };
+        const headers =
+          headerMode === "async" ? async () => customHeaders : customHeaders;
+        const dynamicClient = new A2AClient({
+          baseUrl: "https://agent.test",
+          extensions: ["urn:configured"],
+          headers,
+        });
+        fetchMock
+          .mockResolvedValueOnce(
+            mockFetchResponse({
+              task: { id: "t1", status: { state: "completed" } },
+            }),
+          )
+          .mockResolvedValueOnce(mockSSEResponse([]));
+
+        await dynamicClient.sendMessage(userMessage);
+        const sendHeaders = new Headers(fetchMock.mock.calls[0]![1].headers);
+        expect(sendHeaders.get("content-type")).toBe("application/a2a+json");
+        expect(sendHeaders.get("a2a-version")).toBe("2.0");
+        expect(sendHeaders.get("accept")).toBe("application/custom");
+        expect(sendHeaders.get("a2a-extensions")).toBe("urn:configured");
+        expect(sendHeaders.get("authorization")).toBe("Bearer token");
+
+        for await (const _ of dynamicClient.streamMessage(userMessage)) {
+          void _;
+        }
+        const streamHeaders = new Headers(fetchMock.mock.calls[1]![1].headers);
+        expect(streamHeaders.get("content-type")).toBe("application/a2a+json");
+        expect(streamHeaders.get("a2a-version")).toBe("2.0");
+        expect(streamHeaders.get("accept")).toBe("text/event-stream");
+        expect(streamHeaders.get("a2a-extensions")).toBe("urn:configured");
+        expect(streamHeaders.get("authorization")).toBe("Bearer token");
+      },
+    );
+
     it("aborts a request while dynamic headers are pending", async () => {
       const dynamicClient = new A2AClient({
         baseUrl: "https://agent.test",

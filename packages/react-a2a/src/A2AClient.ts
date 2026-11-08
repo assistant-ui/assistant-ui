@@ -17,6 +17,13 @@ import type {
 } from "./types";
 import { A2A_PROTOCOL_VERSION } from "./types";
 
+const CANONICAL_PROTOCOL_HEADER_NAMES = new Map([
+  ["accept", "Accept"],
+  ["a2a-version", "A2A-Version"],
+  ["content-type", "Content-Type"],
+  ["a2a-extensions", "A2A-Extensions"],
+]);
+
 export type A2AClientOptions = {
   baseUrl: string;
   /** Optional path prefix for all API endpoints (e.g. "/v1"). Does not affect agent card discovery. */
@@ -742,10 +749,19 @@ export class A2AClient {
       typeof this.headersFn === "function"
         ? await raceWithAbortSignal(signal, this.headersFn)
         : this.headersFn;
+    const normalizedCustom = Object.fromEntries(
+      Object.entries(custom).map(
+        ([name, value]) =>
+          [
+            CANONICAL_PROTOCOL_HEADER_NAMES.get(name.toLowerCase()) ?? name,
+            value,
+          ] as const,
+      ),
+    );
     const headers: Record<string, string> = {
       Accept: "application/a2a+json, application/json",
       "A2A-Version": A2A_PROTOCOL_VERSION,
-      ...custom,
+      ...normalizedCustom,
     };
     if (includeContentType) {
       headers["Content-Type"] = "application/a2a+json";
