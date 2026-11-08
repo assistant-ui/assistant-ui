@@ -248,12 +248,15 @@ export const clearOAuthProviderAuthState = (
   }
   const cachePromise = persistence?.endpoint?.cachePromise;
 
-  const clear = (async () => {
+  // The body starts on a later microtask, after the clear is registered below,
+  // so a storage that re-enters provider creation from clearAuthState still
+  // sees it.
+  const clear = Promise.resolve().then(async () => {
     if (cachePromise) await Promise.allSettled([cachePromise]);
     if (persistence) await persistence.queue;
     if (previousClear) await previousClear;
     await storage.clearAuthState(serverId);
-  })();
+  });
 
   // Registered before returning, so a provider built from here on queues
   // behind this clear rather than reading the record it is about to delete.

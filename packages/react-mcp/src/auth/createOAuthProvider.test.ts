@@ -1155,6 +1155,23 @@ describe("clearOAuthProviderAuthState against live providers", () => {
     expect(order).toEqual(["start 1", "end 1", "start 2", "end 2"]);
   });
 
+  it("registers the clear before clearAuthState runs", async () => {
+    const s = createGatedStorage(null);
+    let inner: ReturnType<typeof provider> | undefined;
+    let innerTokens: unknown;
+    let cleared = false;
+    s.storage.loadAuthState = async () => (cleared ? null : storedState());
+    s.storage.clearAuthState = async () => {
+      inner = provider(s.storage);
+      innerTokens = inner.tokens();
+      await flush();
+      cleared = true;
+    };
+
+    await clearOAuthProviderAuthState(s.storage, "docs");
+    expect(await innerTokens).toBeUndefined();
+  });
+
   it("keeps later providers working when a clear fails", async () => {
     const s = createGatedStorage(storedState());
     s.storage.clearAuthState = async () => {
