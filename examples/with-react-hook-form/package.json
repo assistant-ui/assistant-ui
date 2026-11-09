@@ -15,7 +15,7 @@
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@hookform/resolvers": "^6.0.0",
+    "@hookform/resolvers": "^7.0.3",
     "ai": "^7.0.153",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",

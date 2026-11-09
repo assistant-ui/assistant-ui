@@ -45,7 +45,7 @@
     "@farming-labs/docs": "0.2.137",
     "@farming-labs/next": "0.2.137",
     "@farming-labs/theme": "0.2.137",
-    "@hookform/resolvers": "^6.0.0",
+    "@hookform/resolvers": "^7.0.3",
     "@langchain/langgraph-sdk": "^1.12.7",
     "@lexical/history": "^0.53.0",
     "@lexical/plain-text": "^0.53.0",
