@@ -339,14 +339,7 @@ declare class AssistantCloudFiles {
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
-  lease?: CloudRunLease | undefined;
-  forked_from?: string | undefined;
-};
-
-type AssistantCloudMessageHeartbeatResponse = {
-  expires_at: Date;
-  ttl_ms: number;
-  heartbeat_interval_ms: number;
+  run?: CloudRunLease | undefined;
 };
 
 type AssistantCloudProjectThreadMessageListQuery = {
@@ -386,6 +379,11 @@ declare class AssistantCloudProjects {
   readonly threads: AssistantCloudProjectThreads;
   constructor(cloud: AssistantCloudAPI);
 }
+
+type AssistantCloudRunHeartbeatResponse = {
+  expires_in_ms: number;
+  heartbeat_interval_ms: number;
+};
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -516,7 +514,8 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
-  run?: CloudMessageRunWrite | undefined;
+  open_run?: true | undefined;
+  lease_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -542,12 +541,7 @@ type AssistantCloudThreadMessageListResponse = {
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
-  run?: CloudMessageRunWrite | undefined;
-};
-
-type AssistantCloudThreadMessageUpdateResponse = {
-  message_id?: string | undefined;
-  forked_from?: string | undefined;
+  lease_id?: string | undefined;
 };
 
 declare class AssistantCloudThreadMessages {
@@ -555,17 +549,25 @@ declare class AssistantCloudThreadMessages {
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
-  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<AssistantCloudThreadMessageUpdateResponse | void>;
-  heartbeat(threadId: string, messageId: string, body: {
-    lease_id: string;
-  }): Promise<AssistantCloudMessageHeartbeatResponse>;
+  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
   delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
+}
+
+declare class AssistantCloudThreadRuns {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  open(threadId: string, messageId: string): Promise<CloudRunLease>;
+  heartbeat(threadId: string, leaseId: string): Promise<AssistantCloudRunHeartbeatResponse>;
+  end(threadId: string, leaseId: string, body?: {
+    reason?: CloudRunEndReason;
+  }): Promise<void>;
 }
 
 declare class AssistantCloudThreads {
   #private;
   readonly messages: AssistantCloudThreadMessages;
+  readonly runs: AssistantCloudThreadRuns;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -1474,14 +1476,6 @@ type CloudMessageRun = {
   superseded_by?: string | undefined;
 };
 
-type CloudMessageRunWrite = {
-  status: "running";
-  lease_id?: undefined;
-} | {
-  status: "ended" | "running";
-  lease_id: string;
-};
-
 declare function CloudRendererHost(_param1: CloudRendererHostProps): ReactNode;
 
 type CloudRendererHostProps = {
@@ -1491,10 +1485,11 @@ type CloudRendererHostProps = {
   config?: AssistantRuntimeProvider.Props["config"];
 };
 
+type CloudRunEndReason = "cancelled" | "done" | "error";
+
 type CloudRunLease = {
-  id: string;
-  expires_at: Date;
-  ttl_ms: number;
+  lease_id: string;
+  expires_in_ms: number;
   heartbeat_interval_ms: number;
 };
 

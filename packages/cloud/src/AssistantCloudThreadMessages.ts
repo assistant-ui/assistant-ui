@@ -33,21 +33,10 @@ export type CloudMessageRun = {
   superseded_by?: string | undefined;
 };
 
+/** A run lease the server granted, with its timing measured by the server. */
 export type CloudRunLease = {
-  id: string;
-  expires_at: Date;
-  ttl_ms: number;
-  heartbeat_interval_ms: number;
-};
-
-/** Opens a run lease on a new message, or writes as the holder of an open one. */
-export type CloudMessageRunWrite =
-  | { status: "running"; lease_id?: undefined }
-  | { status: "running" | "ended"; lease_id: string };
-
-export type AssistantCloudMessageHeartbeatResponse = {
-  expires_at: Date;
-  ttl_ms: number;
+  lease_id: string;
+  expires_in_ms: number;
   heartbeat_interval_ms: number;
 };
 
@@ -67,25 +56,22 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
-  run?: CloudMessageRunWrite | undefined;
+  /** Opens a run lease on the stored message in the same request. */
+  open_run?: true | undefined;
+  /** Writes the message with `external_id` as the holder of this lease. */
+  lease_id?: string | undefined;
 };
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
-  lease?: CloudRunLease | undefined;
-  /** Set when a superseded lease's write was stored as a sibling of this message. */
-  forked_from?: string | undefined;
+  /** Set when `open_run` opened a lease. */
+  run?: CloudRunLease | undefined;
 };
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
-  run?: CloudMessageRunWrite | undefined;
-};
-
-type AssistantCloudThreadMessageUpdateResponse = {
-  /** Set when a superseded lease's write was stored as a sibling message. */
-  message_id?: string | undefined;
-  forked_from?: string | undefined;
+  /** Writes as the holder of this run lease, which renews it. */
+  lease_id?: string | undefined;
 };
 
 const RUN_STATUSES = ["running", "stale"] as const;
@@ -107,18 +93,17 @@ const decodeCloudMessageRun = (
   };
 };
 
-const decodeCloudRunLease = (value: unknown, field: string): CloudRunLease => {
-  const lease = readCloudRecord(value, field);
-  return {
-    id: readCloudString(lease.id, `${field}.id`),
-    expires_at: readCloudTimestamp(lease.expires_at, `${field}.expires_at`),
-    ttl_ms: readCloudNumber(lease.ttl_ms, `${field}.ttl_ms`),
-    heartbeat_interval_ms: readCloudNumber(
-      lease.heartbeat_interval_ms,
-      `${field}.heartbeat_interval_ms`,
-    ),
-  };
-};
+/** Reads the lease fields of a response that granted or renewed one. */
+export const decodeCloudRunLease = (
+  response: Record<string, unknown>,
+): CloudRunLease => ({
+  lease_id: readCloudString(response.lease_id, "lease_id"),
+  expires_in_ms: readCloudNumber(response.expires_in_ms, "expires_in_ms"),
+  heartbeat_interval_ms: readCloudNumber(
+    response.heartbeat_interval_ms,
+    "heartbeat_interval_ms",
+  ),
+});
 
 const MESSAGE_FEEDBACK_TYPES = ["positive", "negative"] as const;
 
@@ -202,7 +187,10 @@ export class AssistantCloudThreadMessages {
             ...(body.parent_external_id !== undefined
               ? { parent_external_id: body.parent_external_id }
               : undefined),
-            ...(body.run !== undefined ? { run: body.run } : undefined),
+            ...(body.open_run ? { open_run: true } : undefined),
+            ...(body.lease_id !== undefined
+              ? { lease_id: body.lease_id }
+              : undefined),
           },
         },
       ),
@@ -211,58 +199,21 @@ export class AssistantCloudThreadMessages {
 
     return {
       message_id: readCloudString(response.message_id, "message_id"),
-      ...(response.lease !== undefined
-        ? { lease: decodeCloudRunLease(response.lease, "lease") }
-        : undefined),
-      ...(typeof response.forked_from === "string"
-        ? { forked_from: response.forked_from }
+      ...(response.lease_id !== undefined
+        ? { run: decodeCloudRunLease(response) }
         : undefined),
     };
   }
 
-  /** Resolves to the fork target when a superseded lease's write became a sibling; `void` stays assignable for implementations typed against the earlier `Promise<void>`. */
   public async update(
     threadId: string,
     messageId: string,
     body: AssistantCloudThreadMessageUpdateBody,
-  ): Promise<AssistantCloudThreadMessageUpdateResponse | void> {
-    const response: unknown = await this.cloud.makeRequest(
+  ): Promise<void> {
+    return this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}`,
       { method: "PUT", body },
     );
-    if (typeof response !== "object" || response === null) return {};
-    const record = response as Record<string, unknown>;
-    return {
-      ...(typeof record.message_id === "string"
-        ? { message_id: record.message_id }
-        : undefined),
-      ...(typeof record.forked_from === "string"
-        ? { forked_from: record.forked_from }
-        : undefined),
-    };
-  }
-
-  /** Keeps a run lease open; a lapsed lease that nobody resumed is revived. */
-  public async heartbeat(
-    threadId: string,
-    messageId: string,
-    body: { lease_id: string },
-  ): Promise<AssistantCloudMessageHeartbeatResponse> {
-    const response = readCloudRecord(
-      await this.cloud.makeRequest(
-        `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}/heartbeat`,
-        { method: "POST", body },
-      ),
-      "thread message heartbeat response",
-    );
-    return {
-      expires_at: readCloudTimestamp(response.expires_at, "expires_at"),
-      ttl_ms: readCloudNumber(response.ttl_ms, "ttl_ms"),
-      heartbeat_interval_ms: readCloudNumber(
-        response.heartbeat_interval_ms,
-        "heartbeat_interval_ms",
-      ),
-    };
   }
 
   public async delete(threadId: string, messageIds: string[]): Promise<void> {

@@ -175,17 +175,13 @@ describe("AssistantCloudThreadMessages responses", () => {
 });
 
 describe("AssistantCloudThreadMessages run leases", () => {
-  it("sends the run on create and decodes the lease and fork", async () => {
+  it("opens a run on create and decodes the lease", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();
     makeRequest.mockResolvedValueOnce({
       message_id: "msg_1",
-      lease: {
-        id: "lease_1",
-        expires_at: "2026-01-01T00:00:30.000Z",
-        ttl_ms: 30000,
-        heartbeat_interval_ms: 20000,
-      },
-      forked_from: "msg_0",
+      lease_id: "lease_1",
+      expires_in_ms: 30000,
+      heartbeat_interval_ms: 20000,
     });
 
     await expect(
@@ -193,65 +189,42 @@ describe("AssistantCloudThreadMessages run leases", () => {
         parent_id: null,
         format: "aui/v0",
         content: {},
-        run: { status: "running" },
+        open_run: true,
       }),
     ).resolves.toEqual({
       message_id: "msg_1",
-      lease: {
-        id: "lease_1",
-        expires_at: new Date("2026-01-01T00:00:30.000Z"),
-        ttl_ms: 30000,
+      run: {
+        lease_id: "lease_1",
+        expires_in_ms: 30000,
         heartbeat_interval_ms: 20000,
       },
-      forked_from: "msg_0",
     });
-    expect(makeRequest.mock.calls[0]![1].body.run).toEqual({
-      status: "running",
+    expect(makeRequest.mock.calls[0]![1].body).toMatchObject({
+      open_run: true,
     });
+
+    makeRequest.mockResolvedValueOnce({ message_id: "msg_1" });
+    await messages.create("t1", {
+      parent_id: null,
+      format: "aui/v0",
+      content: {},
+      external_id: "e1",
+      lease_id: "lease_1",
+    });
+    expect(makeRequest.mock.calls[1]![1].body).toMatchObject({
+      lease_id: "lease_1",
+    });
+    expect(makeRequest.mock.calls[1]![1].body).not.toHaveProperty("open_run");
   });
 
-  it("returns the fork target of an update and tolerates an empty body", async () => {
+  it("sends the lease id on update", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();
-    makeRequest.mockResolvedValueOnce({
-      message_id: "msg_2",
-      forked_from: "msg_1",
-    });
-    await expect(
-      messages.update("t1", "msg_1", {
-        content: {},
-        run: { lease_id: "lease_1", status: "ended" },
-      }),
-    ).resolves.toEqual({ message_id: "msg_2", forked_from: "msg_1" });
-
     makeRequest.mockResolvedValueOnce(undefined);
-    await expect(
-      messages.update("t1", "msg_1", { content: {} }),
-    ).resolves.toEqual({});
-    makeRequest.mockResolvedValueOnce({});
-    await expect(
-      messages.update("t1", "msg_1", { content: {} }),
-    ).resolves.toEqual({});
-  });
-
-  it("posts heartbeats and decodes the renewed expiry", async () => {
-    const { messages, makeRequest } = createCloudThreadMessages();
-    makeRequest.mockResolvedValueOnce({
-      expires_at: "2026-01-01T00:00:30.000Z",
-      ttl_ms: 30000,
-      heartbeat_interval_ms: 20000,
+    await messages.update("t1", "msg_1", { content: {}, lease_id: "lease_1" });
+    expect(makeRequest).toHaveBeenCalledWith("/threads/t1/messages/msg_1", {
+      method: "PUT",
+      body: { content: {}, lease_id: "lease_1" },
     });
-
-    await expect(
-      messages.heartbeat("t/1", "msg/1", { lease_id: "lease_1" }),
-    ).resolves.toEqual({
-      expires_at: new Date("2026-01-01T00:00:30.000Z"),
-      ttl_ms: 30000,
-      heartbeat_interval_ms: 20000,
-    });
-    expect(makeRequest).toHaveBeenCalledWith(
-      "/threads/t%2F1/messages/msg%2F1/heartbeat",
-      { method: "POST", body: { lease_id: "lease_1" } },
-    );
   });
 
   it("decodes the run state of listed messages", async () => {

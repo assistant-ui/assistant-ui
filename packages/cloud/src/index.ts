@@ -1,12 +1,15 @@
 export type {
   CloudMessage,
   CloudMessageRun,
-  CloudMessageRunWrite,
   CloudRunLease,
-  AssistantCloudMessageHeartbeatResponse,
   AssistantCloudThreadMessageFeedbackBody,
   AssistantCloudThreadMessageFeedbackResponse,
 } from "./AssistantCloudThreadMessages";
+export type {
+  AssistantCloudThreadRuns,
+  AssistantCloudRunHeartbeatResponse,
+  CloudRunEndReason,
+} from "./AssistantCloudThreadRuns";
 export type {
   AssistantCloudTelemetryConfig,
   SdkIdentity,
