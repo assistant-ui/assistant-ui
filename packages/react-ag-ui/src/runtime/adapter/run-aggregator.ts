@@ -267,6 +267,17 @@ export class RunAggregator {
     return this.toolCalls.has(toolCallId);
   }
 
+  rebaseMessage(messageId: string): void {
+    const snapshotText = this.pendingSnapshotText.get(messageId);
+    this.resetMessageParts();
+    this.lastTextMessageId = messageId;
+    this.reportedServerMessageId = messageId;
+    if (snapshotText !== undefined) {
+      this.pendingSnapshotText.set(messageId, snapshotText);
+    }
+    this.startTextMessage(ROOT_SCOPE, messageId);
+  }
+
   handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {

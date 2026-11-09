@@ -5,6 +5,7 @@ import { fire, submitForm } from "./dispatch";
 import { toTextContent } from "./toTextContent";
 import { boxStyle, footerAction, safeBackground } from "./layoutValues";
 import { tabLabels } from "./structureValues";
+import { handleHiddenTabInvalid } from "./handleHiddenTabInvalid";
 
 function TabsRender({
   tabs,
@@ -44,7 +45,16 @@ function TabsRender({
     tabRefs.current[next]?.focus();
   };
   return (
-    <div data-aui="tabs">
+    <div
+      data-aui="tabs"
+      onInvalidCapture={(event) =>
+        handleHiddenTabInvalid(
+          event.nativeEvent,
+          event.currentTarget,
+          setSelected,
+        )
+      }
+    >
       <div
         role="tablist"
         aria-label={toTextContent(label) ?? undefined}

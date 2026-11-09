@@ -4,17 +4,67 @@ on:
   pull_request:
     paths:
       - .github/workflows/vscode-test-bed.yaml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
       - examples/with-vscode/**
       - templates/vscode/**
+      - packages/ai-sdk/**
+      - packages/assistant-stream/**
+      - packages/cloud/**
+      - packages/core/**
+      - packages/generative-frame/**
+      - packages/generative-ui/**
+      - packages/heat-graph/**
+      - packages/react/**
+      - packages/react-markdown/**
+      - packages/react-mcp/**
+      - packages/react-native/**
+      - packages/react-syntax-highlighter/**
+      - packages/safe-content-frame/**
+      - packages/store/**
+      - packages/tap/**
+      - packages/tw-shimmer/**
+      - packages/ui/**
       - packages/vscode/**
+      - packages/vue/**
+      - packages/x-buildutils/**
+      - '!packages/**/*.test.ts'
+      - '!packages/**/*.test.tsx'
   push:
     branches:
       - main
     paths:
       - .github/workflows/vscode-test-bed.yaml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
       - examples/with-vscode/**
       - templates/vscode/**
+      - packages/ai-sdk/**
+      - packages/assistant-stream/**
+      - packages/cloud/**
+      - packages/core/**
+      - packages/generative-frame/**
+      - packages/generative-ui/**
+      - packages/heat-graph/**
+      - packages/react/**
+      - packages/react-markdown/**
+      - packages/react-mcp/**
+      - packages/react-native/**
+      - packages/react-syntax-highlighter/**
+      - packages/safe-content-frame/**
+      - packages/store/**
+      - packages/tap/**
+      - packages/tw-shimmer/**
+      - packages/ui/**
       - packages/vscode/**
+      - packages/vue/**
+      - packages/x-buildutils/**
+      - '!packages/**/*.test.ts'
+      - '!packages/**/*.test.tsx'
   workflow_dispatch:
 
 permissions:
