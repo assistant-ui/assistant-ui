@@ -68,9 +68,18 @@ const hasToolCall = (runtime: AssistantRuntime) =>
     );
 
 describe.each([
-  { delivery: "before the pause", delay: true },
-  { delivery: "with the pause on a settled snapshot", delay: false },
-])("react-langgraph interrupt ownership ($delivery)", ({ delay }) => {
+  { delivery: "before the pause", delay: true, linger: false },
+  {
+    delivery: "with the pause on a settled snapshot",
+    delay: false,
+    linger: false,
+  },
+  {
+    delivery: "with the pause while the run is open",
+    delay: false,
+    linger: true,
+  },
+])("react-langgraph interrupt ownership ($delivery)", ({ delay, linger }) => {
   it("holds an interrupted call and executes it exactly once after resume", async ({
     onTestFinished,
   }) => {
@@ -103,6 +112,7 @@ describe.each([
             ? { __interrupt__: [{ value: "approval-needed" }] }
             : {},
       };
+      if (linger) await new Promise((resolve) => setTimeout(resolve, 20));
     });
     const execute = vi.fn(async () => ({ ok: true }));
 
