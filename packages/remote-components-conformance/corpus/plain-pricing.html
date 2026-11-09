@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f7fb;color:#1a1d29;min-height:100vh;padding:60px 20px}
+  .wrap{max-width:1080px;margin:0 auto;text-align:center}
+  h1{font-size:2.4rem;margin-bottom:10px}
+  .sub{color:#5b6275;margin-bottom:32px}
+  .toggle{display:inline-flex;align-items:center;gap:14px;margin-bottom:48px;font-weight:600}
+  .toggle span{color:#8a90a2;transition:color .2s}
+  .toggle span.active{color:#1a1d29}
+  .switch{width:56px;height:30px;background:#4f46e5;border-radius:30px;position:relative;cursor:pointer;border:none}
+  .switch::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;background:#fff;border-radius:50%;transition:transform .25s}
+  .switch[aria-checked="true"]::after{transform:translateX(26px)}
+  .switch:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+  .save{background:#dcfce7;color:#15803d;font-size:.75rem;padding:4px 10px;border-radius:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;align-items:stretch}
+  .card{background:#fff;border-radius:16px;padding:36px 30px;text-align:left;box-shadow:0 4px 20px rgba(20,25,50,.06);display:flex;flex-direction:column;position:relative;border:2px solid transparent}
+  .card.featured{border-color:#4f46e5;box-shadow:0 12px 40px rgba(79,70,229,.18);transform:scale(1.03)}
+  .badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:#4f46e5;color:#fff;font-size:.75rem;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:.04em}
+  .card h2{font-size:1.3rem;margin-bottom:6px}
+  .desc{color:#5b6275;font-size:.95rem;margin-bottom:22px;min-height:44px}
+  .price{font-size:2.8rem;font-weight:800;line-height:1}
+  .price small{font-size:1rem;font-weight:500;color:#5b6275}
+  .billed{color:#8a90a2;font-size:.85rem;margin:8px 0 26px;min-height:20px}
+  ul{list-style:none;margin-bottom:30px;flex:1}
+  li{padding:8px 0;display:flex;gap:10px;font-size:.95rem}
+  li::before{content:"✓";color:#4f46e5;font-weight:800}
+  li.off{color:#a3a8b8}
+  li.off::before{content:"–";color:#c4c8d4}
+  .btn{display:block;text-align:center;padding:13px;border-radius:10px;font-weight:700;text-decoration:none;border:2px solid #4f46e5;color:#4f46e5;transition:.2s}
+  .btn:hover{background:#eef2ff}
+  .featured .btn{background:#4f46e5;color:#fff}
+  .featured .btn:hover{background:#4338ca}
+  @media(max-width:640px){.card.featured{transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Simple, transparent pricing</h1>
+  <p class="sub">Choose the plan that fits you. Upgrade or cancel anytime.</p>
+
+  <div class="toggle">
+    <span id="lblM" class="active">Monthly</span>
+    <button class="switch" id="sw" role="switch" aria-checked="false" aria-label="Toggle yearly billing"></button>
+    <span id="lblY">Yearly</span>
+    <span class="save">Save 20%</span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Free</h2>
+      <p class="desc">For individuals just getting started.</p>
+      <div class="price" data-m="0" data-y="0">$0<small>/mo</small></div>
+      <p class="billed">Free forever</p>
+      <ul>
+        <li>1 project</li>
+        <li>1 GB storage</li>
+        <li>Community support</li>
+        <li class="off">Custom domains</li>
+        <li class="off">Team collaboration</li>
+      </ul>
+      <a href="#" class="btn">Get started</a>
+    </div>
+
+    <div class="card featured">
+      <div class="badge">MOST POPULAR</div>
+      <h2>Pro</h2>
+      <p class="desc">For professionals who need more power.</p>
+      <div class="price" data-m="15" data-y="12">$15<small>/mo</small></div>
+      <p class="billed">Billed monthly</p>
+      <ul>
+        <li>Unlimited projects</li>
+        <li>50 GB storage</li>
+        <li>Priority email support</li>
+        <li>Custom domains</li>
+        <li class="off">Team collaboration</li>
+      </ul>
+      <a href="#" class="btn">Start free trial</a>
+    </div>
+
+    <div class="card">
+      <h2>Team</h2>
+      <p class="desc">For growing teams that collaborate.</p>
+      <div class="price" data-m="40" data-y="32">$40<small>/mo</small></div>
+      <p class="billed">Billed monthly</p>
+      <ul>
+        <li>Everything in Pro</li>
+        <li>500 GB storage</li>
+        <li>24/7 phone support</li>
+        <li>Up to 20 members</li>
+        <li>Admin & SSO controls</li>
+      </ul>
+      <a href="#" class="btn">Contact sales</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const sw = document.getElementById('sw');
+  const lblM = document.getElementById('lblM');
+  const lblY = document.getElementById('lblY');
+  let yearly = false;
+
+  function render(){
+    sw.setAttribute('aria-checked', yearly);
+    lblM.classList.toggle('active', !yearly);
+    lblY.classList.toggle('active', yearly);
+    document.querySelectorAll('.price').forEach(p=>{
+      const v = +(yearly ? p.dataset.y : p.dataset.m);
+      p.innerHTML = `$${v}<small>/mo</small>`;
+      const billed = p.nextElementSibling;
+      if (v === 0) billed.textContent = 'Free forever';
+      else billed.textContent = yearly ? `$${v*12} billed yearly` : 'Billed monthly';
+    });
+  }
+  sw.addEventListener('click',()=>{yearly=!yearly;render();});
+  lblM.addEventListener('click',()=>{yearly=false;render();});
+  lblY.addEventListener('click',()=>{yearly=true;render();});
+  lblM.style.cursor = lblY.style.cursor = 'pointer';
+</script>
+</body>
+</html>

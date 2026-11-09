@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: linear-gradient(135deg, #eef2ff, #f8fafc); color: #1e293b;
+  }
+  .panel {
+    background: #fff; width: 100%; max-width: 420px; padding: 28px;
+    border-radius: 16px; box-shadow: 0 10px 30px rgba(15,23,42,.1);
+  }
+  h1 { margin: 0 0 4px; font-size: 1.4rem; }
+  p.sub { margin: 0 0 20px; color: #64748b; font-size: .9rem; }
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid #f1f5f9;
+  }
+  .row .label strong { display: block; font-size: .95rem; }
+  .row .label span { font-size: .8rem; color: #64748b; }
+  .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .slider {
+    position: absolute; inset: 0; background: #cbd5e1; border-radius: 26px; transition: .2s;
+  }
+  .slider::before {
+    content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+  .switch input:checked + .slider { background: #4f46e5; }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+  .switch input:focus-visible + .slider { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+  select {
+    padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;
+    font-size: .9rem; background: #fff; color: inherit;
+  }
+  select:focus { outline: 2px solid #a5b4fc; border-color: #4f46e5; }
+  button {
+    margin-top: 22px; width: 100%; padding: 12px; border: none; border-radius: 10px;
+    background: #4f46e5; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background .2s;
+  }
+  button:hover { background: #4338ca; }
+  .toast {
+    margin-top: 12px; text-align: center; font-size: .85rem; color: #16a34a;
+    opacity: 0; transition: opacity .3s; min-height: 1.2em;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <form class="panel" id="settings">
+    <h1>Settings</h1>
+    <p class="sub">Manage your preferences</p>
+
+    <div class="row">
+      <div class="label"><strong id="l1">Notifications</strong><span>Receive push notifications</span></div>
+      <label class="switch"><input type="checkbox" name="notifications" aria-labelledby="l1" checked><span class="slider"></span></label>
+    </div>
+    <div class="row">
+      <div class="label"><strong id="l2">Dark mode</strong><span>Use a dark color theme</span></div>
+      <label class="switch"><input type="checkbox" name="darkMode" aria-labelledby="l2"><span class="slider"></span></label>
+    </div>
+    <div class="row">
+      <div class="label"><strong id="l3">Auto-update</strong><span>Install updates automatically</span></div>
+      <label class="switch"><input type="checkbox" name="autoUpdate" aria-labelledby="l3" checked><span class="slider"></span></label>
+    </div>
+    <div class="row">
+      <div class="label"><strong><label for="lang">Language</label></strong><span>Interface language</span></div>
+      <select id="lang" name="language">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+
+    <button type="submit">Save changes</button>
+    <div class="toast" id="toast" role="status"></div>
+  </form>
+
+<script>
+  const form = document.getElementById('settings');
+  const toast = document.getElementById('toast');
+  const KEY = 'settingsPanel';
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (saved) {
+      ['notifications','darkMode','autoUpdate'].forEach(k => form[k].checked = !!saved[k]);
+      form.language.value = saved.language || 'en';
+    }
+  } catch (e) {}
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const data = {
+      notifications: form.notifications.checked,
+      darkMode: form.darkMode.checked,
+      autoUpdate: form.autoUpdate.checked,
+      language: form.language.value
+    };
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    toast.textContent = '✓ Settings saved';
+    toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+  });
+</script>
+</body>
+</html>

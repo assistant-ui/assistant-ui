@@ -59,6 +59,8 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/vscode-test-bed.test.mjs"
       - ".github/workflows/vscode-test-bed.yaml"
+      - "scripts/react18-weekly.test.mjs"
+      - ".github/workflows/react18-weekly.yaml"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
@@ -150,16 +152,19 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup pnpm and node.js
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
         with:
-          install: false
+          node-version-file: package.json
 
       - name: Test the shared script helpers
         run: node --test scripts/lib/*.test.mjs
 
       - name: Test VS Code workflow input coverage
         run: node --test scripts/vscode-test-bed.test.mjs
+
+      - name: Test React 18 tracking issue reporting
+        run: node --test scripts/react18-weekly.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
@@ -223,10 +228,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup pnpm and node.js
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
         with:
-          install: false
+          node-version-file: package.json
 
       - name: Test the skills commit checker
         run: node --test scripts/check-skills-commit.test.mjs
@@ -308,6 +313,22 @@ jobs:
             pnpm install --frozen-lockfile
           fi
 
+      - name: Restore main's coverage Turbo cache, shard 0
+        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
+
+      - name: Restore main's coverage Turbo cache, shard 1
+        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
+
       - name: Build packages
         if: steps.package_build_inputs.outputs.run == 'true'
         env:
@@ -386,7 +407,7 @@ jobs:
 
       - name: Test build cache environment inputs
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: node --test scripts/turbo-redis-env.test.mjs scripts/turbo-env-files.test.mjs
+        run: node --test scripts/turbo-redis-env.test.mjs scripts/turbo-env-files.test.mjs scripts/pull-request-turbo-cache.test.mjs
 
       - name: Measure bundle sizes against the base
         if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.package_build_inputs.outputs.run == 'true'
@@ -420,8 +441,8 @@ jobs:
   build-apps:
     name: Build Changed Apps
     if: ${{ !cancelled() }}
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -602,6 +623,22 @@ jobs:
           else
             pnpm install --frozen-lockfile
           fi
+
+      - name: Restore main's coverage Turbo cache, shard 0
+        if: github.event_name == 'pull_request' && steps.tasks.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
+
+      - name: Restore main's coverage Turbo cache, shard 1
+        if: github.event_name == 'pull_request' && steps.tasks.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
 
       - name: Typecheck
         if: steps.tasks.outputs.run == 'true'

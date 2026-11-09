@@ -602,15 +602,19 @@ export const collectInterruptedTurnEvents = (
     scanned.length === 0 ||
     events[scanned.length - 1] === scanned[scanned.length - 1];
 
-  let interruptions = resumesScan ? cache.interruptions : [];
+  const interruptions = resumesScan ? cache.interruptions : [];
+  let nextInterruptions: SessionStreamEvent[] | undefined;
   for (let i = resumesScan ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
-    if (isTurnInterruption(event)) interruptions = [...interruptions, event];
+    if (isTurnInterruption(event)) {
+      nextInterruptions ??= [...interruptions];
+      nextInterruptions.push(event);
+    }
   }
 
   cache.lastEvents = events;
-  cache.interruptions = interruptions;
-  return interruptions;
+  cache.interruptions = nextInterruptions ?? interruptions;
+  return cache.interruptions;
 };
 
 const getInterruptedTurns = (

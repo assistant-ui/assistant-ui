@@ -19,6 +19,7 @@ import {
 } from "@assistant-ui/react-pi";
 import { usePiHandshake } from "../../pi-handshake";
 import { modelKey } from "@/lib/model-key";
+import { usePiModelCatalog } from "@/lib/use-pi-model-catalog";
 import { ThinkingLevelSlider } from "./thinking-level-slider";
 import {
   Reasoning,
@@ -397,20 +398,40 @@ const selectedModelKey = (provider?: string, modelId?: string) =>
  * effective config is reflected by the next snapshot/event. */
 const ComposerModelSelector: FC = () => {
   const handshake = usePiHandshake();
-  const { metadata, setModel, setThinkingLevel, status } = usePiRuntimeExtras();
+  const { state, metadata, setModel, setThinkingLevel, status } =
+    usePiRuntimeExtras();
   const selected =
     selectedModelKey(metadata.config?.provider, metadata.config?.modelId) ??
     handshake?.selectedModelId;
+  const configuredModel =
+    metadata.config?.provider && metadata.config?.modelId
+      ? {
+          id: modelKey(metadata.config.provider, metadata.config.modelId),
+          name: metadata.config.modelId,
+          description: metadata.config.provider,
+          provider: metadata.config.provider,
+          modelId: metadata.config.modelId,
+        }
+      : undefined;
+  const models = usePiModelCatalog({
+    enabled: handshake !== null,
+    threadId: state.threadId,
+    loadState: state.loadState,
+    runStatus: state.runStatus,
+    handshakeModels: handshake?.models ?? [],
+    selectedModelId: selected,
+    selectedModel: configuredModel,
+  });
   const thinkingLevel = metadata.config?.thinkingLevel;
-  if (!handshake || handshake.models.length === 0) return null;
+  if (!handshake || models.length === 0) return null;
 
   return (
     <ModelSelector.Root
-      models={handshake.models}
+      models={models}
       {...(selected ? { value: selected } : {})}
       onValueChange={(value) => {
         if (status === "running") return;
-        const model = handshake.models.find((m) => m.id === value);
+        const model = models.find((m) => m.id === value);
         if (!model) return;
         void setModel({ provider: model.provider, modelId: model.modelId });
       }}

@@ -1,0 +1,94 @@
+---
+title: Theming
+description: A remote inherits from its slot like inline content does. Text styles and CSS variables cross the frame.
+---
+
+import { ThemeDemo } from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+Switch the host theme below. The card has no colors or fonts of its own. Try the theme toggle in the header too: the color scheme follows.
+
+<ThemeDemo />
+
+```tsx title="host.tsx"
+<div className={theme}>   {/* sets --foreground, --primary, font-family, … */}
+  <RemoteComponent src="https://widgets.example/theme-card.html" />
+</div>
+```
+
+<RemoteSource name="theme-card" />
+
+In React, the same card reads the theme version from a hook:
+
+```tsx title="remotes/theme-card.tsx"
+import { useEffect, useState } from "react";
+import { useThemeVersion } from "@assistant-ui/remote-components-react";
+
+export default function ThemeCard() {
+  const version = useThemeVersion();
+  const [scheme, setScheme] = useState("");
+  useEffect(() => setScheme(getComputedStyle(document.documentElement).colorScheme), [version]);
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ fontWeight: 600 }}>Invoice #1042</div>
+      <div className="muted">Due in 14 days. Color scheme: {scheme || "normal"}.</div>
+      <div className="row">
+        <button className="primary">Pay now</button>
+        <button>Download</button>
+      </div>
+    </div>
+  );
+}
+```
+
+## Inherited properties
+
+The host reads the slot's computed style and sends the inherited properties: `color`, `color-scheme`, the `font-*` family, `line-height`, `letter-spacing`, `direction`, `accent-color` and so on. Properties that don't inherit, like `background` or `border`, never cross. They belong to the slot.
+
+The runtime applies them to the page's `<html>`, so everything inherits them. Your own CSS still wins, as it would inline. `rem` matches your root font size. The direction also sets `<html dir>`, so `:dir(rtl)` and Tailwind's `rtl:` variants match.
+
+## CSS variables
+
+Every custom property defined at the slot crosses as it is. On top, the remote gets canonical tokens for anything you don't define: `--color-text`, `--color-surface`, `--color-accent`, `--radius-md`, `--font-sans` and more. They are read from shadcn/ui names when you have them (`--foreground`, `--primary`, …).
+
+The example pages in these docs share one small stylesheet built on those tokens. It sits in each page as `<style id="ui">`:
+
+<RemoteSource name="ui.css" />
+
+To limit what crosses, filter the variables on the provider:
+
+```tsx title="host.tsx"
+<RemoteHostProvider
+  theme={{
+    vars: ["--brand-*", "--radius"],     // only these custom properties
+    extraVars: { "--chart-1": "#2563eb" }, // added on top
+  }}
+>
+```
+
+## Color scheme
+
+`color-scheme` must match between the iframe element and the document inside it. Otherwise the browser paints an opaque background behind the remote. Tunnelling it keeps the frame transparent. So don't set `color-scheme` or a page background in the remote's own CSS.
+
+## Reading the theme from script
+
+CSS needs nothing: variables and inherited properties update in place. Code that reads computed styles, like a canvas chart that reads `--chart-1`, re-reads them on `theme-changed`. It fires once at connect and after every change, when the runtime has applied the new values. In React, `useThemeVersion()` changes with each event. The card above uses it to show the color scheme.
+
+```js title="chart.js"
+function draw() {
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--chart-1");
+  chart.update({ color });
+}
+draw();
+rc.addEventListener("theme-changed", draw);
+```
+
+## Fonts
+
+`@font-face` rules from your stylesheets are sent with absolute URLs. The remote loads them from its own origin, so font files need `Access-Control-Allow-Origin`. Opaque frames send `Origin: null`, which only `*` allows.
+
+## When it updates
+
+On changes to the slot's `className` or `style`, to class, style, lang, dir or data-theme attributes anywhere in the document, to stylesheets, to `prefers-color-scheme`, and when the window or the slot resizes (media and container queries). At most once per frame, and only when something changed.
+
+While a color or font transition runs on an element around the slot, the host reads the theme every frame. The remote fades along with your page and ends on the final values.

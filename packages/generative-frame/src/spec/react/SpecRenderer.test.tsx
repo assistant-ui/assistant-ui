@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { startTransition, Suspense, useState } from "react";
 import {
   act,
   cleanup,
@@ -6,7 +6,7 @@ import {
   render,
   renderHook,
 } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import { createStateStore, type SpecStateStore } from "../state";
@@ -61,6 +61,14 @@ const catalog = defineCatalog({
   actions: { refresh: { description: "Reload" } },
 });
 
+const confirmationCatalog = defineCatalog({
+  components: catalog.components,
+  actions: {
+    refresh: { description: "Reload" },
+    deleteItem: { description: "Deletes an item", confirm: true },
+  },
+});
+
 const components: SpecComponents = {
   Stack: ({ id, children, slots }: SpecComponentProps) => (
     <section data-id={id}>
@@ -107,6 +115,230 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it("formats props and action params with the host locale", () => {
+    const input = spec(
+      {
+        main: { type: "Stack", children: ["amount", "save", "saved"] },
+        amount: { type: "Text", props: { text: { $calc: "number(1234.5)" } } },
+        save: {
+          type: "Button",
+          props: { label: "Save" },
+          on: {
+            press: {
+              action: "setState",
+              params: { path: "/saved", value: { $calc: "number(1234.5)" } },
+            },
+          },
+        },
+        saved: { type: "Text", props: { text: { $state: "/saved" } } },
+      },
+      { saved: "" },
+    );
+    const view = render(
+      <SpecRenderer components={components} spec={input} locale="de-DE" />,
+    );
+    expect(view.container.textContent).toBe("1.234,5Save");
+    fireEvent.click(view.getByText("Save"));
+    expect(view.container.textContent).toBe("1.234,5Save1.234,5");
+  });
+
+  it("retries a failed element when the locale changes", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    const hosts: SpecComponents = {
+      ...components,
+      Price: ({ props }: SpecComponentProps<{ text: string }>) => {
+        if (props.text !== "1,234.5") throw new Error("Unsupported format");
+        return <p>{props.text}</p>;
+      },
+      Editor: () => {
+        const [value, setValue] = useState("");
+        return (
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        );
+      },
+    };
+    const input = spec({
+      main: { type: "Stack", children: ["price", "editor"] },
+      price: { type: "Price", props: { text: { $calc: "number(1234.5)" } } },
+      editor: { type: "Editor" },
+    });
+    try {
+      const view = render(
+        <SpecRenderer
+          components={hosts}
+          spec={input}
+          locale="de-DE"
+          onError={onError}
+        />,
+      );
+      expect(view.container.textContent).toBe(
+        "Price failed: Unsupported format",
+      );
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Unsupported format" }),
+        { elementId: "price" },
+      );
+      const editor = view.container.querySelector("input")!;
+      fireEvent.change(editor, { target: { value: "draft" } });
+      view.rerender(
+        <SpecRenderer
+          components={hosts}
+          spec={input}
+          locale="en-US"
+          onError={onError}
+        />,
+      );
+      expect(view.container.textContent).toBe("1,234.5");
+      expect(
+        view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+      ).toBeNull();
+      expect(view.container.querySelector("input")).toBe(editor);
+      expect(editor.value).toBe("draft");
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it.each([
+    { children: [], copies: 5000 },
+    { children: ["missing"], copies: 100 },
+    { children: ["main"], copies: 100 },
+    { children: ["missing", "main"], copies: 100 },
+    { children: ["invalid"], copies: 100 },
+  ])(
+    "bounds repeat expansion for $children children",
+    ({ children, copies }) => {
+      const repeated = spec(
+        {
+          main: {
+            type: "Stack",
+            repeat: { path: "/items" },
+            children: Array.from({ length: 50 }, () => children).flat(),
+          },
+          invalid: { props: {} } as never,
+        },
+        { items: Array(copies).fill(null) },
+      );
+      const view = render(
+        <SpecRenderer components={components} spec={repeated} />,
+      );
+      expect(view.container.querySelectorAll("section")).toHaveLength(0);
+      expect(
+        view.container.querySelectorAll(
+          '[data-gf-spec-placeholder="too-large"]',
+        ),
+      ).toHaveLength(1);
+
+      view.rerender(
+        <SpecRenderer components={components} spec={repeated} streaming />,
+      );
+      expect(view.container.querySelectorAll("section")).toHaveLength(0);
+      expect(
+        view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]'),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("ignores default entries in named slots when applying the budget", () => {
+    const view = render(
+      <SpecRenderer
+        components={{
+          ...components,
+          Stack: ({ children, slots }) => (
+            <section>
+              {children}
+              <footer>{Object.values(slots)}</footer>
+            </section>
+          ),
+        }}
+        spec={spec({
+          main: {
+            type: "Stack",
+            children: ["leaf"],
+            slots: { default: Array(5000).fill("leaf"), footer: ["leaf"] },
+          },
+          leaf: { type: "Text", props: { text: "Safe" } },
+        })}
+      />,
+    );
+    expect(view.container.querySelectorAll("p")).toHaveLength(2);
+    expect(view.container.querySelector("footer")?.textContent).toBe("Safe");
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="too-large"]'),
+    ).toBeNull();
+  });
+
+  it("keeps the last fitting tree while streaming and replaces oversized nested repeats with one placeholder", () => {
+    const nested = spec({
+      main: { type: "Stack", repeat: { path: "/items" }, children: ["middle"] },
+      middle: {
+        type: "Stack",
+        repeat: { path: "/items" },
+        children: ["inner"],
+      },
+      inner: { type: "Stack", repeat: { path: "/items" }, children: ["leaf"] },
+      leaf: { type: "Text", props: { text: "Safe" } },
+    });
+    const state = createStateStore({ items: [1] });
+    const view = render(
+      <SpecRenderer
+        components={components}
+        spec={nested}
+        state={state}
+        streaming
+      />,
+    );
+    expect(view.container.querySelectorAll("p")).toHaveLength(1);
+
+    act(() => state.set("/items", Array(200).fill(1)));
+    expect(view.container.querySelectorAll("p")).toHaveLength(1);
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="too-large"]'),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer components={components} spec={nested} state={state} />,
+    );
+    expect(view.container.querySelectorAll("p")).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="too-large"]'),
+    ).toHaveLength(1);
+  });
+
+  it("runs a watch for a write made while the last fitting tree is shown", () => {
+    const onAction = vi.fn();
+    const nested = spec({
+      main: { type: "Stack", children: ["label", "grid"] },
+      label: {
+        type: "Text",
+        props: { text: { $state: "/x" } },
+        watch: { "/x": { action: "refresh" } },
+      },
+      grid: { type: "Stack", repeat: { path: "/items" }, children: ["row"] },
+      row: { type: "Stack", repeat: { path: "/items" }, children: ["leaf"] },
+      leaf: { type: "Text", props: { text: "Cell" } },
+    });
+    const state = createStateStore({ x: "a", items: [1] });
+    render(
+      <SpecRenderer
+        components={components}
+        spec={nested}
+        state={state}
+        onAction={onAction}
+        streaming
+      />,
+    );
+    act(() => state.set("/items", Array(100).fill(1)));
+    act(() => state.set("/x", "b"));
+    expect(onAction).not.toHaveBeenCalled();
+    act(() => state.set("/items", [1]));
+    expect(onAction).toHaveBeenCalledOnce();
+  });
+
   it.each(["default", "footer"])(
     "preserves repeated child identities when %s siblings move",
     (slot) => {
@@ -255,6 +487,76 @@ describe("SpecRenderer", () => {
     expect(store.get("/todos/0/done")).toBe(true);
     expect((view.getAllByRole("checkbox")[0] as HTMLInputElement).checked).toBe(
       true,
+    );
+  });
+
+  it("removes one repeated item with a formula and appends another", () => {
+    const store = createStateStore({
+      items: [
+        { id: "a", title: "First" },
+        { id: "b", title: "Second" },
+        { id: "c", title: "Third" },
+      ],
+    });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={spec({
+          main: { type: "Stack", children: ["list", "add"] },
+          list: {
+            type: "Stack",
+            repeat: { path: "/items", key: "id" },
+            children: ["title", "remove"],
+          },
+          title: { type: "Text", props: { text: { $item: "/title" } } },
+          remove: {
+            type: "Button",
+            props: { label: "Remove" },
+            on: {
+              press: {
+                action: "setState",
+                params: {
+                  path: "/items",
+                  value: { $calc: "without(${/items}, ${$index})" },
+                },
+              },
+            },
+          },
+          add: {
+            type: "Button",
+            props: { label: "Add" },
+            on: {
+              press: {
+                action: "setState",
+                params: {
+                  path: "/items/-",
+                  value: { id: "d", title: "Fourth" },
+                },
+              },
+            },
+          },
+        })}
+      />,
+    );
+    expect(view.container.textContent).toBe(
+      "FirstRemoveSecondRemoveThirdRemoveAdd",
+    );
+    fireEvent.click(view.getAllByRole("button", { name: "Remove" })[1]!);
+    expect(store.get("/items")).toEqual([
+      { id: "a", title: "First" },
+      { id: "c", title: "Third" },
+    ]);
+    expect(view.container.textContent).toBe("FirstRemoveThirdRemoveAdd");
+    fireEvent.click(view.getByRole("button", { name: "Add" }));
+    expect(store.get("/items")).toEqual([
+      { id: "a", title: "First" },
+      { id: "c", title: "Third" },
+      { id: "d", title: "Fourth" },
+    ]);
+    expect(view.container.textContent).toBe(
+      "FirstRemoveThirdRemoveFourthRemoveAdd",
     );
   });
 
@@ -408,6 +710,195 @@ describe("SpecRenderer", () => {
       { from: 1 },
       expect.objectContaining({ elementId: "a" }),
     );
+  });
+
+  it("confirms protected actions, then stops a declined list without an error", async () => {
+    const calls: string[] = [];
+    const confirmAction = vi.fn(async () => {
+      calls.push("confirm");
+      return true;
+    });
+    const deleteItem = vi.fn(() => calls.push("delete"));
+    const onError = vi.fn();
+    const store = createStateStore();
+    const tree = spec({
+      main: {
+        type: "Button",
+        props: { label: "Delete" },
+        on: {
+          press: [
+            { action: "refresh" },
+            { action: "deleteItem", params: { id: { $event: "/at" } } },
+            { action: "setState", params: { path: "/done", value: true } },
+          ],
+        },
+      },
+    });
+    const props = {
+      spec: tree,
+      catalog: confirmationCatalog,
+      components,
+      state: store,
+      handlers: { refresh: () => calls.push("refresh"), deleteItem },
+      onError,
+    };
+    const view = render(
+      <SpecRenderer {...props} confirmAction={confirmAction} />,
+    );
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(calls).toEqual(["refresh", "confirm", "delete"]);
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 1 },
+      elementId: "main",
+    });
+    expect(store.get("/done")).toBe(true);
+
+    act(() => store.set("/done", false));
+    calls.length = 0;
+    view.rerender(<SpecRenderer {...props} confirmAction={() => false} />);
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(calls).toEqual(["refresh"]);
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(store.get("/done")).toBe(false);
+    expect(onError).not.toHaveBeenCalled();
+
+    view.rerender(<SpecRenderer {...props} />);
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[0].message).toContain("confirm option");
+  });
+
+  it("runs the confirmed action when its binding changes while approval is pending", async () => {
+    let approve!: (approved: boolean) => void;
+    const approval = new Promise<boolean>((resolve) => {
+      approve = resolve;
+    });
+    const confirmAction = vi.fn(() => approval);
+    const deleteItem = vi.fn();
+    const refresh = vi.fn();
+    const binding = { action: "deleteItem", params: { id: 7 } };
+    const view = render(
+      <SpecRenderer
+        catalog={confirmationCatalog}
+        components={components}
+        handlers={{ deleteItem, refresh }}
+        confirmAction={confirmAction}
+        spec={spec({
+          main: {
+            type: "Button",
+            props: { label: "Delete" },
+            on: { press: binding },
+          },
+        })}
+      />,
+    );
+    await act(async () => fireEvent.click(view.getByText("Delete")));
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: { id: 7 },
+      elementId: "main",
+    });
+    expect(deleteItem).not.toHaveBeenCalled();
+    binding.action = "refresh";
+    await act(async () => approve(true));
+    expect(deleteItem).toHaveBeenCalledExactlyOnceWith(
+      { id: 7 },
+      expect.objectContaining({ elementId: "main", kind: "event" }),
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "uses committed handlers when replacement suspension is %s",
+    async (blocked) => {
+      let approve!: (approved: boolean) => void;
+      const approval = new Promise<boolean>((resolve) => {
+        approve = resolve;
+      });
+      const confirmAction = vi.fn(() => approval);
+      const committed = vi.fn();
+      const replacement = vi.fn();
+      const didSuspend = vi.fn();
+      const suspension = new Promise<void>(() => {});
+      function Suspender({ blocked }: { blocked: boolean }) {
+        if (blocked) {
+          didSuspend();
+          throw suspension;
+        }
+        return null;
+      }
+      const tree = spec({
+        main: {
+          type: "Button",
+          props: { label: "Delete" },
+          on: { press: { action: "deleteItem" } },
+        },
+      });
+      const content = (handler: typeof committed, blocked = false) => (
+        <Suspense fallback={<p>Loading</p>}>
+          <SpecRenderer
+            spec={tree}
+            catalog={confirmationCatalog}
+            components={components}
+            handlers={{ deleteItem: handler }}
+            confirmAction={confirmAction}
+          />
+          <Suspender blocked={blocked} />
+        </Suspense>
+      );
+      const view = render(content(committed));
+      await act(async () => fireEvent.click(view.getByText("Delete")));
+      expect(confirmAction).toHaveBeenCalledOnce();
+      await act(async () => {
+        startTransition(() => view.rerender(content(replacement, blocked)));
+      });
+      if (blocked) expect(didSuspend).toHaveBeenCalled();
+      else expect(didSuspend).not.toHaveBeenCalled();
+      expect(view.queryByText("Loading")).toBeNull();
+      await act(async () => approve(true));
+      if (blocked) {
+        expect(committed).toHaveBeenCalledExactlyOnceWith(
+          {},
+          expect.objectContaining({ elementId: "main", kind: "event" }),
+        );
+        expect(replacement).not.toHaveBeenCalled();
+      } else {
+        expect(replacement).toHaveBeenCalledExactlyOnceWith(
+          {},
+          expect.objectContaining({ elementId: "main", kind: "event" }),
+        );
+        expect(committed).not.toHaveBeenCalled();
+      }
+      view.rerender(content(committed));
+    },
+  );
+
+  it("never confirms a protected watch action", async () => {
+    const confirmAction = vi.fn(() => true);
+    const deleteItem = vi.fn();
+    const onError = vi.fn();
+    const store = createStateStore({ value: 0 });
+    render(
+      <SpecRenderer
+        catalog={confirmationCatalog}
+        components={components}
+        state={store}
+        handlers={{ deleteItem }}
+        confirmAction={confirmAction}
+        onError={onError}
+        spec={spec({
+          main: {
+            type: "Stack",
+            watch: { "/value": { action: "deleteItem" } },
+          },
+        })}
+      />,
+    );
+    await act(async () => store.set("/value", 1));
+    expect(confirmAction).not.toHaveBeenCalled();
+    expect(deleteItem).not.toHaveBeenCalled();
+    expect(onError.mock.calls[0]?.[0].message).toContain("user event");
   });
 
   it.each(["plain", "not", "$cond"] as const)(
@@ -1034,6 +1525,197 @@ describe("SpecRenderer", () => {
       { range: "30d" },
       expect.objectContaining({ trigger: "/range" }),
     );
+  });
+
+  it("does not dispatch a watch for streamed model state writes", () => {
+    const refresh = vi.fn();
+    const draw = (x: number) => (
+      <SpecRenderer
+        components={components}
+        handlers={{ refresh }}
+        spec={spec(
+          { main: { type: "Stack", watch: { "/x": { action: "refresh" } } } },
+          { x },
+        )}
+        streaming
+      />
+    );
+    const view = render(draw(0));
+    view.rerender(draw(1));
+    view.rerender(draw(2));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a watched set batched with a seed and compares later sets with the seeded value", () => {
+    const store = createStateStore({ x: 0 });
+    const refresh = vi.fn();
+    render(
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        })}
+        streaming
+      />,
+    );
+    act(() => store.seed({ x: 1 }));
+    expect(refresh).not.toHaveBeenCalled();
+
+    act(() => {
+      store.set("/x", 2);
+      store.seed({ x: 3 });
+    });
+    expect(store.get("/x")).toBe(2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    act(() => store.seed({ x: 4 }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    act(() => store.set("/x", 5));
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["/y", "/xy"])(
+    "does not dispatch an unrelated %s set batched with a watched seed",
+    (writePath) => {
+      const store = createStateStore({ x: 0, y: 0, xy: 0 });
+      const refresh = vi.fn();
+      render(
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh }}
+          spec={spec({
+            main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+          })}
+        />,
+      );
+      act(() => {
+        store.set(writePath, 1);
+        store.seed({ x: 2, y: 0, xy: 0 });
+      });
+      expect(store.get("/x")).toBe(2);
+      expect(refresh).not.toHaveBeenCalled();
+    },
+  );
+
+  it("pairs the watched value with the revision from its render", () => {
+    const store = createStateStore({ x: 0 });
+    const refresh = vi.fn();
+    const Writer = ({ props }: SpecComponentProps<{ write: boolean }>) => {
+      useLayoutEffect(() => {
+        if (props.write) store.set("/x", 1);
+      }, [props.write]);
+      return null;
+    };
+    const draw = (write: boolean) => (
+      <SpecRenderer
+        components={{ ...components, Writer }}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: {
+            type: "Stack",
+            watch: { "/x": { action: "refresh" } },
+            children: ["writer"],
+          },
+          writer: { type: "Writer", props: { write } },
+        })}
+      />
+    );
+    const view = render(draw(false));
+    view.rerender(draw(true));
+    expect(store.get("/x")).toBe(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { watchPath: "/x/value", writePath: "/x", value: { value: 1 } },
+    { watchPath: "/x", writePath: "/x/value", value: 1 },
+    { watchPath: "", writePath: "/x/value", value: 1 },
+  ])(
+    "dispatches a $watchPath watch for a $writePath write",
+    ({ watchPath, writePath, value }) => {
+      const store = createStateStore({ x: { value: 0 } });
+      const refresh = vi.fn();
+      render(
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh }}
+          spec={spec({
+            main: {
+              type: "Stack",
+              watch: { [watchPath]: { action: "refresh" } },
+            },
+          })}
+        />,
+      );
+      act(() => store.set(writePath, value));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({ trigger: watchPath }),
+      );
+    },
+  );
+
+  it.each([
+    { writePath: "/items/0", watchPath: "/items/1", items: ["a", "a", "b"] },
+    { writePath: "/items/-", watchPath: "/items/2", items: ["a", "b", "a"] },
+  ])(
+    "dispatches changed array index watches after a $writePath insert",
+    ({ writePath, watchPath, items }) => {
+      const store = createStateStore({ items: ["a", "b"] });
+      const refresh = vi.fn();
+      const unchanged = vi.fn();
+      render(
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh, unchanged }}
+          spec={spec({
+            main: {
+              type: "Stack",
+              watch: {
+                [watchPath]: {
+                  action: "refresh",
+                  params: { value: { $state: watchPath } },
+                },
+                "/items/0": { action: "unchanged" },
+              },
+            },
+          })}
+        />,
+      );
+      expect(refresh).not.toHaveBeenCalled();
+      act(() => store.set(writePath, "a"));
+      expect(store.get("/items")).toEqual(items);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).toHaveBeenCalledWith(
+        { value: "a" },
+        expect.objectContaining({ trigger: watchPath, kind: "watch" }),
+      );
+      expect(unchanged).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps watch dispatch for stores outside createStateStore", () => {
+    const store = { ...createStateStore({ x: 0 }) };
+    const refresh = vi.fn();
+    render(
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { "/x": { action: "refresh" } } },
+        })}
+      />,
+    );
+    act(() => store.seed({ x: 1 }));
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
 

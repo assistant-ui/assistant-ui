@@ -553,6 +553,77 @@ describe("GeminiLiveVoiceAdapter", () => {
     ]);
   });
 
+  for (const code of [1000, 1011]) {
+    it(`delivers a deferred typed reply before a ${code} close`, async () => {
+      const { session, socket } = await connected();
+      const onTranscript = vi.fn();
+      session.onTranscript(onTranscript);
+      const sent = session.sendText!("Hello");
+      socket.emit(reply("Hi there"));
+      await sent;
+      socket.emit({ serverContent: { inputTranscription: { text: "wait" } } });
+      socket.readyState = Socket.CLOSED;
+      socket.onclose?.({ code, reason: "" });
+      await flush();
+
+      expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+        { role: "assistant", text: "Hi there", isFinal: false },
+        { role: "assistant", text: "Hi there", isFinal: true },
+        { role: "user", text: "wait", isFinal: true },
+      ]);
+      expect(session.status).toMatchObject({
+        type: "ended",
+        reason: code === 1000 ? "finished" : "error",
+      });
+    });
+  }
+
+  it("ends with an error and releases the microphone if close-time playback fails", async () => {
+    const { session, socket } = await connected();
+    const sent = session.sendText!("Hello");
+    socket.emit(reply("Unplayable"));
+    await sent;
+    audio.player.enqueue.mockImplementationOnce(() => {
+      throw new Error("invalid audio");
+    });
+    expect(() => socket.close()).not.toThrow();
+    expect(session.status).toMatchObject({
+      type: "ended",
+      reason: "error",
+      error: expect.objectContaining({ message: "invalid audio" }),
+    });
+    expect(audio.microphone.close).toHaveBeenCalledOnce();
+    expect(audio.player.close).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a new typed send made by a transcript listener during an open-socket end", async () => {
+    const { session, socket } = await connected();
+    const attempted: Promise<void>[] = [];
+    session.onTranscript((item) => {
+      if (item.role !== "assistant" || item.isFinal || attempted.length > 0)
+        return;
+      const sentBefore = socket.send.mock.calls.length;
+      attempted.push(Promise.resolve(session.sendText!("Again")));
+      if (socket.send.mock.calls.length > sentBefore)
+        socket.emit(reply("Extra"));
+    });
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    const sent = session.sendText!("Hello");
+    socket.emit(reply("First"));
+    await sent;
+    socket.onerror?.();
+    await expect(attempted[0]).rejects.toThrow("not connected");
+    expect(socket.events().filter((event) => event.clientContent)).toHaveLength(
+      1,
+    );
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "assistant", text: "First", isFinal: false },
+      { role: "assistant", text: "First", isFinal: true },
+    ]);
+    expect(session.status).toMatchObject({ type: "ended", reason: "error" });
+  });
+
   it("reports the close code when the socket closes before setup", async () => {
     const { session, socket } = await opened();
     socket.readyState = 3;

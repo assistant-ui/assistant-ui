@@ -1,22 +1,36 @@
 import { execFileSync } from "node:child_process";
-import { globSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { median } from "./coverage-runtimes.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-export function coverageShards(root = repoRoot) {
+const recordedRuntimesMs = JSON.parse(
+  readFileSync(new URL("./coverage-runtimes.json", import.meta.url), "utf8"),
+);
+
+export function coverageShards(
+  root = repoRoot,
+  runtimesMs = recordedRuntimesMs,
+) {
+  const durations = Object.values(runtimesMs);
+  if (
+    durations.length === 0 ||
+    durations.some((duration) => !Number.isFinite(duration) || duration <= 0)
+  ) {
+    throw new Error(
+      "Coverage runtimes must contain positive millisecond values. Refresh scripts/coverage-runtimes.json from successful CI logs.",
+    );
+  }
+  const unmeasuredRuntimeMs = Math.round(median(durations));
   const weighted = readWorkspaceManifestEntries(root)
     .manifests.filter(({ pkg }) => pkg.scripts?.["test:coverage"])
-    .map(({ manifest, pkg }) => ({
+    .map(({ pkg }) => ({
       name: pkg.name,
-      weight: Math.max(
-        1,
-        globSync("**/*.{test,spec}.{ts,tsx,js,mjs}", {
-          cwd: path.join(root, path.dirname(manifest)),
-          exclude: ["node_modules/**", "dist/**", ".next/**"],
-        }).length,
-      ),
+      weight: Object.hasOwn(runtimesMs, pkg.name)
+        ? runtimesMs[pkg.name]
+        : unmeasuredRuntimeMs,
     }))
     .sort((a, b) => b.weight - a.weight || a.name.localeCompare(b.name));
   const shards = [[], []];
@@ -61,6 +75,14 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   if (![0, 1].includes(index)) throw new Error("Expected shard 0 or 1");
   const names = coverageShards()[index];
   if (names.length === 0) throw new Error("Coverage shard has no workspaces");
+  const unmeasured = names.filter(
+    (name) => !Object.hasOwn(recordedRuntimesMs, name),
+  );
+  if (unmeasured.length > 0) {
+    console.error(
+      `No recorded coverage runtime for ${unmeasured.join(", ")}; assigning the median recorded runtime. Refresh scripts/coverage-runtimes.json after CI completes.`,
+    );
+  }
   const filters = names.map((name) => `--filter=${name}`);
   if (process.argv.includes("--build")) {
     const builds = buildFilters(filters, index);

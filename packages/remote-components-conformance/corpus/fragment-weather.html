@@ -1,0 +1,51 @@
+<style>
+.wc{font-family:var(--font-sans);color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px;max-width:640px;box-sizing:border-box}
+.wc-top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.wc-city{font-size:20px;font-weight:600;margin:0}
+.wc-sub{color:var(--color-text-muted);font-size:13px;margin-top:2px}
+.wc-now{display:flex;align-items:center;gap:12px}
+.wc-temp{font-size:48px;font-weight:300;line-height:1}
+.wc-icon{font-size:44px;line-height:1}
+.wc-meta{display:flex;gap:18px;margin-top:14px;font-size:13px;color:var(--color-text-muted);flex-wrap:wrap}
+.wc-meta b{color:var(--color-text);font-weight:600}
+.wc-days{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:18px;border-top:1px solid var(--color-border);padding-top:16px}
+.wc-day{text-align:center;padding:8px 4px;border-radius:var(--radius-md)}
+.wc-day:first-child{background:color-mix(in srgb,var(--color-accent) 12%,transparent)}
+.wc-dn{font-size:13px;font-weight:600}
+.wc-di{font-size:26px;margin:6px 0}
+.wc-hi{font-size:14px;font-weight:600}
+.wc-lo{font-size:13px;color:var(--color-text-muted);margin-left:4px}
+.wc-note{font-size:11px;color:var(--color-text-muted);margin-top:12px}
+</style>
+<div class="wc">
+  <div class="wc-top">
+    <div>
+      <h2 class="wc-city">Berlin, Germany</h2>
+      <div class="wc-sub" id="wc-date"></div>
+      <div class="wc-sub">Partly cloudy</div>
+    </div>
+    <div class="wc-now">
+      <span class="wc-icon" aria-hidden="true">⛅</span>
+      <span class="wc-temp">14°</span>
+    </div>
+  </div>
+  <div class="wc-meta">
+    <span>Feels like <b>12°</b></span>
+    <span>Humidity <b>68%</b></span>
+    <span>Wind <b>14 km/h W</b></span>
+    <span>H <b>16°</b> · L <b>8°</b></span>
+  </div>
+  <div class="wc-days" id="wc-days"></div>
+  <div class="wc-note">Sample data for illustration — not a live forecast.</div>
+</div>
+<script>
+(function(){
+  var f=[["⛅","Partly cloudy",16,8],["🌧️","Rain",13,7],["🌦️","Showers",14,6],["☀️","Sunny",18,9],["☁️","Cloudy",15,9]];
+  var d=new Date(),names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  document.getElementById("wc-date").textContent=d.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  document.getElementById("wc-days").innerHTML=f.map(function(x,i){
+    var n=i===0?"Today":names[(d.getDay()+i)%7];
+    return '<div class="wc-day" title="'+x[1]+'"><div class="wc-dn">'+n+'</div><div class="wc-di" aria-label="'+x[1]+'">'+x[0]+'</div><span class="wc-hi">'+x[2]+'°</span><span class="wc-lo">'+x[3]+'°</span></div>';
+  }).join("");
+})();
+</script>

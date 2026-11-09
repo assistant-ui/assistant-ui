@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/docs-theme",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Composable assistant-ui documentation UI and theme for Next.js",
   "license": "MIT",
   "author": "AgentbaseAI Inc.",
