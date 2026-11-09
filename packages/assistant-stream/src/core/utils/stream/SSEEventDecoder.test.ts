@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { SSEEventDecoder, SSEEventDecoderError } from "./SSEEventDecoder";
+import {
+  createSSEEventDecoder,
+  SSEEventDecoder,
+  SSEEventDecoderError,
+} from "./SSEEventDecoder";
 
 describe("SSEEventDecoder", () => {
+  it("keeps an internally terminated decoder closed for later chunks", () => {
+    const decoder = createSSEEventDecoder(
+      { trailing: "dispatch" },
+      (event) => event.data === "[DONE]",
+    );
+    expect(
+      decoder.push('data: before\n\ndata: [DONE]\n\nevent: custom\ndata: {"a"'),
+    ).toEqual([{ data: "before" }, { data: "[DONE]" }]);
+    expect(decoder.push(":1}\n\ndata: 2\n\n")).toEqual([]);
+    expect(decoder.flush()).toBeNull();
+  });
+
   it("decodes LF terminated events", () => {
     const decoder = new SSEEventDecoder();
     expect(decoder.push("data: x\n\n")).toEqual([{ data: "x" }]);
