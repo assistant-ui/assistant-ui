@@ -3346,11 +3346,15 @@ export class AgUiThreadController {
           if (activeAssistantId && joinStrategy !== "concat-content") {
             aggregator.rebaseMessage(activeAssistantId);
           }
-          if (hasNewPendingToolCallAnswer && head) {
-            this.updateAssistantMessage(head.id, {
-              status: { type: "running" },
-            });
-          }
+        }
+        if (
+          hasNewPendingToolCallAnswer &&
+          head &&
+          (headId !== previousHeadId || hasActiveText)
+        ) {
+          this.updateAssistantMessage(head.id, {
+            status: { type: "running" },
+          });
         }
         this.updateActiveAssistantState(activeAssistantId);
         break;
