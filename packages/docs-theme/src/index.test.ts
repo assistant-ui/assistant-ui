@@ -80,7 +80,7 @@ describe("assistant-ui theme configuration", () => {
           },
         ],
       },
-      connectMcp: true,
+      connectMcp: false,
       toc: true,
       askAi: false,
     });

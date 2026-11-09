@@ -8,10 +8,33 @@ const resolve = (path: string) =>
 
 const themeMarker = '[data-fd-theme="assistant-ui"]';
 
+const splitSelectorList = (prelude: string) => {
+  const members: string[] = [];
+  let depth = 0;
+  let member = "";
+  for (const char of prelude) {
+    if (char === "," && depth === 0) {
+      members.push(member);
+      member = "";
+      continue;
+    }
+    if ("([".includes(char)) depth += 1;
+    if (")]".includes(char)) depth -= 1;
+    member += char;
+  }
+  return [...members, member].map((selector) => selector.trim());
+};
+
 const selectors = (css: string) =>
   [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{};]+)\{/g)]
     .map(([, prelude]) => prelude!.trim().replace(/\s+/g, " "))
-    .filter((prelude) => !prelude.startsWith("@"));
+    .filter((prelude) => !prelude.startsWith("@"))
+    .flatMap(splitSelectorList);
+
+const themeCss = () =>
+  readFileSync(resolve(packageJson.exports["./styles.css"]), {
+    encoding: "utf8",
+  });
 
 const themeSelectors = () =>
   selectors(
@@ -36,6 +59,39 @@ describe("published stylesheets", () => {
         !selector.includes(".aui-docs"),
     );
     expect(unscoped).toEqual([]);
+  });
+
+  it("keeps document-level theme rules to portaled content", () => {
+    const portal =
+      /\.fd-page-actions-menu|\.omni-(overlay|content)|\[data-radix-popper-content-wrapper\]/;
+    const documentLevel = themeSelectors().filter((selector) =>
+      /^(html\.dark )?body:has\([^)]*\[data-fd-theme/.test(selector),
+    );
+    expect(documentLevel.length).toBeGreaterThan(0);
+    expect(documentLevel.filter((selector) => !portal.test(selector))).toEqual(
+      [],
+    );
+  });
+
+  it("leaves the shared layout's sidebar width to ui.layout.sidebarWidth", () => {
+    expect(themeCss()).not.toMatch(
+      /\[data-fd-theme="assistant-ui"\][^{}]*\{[^{}]*--fd-sidebar-width/,
+    );
+  });
+
+  it("turns off shared-layout transitions under reduced motion", () => {
+    const reduced = themeCss().split("prefers-reduced-motion: reduce")[1];
+    expect(reduced).toContain('[data-fd-theme="assistant-ui"] *');
+    expect(reduced).toContain("transition: none !important");
+  });
+
+  it("hides only the footer's duplicate edit link beside a filled rail", () => {
+    expect(themeCss()).toContain(
+      '[data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"]) .fd-page-footer > a',
+    );
+    expect(themeCss()).not.toContain(
+      ".fd-page-footer:not(:has(.fd-last-updated-footer))",
+    );
   });
 
   it.each([

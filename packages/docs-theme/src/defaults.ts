@@ -34,7 +34,7 @@ export const assistantUiDefaults: Required<
         },
       ],
     },
-    connectMcp: true,
+    connectMcp: false,
     toc: true,
     askAi: false,
   },

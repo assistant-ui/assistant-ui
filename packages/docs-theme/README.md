@@ -13,10 +13,13 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.141 @farming-labs/next@0.2.141 @farming-labs/theme@0.2.141 fumadocs-core@16.17.8 fumadocs-ui@16.17.8 motion@^14
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.141 @farming-labs/theme@0.2.141 fumadocs-core@16.17.8 fumadocs-ui@16.17.8 motion@^14
 ```
 
-Use the Farming Labs Docs, Next, and Theme stable patch 0.2.141 with Fumadocs UI 16.17.8. This version provides the theme options, shared-layout page features and theme-supplied MDX components the theme relies on, and includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
+Add your framework's adapter at the same version: `@farming-labs/next`,
+`@farming-labs/tanstack-start`, or `@farming-labs/farmjs`.
+
+Use the Farming Labs Docs, adapter, and Theme stable patch 0.2.141 with Fumadocs UI 16.17.8. This version provides the theme options, shared-layout page features and theme-supplied MDX components the theme relies on, and includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
 Fumadocs UI and Fumadocs Core are required peers because the theme imports their
 shared contexts and framework helpers. Package managers with automatic peer
 installation install them; otherwise, add `fumadocs-ui@16.17.8` and
@@ -64,12 +67,12 @@ export default defineDocs({
 The theme renders the site header across the top of the page (brand,
 search, `nav.links`, theme toggle), a skip link, the frontmatter title with
 previous/next arrows and a "…" page actions menu (Copy page, View as Markdown,
-Open in Claude or Codex, Copy MCP server URL), and Copy page, View as Markdown
+Open in Claude or Codex), and Copy page, View as Markdown
 and Edit on GitHub below the table of contents. It also defaults to a flat
 sidebar without a collapse control and no breadcrumb. These defaults sit under
 your configuration: set `pageActions`, `sidebar`, or `breadcrumb` yourself to
-change any of them, for example
-`pageActions: { connectMcp: { endpoint: "/api/docs/mcp" } }`.
+change any of them. A site that serves MCP adds the Copy MCP server URL action
+with `pageActions: { connectMcp: { endpoint: "/api/docs/mcp" } }`.
 `assistantUiDefaults` exports the same defaults for spreading into a config.
 
 The theme also supplies the assistant-ui MDX components on React frameworks

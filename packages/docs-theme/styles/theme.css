@@ -43,7 +43,10 @@
   }
 }
 
-body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
+body:has(.aui-docs),
+[data-fd-theme="assistant-ui"],
+body:has([data-fd-theme="assistant-ui"])
+  > :is(.omni-overlay, .omni-content, [data-radix-popper-content-wrapper]) {
   --tint: 106;
   --color-fd-background: oklch(0.992 0.002 var(--tint));
   --color-fd-foreground: oklch(0.145 0.006 var(--tint));
@@ -85,7 +88,11 @@ body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
   -webkit-font-smoothing: antialiased;
 }
 
-html.dark body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
+html.dark body:has(.aui-docs),
+html.dark [data-fd-theme="assistant-ui"],
+html.dark
+  body:has([data-fd-theme="assistant-ui"])
+  > :is(.omni-overlay, .omni-content, [data-radix-popper-content-wrapper]) {
   --color-fd-background: oklch(0.17 0.003 var(--tint));
   --color-fd-foreground: oklch(0.985 0.002 var(--tint));
   --color-fd-card: oklch(0.215 0.003 var(--tint));
@@ -109,6 +116,11 @@ html.dark body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
 
 .aui-docs {
   min-height: 100dvh;
+}
+
+#nd-docs-layout[data-fd-theme="assistant-ui"] {
+  background-color: var(--color-fd-background);
+  color: var(--color-fd-foreground);
 }
 
 .aui-docs-skip-link {
@@ -849,10 +861,7 @@ html.dark body:has(.aui-docs, [data-fd-theme="assistant-ui"]) {
     display: flex;
   }
 
-  :is(
-    .aui-docs #nd-docs-layout,
-    #nd-docs-layout[data-fd-theme="assistant-ui"]
-  ) {
+  .aui-docs #nd-docs-layout {
     --fd-sidebar-width: 260px !important;
   }
 
@@ -1435,14 +1444,15 @@ body:has([data-fd-theme="assistant-ui"])
 @media (min-width: 768px) and (max-width: 1023px) {
   .fd-top-header[data-fd-theme="assistant-ui"]
     .fd-top-header-links
-    a:last-child {
+    a:last-child:not(:only-child) {
     display: none;
   }
 }
 
 @media (min-width: 1280px) {
-  [data-fd-theme="assistant-ui"]
-    .fd-page-footer:not(:has(.fd-last-updated-footer)) {
+  [data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"]) .fd-page-footer > a,
+  [data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"])
+    .fd-page-footer:not(:has(> :not(a))) {
     display: none;
   }
 }
@@ -1462,6 +1472,13 @@ body:has([data-fd-theme="assistant-ui"])
 
   .aui-docs-page-navigation svg {
     transition: none;
+  }
+
+  [data-fd-theme="assistant-ui"],
+  [data-fd-theme="assistant-ui"] *,
+  body:has([data-fd-theme="assistant-ui"]) .fd-page-actions-menu,
+  body:has([data-fd-theme="assistant-ui"]) .fd-page-actions-menu * {
+    transition: none !important;
   }
 }
 
