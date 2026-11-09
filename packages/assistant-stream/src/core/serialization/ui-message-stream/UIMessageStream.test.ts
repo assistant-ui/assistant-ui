@@ -1922,6 +1922,210 @@ describe("UIMessageStreamDecoder tool approvals", () => {
     });
   });
 
+  it("routes out-of-order decisions to the calls that requested them", async () => {
+    const calls = Array.from({ length: 16 }, (_, index) => ({
+      toolCallId: `approval-call-${index}`,
+      approvalId: `approval-${index}`,
+      approved: index % 2 === 0,
+      reason: `Decision ${index}`,
+    }));
+    const messages = await decodeMessages([
+      { type: "start" },
+      ...calls.flatMap(({ toolCallId, approvalId }) => [
+        {
+          type: "tool-input-available",
+          toolCallId,
+          toolName: "lookup",
+          input: {},
+        },
+        { type: "tool-approval-request", toolCallId, approvalId },
+      ]),
+      ...calls.toReversed().map(({ approvalId, approved, reason }) => ({
+        type: "tool-approval-response",
+        approvalId,
+        approved,
+        reason,
+      })),
+      { type: "finish", finishReason: "tool-calls" },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual(
+      calls.map(({ toolCallId, approvalId, approved, reason }) =>
+        expect.objectContaining({
+          toolCallId,
+          approval: { id: approvalId, approved, reason },
+        }),
+      ),
+    );
+  });
+
+  it("ignores replaced approval ids and uses the latest request metadata", async () => {
+    const messages = await decodeMessages([
+      ...approvalRequestFrames.slice(0, 4),
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_1",
+        approvalId: "replacement",
+        signature: "old",
+      },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_1",
+        approvalId: "replacement",
+        signature: "new",
+        reason: "Confirm the new path",
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "replacement",
+        approved: false,
+        reason: "Keep the file",
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+        approved: true,
+        reason: "Stale decision",
+      },
+      { type: "tool-output-denied", toolCallId: "call_1" },
+      { type: "finish", finishReason: "stop" },
+    ]);
+
+    expect(toolCallOf(messages)).toMatchObject({
+      approval: {
+        id: "replacement",
+        signature: "new",
+        prompt: "Confirm the new path",
+        requestReason: "Confirm the new path",
+        approved: false,
+        reason: "Keep the file",
+      },
+      result: { error: "Keep the file" },
+      isError: true,
+    });
+  });
+
+  it("ignores unknown approval ids and requests for unknown calls", async () => {
+    const messages = await decodeMessages([
+      ...approvalRequestFrames.slice(0, 4),
+      { type: "tool-approval-response", approvalId: "unknown", approved: true },
+      {
+        type: "tool-approval-request",
+        toolCallId: "missing",
+        approvalId: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+        approved: false,
+        reason: "Keep it",
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "unknown",
+        approved: true,
+        reason: "Unrelated",
+      },
+      { type: "finish", finishReason: "tool-calls" },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({
+        toolCallId: "call_1",
+        approval: {
+          id: "aitxt-1w6vi0Fered1RmYgbJWDbhzJ",
+          signature: "7k2qAL3WgfPT0H4tuB9QTC8NAl-fp6siXIU6YqFc0tM",
+          approved: false,
+          reason: "Keep it",
+        },
+      }),
+    ]);
+  });
+
+  it("keeps first-request priority for reused ids and reroutes after replacement", async () => {
+    const messages = await decodeMessages([
+      ...approvalRequestFrames.slice(0, 3),
+      {
+        type: "tool-input-available",
+        toolCallId: "call_2",
+        toolName: "lookup",
+        input: {},
+      },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_2",
+        approvalId: "shared",
+      },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_1",
+        approvalId: "shared",
+      },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_1",
+        approvalId: "separate",
+      },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_1",
+        approvalId: "shared",
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "shared",
+        approved: false,
+        reason: "First request",
+      },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_2",
+        approvalId: "replacement",
+      },
+      { type: "tool-approval-response", approvalId: "shared", approved: true },
+      {
+        type: "tool-approval-request",
+        toolCallId: "call_2",
+        approvalId: "shared",
+        signature: "updated",
+      },
+      {
+        type: "tool-approval-response",
+        approvalId: "shared",
+        approved: false,
+        reason: "Original priority",
+      },
+      { type: "tool-approval-response", approvalId: "shared", approved: true },
+      { type: "finish", finishReason: "tool-calls" },
+    ]);
+
+    expect(
+      messages.some((message) =>
+        message.parts.some(
+          (part) =>
+            part.type === "tool-call" &&
+            part.toolCallId === "call_2" &&
+            part.approval?.reason === "First request",
+        ),
+      ),
+    ).toBe(true);
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({
+        toolCallId: "call_1",
+        approval: { id: "shared", approved: true },
+      }),
+      expect.objectContaining({
+        toolCallId: "call_2",
+        approval: {
+          id: "shared",
+          signature: "updated",
+          approved: true,
+          reason: "Original priority",
+        },
+      }),
+    ]);
+  });
+
   it("drops approval chunks without their ids", async () => {
     const messages = await decodeMessages([
       ...approvalRequestFrames.slice(0, 3),

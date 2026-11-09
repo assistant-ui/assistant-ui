@@ -253,9 +253,12 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
             }
 
             case "tool-approval-response": {
-              const entry = [...approvalsByToolCallId].find(
-                ([, approval]) => approval.id === chunk.approvalId,
-              );
+              let entry: [string, ToolCallApproval] | undefined;
+              for (const candidate of approvalsByToolCallId) {
+                if (candidate[1].id !== chunk.approvalId) continue;
+                entry = candidate;
+                break;
+              }
               if (!entry) break;
               const [toolCallId, approval] = entry;
               const decided = {
