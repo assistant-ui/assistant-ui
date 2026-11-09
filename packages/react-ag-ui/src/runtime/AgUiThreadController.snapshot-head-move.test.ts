@@ -118,6 +118,44 @@ function taskPartFor(core: AgUiThreadController, messageId: string) {
 }
 
 describe("AgUiThreadController snapshot head moves", () => {
+  it("reopens a settled snapshot-only assistant when a later snapshot adds a tool call", async () => {
+    const answer = {
+      id: "m1",
+      role: "assistant",
+      content: "Let me ask.",
+    };
+    const core = createController((wire) => [
+      start,
+      { type: "MESSAGES_SNAPSHOT", messages: [...wire.messages, answer] },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          {
+            ...answer,
+            toolCalls: [
+              {
+                id: "ask",
+                type: "function",
+                function: { name: "ask_user", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      finished,
+    ]);
+
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "m1")?.status,
+    ).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
   it("settles the moved-off answer when the snapshot has no tool call", async () => {
     const core = createController((wire) => [
       start,

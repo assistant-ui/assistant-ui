@@ -3599,11 +3599,22 @@ export class AgUiThreadController {
             previous?.status?.type === "running" &&
             snapshot.status?.type === "requires-action" &&
             snapshot.status.reason === "tool-calls";
+          const previousToolCallIds = new Set(
+            Array.from(
+              iterateToolCallParts(previous?.content ?? []),
+              (call) => call.toolCallId,
+            ),
+          );
           const preservesSettledStatus =
             convertedMessage.id !== activeAssistantId &&
             this.isTerminalStatus(previous?.status) &&
             snapshot.status?.type === "requires-action" &&
-            snapshot.status.reason === "tool-calls";
+            snapshot.status.reason === "tool-calls" &&
+            Array.from(iterateToolCallParts(snapshot.content)).every(
+              (call) =>
+                isResolvedToolCall(call) ||
+                previousToolCallIds.has(call.toolCallId),
+            );
           converted[index] = previous
             ? {
                 ...snapshot,
