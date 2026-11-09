@@ -243,11 +243,33 @@ function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
 
   useEffect(() => {
     return aui.on("thread.runStart", () => {
-      editor.focus();
+      if (shouldFocusOnRunStart(editor.getRootElement())) editor.focus();
     });
   }, [editor, aui]);
 
   return null;
+}
+
+/**
+ * Mirrors `ComposerPrimitive.Input`: a run start does not take focus from an
+ * element outside this composer and outside this composer's thread.
+ */
+function shouldFocusOnRunStart(rootElement: HTMLElement | null): boolean {
+  if (!rootElement) return false;
+  const doc = rootElement.ownerDocument;
+  const active = doc.activeElement;
+  if (!active || active === doc.body) return true;
+  if (rootElement.contains(active)) return false;
+
+  const composerRoot = rootElement.closest("[data-aui-composer-type]");
+  if (composerRoot?.contains(active)) return true;
+
+  const threadRoot = rootElement.closest("[data-aui-thread-root]");
+  return (
+    threadRoot !== null &&
+    threadRoot.contains(active) &&
+    active.closest("[data-aui-thread-root]") === threadRoot
+  );
 }
 
 /** Lexical-based composer input with inline directive chips and runtime sync. */
