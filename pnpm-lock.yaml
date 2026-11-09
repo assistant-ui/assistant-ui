@@ -4463,7 +4463,7 @@ importers:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
       ai-v6:
-        specifier: npm:ai@^6.0.315
+        specifier: npm:ai@^6.0.277
         version: ai@6.0.315(zod@4.6.7)
       ioredis:
         specifier: ^6.0.0
