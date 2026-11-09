@@ -108,22 +108,13 @@ meant to run it, so nothing but the gate's arrival says otherwise and the
 gate is late by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
-The entry is marked `skipExecute` at creation, exactly like a call
-observed with a `result`. `unstable_isClientToolCall` is read once, when
-the call is first observed live, and never re-read: ownership is fixed
-when the provider emits the call, so a later snapshot cannot revoke it
-and drop the result of an execute already in flight. `streamCall` still
-fires once, as under A.8; only the wrapped `execute` and its result
-chunk are withheld.
+An initial `true` ownership answer marks the call client-owned and is retained. An initial `false` answer on a running snapshot (`isRunning: true`) marks the entry `skipExecute`, exactly like a call observed with a `result`. That provider-owned decision is permanent. A later snapshot cannot revoke retained ownership and drop the result of an execution already in flight. `streamCall` still fires once, as under A.8; only the wrapped `execute` and its result chunk are withheld for a provider-owned call.
 
-Outside production, a provider-owned call whose name resolves to a tool
-with an `execute` logs a `console.warn`. The two together are a
-misconfiguration: the provider answers the call, so the registered
-`execute` would never run and the skip is otherwise silent.
+An initial `undefined` defers ownership. A `false` answer on a settled snapshot (`isRunning: false`) also defers ownership, whether read when the entry is created or on a later check. It keeps `ownershipDeferred` set and the args stream open, without setting `skipExecute` or warning. The predicate is asked again on every later settled snapshot until `undefined` clears the deferral and allows normal client execution, or `true` clears the deferral and marks the call `clientOwned`. A call that already has a result only clears the deferral, without asking the predicate again or executing locally. These checks precede execution and cannot revoke ownership an execution already relies on.
 
-The predicate is also what licenses running a frontend tool before the
-provider's run ends, so an adapter that supplies it keeps the overlap
-between a client tool's work and the run tail (A.10).
+Outside production, a call classified as provider-owned when first observed on a running snapshot whose name resolves to a tool with an `execute` logs a `console.warn`. The provider answers that call, so the registered `execute` would never run and the skip is otherwise silent. A call held by a settled-time `false` answer does not warn, because the provider may release it after resume.
+
+The predicate is also what licenses running a frontend tool before the provider's run ends, so an adapter that supplies it keeps the overlap between a client tool's work and the run tail (A.10).
 
 ### A.10. Args complete while the provider's run is still open
 Closing the args stream hands the call to the client executor, so it may
@@ -131,17 +122,9 @@ only happen once the provider can no longer speak about that call. A
 provider may still answer the call (A.5) or gate it (A.8) one or more
 snapshots after its arguments complete, and a protocol can carry the
 outcome no earlier: AG-UI projects an interrupt only from `RUN_FINISHED`.
-The run ending is the only universal signal, so a call whose ownership is
-unknown closes when the snapshot's `isRunning` goes false.
+The run ending is the only universal signal, so a call whose ownership is unknown closes when the snapshot's `isRunning` goes false and the settled ownership check releases it (A.9). A deferred call held by a `false` answer keeps its args stream open across settled snapshots until the predicate releases it or a result arrives.
 
-`ExternalStoreThreadRuntimeCore` feeds the tracker
-`store.isRunning || _hasExecutingTools(store)`, so that condition also covers
-a client tool mid-`execute`. That defers an unknown-ownership sibling only
-while a client-owned call is actually executing, which no shipped adapter
-produces: every entry pending in a snapshot closes in the same
-`_processMessages` pass, an adapter that supplies the predicate classifies
-every call, and an execution parked on `human()` reports `interrupt` rather
-than `executing`, which `_hasExecutingTools` does not count.
+`ExternalStoreThreadRuntimeCore` feeds the tracker `store.isRunning || _hasExecutingTools(store)`, so that condition also covers a client tool mid-`execute`. An unknown-ownership sibling waits while a client-owned call is executing. An execution parked on `human()` reports `interrupt` rather than `executing`, which `_hasExecutingTools` does not count.
 
 That holds even when `execute` opens with `await human()`. The stream
 fires `onExecutionStart` only after `execute` returns, because until then

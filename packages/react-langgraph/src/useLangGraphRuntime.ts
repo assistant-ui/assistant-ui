@@ -338,7 +338,30 @@ const useLangGraphRuntimeImpl = (
     interruptRef.current = interrupt;
   }, [interrupt]);
 
+  const heldToolCallIdsRef = useRef<{
+    interrupt: LangGraphInterruptState;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  const heldToolCallIds =
+    interrupt === undefined
+      ? null
+      : heldToolCallIdsRef.current?.interrupt === interrupt
+        ? heldToolCallIdsRef.current
+        : {
+            interrupt,
+            ids: new Set(
+              getPendingToolCalls(messages).map((toolCall) => toolCall.id),
+            ),
+          };
+  useInsertionEffect(() => {
+    heldToolCallIdsRef.current = heldToolCallIds;
+  }, [heldToolCallIds]);
+
   const [isRunning, setIsRunning] = useState(false);
+  const isRunningRef = useRef(isRunning);
+  useInsertionEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
       load !== undefined &&
@@ -990,6 +1013,16 @@ const useLangGraphRuntimeImpl = (
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
+    unstable_isClientToolCall: (toolCall) => {
+      const held = heldToolCallIdsRef.current;
+      if (
+        isRunningRef.current ||
+        held === null ||
+        held.interrupt !== interruptRef.current
+      )
+        return undefined;
+      return held.ids.has(toolCall.toolCallId) ? false : undefined;
+    },
     setToolStatuses,
     adapters: {
       attachments,

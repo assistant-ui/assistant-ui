@@ -64,6 +64,8 @@ type ToolCallEntry = {
       controller: ToolCallStreamController;
       argsComplete: boolean;
       clientOwned: boolean;
+      /** Stays deferred until a settled snapshot releases the call or supplies a result. */
+      ownershipDeferred: boolean;
     }
 );
 
@@ -303,7 +305,11 @@ export class ToolInvocationTracker {
         this._lastSnapshot &&
         this._lastSnapshot.messages === snapshot.messages &&
         this._lastSnapshot.isRunning === snapshot.isRunning &&
-        this._lastSnapshot.isLoading === snapshot.isLoading
+        this._lastSnapshot.isLoading === snapshot.isLoading &&
+        (snapshot.isRunning ||
+          ![...this._entries.values()].some(
+            (entry) => entry.controller && entry.ownershipDeferred,
+          ))
       ) {
         return;
       }
@@ -686,6 +692,22 @@ export class ToolInvocationTracker {
     );
   }
 
+  private _resolveDeferredOwnership(
+    entry: ToolCallEntry,
+    content: ToolCallMessagePart,
+  ): void {
+    if (!entry.controller || !entry.ownershipDeferred || this._isRunning)
+      return;
+    if (content.result !== undefined) {
+      entry.ownershipDeferred = false;
+      return;
+    }
+    const ownership = this._isClientToolCall?.(content);
+    if (ownership === false) return;
+    entry.ownershipDeferred = false;
+    if (ownership === true) entry.clientOwned = true;
+  }
+
   /**
    * Closing the args stream hands the call to the client executor, so it may
    * only happen once the provider can no longer speak about that call. The run
@@ -696,14 +718,16 @@ export class ToolInvocationTracker {
     argsText,
     hasResult,
     clientOwned,
+    ownershipDeferred,
   }: {
     argsText: string;
     hasResult: boolean;
     clientOwned: boolean;
+    ownershipDeferred: boolean;
   }): boolean {
     if (hasResult) return true;
     if (!isArgsTextComplete(argsText)) return false;
-    return clientOwned || !this._isRunning;
+    return clientOwned || (!this._isRunning && !ownershipDeferred);
   }
 
   private _startActiveEntry(
@@ -712,6 +736,7 @@ export class ToolInvocationTracker {
     skipExecute: boolean,
     discarded: boolean,
     clientOwned: boolean,
+    ownershipDeferred: boolean,
   ): ToolCallEntry {
     const toolCallController = this._controller.addToolCallPart({
       toolName,
@@ -726,6 +751,7 @@ export class ToolInvocationTracker {
       discarded,
       argsComplete: false,
       clientOwned,
+      ownershipDeferred,
     };
     this._entries.set(toolCallId, entry);
     return entry;
@@ -809,6 +835,7 @@ export class ToolInvocationTracker {
             argsText: content.argsText,
             hasResult,
             clientOwned: entry.clientOwned,
+            ownershipDeferred: entry.ownershipDeferred,
           });
           if (shouldClose) entry.controller.argsText.close();
           entry.argsText = content.argsText;
@@ -843,6 +870,7 @@ export class ToolInvocationTracker {
           argsText: content.argsText,
           hasResult,
           clientOwned: entry.clientOwned,
+          ownershipDeferred: entry.ownershipDeferred,
         });
         if (shouldClose) entry.controller.argsText.close();
         entry.argsText = content.argsText;
@@ -858,6 +886,7 @@ export class ToolInvocationTracker {
         argsText: entry.argsText,
         hasResult,
         clientOwned: entry.clientOwned,
+        ownershipDeferred: entry.ownershipDeferred,
       });
       if (shouldClose) {
         entry.controller.argsText.close();
@@ -921,7 +950,9 @@ export class ToolInvocationTracker {
           this._discardedToolCallIds.add(content.toolCallId);
         const ownership = this._isClientToolCall?.(content);
         const providerOwned =
-          content.result === undefined && ownership === false;
+          content.result === undefined &&
+          ownership === false &&
+          this._isRunning;
         if (providerOwned)
           this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
         entry = this._startActiveEntry(
@@ -930,12 +961,15 @@ export class ToolInvocationTracker {
           content.result !== undefined || providerOwned || discarded,
           discarded,
           ownership === true,
+          ownership === undefined || (!this._isRunning && ownership === false),
         );
       }
 
       if (content.result !== undefined) entry.skipExecute = true;
 
       if (content.approval !== undefined) entry.skipExecute = true;
+
+      this._resolveDeferredOwnership(entry, content);
 
       this._processArgsText(entry, content);
 
