@@ -3,13 +3,14 @@ import { compareGeometry, comparePixels, settle, VARIANT } from "./helpers.js";
 
 /** A cross-section of layout cases at fractional and high device pixel ratios. */
 /**
- * Known differences, in differing pixels. Chromium, remote served from the
- * `vite build` output: geometry is identical to 1/64 px, but anti-aliased
- * pixels on the top edge of a rounded corner are rasterised differently
- * inside the frame. pixelmatch 8's OKLab metric counts three of them in
- * flex-wrap@2x and one in flex-grow@1.5x, all in the first two pixel rows.
+ * Known differences in Chromium, in differing pixels. Geometry is identical
+ * to 1/64 px, but anti-aliased pixels on the top edge of a rounded corner are
+ * rasterised differently inside the frame. pixelmatch 8's OKLab metric counts
+ * three of them in flex-wrap@2x and one in flex-grow@1.5x, all in the first
+ * two pixel rows, with the remote served from the `vite build` output. Other
+ * engines get no allowance.
  */
-const ALLOWED: Record<string, number> = {
+const CHROMIUM_ALLOWED: Record<string, number> = {
   "flex-wrap@2x": 3,
   "flex-grow@1.5x": 1,
 };
@@ -31,14 +32,16 @@ for (const dpr of [1.5, 2]) {
   test.describe(`dpr ${dpr}`, () => {
     test.use({ deviceScaleFactor: dpr });
     for (const name of CASES) {
-      test(name, async ({ page }) => {
+      test(name, async ({ page, browserName }) => {
         await page.goto(`/?case=${name}${VARIANT}`);
         await settle(page);
         await compareGeometry(page);
         await comparePixels(
           page,
           `${name}@${dpr}x`,
-          ALLOWED[`${name}@${dpr}x`] ?? 0,
+          browserName === "chromium"
+            ? (CHROMIUM_ALLOWED[`${name}@${dpr}x`] ?? 0)
+            : 0,
         );
       });
     }
