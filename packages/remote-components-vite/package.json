@@ -40,8 +40,8 @@
     "@assistant-ui/remote-components-react": "workspace:^"
   },
   "devDependencies": {
-    "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/remote-components-react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^26.6.5",
     "vite": "^8.3.5"
   },

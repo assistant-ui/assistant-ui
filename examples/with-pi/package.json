@@ -19,7 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "lucide-react": "^1.61.0",
-    "next": "^16.4.3",
+    "next": "^16.4.5",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -27,8 +27,8 @@
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@testing-library/react": "^16.3.3",
     "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
