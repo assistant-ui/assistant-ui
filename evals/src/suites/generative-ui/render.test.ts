@@ -73,7 +73,7 @@ test(
   "renders answers in Chrome one at a time, slices tall ones, and reports what fails",
   { skip: findChrome() ? false : "no Chrome to render in" },
   async () => {
-    const renderer = await createRenderer();
+    const renderer = await createRenderer({ opaqueOrigin: true });
     try {
       for (const [format, artifact] of answers) {
         const { screenshots, cutOff, runtimeErrors } = await renderer.render(
@@ -135,7 +135,7 @@ test(
   "prose does not hide a blank spec answer",
   { skip: findChrome() ? false : "no Chrome to render in" },
   async () => {
-    const renderer = await createRenderer();
+    const renderer = await createRenderer({ opaqueOrigin: true });
     try {
       const rendered = await renderer.render("spec", "{}", {
         before: "Here is your plan.",
@@ -157,7 +157,7 @@ test(
   async () => {
     const height = (screenshots: string[]) =>
       screenshots.reduce((sum, png) => sum + size(png).height, 0);
-    const renderer = await createRenderer();
+    const renderer = await createRenderer({ opaqueOrigin: true });
     try {
       for (const [format, artifact] of answers.filter(
         ([format]) => format === "spec" || format === "frame",
