@@ -1,9 +1,33 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "./AssistantCloud";
-import type { CloudMessage } from "./AssistantCloudThreadMessages";
+import type {
+  CloudMessage,
+  CloudRunLease,
+} from "./AssistantCloudThreadMessages";
 import { CloudAPIError } from "./AssistantCloudAPI";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
+
+/** How a write relates to the message's run: `running` opens or renews its lease, `ended` closes it. */
+export type CloudMessageRunPhase = "running" | "ended";
+
+type OpenRun = {
+  threadId: string;
+  leaseId: string;
+  remoteId: string;
+  intervalMs: number;
+  timer: ReturnType<typeof setTimeout> | undefined;
+  superseded: boolean;
+};
+
+const isRunWriteRefusal = (error: unknown): error is CloudAPIError =>
+  error instanceof CloudAPIError &&
+  error.status === 409 &&
+  (error.code === "run_ended" || error.code === "lease_mismatch");
+
+// A server that predates run leases rejects the unknown `run` key of its strict create schema.
+const isRunUnsupported = (error: unknown) =>
+  error instanceof CloudAPIError && error.status === 400;
 
 type FailedAppend = {
   threadId: string;
@@ -22,6 +46,8 @@ type FailedAppend = {
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
   private failedAppends = new Map<string, FailedAppend>();
+  private openRuns = new Map<string, OpenRun>();
+  private runWrites = new Map<string, Promise<unknown>>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -38,6 +64,8 @@ export class CloudMessagePersistence {
    * @param parentId - Local parent message ID (or null for first message)
    * @param format - Message format (e.g., "aui/v0", "ai-sdk/v6")
    * @param content - Message content (format-specific)
+   * @param run - `running` stores the message with an open run lease that is
+   *   kept alive by heartbeats until a write with `ended` closes it
    */
   async append(
     threadId: string,
@@ -45,11 +73,19 @@ export class CloudMessagePersistence {
     parentId: string | null,
     format: string,
     content: ReadonlyJSONObject,
+    run?: CloudMessageRunPhase,
   ): Promise<void> {
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
-      await existing;
+      await existing.catch(() => undefined);
+      if (this.openRuns.has(messageId)) {
+        await this.update(threadId, messageId, format, content, run);
+      }
+      return;
+    }
+    if (existing !== undefined && this.openRuns.has(messageId)) {
+      await this.update(threadId, messageId, format, content, run);
       return;
     }
 
@@ -58,15 +94,31 @@ export class CloudMessagePersistence {
       const resolvedParentId = parentId
         ? await this.resolveParentId(parentId)
         : null;
-      const { message_id } = await cloud.threads.messages.create(threadId, {
+      const body = {
         parent_id: resolvedParentId,
         ...(messageId.length > 0 && messageId.length <= 255
           ? { external_id: messageId }
           : undefined),
         format,
         content,
-      });
-      return message_id;
+      };
+      if (run !== "running") {
+        return (await cloud.threads.messages.create(threadId, body)).message_id;
+      }
+      let created: Awaited<ReturnType<typeof cloud.threads.messages.create>>;
+      try {
+        created = await cloud.threads.messages.create(threadId, {
+          ...body,
+          run: { status: "running" },
+        });
+      } catch (error) {
+        if (!isRunUnsupported(error)) throw error;
+        created = await cloud.threads.messages.create(threadId, body);
+      }
+      if (created.lease) {
+        this.openRun(threadId, messageId, created.message_id, created.lease);
+      }
+      return created.message_id;
     })();
 
     this.idMapping.set(messageId, task);
@@ -116,6 +168,7 @@ export class CloudMessagePersistence {
     messageId: string,
     _format: string,
     content: ReadonlyJSONObject,
+    run?: CloudMessageRunPhase,
   ): Promise<void> {
     const cloud = this.getCloud();
     const remoteId = await this.getRemoteId(messageId);
@@ -125,7 +178,150 @@ export class CloudMessagePersistence {
       );
       return;
     }
-    await cloud.threads.messages.update(threadId, remoteId, { content });
+    if (!this.openRuns.has(messageId)) {
+      await cloud.threads.messages.update(threadId, remoteId, { content });
+      return;
+    }
+    // Writes of one run are serialized so a checkpoint can never land after the write that ends it.
+    const previous = this.runWrites.get(messageId) ?? Promise.resolve();
+    const task = previous
+      .catch(() => undefined)
+      .then(() => this.writeRun(threadId, messageId, content, run ?? "ended"));
+    this.runWrites.set(messageId, task);
+    try {
+      await task;
+    } finally {
+      if (this.runWrites.get(messageId) === task)
+        this.runWrites.delete(messageId);
+    }
+  }
+
+  private async writeRun(
+    threadId: string,
+    messageId: string,
+    content: ReadonlyJSONObject,
+    phase: CloudMessageRunPhase,
+  ): Promise<void> {
+    const open = this.openRuns.get(messageId);
+    const cloud = this.getCloud();
+    if (!open) {
+      // The lease closed under an earlier write: a checkpoint is dropped, a final answer lands as a plain write.
+      const remoteId = await this.getRemoteId(messageId);
+      if (phase === "running" || !remoteId) return;
+      await cloud.threads.messages.update(threadId, remoteId, { content });
+      return;
+    }
+    let response: Awaited<ReturnType<typeof cloud.threads.messages.update>>;
+    try {
+      response = await cloud.threads.messages.update(
+        open.threadId,
+        open.remoteId,
+        { content, run: { lease_id: open.leaseId, status: phase } },
+      );
+    } catch (error) {
+      if (!isRunWriteRefusal(error)) throw error;
+      this.closeRun(messageId);
+      return;
+    }
+    const forkedId = (response as typeof response | undefined)?.message_id;
+    if (forkedId && forkedId !== open.remoteId) {
+      open.remoteId = forkedId;
+      this.idMapping.set(messageId, forkedId);
+    }
+    if (phase === "ended") {
+      this.closeRun(messageId);
+    } else {
+      this.scheduleHeartbeat(messageId);
+    }
+  }
+
+  /**
+   * Moves a stored message's id mapping and run lease to a new local id, for
+   * runtimes that swap a placeholder's id once the backend names the message.
+   */
+  async rename(from: string, to: string): Promise<void> {
+    const entry = this.idMapping.get(from);
+    if (entry === undefined || this.idMapping.has(to)) return;
+    await Promise.resolve(entry).catch(() => undefined);
+    const remoteId = this.idMapping.get(from);
+    if (typeof remoteId !== "string" || this.idMapping.has(to)) return;
+    this.idMapping.delete(from);
+    this.idMapping.set(to, remoteId);
+    const open = this.openRuns.get(from);
+    if (!open) return;
+    this.openRuns.delete(from);
+    if (open.timer !== undefined) clearTimeout(open.timer);
+    open.timer = undefined;
+    this.openRuns.set(to, open);
+    this.scheduleHeartbeat(to);
+  }
+
+  /** Whether a run lease this persistence opened for the message is still held. */
+  hasOpenRun(messageId: string): boolean {
+    return this.openRuns.has(messageId);
+  }
+
+  private openRun(
+    threadId: string,
+    messageId: string,
+    remoteId: string,
+    lease: CloudRunLease,
+  ) {
+    this.closeRun(messageId);
+    this.openRuns.set(messageId, {
+      threadId,
+      leaseId: lease.id,
+      remoteId,
+      intervalMs: lease.heartbeat_interval_ms,
+      timer: undefined,
+      superseded: false,
+    });
+    this.scheduleHeartbeat(messageId);
+  }
+
+  private scheduleHeartbeat(messageId: string) {
+    const open = this.openRuns.get(messageId);
+    if (!open || open.superseded) return;
+    if (open.timer !== undefined) clearTimeout(open.timer);
+    open.timer = setTimeout(() => {
+      open.timer = undefined;
+      void this.heartbeat(messageId, open);
+    }, open.intervalMs);
+  }
+
+  private async heartbeat(messageId: string, open: OpenRun) {
+    if (this.openRuns.get(messageId) !== open) return;
+    try {
+      const response = await this.getCloud().threads.messages.heartbeat(
+        open.threadId,
+        open.remoteId,
+        { lease_id: open.leaseId },
+      );
+      open.intervalMs = response.heartbeat_interval_ms;
+    } catch (error) {
+      if (error instanceof CloudAPIError && error.status === 409) {
+        if (error.code === "run_superseded") {
+          // Another session resumed this run; its next write forks to a sibling instead of overwriting the resumed reply.
+          open.superseded = true;
+          return;
+        }
+        this.closeRun(messageId);
+        return;
+      }
+      if (error instanceof CloudAPIError && error.status === 404) {
+        this.closeRun(messageId);
+        return;
+      }
+    }
+    if (this.openRuns.get(messageId) === open)
+      this.scheduleHeartbeat(messageId);
+  }
+
+  private closeRun(messageId: string) {
+    const open = this.openRuns.get(messageId);
+    if (!open) return;
+    if (open.timer !== undefined) clearTimeout(open.timer);
+    this.openRuns.delete(messageId);
   }
 
   /**
@@ -262,5 +458,6 @@ export class CloudMessagePersistence {
   reset() {
     this.idMapping = new Map();
     this.failedAppends = new Map();
+    for (const messageId of [...this.openRuns.keys()]) this.closeRun(messageId);
   }
 }

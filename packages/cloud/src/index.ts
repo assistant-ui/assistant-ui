@@ -1,5 +1,9 @@
 export type {
   CloudMessage,
+  CloudMessageRun,
+  CloudMessageRunWrite,
+  CloudRunLease,
+  AssistantCloudMessageHeartbeatResponse,
   AssistantCloudThreadMessageFeedbackBody,
   AssistantCloudThreadMessageFeedbackResponse,
 } from "./AssistantCloudThreadMessages";
@@ -47,7 +51,10 @@ export {
   type EngagementIdResolver,
 } from "./CloudEngagementReporter";
 export { readAnonymousRefreshToken } from "./AssistantCloudAuthStrategy";
-export { CloudMessagePersistence } from "./CloudMessagePersistence";
+export {
+  CloudMessagePersistence,
+  type CloudMessageRunPhase,
+} from "./CloudMessagePersistence";
 export {
   createFormattedPersistence,
   type MessageFormatAdapter,

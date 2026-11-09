@@ -178,6 +178,14 @@ declare class AssistantCloudFiles {
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
+  lease?: CloudRunLease | undefined;
+  forked_from?: string | undefined;
+};
+
+type AssistantCloudMessageHeartbeatResponse = {
+  expires_at: Date;
+  ttl_ms: number;
+  heartbeat_interval_ms: number;
 };
 
 type AssistantCloudProjectThreadMessageListQuery = {
@@ -347,6 +355,7 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
+  run?: CloudMessageRunWrite | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -372,6 +381,12 @@ type AssistantCloudThreadMessageListResponse = {
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
+  run?: CloudMessageRunWrite | undefined;
+};
+
+type AssistantCloudThreadMessageUpdateResponse = {
+  message_id?: string | undefined;
+  forked_from?: string | undefined;
 };
 
 declare class AssistantCloudThreadMessages {
@@ -379,7 +394,10 @@ declare class AssistantCloudThreadMessages {
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
-  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<AssistantCloudThreadMessageUpdateResponse>;
+  heartbeat(threadId: string, messageId: string, body: {
+    lease_id: string;
+  }): Promise<AssistantCloudMessageHeartbeatResponse>;
   delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
@@ -1135,6 +1153,28 @@ type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
+  run?: CloudMessageRun | undefined;
+};
+
+type CloudMessageRun = {
+  status: "running" | "stale";
+  expires_in_ms?: number | undefined;
+  superseded_by?: string | undefined;
+};
+
+type CloudMessageRunWrite = {
+  status: "running";
+  lease_id?: undefined;
+} | {
+  status: "ended" | "running";
+  lease_id: string;
+};
+
+type CloudRunLease = {
+  id: string;
+  expires_at: Date;
+  ttl_ms: number;
+  heartbeat_interval_ms: number;
 };
 
 type CloudThread = {

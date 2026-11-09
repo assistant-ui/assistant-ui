@@ -110,6 +110,14 @@ declare class AssistantCloudFiles {
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
+  lease?: CloudRunLease | undefined;
+  forked_from?: string | undefined;
+};
+
+type AssistantCloudMessageHeartbeatResponse = {
+  expires_at: Date;
+  ttl_ms: number;
+  heartbeat_interval_ms: number;
 };
 
 type AssistantCloudProjectThreadMessageListQuery = {
@@ -283,6 +291,7 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
+  run?: CloudMessageRunWrite | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -308,6 +317,12 @@ type AssistantCloudThreadMessageListResponse = {
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
+  run?: CloudMessageRunWrite | undefined;
+};
+
+type AssistantCloudThreadMessageUpdateResponse = {
+  message_id?: string | undefined;
+  forked_from?: string | undefined;
 };
 
 declare class AssistantCloudThreadMessages {
@@ -315,7 +330,10 @@ declare class AssistantCloudThreadMessages {
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
-  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<AssistantCloudThreadMessageUpdateResponse>;
+  heartbeat(threadId: string, messageId: string, body: {
+    lease_id: string;
+  }): Promise<AssistantCloudMessageHeartbeatResponse>;
   delete(threadId: string, messageIds: string[]): Promise<void>;
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
@@ -512,14 +530,17 @@ type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
+  run?: CloudMessageRun | undefined;
 };
 
 declare class CloudMessagePersistence {
   #private;
   constructor(cloud: AssistantCloud);
   constructor(getCloud: () => AssistantCloud);
-  append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
-  update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
+  append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
+  update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
+  hasOpenRun(messageId: string): boolean;
   delete(threadId: string, messageIds: string[]): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
@@ -529,9 +550,32 @@ declare class CloudMessagePersistence {
   reset(): void;
 }
 
+type CloudMessageRun = {
+  status: "running" | "stale";
+  expires_in_ms?: number | undefined;
+  superseded_by?: string | undefined;
+};
+
+type CloudMessageRunPhase = "ended" | "running";
+
+type CloudMessageRunWrite = {
+  status: "running";
+  lease_id?: undefined;
+} | {
+  status: "ended" | "running";
+  lease_id: string;
+};
+
 declare class CloudResponseError extends Error {
   constructor(message: string);
 }
+
+type CloudRunLease = {
+  id: string;
+  expires_at: Date;
+  ttl_ms: number;
+  heartbeat_interval_ms: number;
+};
 
 type CloudRunReportInit = Omit<RunReportInit, "telemetry">;
 
@@ -909,7 +953,7 @@ declare namespace entry_ai_sdk_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudResponseError, CloudRunReportInit, CloudRunReporter, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunMessageTelemetry, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, SdkIdentity, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudMessageHeartbeatResponse, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudMessageRun, CloudMessageRunPhase, CloudMessageRunWrite, CloudResponseError, CloudRunLease, CloudRunReportInit, CloudRunReporter, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunMessageTelemetry, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, SdkIdentity, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare namespace entry_telemetry_exports {

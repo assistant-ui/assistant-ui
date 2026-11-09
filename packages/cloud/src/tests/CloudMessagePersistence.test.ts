@@ -777,7 +777,7 @@ describe("CloudMessagePersistence", () => {
     vi.mocked(cloud.threads.messages.create).mockResolvedValue({
       message_id: "remote-1",
     });
-    vi.mocked(cloud.threads.messages.update).mockResolvedValue(undefined);
+    vi.mocked(cloud.threads.messages.update).mockResolvedValue({});
 
     await persistence.append("thread-1", "local-1", null, "aui/v0", {
       text: "original",
