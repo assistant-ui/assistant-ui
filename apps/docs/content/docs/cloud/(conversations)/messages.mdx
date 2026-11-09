@@ -52,6 +52,8 @@ A run lives in the tab that streams it. With the `aui/v0` history path (the loca
 
 If the tab closes or loses its connection, the heartbeats stop. After 30 seconds without one the cloud reports the run as stale, and the message loads as an error with the code `run_stale`. `ActionBarPrimitive.Resume` continues it: the continuation is a new assistant message after the interrupted one, so the work done so far stays in the thread.
 
+A message whose run another tab or session is still writing loads with the code `run_in_progress`. The adapter re-reads its run state around the lease's expiry and updates the thread in place when it changes, so the message turns into the finished answer, or into the interrupted state, without a reload. `ActionBarPrimitive.RefreshRun` re-reads it on demand.
+
 A run that only lost its connection and later comes back keeps writing. If nobody resumed it, its writes revive the lease. If someone did, its writes land on a new sibling branch and never overwrite the resumed reply.
 
 ```tsx
@@ -59,6 +61,7 @@ A run that only lost its connection and later comes back keeps writing. If nobod
   <ErrorPrimitive.Root>
     <ErrorPrimitive.Message />
     <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
+    <ActionBarPrimitive.RefreshRun>Refresh</ActionBarPrimitive.RefreshRun>
   </ErrorPrimitive.Root>
 </MessagePrimitive.Error>
 ```
