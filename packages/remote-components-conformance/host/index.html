@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Conformance host</title>
+    <style>
+      @font-face {
+        font-family: "Lobster";
+        src: url("/fonts/lobster.woff2") format("woff2");
+        font-display: block;
+      }
+      html { font: 16px/1.4 system-ui, sans-serif; }
+      body { margin: 0; }
+      .col { position: absolute; top: 40px; width: 600px; }
+      .col-inline { left: 20px; }
+      .col-remote { left: 660px; }
+      .col-label { position: absolute; top: 12px; font: 12px monospace; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

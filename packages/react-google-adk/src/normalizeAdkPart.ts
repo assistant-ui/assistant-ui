@@ -16,6 +16,9 @@ export const normalizeAdkPart = (
     const data = result.inlineData;
     result.inlineData = {
       ...data,
+      ...(typeof data.data === "string" && {
+        data: data.data.replaceAll("-", "+").replaceAll("_", "/"),
+      }),
       ...("mime_type" in data &&
         !("mimeType" in data) && { mimeType: data.mime_type }),
       ...("display_name" in data &&

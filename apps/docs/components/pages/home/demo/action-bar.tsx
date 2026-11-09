@@ -99,7 +99,7 @@ export function AssistantActionBar(): ReactNode {
       </ActionBarMorePrimitive.Root>
       <MessageTiming
         side="bottom"
-        className="text-muted-foreground hover:text-foreground ms-1 rounded-none p-1 text-[11px] hover:bg-transparent"
+        className="text-muted-foreground hover:text-foreground ms-1 rounded-none p-1 text-[12px] hover:bg-transparent"
       />
     </ActionBarPrimitive.Root>
   );
@@ -110,7 +110,7 @@ export function BranchPicker({ className }: { className?: string }): ReactNode {
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "text-muted-foreground inline-flex items-center font-mono text-[11px] tabular-nums",
+        "text-muted-foreground inline-flex items-center font-mono text-[12px] tabular-nums",
         className,
       )}
     >

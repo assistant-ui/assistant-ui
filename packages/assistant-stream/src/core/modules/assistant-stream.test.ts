@@ -146,6 +146,55 @@ describe("raw chunk ordering", () => {
     isContinued: false,
   };
 
+  it("keeps a raw step-finish before a buffered merged part", async () => {
+    const merged = new ReadableStream<AssistantStreamChunk>({
+      start(inner) {
+        inner.enqueue({ type: "part-start", part: { type: "text" }, path: [] });
+        inner.enqueue({ type: "text-delta", textDelta: "child", path: [0] });
+        inner.enqueue({ type: "part-finish", path: [0] });
+        inner.close();
+      },
+    });
+
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.merge(merged);
+        controller.enqueue(stepFinish);
+      }),
+    );
+
+    expect(chunks).toEqual([
+      stepFinish,
+      { type: "part-start", part: { type: "text" }, path: [] },
+      { type: "text-delta", textDelta: "child", path: [0] },
+      { type: "part-finish", path: [0] },
+    ]);
+  });
+
+  it("rejects a merged chunk whose part path has no start and cancels its source", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const cancelSource = vi.fn();
+      const merged = new ReadableStream<AssistantStreamChunk>({
+        start(inner) {
+          inner.enqueue({ type: "text-delta", textDelta: "orphan", path: [0] });
+        },
+        cancel: cancelSource,
+      });
+
+      await expect(
+        collectChunks(
+          createAssistantStream((controller) => controller.merge(merged)),
+        ),
+      ).rejects.toThrow("Path not found");
+      await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("emits synchronous raw chunks before an appended part body", async () => {
     const before: AssistantStreamChunk = {
       type: "annotations",

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 export const REVIEW_POLICY_PATH = ".github/review-policy.json";
+export const PUBLIC_API_AREA = "public-api";
 
 const isStringArray = (value) =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -49,6 +50,33 @@ export function validateReviewPolicy(policy) {
     expect(
       isStringArray(area.contractDocs),
       `area ${area.id} needs contractDocs`,
+    );
+  }
+  expect(
+    Array.isArray(policy?.packageOwners),
+    "packageOwners must be an array",
+  );
+  const packageOwnerIds = new Set();
+  for (const owner of Array.isArray(policy?.packageOwners)
+    ? policy.packageOwners
+    : []) {
+    if (typeof owner !== "object" || owner === null) {
+      problems.push("every package owner must be an object");
+      continue;
+    }
+    expect(typeof owner.id === "string", "every package owner needs an id");
+    expect(
+      !packageOwnerIds.has(owner.id),
+      `package owner id ${owner.id} is repeated`,
+    );
+    packageOwnerIds.add(owner.id);
+    expect(
+      isStringArray(owner.owners) && owner.owners.length > 0,
+      `package owner ${owner.id} needs owners`,
+    );
+    expect(
+      isStringArray(owner.paths) && owner.paths.length > 0,
+      `package owner ${owner.id} needs paths`,
     );
   }
   for (const key of [
@@ -145,6 +173,9 @@ export function areasOf(policy, file) {
       matchesAny(file, area.paths) || matchesAny(file, area.contractDocs),
   );
 }
+
+export const packageOwnerOf = (policy, file) =>
+  policy.packageOwners.find(({ paths }) => matchesAny(file, paths));
 
 export const isDecisionPath = (policy, file) =>
   matchesAny(file, policy.decisionPaths);

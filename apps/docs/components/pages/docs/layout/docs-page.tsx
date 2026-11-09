@@ -1,33 +1,18 @@
-import type { ComponentProps, ReactNode } from "react";
-import { LegalLinks } from "@/components/shared/legal-links";
+import { DocsPageShell as ThemePage } from "@assistant-ui/docs-theme/ui";
+import type { ComponentProps } from "react";
 import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
-import { cn } from "@/lib/utils";
+import { LegalLinks } from "@/components/shared/legal-links";
 
-export function DocsPageShell({
-  toc,
-  children,
-}: {
-  toc?: ReactNode;
-  children: ReactNode;
-}) {
+export { DocsBody } from "@assistant-ui/docs-theme/ui";
+
+export function DocsPageShell(
+  props: Omit<ComponentProps<typeof ThemePage>, "footer">,
+) {
   return (
-    <div className="docs-layout">
-      <main
-        {...MAIN_CONTENT_PROPS}
-        className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pt-4 pb-10 md:px-6"
-      >
-        {children}
-      </main>
-      {toc}
-      <footer className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pb-10 md:px-6">
-        <div className="border-t pt-6">
-          <LegalLinks />
-        </div>
-      </footer>
-    </div>
+    <ThemePage
+      {...props}
+      mainProps={MAIN_CONTENT_PROPS}
+      footer={<LegalLinks />}
+    />
   );
-}
-
-export function DocsBody({ className, ...props }: ComponentProps<"article">) {
-  return <article {...props} className={cn("docs-prose prose", className)} />;
 }

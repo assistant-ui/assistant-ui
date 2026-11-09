@@ -102,7 +102,9 @@ function MdxImage({
   );
 }
 
-export function getMDXComponents(components: MDXComponents): MDXComponents {
+export function getMDXComponents(
+  components: MDXComponents = {},
+): MDXComponents {
   return {
     a: MdxLink,
     img: MdxImage,
@@ -169,3 +171,5 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     ...components,
   };
 }
+
+export const useMDXComponents = getMDXComponents;

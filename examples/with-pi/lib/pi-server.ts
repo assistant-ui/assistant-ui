@@ -24,11 +24,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import {
   createPiNodeClient,
-  type PiModelInfo,
   type PiRuntimeReadiness,
-  type PiThinkingLevel,
 } from "@assistant-ui/react-pi/node";
 import { modelKey } from "./model-key";
+import { toPiModelOptions, type PiModelOption } from "./pi-model-catalog";
 
 const env = (key: string): string | undefined => {
   const value = process.env[key];
@@ -58,43 +57,6 @@ export const piClient = createPiNodeClient({
   ...(agentDir ? { agentDir } : {}),
   ...(seededModel ? { model: seededModel } : {}),
 });
-
-export type PiModelOption = {
-  id: string;
-  name: string;
-  description?: string;
-  provider: string;
-  modelId: string;
-  /** Thinking levels the model supports; omitted for non-reasoning models. */
-  efforts?: { id: string; name: string }[];
-};
-
-/** Display names for Pi's thinking levels (the UI-facing half of `efforts`;
- * which levels a model supports comes from `PiModelInfo`). */
-const THINKING_LEVEL_NAMES: Record<PiThinkingLevel, string> = {
-  off: "Off",
-  minimal: "Minimal",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  xhigh: "xHigh",
-};
-
-const ALL_THINKING_LEVELS = Object.keys(
-  THINKING_LEVEL_NAMES,
-) as PiThinkingLevel[];
-
-const thinkingEfforts = (
-  model: PiModelInfo,
-): { id: string; name: string }[] | undefined => {
-  if (!model.supportsThinking) return undefined;
-  // No `availableThinkingLevels` means the model declares no per-level map;
-  // every level stays selectable (provider defaults apply).
-  return (model.availableThinkingLevels ?? ALL_THINKING_LEVELS).map((id) => ({
-    id,
-    name: THINKING_LEVEL_NAMES[id],
-  }));
-};
 
 export type PiHandshake = {
   workspacePath: string;
@@ -138,17 +100,7 @@ export const getHandshake = async (): Promise<PiHandshake> => {
   const catalog = await piClient.getAvailableModels();
   return {
     workspacePath,
-    models: catalog.map((model) => {
-      const efforts = thinkingEfforts(model);
-      return {
-        id: modelKey(model.provider, model.modelId),
-        name: model.name ?? model.modelId,
-        description: model.provider,
-        provider: model.provider,
-        modelId: model.modelId,
-        ...(efforts ? { efforts } : {}),
-      };
-    }),
+    models: toPiModelOptions(catalog),
     selectedModelId: seededModel
       ? modelKey(String(seededModel.provider), seededModel.id)
       : undefined,

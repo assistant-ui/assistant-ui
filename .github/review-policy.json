@@ -26,7 +26,7 @@
       "id": "public-api",
       "name": "Public API",
       "ownerTeam": "owners",
-      "paths": ["api-surface/**"],
+      "paths": ["api-surface/*.ts"],
       "contractDocs": []
     },
     {
@@ -45,6 +45,16 @@
         "scripts/lib/review-*.mjs"
       ],
       "contractDocs": []
+    }
+  ],
+  "packageOwners": [
+    {
+      "id": "docs-theme",
+      "owners": ["Kinfe123"],
+      "paths": [
+        "packages/docs-theme/**",
+        "api-surface/assistant-ui__docs-theme.ts"
+      ]
     }
   ],
   "decisionPaths": [

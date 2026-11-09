@@ -232,7 +232,8 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
 /packages/assistant-stream/ @assistant-ui/owners
 
 # Public API
-/api-surface/ @assistant-ui/owners
+/api-surface/*.ts @assistant-ui/owners
+/api-surface/assistant-ui__docs-theme.ts
 
 # CI and policy
 /.github/ @assistant-ui/owners
@@ -315,7 +316,8 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "/apps/docs/content/docs/tap/**",
                     "/apps/docs/content/docs/store/**",
                     "/packages/assistant-stream/**",
-                    "/api-surface/**",
+                    "/api-surface/*.ts",
+                    "!/api-surface/assistant-ui__docs-theme.ts",
                     "/.github/**",
                     "/CONTRIBUTING.md",
                     "/AGENTS.md",
@@ -367,7 +369,8 @@ test("contract review floors group each owner team's paths and contract docs", (
         "/packages/store/**",
         "/apps/docs/content/docs/tap/**",
         "/apps/docs/content/docs/store/**",
-        "/api-surface/**",
+        "/api-surface/*.ts",
+        "!/api-surface/assistant-ui__docs-theme.ts",
         "/.github/**",
         "/CONTRIBUTING.md",
         "/AGENTS.md",
@@ -493,6 +496,43 @@ test("a missing owner team stops the sync before any write", () => {
     () =>
       runSyncReviewPolicy(["--apply"], { root: repoRoot, gh, log: () => {} }),
     /Owner team assistant-ui\/owners does not exist/,
+  );
+});
+
+test("delegated surfaces stay out of the floor and CODEOWNERS, and other packages stay in", () => {
+  const custom = {
+    ...policy,
+    packageOwners: [
+      {
+        id: "docs-theme",
+        owners: ["Kinfe123"],
+        paths: [
+          "packages/docs-theme/**",
+          "api-surface/assistant-ui__docs-theme.ts",
+        ],
+      },
+      {
+        id: "tap",
+        owners: ["alice"],
+        paths: ["packages/tap/**"],
+      },
+    ],
+  };
+  const patterns = buildRulesets(custom, liveRulesets, teamIds)[1].payload
+    .rules[0].parameters.required_reviewers[0].file_patterns;
+  assert.deepEqual(
+    patterns.filter((pattern) => pattern.startsWith("!")),
+    ["!/api-surface/assistant-ui__docs-theme.ts"],
+  );
+  assert.ok(patterns.includes("/packages/tap/**"));
+  assert.ok(
+    patterns.indexOf("/api-surface/*.ts") <
+      patterns.indexOf("!/api-surface/assistant-ui__docs-theme.ts"),
+  );
+  const lines = renderCodeowners(custom).split("\n");
+  assert.equal(
+    lines.indexOf("/api-surface/assistant-ui__docs-theme.ts"),
+    lines.indexOf("/api-surface/*.ts @assistant-ui/owners") + 1,
   );
 });
 
@@ -706,7 +746,7 @@ test("apply saves every live ruleset before the first write", () => {
     const team = endpoint.slice(
       `orgs/${policy.repository.split("/")[0]}/teams/`.length,
     );
-    assert.ok([policy.teams.maintainers, "owners"].includes(team), endpoint);
+    assert.ok(Object.hasOwn(teamIds, team), endpoint);
     return JSON.stringify({ id: teamIds[team] });
   };
   try {

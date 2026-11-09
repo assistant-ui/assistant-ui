@@ -1586,6 +1586,107 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it.each([false, true])(
+    "does not send a queued title rename after deletion (same-id relist=%s)",
+    async (relist) => {
+      const deletion = deferred<void>();
+      const generatedTitles = [
+        deferred<ReadableStream>(),
+        deferred<ReadableStream>(),
+      ];
+      const heldRenames: ReturnType<typeof deferred<void>>[] = [];
+      const renamesAfterDelete: string[] = [];
+      let phase = "before delete";
+      let generationCount = 0;
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "t1", title: "One" },
+          ],
+        })),
+        generateTitle: vi.fn(
+          () => generatedTitles[generationCount++]!.promise as never,
+        ),
+        rename: vi.fn((_remoteId, title) => {
+          if (phase === "before delete") return Promise.resolve();
+          if (phase.startsWith("after delete")) {
+            renamesAfterDelete.push(title);
+          }
+          const pending = deferred<void>();
+          heldRenames.push(pending);
+          return pending.promise;
+        }),
+        delete: vi.fn(() => deletion.promise),
+      });
+      const { handle } = mountListWithTitleMessage(adapter);
+      try {
+        const aui = handle.getClient();
+        await aui.threads.getLoadThreadsPromise();
+        flushTapSync(() => aui.threads.switchToThread("t1"));
+        await waitFor(() => {
+          expect(aui.threads.getState().mainThreadId).toBe("t1");
+        });
+
+        const item = aui.threads.item({ id: "t1" });
+        const runA = item.generateTitle({ automatic: true });
+        await waitFor(() =>
+          expect(adapter.generateTitle).toHaveBeenCalledTimes(1),
+        );
+        const runB = item.generateTitle();
+        await waitFor(() =>
+          expect(adapter.generateTitle).toHaveBeenCalledTimes(2),
+        );
+        await item.rename("Manual title");
+
+        phase = "delete in flight";
+        const deleting = item.delete();
+        await waitFor(() => expect(adapter.delete).toHaveBeenCalledOnce());
+        generatedTitles[0]!.resolve(
+          new ReadableStream({ start: (controller) => controller.close() }),
+        );
+        await microtasks(20);
+        generatedTitles[1]!.resolve(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue({
+                type: "part-start",
+                path: [0],
+                part: { type: "text" },
+              });
+              controller.enqueue({
+                type: "text-delta",
+                path: [0],
+                textDelta: "Generated title",
+              });
+              controller.enqueue({ type: "part-finish", path: [0] });
+              controller.close();
+            },
+          }),
+        );
+        await microtasks(20);
+
+        deletion.resolve();
+        await deleting;
+        phase = "after delete";
+        expect(aui.threads.getState().threadIds).toEqual([]);
+        if (relist) {
+          await aui.threads.reload();
+          phase = "after delete and reload";
+          expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+        }
+        for (let i = 0; i < 4; i++) {
+          for (const pending of heldRenames) pending.resolve();
+          await microtasks(20);
+        }
+        await Promise.allSettled([runA, runB]);
+
+        expect(renamesAfterDelete).toEqual([]);
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
   // A deletion commits a few microtasks before its title state is cleared, so
   // these settle the deletion at every offset across that window.
   it("does not request a title between a deletion committing and its title state clearing", async () => {

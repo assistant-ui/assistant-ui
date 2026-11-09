@@ -10,6 +10,7 @@ import type {
 import { generateId } from "../../utils/generateId";
 import { createToolCallPartRegistry } from "../tool-call-part-registry";
 import { createChunkNormalizer } from "./chunk-normalizer";
+import type { AssistantStreamController } from "../../modules/assistant-stream";
 import type { TextStreamController } from "../../modules/text";
 import type { ToolCallApproval } from "../../utils/types";
 
@@ -62,8 +63,11 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       let stepOpenedByStart = false;
       const approvalsByToolCallId = new Map<string, ToolCallApproval>();
 
-      const transform = new AssistantTransformStream<UIMessageStreamChunk>({
-        transform(chunk, controller) {
+      const transformer = {
+        transform(
+          chunk: UIMessageStreamChunk,
+          controller: AssistantStreamController,
+        ) {
           const type = chunk.type;
 
           if (isDataChunk(chunk)) {
@@ -155,6 +159,17 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 id: chunk.source.id,
                 url: chunk.source.url,
                 ...(chunk.source.title && { title: chunk.source.title }),
+              });
+              break;
+
+            case "source-document":
+              controller.appendSource({
+                type: "source",
+                sourceType: "document",
+                id: chunk.sourceId,
+                title: chunk.title,
+                mediaType: chunk.mediaType,
+                ...(chunk.filename && { filename: chunk.filename }),
               });
               break;
 
@@ -314,7 +329,12 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
           }
         },
-        flush() {
+        flush(controller: AssistantStreamController) {
+          normalizer.flush({
+            enqueue(chunk) {
+              transformer.transform(chunk, controller);
+            },
+          });
           closeTextParts();
           if (activeToolCallId !== undefined) {
             toolCallPartRegistry.closeArgsText(
@@ -323,7 +343,10 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           }
           toolCallPartRegistry.closeAll();
         },
-      });
+      };
+      const transform = new AssistantTransformStream<UIMessageStreamChunk>(
+        transformer,
+      );
 
       return createSSEJsonDecoder<UIMessageStreamChunk>({
         strict: true,
@@ -351,9 +374,6 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
         },
         done: {
           marker: "[DONE]",
-          onDone(controller) {
-            normalizer.flush(controller);
-          },
           onMissing() {
             throw new Error(
               "Stream ended abruptly without receiving [DONE] marker",

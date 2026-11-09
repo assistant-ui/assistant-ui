@@ -1,6 +1,6 @@
-import { checkoutEnabled } from "./checkout/config";
-import { SUB_PROJECT_SLUGS, subProject } from "./docs-sites";
-import { isAiPlaygroundEnabled } from "./feature-flags";
+import { checkoutEnabled } from "./checkout/config.ts";
+import { SUB_PROJECT_SLUGS, subProject } from "./docs-sites.ts";
+import { isAiPlaygroundEnabled } from "./feature-flags.ts";
 
 export const BASE_URL = "https://www.assistant-ui.com";
 export const CLOUD_URL = "https://cloud.assistant-ui.com";

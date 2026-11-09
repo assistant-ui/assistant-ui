@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, type ReactNode } from "react";
+import { DocsTableOfContents } from "@assistant-ui/docs-theme/ui";
 import { Copy, EditIcon, FileText, SparklesIcon } from "lucide-react";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
@@ -122,96 +122,13 @@ export function TableOfContents({
   markdownUrl,
   platformAwareMarkdown = false,
 }: TableOfContentsProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    if (items.length === 0) return;
-
-    const headingIds = items.map((item) => item.url.slice(1));
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-            break;
-          }
-        }
-      },
-      {
-        rootMargin: "-80px 0px -70% 0px",
-        threshold: 0,
-      },
-    );
-
-    for (const id of headingIds) {
-      const element = document.getElementById(id);
-      if (element) {
-        observer.observe(element);
-      }
-    }
-
-    return () => observer.disconnect();
-  }, [items]);
-
-  useEffect(() => {
-    if (!activeId || !listRef.current) return;
-
-    const activeElement = listRef.current.querySelector(
-      `[data-toc-id="${activeId}"]`,
-    );
-    if (activeElement) {
-      activeElement.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-    }
-  }, [activeId]);
-
-  if (items.length === 0) return null;
-
   return (
-    <div className="docs-toc w-56 max-xl:hidden">
-      <div className="sticky top-[calc(var(--docs-header-height)_+_1rem)] flex max-h-[calc(100vh_-_var(--docs-header-height)_-_1rem)] flex-col pe-4 pt-4 pb-2">
-        <p className="text-muted-foreground mb-3 shrink-0 text-xs">
-          On this page
-        </p>
-        <ul
-          ref={listRef}
-          className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-1 overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden"
-        >
-          {items.map((item) => {
-            const id = item.url.slice(1);
-            const isActive = activeId === id;
-            const indent = Math.max(0, item.depth - 2) * 12;
-
-            return (
-              <li key={item.url} data-toc-id={id}>
-                <a
-                  href={item.url}
-                  style={{ paddingLeft: indent || undefined }}
-                  className={cn(
-                    "block py-1 text-[13px] leading-snug wrap-break-word transition-colors",
-                    isActive
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {item.title}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-        <div className="mt-6 shrink-0">
-          <TOCActions
-            markdownUrl={markdownUrl}
-            githubEditUrl={githubEditUrl}
-            platformAwareMarkdown={platformAwareMarkdown}
-          />
-        </div>
-      </div>
-    </div>
+    <DocsTableOfContents items={items}>
+      <TOCActions
+        markdownUrl={markdownUrl}
+        githubEditUrl={githubEditUrl}
+        platformAwareMarkdown={platformAwareMarkdown}
+      />
+    </DocsTableOfContents>
   );
 }

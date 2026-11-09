@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
-import "@/test/mock-fumadocs-collections";
+import "@/test/mock-content";
 
 vi.mock("@/lib/get-llm-text", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/get-llm-text")>()),

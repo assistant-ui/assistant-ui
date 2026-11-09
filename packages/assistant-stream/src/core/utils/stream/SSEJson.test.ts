@@ -128,15 +128,22 @@ describe("createSSEJsonDecoder", () => {
     await cancelled.promise;
   });
 
-  it("invokes the done callback when the marker arrives", async () => {
-    const onDone = vi.fn();
-    await collectChunks(
+  it("does not stop at a done marker in an unknown event", async () => {
+    const onUnknownEvent = vi.fn();
+    const chunks = await collectChunks(
       createSSEJsonDecoder({
         parse: jsonParse,
-        done: { marker: "[DONE]", onDone },
-      })(fromSSEText('data: {"a":1}\n\ndata: [DONE]\n\n')),
+        strict: false,
+        onUnknownEvent,
+        done: { marker: "[DONE]" },
+      })(
+        fromSSEText(
+          'event: custom\ndata: [DONE]\n\ndata: {"a":1}\n\ndata: [DONE]\n\n',
+        ),
+      ),
     );
-    expect(onDone).toHaveBeenCalledOnce();
+    expect(chunks).toEqual([{ a: 1 }]);
+    expect(onUnknownEvent).toHaveBeenCalledExactlyOnceWith("custom");
   });
 
   it("invokes the missing callback when the stream ends without the marker", async () => {

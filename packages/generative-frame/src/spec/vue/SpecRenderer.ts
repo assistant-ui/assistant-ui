@@ -1,6 +1,7 @@
 import {
   defineComponent,
   camelize,
+  computed,
   Fragment,
   h,
   inject,
@@ -18,6 +19,7 @@ import {
 import {
   createActionDispatcher,
   type ActionDispatcher,
+  type ActionDispatcherOptions,
   type ActionHandler,
   type ActionSource,
 } from "../actions";
@@ -34,8 +36,18 @@ import {
 } from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
-import { createStateStore, type SpecStateStore } from "../state";
-import { childIdsOf, repeatItems, safePointer } from "../tree";
+import {
+  createStateStore,
+  getStateStoreRevision,
+  wasStateStorePathWrittenSince,
+  type SpecStateStore,
+} from "../state";
+import {
+  childIdsOf,
+  exceedsRenderBudget,
+  repeatItems,
+  safePointer,
+} from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 export type SpecComponents = Record<string, Component>;
@@ -46,6 +58,7 @@ export type SpecPlaceholderProps = {
     | "pending"
     | "unknown-type"
     | "invalid-props"
+    | "too-large"
     | "cycle"
     | "error";
   message: string;
@@ -55,12 +68,16 @@ export type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (
     name: string,
     params: Record<string, unknown>,
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: { elementId?: string }) => void;
   streaming?: boolean;
   placeholder?: Component;
@@ -121,6 +138,7 @@ type RenderContext = {
   readonly catalog: Catalog | undefined;
   readonly store: SpecStateStore;
   readonly state: Record<string, unknown>;
+  readonly locale: string | undefined;
   readonly dispatch: ActionDispatcher;
   readonly streaming: boolean;
   readonly placeholder: Component;
@@ -202,13 +220,10 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
-    // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
-    watch(
-      () => props.element,
-      () => {
-        error.value = null;
-      },
-    );
+    // A streaming element can pass through values its component rejects, such as a state path cut short, and formatting can depend on the locale, so a changed element or locale renders again.
+    watch([() => props.element, () => ctx.locale], () => {
+      error.value = null;
+    });
     onErrorCaptured((caught) => {
       const normalized =
         caught instanceof Error ? caught : new Error(String(caught));
@@ -261,7 +276,13 @@ const ElementView = defineComponent({
         return ctx.streaming
           ? null
           : placeholder("missing", `Missing element "${id}"`);
-      if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
+      if (
+        !evaluateCondition(element.visible, {
+          ...scope,
+          state: ctx.state,
+          locale: ctx.locale,
+        })
+      )
         return null;
       const impl = Object.hasOwn(ctx.components, element.type)
         ? ctx.components[element.type]
@@ -310,7 +331,11 @@ const ResolvedElement = defineComponent({
   setup(props) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const resolved = () =>
-      resolveProps(props.element.props, { ...props.scope, state: ctx.state });
+      resolveProps(props.element.props, {
+        ...props.scope,
+        state: ctx.state,
+        locale: ctx.locale,
+      });
     let settled: ReturnType<typeof resolved> | undefined;
     provide<SpecElementContext>(elementContextKey, {
       get id() {
@@ -336,17 +361,32 @@ const ResolvedElement = defineComponent({
       },
     });
     watch(
-      () =>
-        Object.entries(props.element.watch ?? {}).map(
+      () => ({
+        values: Object.entries(props.element.watch ?? {}).map(
           ([path]) =>
             [path, getAtPointer(ctx.state, safePointer(path))] as const,
         ),
+        store: ctx.store,
+        revision: getStateStoreRevision(ctx.store),
+      }),
       (next, previous) => {
-        const prior = new Map(previous);
-        for (const [path, value] of next) {
-          if (prior.has(path) && !Object.is(prior.get(path), value))
+        const prior = new Map(previous.values);
+        for (const [path, value] of next.values) {
+          if (
+            prior.has(path) &&
+            !Object.is(prior.get(path), value) &&
+            (next.revision === undefined ||
+              previous.store !== next.store ||
+              previous.revision === undefined ||
+              wasStateStorePathWrittenSince(
+                next.store,
+                path,
+                previous.revision,
+              ))
+          )
             void ctx.dispatch(props.element.watch?.[path], {
               ...props.scope,
+              locale: ctx.locale,
               elementId: props.id,
               trigger: path,
               kind: "watch",
@@ -387,6 +427,7 @@ const ResolvedElement = defineComponent({
           previous?.(payload);
           void ctx.dispatch(props.element.on?.[event], {
             ...props.scope,
+            locale: ctx.locale,
             elementId: props.id,
             trigger: event,
             kind: "event",
@@ -446,8 +487,10 @@ export const SpecRenderer = defineComponent({
     components: { type: Object as PropType<SpecComponents>, required: true },
     catalog: Object as PropType<Catalog>,
     state: Object as PropType<SpecStateStore>,
+    locale: String,
     handlers: Object as PropType<Record<string, ActionHandler>>,
     onAction: Function as PropType<SpecRendererProps["onAction"]>,
+    confirmAction: Function as PropType<SpecRendererProps["confirmAction"]>,
     onError: Function as PropType<SpecRendererProps["onError"]>,
     streaming: { type: Boolean, default: false },
     placeholder: {
@@ -477,6 +520,17 @@ export const SpecRenderer = defineComponent({
       },
       { immediate: true, flush: "sync" },
     );
+    const checked = computed(() => ({
+      spec: props.spec,
+      state: snapshot.value,
+      tooLarge: exceedsRenderBudget(props.spec, snapshot.value),
+    }));
+    let lastFit: { spec: Spec; state: Record<string, unknown> } | undefined;
+    const shown = computed(() => {
+      const current = checked.value;
+      if (!current.tooLarge) lastFit = current;
+      return current.tooLarge && props.streaming ? lastFit : current;
+    });
     let cachedCatalog: Catalog | undefined;
     let cache = new WeakMap<SpecElement, string | null>();
     const invalid = (element: SpecElement) => {
@@ -504,10 +558,11 @@ export const SpecRenderer = defineComponent({
     };
     let dispatcherStore: SpecStateStore | undefined;
     let dispatcherCatalog: Catalog | undefined;
+    let dispatcherConfirm: SpecRendererProps["confirmAction"];
     let dispatcher: ActionDispatcher;
     const ctx: RenderContext = {
       get spec() {
-        return props.spec;
+        return shown.value?.spec ?? props.spec;
       },
       get components() {
         return props.components;
@@ -519,16 +574,25 @@ export const SpecRenderer = defineComponent({
         return props.state ?? ownStore;
       },
       get state() {
-        return snapshot.value;
+        return shown.value?.state ?? snapshot.value;
+      },
+      get locale() {
+        return props.locale;
       },
       get dispatch() {
         const store = props.state ?? ownStore;
-        if (dispatcherStore !== store || dispatcherCatalog !== props.catalog) {
+        if (
+          dispatcherStore !== store ||
+          dispatcherCatalog !== props.catalog ||
+          dispatcherConfirm !== props.confirmAction
+        ) {
           dispatcherStore = store;
           dispatcherCatalog = props.catalog;
+          dispatcherConfirm = props.confirmAction;
           dispatcher = createActionDispatcher({
             store,
             ...(props.catalog ? { catalog: props.catalog } : {}),
+            ...(props.confirmAction ? { confirm: props.confirmAction } : {}),
             onAction: (name, params, context) => {
               if (props.handlers && Object.hasOwn(props.handlers, name))
                 return props.handlers[name]!(params, context);
@@ -557,9 +621,19 @@ export const SpecRenderer = defineComponent({
     };
     provide(renderContextKey, ctx);
     return () => [
-      props.spec.root
-        ? h(ElementView, { id: props.spec.root, scope: {}, ancestors: [] })
-        : null,
+      checked.value.tooLarge && !props.streaming
+        ? h(props.placeholder, {
+            id: props.spec.root,
+            reason: "too-large",
+            message: "The spec exceeds 5000 elements or 64 levels",
+          })
+        : shown.value?.spec.root
+          ? h(ElementView, {
+              id: shown.value.spec.root,
+              scope: {},
+              ancestors: [],
+            })
+          : null,
       props.streaming
         ? h(props.placeholder, {
             id: "",

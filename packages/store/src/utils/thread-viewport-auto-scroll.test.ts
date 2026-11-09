@@ -50,6 +50,16 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
   };
 };
 
+const dispatchTouch = (
+  target: HTMLElement,
+  type: "touchstart" | "touchmove",
+  clientY: number,
+) => {
+  const event = new Event(type);
+  Object.defineProperty(event, "touches", { value: [{ clientY }] });
+  target.dispatchEvent(event);
+};
+
 let observers: TestResizeObserver[];
 let frames: Map<number, FrameRequestCallback>;
 let nextFrame: number;
@@ -782,9 +792,10 @@ describe("createThreadViewportAutoScroll", () => {
     controller.attach(view.element);
     controller.runStarted();
     expect(frames.size).toBe(1);
+    const [queued] = frames.keys();
 
     button.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-    expect(frames.size).toBe(0);
+    expect(frames.has(queued!)).toBe(false);
     view.grow(1000);
     observers[0]!.trigger();
     flushFrames();
@@ -922,6 +933,393 @@ describe("createThreadViewportAutoScroll", () => {
     expect(view.element.scrollTop).toBe(0);
     expect(controller.isAtBottom).toBe(false);
     expect(view.scrollTo).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("keeps a reader scroll-up inside the clamp band once input preceded it", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    view.setTop(350);
+    observers[0]!.trigger();
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following through the same geometry without reader input", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(view.element.scrollTop).toBe(400);
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps following when the wheel points down", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: 2 }));
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it.each(["ArrowDown", "PageDown", "End"])(
+    "keeps following when %s points down",
+    (key) => {
+      const view = geometry(500, 100);
+      view.setTop(400);
+      const controller = createThreadViewportAutoScroll({
+        getOptions: options,
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      observers[0]!.trigger();
+      view.scrollTo.mockClear();
+
+      view.grow(600);
+      view.resize(200);
+      view.element.dispatchEvent(new KeyboardEvent("keydown", { key }));
+      view.setTop(350);
+      observers[0]!.trigger();
+
+      expect(view.scrollTo).toHaveBeenCalledWith({
+        top: 600,
+        behavior: "instant",
+      });
+      expect(controller.isAtBottom).toBe(true);
+      controller.dispose();
+    },
+  );
+
+  it("keeps a reader scroll-up that a scroll key preceded", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new KeyboardEvent("keydown", { key: "PageUp" }));
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following when an upward key goes to a text field", () => {
+    const view = geometry(500, 100);
+    const textarea = document.createElement("textarea");
+    view.element.append(textarea);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    textarea.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps a reader scroll-up whose first scroll event lands a frame after the input", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new KeyboardEvent("keydown", { key: "PageUp" }));
+    flushFrames();
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following when upward input from two frames earlier scrolled nothing", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    flushFrames();
+    flushFrames();
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps following when input precedes a scroll onto the clamp point", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    view.setTop(300);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it.each([
+    [
+      "a thread switch",
+      (controller: ReturnType<typeof createThreadViewportAutoScroll>) =>
+        controller.threadSwitched(),
+    ],
+    [
+      "a reattach",
+      (
+        controller: ReturnType<typeof createThreadViewportAutoScroll>,
+        element: HTMLElement,
+      ) => {
+        controller.attach(element);
+        observers.at(-1)!.trigger();
+      },
+    ],
+  ] as const)("drops pending upward input on %s", (_, reset) => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnThreadSwitch: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+
+    view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+    reset(controller, view.element);
+    view.scrollTo.mockClear();
+    view.grow(600);
+    view.resize(200);
+    view.setTop(350);
+    observers.at(-1)!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it.each([
+    ["keeps following when a nested scroller takes", 50, true],
+    [
+      "keeps a reader scroll-up when a nested scroller at its top chains",
+      0,
+      false,
+    ],
+  ] as const)(
+    "%s upward input beside a resize clamp",
+    (_, nestedTop, follows) => {
+      const view = geometry(500, 100);
+      const nested = document.createElement("pre");
+      nested.style.overflowY = "auto";
+      Object.defineProperty(nested, "scrollTop", { value: nestedTop });
+      view.element.append(nested);
+      view.setTop(400);
+      const controller = createThreadViewportAutoScroll({
+        getOptions: options,
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      observers[0]!.trigger();
+      view.scrollTo.mockClear();
+
+      nested.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: -2, bubbles: true }),
+      );
+      view.grow(550);
+      view.resize(200);
+      view.grow(600);
+      view.setTop(view.element.scrollTop);
+      observers[0]!.trigger();
+
+      expect(view.scrollTo).toHaveBeenCalledTimes(follows ? 1 : 0);
+      expect(controller.isAtBottom).toBe(follows);
+      controller.dispose();
+    },
+  );
+
+  it("keeps following when a drag scrolls down", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    dispatchTouch(view.element, "touchstart", 200);
+    dispatchTouch(view.element, "touchmove", 180);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps a reader scroll-up that a drag preceded", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    dispatchTouch(view.element, "touchstart", 200);
+    dispatchTouch(view.element, "touchmove", 220);
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(350);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("keeps following when a pointer press preceded the clamp", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.resize(200);
+    view.element.dispatchEvent(new Event("pointerdown"));
+    view.setTop(350);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    expect(controller.isAtBottom).toBe(true);
     controller.dispose();
   });
 
