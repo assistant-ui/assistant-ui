@@ -40,7 +40,7 @@ export const states = defineStates([
   {
     key: "error",
     label: "Failed",
-    note: "The run ended with an error, and the pill turns to the failed tone.",
+    note: "The run ended with an error, and the status dot becomes a red X.",
     Component: () => (
       <AgentStatus state="failed" label="Tests failed, 3 errors" />
     ),
