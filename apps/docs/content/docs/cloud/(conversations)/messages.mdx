@@ -46,6 +46,23 @@ An external-store runtime never copies a message without a backend ID. It skips 
 
 The [thread detail view](/docs/cloud/dashboard/threads) renders the conversation and a **Raw** tab from the same stored tree. Its **Turns** tab joins each question to the run that answered it, while the **Activity** tab records end user events such as edits and regenerations. The page can show up to 200 messages, ordered by height and creation time, alongside the thread's run and satisfaction data.
 
+## Interrupted runs
+
+A run lives in the tab that streams it. With the `aui/v0` history path (the local runtime, AG-UI and external store runtimes), the cloud adapter stores the assistant message as soon as its run starts and holds a run lease on it. While the run streams, the adapter sends a heartbeat every 20 seconds and checkpoints the message content when it changed. The runtime's settled write closes the lease.
+
+If the tab closes or loses its connection, the heartbeats stop. After 30 seconds without one the cloud reports the run as stale, and the message loads as an error with the code `run_stale`. `ActionBarPrimitive.Resume` continues it: the continuation is a new assistant message after the interrupted one, so the work done so far stays in the thread.
+
+A run that only lost its connection and later comes back keeps writing. If nobody resumed it, its writes revive the lease. If someone did, its writes land on a new sibling branch and never overwrite the resumed reply.
+
+```tsx
+<MessagePrimitive.Error>
+  <ErrorPrimitive.Root>
+    <ErrorPrimitive.Message />
+    <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```
+
 ## From your code
 
 The client exposes list, create, update and feedback calls under `cloud.threads.messages`. A new root message sends `parent_id: null`; a child sends the remote id of its parent.

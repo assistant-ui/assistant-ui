@@ -19,12 +19,14 @@ import {
   type AssistantCloudEvent,
   CloudAPIError,
   CloudMessagePersistence,
+  type CloudMessageRunPhase,
   CloudRunReporter,
   createFormattedPersistence,
   type RunMessageTelemetry,
 } from "assistant-cloud";
 import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { useAssistantCloudEngagementEvents } from "./engagementEvents";
+import { useCloudRunLeases } from "./runLeases";
 import {
   type RunMessageInfo,
   type StepTimestamp,
@@ -78,6 +80,34 @@ const runLedgerOf = (persistence: CloudMessagePersistence) => {
     runLedgers.set(persistence, ledger);
   }
   return ledger;
+};
+
+/** The `error.code` of a message whose run lost its heartbeat before it finished. */
+export const RUN_STALE_ERROR_CODE = "run_stale";
+const RUN_STALE_STATUS = {
+  type: "incomplete",
+  reason: "error",
+  error: {
+    code: RUN_STALE_ERROR_CODE,
+    message: "This response was interrupted before it finished.",
+  },
+} as const;
+const RUN_IN_PROGRESS_STATUS = {
+  type: "incomplete",
+  reason: "error",
+  error: {
+    code: "run_in_progress",
+    message: "This response is still being written in another session.",
+  },
+} as const;
+
+const runPhaseOf = (
+  message: ThreadMessage,
+  persistence: CloudMessagePersistence,
+): CloudMessageRunPhase | undefined => {
+  if (message.role !== "assistant") return undefined;
+  if (message.status.type === "running") return "running";
+  return persistence.hasOpenRun(message.id) ? "ended" : undefined;
 };
 
 const isSettledMessage = (message: ThreadMessage) =>
@@ -144,6 +174,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     CloudMessagePersistence,
     Map<string, Promise<CopiedThread>>
   >();
+  /** Set once a runtime reads or writes this thread in the aui/v0 shape, the only shape run leases cover. */
+  public servesThreadMessages = false;
+  /** Set once a runtime persists through `withFormat`, whose rows the run tracker must not write. */
+  public servesFormattedMessages = false;
   private copyQueues = new WeakMap<
     CloudMessagePersistence,
     Map<string, Promise<void>>
@@ -346,6 +380,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
+    adapter.servesFormattedMessages = true;
     let threadListItem: CloudThreadListItem | undefined;
     const pinCurrent = () => {
       const next = tryGetKeyedThreadListItem(adapter.aui);
@@ -439,10 +474,12 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
+    this.servesThreadMessages = true;
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const { remoteId } = await threadListItem.initialize();
     this.assertCurrentScope(context);
+    const run = runPhaseOf(message, context.persistence);
     await this._writeMessage(context, remoteId, message, (encoded) =>
       context.persistence.append(
         remoteId,
@@ -450,8 +487,19 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         parentId,
         "aui/v0",
         encoded,
+        run,
       ),
     );
+  }
+
+  /** Follows a running message whose runtime replaced its id while it streams. */
+  public renameRun(from: string, to: string): Promise<void> {
+    return this.getPersistence().rename(from, to);
+  }
+
+  /** Whether this adapter holds an open run lease for the message. */
+  public hasOpenRun(messageId: string): boolean {
+    return this.getPersistence().hasOpenRun(messageId);
   }
 
   async update(item: ExportedMessageRepositoryItem) {
@@ -464,8 +512,9 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const remoteId = await this.resolveExistingRemoteId(threadListItem);
     this.assertCurrentScope(context);
     if (!remoteId) return;
+    const run = runPhaseOf(message, context.persistence);
     await this._writeMessage(context, remoteId, message, (encoded) =>
-      context.persistence.update(remoteId, message.id, "aui/v0", encoded),
+      context.persistence.update(remoteId, message.id, "aui/v0", encoded, run),
     );
   }
 
@@ -720,6 +769,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   }
 
   async load() {
+    this.servesThreadMessages = true;
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const remoteId = await this.resolveExistingRemoteId(threadListItem);
@@ -741,8 +791,21 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const loadedIds = new Set<string>();
     const { settled } = runLedgerOf(context.persistence);
     for (const row of rows) {
-      const item = auiV0DecodeSafely(row);
-      if (!item) continue;
+      const decoded = auiV0DecodeSafely(row);
+      if (!decoded) continue;
+      const item =
+        row.run && decoded.message.role === "assistant"
+          ? {
+              ...decoded,
+              message: {
+                ...decoded.message,
+                status:
+                  row.run.status === "stale"
+                    ? RUN_STALE_STATUS
+                    : RUN_IN_PROGRESS_STATUS,
+              } as ThreadMessage,
+            }
+          : decoded;
       if (item.parentId && !loadedIds.has(item.parentId)) continue;
       loadedIds.add(item.message.id);
       if (isSettledMessage(item.message)) settled.add(item.message.id);
@@ -876,6 +939,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);
+  useCloudRunLeases(adapter, aui);
   return adapter;
 }
 

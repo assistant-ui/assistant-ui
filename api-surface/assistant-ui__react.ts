@@ -129,6 +129,17 @@ declare const ActionBarPrimitiveReload: import("react").ForwardRefExoticComponen
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
+declare namespace ActionBarPrimitiveResume {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useActionBarResume>;
+}
+
+declare const ActionBarPrimitiveResume: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean | undefined;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
 declare namespace ActionBarPrimitiveRoot {
   type Element = ComponentRef<typeof Primitive$1.div>;
   type Props = PrimitiveDivProps$5 & {
@@ -6580,7 +6591,7 @@ declare namespace actionBarMore_d_exports {
 }
 
 declare namespace actionBar_d_exports {
-  export { ActionBarPrimitiveCopy as Copy, ActionBarPrimitiveEdit as Edit, ActionBarPrimitiveExportMarkdown as ExportMarkdown, ActionBarPrimitiveFeedbackNegative as FeedbackNegative, ActionBarPrimitiveFeedbackPositive as FeedbackPositive, ActionBarPrimitiveReload as Reload, ActionBarPrimitiveRoot as Root, ActionBarPrimitiveSpeak as Speak, ActionBarPrimitiveStopSpeaking as StopSpeaking };
+  export { ActionBarPrimitiveCopy as Copy, ActionBarPrimitiveEdit as Edit, ActionBarPrimitiveExportMarkdown as ExportMarkdown, ActionBarPrimitiveFeedbackNegative as FeedbackNegative, ActionBarPrimitiveFeedbackPositive as FeedbackPositive, ActionBarPrimitiveReload as Reload, ActionBarPrimitiveResume as Resume, ActionBarPrimitiveRoot as Root, ActionBarPrimitiveSpeak as Speak, ActionBarPrimitiveStopSpeaking as StopSpeaking };
 }
 
 declare namespace assistantModal_d_exports {
@@ -6892,6 +6903,8 @@ declare const useActionBarPrimitiveCopy: (_param11?: {
 }) => (() => void) | null;
 
 declare const useActionBarReload: () => (() => void) | null;
+
+declare const useActionBarResume: () => (() => void) | null;
 
 declare const useActionBarSpeak: () => (() => Promise<void>) | null;
 

@@ -45,6 +45,28 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.message.role !== "assistant" ||
   !s.thread.capabilities.reload;
 
+const isStaleRunStatus = (s: AssistantState): boolean => {
+  const status = s.message.status;
+  if (status?.type !== "incomplete" || status.reason !== "error") return false;
+  const error = status.error;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    !Array.isArray(error) &&
+    (error as { code?: unknown }).code === "run_stale"
+  );
+};
+
+/** Resume continues a run that stopped heartbeating, from the stale message onward. */
+export const actionBarResumeDisabled = (s: AssistantState): boolean =>
+  s.thread.isRunning ||
+  s.thread.isDisabled ||
+  s.thread.voice !== undefined ||
+  s.message.role !== "assistant" ||
+  !s.message.isLast ||
+  !s.thread.capabilities.reload ||
+  !isStaleRunStatus(s);
+
 const messageHasSettledText = (s: AssistantState): boolean =>
   (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
   s.message.parts.some((part) => part.type === "text" && part.text.length > 0);

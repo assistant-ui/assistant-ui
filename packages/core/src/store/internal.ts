@@ -10,6 +10,7 @@ export {
   actionBarCopyDisabled,
   actionBarEditDisabled,
   actionBarReloadDisabled,
+  actionBarResumeDisabled,
   actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,

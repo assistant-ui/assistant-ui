@@ -665,6 +665,16 @@ const MessageError: FC = () => {
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+        <ActionBarPrimitive.Resume asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="aui-message-error-resume mt-2 h-7 gap-1.5 disabled:hidden"
+          >
+            <PlayIcon className="size-3.5" />
+            Resume
+          </Button>
+        </ActionBarPrimitive.Resume>
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
