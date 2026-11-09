@@ -222,9 +222,14 @@ type ResumeSource = ResumeStream | "connect";
 
 // connectAgent() swallows the base class's not-implemented error and resolves
 // with no events, so only an agent that overrides connect() can rejoin a run.
-const implementsConnect = (agent: AbstractAgent): boolean =>
-  (agent as unknown as { connect: unknown }).connect !==
-  (AbstractAgent.prototype as unknown as { connect: unknown }).connect;
+const implementsConnect = (agent: AbstractAgent): boolean => {
+  const connect = (agent as unknown as { connect?: unknown }).connect;
+  return (
+    typeof connect === "function" &&
+    connect !==
+      (AbstractAgent.prototype as unknown as { connect: unknown }).connect
+  );
+};
 type ResumeRunConfig = {
   parentId: string | null;
   sourceId: string | null;
