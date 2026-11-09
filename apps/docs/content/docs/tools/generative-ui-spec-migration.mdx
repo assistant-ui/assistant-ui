@@ -62,7 +62,7 @@ export function WidgetInstructions() {
 }
 ```
 
-Register it in the provider from the quick start. Spread the two toolkits in that client module rather than in the `"use generative"` file, since the compiler cannot analyze a spread entry, and render `<WidgetInstructions />` inside the provider, which tells the model to load the `spec` module of `read_me` before it writes a spec:
+Register it in the provider from the quick start. Spread the two toolkits in that client module rather than in the `"use generative"` file, since the compiler cannot analyze a spread entry, and render `<WidgetInstructions />` inside the provider, which puts the guidance of the `spec` module of `read_me` in the system prompt, so the model writes a spec without calling `read_me` first:
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
@@ -98,7 +98,7 @@ export function MyRuntimeProvider({
 }
 ```
 
-`useWidgetInstructions(widgets.tools, { preload: { modules: ["spec"] } })` puts that guidance in the system prompt instead, saving the model a call at the cost of a longer prompt.
+`useWidgetInstructions(widgets.tools, { preload: { modules: [] } })` leaves that guidance on demand instead, which shortens the prompt at the cost of a `read_me` call before the first spec.
 
 `createWidgetToolkit` also registers the frame tools (`read_me`, `show_widget`, `edit_widget`, and `preview_widget`), so the model can answer with a sandboxed widget when the vocabulary cannot express something.
 

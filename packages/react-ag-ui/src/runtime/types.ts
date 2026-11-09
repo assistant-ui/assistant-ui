@@ -26,6 +26,10 @@ export const AG_UI_METADATA_NAMESPACE = "agui";
 export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
 export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
 
+// Defensive guard against a malformed or cyclic parentToolCallId /
+// parentSubagentRunId chain, not a realistic nesting depth.
+export const MAX_SUBAGENT_DEPTH = 16;
+
 export type AgUiOpaqueReasoning = {
   id: string;
   encryptedValue: string;

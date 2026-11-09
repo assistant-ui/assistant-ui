@@ -975,7 +975,7 @@ type ExternalStoreAdapterBase<T> = {
     copy?: boolean | undefined;
   } | undefined;
   unstable_enableToolInvocations?: boolean | undefined;
-  unstable_isClientToolCall?: ((toolCall: ToolCallMessagePart) => boolean) | undefined;
+  unstable_isClientToolCall?: ((toolCall: ToolCallMessagePart) => boolean | undefined) | undefined;
   setToolStatuses?: ((statuses: Record<string, ToolExecutionStatus>) => void) | undefined;
 };
 
@@ -1540,6 +1540,7 @@ interface PiClient {
   }>;
   getAvailableModels(input?: {
     workspacePath?: string;
+    threadId?: string;
   }): Promise<PiModelInfo[]>;
   setModel(threadId: string, input: {
     provider: string;
@@ -2070,7 +2071,9 @@ declare class PiThreadSupervisor {
     steering: string[];
     followUp: string[];
   }>;
-  getAvailableModels(): Promise<PiModelInfo[]>;
+  getAvailableModels(input?: {
+    threadId?: string;
+  }): Promise<PiModelInfo[]>;
   setModel(threadId: string, input: {
     provider: string;
     modelId: string;

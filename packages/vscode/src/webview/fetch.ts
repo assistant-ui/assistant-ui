@@ -5,6 +5,7 @@ import {
   type HostToWebviewMessage,
   type WebviewToHostMessage,
 } from "../protocol";
+import { isForeignHttpUrl } from "../route-url";
 import { getVSCodeApi } from "./vscode-api";
 import { randomIdPrefix } from "./id";
 
@@ -72,11 +73,7 @@ const toRequest = (input: RequestInfo | URL, init?: RequestInit) => {
     input instanceof Request
       ? new Request(input, init)
       : new Request(new URL(String(input), VSCODE_VIRTUAL_ORIGIN), init);
-  const url = new URL(request.url);
-  if (
-    (url.protocol === "http:" || url.protocol === "https:") &&
-    url.origin !== VSCODE_VIRTUAL_ORIGIN
-  ) {
+  if (isForeignHttpUrl(new URL(request.url))) {
     throw new TypeError("vscodeFetch only reaches the extension host's routes");
   }
   return request;

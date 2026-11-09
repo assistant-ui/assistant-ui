@@ -1,5 +1,17 @@
 # @assistant-ui/eve
 
+## 0.0.25
+
+### Patch Changes
+
+- [#10154](https://github.com/assistant-ui/assistant-ui/pull/10154) [`89c962c`](https://github.com/assistant-ui/assistant-ui/commit/89c962ca366a90cf6492bcb5dddac3b72a015679) - feat: support eve 0.84 and require it as the peer. the runtime reads eve's top level `messages`, answers interactions with `Answer`, and forwards `baseUrl`, `followWhile`, and `followAgents`; eve 0.83 and earlier stay on the previous release. tool parts now carry eve's interaction under `providerMetadata.eve.interaction` instead of `providerMetadata.eve.inputRequest`. ([@okisdev](https://github.com/okisdev))
+
+- [#10348](https://github.com/assistant-ui/assistant-ui/pull/10348) [`a9ef808`](https://github.com/assistant-ui/assistant-ui/commit/a9ef808d425a18b461c587287a84b8e31ff34a1a) - Avoid repeatedly copying prior interruption events within a batch while preserving cached snapshots and event order. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`7175a10`](https://github.com/assistant-ui/assistant-ui/commit/7175a10aca4ecd8ce97939747bdfcfe7171ba8df), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`c6388b6`](https://github.com/assistant-ui/assistant-ui/commit/c6388b6cd3ee13d18fbc9f46fcc32ed1c3014497), [`c70a5d9`](https://github.com/assistant-ui/assistant-ui/commit/c70a5d9290a4b75fadb4d8c815586dbdcf94892b), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`5829349`](https://github.com/assistant-ui/assistant-ui/commit/5829349a8cbca2b017c3af7e0b70bf90cd47a44c), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`a96e62f`](https://github.com/assistant-ui/assistant-ui/commit/a96e62f89da310602b716821dd91b9525f94cbb5), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b), [`620389a`](https://github.com/assistant-ui/assistant-ui/commit/620389ad592ce9897b38b801e0e098527af6fcaf)]:
+  - @assistant-ui/core@0.3.33
+  - assistant-cloud@0.2.10
+  - @assistant-ui/store@0.3.23
+
 ## 0.0.24
 
 ### Patch Changes

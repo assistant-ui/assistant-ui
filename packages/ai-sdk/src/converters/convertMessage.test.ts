@@ -2235,6 +2235,11 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("joins the text parts of a system message into one text part", () => {
+    const firstMetadata = Object.freeze({
+      p1: Object.freeze({ k: "a" }),
+      p2: Object.freeze({ k: "b" }),
+    });
+    const lastMetadata = Object.freeze({ p2: Object.freeze({ k: "c" }) });
     const converted = AISDKMessageConverter.toThreadMessages([
       {
         id: "s1",
@@ -2243,9 +2248,9 @@ describe("AISDKMessageConverter", () => {
           {
             type: "text",
             text: "be ",
-            providerMetadata: { p1: { k: "a" }, p2: { k: "b" } },
+            providerMetadata: firstMetadata,
           },
-          { type: "text", text: "brief", providerMetadata: { p2: { k: "c" } } },
+          { type: "text", text: "brief", providerMetadata: lastMetadata },
         ],
       },
       { id: "s2", role: "system", parts: [] },
@@ -2260,7 +2265,95 @@ describe("AISDKMessageConverter", () => {
     ]);
     expect(converted[1]?.content).toMatchObject([{ type: "text", text: "" }]);
     expect(converted[1]?.content[0]).not.toHaveProperty("providerMetadata");
+    const joined = converted[0]?.content.find((part) => part.type === "text");
+    expect(joined?.providerMetadata).not.toBe(firstMetadata);
+    expect(joined?.providerMetadata).not.toBe(lastMetadata);
+    expect(joined?.providerMetadata?.p1).toBe(firstMetadata.p1);
+    expect(joined?.providerMetadata?.p2).toBe(lastMetadata.p2);
+    expect(firstMetadata.p2).toEqual({ k: "b" });
   });
+
+  it("keeps prototype-named providers as own system-message metadata", () => {
+    const firstMetadata = Object.freeze({
+      first: Object.freeze({ token: "first" }),
+      constructor: Object.freeze({ token: "constructor" }),
+    });
+    const lastMetadata = Object.freeze({
+      ["__proto__"]: Object.freeze({ token: "last" }),
+    });
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "system",
+        role: "system",
+        parts: [
+          { type: "text", text: "one", providerMetadata: firstMetadata },
+          { type: "text", text: "two", providerMetadata: lastMetadata },
+        ],
+      },
+    ]);
+    const joined = converted[0]?.content.find((part) => part.type === "text");
+    expect(Object.entries(joined?.providerMetadata ?? {})).toEqual([
+      ["first", { token: "first" }],
+      ["constructor", { token: "constructor" }],
+      ["__proto__", { token: "last" }],
+    ]);
+    expect(Object.getPrototypeOf(joined?.providerMetadata)).toBe(
+      Object.prototype,
+    );
+    expect(Object.hasOwn(joined?.providerMetadata ?? {}, "__proto__")).toBe(
+      true,
+    );
+    expect(Object.hasOwn(firstMetadata, "__proto__")).toBe(false);
+  });
+
+  it.each(["customProvider", Symbol("provider")])(
+    "copies provider %s without invoking an inherited setter",
+    (key) => {
+      const previous = Object.getOwnPropertyDescriptor(Object.prototype, key);
+      const value = Object.freeze({ token: "last" });
+      let setterCalls = 0;
+      Object.defineProperty(Object.prototype, key, {
+        configurable: true,
+        set: () => {
+          setterCalls++;
+        },
+      });
+      try {
+        const converted = AISDKMessageConverter.toThreadMessages([
+          {
+            id: "system",
+            role: "system",
+            parts: [
+              { type: "text", text: "one" },
+              {
+                type: "text",
+                text: "two",
+                providerMetadata: Object.freeze({
+                  visible: { token: "kept" },
+                  [key]: value,
+                }),
+              },
+            ],
+          },
+        ]);
+        const joined = converted[0]?.content.find(
+          (part) => part.type === "text",
+        );
+        expect(setterCalls).toBe(0);
+        expect(
+          Object.getOwnPropertyDescriptor(joined?.providerMetadata, key),
+        ).toEqual({
+          value,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      } finally {
+        if (previous) Object.defineProperty(Object.prototype, key, previous);
+        else Reflect.deleteProperty(Object.prototype, key);
+      }
+    },
+  );
 
   it("reads a user text part without text as empty text", () => {
     const converted = AISDKMessageConverter.toThreadMessages([

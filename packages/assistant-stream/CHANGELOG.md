@@ -1,5 +1,35 @@
 # assistant-stream
 
+## 0.3.56
+
+### Patch Changes
+
+- [#10308](https://github.com/assistant-ui/assistant-ui/pull/10308) [`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12) - Drop an unreachable branch from stream merging. Behavior is unchanged. ([@Karthik-beta](https://github.com/Karthik-beta))
+
+- [#10212](https://github.com/assistant-ui/assistant-ui/pull/10212) [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d) - Preserve part order when earlier stream chunks are already written. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10302](https://github.com/assistant-ui/assistant-ui/pull/10302) [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1) - fix: allow cancelling a UI message stream after its done marker has queued pending tool arguments, without an unhandled cancellation error. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10167](https://github.com/assistant-ui/assistant-ui/pull/10167) [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c) - an approved AI SDK tool call now shows the result the server streams after the approval. `UIMessageStreamDecoder` passes on a `tool-output-available` or `tool-output-error` for a call an earlier response opened, and a `LocalRuntime` resume that yields a tool call the message holds without a result fills in that call instead of appending a second one. ([@bnb](https://github.com/bnb))
+  
+  when a continuation replaces a preliminary result, its model-facing content is replaced too, so later turns use the final result instead of stale progress text.
+
+- [#10316](https://github.com/assistant-ui/assistant-ui/pull/10316) [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c) - Clear a tool call part's stale `artifact` and `messages` when a later result omits them. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10294](https://github.com/assistant-ui/assistant-ui/pull/10294) [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35) - run a frontend tool streamed inside a step when that step finishes, and never for a call the provider gates with an approval, so a frontend tool sharing a server tool's name no longer runs before the approval is answered. `unstable_runPendingTools` skips calls that carry an approval. ([@okisdev](https://github.com/okisdev))
+
+- [#10200](https://github.com/assistant-ui/assistant-ui/pull/10200) [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e) - Keep merged part paths aligned with emitted part-start order. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10253](https://github.com/assistant-ui/assistant-ui/pull/10253) [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed) - Avoid redundant empty chunks when streaming tool argument text whose decoded value has not changed. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10273](https://github.com/assistant-ui/assistant-ui/pull/10273) [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c) - Remove redundant path remapping when merging assistant streams while preserving chunk order. ([@Johnx-w](https://github.com/Johnx-w))
+
+- [#10167](https://github.com/assistant-ui/assistant-ui/pull/10167) [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c) - `UIMessageStreamDecoder` decodes the AI SDK's tool approval chunks: a `tool-approval-request` puts `approval` on its tool call, keeping the server's fields (`signature` among them) verbatim, and an automatic denial settles the call. The decoder also opens the first step of a UI message stream once instead of twice, so a run that needs a second roundtrip (a frontend tool result or an approval decision) is no longer stopped by `maxSteps`. `DataStreamEncoder` and `DataStreamDecoder` carry an approval set with `setApproval` in a new `aui-tool-call-approval` frame. `useCloudRuntime` sends a denied call without the error result `LocalRuntime` records for it, so a server using the AI SDK's tool approval answers it with an execution-denied result. `useDataStreamRuntime` sends the decision back in the AI SDK's own message layout: a `tool-approval-request` part after the gated call, a `tool-approval-response` part in the tool message, and an execution-denied result for a denied call. ([@bnb](https://github.com/bnb))
+
+- [#10318](https://github.com/assistant-ui/assistant-ui/pull/10318) [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4) - Stop reporting an error thrown after a synchronous tool execution or stream `execute` succeeds as a failure of that execution; it now propagates to the caller, as it already did for asynchronous ones. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10312](https://github.com/assistant-ui/assistant-ui/pull/10312) [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f) - `UIMessageStreamDecoder` now decodes AI SDK `source-document` chunks into document source parts, so `useDataStreamRuntime` shows the documents a response cites (title, media type, filename) instead of dropping them. `appendSource` and the accumulator accept document sources too, and a document source without a media type gets `application/octet-stream`. `SourcePart.url` is only present when `sourceType` is `"url"`, so code that reads `.url` as a string needs to check `sourceType` first. ([@clean99](https://github.com/clean99))
+
 ## 0.3.55
 
 ### Patch Changes

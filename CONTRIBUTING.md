@@ -42,6 +42,19 @@ cd examples/<your-example>
 pnpm dev
 ```
 
+### Coverage shard runtimes
+
+The two coverage jobs assign every workspace with a `test:coverage` script once. `scripts/coverage-runtimes.json` supplies millisecond weights so packages with similar file counts but different execution costs do not overload one shard. Both jobs read the same committed profile. A new, unmeasured workspace is assigned the median recorded runtime and reported on stderr; it is never omitted.
+
+Refresh the profile after substantial suite or runner changes. Download both shard job logs from several successful pull request runs on comparable revisions:
+
+```sh
+gh api repos/assistant-ui/assistant-ui/actions/jobs/<job-id>/logs > /tmp/coverage-<job-id>.log
+node scripts/coverage-runtimes.mjs /tmp/coverage-*.log > /tmp/coverage-runtimes.json
+```
+
+Inspect the result, then replace `scripts/coverage-runtimes.json` with it. The generator excludes cache replays, adds sequential Vitest/Node runner durations within each package, and takes the median across samples. These are scheduling weights, not predicted CI completion times: Turbo runs two tasks concurrently, and dependency builds, coverage reporting and the separate compiler lane add work outside those runner durations. Keep all suites and coverage thresholds when refreshing the profile; verify the resulting assignment and hosted job durations.
+
 ### Opening an issue
 
 Pick the issue form that matches what you are reporting. Usage questions go to Discord.
@@ -77,7 +90,7 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 | T2 | A contract area (`packages/tap`, `packages/store`, `packages/assistant-stream`, `api-surface/*.ts`, `.github/`, the policy scripts, the tap and store docs), added or changed public exports, a changed `exports` map or manifest contract field, or a new `@deprecated` | 1 approval from an owner of each affected area (export, `exports` map, manifest and `@deprecated` changes count as the Public API area), and 24 hours open after ready for review |
 | T3 | A `behavior-change` label, a removed or renamed export or entry point, a new package or subpath, a new runtime, peer or optional dependency or an upstream major, a `refactor` that spans two or more packages, workflow permissions, secrets or privileged triggers, release workflows, or this policy (`.github/review-policy.json` and the scripts and workflows that enforce it) | T2's approval (a maintainer's when no contract area is affected), a linked issue labeled `decision: accepted` by an owner of the affected area (by a maintainer when no contract area is affected), and 72 hours open after ready for review |
 
-- Approvals count only on the current head, so every push, autofix commits included, needs fresh approvals. They never count from the author or from anyone who authored or committed a commit in the pull request; committing a review suggestion or updating the branch from the web makes you one.
+- An approval of an older commit carries over to the current head when that commit is still in the branch history and the commits since touch no protected path, and the `review-tier` comment says so. Protected paths are the contract areas in `.github/review-policy.json` (everything `.github/CODEOWNERS` assigns), the paths of every package under `packageOwners`, the policy's decision paths, `api-surface/`, any `packages/*/package.json`, and package source that adds a `@deprecated`. A push that touches one, a force-push or rebase, or a comparison GitHub cannot complete makes earlier approvals stale, and the comment names the paths. Approvals never count from the author or from anyone who authored or committed a commit in the pull request; committing a review suggestion or updating the branch from the web makes you one.
 - Every review thread is resolved before merge, every check passes (the rulesets require `autofix`, `Build Changed Packages`, `Typecheck Changed Packages`, `Review Policy Scripts`, `Test Coverage`, `review-tier` and `TraceHub traces`), and the `review-tier` comment lists nothing still needed.
 - The `review-tier` comment also lists advice under "Worth a look", such as another pull request that is open or already merged for the same issue, a `feat` with no linked issue, a description with no Verification or AI use text, or coverage thresholds and measured-file selections that changed. Coverage advice compares literal settings in `vitest.config.*` and `vite.config.*`; it does not evaluate imported or computed configuration. Advice never blocks a merge.
 - Size never lowers a tier. A T2 or T3 pull request that changes more than 400 lines outside tests, generated files and the T0 paths lands as a stack of smaller pull requests.

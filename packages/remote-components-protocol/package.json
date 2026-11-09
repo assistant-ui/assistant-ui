@@ -1,0 +1,52 @@
+{
+  "name": "@assistant-ui/remote-components-protocol",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Messages, value codec, channel and validation for remote components (internal)",
+  "keywords": [
+    "remote-components",
+    "iframe",
+    "sandbox",
+    "assistant-ui"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
+    "typecheck": "tsc --noEmit",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "jsdom": "^30.1.3",
+    "vitest": "^5.0.5"
+  },
+  "homepage": "https://www.assistant-ui.com/remote-components",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/remote-components-protocol"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

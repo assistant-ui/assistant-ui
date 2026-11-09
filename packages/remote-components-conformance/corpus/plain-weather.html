@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Berlin Weather</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 20px;
+  }
+  .card {
+    width: 100%; max-width: 420px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 24px;
+    padding: 28px;
+    color: #fff;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .city { font-size: 1.8rem; font-weight: 700; }
+  .date { opacity: 0.8; font-size: 0.95rem; margin-top: 4px; }
+  .now { display: flex; align-items: center; justify-content: space-between; margin: 24px 0; }
+  .temp { font-size: 4.5rem; font-weight: 200; line-height: 1; }
+  .icon-big { font-size: 4.5rem; }
+  .desc { font-size: 1.1rem; margin-top: 6px; opacity: 0.9; }
+  .details {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    background: rgba(255,255,255,0.1); border-radius: 16px; padding: 14px; text-align: center;
+  }
+  .details span { display: block; font-size: 0.75rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .details strong { font-size: 1rem; }
+  h3 { margin: 22px 0 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+  .forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .day {
+    background: rgba(255,255,255,0.1); border-radius: 14px; padding: 12px 4px; text-align: center;
+    transition: background 0.2s;
+  }
+  .day:hover { background: rgba(255,255,255,0.2); }
+  .day .name { font-size: 0.85rem; font-weight: 600; }
+  .day .ic { font-size: 1.6rem; margin: 8px 0; }
+  .day .hi { font-weight: 600; }
+  .day .lo { opacity: 0.65; font-size: 0.85rem; }
+  .status { margin-top: 18px; font-size: 0.75rem; opacity: 0.65; text-align: center; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div>
+      <div class="city">Berlin</div>
+      <div class="date" id="date"></div>
+    </div>
+    <div style="opacity:.8">🇩🇪</div>
+  </div>
+
+  <div class="now">
+    <div>
+      <div class="temp" id="temp">--°</div>
+      <div class="desc" id="desc">Loading…</div>
+    </div>
+    <div class="icon-big" id="icon">⏳</div>
+  </div>
+
+  <div class="details">
+    <div><span>Feels like</span><strong id="feels">--</strong></div>
+    <div><span>Humidity</span><strong id="hum">--</strong></div>
+    <div><span>Wind</span><strong id="wind">--</strong></div>
+  </div>
+
+  <h3>5-Day Forecast</h3>
+  <div class="forecast" id="forecast"></div>
+
+  <div class="status" id="status">Fetching live data…</div>
+</div>
+
+<script>
+const codes = {
+  0:["Clear sky","☀️"],1:["Mainly clear","🌤️"],2:["Partly cloudy","⛅"],3:["Overcast","☁️"],
+  45:["Fog","🌫️"],48:["Rime fog","🌫️"],51:["Light drizzle","🌦️"],53:["Drizzle","🌦️"],55:["Heavy drizzle","🌧️"],
+  56:["Freezing drizzle","🌧️"],57:["Freezing drizzle","🌧️"],61:["Light rain","🌦️"],63:["Rain","🌧️"],65:["Heavy rain","🌧️"],
+  66:["Freezing rain","🌧️"],67:["Freezing rain","🌧️"],71:["Light snow","🌨️"],73:["Snow","❄️"],75:["Heavy snow","❄️"],
+  77:["Snow grains","🌨️"],80:["Rain showers","🌦️"],81:["Rain showers","🌧️"],82:["Violent showers","⛈️"],
+  85:["Snow showers","🌨️"],86:["Snow showers","❄️"],95:["Thunderstorm","⛈️"],96:["Thunderstorm","⛈️"],99:["Thunderstorm","⛈️"]
+};
+const wx = c => codes[c] || ["Unknown","🌡️"];
+const $ = id => document.getElementById(id);
+
+$("date").textContent = new Date().toLocaleDateString("en-GB",
+  { weekday:"long", day:"numeric", month:"long", timeZone:"Europe/Berlin" });
+
+function render(d, live) {
+  const c = d.current;
+  const [desc, icon] = wx(c.weather_code);
+  $("temp").textContent = Math.round(c.temperature_2m) + "°";
+  $("desc").textContent = desc;
+  $("icon").textContent = icon;
+  $("feels").textContent = Math.round(c.apparent_temperature) + "°";
+  $("hum").textContent = Math.round(c.relative_humidity_2m) + "%";
+  $("wind").textContent = Math.round(c.wind_speed_10m) + " km/h";
+
+  const f = d.daily;
+  $("forecast").innerHTML = f.time.slice(1, 6).map((t, i) => {
+    const idx = i + 1;
+    const name = new Date(t + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+    return `<div class="day">
+      <div class="name">${name}</div>
+      <div class="ic" title="${wx(f.weather_code[idx])[0]}">${wx(f.weather_code[idx])[1]}</div>
+      <div class="hi">${Math.round(f.temperature_2m_max[idx])}°</div>
+      <div class="lo">${Math.round(f.temperature_2m_min[idx])}°</div>
+    </div>`;
+  }).join("");
+
+  $("status").textContent = live
+    ? "Live data · Open-Meteo · updated " + new Date().toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"})
+    : "⚠️ Offline — showing sample data";
+}
+
+function sample() {
+  const days = [...Array(6)].map((_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+  return {
+    current: { temperature_2m: 14, apparent_temperature: 12, relative_humidity_2m: 68, wind_speed_10m: 15, weather_code: 2 },
+    daily: {
+      time: days,
+      weather_code: [2, 3, 61, 1, 0, 80],
+      temperature_2m_max: [16, 15, 13, 17, 19, 16],
+      temperature_2m_min: [8, 9, 7, 8, 10, 9]
+    }
+  };
+}
+
+fetch("https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41" +
+  "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code" +
+  "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FBerlin&forecast_days=6")
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(d => render(d, true))
+  .catch(() => render(sample(), false));
+</script>
+</body>
+</html>

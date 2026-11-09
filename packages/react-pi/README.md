@@ -203,7 +203,10 @@ const { readiness, contextUsage, setModel, setThinkingLevel } = usePiRuntimeExtr
 ```
 
 `getAvailableModels()` on the client returns the catalog (auth-configured models
-first, falling back to the full built-in list). `setThinkingLevel` is clamped by
+first, falling back to the full built-in list). Pass `{ threadId }` to list a
+live thread's own runtime instead, which includes the models its extensions
+register through `registerProvider` or `registerVirtualModel`; a thread that is
+not live gets the process-wide catalog. `setThinkingLevel` is clamped by
 Pi to the model's supported levels; the UI reflects the effective level from the
 next snapshot/event. `contextUsage` (`{ tokens, contextWindow, percent }`)
 answers "am I about to auto-compact?" and is available even for cold threads.

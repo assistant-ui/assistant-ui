@@ -89,6 +89,9 @@ for (const file of [
   "scripts/example-bundles.json",
   "scripts/coverage-shards.mjs",
   "scripts/coverage-shards.test.mjs",
+  "scripts/coverage-runtimes.mjs",
+  "scripts/coverage-runtimes.test.mjs",
+  "scripts/coverage-runtimes.json",
   "scripts/coverage-summary.mjs",
   "scripts/coverage-summary.test.mjs",
   "scripts/test-coverage-contract.test.mjs",
@@ -327,6 +330,32 @@ test("the required coverage check rejects failed, cancelled, or missing shards",
       }
     }
   }
+});
+
+test("pull requests restore the Turbo cache that only main pushes save", () => {
+  const names = coverageSteps.map((step) => step.split("\n")[0]);
+  const step = (name) => coverageSteps[names.indexOf(name)];
+  const restore = step("Restore the Turbo cache from main");
+  const save = step("Save the Turbo cache for pull requests");
+  assert(restore && save);
+  assert.match(restore, /if: github\.event_name == 'pull_request'\n/);
+  assert.match(restore, /uses: actions\/cache\/restore@/);
+  assert.match(save, /if: github\.event_name == 'push' && !cancelled\(\)\n/);
+  assert.match(save, /uses: actions\/cache\/save@/);
+  const key = (text) => text.match(/^ {10}key: (.+)$/m)?.[1];
+  assert.equal(key(restore), key(save));
+  const prefix = restore.match(/^ {10}restore-keys: (.+)$/m)?.[1];
+  assert(prefix && key(save).startsWith(prefix));
+  for (const text of [restore, save]) {
+    assert.match(text, /^ {10}path: \.turbo\/cache$/m);
+  }
+  assert(
+    names.indexOf(restore.split("\n")[0]) < names.indexOf("Build packages"),
+  );
+  assert(
+    names.indexOf(save.split("\n")[0]) >
+      names.indexOf("Run assigned packages with coverage"),
+  );
 });
 
 test(

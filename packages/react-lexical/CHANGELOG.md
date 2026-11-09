@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.21
+
+### Patch Changes
+
+- [#10320](https://github.com/assistant-ui/assistant-ui/pull/10320) [`c359dba`](https://github.com/assistant-ui/assistant-ui/commit/c359dbac04c1d6843cb4ad0cc53d1443fae6dd61) - Keep a space after a selected directive and place the caret after it, matching `ComposerInput`. ([@chuganzy](https://github.com/chuganzy))
+
 ## 0.2.20
 
 ### Patch Changes

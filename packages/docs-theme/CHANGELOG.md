@@ -1,5 +1,19 @@
 # @assistant-ui/docs-theme
 
+## 0.0.3
+
+### Patch Changes
+
+- [#10296](https://github.com/assistant-ui/assistant-ui/pull/10296) [`f451b59`](https://github.com/assistant-ui/assistant-ui/commit/f451b59786ffdf55578dc030009a1de455c82d97) - Expose responsive site header, sidebar state, table of contents and pager controls. Hidden mobile navigation is inert, closing site navigation restores focus, and pager links include destination labels. Allow main landmark props for skip-link targets. Heading observers run only when the table of contents is visible. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10296](https://github.com/assistant-ui/assistant-ui/pull/10296) [`f451b59`](https://github.com/assistant-ui/assistant-ui/commit/f451b59786ffdf55578dc030009a1de455c82d97) - Add composable documentation layout, page typography, footer navigation and site stylesheet matching assistant-ui’s docs. Existing Farming Labs integration exports remain available. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10296](https://github.com/assistant-ui/assistant-ui/pull/10296) [`f451b59`](https://github.com/assistant-ui/assistant-ui/commit/f451b59786ffdf55578dc030009a1de455c82d97) - Add animated documentation sidebar sections with nested active-page navigation, platform visibility and application-owned banner/footer slots. The active ancestor path is computed once per tree and pathname change. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10296](https://github.com/assistant-ui/assistant-ui/pull/10296) [`f451b59`](https://github.com/assistant-ui/assistant-ui/commit/f451b59786ffdf55578dc030009a1de455c82d97) - perf: use the focused Farming Labs configuration entry to avoid loading server modules when configuring the documentation theme. Align the theme with Farming Labs Docs and Theme 0.2.137, which also avoid raw Markdown parser startup for MDX tree helpers and defer the built-in command-search dialog until first use. Align Fumadocs UI with the framework at 16.17.8 to preserve shared contexts. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10307](https://github.com/assistant-ui/assistant-ui/pull/10307) [`dcb9a07`](https://github.com/assistant-ui/assistant-ui/commit/dcb9a076afc79feffee45c668e46ff0ae46a1d53) - Reduce the documentation sidebar's animation bundle while preserving section transitions and navigation behavior. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.2
 
 ### Patch Changes

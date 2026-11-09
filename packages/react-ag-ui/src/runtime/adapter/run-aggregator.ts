@@ -31,14 +31,11 @@ import {
   type AgUiEvent,
   type AgUiInterrupt,
   type AgUiOpaqueReasoning,
+  MAX_SUBAGENT_DEPTH,
 } from "../types";
 import type { Logger } from "../logger";
 
 const ROOT_SCOPE = "";
-
-// Defensive guard against a malformed or cyclic parentToolCallId /
-// parentSubagentRunId chain, not a realistic nesting depth.
-const MAX_SUBAGENT_DEPTH = 16;
 
 type SubagentRunState = {
   subagentRunId: string;
@@ -268,6 +265,17 @@ export class RunAggregator {
 
   hasToolCall(toolCallId: string): boolean {
     return this.toolCalls.has(toolCallId);
+  }
+
+  rebaseMessage(messageId: string): void {
+    const snapshotText = this.pendingSnapshotText.get(messageId);
+    this.resetMessageParts();
+    this.lastTextMessageId = messageId;
+    this.reportedServerMessageId = messageId;
+    if (snapshotText !== undefined) {
+      this.pendingSnapshotText.set(messageId, snapshotText);
+    }
+    this.startTextMessage(ROOT_SCOPE, messageId);
   }
 
   handle(event: AgUiEvent): void {

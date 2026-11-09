@@ -1,8 +1,22 @@
 import { fileURLToPath } from "node:url";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { defaultExclude } from "vitest/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// The tsconfig paths resolve `@/components/ui/*` to base first and radix second.
+const uiRoot = resolve(__dirname, "../../packages/ui/src/components/react/ui");
+const radixOnlyUi = Object.fromEntries(
+  readdirSync(resolve(uiRoot, "radix"))
+    .map((file) => file.replace(/\.tsx?$/, ""))
+    .filter(
+      (name) =>
+        !existsSync(resolve(uiRoot, "base", `${name}.tsx`)) &&
+        !existsSync(resolve(uiRoot, "base", `${name}.ts`)),
+    )
+    .map((name) => [`@/components/ui/${name}`, resolve(uiRoot, "radix", name)]),
+);
 
 export default {
   // Vite rejects Next's string-valued PostCSS plugins; DOM tests do not assert transformed styles.
@@ -73,6 +87,7 @@ export default {
         __dirname,
         "../../packages/ui/src/components/react/ui/radix/hover-card",
       ),
+      ...radixOnlyUi,
       "@/components/ui": resolve(
         __dirname,
         "../../packages/ui/src/components/react/ui/base",

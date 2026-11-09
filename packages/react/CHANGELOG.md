@@ -1,5 +1,21 @@
 # @assistant-ui/react
 
+## 0.15.33
+
+### Patch Changes
+
+- [#10331](https://github.com/assistant-ui/assistant-ui/pull/10331) [`2c89877`](https://github.com/assistant-ui/assistant-ui/commit/2c89877a60be44573c5f18babd1552d08734700d) - Flush a Gemini Live reply that is still deferred when the socket closes, instead of dropping its first transcript. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10247](https://github.com/assistant-ui/assistant-ui/pull/10247) [`e8ec559`](https://github.com/assistant-ui/assistant-ui/commit/e8ec559d8123f814a76733c70d1959e186e987a2) - Add `GeminiLiveVoiceAdapter`, a browser WebSocket voice adapter for the Gemini Live API with transcripts, interruptions, mute, and typed input. ([@Benonii](https://github.com/Benonii))
+
+- [#10282](https://github.com/assistant-ui/assistant-ui/pull/10282) [`8786f11`](https://github.com/assistant-ui/assistant-ui/commit/8786f11a77943a5776b172ce064bd0d05deeba05) - Low-pass Gemini Live microphone audio before downsampling. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`7175a10`](https://github.com/assistant-ui/assistant-ui/commit/7175a10aca4ecd8ce97939747bdfcfe7171ba8df), [`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12), [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c), [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35), [`c6388b6`](https://github.com/assistant-ui/assistant-ui/commit/c6388b6cd3ee13d18fbc9f46fcc32ed1c3014497), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`c70a5d9`](https://github.com/assistant-ui/assistant-ui/commit/c70a5d9290a4b75fadb4d8c815586dbdcf94892b), [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c), [`5829349`](https://github.com/assistant-ui/assistant-ui/commit/5829349a8cbca2b017c3af7e0b70bf90cd47a44c), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`8328f46`](https://github.com/assistant-ui/assistant-ui/commit/8328f46f6f8f56c74e3cd06fbb6e1c7f552c8e63), [`a96e62f`](https://github.com/assistant-ui/assistant-ui/commit/a96e62f89da310602b716821dd91b9525f94cbb5), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b), [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4), [`620389a`](https://github.com/assistant-ui/assistant-ui/commit/620389ad592ce9897b38b801e0e098527af6fcaf), [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f)]:
+  - @assistant-ui/core@0.3.33
+  - assistant-stream@0.3.56
+  - assistant-cloud@0.2.10
+  - @assistant-ui/store@0.3.23
+  - @assistant-ui/tap@0.9.25
+
 ## 0.15.32
 
 ### Patch Changes

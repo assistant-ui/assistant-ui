@@ -14,6 +14,8 @@
     "@assistant-ui/generative-ui": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@json-render/core": "^0.22.0",
+    "@json-render/react": "^0.22.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

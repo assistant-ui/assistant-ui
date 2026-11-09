@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: var(--font-sans, sans-serif); color: var(--color-text, inherit); }
+  .card { background: var(--color-surface, #f6f6f6); border: 1px solid var(--color-border, #ddd); border-radius: var(--radius-md, 10px); padding: 20px; }
+  .meta { font-size: 13px; color: var(--color-text-muted, #777); margin-bottom: 8px; }
+  h2 { font-size: 18px; margin: 0 0 16px; }
+  .opt { display: block; width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 8px; border: 1px solid var(--color-border, #ccc); border-radius: var(--radius-md, 8px); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .opt:hover:not(:disabled) { border-color: var(--color-accent, #3b82f6); }
+  .opt.correct { border-color: #16a34a; background: rgba(22,163,74,.12); }
+  .opt.wrong { border-color: #dc2626; background: rgba(220,38,38,.12); }
+  .opt:disabled { cursor: default; }
+  .next { margin-top: 8px; padding: 9px 18px; border: none; border-radius: var(--radius-md, 8px); background: var(--color-accent, #3b82f6); color: #fff; font: inherit; cursor: pointer; }
+  .feedback { min-height: 20px; font-size: 14px; margin: 4px 0; }
+  .score { font-size: 32px; font-weight: 700; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="card" id="quiz" aria-live="polite"></div>
+<script>
+const qs = [
+  { q: "What is the largest planet in our solar system?", o: ["Earth", "Jupiter", "Saturn", "Neptune"], a: 1 },
+  { q: "Which element has the chemical symbol 'O'?", o: ["Gold", "Osmium", "Oxygen", "Iron"], a: 2 },
+  { q: "How many continents are there on Earth?", o: ["5", "6", "7", "8"], a: 2 }
+];
+let i = 0, score = 0;
+const el = document.getElementById('quiz');
+
+function render() {
+  const item = qs[i];
+  el.innerHTML = `<div class="meta">Question ${i + 1} of ${qs.length}</div><h2>${item.q}</h2>` +
+    item.o.map((t, k) => `<button class="opt" data-k="${k}">${t}</button>`).join('') +
+    `<div class="feedback"></div>`;
+  el.querySelectorAll('.opt').forEach(b => b.onclick = () => pick(+b.dataset.k));
+}
+
+function pick(k) {
+  const item = qs[i], btns = el.querySelectorAll('.opt');
+  btns.forEach(b => b.disabled = true);
+  btns[item.a].classList.add('correct');
+  const fb = el.querySelector('.feedback');
+  if (k === item.a) { score++; fb.textContent = "Correct!"; }
+  else { btns[k].classList.add('wrong'); fb.textContent = "Not quite — the answer is " + item.o[item.a] + "."; }
+  const n = document.createElement('button');
+  n.className = 'next';
+  n.textContent = i < qs.length - 1 ? 'Next question' : 'See score';
+  n.onclick = () => { i++; i < qs.length ? render() : finish(); };
+  el.appendChild(n);
+  n.focus();
+}
+
+function finish() {
+  const msg = score === 3 ? "Perfect score!" : score === 2 ? "Nice work!" : score === 1 ? "Good try!" : "Better luck next time!";
+  el.innerHTML = `<div class="meta">Quiz complete</div><div class="score">${score} / ${qs.length}</div><p>${msg}</p><button class="next">Try again</button>`;
+  el.querySelector('.next').onclick = () => { i = 0; score = 0; render(); };
+}
+
+render();
+</script>
+</body>
+</html>

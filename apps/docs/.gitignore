@@ -4,3 +4,4 @@
 .turbo
 dist
 .docs
+/public/rc/

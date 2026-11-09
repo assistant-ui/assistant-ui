@@ -147,7 +147,7 @@ def _start_producer_task(
                 )
                 return
             _call_hook(on_finalize, stream_id, "done", None)
-        except Exception as err:
+        except (Exception, asyncio.CancelledError) as err:
             _call_hook(on_error, stream_id, err)
             message = str(err) if str(err) else repr(err)
             try:
@@ -161,6 +161,9 @@ def _start_producer_task(
                 logger.error(
                     "resumable stream finalize failed: %s", finalize_err
                 )
+            finally:
+                if isinstance(err, asyncio.CancelledError):
+                    raise
 
     task = asyncio.create_task(_pump())
     tasks.add(task)

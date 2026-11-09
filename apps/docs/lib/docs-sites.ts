@@ -73,6 +73,21 @@ export const SUB_PROJECT_REGISTRY = {
       placement: "top",
     },
   },
+  "remote-components": {
+    title: "Remote Components",
+    description:
+      "Show an HTML page from another origin in a sandboxed iframe, laid out, themed and focused as if it were inline.",
+    path: "packages/remote-components-host-react",
+    productDescription: "Pages from other origins, inline",
+    oss: {
+      description:
+        "HTML pages from other origins, rendered as inline components.",
+      tier: "major",
+      npm: "@assistant-ui/remote-components-host-react",
+      footerOrder: 7,
+      placement: "top",
+    },
+  },
   native: {
     title: "assistant-ui for React Native",
     description:
@@ -166,7 +181,12 @@ export function subProjectGithubUrl(slug: SubProjectSlug): string {
 // at onto its new url, so published links and MCP resource paths keep
 // resolving.
 export const DOCS_SITES = (
-  ["safe-content-frame", "generative-frame", "diagrammatic"] as const
+  [
+    "safe-content-frame",
+    "generative-frame",
+    "diagrammatic",
+    "remote-components",
+  ] as const
 ).map((id) => ({
   id,
   title: subProject(id).title,

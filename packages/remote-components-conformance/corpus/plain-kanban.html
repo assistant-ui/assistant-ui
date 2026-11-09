@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban Board</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #eef1f5;
+    color: #222;
+  }
+  header {
+    padding: 16px 24px;
+    background: #2d3e50;
+    color: #fff;
+  }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  .board {
+    display: flex;
+    gap: 16px;
+    padding: 24px;
+    align-items: flex-start;
+    overflow-x: auto;
+  }
+  .column {
+    background: #dfe4ea;
+    border-radius: 10px;
+    width: 300px;
+    min-width: 260px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+  .column h2 {
+    font-size: 1rem;
+    margin: 4px 4px 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .count {
+    background: #fff;
+    border-radius: 10px;
+    padding: 0 8px;
+    font-size: .85rem;
+    color: #555;
+  }
+  .cards {
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 6px;
+    transition: background .15s;
+  }
+  .cards.over { background: #c9d2dc; }
+  .card {
+    background: #fff;
+    border-radius: 6px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    cursor: grab;
+    position: relative;
+    border-left: 4px solid #3498db;
+    word-wrap: break-word;
+  }
+  .card.dragging { opacity: .4; }
+  .column[data-col="doing"] .card { border-left-color: #f39c12; }
+  .column[data-col="done"] .card { border-left-color: #27ae60; }
+  .column[data-col="done"] .card .text { text-decoration: line-through; color: #777; }
+  .card .del {
+    position: absolute;
+    top: 4px; right: 6px;
+    border: none;
+    background: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 1rem;
+    display: none;
+  }
+  .card:hover .del { display: block; }
+  .card .del:hover { color: #e74c3c; }
+  .add-form { margin-top: 10px; display: flex; gap: 6px; }
+  .add-form input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    font: inherit;
+  }
+  .add-form button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #2d3e50;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+  }
+  .add-form button:hover { background: #3f5770; }
+</style>
+</head>
+<body>
+<header><h1>Kanban Board</h1></header>
+<main class="board">
+  <section class="column" data-col="todo">
+    <h2>To do <span class="count"></span></h2>
+    <div class="cards"></div>
+    <form class="add-form"><input placeholder="New card..." aria-label="New card"><button>Add</button></form>
+  </section>
+  <section class="column" data-col="doing">
+    <h2>Doing <span class="count"></span></h2>
+    <div class="cards"></div>
+    <form class="add-form"><input placeholder="New card..." aria-label="New card"><button>Add</button></form>
+  </section>
+  <section class="column" data-col="done">
+    <h2>Done <span class="count"></span></h2>
+    <div class="cards"></div>
+    <form class="add-form"><input placeholder="New card..." aria-label="New card"><button>Add</button></form>
+  </section>
+</main>
+
+<script>
+const initial = {
+  todo: ["Write project proposal", "Design landing page", "Set up CI pipeline"],
+  doing: ["Implement login flow", "Review pull requests"],
+  done: ["Create repository", "Choose tech stack"]
+};
+
+let dragged = null;
+
+function updateCounts() {
+  document.querySelectorAll('.column').forEach(col => {
+    col.querySelector('.count').textContent = col.querySelectorAll('.card').length;
+  });
+}
+
+function createCard(text) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.draggable = true;
+  const span = document.createElement('span');
+  span.className = 'text';
+  span.textContent = text;
+  const del = document.createElement('button');
+  del.className = 'del';
+  del.title = 'Delete';
+  del.textContent = '×';
+  del.onclick = () => { card.remove(); updateCounts(); };
+  card.append(span, del);
+  card.addEventListener('dragstart', () => { dragged = card; card.classList.add('dragging'); });
+  card.addEventListener('dragend', () => { card.classList.remove('dragging'); dragged = null; updateCounts(); });
+  return card;
+}
+
+function afterElement(container, y) {
+  const els = [...container.querySelectorAll('.card:not(.dragging)')];
+  let closest = { offset: -Infinity, el: null };
+  for (const el of els) {
+    const box = el.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) closest = { offset, el };
+  }
+  return closest.el;
+}
+
+document.querySelectorAll('.column').forEach(col => {
+  const list = col.querySelector('.cards');
+  (initial[col.dataset.col] || []).forEach(t => list.appendChild(createCard(t)));
+
+  col.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragged) return;
+    list.classList.add('over');
+    const after = afterElement(list, e.clientY);
+    if (after) list.insertBefore(dragged, after);
+    else list.appendChild(dragged);
+  });
+  col.addEventListener('dragleave', e => {
+    if (!col.contains(e.relatedTarget)) list.classList.remove('over');
+  });
+  col.addEventListener('drop', e => {
+    e.preventDefault();
+    list.classList.remove('over');
+    updateCounts();
+  });
+
+  col.querySelector('.add-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = e.target.querySelector('input');
+    const text = input.value.trim();
+    if (!text) return;
+    list.appendChild(createCard(text));
+    input.value = '';
+    updateCounts();
+  });
+});
+
+updateCounts();
+</script>
+</body>
+</html>

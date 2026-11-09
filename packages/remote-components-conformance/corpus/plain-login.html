@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #e0e7ff, #f5f3ff);
+    color: #1f2937;
+  }
+  .card {
+    background: #fff;
+    width: 100%;
+    max-width: 380px;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  }
+  h1 { margin: 0 0 1.5rem; font-size: 1.5rem; text-align: center; }
+  .field { margin-bottom: 1rem; }
+  label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; font-weight: 500; }
+  input[type="email"], input[type="password"] {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input[type="email"]:focus, input[type="password"]:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+  }
+  input.invalid { border-color: #dc2626; }
+  .error { color: #dc2626; font-size: 0.8rem; margin-top: 0.3rem; min-height: 1em; }
+  .remember {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0 1.25rem;
+    font-size: 0.9rem;
+  }
+  .remember label { margin: 0; font-weight: 400; cursor: pointer; }
+  .remember input { width: 16px; height: 16px; accent-color: #6366f1; cursor: pointer; }
+  button {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 8px;
+    background: #6366f1;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover { background: #4f46e5; }
+  button:focus-visible { outline: 3px solid rgba(99,102,241,0.4); outline-offset: 2px; }
+  .message { margin-top: 1rem; text-align: center; font-size: 0.9rem; color: #059669; min-height: 1.2em; }
+</style>
+</head>
+<body>
+  <form class="card" id="signin" novalidate>
+    <h1>Sign In</h1>
+
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" required>
+      <div class="error" id="email-error" aria-live="polite"></div>
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" required minlength="6">
+      <div class="error" id="password-error" aria-live="polite"></div>
+    </div>
+
+    <div class="remember">
+      <input type="checkbox" id="remember" name="remember">
+      <label for="remember">Remember me</label>
+    </div>
+
+    <button type="submit">Sign In</button>
+    <div class="message" id="message" aria-live="polite"></div>
+  </form>
+
+<script>
+  const form = document.getElementById('signin');
+  const email = document.getElementById('email');
+  const password = document.getElementById('password');
+  const remember = document.getElementById('remember');
+  const msg = document.getElementById('message');
+
+  // Restore remembered email
+  const saved = localStorage.getItem('rememberedEmail');
+  if (saved) { email.value = saved; remember.checked = true; }
+
+  function setError(input, text) {
+    document.getElementById(input.id + '-error').textContent = text;
+    input.classList.toggle('invalid', !!text);
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    let ok = true;
+
+    if (!email.value.trim()) { setError(email, 'Email is required.'); ok = false; }
+    else if (!email.checkValidity()) { setError(email, 'Please enter a valid email.'); ok = false; }
+    else setError(email, '');
+
+    if (!password.value) { setError(password, 'Password is required.'); ok = false; }
+    else if (password.value.length < 6) { setError(password, 'Password must be at least 6 characters.'); ok = false; }
+    else setError(password, '');
+
+    if (!ok) return;
+
+    if (remember.checked) localStorage.setItem('rememberedEmail', email.value.trim());
+    else localStorage.removeItem('rememberedEmail');
+
+    msg.textContent = 'Signed in successfully!';
+    password.value = '';
+  });
+
+  [email, password].forEach(i => i.addEventListener('input', () => setError(i, '')));
+</script>
+</body>
+</html>

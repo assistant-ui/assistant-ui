@@ -157,6 +157,7 @@ describe("against the real workspace", () => {
   it("plans a core change as its own benches plus three controls", () => {
     expect(planBenches(coverage, ["@assistant-ui/core"])).toEqual({
       measured: [
+        "bench/ai-sdk-system-metadata.bench.tsx",
         "bench/ai-sdk-toolkit.bench.ts",
         "bench/external-message-conversion.bench.ts",
         "bench/from-thread-message-like.bench.ts",

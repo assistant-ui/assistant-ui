@@ -1,0 +1,73 @@
+<style>
+.pt{font-family:var(--font-sans);color:var(--color-text);padding:8px 0}
+.pt-toggle{display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:20px;font-size:14px}
+.pt-switch{position:relative;width:44px;height:24px;border-radius:12px;background:var(--color-border);border:none;cursor:pointer;padding:0}
+.pt-switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--color-surface);transition:transform .2s}
+.pt-switch[aria-checked="true"]{background:var(--color-accent)}
+.pt-switch[aria-checked="true"]::after{transform:translateX(20px)}
+.pt-switch:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.pt-lbl{color:var(--color-text-muted)}.pt-lbl.on{color:var(--color-text);font-weight:600}
+.pt-save{font-size:11px;background:var(--color-accent);color:var(--color-surface);padding:2px 6px;border-radius:10px}
+.pt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.pt-card{border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);padding:18px;display:flex;flex-direction:column;position:relative}
+.pt-card.feat{border:2px solid var(--color-accent)}
+.pt-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--color-accent);color:var(--color-surface);font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.pt-name{font-weight:600;font-size:16px}
+.pt-desc{font-size:13px;color:var(--color-text-muted);margin:4px 0 12px}
+.pt-price{font-size:30px;font-weight:700}
+.pt-per{font-size:13px;color:var(--color-text-muted);font-weight:400}
+.pt-note{font-size:12px;color:var(--color-text-muted);min-height:16px;margin-bottom:12px}
+.pt-card ul{list-style:none;padding:0;margin:0 0 16px;font-size:13px;flex:1}
+.pt-card li{padding:4px 0}
+.pt-card li::before{content:"✓ ";color:var(--color-accent);font-weight:700}
+.pt-btn{padding:9px;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:transparent;color:var(--color-accent);font-weight:600;cursor:pointer;font-size:14px}
+.pt-card.feat .pt-btn{background:var(--color-accent);color:var(--color-surface)}
+</style>
+<div class="pt">
+  <div class="pt-toggle">
+    <span class="pt-lbl on" id="ptM">Monthly</span>
+    <button class="pt-switch" id="ptSw" role="switch" aria-checked="false" aria-label="Bill yearly"></button>
+    <span class="pt-lbl" id="ptY">Yearly</span><span class="pt-save">Save 20%</span>
+  </div>
+  <div class="pt-grid">
+    <div class="pt-card">
+      <div class="pt-name">Free</div><div class="pt-desc">For trying things out</div>
+      <div class="pt-price" data-m="0" data-y="0">$0<span class="pt-per">/mo</span></div>
+      <div class="pt-note"></div>
+      <ul><li>1 project</li><li>Basic analytics</li><li>Community support</li></ul>
+      <button class="pt-btn">Get started</button>
+    </div>
+    <div class="pt-card feat"><span class="pt-badge">Most popular</span>
+      <div class="pt-name">Pro</div><div class="pt-desc">For individuals & pros</div>
+      <div class="pt-price" data-m="15" data-y="12"></div>
+      <div class="pt-note"></div>
+      <ul><li>Unlimited projects</li><li>Advanced analytics</li><li>Priority email support</li><li>Custom domains</li></ul>
+      <button class="pt-btn">Upgrade to Pro</button>
+    </div>
+    <div class="pt-card">
+      <div class="pt-name">Team</div><div class="pt-desc">For growing teams</div>
+      <div class="pt-price" data-m="40" data-y="32"></div>
+      <div class="pt-note"></div>
+      <ul><li>Everything in Pro</li><li>Up to 10 members</li><li>Roles & permissions</li><li>SSO & audit logs</li></ul>
+      <button class="pt-btn">Start Team trial</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const sw=document.getElementById('ptSw'),m=document.getElementById('ptM'),y=document.getElementById('ptY');
+  function render(yearly){
+    sw.setAttribute('aria-checked',yearly);
+    m.classList.toggle('on',!yearly);y.classList.toggle('on',yearly);
+    document.querySelectorAll('.pt-price').forEach(p=>{
+      const v=+p.dataset[yearly?'y':'m'];
+      p.innerHTML='$'+v+'<span class="pt-per">/mo</span>';
+      p.nextElementSibling.textContent=v===0?'Free forever':yearly?'$'+v*12+' billed yearly':'Billed monthly';
+    });
+  }
+  sw.onclick=()=>render(sw.getAttribute('aria-checked')!=='true');
+  m.onclick=()=>render(false);y.onclick=()=>render(true);
+  m.style.cursor=y.style.cursor='pointer';
+  render(false);
+})();
+</script>

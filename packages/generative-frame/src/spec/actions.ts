@@ -22,6 +22,12 @@ export type ActionDispatcherOptions = {
   catalog?: Catalog;
   /** Handlers by action name; they take precedence over `onAction`. */
   handlers?: Record<string, ActionHandler>;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
+  confirm?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
   /** Called for catalog actions without a handler. */
   onAction?: (
     name: string,
@@ -71,6 +77,7 @@ export function createActionDispatcher(
           : [bindings];
     const results: unknown[] = [];
     for (const binding of list as ActionBinding[]) {
+      const { action } = binding;
       const { payload, elementId, trigger, kind, ...scope } = context;
       const params = (resolveValue(binding.params ?? {}, {
         ...scope,
@@ -84,21 +91,40 @@ export function createActionDispatcher(
         state: options.store,
       };
       try {
-        const handler = options.handlers?.[binding.action];
+        if (options.catalog?.action(action)?.confirm === true) {
+          if (kind === "watch") {
+            throw new Error(
+              `Action "${action}" requires a user event for confirmation`,
+            );
+          }
+          if (!options.confirm) {
+            throw new Error(`Action "${action}" requires the confirm option`);
+          }
+          const confirmed = await options.confirm({
+            action,
+            params,
+            ...(elementId !== undefined ? { elementId } : {}),
+          });
+          if (!confirmed) {
+            results.push(undefined);
+            break;
+          }
+        }
+        const handler = options.handlers?.[action];
         if (handler) {
           results.push(await handler(params, source));
-        } else if (binding.action === "setState") {
+        } else if (action === "setState") {
           if (typeof params["path"] !== "string") {
             throw new Error("setState needs a string `path`");
           }
           options.store.set(params["path"], params["value"]);
           results.push(undefined);
-        } else if (options.catalog && !options.catalog.action(binding.action)) {
-          throw new Error(`Unknown action "${binding.action}"`);
+        } else if (options.catalog && !options.catalog.action(action)) {
+          throw new Error(`Unknown action "${action}"`);
         } else if (options.onAction) {
-          results.push(await options.onAction(binding.action, params, source));
+          results.push(await options.onAction(action, params, source));
         } else {
-          throw new Error(`No handler for action "${binding.action}"`);
+          throw new Error(`No handler for action "${action}"`);
         }
       } catch (error) {
         report(error, binding);

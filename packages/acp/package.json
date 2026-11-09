@@ -40,8 +40,8 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^1.9.0",
-    "@assistant-ui/core": "^0.3.32",
-    "assistant-stream": "^0.3.55"
+    "@assistant-ui/core": "^0.3.33",
+    "assistant-stream": "^0.3.56"
   },
   "peerDependencies": {
     "@types/react": "*",

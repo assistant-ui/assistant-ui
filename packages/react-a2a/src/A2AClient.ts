@@ -17,6 +17,13 @@ import type {
 } from "./types";
 import { A2A_PROTOCOL_VERSION } from "./types";
 
+const PROTOCOL_HEADER_NAMES = new Map<string, string>([
+  ["accept", "Accept"],
+  ["content-type", "Content-Type"],
+  ["a2a-version", "A2A-Version"],
+  ["a2a-extensions", "A2A-Extensions"],
+]);
+
 export type A2AClientOptions = {
   baseUrl: string;
   /** Optional path prefix for all API endpoints (e.g. "/v1"). Does not affect agent card discovery. */
@@ -745,7 +752,12 @@ export class A2AClient {
     const headers: Record<string, string> = {
       Accept: "application/a2a+json, application/json",
       "A2A-Version": A2A_PROTOCOL_VERSION,
-      ...custom,
+      ...Object.fromEntries(
+        Object.entries(custom).map(([name, value]) => [
+          PROTOCOL_HEADER_NAMES.get(name.toLowerCase()) ?? name,
+          value,
+        ]),
+      ),
     };
     if (includeContentType) {
       headers["Content-Type"] = "application/a2a+json";

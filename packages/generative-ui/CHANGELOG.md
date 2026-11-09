@@ -1,5 +1,20 @@
 # @assistant-ui/generative-ui
 
+## 0.0.9
+
+### Patch Changes
+
+- [#10363](https://github.com/assistant-ui/assistant-ui/pull/10363) [`a219b67`](https://github.com/assistant-ui/assistant-ui/commit/a219b67a9f95225f78b96a07d8ca47070ab4328a) - Prevent vocabulary images from sending the page address as a referrer. ([@okisdev](https://github.com/okisdev))
+
+- [#10362](https://github.com/assistant-ui/assistant-ui/pull/10362) [`1642938`](https://github.com/assistant-ui/assistant-ui/commit/164293899db2f63ffd1d58af1c73b66390160e0a) - Omit invalid JSX tag and attribute names when serializing escaped generative UI. ([@okisdev](https://github.com/okisdev))
+
+- [#10361](https://github.com/assistant-ui/assistant-ui/pull/10361) [`38496db`](https://github.com/assistant-ui/assistant-ui/commit/38496dba9535cd676ced498fb8e13c31dc21f1c3) - Keep sibling elements mounted when a present component throws during rendering. ([@okisdev](https://github.com/okisdev))
+
+- [#10376](https://github.com/assistant-ui/assistant-ui/pull/10376) [`207d06b`](https://github.com/assistant-ui/assistant-ui/commit/207d06b6be56185f232df9ffac927565f8684619) - Add declarative form constraints across vocabulary renderers and platform converters. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12), [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c), [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed), [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c), [`7876fe5`](https://github.com/assistant-ui/assistant-ui/commit/7876fe551aa5d1b569651aa9c6eb37e1db9bd1b9), [`9a53f43`](https://github.com/assistant-ui/assistant-ui/commit/9a53f439dbea1ec6d4ad79d91113c5f8f1f29f44), [`4dc3fdd`](https://github.com/assistant-ui/assistant-ui/commit/4dc3fdda0191463b0c9ecf3bdbbeeb2863089d75), [`f9dbafa`](https://github.com/assistant-ui/assistant-ui/commit/f9dbafab250c8ac315bfc010a30dfff62320a423), [`6a9b475`](https://github.com/assistant-ui/assistant-ui/commit/6a9b475fc0efe5cdae0140a842e09bb62d6fe635), [`fc2ae03`](https://github.com/assistant-ui/assistant-ui/commit/fc2ae0392c8a0bba3774070accfdb56fce288503), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4), [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f)]:
+  - assistant-stream@0.3.56
+  - generative-frame@0.0.10
+
 ## 0.0.8
 
 ### Patch Changes

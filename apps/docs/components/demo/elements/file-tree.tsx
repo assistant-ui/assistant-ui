@@ -6,7 +6,7 @@ import {
 } from "@/components/assistant-ui/elements/file-tree";
 import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
-const NODES: readonly FileTreeNode[] = [
+export const NODES: readonly FileTreeNode[] = [
   { path: "packages", name: "packages/core/src", depth: 0, kind: "folder" },
   {
     path: "converter",

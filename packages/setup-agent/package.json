@@ -1,6 +1,6 @@
 {
   "name": "setup-agent",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "A live setup shared between a browser and the coding agent installing the products in it, on Statewire",
   "license": "MIT",
   "homepage": "https://www.assistant-ui.com/",
@@ -49,7 +49,7 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.9.24",
+    "@assistant-ui/tap": "^0.9.25",
     "statewire": "^0.22.1"
   },
   "devDependencies": {

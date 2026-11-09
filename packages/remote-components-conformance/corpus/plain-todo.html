@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>To-Do List</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+    margin: 0;
+  }
+  .app {
+    background: #fff;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding: 24px;
+  }
+  h1 { margin: 0 0 16px; font-size: 1.5rem; color: #333; }
+  form { display: flex; gap: 8px; margin-bottom: 16px; }
+  input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+  input[type="text"]:focus { outline: none; border-color: #4a7dff; }
+  button.add {
+    padding: 10px 16px;
+    background: #4a7dff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button.add:hover { background: #3a68e0; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px;
+    border-bottom: 1px solid #eee;
+  }
+  li input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+  li span { flex: 1; word-break: break-word; color: #333; }
+  li.done span { text-decoration: line-through; color: #999; }
+  button.del {
+    background: none;
+    border: none;
+    color: #c44;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 6px;
+  }
+  button.del:hover { color: #e00; }
+  .empty { text-align: center; color: #999; padding: 16px 0; }
+  .footer { margin-top: 12px; font-size: 0.85rem; color: #777; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>To-Do List</h1>
+  <form id="form">
+    <input type="text" id="input" placeholder="Add a new task..." autocomplete="off" aria-label="New task">
+    <button class="add" type="submit">Add</button>
+  </form>
+  <ul id="list"></ul>
+  <div class="footer" id="footer"></div>
+</div>
+
+<script>
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const list = document.getElementById('list');
+  const footer = document.getElementById('footer');
+
+  let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+
+  function save() {
+    localStorage.setItem('todos', JSON.stringify(todos));
+  }
+
+  function render() {
+    list.innerHTML = '';
+    if (todos.length === 0) {
+      list.innerHTML = '<li class="empty">Nothing to do yet!</li>';
+    }
+    todos.forEach((todo, i) => {
+      const li = document.createElement('li');
+      if (todo.done) li.className = 'done';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = todo.done;
+      cb.addEventListener('change', () => {
+        todos[i].done = cb.checked;
+        save(); render();
+      });
+
+      const span = document.createElement('span');
+      span.textContent = todo.text;
+
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.innerHTML = '&times;';
+      del.title = 'Delete';
+      del.addEventListener('click', () => {
+        todos.splice(i, 1);
+        save(); render();
+      });
+
+      li.append(cb, span, del);
+      list.appendChild(li);
+    });
+    const left = todos.filter(t => !t.done).length;
+    footer.textContent = todos.length ? `${left} of ${todos.length} remaining` : '';
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    todos.push({ text, done: false });
+    input.value = '';
+    save(); render();
+  });
+
+  render();
+</script>
+</body>
+</html>
