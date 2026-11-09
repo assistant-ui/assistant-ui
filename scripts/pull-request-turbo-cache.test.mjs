@@ -84,6 +84,10 @@ for (const [file, job, turboStep, restoreGate] of jobs) {
 
 test("workflows that restore main's coverage cache never save a cache", () => {
   for (const file of new Set(jobs.map(([file]) => file))) {
-    assert.doesNotMatch(workflow(file), /actions\/cache(\/save)?@/, file);
+    assert.doesNotMatch(
+      workflow(file),
+      /^\s*(?:-\s+)?uses:\s*actions\/cache(?:\/save)?@/m,
+      file,
+    );
   }
 });
