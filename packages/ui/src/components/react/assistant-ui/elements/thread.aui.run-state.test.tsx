@@ -49,13 +49,17 @@ describe("Thread run states", () => {
     );
     const box = screen
       .getByText("Interrupted.")
-      .closest<HTMLElement>(".aui-message-interrupted-root")!;
-    expect(box).not.toBeNull();
+      .closest<HTMLElement>(".aui-message-error-root")!;
+    expect(box.dataset.runState).toBe("stale");
+    expect(box.getAttribute("role")).toBe("alert");
+    expect(
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
+        .disabled,
+    ).toBe(true);
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
         .disabled,
     ).toBe(false);
-    expect(document.querySelector(".aui-message-error-root")).toBeNull();
   });
 
   it("shows a run another tab drives as in progress with Refresh", () => {
@@ -73,13 +77,17 @@ describe("Thread run states", () => {
     );
     const box = screen
       .getByText("Running in another tab…")
-      .closest<HTMLElement>(".aui-message-remote-run-root")!;
+      .closest<HTMLElement>(".aui-message-error-root")!;
+    expect(box.dataset.runState).toBe("in_progress");
     expect(box.getAttribute("role")).toBe("status");
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(false);
-    expect(screen.queryByRole("button", { name: "Resume" })).toBeNull();
+    expect(
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
+        .disabled,
+    ).toBe(true);
     expect(document.querySelector(".aui-assistant-action-bar-root")).toBeNull();
   });
 
@@ -89,10 +97,17 @@ describe("Thread run states", () => {
         error={{ type: "incomplete", reason: "error", error: "Boom" }}
       />,
     );
+    const box = screen
+      .getByText("Boom")
+      .closest<HTMLElement>(".aui-message-error-root")!;
+    expect(box.dataset.runState).toBeUndefined();
     expect(
-      screen.getByText("Boom").closest(".aui-message-error-root"),
-    ).not.toBeNull();
-    expect(document.querySelector(".aui-message-remote-run-root")).toBeNull();
-    expect(document.querySelector(".aui-message-interrupted-root")).toBeNull();
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
+        .disabled,
+    ).toBe(true);
+    expect(
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
+        .disabled,
+    ).toBe(true);
   });
 });

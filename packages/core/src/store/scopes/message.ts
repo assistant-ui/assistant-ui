@@ -6,6 +6,7 @@ import type { ComposerSubmission } from "../../runtime/interfaces/composer-runti
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";
+import type { MessageRunState } from "../message-run-state";
 
 export type MessageState = ThreadMessage & {
   readonly parentId: string | null;
@@ -42,6 +43,12 @@ export type MessageState = ThreadMessage & {
    * delivered with.
    */
   readonly submission?: ComposerSubmission | undefined;
+  /**
+   * Set when Assistant Cloud reports that another tab or session drove this
+   * reply's run: `in_progress` while that run is alive, `stale` once it
+   * stopped before finishing.
+   */
+  readonly runState?: MessageRunState | undefined;
 };
 
 export type MessageMethods = {

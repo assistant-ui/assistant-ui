@@ -24,7 +24,11 @@ export const useActionBarFloatStatus = ({
   forceVisible,
 }: UseActionBarFloatStatusProps) => {
   return useAuiState((s) => {
-    if (hideWhenRunning && s.thread.isRunning) return HideAndFloatStatus.Hidden;
+    if (
+      hideWhenRunning &&
+      (s.thread.isRunning || s.message.runState === "in_progress")
+    )
+      return HideAndFloatStatus.Hidden;
 
     const autohideEnabled =
       autohide === "always" || (autohide === "not-last" && !s.message.isLast);

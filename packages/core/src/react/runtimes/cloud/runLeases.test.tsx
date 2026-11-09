@@ -18,6 +18,7 @@ import {
   actionBarResumeDisabled,
 } from "../../../store/primitive-predicates";
 import { refreshCloudRun } from "./runLeases";
+import { getMessageRunState } from "../../../store/message-run-state";
 
 type RunResult = { content: { type: "text"; text: string }[] };
 
@@ -193,7 +194,7 @@ describe("cloud run leases", () => {
     });
     const state = {
       thread: getAui().thread.getState(),
-      message: { ...stale, isLast: true },
+      message: { ...stale, isLast: true, runState: getMessageRunState(stale) },
     } as unknown as Parameters<typeof actionBarResumeDisabled>[0];
     expect(actionBarResumeDisabled(state)).toBe(false);
     expect(
@@ -261,7 +262,11 @@ describe("cloud run leases", () => {
     });
     const state = {
       thread: getAui().thread.getState(),
-      message: { ...remote, isLast: true },
+      message: {
+        ...remote,
+        isLast: true,
+        runState: getMessageRunState(remote),
+      },
     } as unknown as Parameters<typeof actionBarRefreshRunDisabled>[0];
     expect(actionBarRefreshRunDisabled(state)).toBe(false);
     expect(actionBarResumeDisabled(state)).toBe(true);

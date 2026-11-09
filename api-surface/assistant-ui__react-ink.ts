@@ -2865,6 +2865,8 @@ type MessageRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
 };
 
+type MessageRunState = "in_progress" | "stale";
+
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
@@ -2954,6 +2956,7 @@ type MessageState = ThreadMessage & {
   readonly isHovering: boolean;
   readonly index: number;
   readonly submission?: ComposerSubmission | undefined;
+  readonly runState?: MessageRunState | undefined;
 };
 
 type MessageStateBinding = SubscribableWithState<ThreadMessage & {

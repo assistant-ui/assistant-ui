@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { AssistantClient } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../../types";
+import { getMessageRunState } from "../../../store/message-run-state";
 import type { AssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 
 const CHECKPOINT_INTERVAL_MS = 20_000;
@@ -36,19 +37,6 @@ const readBranch = (aui: AssistantClient): readonly ThreadMessage[] => {
   } catch {
     return [];
   }
-};
-
-/** The `error.code` of a stored run's status as the cloud adapter decodes it. */
-export const runErrorCode = (
-  message: Pick<ThreadMessage, "status"> | undefined,
-): string | undefined => {
-  const status = message?.status;
-  if (status?.type !== "incomplete" || status.reason !== "error") return;
-  const error = status.error;
-  if (typeof error !== "object" || error === null || Array.isArray(error))
-    return;
-  const code = (error as { code?: unknown }).code;
-  return typeof code === "string" ? code : undefined;
 };
 
 const pollDelay = (message: ThreadMessage) => {
@@ -161,7 +149,7 @@ export const useCloudRunLeases = (
       const branch = readBranch(aui);
       const head = branch.at(-1);
       const remoteRun = branch.find(
-        (message) => runErrorCode(message) === "run_in_progress",
+        (message) => getMessageRunState(message) === "in_progress",
       );
       if (remoteRun) watchRemoteRun(remoteRun);
       else if (poll) {
