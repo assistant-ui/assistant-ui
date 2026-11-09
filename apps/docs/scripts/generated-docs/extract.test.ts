@@ -8,7 +8,11 @@ import {
   processTypeOrInterface,
 } from "./extract.mts";
 
-const project = new Project({ useInMemoryFileSystem: true });
+// The default lib adds 2 MB of DOM declarations that no fixture uses, and the first test to request a type parses them inside its timeout.
+const project = new Project({
+  useInMemoryFileSystem: true,
+  compilerOptions: { lib: ["lib.es2023.d.ts"] },
+});
 
 afterEach(() => {
   for (const sourceFile of project.getSourceFiles()) {

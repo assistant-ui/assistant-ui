@@ -34,6 +34,19 @@ const answers: [Format, string][] = [
       },
     }),
   ],
+  [
+    "json-render",
+    JSON.stringify({
+      root: "card",
+      elements: {
+        card: { type: "Card", props: { title: "Bill" }, children: ["share"] },
+        share: {
+          type: "Text",
+          props: { value: "Each of the four pays $30." },
+        },
+      },
+    }),
+  ],
   ["present", JSON.stringify({ _type: "Input", placeholder: "Amount" })],
   ["frame", "<h3>Bill</h3><p>Each of the four pays $30.</p>"],
   [

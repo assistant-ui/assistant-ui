@@ -173,6 +173,17 @@ const persistenceByIdentity = new WeakMap<
   Map<string, OAuthProviderPersistence>
 >();
 
+// The clear still running for each server id. A provider built while one runs
+// starts its load and write queue after it, so it can neither read the record
+// being cleared (and later write it back) nor have its own write cleared.
+const pendingClearByIdentity = new WeakMap<
+  object,
+  Map<string, Promise<void>>
+>();
+
+const getPendingClear = (identity: object, serverId: string) =>
+  pendingClearByIdentity.get(identity)?.get(serverId);
+
 const getPersistence = (
   storage: MCPStorage,
   serverId: string,
@@ -192,7 +203,7 @@ const getPersistence = (
   if (!persistence) {
     persistence = {
       endpoint: null,
-      queue: Promise.resolve(),
+      queue: getPendingClear(identity, serverId) ?? Promise.resolve(),
       invalidated: false,
     };
     byServerId.set(serverId, persistence);
@@ -215,31 +226,54 @@ const getPersistence = (
 /**
  * Clears persisted OAuth state after the in-flight load and every queued write
  * for that server have settled, so a discarded provider cannot recreate the
- * record it was mid-save on.
+ * record it was mid-save on. Clears for one server run in call order, and a
+ * provider built while one runs waits for it before it loads or writes.
  */
-export const clearOAuthProviderAuthState = async (
+export const clearOAuthProviderAuthState = (
   storage: MCPStorage,
   serverId: string,
 ): Promise<void> => {
   const identity = getStorageIdentity(storage);
   const byServerId = persistenceByIdentity.get(identity);
   const persistence = byServerId?.get(serverId);
-  if (!byServerId || !persistence) {
-    await storage.clearAuthState(serverId);
-    return;
-  }
+  const previousClear = getPendingClear(identity, serverId);
 
   // Detaching the entry before awaiting keeps a provider built during the clear
   // on a fresh generation instead of inheriting the fenced one.
-  persistence.invalidated = true;
-  byServerId.delete(serverId);
-  if (byServerId.size === 0) persistenceByIdentity.delete(identity);
+  if (byServerId && persistence) {
+    persistence.invalidated = true;
+    byServerId.delete(serverId);
+    if (byServerId.size === 0) persistenceByIdentity.delete(identity);
+    if (persistence.endpoint) persistence.endpoint.invalidated = true;
+  }
+  const cachePromise = persistence?.endpoint?.cachePromise;
 
-  if (persistence.endpoint) persistence.endpoint.invalidated = true;
-  const cachePromise = persistence.endpoint?.cachePromise;
-  if (cachePromise) await Promise.allSettled([cachePromise]);
-  await persistence.queue;
-  await storage.clearAuthState(serverId);
+  // The body starts on a later microtask, after the clear is registered below,
+  // so a storage that re-enters provider creation from clearAuthState still
+  // sees it.
+  const clear = Promise.resolve().then(async () => {
+    if (cachePromise) await Promise.allSettled([cachePromise]);
+    if (persistence) await persistence.queue;
+    if (previousClear) await previousClear;
+    await storage.clearAuthState(serverId);
+  });
+
+  // Registered before returning, so a provider built from here on queues
+  // behind this clear rather than reading the record it is about to delete.
+  const settled = clear.catch(() => {});
+  let pending = pendingClearByIdentity.get(identity);
+  if (!pending) {
+    pending = new Map();
+    pendingClearByIdentity.set(identity, pending);
+  }
+  pending.set(serverId, settled);
+  void settled.then(() => {
+    if (pending.get(serverId) !== settled) return;
+    pending.delete(serverId);
+    if (pending.size === 0 && pendingClearByIdentity.get(identity) === pending)
+      pendingClearByIdentity.delete(identity);
+  });
+  return clear;
 };
 
 /**

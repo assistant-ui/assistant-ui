@@ -1,9 +1,7 @@
 import * as React from "react";
-import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import type { GenerativeUILibrary } from "../types";
 import { layoutDefinitions } from "./definitions/layout";
-import { fire } from "./dispatch";
-import { collectFormValuesFromEvent } from "./collectFormValues";
+import { fire, submitForm } from "./dispatch";
 import { toTextContent } from "./toTextContent";
 import { boxStyle, footerAction, safeBackground } from "./layoutValues";
 import { tabLabels } from "./structureValues";
@@ -16,7 +14,7 @@ function TabsRender({
 }: {
   tabs: (string | number)[];
   label?: string | number;
-  children?: ReactNode;
+  children?: React.ReactNode;
 }) {
   const panels = React.Children.toArray(children);
   const labels = tabLabels(tabs, panels.length);
@@ -26,7 +24,7 @@ function TabsRender({
   if (labels.length === 0) return null;
   const current = Math.min(selected, labels.length - 1);
   const last = labels.length - 1;
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const next =
       event.key === "ArrowRight"
         ? current === last
@@ -174,14 +172,8 @@ export const layoutVocabulary = {
           data-aui-asform={asForm || undefined}
           onSubmit={
             asForm
-              ? (event: FormEvent<HTMLFormElement>) => {
-                  event.preventDefault();
-                  fire(
-                    submitAction,
-                    $dispatch,
-                    collectFormValuesFromEvent(event),
-                    event.currentTarget,
-                  );
+              ? (event: React.FormEvent<HTMLFormElement>) => {
+                  submitForm(submitAction, $dispatch, event);
                 }
               : undefined
           }
