@@ -226,6 +226,7 @@ const implementsConnect = (agent: AbstractAgent): boolean => {
   const connect = (agent as unknown as { connect?: unknown }).connect;
   return (
     typeof connect === "function" &&
+    typeof agent.connectAgent === "function" &&
     connect !==
       (AbstractAgent.prototype as unknown as { connect: unknown }).connect
   );
