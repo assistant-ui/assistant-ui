@@ -15,7 +15,7 @@ export namespace ErrorPrimitiveRoot {
 
 /**
  * The container of a message's error. It carries `data-run-state` (`stale` or
- * `in_progress`) when the error stands for a run another tab or session
+ * `in-progress`) when the error stands for a run another tab or session
  * drove, and announces an in-progress run as a status instead of an alert.
  */
 export const ErrorPrimitiveRoot = forwardRef<
@@ -25,7 +25,7 @@ export const ErrorPrimitiveRoot = forwardRef<
   const runState = useAuiState((s) => s.optional.message?.runState);
   return (
     <Primitive.div
-      role={runState === "in_progress" ? "status" : "alert"}
+      role={runState === "in-progress" ? "status" : "alert"}
       {...(runState ? { "data-run-state": runState } : undefined)}
       {...props}
       ref={forwardRef}

@@ -26,7 +26,7 @@ export const useActionBarFloatStatus = ({
   return useAuiState((s) => {
     if (
       hideWhenRunning &&
-      (s.thread.isRunning || s.message.runState === "in_progress")
+      (s.thread.isRunning || s.message.runState === "in-progress")
     )
       return HideAndFloatStatus.Hidden;
 

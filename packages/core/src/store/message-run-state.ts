@@ -2,14 +2,14 @@ import type { ThreadMessage } from "../types/message";
 
 /**
  * Where a stored message's run stands when another tab or session drove it:
- * `in_progress` while that run still heartbeats, `stale` once it stopped
+ * `in-progress` while that run still heartbeats, `stale` once it stopped
  * before finishing. Undefined for every other message.
  */
-export type MessageRunState = "stale" | "in_progress";
+export type MessageRunState = "stale" | "in-progress";
 
 const RUN_STATES: Readonly<Record<string, MessageRunState>> = {
   run_stale: "stale",
-  run_in_progress: "in_progress",
+  run_in_progress: "in-progress",
 };
 
 export const getMessageRunState = (

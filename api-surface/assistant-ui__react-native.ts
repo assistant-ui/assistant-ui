@@ -2627,7 +2627,7 @@ type MessageRootProps = ViewProps & {
   children: ReactNode;
 };
 
-type MessageRunState = "in_progress" | "stale";
+type MessageRunState = "in-progress" | "stale";
 
 type MessageRuntime = {
   readonly path: MessageRuntimePath;

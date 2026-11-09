@@ -78,7 +78,7 @@ describe("Thread run states", () => {
     const box = screen
       .getByText("Running in another tab…")
       .closest<HTMLElement>(".aui-message-error-root")!;
-    expect(box.dataset.runState).toBe("in_progress");
+    expect(box.dataset.runState).toBe("in-progress");
     expect(box.getAttribute("role")).toBe("status");
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })

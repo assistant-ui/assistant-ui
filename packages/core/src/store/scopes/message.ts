@@ -45,7 +45,7 @@ export type MessageState = ThreadMessage & {
   readonly submission?: ComposerSubmission | undefined;
   /**
    * Set when Assistant Cloud reports that another tab or session drove this
-   * reply's run: `in_progress` while that run is alive, `stale` once it
+   * reply's run: `in-progress` while that run is alive, `stale` once it
    * stopped before finishing.
    */
   readonly runState?: MessageRunState | undefined;

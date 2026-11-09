@@ -149,7 +149,7 @@ export const useCloudRunLeases = (
       const branch = readBranch(aui);
       const head = branch.at(-1);
       const remoteRun = branch.find(
-        (message) => getMessageRunState(message) === "in_progress",
+        (message) => getMessageRunState(message) === "in-progress",
       );
       if (remoteRun) watchRemoteRun(remoteRun);
       else if (poll) {

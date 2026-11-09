@@ -3258,7 +3258,7 @@ type MessageRepositorySessionOptions = {
 
 type MessageRole = ThreadMessage["role"];
 
-type MessageRunState = "in_progress" | "stale";
+type MessageRunState = "in-progress" | "stale";
 
 type MessageRuntime = {
   readonly path: MessageRuntimePath;

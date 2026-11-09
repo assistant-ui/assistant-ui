@@ -47,7 +47,7 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
 
 /** Refresh re-reads a message whose run another tab or session is still writing. */
 export const actionBarRefreshRunDisabled = (s: AssistantState): boolean =>
-  s.message.runState !== "in_progress";
+  s.message.runState !== "in-progress";
 
 /** Resume continues a run that stopped heartbeating, from the stale message onward. */
 export const actionBarResumeDisabled = (s: AssistantState): boolean =>
