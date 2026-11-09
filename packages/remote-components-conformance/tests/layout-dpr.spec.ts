@@ -3,11 +3,16 @@ import { compareGeometry, comparePixels, settle, VARIANT } from "./helpers.js";
 
 /** A cross-section of layout cases at fractional and high device pixel ratios. */
 /**
- * Known differences, in differing pixels. flex-wrap@2x (Chromium): geometry
- * is identical to 1/64 px, but one anti-aliased pixel of a rounded corner
- * is rasterised differently inside the frame.
+ * Known differences, in differing pixels. Chromium, remote served from the
+ * `vite build` output: geometry is identical to 1/64 px, but anti-aliased
+ * pixels on the top edge of a rounded corner are rasterised differently
+ * inside the frame. pixelmatch 8's OKLab metric counts three of them in
+ * flex-wrap@2x and one in flex-grow@1.5x, all in the first two pixel rows.
  */
-const ALLOWED: Record<string, number> = { "flex-wrap@2x": 1 };
+const ALLOWED: Record<string, number> = {
+  "flex-wrap@2x": 3,
+  "flex-grow@1.5x": 1,
+};
 
 const CASES = [
   "auto-height-card",
