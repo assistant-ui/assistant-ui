@@ -659,6 +659,22 @@ describe("AgUiThreadController run state", () => {
     expect(core.getState()).toBeUndefined();
   });
 
+  it("leaves the state undefined for an agent without initialState", () => {
+    const agent = new HttpAgent({ url: "http://agent.test/agent" });
+    const { core } = createCore(undefined, agent);
+
+    expect(agent.state).toEqual({});
+    expect(core.getState()).toBeUndefined();
+
+    const swapped = new HttpAgent({ url: "http://agent.test/other" });
+    core.updateOptions({
+      agent: swapped,
+      logger: makeLogger(),
+      showThinking: true,
+    });
+    expect(core.getState()).toBeUndefined();
+  });
+
   it("seeds a new agent's initial state on swap when the thread has no snapshot", () => {
     const { core } = createCore();
     const agent = new HttpAgent({

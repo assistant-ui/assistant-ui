@@ -90,11 +90,13 @@ const agentInitialStates = new WeakMap<
 
 const getAgentInitialState = (agent: AbstractAgent) => {
   if (!agentInitialStates.has(agent)) {
+    const state = agent.state;
     agentInitialStates.set(
       agent,
-      agent.state === undefined
+      state === undefined ||
+        (isPlainObject(state) && Object.keys(state).length === 0)
         ? undefined
-        : (structuredClone(agent.state) as ReadonlyJSONValue),
+        : (structuredClone(state) as ReadonlyJSONValue),
     );
   }
   return agentInitialStates.get(agent);
