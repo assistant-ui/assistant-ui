@@ -603,6 +603,38 @@ describe("AgUiThreadController run state", () => {
     expect(core.getState()).toBeUndefined();
     expect(agent.state).toEqual({});
   });
+
+  it("adopts the incoming agent state when the thread has no snapshot", () => {
+    const { core } = createCore();
+    const agent = new HttpAgent({
+      url: "http://agent.test/agent",
+      initialState: { a: 1 },
+    });
+    const listener = vi.fn();
+    core.getSnapshot();
+    core.subscribe(listener);
+
+    core.updateOptions({ agent, logger: makeLogger(), showThinking: true });
+
+    expect(agent.state).toEqual({ a: 1 });
+    expect(core.getState()).toEqual({ a: 1 });
+    expect(core.getSnapshot().state).toEqual({ a: 1 });
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("pushes the thread snapshot to the incoming agent", () => {
+    const { core } = createCore();
+    core.setState({ fromThread: true });
+    const agent = new HttpAgent({
+      url: "http://agent.test/agent",
+      initialState: { a: 1 },
+    });
+
+    core.updateOptions({ agent, logger: makeLogger(), showThinking: true });
+
+    expect(agent.state).toEqual({ fromThread: true });
+    expect(core.getState()).toEqual({ fromThread: true });
+  });
 });
 
 describe("AgUiThreadController setState", () => {

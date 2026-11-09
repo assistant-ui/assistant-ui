@@ -439,17 +439,20 @@ export class AgUiThreadController {
         ) {
           return;
         }
-        const snapshot = state as ReadonlyJSONValue;
-        if (
-          this.state.stateSnapshot !== undefined &&
-          isJSONValueEqual(this.state.stateSnapshot, snapshot)
-        ) {
-          return;
-        }
-        this.dispatch({ type: "stateSnapshot", snapshot });
-        this.publishUpdate();
+        this.updateStateSnapshotFromAgent(state as ReadonlyJSONValue);
       },
     });
+  }
+
+  private updateStateSnapshotFromAgent(snapshot: ReadonlyJSONValue): void {
+    if (
+      this.state.stateSnapshot !== undefined &&
+      isJSONValueEqual(this.state.stateSnapshot, snapshot)
+    ) {
+      return;
+    }
+    this.dispatch({ type: "stateSnapshot", snapshot });
+    this.publishUpdate();
   }
 
   private unsubscribeFromAgentState(): void {
@@ -464,18 +467,14 @@ export class AgUiThreadController {
     } else {
       try {
         this.agent.state = snapshot;
-      } catch {
-        return;
-      }
+      } catch {}
     }
   }
 
   private clearAgentState(): void {
     try {
       this.agent.state = {};
-    } catch {
-      return;
-    }
+    } catch {}
   }
 
   private publishUpdate(): void {
@@ -488,7 +487,13 @@ export class AgUiThreadController {
     if (agentChanged) this.unsubscribeFromAgentState();
     this.agent = options.agent;
     if (agentChanged) {
-      this.setAgentState(this.state.stateSnapshot ?? {});
+      if (this.state.stateSnapshot !== undefined) {
+        this.setAgentState(this.state.stateSnapshot);
+      } else if (this.agent.state !== undefined) {
+        this.updateStateSnapshotFromAgent(
+          this.agent.state as ReadonlyJSONValue,
+        );
+      }
       this.subscribeToAgentState();
     }
     this.logger = options.logger;
