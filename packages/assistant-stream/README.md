@@ -59,9 +59,7 @@ Keep `unregister` for application cleanup when the backend is no longer needed.
 The host retains accepted text and its length for native replay. Each backend must
 preserve its arguments for historical reads and independent branches. `createSnapshot(value,
 state, partialPath)` detaches mutable containers and attaches assistant-stream's
-partial-field metadata. Call it during backend creation or `append`, so errors
-can trigger native fallback. Getters must return the retained snapshot without
-calling `createSnapshot` lazily. Preserve the caller's fallback object until parsing
+partial-field metadata. Preserve the caller's fallback object until parsing
 starts. Backends must match the native parser's values, metadata, and security
 filtering; return `undefined` for unsupported input. Creation and append failures
 fall back to native parsing using the accepted text and latest arguments.
