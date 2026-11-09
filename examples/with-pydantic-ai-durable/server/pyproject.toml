@@ -1,0 +1,23 @@
+[project]
+name = "with-pydantic-ai-durable-server"
+version = "0.0.0"
+description = "Pydantic AI agent over AG-UI with threads that survive a closed browser"
+requires-python = ">=3.11"
+dependencies = [
+  "assistant-stream[redis]>=0.0.36",
+  "pydantic-ai-slim[ag-ui,openai]>=2.61.0",
+  "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary,pool]>=3.2"]
+
+[dependency-groups]
+dev = ["httpx>=0.27", "pytest>=8", "anyio>=4"]
+
+[tool.uv]
+package = false
+exclude-newer = "2026-10-26T00:00:00Z"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
