@@ -49,16 +49,21 @@ async function report(types, tests, open = true) {
 
 const runUrl = "https://github.com/fixture/fixture/actions/runs/456";
 
-test("skipped declarations and passing runtime tests do not report recovery", async () => {
-  const calls = await report("skipped", "success");
-  assert.equal(
-    calls.some((call) => call.state === "closed"),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call.body?.includes("passed again")),
-    false,
-  );
+test("a skipped check reports failure on the open tracking issue", async () => {
+  for (const outcomes of [
+    ["skipped", "success"],
+    ["success", "skipped"],
+  ]) {
+    assert.deepEqual(await report(...outcomes), [
+      {
+        method: "createComment",
+        owner: "fixture",
+        repo: "fixture",
+        issue_number: 123,
+        body: `The weekly React 18 run failed: ${runUrl}`,
+      },
+    ]);
+  }
 });
 
 test("a failure in either check keeps the tracking issue open", async () => {
@@ -98,16 +103,22 @@ test("both checks passing reports recovery and closes the tracking issue", async
   ]);
 });
 
-test("a failed run opens a tracking issue when none exists", async () => {
-  const calls = await report("success", "failure", false);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].method, "create");
-  assert.equal(calls[0].title, "React 18 peer tests are failing");
-  assert.equal(
-    calls[0].body,
-    `The weekly React 18 run failed: ${runUrl}\n\nThe next passing weekly run closes this issue.`,
-  );
-  assert.deepEqual(Array.from(calls[0].labels), ["react18-weekly"]);
+test("a failed or incomplete run opens a tracking issue when none exists", async () => {
+  for (const outcomes of [
+    ["success", "failure"],
+    ["skipped", "success"],
+    ["success", "skipped"],
+  ]) {
+    const calls = await report(...outcomes, false);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].method, "create");
+    assert.equal(calls[0].title, "React 18 peer tests are failing");
+    assert.equal(
+      calls[0].body,
+      `The weekly React 18 run failed: ${runUrl}\n\nThe next passing weekly run closes this issue.`,
+    );
+    assert.deepEqual(Array.from(calls[0].labels), ["react18-weekly"]);
+  }
 });
 
 test("a passing run without a tracking issue makes no writes", async () => {
