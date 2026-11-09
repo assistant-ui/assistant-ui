@@ -2813,7 +2813,7 @@ export class AgUiThreadController {
                 update.content as ThreadAssistantMessage["content"],
               )
           : assistant.content;
-      const calls = replay ? Array.from(iterateToolCallParts(content)) : [];
+      const calls = Array.from(iterateToolCallParts(content));
       // A retained historical call needs existing or current stream authority.
       const pending =
         pendingToolCallIds ??
@@ -2827,7 +2827,11 @@ export class AgUiThreadController {
           : undefined);
       if (replay && latestStatus?.type !== "running" && pending)
         replay.admittedToolCallIds = pending;
-      if (replay) {
+      if (
+        replay ||
+        (latestStatus?.type === "requires-action" &&
+          latestStatus.reason === "interrupt")
+      ) {
         // Project gates against the content the user can actually answer.
         const interrupts =
           latestStatus?.type === "requires-action" &&
@@ -2843,10 +2847,10 @@ export class AgUiThreadController {
           new Set(calls.map((part) => part.toolCallId)),
         );
         const originalCalls = new Map(
-          Array.from(iterateToolCallParts(replay.originalContent), (part) => [
-            part.toolCallId,
-            part,
-          ]),
+          Array.from(
+            iterateToolCallParts(replay?.originalContent ?? assistant.content),
+            (part) => [part.toolCallId, part],
+          ),
         );
         content = mapToolCallPartsDeep(content, (part) => {
           const approval = approvals.get(part.toolCallId);
@@ -3339,6 +3343,9 @@ export class AgUiThreadController {
             }
           }
           activeAssistantId = nextActiveAssistantId;
+          if (activeAssistantId && joinStrategy !== "concat-content") {
+            aggregator.rebaseMessage(activeAssistantId);
+          }
           if (hasNewPendingToolCallAnswer && head) {
             this.updateAssistantMessage(head.id, {
               status: { type: "running" },
@@ -3630,10 +3637,28 @@ export class AgUiThreadController {
             previous?.status?.type === "running" &&
             snapshot.status?.type === "requires-action" &&
             snapshot.status.reason === "tool-calls";
+          const previousToolCallIds = new Set(
+            Array.from(
+              iterateToolCallParts(previous?.content ?? []),
+              (call) => call.toolCallId,
+            ),
+          );
+          const preservesSettledStatus =
+            convertedMessage.id !== activeAssistantId &&
+            this.isTerminalStatus(previous?.status) &&
+            snapshot.status?.type === "requires-action" &&
+            snapshot.status.reason === "tool-calls" &&
+            Array.from(iterateToolCallParts(snapshot.content)).every(
+              (call) =>
+                isResolvedToolCall(call) ||
+                previousToolCallIds.has(call.toolCallId),
+            );
           converted[index] = previous
             ? {
                 ...snapshot,
-                ...(preservesRunningStatus ? { status: previous.status } : {}),
+                ...(preservesRunningStatus || preservesSettledStatus
+                  ? { status: previous.status }
+                  : {}),
                 content: this.mergeSnapshotAssistantContent(
                   previous.content,
                   snapshot.content,

@@ -58,9 +58,12 @@ const answerRecord = {
   ],
 };
 const otherRecord = { id: "other", role: "assistant", content: "Next step." };
-const taskAndSubagentEvents = [
+const taskCallEvents = [
   { type: "TOOL_CALL_START", toolCallId: "task", toolCallName: "task" },
   { type: "TOOL_CALL_END", toolCallId: "task" },
+];
+const taskAndSubagentEvents = [
+  ...taskCallEvents,
   {
     type: "SUBAGENT_STARTED",
     subagentRunId: "sub",
@@ -106,7 +109,53 @@ function statuses(core: AgUiThreadController) {
   return { answer: answer.status?.type, subagent: nested?.status?.type };
 }
 
+function taskPartFor(core: AgUiThreadController, messageId: string) {
+  const message = core.getMessages().find(({ id }) => id === messageId);
+  if (message?.role !== "assistant") return undefined;
+  return message.content.find(
+    (part) => part.type === "tool-call" && part.toolCallId === "task",
+  );
+}
+
 describe("AgUiThreadController snapshot head moves", () => {
+  it("reopens a settled snapshot-only assistant when a later snapshot adds a tool call", async () => {
+    const answer = {
+      id: "m1",
+      role: "assistant",
+      content: "Let me ask.",
+    };
+    const core = createController((wire) => [
+      start,
+      { type: "MESSAGES_SNAPSHOT", messages: [...wire.messages, answer] },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          {
+            ...answer,
+            toolCalls: [
+              {
+                id: "ask",
+                type: "function",
+                function: { name: "ask_user", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      finished,
+    ]);
+
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "m1")?.status,
+    ).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
   it("settles the moved-off answer when the snapshot has no tool call", async () => {
     const core = createController((wire) => [
       start,
@@ -142,6 +191,136 @@ describe("AgUiThreadController snapshot head moves", () => {
       subagent: "complete",
     });
   });
+
+  it("keeps a moved-off answer settled and owns the result after repeated snapshots", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, otherRecord),
+      snapshot(wire, otherRecord),
+      taskResult,
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(core.isRunning()).toBe(false);
+    expect(statuses(core).answer).toBe("complete");
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+    ).toBe("complete");
+    expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
+    expect(taskPartFor(core, "other")).toBeUndefined();
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([
+      { type: "text", text: "Let me check." },
+      {
+        type: "tool-call",
+        toolCallId: "task",
+        toolName: "task",
+        args: {},
+        argsText: "{}",
+        result: "done",
+        unstable_toolMessageId: "tool-task",
+      },
+    ]);
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.content,
+    ).toEqual([{ type: "text", text: "Next step." }]);
+  });
+
+  it("preserves full content and settled statuses with a sub-agent after repeated snapshots", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskAndSubagentEvents,
+      snapshot(wire, otherRecord),
+      snapshot(wire, otherRecord),
+      subFinished,
+      taskResult,
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(core.isRunning()).toBe(false);
+    expect(statuses(core)).toEqual({
+      answer: "complete",
+      subagent: "complete",
+    });
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+    ).toBe("complete");
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([
+      { type: "text", text: "Let me check." },
+      {
+        type: "tool-call",
+        toolCallId: "task",
+        toolName: "task",
+        args: {},
+        argsText: "{}",
+        result: "done",
+        unstable_toolMessageId: "tool-task",
+        messages: [
+          expect.objectContaining({
+            id: "sub",
+            role: "assistant",
+            status: { type: "complete", reason: "unknown" },
+            content: [{ type: "text", text: "working" }],
+          }),
+        ],
+      },
+    ]);
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.content,
+    ).toEqual([{ type: "text", text: "Next step." }]);
+  });
+
+  it.each([false, true])(
+    "preserves current text when the moved result arrives during streaming: %s",
+    async (duringStreaming) => {
+      const core = createController((wire) => [
+        start,
+        ...answerText,
+        ...taskCallEvents,
+        snapshot(wire, otherRecord),
+        snapshot(wire, otherRecord),
+        ...(!duringStreaming ? [taskResult] : []),
+        { type: "TEXT_MESSAGE_START", messageId: "other", role: "assistant" },
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "other", delta: " Before." },
+        ...(duringStreaming ? [taskResult] : []),
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "other", delta: " After." },
+        { type: "TEXT_MESSAGE_END", messageId: "other" },
+        finished,
+      ]);
+      await core.append(userMessage);
+
+      expect(core.isRunning()).toBe(false);
+      expect(statuses(core).answer).toBe("complete");
+      expect(
+        core.getMessages().find(({ id }) => id === "answer")?.content,
+      ).toEqual([
+        { type: "text", text: "Let me check." },
+        {
+          type: "tool-call",
+          toolCallId: "task",
+          toolName: "task",
+          args: {},
+          argsText: "{}",
+          result: "done",
+          unstable_toolMessageId: "tool-task",
+        },
+      ]);
+      expect(core.getMessages().find(({ id }) => id === "other")).toMatchObject(
+        {
+          status: { type: "complete" },
+          content: [{ type: "text", text: "Next step. Before. After." }],
+        },
+      );
+    },
+  );
 
   it("does not show a complete answer with a running sub-agent after a result snapshot", async () => {
     const core = createController((wire) => [
