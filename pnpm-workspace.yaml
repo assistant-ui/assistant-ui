@@ -22,7 +22,7 @@ overrides:
 
 verifyDepsBeforeRun: install
 
-# Metro, Expo and React Native run Babel 7. A Babel 8 copy of these packages lands where react-native-worklets 0.10 requires them undeclared and breaks native bundles, and babel-plugin-react-compiler 1.0 fails under @babel/core 8. taze reads this list too.
+# Metro, Expo and React Native run Babel 7. A Babel 8 copy of these packages lands where react-native-worklets 0.10 requires them undeclared and breaks native bundles, and babel-plugin-react-compiler 1.0 fails under @babel/core 8. The -v18 aliases in x-react18 must stay on React 18 to test the advertised peer range. taze reads this list too.
 update:
   ignoreDeps:
     - '@babel/core'
@@ -30,6 +30,10 @@ update:
     - '@babel/parser'
     - '@babel/traverse'
     - '@babel/types'
+    - '@types/react-dom-v18'
+    - '@types/react-v18'
+    - react-dom-v18
+    - react-v18
 
 # Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
 minimumReleaseAge: 1440
