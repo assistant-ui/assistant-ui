@@ -118,6 +118,17 @@ declare const ActionBarPrimitiveFeedbackPositive: import("react").ForwardRefExot
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
+declare namespace ActionBarPrimitiveRefreshRun {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useActionBarRefreshRun>;
+}
+
+declare const ActionBarPrimitiveRefreshRun: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean | undefined;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
 declare namespace ActionBarPrimitiveReload {
   type Element = ActionButtonElement;
   type Props = ActionButtonProps<typeof useActionBarReload>;
@@ -6591,7 +6602,7 @@ declare namespace actionBarMore_d_exports {
 }
 
 declare namespace actionBar_d_exports {
-  export { ActionBarPrimitiveCopy as Copy, ActionBarPrimitiveEdit as Edit, ActionBarPrimitiveExportMarkdown as ExportMarkdown, ActionBarPrimitiveFeedbackNegative as FeedbackNegative, ActionBarPrimitiveFeedbackPositive as FeedbackPositive, ActionBarPrimitiveReload as Reload, ActionBarPrimitiveResume as Resume, ActionBarPrimitiveRoot as Root, ActionBarPrimitiveSpeak as Speak, ActionBarPrimitiveStopSpeaking as StopSpeaking };
+  export { ActionBarPrimitiveCopy as Copy, ActionBarPrimitiveEdit as Edit, ActionBarPrimitiveExportMarkdown as ExportMarkdown, ActionBarPrimitiveFeedbackNegative as FeedbackNegative, ActionBarPrimitiveFeedbackPositive as FeedbackPositive, ActionBarPrimitiveRefreshRun as RefreshRun, ActionBarPrimitiveReload as Reload, ActionBarPrimitiveResume as Resume, ActionBarPrimitiveRoot as Root, ActionBarPrimitiveSpeak as Speak, ActionBarPrimitiveStopSpeaking as StopSpeaking };
 }
 
 declare namespace assistantModal_d_exports {
@@ -6901,6 +6912,8 @@ declare const useActionBarFeedbackPositive: () => () => void;
 declare const useActionBarPrimitiveCopy: (_param11?: {
   copiedDuration?: number | undefined;
 }) => (() => void) | null;
+
+declare const useActionBarRefreshRun: () => (() => void) | null;
 
 declare const useActionBarReload: () => (() => void) | null;
 
