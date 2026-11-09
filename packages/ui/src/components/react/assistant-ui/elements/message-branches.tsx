@@ -44,7 +44,10 @@ export function MessageBranches({
             aria-label="Show previous response"
             disabled={current === 0}
             onClick={() => onIndexChange(current - 1)}
-            className={cn(ghostButton, "size-6")}
+            className={cn(
+              ghostButton,
+              "size-6 disabled:pointer-events-none disabled:opacity-50",
+            )}
           >
             <ChevronLeftIcon className="size-3.5" />
           </button>
@@ -56,7 +59,10 @@ export function MessageBranches({
             aria-label="Show next response"
             disabled={current === variants.length - 1}
             onClick={() => onIndexChange(current + 1)}
-            className={cn(ghostButton, "size-6")}
+            className={cn(
+              ghostButton,
+              "size-6 disabled:pointer-events-none disabled:opacity-50",
+            )}
           >
             <ChevronRightIcon className="size-3.5" />
           </button>
