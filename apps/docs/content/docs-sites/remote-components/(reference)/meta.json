@@ -1,0 +1,6 @@
+{
+  "title": "Reference",
+  "description": "The Vite plugin, the host API and the page API.",
+  "icon": "BookMarked",
+  "pages": ["vite", "host-api", "page-api"]
+}

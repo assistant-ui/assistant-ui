@@ -1,4 +1,4 @@
-import { createAgentSession } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, createAgentSession } from "@earendil-works/pi-coding-agent";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -1368,6 +1368,15 @@ type PartInit = {
   readonly title?: string;
   readonly parentId?: string;
 } | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly parentId?: string;
+} | {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;
@@ -1531,6 +1540,7 @@ interface PiClient {
   }>;
   getAvailableModels(input?: {
     workspacePath?: string;
+    threadId?: string;
   }): Promise<PiModelInfo[]>;
   setModel(threadId: string, input: {
     provider: string;
@@ -1650,6 +1660,8 @@ interface PiContextUsage {
   contextWindow: number;
   percent: number | null;
 }
+
+type PiCreateSessionOptions = NonNullable<Parameters<typeof createAgentSession>[0]>;
 
 interface PiCustomMessage {
   role: "custom";
@@ -1895,7 +1907,9 @@ type PiSessionEntryBase = {
   timestamp: string;
 };
 
-type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
+type PiSessionModel = PiCreateSessionOptions["model"];
+
+type PiSessionOptions = Omit<PiCreateSessionOptions, "agentDir" | "cwd" | "model" | "modelRuntime" | "sessionManager">;
 
 type PiStopReason = "aborted" | "error" | "length" | "stop" | "toolUse";
 
@@ -2057,7 +2071,9 @@ declare class PiThreadSupervisor {
     steering: string[];
     followUp: string[];
   }>;
-  getAvailableModels(): Promise<PiModelInfo[]>;
+  getAvailableModels(input?: {
+    threadId?: string;
+  }): Promise<PiModelInfo[]>;
   setModel(threadId: string, input: {
     provider: string;
     modelId: string;
@@ -2078,6 +2094,11 @@ interface PiThreadSupervisorOptions {
   workspacePath?: string;
   agentDir?: string;
   model?: PiSessionModel;
+  modelRuntime?: ModelRuntime;
+  configureSession?: (context: {
+    cwd: string;
+    signal: AbortSignal | undefined;
+  }) => PiSessionOptions | Promise<PiSessionOptions>;
 }
 
 interface PiToolCall {

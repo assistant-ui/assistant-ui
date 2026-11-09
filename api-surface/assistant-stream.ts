@@ -587,6 +587,15 @@ type PartInit = {
   readonly title?: string;
   readonly parentId?: string;
 } | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly parentId?: string;
+} | {
   readonly type: "file";
   readonly data: string;
   readonly mimeType: string;
@@ -805,6 +814,15 @@ type SourcePart = {
   id: string;
   url: string;
   title?: string;
+  parentId?: string;
+} | {
+  type: "source";
+  sourceType: "document";
+  id: string;
+  url?: undefined;
+  title: string;
+  mediaType: string;
+  filename?: string;
   parentId?: string;
 };
 
@@ -1133,6 +1151,12 @@ type UIMessageStreamChunk = {
     url: string;
     title?: string;
   };
+} | {
+  type: "source-document";
+  sourceId: string;
+  mediaType: string;
+  title: string;
+  filename?: string;
 } | {
   type: "file";
   file: {

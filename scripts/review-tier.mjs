@@ -8,7 +8,10 @@ import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import { coverageAdvice, isCoverageConfig } from "./review-coverage-advice.mjs";
 import { advise, sectionText } from "./lib/review-tier-advice.mjs";
-import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
+import {
+  evaluateRequirements,
+  latestReviews,
+} from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
 import { hasOption, optionValues } from "./lib/script-options.mjs";
 
@@ -121,6 +124,58 @@ function attributedLabels(node, events = node.timelineItems.nodes) {
   }));
 }
 
+const changedFile = (file) => ({
+  path: file.filename,
+  status: ["added", "removed", "renamed"].includes(file.status)
+    ? file.status
+    : "modified",
+  additions: file.additions,
+  deletions: file.deletions,
+  previousPath: file.previous_filename ?? null,
+  patch: file.patch ?? null,
+});
+
+// GitHub's compare response lists at most 300 files and 250 commits.
+const compareFileLimit = 300;
+
+// Compares each distinct commit a reviewer last approved, other than the head,
+// with the head once. A failed compare is recorded as null so the approval
+// stays stale.
+async function compareApprovals(client, repo, head, reviews) {
+  const shas = new Set();
+  for (const review of latestReviews(reviews).values()) {
+    if (
+      review.state === "APPROVED" &&
+      review.commitSha !== null &&
+      review.commitSha !== head
+    ) {
+      shas.add(review.commitSha);
+    }
+  }
+  const comparisons = {};
+  for (const sha of shas) {
+    try {
+      const { data } = await client.rest(
+        "GET",
+        `${repo}/compare/${encodeURIComponent(sha)}...${encodeURIComponent(head)}`,
+      );
+      const files = data.files ?? [];
+      comparisons[sha] = {
+        ahead: data.status === "ahead",
+        complete:
+          Array.isArray(data.files) &&
+          files.length < compareFileLimit &&
+          Number.isInteger(data.total_commits) &&
+          data.total_commits <= (data.commits?.length ?? 0),
+        files: files.map(changedFile),
+      };
+    } catch {
+      comparisons[sha] = null;
+    }
+  }
+  return comparisons;
+}
+
 export async function gatherPullRequest(
   client,
   policy,
@@ -206,16 +261,7 @@ export async function gatherPullRequest(
   }
 
   const files = (await client.paginate(`${repo}/pulls/${number}/files`)).map(
-    (file) => ({
-      path: file.filename,
-      status: ["added", "removed", "renamed"].includes(file.status)
-        ? file.status
-        : "modified",
-      additions: file.additions,
-      deletions: file.deletions,
-      previousPath: file.previous_filename ?? null,
-      patch: file.patch ?? null,
-    }),
+    changedFile,
   );
   const comparison = await client.rest(
     "GET",
@@ -296,6 +342,20 @@ export async function gatherPullRequest(
     }
   }
 
+  const reviewInputs = reviews.map((review) => ({
+    author: review.author?.login ?? null,
+    isBot: review.author?.__typename === "Bot",
+    state: review.state,
+    submittedAt: review.submittedAt,
+    commitSha: review.commit?.oid ?? null,
+  }));
+  const comparisons = await compareApprovals(
+    client,
+    repo,
+    node.headRefOid,
+    reviewInputs,
+  );
+
   const { admins, teams } = people ?? (await gatherPeople(client, policy));
   let authorHasWriteAccess = false;
   let openPullRequestCount = 0;
@@ -359,13 +419,8 @@ export async function gatherPullRequest(
         author: commit.author?.user?.login ?? null,
         committer: commit.committer?.user?.login ?? null,
       })),
-      reviews: reviews.map((review) => ({
-        author: review.author?.login ?? null,
-        isBot: review.author?.__typename === "Bot",
-        state: review.state,
-        submittedAt: review.submittedAt,
-        commitSha: review.commit?.oid ?? null,
-      })),
+      reviews: reviewInputs,
+      comparisons,
       labels,
       linkedIssues,
       readyForReviewAt,
@@ -415,9 +470,9 @@ export async function gatherPeople(client, policy) {
 
 export function evaluatePullRequest(gathered, policy) {
   const tierResult = computeTier(gathered.signalsInput, policy);
-  const { tier, areas, failures } = tierResult;
+  const { tier, areas, ownedPackages, failures } = tierResult;
   const requirementResult = evaluateRequirements(
-    { ...gathered.people, tier, areas, failures },
+    { ...gathered.people, tier, areas, ownedPackages, failures },
     policy,
   );
   return {
@@ -479,6 +534,17 @@ const ignoredLabels = {
   stale: "approved an older head",
   contributor: "wrote a commit here",
 };
+
+const shortSha = (sha) => sha.slice(0, 7);
+const shownPaths = 3;
+function ignoredReason({ reason, detail, paths }) {
+  const label = ignoredLabels[reason] ?? reason;
+  if (paths?.length) {
+    const more = paths.length - shownPaths;
+    return `${label}; later commits touch ${paths.slice(0, shownPaths).map(code).join(", ")}${more > 0 ? ` and ${plural(more, "more protected path")}` : ""}`;
+  }
+  return detail ? `${label}, ${detail}` : label;
+}
 
 const cell = (value) =>
   String(value)
@@ -600,7 +666,7 @@ export function renderComment(evaluation, policy) {
       : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
     "",
     `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
-    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
+    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${(approvals.carried ?? []).map(({ login, sha }) => ` · ${login} carried over (approved ${code(shortSha(sha))}, later commits touch no protected paths)`).join("")}${approvals.ignored.length ? ` · ${approvals.ignored.map((item) => `${item.login} ignored (${ignoredReason(item)})`).join(", ")}` : ""}`,
     ...waived.map(
       ({ code, signal, by }) =>
         `- **Waived:** ${requirementLabel(code, policy)}, by ${by} with \`${policy.labels.overridePrefix}${signal}\``,

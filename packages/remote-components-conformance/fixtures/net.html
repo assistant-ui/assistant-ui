@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>net</title></head>
+<body>
+<button data-probe="loopback" onclick="go('loopback', 'http://127.0.0.1:5181/__raw/pages/ua-defaults.html')">loopback</button>
+<pre data-probe="out">{}</pre>
+<script>
+  const out = {};
+  function go(k, u) {
+    fetch(u).then((r) => { out[k] = "ok:" + r.status; show(); }, (e) => { out[k] = "error:" + e.name; show(); });
+  }
+  function show() { document.querySelector("[data-probe=out]").textContent = JSON.stringify(out); }
+</script>
+</body></html>

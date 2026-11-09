@@ -81,6 +81,8 @@ export class ThreadMutationQueue {
     };
     return {
       run: async <T>(call: () => Promise<T>): Promise<T> => {
+        if (started)
+          throw new Error("Thread mutation already cancelled or run");
         started = true;
         try {
           if (ready) await ready.catch(() => {});

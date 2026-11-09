@@ -1,0 +1,6 @@
+{
+  "title": "Guides",
+  "description": "Generated HTML, serving pages, and fixing common problems.",
+  "icon": "BookOpen",
+  "pages": ["html", "serving", "troubleshooting"]
+}

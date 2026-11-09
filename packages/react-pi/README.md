@@ -66,6 +66,54 @@ export const piClient = createPiNodeClient({
 });
 ```
 
+An app that manages models and tools itself passes its own Pi `ModelRuntime`
+and a `configureSession` callback. The supervisor uses that runtime for every
+session, the model catalog, and `setModel`, and calls `configureSession` each
+time it opens or reopens a session, with the session's working directory and the
+open's cancellation signal. The callback returns Pi SDK session options such as
+`tools`, `customTools`, `resourceLoader`, and `settingsManager`; the supervisor
+keeps the working directory, session storage, agent directory, model runtime,
+and model. The first `createPiNodeClient` call fixes these options for the
+process, so the runtime and the callback must live as long as the server.
+Every session shares a supplied runtime, so a provider that one session's
+extension registers or overrides applies to all of them; without the option,
+each session keeps its own runtime.
+
+```ts
+import {
+  DefaultResourceLoader,
+  ModelRuntime,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
+import { join } from "node:path";
+import { createPiNodeClient } from "@assistant-ui/react-pi/node";
+
+const workspacePath = process.env.PI_WORKSPACE_PATH ?? process.cwd();
+const agentDir = "/path/to/your-app/pi"; // the app's own Pi config directory
+const modelRuntime = await ModelRuntime.create({
+  authPath: join(agentDir, "auth.json"),
+  modelsPath: join(agentDir, "models.json"),
+});
+const settingsManager = SettingsManager.inMemory();
+
+export const piClient = createPiNodeClient({
+  workspacePath,
+  agentDir,
+  modelRuntime,
+  configureSession: async ({ cwd }) => {
+    const resourceLoader = new DefaultResourceLoader({
+      cwd,
+      agentDir,
+      settingsManager,
+      noExtensions: true,
+      noSkills: true,
+    });
+    await resourceLoader.reload();
+    return { tools: [], resourceLoader, settingsManager };
+  },
+});
+```
+
 ### 2. Server: the route layer
 
 Expose the `PiClient` methods over HTTP, and `subscribe` over SSE. The wire
@@ -155,7 +203,10 @@ const { readiness, contextUsage, setModel, setThinkingLevel } = usePiRuntimeExtr
 ```
 
 `getAvailableModels()` on the client returns the catalog (auth-configured models
-first, falling back to the full built-in list). `setThinkingLevel` is clamped by
+first, falling back to the full built-in list). Pass `{ threadId }` to list a
+live thread's own runtime instead, which includes the models its extensions
+register through `registerProvider` or `registerVirtualModel`; a thread that is
+not live gets the process-wide catalog. `setThinkingLevel` is clamped by
 Pi to the model's supported levels; the UI reflects the effective level from the
 next snapshot/event. `contextUsage` (`{ tokens, contextWindow, percent }`)
 answers "am I about to auto-compact?" and is available even for cold threads.

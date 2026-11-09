@@ -139,6 +139,50 @@ const label = (text: unknown): Spec => ({
 });
 
 describe("createSpecToolkit for Vue", () => {
+  it("forwards host confirmation to rendered catalog actions", async () => {
+    const protectedCatalog = defineCatalog({
+      components: catalog.components,
+      actions: {
+        deleteItem: { description: "Deletes an item", confirm: true },
+      },
+    });
+    const confirmAction = vi.fn(() => true);
+    const deleteItem = vi.fn();
+    const entries: Record<string, unknown> = createSpecToolkit(
+      protectedCatalog,
+      {
+        components,
+        handlers: { deleteItem },
+        confirmAction,
+      },
+    ).entries({ execution: "frontend", display: "standalone" });
+    const { container } = mount(
+      (entries["render_spec"] as Entry).render,
+      toolProp({
+        args: {
+          title: "s",
+          spec: {
+            root: "b",
+            elements: {
+              b: {
+                type: "Button",
+                props: { label: "Delete" },
+                on: { press: { action: "deleteItem" } },
+              },
+            },
+          },
+        },
+      }),
+    );
+    container.querySelector("button")!.click();
+    await vi.waitFor(() => expect(deleteItem).toHaveBeenCalledOnce());
+    expect(confirmAction).toHaveBeenCalledExactlyOnceWith({
+      action: "deleteItem",
+      params: {},
+      elementId: "b",
+    });
+  });
+
   it("returns entries that Tools from @assistant-ui/core/react accepts", () => {
     const toolkit: Parameters<typeof Tools>[0]["toolkit"] = createSpecToolkit(
       catalog,

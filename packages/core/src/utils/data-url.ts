@@ -11,18 +11,22 @@ const DEFAULT_BINARY_DATA_URL_MEDIA_TYPE = "application/octet-stream";
  * Extracts a base64 payload and the URL's media type without parameters.
  * An omitted type uses `fallbackMimeType`, which defaults to
  * `application/octet-stream` because this helper only accepts base64 payloads.
+ * A payload folded across lines is accepted and returned compact, matching
+ * `parseBase64`: real producers wrap at a fixed column.
  */
 export function parseDataUrl(
   value: string,
   fallbackMimeType = DEFAULT_BINARY_DATA_URL_MEDIA_TYPE,
 ): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,(.*)$/i);
+  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,([\s\S]*)$/i);
   if (!match) return null;
   return {
     mimeType: match[1] ? match[1].toLowerCase() : fallbackMimeType,
-    data: match[2]!.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
-      String.fromCharCode(Number.parseInt(hex, 16)),
-    ),
+    data: match[2]!
+      .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+        String.fromCharCode(Number.parseInt(hex, 16)),
+      )
+      .replace(/[\t\n\r ]/g, ""),
   };
 }
 

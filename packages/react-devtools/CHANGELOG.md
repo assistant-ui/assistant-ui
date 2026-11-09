@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.27
+
+### Patch Changes
+
+- [#10166](https://github.com/assistant-ui/assistant-ui/pull/10166) [`997bd84`](https://github.com/assistant-ui/assistant-ui/commit/997bd84b6d2fc8ddfb42260b030ee3e2e56a2bd2) - Preserve array length and positions in DevTools snapshots when entries are undefined, sparse, or unreadable. ([@akim136](https://github.com/akim136))
+
 ## 1.2.26
 
 ### Patch Changes

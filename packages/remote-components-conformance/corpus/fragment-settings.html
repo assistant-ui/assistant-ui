@@ -1,0 +1,119 @@
+<style>
+  .sp {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    max-width: 520px;
+    box-sizing: border-box;
+  }
+  .sp h2 { margin: 0 0 4px; font-size: 1.15rem; }
+  .sp .sub { margin: 0 0 16px; color: var(--color-text-muted); font-size: .9rem; }
+  .sp .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .sp .lbl { display: flex; flex-direction: column; }
+  .sp .lbl span { font-weight: 600; font-size: .95rem; }
+  .sp .lbl small { color: var(--color-text-muted); font-size: .82rem; }
+
+  .sw { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .sw input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .sw .track {
+    position: absolute; inset: 0;
+    background: var(--color-border);
+    border-radius: 999px;
+    transition: background .2s;
+  }
+  .sw .track::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    transition: transform .2s;
+  }
+  .sw input:checked + .track { background: var(--color-accent); }
+  .sw input:checked + .track::after { transform: translateX(20px); }
+  .sw input:focus-visible + .track { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+  .sp select {
+    font: inherit; color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 6px 10px; min-width: 140px;
+  }
+  .sp .foot {
+    display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+    padding-top: 16px; border-top: 1px solid var(--color-border);
+  }
+  .sp .msg { color: var(--color-text-muted); font-size: .85rem; opacity: 0; transition: opacity .3s; }
+  .sp .msg.show { opacity: 1; }
+  .sp button {
+    font: inherit; font-weight: 600;
+    background: var(--color-accent); color: #fff;
+    border: none; border-radius: var(--radius-md);
+    padding: 8px 20px; cursor: pointer;
+  }
+  .sp button:hover { filter: brightness(1.08); }
+  .sp button:active { transform: translateY(1px); }
+</style>
+
+<div class="sp">
+  <h2>Settings</h2>
+  <p class="sub">Manage your preferences.</p>
+
+  <div class="row">
+    <label class="lbl" for="s-notif"><span>Notifications</span><small>Receive alerts about activity</small></label>
+    <div class="sw"><input type="checkbox" id="s-notif" checked><span class="track"></span></div>
+  </div>
+  <div class="row">
+    <label class="lbl" for="s-dark"><span>Dark mode</span><small>Use a darker color scheme</small></label>
+    <div class="sw"><input type="checkbox" id="s-dark"><span class="track"></span></div>
+  </div>
+  <div class="row">
+    <label class="lbl" for="s-auto"><span>Auto-save</span><small>Save changes automatically</small></label>
+    <div class="sw"><input type="checkbox" id="s-auto" checked><span class="track"></span></div>
+  </div>
+  <div class="row">
+    <label class="lbl" for="s-lang"><span>Language</span><small>Interface language</small></label>
+    <select id="s-lang">
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+
+  <div class="foot">
+    <span class="msg" id="s-msg" role="status"></span>
+    <button id="s-save">Save</button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const btn = document.getElementById('s-save');
+    const msg = document.getElementById('s-msg');
+    let t;
+    btn.addEventListener('click', () => {
+      const settings = {
+        notifications: document.getElementById('s-notif').checked,
+        darkMode: document.getElementById('s-dark').checked,
+        autoSave: document.getElementById('s-auto').checked,
+        language: document.getElementById('s-lang').value
+      };
+      console.log('Saved settings:', settings);
+      msg.textContent = '✓ Settings saved';
+      msg.classList.add('show');
+      clearTimeout(t);
+      t = setTimeout(() => msg.classList.remove('show'), 2000);
+    });
+  })();
+</script>

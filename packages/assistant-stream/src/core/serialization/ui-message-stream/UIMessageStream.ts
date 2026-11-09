@@ -162,6 +162,17 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               });
               break;
 
+            case "source-document":
+              controller.appendSource({
+                type: "source",
+                sourceType: "document",
+                id: chunk.sourceId,
+                title: chunk.title,
+                mediaType: chunk.mediaType,
+                ...(chunk.filename && { filename: chunk.filename }),
+              });
+              break;
+
             case "file":
               controller.appendFile({
                 type: "file",

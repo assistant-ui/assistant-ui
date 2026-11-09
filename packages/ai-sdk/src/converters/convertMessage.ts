@@ -469,18 +469,17 @@ const uiPartStateToStatus = (
 const toSystemContent = (content: MessageContent): MessageContent => {
   const text = content.filter((part) => part.type === "text");
   if (text.length === 1) return text;
-  const providerMetadata = text.reduce<PartProviderMetadata>(
-    (merged, part) =>
-      part.providerMetadata != null
-        ? { ...merged, ...part.providerMetadata }
-        : merged,
-    {},
-  );
+  const providerMetadata = Object.create(null) as PartProviderMetadata;
+  for (const part of text) {
+    Object.assign(providerMetadata, part.providerMetadata);
+  }
   return [
     {
       type: "text",
       text: text.map((part) => part.text).join(""),
-      ...(Object.keys(providerMetadata).length > 0 && { providerMetadata }),
+      ...(Object.keys(providerMetadata).length > 0 && {
+        providerMetadata: { ...providerMetadata },
+      }),
     },
   ];
 };

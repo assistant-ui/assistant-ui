@@ -39,6 +39,40 @@ function createUIMessageStream(events: string[]): ReadableStream<Uint8Array> {
 }
 
 describe("UIMessageStreamDecoder", () => {
+  it.each([
+    { suffix: ":" + "x".repeat(100), maxLineLength: 64, maxEventLength: 256 },
+    {
+      suffix: "data: " + "x".repeat(100) + "\n\n",
+      maxLineLength: 256,
+      maxEventLength: 64,
+    },
+  ])(
+    "stops before an oversized suffix after [DONE] ($maxLineLength/$maxEventLength)",
+    async ({ suffix, ...limits }) => {
+      const cancelled = promiseWithResolvers<void>();
+      const input = new ReadableStream<Uint8Array<ArrayBuffer>>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"type":"data-test","data":1}\n\ndata: [DONE]\n\n' +
+                suffix,
+            ),
+          );
+        },
+        cancel() {
+          cancelled.resolve();
+        },
+      });
+      const chunks = await collectChunks(
+        input.pipeThrough(new UIMessageStreamDecoder(limits)),
+      );
+      expect(chunks).toEqual([
+        { type: "data", data: [{ name: "test", data: 1 }], path: [] },
+      ]);
+      await cancelled.promise;
+    },
+  );
+
   it.each(["message-finish", "part-start"])(
     "can cancel at %s with pending tool arguments",
     async (cancelAt) => {
@@ -366,6 +400,37 @@ describe("UIMessageStreamDecoder", () => {
       expect(sourceStart.part.url).toBe("https://example.com");
       expect(sourceStart.part.title).toBe("Example");
     }
+  });
+
+  it("should decode source-document parts", async () => {
+    const messages = await collectChunks(
+      createUIMessageStream([
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          type: "source-document",
+          sourceId: "src_1",
+          mediaType: "text/plain",
+          title: "ai.pdf",
+          filename: "ai.pdf",
+        }),
+        JSON.stringify({ type: "finish", finishReason: "stop" }),
+        "[DONE]",
+      ])
+        .pipeThrough(new UIMessageStreamDecoder())
+        .pipeThrough(new AssistantMessageAccumulator()),
+    );
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({
+        type: "source",
+        sourceType: "document",
+        id: "src_1",
+        title: "ai.pdf",
+        mediaType: "text/plain",
+        filename: "ai.pdf",
+      }),
+    ]);
+    expect(messages.at(-1)!.parts[0]).not.toHaveProperty("url");
   });
 
   it("should decode file parts", async () => {

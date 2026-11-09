@@ -8,6 +8,8 @@ const RENDERED_AS: Record<Format, string> = {
   present:
     "a tree of native components that the host app renders (`present` tool)",
   spec: "a flat spec of native components with state, bindings, and conditions that the host app renders (`render_spec` tool)",
+  "json-render":
+    "a json-render SpecStream compiled into a flat spec of native components that the host app renders (`render_json` tool)",
   frame:
     "an HTML or SVG widget with optional JavaScript, rendered in a sandboxed frame (`show_widget` tool)",
 };

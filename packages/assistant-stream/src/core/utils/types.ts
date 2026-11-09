@@ -141,14 +141,25 @@ export type ToolCallPart =
   | ToolCallPartWithPreliminaryResult
   | ToolCallPartWithResult;
 
-export type SourcePart = {
-  type: "source";
-  sourceType: "url";
-  id: string;
-  url: string;
-  title?: string;
-  parentId?: string;
-};
+export type SourcePart =
+  | {
+      type: "source";
+      sourceType: "url";
+      id: string;
+      url: string;
+      title?: string;
+      parentId?: string;
+    }
+  | {
+      type: "source";
+      sourceType: "document";
+      id: string;
+      url?: undefined;
+      title: string;
+      mediaType: string;
+      filename?: string;
+      parentId?: string;
+    };
 
 export type FilePart = {
   type: "file";
