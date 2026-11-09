@@ -39,7 +39,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^1.9.0",
+    "@agentclientprotocol/sdk": "^2.0.2",
     "@assistant-ui/core": "^0.3.33",
     "assistant-stream": "^0.3.56"
   },
