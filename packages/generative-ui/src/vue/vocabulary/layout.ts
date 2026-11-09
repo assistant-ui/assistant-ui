@@ -3,6 +3,7 @@ import { useSpecElement } from "generative-frame/spec/vue";
 import { layoutDefinitions } from "../../vocabulary/definitions/layout";
 import { collectFormValuesFromEvent } from "../../vocabulary/collectFormValues";
 import { boxStyle, safeBackground } from "../../vocabulary/layoutValues";
+import { handleHiddenTabInvalid } from "../../vocabulary/handleHiddenTabInvalid";
 import { tabLabels } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { textChildren } from "./textChildren";
@@ -198,7 +199,13 @@ export const layoutVocabulary = {
           if (labels.length === 0) return null;
           const current = Math.min(selected.value, labels.length - 1);
           const last = labels.length - 1;
-          return h("div", { "data-aui": "tabs" }, [
+          const onInvalidCapture = (event: Event) =>
+            handleHiddenTabInvalid(
+              event,
+              event.currentTarget as HTMLElement,
+              (index) => (selected.value = index),
+            );
+          return h("div", { "data-aui": "tabs", onInvalidCapture }, [
             h(
               "div",
               {
