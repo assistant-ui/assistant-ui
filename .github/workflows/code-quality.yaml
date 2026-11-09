@@ -57,6 +57,8 @@ on:
       - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
+      - "scripts/react18-weekly.test.mjs"
+      - ".github/workflows/react18-weekly.yaml"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
@@ -155,6 +157,9 @@ jobs:
 
       - name: Test the shared script helpers
         run: node --test scripts/lib/*.test.mjs
+
+      - name: Test React 18 tracking issue reporting
+        run: node --test scripts/react18-weekly.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
