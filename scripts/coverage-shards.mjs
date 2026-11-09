@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { median } from "./coverage-runtimes.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
@@ -22,7 +23,7 @@ export function coverageShards(
       "Coverage runtimes must contain positive millisecond values. Refresh scripts/coverage-runtimes.json from successful CI logs.",
     );
   }
-  const unmeasuredRuntimeMs = Math.max(...durations);
+  const unmeasuredRuntimeMs = Math.round(median(durations));
   const weighted = readWorkspaceManifestEntries(root)
     .manifests.filter(({ pkg }) => pkg.scripts?.["test:coverage"])
     .map(({ pkg }) => ({
@@ -79,7 +80,7 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   );
   if (unmeasured.length > 0) {
     console.error(
-      `No recorded coverage runtime for ${unmeasured.join(", ")}; assigning the largest recorded runtime. Refresh scripts/coverage-runtimes.json after CI completes.`,
+      `No recorded coverage runtime for ${unmeasured.join(", ")}; assigning the median recorded runtime. Refresh scripts/coverage-runtimes.json after CI completes.`,
     );
   }
   const filters = names.map((name) => `--filter=${name}`);

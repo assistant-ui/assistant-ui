@@ -2,6 +2,14 @@ import { readFileSync } from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 import { isExecutedAsMain } from "./lib/main.mjs";
 
+export function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
 export function coverageRuntimes(logs) {
   const samples = new Map();
   for (const log of logs) {
@@ -54,15 +62,7 @@ export function coverageRuntimes(logs) {
   return Object.fromEntries(
     [...samples]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, values]) => {
-        values.sort((a, b) => a - b);
-        const middle = Math.floor(values.length / 2);
-        const median =
-          values.length % 2
-            ? values[middle]
-            : (values[middle - 1] + values[middle]) / 2;
-        return [name, Math.max(1, Math.round(median))];
-      }),
+      .map(([name, values]) => [name, Math.max(1, Math.round(median(values)))]),
   );
 }
 

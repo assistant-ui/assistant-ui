@@ -90,14 +90,14 @@ test("balances recorded runtimes when equal file counts hide unequal work", (t) 
   );
 });
 
-test("retains unmeasured workspaces with the largest recorded runtime", (t) => {
+test("retains unmeasured workspaces with the median recorded runtime", (t) => {
   const root = workspace(t, [
     { name: "known", tests: 1 },
     { name: "new", tests: 0 },
     { name: "small", tests: 20 },
   ]);
   const shards = coverageShards(root, { known: 9000, small: 1000 });
-  assert.deepEqual(shards, [["known", "small"], ["new"]]);
+  assert.deepEqual(shards, [["known"], ["new", "small"]]);
 });
 
 test("rejects unusable timing profiles instead of assigning invalid weights", (t) => {
@@ -149,6 +149,7 @@ for (const [shard, empty] of [
     mkdirSync(path.join(root, "scripts"));
     for (const file of [
       "coverage-shards.mjs",
+      "coverage-runtimes.mjs",
       "coverage-runtimes.json",
       "lib",
     ]) {

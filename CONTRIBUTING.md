@@ -44,31 +44,16 @@ pnpm dev
 
 ### Coverage shard runtimes
 
-The two coverage jobs assign every workspace with a `test:coverage` script once.
-`scripts/coverage-runtimes.json` supplies millisecond weights so packages with
-similar file counts but different execution costs do not overload one shard.
-Both jobs read the same committed profile. A new, unmeasured workspace is assigned
-the largest recorded runtime and reported on stderr; it is never omitted.
+The two coverage jobs assign every workspace with a `test:coverage` script once. `scripts/coverage-runtimes.json` supplies millisecond weights so packages with similar file counts but different execution costs do not overload one shard. Both jobs read the same committed profile. A new, unmeasured workspace is assigned the median recorded runtime and reported on stderr; it is never omitted.
 
-Refresh the profile after substantial suite or runner changes. Download both
-shard job logs from several successful pull request runs on comparable revisions:
+Refresh the profile after substantial suite or runner changes. Download both shard job logs from several successful pull request runs on comparable revisions:
 
 ```sh
 gh api repos/assistant-ui/assistant-ui/actions/jobs/<job-id>/logs > /tmp/coverage-<job-id>.log
 node scripts/coverage-runtimes.mjs /tmp/coverage-*.log > /tmp/coverage-runtimes.json
 ```
 
-Inspect the result, then replace `scripts/coverage-runtimes.json` with it. The
-generator excludes cache replays, adds sequential Vitest/Node runner durations
-within each package, and takes the median across samples. These are scheduling
-weights, not predicted CI completion times: Turbo runs two tasks concurrently,
-and dependency builds, coverage reporting and the separate compiler lane add
-work outside those runner durations. Keep all suites and coverage thresholds when
-refreshing the profile; verify the resulting assignment and hosted job durations.
-
-The initial profile uses both shards from runs
-[41974550784](https://github.com/assistant-ui/assistant-ui/actions/runs/41974550784)
-and [41976224796](https://github.com/assistant-ui/assistant-ui/actions/runs/41976224796).
+Inspect the result, then replace `scripts/coverage-runtimes.json` with it. The generator excludes cache replays, adds sequential Vitest/Node runner durations within each package, and takes the median across samples. These are scheduling weights, not predicted CI completion times: Turbo runs two tasks concurrently, and dependency builds, coverage reporting and the separate compiler lane add work outside those runner durations. Keep all suites and coverage thresholds when refreshing the profile; verify the resulting assignment and hosted job durations.
 
 ### Opening an issue
 
