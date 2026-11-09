@@ -9,7 +9,7 @@ export type JsonParserBackend = {
 export type JsonParserBackendContext = {
   readonly text: string;
   readonly fallback: ReadonlyJSONObject;
-  /** Detaches mutable values and attaches assistant-stream's partial-field metadata. */
+  /** Detaches mutable values and attaches assistant-stream's partial-field metadata; build every `currentArgs` snapshot with it. */
   readonly createSnapshot: (
     value: ReadonlyJSONObject,
     state: "partial" | "complete",
