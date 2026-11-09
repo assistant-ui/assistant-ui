@@ -234,9 +234,6 @@
     "packages/cli/src/lib/cloud-remote.ts": ["CloudCliAction"],
     "packages/cloud/src/instrumentMcpSampling.ts": ["McpSamplingResponse"],
     "packages/core/src/react/model-context/toolbox.ts": ["ToolsConfig"],
-    "packages/core/src/react/model-context/useAssistantInstructions.ts": [
-      "AssistantInstructionsConfig"
-    ],
     "packages/core/src/react/primitives/composer/ComposerIf.tsx": [
       "RequireAtLeastOne"
     ],
