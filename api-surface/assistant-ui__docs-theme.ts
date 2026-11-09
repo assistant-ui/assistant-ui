@@ -211,6 +211,9 @@ interface TabsProps extends ComponentProps<"div"> {
   items?: string[];
   defaultIndex?: number;
   label?: ReactNode;
+  groupId?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }
 
 declare function ThemeImage(_param29: Omit<ComponentProps<"img">, "src"> & {
@@ -225,7 +228,14 @@ declare namespace assistantUi {
   }
 }
 
-declare const assistantUiDefaults: Required<Pick<DocsConfig, "breadcrumb" | "components" | "lastUpdated" | "pageActions" | "sidebar">>;
+declare const assistantUiCodeBlock: {
+  showCopyButton: boolean;
+  showLineNumbers: boolean;
+  theme: string;
+  darkTheme: string;
+};
+
+declare const assistantUiDefaults: Required<Pick<DocsConfig, "breadcrumb" | "lastUpdated" | "pageActions" | "sidebar">>;
 
 declare const assistantUiMdxComponents: {
   h1: (props: ComponentProps<"h1">) => import("react").JSX.Element;
@@ -278,7 +288,7 @@ declare namespace createDocsLayout$1 {
 declare const createDocsMetadata$1: (config: DocsConfig$1) => Record<string, unknown>;
 
 declare namespace entry_mdx_exports {
-  export { Callout, CalloutProps, CalloutType, Card, CardProps, Cards, Code, CodeBlock, CodeBlockProps, CodeGroup, File, Files, Folder, Heading, Kbd, Pre, Step, Steps, Tab, TabProps, Table, Tabs, TabsProps, ThemeImage, assistantUiMdxComponents };
+  export { Callout, CalloutProps, CalloutType, Card, CardProps, Cards, Code, CodeBlock, CodeBlockProps, CodeGroup, File, Files, Folder, Heading, Kbd, Pre, Step, Steps, Tab, TabProps, Table, Tabs, TabsProps, ThemeImage, assistantUiCodeBlock, assistantUiMdxComponents };
 }
 
 declare namespace entry_root_exports {
