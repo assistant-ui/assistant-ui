@@ -72,8 +72,11 @@ const hasToolCall = (runtime: AssistantRuntime) =>
         ),
     );
 
-describe("react-langgraph interrupt ownership", () => {
-  it("holds a call read before the pause and executes it exactly once after resume", async ({
+describe.each([
+  { delivery: "before the pause", delay: true },
+  { delivery: "with the pause on a settled snapshot", delay: false },
+])("react-langgraph interrupt ownership ($delivery)", ({ delay }) => {
+  it("holds an interrupted call and executes it exactly once after resume", async ({
     onTestFinished,
   }) => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -97,7 +100,7 @@ describe("react-langgraph interrupt ownership", () => {
           },
         ],
       };
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (delay) await new Promise((resolve) => setTimeout(resolve, 0));
       yield {
         event: "updates",
         data:
@@ -133,6 +136,7 @@ describe("react-langgraph interrupt ownership", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(streamMock).toHaveBeenCalledTimes(1);
+    expect(warnSpy).not.toHaveBeenCalled();
 
     await act(async () => {
       await controls.current.command({ resume: "approved" });

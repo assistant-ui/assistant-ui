@@ -950,7 +950,9 @@ export class ToolInvocationTracker {
           this._discardedToolCallIds.add(content.toolCallId);
         const ownership = this._isClientToolCall?.(content);
         const providerOwned =
-          content.result === undefined && ownership === false;
+          content.result === undefined &&
+          ownership === false &&
+          this._isRunning;
         if (providerOwned)
           this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
         entry = this._startActiveEntry(
@@ -959,7 +961,7 @@ export class ToolInvocationTracker {
           content.result !== undefined || providerOwned || discarded,
           discarded,
           ownership === true,
-          ownership === undefined,
+          ownership === undefined || (!this._isRunning && ownership === false),
         );
       }
 

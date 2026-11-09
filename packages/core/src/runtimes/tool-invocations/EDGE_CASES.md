@@ -108,15 +108,13 @@ meant to run it, so nothing but the gate's arrival says otherwise and the
 gate is late by construction.
 
 ### A.9. Adapter reports the tool call as provider-owned
-An entry first observed live with a `false` ownership answer is marked `skipExecute`, exactly like a call observed with a `result`. A definite initial answer (`true` or `false`) is read once and retained, so a later snapshot cannot revoke ownership and drop the result of an execution already in flight. `streamCall` still fires once, as under A.8; only the wrapped `execute` and its result chunk are withheld for a provider-owned call.
+An initial `true` ownership answer marks the call client-owned and is retained. An initial `false` answer on a running snapshot (`isRunning: true`) marks the entry `skipExecute`, exactly like a call observed with a `result`. That provider-owned decision is permanent. A later snapshot cannot revoke retained ownership and drop the result of an execution already in flight. `streamCall` still fires once, as under A.8; only the wrapped `execute` and its result chunk are withheld for a provider-owned call.
 
-An initial `undefined` defers ownership. A stream can deliver the call and the pause that holds it in separate reads, so the predicate is asked again when the run settles, before the args stream can close. A `false` answer keeps `ownershipDeferred` set and the args stream open, without setting `skipExecute` or warning. The predicate is asked again on every later settled snapshot until `undefined` clears the deferral and allows normal client execution, or `true` clears the deferral and marks the call `clientOwned`. A call that already has a result only clears the deferral, without asking the predicate or executing locally. These checks precede execution and cannot revoke ownership an execution already relies on.
+An initial `undefined` defers ownership. A `false` answer on a settled snapshot (`isRunning: false`) also defers ownership, whether read when the entry is created or on a later check. It keeps `ownershipDeferred` set and the args stream open, without setting `skipExecute` or warning. The predicate is asked again on every later settled snapshot until `undefined` clears the deferral and allows normal client execution, or `true` clears the deferral and marks the call `clientOwned`. A call that already has a result only clears the deferral, without asking the predicate again or executing locally. These checks precede execution and cannot revoke ownership an execution already relies on.
 
-Outside production, a call classified as provider-owned when first observed live whose name resolves to a tool with an `execute` logs a `console.warn`. The provider answers that call, so the registered `execute` would never run and the skip is otherwise silent. A deferred call held by a later `false` answer does not warn, because the provider may release it after resume.
+Outside production, a call classified as provider-owned when first observed on a running snapshot whose name resolves to a tool with an `execute` logs a `console.warn`. The provider answers that call, so the registered `execute` would never run and the skip is otherwise silent. A call held by a settled-time `false` answer does not warn, because the provider may release it after resume.
 
-The predicate is also what licenses running a frontend tool before the
-provider's run ends, so an adapter that supplies it keeps the overlap
-between a client tool's work and the run tail (A.10).
+The predicate is also what licenses running a frontend tool before the provider's run ends, so an adapter that supplies it keeps the overlap between a client tool's work and the run tail (A.10).
 
 ### A.10. Args complete while the provider's run is still open
 Closing the args stream hands the call to the client executor, so it may

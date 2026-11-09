@@ -2949,6 +2949,48 @@ describe("ToolInvocationTracker reset", () => {
     }
   });
 
+  it("holds a call first observed on a settled snapshot until ownership becomes unknown", async () => {
+    const execute = vi.fn(async () => ({ ok: true }));
+    const onResult = vi.fn();
+    const isClientToolCall = vi.fn<() => boolean | undefined>(() => false);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        { onResult, onStatusesChange: () => {} },
+        isClientToolCall,
+      );
+
+      tracker.setState(createState([], false));
+      const settled = createState([createAssistantMessage("{}", {})], false);
+      for (let i = 0; i < 2; i++) {
+        tracker.setState(settled);
+        await new Promise((r) => setTimeout(r, 0));
+        expect(execute).not.toHaveBeenCalled();
+        expect(onResult).not.toHaveBeenCalled();
+        expect(warnSpy).not.toHaveBeenCalled();
+      }
+
+      isClientToolCall.mockReturnValue(undefined);
+      tracker.setState(settled);
+      await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+      tracker.setState(createState([createAssistantMessage("{}", {})], false));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(onResult).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ toolCallId: "tool-1", result: { ok: true } }),
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("keeps a released deferred call client-owned when the run reopens", async () => {
     const execute = vi.fn(async () => ({ ok: true }));
     const onResult = vi.fn();
