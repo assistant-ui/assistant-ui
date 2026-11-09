@@ -906,6 +906,37 @@ describe("fromSlackBlocks", () => {
   });
 
   describe("round trip", () => {
+    it("preserves explicitly optional inputs across a Slack round trip", () => {
+      const { blocks } = toSlackBlocks(
+        {
+          $type: "Input",
+          name: "notes",
+          label: "Notes",
+          required: false,
+        },
+        { surface: "modal" },
+      );
+
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        optional: true,
+      });
+
+      const { nodes } = fromSlackBlocks(blocks);
+
+      expect(nodes[0]).toMatchObject({
+        $type: "Input",
+        required: false,
+      });
+
+      const convertedAgain = toSlackBlocks(nodes, { surface: "modal" });
+
+      expect(convertedAgain.blocks[0]).toMatchObject({
+        type: "input",
+        optional: true,
+      });
+    });
+
     it.each([
       {
         name: "passive standalone input",
