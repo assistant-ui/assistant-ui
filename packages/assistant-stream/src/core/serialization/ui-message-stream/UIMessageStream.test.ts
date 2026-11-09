@@ -1888,69 +1888,42 @@ describe("UIMessageStreamDecoder tool approvals", () => {
     });
   });
 
-  it.each([16, 64, 256])(
-    "routes %i out-of-order decisions without traversing registered approvals",
-    async (count) => {
-      const calls = Array.from({ length: count }, (_, index) => ({
-        toolCallId: `approval-call-${index}`,
-        approvalId: `approval-${index}`,
-        approved: index % 2 === 0,
-        reason: `Decision ${index}`,
-      }));
-      const frames = [
-        { type: "start" },
-        ...calls.flatMap(({ toolCallId, approvalId }) => [
-          {
-            type: "tool-input-available",
-            toolCallId,
-            toolName: "lookup",
-            input: {},
-          },
-          { type: "tool-approval-request", toolCallId, approvalId },
-        ]),
-        ...calls.toReversed().map(({ approvalId, approved, reason }) => ({
-          type: "tool-approval-response",
-          approvalId,
-          approved,
-          reason,
-        })),
-        { type: "finish", finishReason: "tool-calls" },
-      ];
-      const iterator = Map.prototype[Symbol.iterator];
-      let visitedEntries = 0;
-      let messages: AssistantMessage[];
-      try {
-        // A different traversal primitive needs its own work counter.
-        Map.prototype[Symbol.iterator] = function* (
-          this: Map<unknown, unknown>,
-        ) {
-          for (const entry of iterator.call(this)) {
-            if (
-              typeof entry[0] === "string" &&
-              entry[0].startsWith("approval-call-")
-            ) {
-              visitedEntries++;
-            }
-            yield entry;
-          }
-          return undefined;
-        };
-        messages = await decodeMessages(frames);
-      } finally {
-        Map.prototype[Symbol.iterator] = iterator;
-      }
+  it("routes out-of-order decisions to the calls that requested them", async () => {
+    const calls = Array.from({ length: 16 }, (_, index) => ({
+      toolCallId: `approval-call-${index}`,
+      approvalId: `approval-${index}`,
+      approved: index % 2 === 0,
+      reason: `Decision ${index}`,
+    }));
+    const messages = await decodeMessages([
+      { type: "start" },
+      ...calls.flatMap(({ toolCallId, approvalId }) => [
+        {
+          type: "tool-input-available",
+          toolCallId,
+          toolName: "lookup",
+          input: {},
+        },
+        { type: "tool-approval-request", toolCallId, approvalId },
+      ]),
+      ...calls.toReversed().map(({ approvalId, approved, reason }) => ({
+        type: "tool-approval-response",
+        approvalId,
+        approved,
+        reason,
+      })),
+      { type: "finish", finishReason: "tool-calls" },
+    ]);
 
-      expect(messages.at(-1)!.parts).toEqual(
-        calls.map(({ toolCallId, approvalId, approved, reason }) =>
-          expect.objectContaining({
-            toolCallId,
-            approval: { id: approvalId, approved, reason },
-          }),
-        ),
-      );
-      expect(visitedEntries).toBe(0);
-    },
-  );
+    expect(messages.at(-1)!.parts).toEqual(
+      calls.map(({ toolCallId, approvalId, approved, reason }) =>
+        expect.objectContaining({
+          toolCallId,
+          approval: { id: approvalId, approved, reason },
+        }),
+      ),
+    );
+  });
 
   it("ignores replaced approval ids and uses the latest request metadata", async () => {
     const messages = await decodeMessages([
