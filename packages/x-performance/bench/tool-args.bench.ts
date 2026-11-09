@@ -155,6 +155,27 @@ describe("assistant-stream: complete accumulated arguments (single delta)", () =
   });
 });
 
+describe("assistant-stream: long string arguments (4096-char deltas)", () => {
+  for (const size of [10_000, 50_000]) {
+    const value = "x".repeat(size);
+    const chunks = makeChunks(JSON.stringify({ value }), 4096);
+    for (const path of ["accumulator", "active-reader"] as const) {
+      const run = async () => {
+        if (path === "active-reader")
+          return (await drainActiveReader(chunks))[0];
+        const part = (await drainAccumulator(chunks)).parts[0];
+        return part?.type === "tool-call" ? part.args.value : undefined;
+      };
+      test(`${path}: ${size} bytes`, async ({ bench }) => {
+        if ((await run()) !== value) {
+          throw new Error("Long-string benchmark did not parse tool arguments");
+        }
+        await bench(`${path}: ${size} bytes`, run).run(inject("benchSampling"));
+      });
+    }
+  }
+});
+
 describe("assistant-stream: dense accumulated arguments (16-char deltas)", () => {
   for (const [shape, size] of [
     ["array", 2_000],

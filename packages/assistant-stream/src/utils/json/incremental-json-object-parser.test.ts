@@ -5,15 +5,18 @@ import {
   parsePartialJsonObject,
 } from "./parse-partial-json-object";
 import { IncrementalJsonObjectParser } from "./incremental-json-object-parser";
+import { registerJsonParserBackend } from "./json-parser-backend";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json-value";
 
 const inputs = [
+  '{"n":2.5e+3,"m":0.25,"k":1E2}',
   '{"text":"brace } quote \\" slash \\\\ emoji 😀","nested":{"values":[1,-2.5e3,true,false,null]}}',
   '{"escaped":"line\\nfeed","unicode":"\\uD83D\\uDE00"}',
   '{"duplicate":"first","duplicate":"second","tail":0}',
   '{"constructor":1,"tail":"ok"}',
   '{"2":2,"1":1,"nested":{"10":"ten","0":"zero"}}',
   '{\n  "a" : [ 1 , { "b" : true } ] ,\n  "c" : "d"\n}\n',
+  '{"tag-name":"well-known","n":-2.5e-3}',
 ];
 
 const expectPrefixParity = (input: string) => {
@@ -38,6 +41,95 @@ const expectPrefixParity = (input: string) => {
 };
 
 describe("IncrementalJsonObjectParser", () => {
+  it("falls back when the backend args getter throws during creation", () => {
+    const unregister = registerJsonParserBackend(() => ({
+      get currentArgs(): ReadonlyJSONObject {
+        throw new Error("Backend snapshot unavailable");
+      },
+      append: () => undefined,
+    }));
+
+    try {
+      let text = '{"nested":{"value":"hel';
+      let parser = IncrementalJsonObjectParser.from(text);
+
+      expect(() => parser.currentArgs).not.toThrow();
+      expect(parser.currentArgs).toEqual(parsePartialJsonObject(text));
+      const args = parser.currentArgs;
+      expect(parser.currentArgs).toBe(args);
+
+      for (const delta of ["lo", '"},"ready":', "true}"]) {
+        text += delta;
+        expect(() => {
+          parser = parser.append(delta);
+        }).not.toThrow();
+        expect(parser.currentArgs).toEqual(parsePartialJsonObject(text));
+      }
+      expect(args).toMatchObject({ nested: { value: "hel" } });
+    } finally {
+      unregister();
+    }
+  });
+
+  it("falls back when the backend args getter throws after a successful append", () => {
+    let text = '{"nested":{"value":"hel';
+    const args = parsePartialJsonObject(text)!;
+    const unregister = registerJsonParserBackend(() => ({
+      currentArgs: args,
+      append: () => ({
+        get currentArgs(): ReadonlyJSONObject {
+          throw new Error("Backend snapshot unavailable");
+        },
+        append: () => undefined,
+      }),
+    }));
+
+    try {
+      const initial = IncrementalJsonObjectParser.from(text);
+      expect(initial.currentArgs).toBe(args);
+      let parser = initial;
+
+      for (const delta of ["lo", '"},"ready":', "true}"]) {
+        text += delta;
+        expect(() => {
+          parser = parser.append(delta);
+        }).not.toThrow();
+        expect(() => parser.currentArgs).not.toThrow();
+        expect(parser.currentArgs).toEqual(parsePartialJsonObject(text));
+        const snapshot = parser.currentArgs;
+        expect(parser.currentArgs).toBe(snapshot);
+      }
+      expect(initial.currentArgs).toBe(args);
+      expect(args).toMatchObject({ nested: { value: "hel" } });
+    } finally {
+      unregister();
+    }
+  });
+
+  it.each([false, true])(
+    "preserves caller-owned fallback objects before parsing starts (frozen=%s)",
+    (frozen) => {
+      const nested = { value: 1 };
+      const fallback = { nested };
+      if (frozen) {
+        Object.freeze(nested);
+        Object.freeze(fallback);
+      }
+      for (const text of ["", " "]) {
+        const parser = IncrementalJsonObjectParser.from(text, fallback);
+        expect(parser.currentArgs).toBe(fallback);
+        expect(fallback.nested).toBe(nested);
+        const next = parser.append(" \n");
+        expect(next.currentArgs).toBe(fallback);
+        expect(fallback.nested).toBe(nested);
+        expect(next.append('{"ready":true}').currentArgs).toMatchObject({
+          ready: true,
+        });
+        expect(fallback.nested).toBe(nested);
+      }
+    },
+  );
+
   it.each(inputs)(
     "matches parsePartialJsonObject for every prefix",
     (input) => {
@@ -45,24 +137,28 @@ describe("IncrementalJsonObjectParser", () => {
     },
   );
 
-  it("matches when initialized from an existing prefix", () => {
-    const input = inputs[0]!;
-    let expected = parsePartialJsonObject("")!;
+  it.each(inputs.slice(0, 2))(
+    "matches when initialized from an existing prefix",
+    (input) => {
+      let expected = parsePartialJsonObject("")!;
 
-    for (let cut = 0; cut <= input.length; cut++) {
-      const prefix = input.slice(0, cut);
-      expected = parsePartialJsonObject(prefix) ?? expected;
-      const parser = IncrementalJsonObjectParser.from(prefix);
+      for (let cut = 0; cut <= input.length; cut++) {
+        const prefix = input.slice(0, cut);
+        expected = parsePartialJsonObject(prefix) ?? expected;
+        const parser = IncrementalJsonObjectParser.from(prefix);
 
-      expect(parser.currentArgs, `prefix=${prefix}`).toEqual(expected);
-      expect(getPartialJsonObjectMeta(parser.currentArgs)).toEqual(
-        getPartialJsonObjectMeta(expected),
-      );
-    }
-  });
+        expect(parser.currentArgs, `prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(parser.currentArgs)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+      }
+    },
+  );
 
   it.each([
     '{"value":01,"tail":1}',
+    '{"value":1,"tail":\f2}',
+    '\f{"value":1}',
     '{"value":"\\uZZ","tail":1}',
     '{"__proto__":{"polluted":true},"tail":1}',
     '{"constructor":{"prototype":{"polluted":true}},"tail":1}',
