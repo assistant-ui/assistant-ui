@@ -64,11 +64,7 @@ type ToolCallEntry = {
       controller: ToolCallStreamController;
       argsComplete: boolean;
       clientOwned: boolean;
-      /**
-       * The adapter could not say whose call this is when it was first seen.
-       * Asked again once the run settles, before the call is handed to the
-       * executor. See {@link _resolveDeferredOwnership}.
-       */
+      /** Stays deferred until a settled snapshot releases the call or supplies a result. */
       ownershipDeferred: boolean;
     }
 );
@@ -309,7 +305,11 @@ export class ToolInvocationTracker {
         this._lastSnapshot &&
         this._lastSnapshot.messages === snapshot.messages &&
         this._lastSnapshot.isRunning === snapshot.isRunning &&
-        this._lastSnapshot.isLoading === snapshot.isLoading
+        this._lastSnapshot.isLoading === snapshot.isLoading &&
+        (snapshot.isRunning ||
+          ![...this._entries.values()].some(
+            (entry) => entry.controller && entry.ownershipDeferred,
+          ))
       ) {
         return;
       }
@@ -692,50 +692,42 @@ export class ToolInvocationTracker {
     );
   }
 
+  private _resolveDeferredOwnership(
+    entry: ToolCallEntry,
+    content: ToolCallMessagePart,
+  ): void {
+    if (!entry.controller || !entry.ownershipDeferred || this._isRunning)
+      return;
+    if (content.result !== undefined) {
+      entry.ownershipDeferred = false;
+      return;
+    }
+    const ownership = this._isClientToolCall?.(content);
+    if (ownership === false) return;
+    entry.ownershipDeferred = false;
+    if (ownership === true) entry.clientOwned = true;
+  }
+
   /**
    * Closing the args stream hands the call to the client executor, so it may
    * only happen once the provider can no longer speak about that call. The run
    * ending is the only universal signal for that; an adapter that reports the
    * call as client-owned has said it earlier, per call.
    */
-  /**
-   * A stream can deliver a call and the pause that holds it in separate reads,
-   * so the adapter is asked a second time once the run has settled — the same
-   * point at which the call would otherwise be handed to the executor. The
-   * answer `false` keeps the call with the provider and stops the executor;
-   * `true` lets it close early on the adapter's word.
-   */
-  private _resolveDeferredOwnership(
-    entry: ToolCallEntry,
-    content: ToolCallMessagePart,
-  ): void {
-    // `controller` narrows to the active phase, the only one that can carry a
-    // deferred answer or reach the executor.
-    if (!entry.controller || !entry.ownershipDeferred || this._isRunning)
-      return;
-    entry.ownershipDeferred = false;
-    const ownership = this._isClientToolCall?.(content);
-    if (ownership === false) {
-      if (content.result !== undefined) return;
-      entry.skipExecute = true;
-      this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
-      return;
-    }
-    if (ownership === true) entry.clientOwned = true;
-  }
-
   private _shouldCloseArgsStream({
     argsText,
     hasResult,
     clientOwned,
+    ownershipDeferred,
   }: {
     argsText: string;
     hasResult: boolean;
     clientOwned: boolean;
+    ownershipDeferred: boolean;
   }): boolean {
     if (hasResult) return true;
     if (!isArgsTextComplete(argsText)) return false;
-    return clientOwned || !this._isRunning;
+    return clientOwned || (!this._isRunning && !ownershipDeferred);
   }
 
   private _startActiveEntry(
@@ -843,6 +835,7 @@ export class ToolInvocationTracker {
             argsText: content.argsText,
             hasResult,
             clientOwned: entry.clientOwned,
+            ownershipDeferred: entry.ownershipDeferred,
           });
           if (shouldClose) entry.controller.argsText.close();
           entry.argsText = content.argsText;
@@ -877,6 +870,7 @@ export class ToolInvocationTracker {
           argsText: content.argsText,
           hasResult,
           clientOwned: entry.clientOwned,
+          ownershipDeferred: entry.ownershipDeferred,
         });
         if (shouldClose) entry.controller.argsText.close();
         entry.argsText = content.argsText;
@@ -892,6 +886,7 @@ export class ToolInvocationTracker {
         argsText: entry.argsText,
         hasResult,
         clientOwned: entry.clientOwned,
+        ownershipDeferred: entry.ownershipDeferred,
       });
       if (shouldClose) {
         entry.controller.argsText.close();

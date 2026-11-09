@@ -298,21 +298,16 @@ type ExternalStoreAdapterBase<T> = {
    * that window the call is complete and result-less, so a registered tool
    * of the same name would otherwise execute locally and produce a result
    * the provider never asked for. An adapter that can tell the two apart
-   * supplies this predicate; it is read once per tool call, when the call is
-   * first observed live.
+   * supplies this predicate; it is first read when the call is observed live.
    *
    * The predicate is also what licenses running a frontend tool while the
    * provider's run is still open. Without it, ownership is unknown until the
    * run ends, so a registered tool executes only once the run's outcome is
    * known and cannot fire on a call the provider was about to answer or gate.
    *
-   * Return `undefined` for a call the adapter cannot classify. `false` is a
-   * claim about that call and stays with the run: a caller that only knows
-   * some of its calls are the provider's can name those and leave the rest
-   * unknown, instead of having to answer for every call. An `undefined`
-   * answer is asked again when the run settles, before the call would be
-   * handed to the executor, so an adapter can answer once the pause that
-   * holds the call is visible.
+   * Return `undefined` for a call the adapter cannot classify. An initial `true` or `false` answer is retained for that call. An initial `undefined` defers ownership and is asked again when the run settles, before the call is handed to the executor.
+   *
+   * For a deferred call, `false` keeps the call held without executing, skipping, or warning. The predicate is asked again on every later settled snapshot. An `undefined` answer clears the deferral and allows normal client execution; `true` clears the deferral and marks the call client-owned. A call that already has a result only clears the deferral, without asking the predicate or executing locally.
    *
    * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */

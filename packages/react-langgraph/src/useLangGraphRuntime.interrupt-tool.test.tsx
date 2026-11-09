@@ -10,8 +10,13 @@ import {
 import { useAui } from "@assistant-ui/store";
 import { useMemo, type ReactNode } from "react";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
-import { useLangGraphInterruptState } from "./hooks";
+import { useLangGraphInterruptState, useLangGraphSendCommand } from "./hooks";
 import type { LangChainMessage } from "./types";
+
+vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
+  ...(await import("../../core/src/react")),
+}));
 
 const TOOL_CALL_ID = "tc-1";
 
@@ -34,7 +39,6 @@ const ToolRegistrar = ({
   return null;
 };
 
-/** Reads the pause out of the runtime extras, the way an app would. */
 const InterruptProbe = ({ seen }: { seen: { interrupt?: unknown } }) => {
   seen.interrupt = useLangGraphInterruptState();
   return null;
@@ -69,12 +73,19 @@ const hasToolCall = (runtime: AssistantRuntime) =>
     );
 
 describe("react-langgraph interrupt ownership", () => {
-  it("does not run a same-name frontend tool when the call is read before the pause", async () => {
+  it("holds a call read before the pause and executes it exactly once after resume", async ({
+    onTestFinished,
+  }) => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warnSpy.mockRestore());
     const streamMock = vi.fn(async function* (
       _messages: LangChainMessage[],
       _config: { runConfig?: unknown },
     ) {
-      if (streamMock.mock.calls.length !== 1) return;
+      if (streamMock.mock.calls.length > 2) {
+        yield { event: "updates", data: {} };
+        return;
+      }
       yield {
         event: "messages/complete",
         data: [
@@ -86,13 +97,13 @@ describe("react-langgraph interrupt ownership", () => {
           },
         ],
       };
-      // A real stream reaches the client in separate reads: React renders the
-      // tool node's message before `__interrupt__` arrives, so the call is
-      // observed while the pause is still unknown.
       await new Promise((resolve) => setTimeout(resolve, 0));
       yield {
         event: "updates",
-        data: { __interrupt__: [{ value: "approval-needed" }] },
+        data:
+          streamMock.mock.calls.length === 1
+            ? { __interrupt__: [{ value: "approval-needed" }] }
+            : {},
       };
     });
     const execute = vi.fn(async () => ({ ok: true }));
@@ -102,18 +113,19 @@ describe("react-langgraph interrupt ownership", () => {
     );
     const seen: { interrupt?: unknown } = {};
     const wrapper = wrapperWithTool(runtimeResult.current, execute, seen);
-    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
-
-    await act(async () => {
-      auiResult.current.composer.setText("hi");
-      auiResult.current.composer.send();
-    });
-    await waitFor(() =>
-      expect(auiResult.current.thread.getState().isRunning).toBe(false),
+    const { result: controls } = renderHook(
+      () => ({ aui: useAui(), command: useLangGraphSendCommand() }),
+      { wrapper },
     );
 
-    // Both halves of the pause reached the thread, so the assertion below is
-    // about the tool that was held rather than about an event being dropped.
+    await act(async () => {
+      controls.current.aui.composer.setText("hi");
+      controls.current.aui.composer.send();
+    });
+    await waitFor(() =>
+      expect(controls.current.aui.thread.getState().isRunning).toBe(false),
+    );
+
     await waitFor(() => {
       expect(hasToolCall(runtimeResult.current)).toBe(true);
       expect(seen.interrupt).toBeDefined();
@@ -121,5 +133,37 @@ describe("react-langgraph interrupt ownership", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(streamMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await controls.current.command({ resume: "approved" });
+    });
+    await waitFor(() => {
+      expect(seen.interrupt).toBeUndefined();
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(streamMock).toHaveBeenCalledTimes(3);
+      expect(controls.current.aui.thread.getState().isRunning).toBe(false);
+    });
+    expect(streamMock.mock.calls[1]?.[1]).toMatchObject({
+      command: { resume: "approved" },
+    });
+    expect(streamMock.mock.calls[2]?.[0]).toEqual([
+      expect.objectContaining({
+        type: "tool",
+        tool_call_id: TOOL_CALL_ID,
+        content: '{"ok":true}',
+      }),
+    ]);
+    expect(
+      runtimeResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === "ai-1")?.content,
+    ).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: TOOL_CALL_ID,
+        result: '{"ok":true}',
+      }),
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });
