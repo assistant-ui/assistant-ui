@@ -137,7 +137,7 @@ function ThreadListFixture({
   return (
     <ThreadListRuntime threads={threads}>
       <div className="flex h-full w-full items-center justify-center">
-        <div className="bg-background h-full max-h-120 w-full max-w-72 overflow-y-auto rounded-2xl p-2 shadow-sm">
+        <div className="bg-background h-full max-h-120 w-full max-w-72 overflow-y-auto rounded-2xl border p-2">
           <ThreadList />
         </div>
       </div>

@@ -65,6 +65,7 @@ const CODE = `Add the provider at the root of your app:
 
 \`\`\`tsx
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export function App({ runtime }) {
   return (

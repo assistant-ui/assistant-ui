@@ -32,11 +32,13 @@ async def fetch_forecast(city: str) -> dict:
         res.raise_for_status()
         return res.json()`;
 
-const RUST = `fn main() {
-    let names = vec!["ada", "grace", "linus"];
-    for name in names.iter().filter(|n| n.len() > 3) {
-        println!("hello, {name}");
-    }
+const GLEAM = `import gleam/io
+import gleam/list
+
+pub fn main() {
+  ["ada", "grace", "linus"]
+  |> list.filter(fn(name) { name != "ada" })
+  |> list.each(fn(name) { io.println("hello, " <> name) })
 }`;
 
 const LONG_LINE = `export const config = { runtime: "edge", regions: ["iad1", "sfo1", "fra1", "hnd1"], maxDuration: 30, headers: { "cache-control": "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800" } };`;
@@ -53,7 +55,7 @@ export const states = defineStates([
     key: "unknown-language",
     label: "Unregistered",
     note: "A language with no registered grammar renders as plain monospace text.",
-    Component: () => <Block language="rust" code={RUST} />,
+    Component: () => <Block language="gleam" code={GLEAM} />,
   },
   {
     key: "long-content",

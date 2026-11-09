@@ -162,7 +162,7 @@ export const states = defineStates([
                 },
                 { text: "Attachments", heading: true },
                 {
-                  text: "`SimpleImageAttachmentAdapter` moved to `@assistant-ui/react/attachments`. Update the import path.",
+                  text: "`SimpleImageAttachmentAdapter` is now exported from `@assistant-ui/react`. Update the import path.",
                 },
                 {
                   text: "Uploads larger than 20 MB are rejected before the request starts, with a typed error you can show in the composer.",

@@ -101,7 +101,7 @@ function ComposerFixture({
     <SampleRuntimeProvider adapters={adapters}>
       <SeedFiles files={files} />
       <div className="w-full max-w-xl">
-        <ComposerPrimitive.Root className="border-border bg-muted dark:border-muted-foreground/15 flex w-full flex-col gap-2 rounded-3xl border p-2">
+        <ComposerPrimitive.Root className="border-border bg-muted dark:border-muted-foreground/15 flex w-full flex-col gap-2 rounded-2xl border p-2">
           <ComposerAttachments />
           <ComposerPrimitive.Input
             placeholder="Send a message..."

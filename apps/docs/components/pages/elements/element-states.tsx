@@ -29,11 +29,17 @@ const readStateParam = () =>
 // Fixtures mount only after hydration, so the server always shows the live demo.
 const readServerStateParam = () => null;
 
-function writeStateParam(key: string) {
+// A click adds a history entry, so Back returns to the previous state. Arrow,
+// Home, and End replace it, so stepping through a long list does not fill the
+// back stack.
+type HistoryMode = "push" | "replace";
+
+function writeStateParam(key: string, mode: HistoryMode) {
   const url = new URL(window.location.href);
   if (key === DEFAULT_STATE_KEY) url.searchParams.delete(PARAM);
   else url.searchParams.set(PARAM, key);
-  window.history.pushState(null, "", url);
+  if (mode === "push") window.history.pushState(null, "", url);
+  else window.history.replaceState(null, "", url);
   window.dispatchEvent(new Event(STATE_CHANGE));
 }
 
@@ -61,8 +67,8 @@ export function ElementStatesPreview({
     states?.find((state) => state.key === key) ?? states?.[0] ?? null;
   const Fixture = active?.key === DEFAULT_STATE_KEY ? null : active?.Component;
 
-  const select = (next: string) => {
-    if (next !== active?.key) writeStateParam(next);
+  const select = (next: string, mode: HistoryMode) => {
+    if (next !== active?.key) writeStateParam(next, mode);
   };
 
   return (
@@ -102,7 +108,7 @@ function StateSwitcher({
 }: {
   states: readonly ElementState[];
   activeKey: string;
-  onSelect: (key: string) => void;
+  onSelect: (key: string, mode: HistoryMode) => void;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -117,7 +123,7 @@ function StateSwitcher({
     else if (event.key === "End") next = states.length - 1;
     if (next === null) return;
     event.preventDefault();
-    onSelect(states[next]!.key);
+    onSelect(states[next]!.key, "replace");
     refs.current[next]?.focus();
   };
 
@@ -140,7 +146,7 @@ function StateSwitcher({
             role="radio"
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
-            onClick={() => onSelect(state.key)}
+            onClick={() => onSelect(state.key, "push")}
             className={cn(
               "h-6 shrink-0 rounded-sm px-2 text-xs font-medium whitespace-nowrap transition-colors motion-reduce:transition-none",
               "focus-visible:ring-ring/50 outline-none focus-visible:ring-2",

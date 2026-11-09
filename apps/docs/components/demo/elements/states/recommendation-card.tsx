@@ -65,9 +65,9 @@ export const states = defineStates([
       >
         Users on more than one device see different thread lists today. The
         remote adapter already handles renames and archive, so the switch is a
-        config change in <Code>runtime.ts</Code> plus a one-time backfill of{" "}
-        <Code>~4,200 threads</Code>. Rollback is a flag flip, but threads
-        created while remote is on will not appear in local storage afterward.
+        config change in <Code>runtime.ts</Code> plus a one-time backfill of
+        existing threads. Rollback is a flag flip, but threads created while
+        remote is on will not appear in local storage afterward.
       </RecommendationCard>
     ),
   },

@@ -46,7 +46,7 @@ export const states = defineStates([
   {
     key: "long-content",
     label: "Long input",
-    note: "A long query, request, and result wrap inside the same width.",
+    note: "A long query truncates in the header, while the request and result wrap inside the same width.",
     Component: () => (
       <ToolCall
         {...base}
