@@ -22,10 +22,32 @@ const extraEntries: Record<string, string[]> = {
     "scripts/bundle-fixtures/*.ts",
   ],
   "packages/metro": ["src/__fixtures__/*.cjs"],
+  "packages/remote-components-conformance": [
+    "*.{ts,mjs}",
+    "apps/*/vite.config.ts",
+    "apps/*/src/main.tsx",
+    "components/*.tsx",
+    "host/main.tsx",
+    "scf-shim/server.mjs",
+    "scripts/*.mjs",
+    "tests/*.spec.ts",
+  ],
+  "packages/remote-components-runtime": [
+    "build-script.mjs",
+    "src/script.ts",
+    "src/chunk-*.ts",
+    "src/chunks-script.ts",
+  ],
   "packages/react-devtools": ["src/styles/panel.css"],
   "packages/ui": ["src/**/*.{ts,tsx}"],
   "packages/variants": ["demo/main.tsx", "demo/vite.config.ts"],
   "packages/x-performance": ["fixtures/*.css"],
+};
+
+// Knip's vite plugin loads the config, which imports a workspace package
+// through its unbuilt dist; the config stays an entry and is parsed instead.
+const workspaceOverrides: Record<string, { vite: false }> = {
+  "packages/remote-components-conformance": { vite: false },
 };
 
 const packageWorkspaces = Object.fromEntries(
@@ -43,7 +65,13 @@ const packageWorkspaces = Object.fromEntries(
         ),
       ];
       entry.push(...(extraEntries[dir] ?? []));
-      return [dir, entry.length > 0 ? { entry } : {}];
+      return [
+        dir,
+        {
+          ...(entry.length > 0 ? { entry } : {}),
+          ...workspaceOverrides[dir],
+        },
+      ];
     }),
 );
 
@@ -55,7 +83,12 @@ const config: KnipConfig = {
     "evals",
     "api-surface",
   ],
-  ignore: ["api-surface/**", "scripts/lib/*.d.mts"],
+  ignore: [
+    "api-surface/**",
+    "scripts/lib/*.d.mts",
+    "packages/remote-components-conformance/corpus/generate.mjs",
+    "packages/remote-components-conformance/spikes/**",
+  ],
   ignoreBinaries: ["expo", "vercel", "wrangler"],
   ignoreUnresolved: ["aui-build", "browser-process", /[./]generated$/],
   workspaces: {

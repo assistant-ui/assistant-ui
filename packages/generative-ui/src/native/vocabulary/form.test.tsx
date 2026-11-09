@@ -31,6 +31,178 @@ const input = spec({
 });
 
 describe("Form on React Native", () => {
+  it("clears a bound Input's error border when its rendered value becomes valid", async () => {
+    const rendered = renderNativeSpec(
+      spec(
+        {
+          main: {
+            type: "Form",
+            children: ["name", "send"],
+            on: { submit: { action: "save" } },
+          },
+          name: {
+            type: "Input",
+            props: {
+              name: "name",
+              required: true,
+              defaultValue: { $bindState: "/name" },
+            },
+          },
+          send: { type: "Button", props: { label: "Save", submit: true } },
+        },
+        { name: "" },
+      ),
+      { save: vi.fn() },
+      actions,
+    );
+    const field = rendered.container.querySelector("input")!;
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    const errorBorder = getComputedStyle(field).borderColor;
+    await typeText(field, "Ada");
+    expect(rendered.state.get("/name")).toBe("Ada");
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    expect(getComputedStyle(field).borderColor).not.toBe(errorBorder);
+  });
+
+  it("blocks required and length constrained values until valid", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["name", "send"],
+          on: { submit: { action: "save" } },
+        },
+        name: {
+          type: "Input",
+          props: { name: "name", required: true, minLength: 3, maxLength: 4 },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    const field = rendered.container.querySelector("input")!;
+    const submit = byRole(rendered.container, "button", "Save");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    await typeText(field, "Al");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await typeText(field, "Alice");
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await typeText(field, "Ada");
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
+
+  it("blocks an out-of-range number and an unchecked required checkbox", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["amount", "agree", "send"],
+          on: { submit: { action: "save" } },
+        },
+        amount: {
+          type: "Input",
+          props: { name: "amount", inputType: "number", min: 2, max: 5 },
+        },
+        agree: {
+          type: "Checkbox",
+          props: { name: "agree", label: "Agree", required: true },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    const submit = byRole(rendered.container, "button", "Save");
+    const amount = rendered.container.querySelector("input")!;
+    await typeText(amount, "8");
+    await press(byRole(rendered.container, "checkbox", "Agree"));
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await typeText(amount, "3");
+    await press(byRole(rendered.container, "checkbox", "Agree"));
+    await press(submit);
+    expect(save).not.toHaveBeenCalled();
+    await press(byRole(rendered.container, "checkbox", "Agree"));
+    await press(submit);
+    expect(save).toHaveBeenCalledOnce();
+  });
+  it.each([" ", "0x10"])("blocks malformed number text %j", async (text) => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["amount", "send"],
+          on: { submit: { action: "save" } },
+        },
+        amount: {
+          type: "Input",
+          props: { name: "amount", inputType: "number", min: 0, max: 20 },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    await typeText(rendered.container.querySelector("input")!, text);
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).not.toHaveBeenCalled();
+  });
+  it("accepts an untouched default shorter than minLength", async () => {
+    const save = vi.fn();
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["name", "send"],
+          on: { submit: { action: "save" } },
+        },
+        name: {
+          type: "Input",
+          props: { name: "name", defaultValue: "A", minLength: 3 },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save },
+      actions,
+    );
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(save).toHaveBeenCalledOnce();
+  });
+  it("marks a blocked required checkbox invalid until it is checked", async () => {
+    const rendered = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["agree", "send"],
+          on: { submit: { action: "save" } },
+        },
+        agree: {
+          type: "Checkbox",
+          props: { name: "agree", label: "Agree", required: true },
+        },
+        send: { type: "Button", props: { label: "Save", submit: true } },
+      }),
+      { save: vi.fn() },
+      actions,
+    );
+    const agree = () => byRole(rendered.container, "checkbox", "Agree");
+    expect(agree().hasAttribute("aria-invalid")).toBe(false);
+    await press(byRole(rendered.container, "button", "Save"));
+    expect(agree().getAttribute("aria-invalid")).toBe("true");
+    await press(agree());
+    expect(agree().hasAttribute("aria-invalid")).toBe(false);
+  });
   it.each(["button", "return key (web requestSubmit)"])(
     "submits named values from %s like the web",
     async (trigger) => {

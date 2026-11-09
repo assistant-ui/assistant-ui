@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Spec } from "generative-frame/spec";
+import { createSpecStream, type Spec } from "generative-frame/spec";
 import { toSlackBlocks } from "../slack/toSlackBlocks";
 import { toAdaptiveCard } from "../teams/toAdaptiveCard";
 import { specToUISpec } from "./specToUISpec";
@@ -51,6 +51,71 @@ const order: Spec = {
 };
 
 describe("specToUISpec", () => {
+  it("converts each streamed spec update for Slack and Teams without missing children", () => {
+    const complete: Spec = {
+      root: "card",
+      elements: {
+        card: {
+          type: "Card",
+          props: { title: "Progress" },
+          children: ["first", "second"],
+        },
+        first: { type: "Text", props: { value: "First" } },
+        second: { type: "Text", props: { value: "Second" } },
+      },
+      state: {},
+    };
+    const patches = [
+      { op: "add", path: "/root", value: complete.root },
+      { op: "add", path: "/elements/card", value: complete.elements.card },
+      { op: "add", path: "/elements/first", value: complete.elements.first },
+      { op: "add", path: "/elements/second", value: complete.elements.second },
+    ];
+    const stream = createSpecStream();
+    const slackResults = [];
+    const teamsResults = [];
+
+    for (const [index, patch] of patches.entries()) {
+      const update = stream.push(`${JSON.stringify(patch)}\n`);
+      expect(update.errors).toEqual([]);
+      const tree = specToUISpec(update.spec);
+      expect(tree).toEqual(
+        index === 0
+          ? []
+          : {
+              $type: "Card",
+              title: "Progress",
+              ...(index >= 2
+                ? {
+                    children: [
+                      { $type: "Text", value: "First" },
+                      ...(index >= 3
+                        ? [{ $type: "Text", value: "Second" }]
+                        : []),
+                    ],
+                  }
+                : {}),
+            },
+      );
+      slackResults.push(toSlackBlocks(tree));
+      teamsResults.push(toAdaptiveCard(tree));
+    }
+
+    expect(slackResults[0]?.blocks).toEqual([]);
+    expect(teamsResults[0]?.card.body).toEqual([]);
+    expect(JSON.stringify(slackResults[2]?.blocks)).toContain("First");
+    expect(JSON.stringify(teamsResults[2]?.card)).toContain("First");
+    expect(JSON.stringify(slackResults[2]?.blocks)).not.toContain("Second");
+    expect(JSON.stringify(teamsResults[2]?.card)).not.toContain("Second");
+    expect(stream.result().spec).toEqual(complete);
+    expect(slackResults[3]?.blocks).toEqual(
+      toSlackBlocks(specToUISpec(complete)).blocks,
+    );
+    expect(teamsResults[3]?.card).toEqual(
+      toAdaptiveCard(specToUISpec(complete)).card,
+    );
+  });
+
   it("maps a spec onto the present tree for one state", () => {
     expect(specToUISpec(order)).toEqual({
       $type: "Card",

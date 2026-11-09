@@ -128,7 +128,7 @@ describe("Markdown", () => {
     );
   });
 
-  test("renders an image with its alt text", () => {
+  test("renders an image with its alt text and no referrer before src", () => {
     const { container } = render({
       text: '![a cat](/cat.png "Cat")',
       final: true,
@@ -137,6 +137,11 @@ describe("Markdown", () => {
     expect(image?.getAttribute("src")).toBe("/cat.png");
     expect(image?.getAttribute("alt")).toBe("a cat");
     expect(image?.getAttribute("title")).toBe("Cat");
+    expect(image?.getAttribute("referrerpolicy")).toBe("no-referrer");
+    const attributes = image?.getAttributeNames() ?? [];
+    expect(attributes.indexOf("referrerpolicy")).toBeLessThan(
+      attributes.indexOf("src"),
+    );
   });
 
   test("closes syntax left open at the end until the text is final", async () => {

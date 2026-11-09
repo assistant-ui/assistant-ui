@@ -1027,3 +1027,161 @@ describe("createOAuthProvider persistence across provider instances", () => {
     expect(getState()).toEqual({ serverUrl, codeVerifier: "new-verifier" });
   });
 });
+
+describe("clearOAuthProviderAuthState against live providers", () => {
+  const storedState = (): MCPPersistedAuthState => ({
+    serverUrl,
+    tokens: { access_token: "old-token", token_type: "bearer" },
+    tokensClientId: "client-a",
+  });
+
+  // In-memory storage whose saves wait until released while gated.
+  const createGatedStorage = (initial: MCPPersistedAuthState | null) => {
+    let state = initial;
+    const gates: (() => void)[] = [];
+    let gated = false;
+    const storage: MCPStorage = {
+      scopeId: `clear-race:${Math.random()}`,
+      loadCustomServers: async () => [],
+      saveCustomServers: async () => {},
+      loadAuthState: async () => state,
+      saveAuthState: async (_id, next) => {
+        if (gated) await new Promise<void>((resolve) => gates.push(resolve));
+        state = next;
+      },
+      clearAuthState: async () => {
+        state = null;
+      },
+    };
+    return {
+      storage,
+      getState: () => state,
+      gate: (on: boolean) => {
+        gated = on;
+      },
+      releaseAll: () => {
+        while (gates.length) gates.shift()!();
+      },
+    };
+  };
+
+  const provider = (storage: MCPStorage) =>
+    createOAuthProvider({
+      serverId: "docs",
+      serverUrl,
+      config: { type: "oauth", clientId: "client-a" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+
+  const flush = async () => {
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+  };
+
+  it("does not let a provider built during the clear write the old tokens back", async () => {
+    const s = createGatedStorage(storedState());
+    const oldProvider = provider(s.storage);
+    expect((await oldProvider.tokens())?.access_token).toBe("old-token");
+    s.gate(true);
+    const oldWrite = oldProvider.saveCodeVerifier("old-verifier");
+    await flush();
+    const clear = clearOAuthProviderAuthState(s.storage, "docs");
+    await flush();
+
+    const newProvider = provider(s.storage);
+    const newTokens = newProvider.tokens();
+    await flush();
+    s.gate(false);
+    s.releaseAll();
+    await oldWrite;
+    await clear;
+
+    expect(await newTokens).toBeUndefined();
+    expect(s.getState()).toBeNull();
+    await newProvider.saveCodeVerifier("new-verifier");
+    await flush();
+    expect(s.getState()?.tokens).toBeUndefined();
+    expect(s.getState()?.codeVerifier).toBe("new-verifier");
+  });
+
+  it("does not let the clear wipe a save made by a provider built during it", async () => {
+    const s = createGatedStorage(storedState());
+    const oldProvider = provider(s.storage);
+    await oldProvider.tokens();
+    s.gate(true);
+    const oldWrite = oldProvider.saveCodeVerifier("old-verifier");
+    await flush();
+    const clear = clearOAuthProviderAuthState(s.storage, "docs");
+    await flush();
+    s.gate(false);
+
+    const newProvider = provider(s.storage);
+    const newTokens = newProvider.tokens();
+    const newWrite = newProvider.saveCodeVerifier("new-verifier");
+    await flush();
+    s.releaseAll();
+    await oldWrite;
+    await clear;
+    await newWrite;
+    await flush();
+
+    expect(await newTokens).toBeUndefined();
+    expect(s.getState()?.codeVerifier).toBe("new-verifier");
+    expect(s.getState()?.tokens).toBeUndefined();
+    expect(await newProvider.codeVerifier()).toBe("new-verifier");
+  });
+
+  it("runs a clear issued while another is pending after it", async () => {
+    const s = createGatedStorage(storedState());
+    const order: string[] = [];
+    const releases: (() => void)[] = [];
+    s.storage.clearAuthState = async () => {
+      const n = releases.length + 1;
+      order.push(`start ${n}`);
+      if (n === 1) await new Promise<void>((resolve) => releases.push(resolve));
+      else releases.push(() => {});
+      order.push(`end ${n}`);
+    };
+    await provider(s.storage).tokens();
+
+    const first = clearOAuthProviderAuthState(s.storage, "docs");
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    const second = clearOAuthProviderAuthState(s.storage, "docs");
+    await flush();
+    expect(order).toEqual(["start 1"]);
+    releases[0]!();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["start 1", "end 1", "start 2", "end 2"]);
+  });
+
+  it("registers the clear before clearAuthState runs", async () => {
+    const s = createGatedStorage(null);
+    let inner: ReturnType<typeof provider> | undefined;
+    let innerTokens: unknown;
+    let cleared = false;
+    s.storage.loadAuthState = async () => (cleared ? null : storedState());
+    s.storage.clearAuthState = async () => {
+      inner = provider(s.storage);
+      innerTokens = inner.tokens();
+      await flush();
+      cleared = true;
+    };
+
+    await clearOAuthProviderAuthState(s.storage, "docs");
+    expect(await innerTokens).toBeUndefined();
+  });
+
+  it("keeps later providers working when a clear fails", async () => {
+    const s = createGatedStorage(storedState());
+    s.storage.clearAuthState = async () => {
+      throw new Error("storage offline");
+    };
+    await provider(s.storage).tokens();
+    const clear = clearOAuthProviderAuthState(s.storage, "docs");
+    const next = provider(s.storage);
+    await expect(clear).rejects.toThrow("storage offline");
+    await next.saveCodeVerifier("v");
+    expect(s.getState()?.codeVerifier).toBe("v");
+  });
+});

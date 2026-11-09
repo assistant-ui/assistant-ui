@@ -52,6 +52,7 @@ export const createSSEJsonDecoder =
   <T>(options: SSEJsonDecoderOptions<T>) =>
   (readable: ReadableStream<Uint8Array<ArrayBuffer>>) => {
     let receivedDone = false;
+    const done = options.done;
 
     // Let the SSE parser consume the single permitted leading BOM.
     return readable
@@ -60,6 +61,11 @@ export const createSSEJsonDecoder =
         new SSEEventDecoderStream({
           maxLineLength: options.maxLineLength,
           maxEventLength: options.maxEventLength,
+          stopAfter: done
+            ? (event) =>
+                (event.event || "message") === "message" &&
+                event.data === done.marker
+            : undefined,
         }),
       )
       .pipeThrough(

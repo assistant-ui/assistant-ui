@@ -1,0 +1,54 @@
+<analysis>Three columns side by side, cards draggable between them (HTML5 drag-and-drop for mouse) plus per-card move buttons so the board still works by keyboard and on touch screens. Each column gets a live card count. Colours come from the theme variables with fallbacks, and the page background stays transparent.</analysis>
+<!DOCTYPE html>
+<html><head><style>
+body{margin:0;font-family:var(--font-sans,sans-serif);color:var(--color-text)}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:8px}
+.col{background:var(--color-surface,#f4f4f5);border:1px solid var(--color-border,#ddd);border-radius:var(--radius-md,8px);padding:8px;min-height:180px;min-width:0}
+.col.over{outline:2px dashed var(--color-accent,#3b82f6)}
+h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between}
+h3 span{color:var(--color-text-muted,#888);font-weight:normal}
+.card{background:var(--color-surface,#fff);border:1px solid var(--color-border,#ddd);border-left:3px solid var(--color-accent,#3b82f6);border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:13px;cursor:grab}
+.card.drag{opacity:.4}
+.moves{display:flex;justify-content:flex-end;gap:4px;margin-top:4px}
+.moves button{font:inherit;font-size:12px;line-height:1;padding:3px 7px;border:1px solid var(--color-border,#ccc);border-radius:4px;background:transparent;color:var(--color-text-muted,#666);cursor:pointer}
+.moves button:hover{color:var(--color-accent,#3b82f6);border-color:var(--color-accent,#3b82f6)}
+</style></head><body>
+<div class="board">
+<div class="col" data-col="todo"><h3>To do <span></span></h3>
+<div class="card" draggable="true">Write project brief</div>
+<div class="card" draggable="true">Design landing page</div>
+<div class="card" draggable="true">Set up analytics</div></div>
+<div class="col" data-col="doing"><h3>Doing <span></span></h3>
+<div class="card" draggable="true">Build API endpoints</div>
+<div class="card" draggable="true">User interviews</div></div>
+<div class="col" data-col="done"><h3>Done <span></span></h3>
+<div class="card" draggable="true">Kickoff meeting</div></div>
+</div>
+<script>
+const cols=[...document.querySelectorAll('.col')];let dragged;
+const count=()=>cols.forEach(c=>c.querySelector('h3 span').textContent=c.querySelectorAll('.card').length);
+function bindCard(card){
+  card.addEventListener('dragstart',()=>{dragged=card;card.classList.add('drag')});
+  card.addEventListener('dragend',()=>card.classList.remove('drag'));
+  const moves=document.createElement('div');moves.className='moves';
+  [['←',-1,'Move to previous column'],['→',1,'Move to next column']].forEach(([label,dir,name])=>{
+    const b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-label',name);
+    b.addEventListener('click',()=>{
+      const i=cols.indexOf(card.closest('.col'))+dir;
+      if(i<0||i>=cols.length)return;
+      cols[i].appendChild(card);count();b.focus();
+    });
+    moves.appendChild(b);
+  });
+  card.appendChild(moves);
+}
+document.querySelectorAll('.card').forEach(bindCard);
+cols.forEach(c=>{
+  c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('over');
+    const after=[...c.querySelectorAll('.card:not(.drag)')].find(x=>e.clientY<x.getBoundingClientRect().top+x.offsetHeight/2);
+    after?c.insertBefore(dragged,after):c.appendChild(dragged)});
+  c.addEventListener('dragleave',()=>c.classList.remove('over'));
+  c.addEventListener('drop',()=>{c.classList.remove('over');count()});
+});
+count();
+</script></body></html>

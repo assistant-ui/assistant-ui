@@ -1,0 +1,100 @@
+---
+title: Layout
+description: A remote lays out like its content in a block. Width comes from your layout. Height comes from the content.
+---
+
+import {
+  CenteredDemo,
+  NoteDemo,
+  PanelDemo,
+  TagsDemo,
+} from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+The element you style is the *slot*. `className` and `style` on `<RemoteComponent>` go to it. Think of it as a `<div style="display: flow-root">` around the page's content.
+
+Inside the frame, the page's `<html>` element is the slot. The runtime owns its box: width, height, position, margin, padding, border and overflow. Everything inside it is yours, and your CSS wins there. The body has no default margin.
+
+## Width and height
+
+The host sends the exact width, fractions included. The remote measures its height at that width and reports it back. Drag the slider.
+
+<NoteDemo />
+
+```tsx title="host.tsx"
+<div style={{ width }}>
+  <RemoteComponent
+    src="https://widgets.example/note.html"
+    title="Quarterly report"
+    text="Revenue grew in every region…"
+  />
+</div>
+```
+
+<RemoteSource name="note" />
+
+## Flex, grid and fit-content
+
+The remote also reports its min-content and max-content widths. Shrink-to-fit layouts use them like they would for inline content. The tags take their natural width, then wrap when there is no room.
+
+<TagsDemo />
+
+```tsx title="host.tsx"
+<div style={{ display: "flex", gap: 8 }}>
+  <span>Labels</span>
+  <RemoteComponent src={tagsUrl} tags={tags} style={{ flex: "0 1 auto", minWidth: 0 }} />
+  <span>Edit</span>
+</div>
+
+<div style={{ display: "grid", gridTemplateColumns: "auto minmax(min-content, max-content) auto", gap: 8 }}>
+  <span>Labels</span>
+  <RemoteComponent src={tagsUrl} tags={tags} />
+  <span>Edit</span>
+</div>
+
+<span>Labels</span>
+<RemoteComponent src={tagsUrl} tags={tags} style={{ width: "fit-content", maxWidth: "100%" }} />
+<span>Edit</span>
+```
+
+<RemoteSource name="tags" />
+
+## Filling the slot
+
+When the slot has a definite height, percentage heights in the remote resolve against it. That covers flex and grid stretch, `flex: 1` in a column, `aspect-ratio` and fixed heights. Otherwise `height: 100%` behaves as auto.
+
+<PanelDemo />
+
+```tsx title="host.tsx"
+<div style={{ display: "flex", gap: 8, height }}>
+  <nav>Sidebar</nav>
+  <RemoteComponent src={panelUrl} title="Remote panel" style={{ flex: 1 }} />
+</div>
+```
+
+<RemoteSource name="panel" />
+
+## The slot is the viewport
+
+Pages are often written for a browser window. They use `100vh` and center themselves in it. In a frame that grows with its content, that would loop: the content fills the viewport, the viewport grows, and so on.
+
+So inside a remote, `vh` means the slot. With a height you set, `100vh` is that height. With an auto height, `height` and `min-height` in `vh` become auto, and the content decides. The page below sets `min-height: 100vh` on its body.
+
+<CenteredDemo />
+
+```tsx title="host.tsx"
+<RemoteComponent src="https://widgets.example/centered.html" style={{ height }} />
+```
+
+<RemoteSource name="centered" />
+
+`vw` is the slot width. Container queries and `cq` units see your containers, even when the slot sits inside a wider one. The rewrite covers stylesheets from the page's origin, inline styles and CSS-in-JS. JavaScript that reads `innerHeight` still sees the frame.
+
+## What does not cross
+
+- Baselines. The slot has no text baseline, so baseline alignment uses its bottom edge.
+- Overflow past a height you constrain is clipped by the frame.
+- `position: fixed` is relative to the slot. A fixed bar sits at the bottom of the component. To draw outside it, use an [overlay](/remote-components/docs/overlays).
+- LCD text anti-aliasing. Text in a transparent frame is grayscale.
+
+Margins inside the page don't collapse through the slot, as with `flow-root`.
