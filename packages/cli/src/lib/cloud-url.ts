@@ -1,12 +1,7 @@
-const isLoopbackHostname = (hostname: string): boolean => {
-  const host = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
-  return (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    /^127(?:\.\d{1,3}){3}$/.test(host) ||
-    host === "[::1]"
-  );
-};
+const isLoopbackHostname = (hostname: string): boolean =>
+  hostname === "localhost" ||
+  hostname === "[::1]" ||
+  /^127(?:\.\d{1,3}){3}$/.test(hostname);
 
 export const validateCloudUrl = (value: string): string => {
   const url = new URL(value);

@@ -108,7 +108,14 @@ describe("cloud login", () => {
     expect(validateCloudUrl("http://localhost:3000")).toBe(
       "http://localhost:3000",
     );
+    expect(validateCloudUrl("http://127.1.2.3:3000")).toBe(
+      "http://127.1.2.3:3000",
+    );
+    expect(validateCloudUrl("http://[::1]:3000")).toBe("http://[::1]:3000");
     expect(() => validateCloudUrl("http://cloud.example.com")).toThrow("HTTPS");
+    expect(() => validateCloudUrl("http://dev.localhost:3000")).toThrow();
+    expect(() => validateCloudUrl("http://localhost.:3000")).toThrow();
+    expect(() => validateCloudUrl("http://127.1.2.3.example.com")).toThrow();
     expect(() =>
       validateCloudUrl("https://cloud.example.com?key=secret"),
     ).toThrow();

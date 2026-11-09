@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-fix(cli): accept the same loopback hosts as the MCP URL guard
+accept any 127.0.0.0/8 address for plain HTTP cloud, accounts and setup URLs during development
