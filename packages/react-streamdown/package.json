@@ -30,11 +30,12 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:types:peer-code-v1",
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
+    "test:types:peer-code-v1": "tsc --noEmit --project tsconfig.peer-code-v1.json",
     "test:watch": "vitest",
     "bench": "vitest bench --run"
   },
@@ -51,7 +52,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
-    "@streamdown/code": "^1.0.0",
+    "@streamdown/code": "^1.0.0 || ^2.0.0",
     "@streamdown/cjk": "^1.0.0",
     "@streamdown/math": "^1.0.0",
     "@streamdown/mermaid": "^1.0.0",
@@ -80,7 +81,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@streamdown/cjk": "^1.0.4",
-    "@streamdown/code": "^1.1.1",
+    "@streamdown/code": "^2.0.0",
+    "@streamdown/code-v1": "npm:@streamdown/code@^1.1.1",
     "@streamdown/math": "^1.0.3",
     "@streamdown/mermaid": "^1.0.3",
     "@testing-library/react": "^16.3.3",

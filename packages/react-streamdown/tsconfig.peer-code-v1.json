@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@streamdown/code": ["./node_modules/@streamdown/code-v1"]
+    }
+  }
+}
