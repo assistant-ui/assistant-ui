@@ -345,19 +345,47 @@ async def test_propagates_producer_errors_to_consumers() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("cancel_from_source", [False, True])
-@pytest.mark.parametrize("reason", [None, "producer stopped"])
+@pytest.mark.parametrize(
+    ("cancel_from_source", "reason", "hook_error"),
+    [
+        (False, None, "none"),
+        (False, "producer stopped", "none"),
+        (True, None, "none"),
+        (True, "producer stopped", "none"),
+        (False, "producer stopped", "reraise"),
+        (True, None, "replace"),
+    ],
+)
 async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
-    cancel_from_source: bool, reason: str | None,
+    cancel_from_source: bool, reason: str | None, hook_error: str,
 ) -> None:
     tasks: list[asyncio.Task[None]] = []
+    propagated: list[asyncio.CancelledError] = []
     release = asyncio.Event()
     errors: list[object] = []
     finalizes: list[tuple[str, str, str | None]] = []
+    def record_cancellation(task: asyncio.Task[None]) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError as error:
+            propagated.append(error)
+
+    def track_task(task: asyncio.Task[None]) -> None:
+        tasks.append(task)
+        task.add_done_callback(record_cancellation)
+
+    def on_error(_id: str, error: object) -> None:
+        errors.append(error)
+        if hook_error == "reraise":
+            assert isinstance(error, asyncio.CancelledError)
+            raise error
+        if hook_error == "replace":
+            raise asyncio.CancelledError("hook stopped")
+
     ctx = create_resumable_stream_context(
         store=create_in_memory_resumable_stream_store(),
-        wait_until=tasks.append,
-        on_error=lambda _id, error: errors.append(error),
+        wait_until=track_task,
+        on_error=on_error,
         on_finalize=lambda stream_id, status, error: finalizes.append(
             (stream_id, status, error)
         ),
@@ -394,6 +422,9 @@ async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
     assert len(errors) == 1
     assert isinstance(errors[0], asyncio.CancelledError)
     assert finalizes == [("a", "error", message)]
+
+    assert len(propagated) == 1
+    assert propagated[0] is errors[0]
 
 
 @pytest.mark.anyio
@@ -509,26 +540,39 @@ async def test_on_finalize_and_on_error_fire_on_failure() -> None:
 
 
 @pytest.mark.anyio
-async def test_raising_on_acquire_does_not_break_producer_pipeline() -> None:
-    def boom_acquire(_id: str, _role: str) -> None:
-        raise RuntimeError("hook-acquire-boom")
+@pytest.mark.parametrize("hook_name", ["on_acquire", "on_append", "on_finalize"])
+@pytest.mark.parametrize("error_type", [RuntimeError, asyncio.CancelledError])
+async def test_raising_hooks_do_not_break_producer_pipeline(
+    hook_name: str, error_type: type[BaseException],
+) -> None:
+    def failing_hook(*_args: object) -> None:
+        raise error_type("hook failed")
 
+    tasks: list[asyncio.Task[None]] = []
     ctx = create_resumable_stream_context(
         store=create_in_memory_resumable_stream_store(),
-        on_acquire=boom_acquire,
+        wait_until=tasks.append,
+        **{hook_name: failing_hook},
     )
     stream = await ctx.run("a", lambda: _make_string_stream(["hello ", "world"]))
+    await asyncio.wait(tasks)
+    assert not tasks[0].cancelled()
     assert await _collect(stream) == "hello world"
     assert await ctx.status("a") == "done"
 
 
 @pytest.mark.anyio
-async def test_raising_on_error_still_finalizes_error_status() -> None:
+@pytest.mark.parametrize("error_type", [RuntimeError, asyncio.CancelledError])
+async def test_raising_on_error_still_finalizes_error_status(
+    error_type: type[BaseException],
+) -> None:
     def boom_error(_id: str, _err: object) -> None:
-        raise RuntimeError("hook-error-boom")
+        raise error_type("hook-error-boom")
 
+    tasks: list[asyncio.Task[None]] = []
     ctx = create_resumable_stream_context(
         store=create_in_memory_resumable_stream_store(),
+        wait_until=tasks.append,
         on_error=boom_error,
     )
 
@@ -537,6 +581,26 @@ async def test_raising_on_error_still_finalizes_error_status() -> None:
         raise Exception("producer-failed")
 
     stream = await ctx.run("a", lambda: failing())
+    await asyncio.wait(tasks)
+    assert await ctx.status("a") == "error"
     with pytest.raises(Exception, match="producer-failed"):
         await _collect(stream)
     assert await ctx.status("a") == "error"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("error_type", [KeyboardInterrupt, SystemExit])
+async def test_hooks_preserve_process_exit_signals(
+    error_type: type[BaseException],
+) -> None:
+    error = error_type("exit")
+
+    def exit_hook(_id: str, _role: str) -> None:
+        raise error
+
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store(), on_acquire=exit_hook,
+    )
+    with pytest.raises(error_type) as exc:
+        await ctx.run("a", lambda: _make_string_stream(["unused"]))
+    assert exc.value is error

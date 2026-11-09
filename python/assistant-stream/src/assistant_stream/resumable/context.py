@@ -30,7 +30,7 @@ def _call_hook(hook: Callable[..., Any] | None, /, *args: Any) -> None:
         return
     try:
         hook(*args)
-    except Exception:
+    except (Exception, asyncio.CancelledError):
         _hook_logger.debug("resumable stream hook failed: %r", hook, exc_info=True)
 
 
