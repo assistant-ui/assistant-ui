@@ -833,7 +833,13 @@ const AssistantMessage: FC = () => {
         className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
       >
         <BranchPicker />
-        <AssistantActionBar />
+        <AuiIf
+          condition={(s) =>
+            runStatusCode(s.message.status) !== "run_in_progress"
+          }
+        >
+          <AssistantActionBar />
+        </AuiIf>
       </div>
     </MessagePrimitive.Root>
   );
