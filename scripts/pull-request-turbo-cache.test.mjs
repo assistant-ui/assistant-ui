@@ -28,12 +28,27 @@ const shards = coverage
   .map((shard) => shard.trim());
 
 const jobs = [
-  ["code-quality.yaml", "build", "Build packages"],
-  ["code-quality.yaml", "typecheck", "Typecheck"],
-  ["autofix.yaml", "autofix", "Update API surface snapshots"],
+  [
+    "code-quality.yaml",
+    "build",
+    "Build packages",
+    "github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'",
+  ],
+  [
+    "code-quality.yaml",
+    "typecheck",
+    "Typecheck",
+    "github.event_name == 'pull_request' && steps.tasks.outputs.run == 'true'",
+  ],
+  [
+    "autofix.yaml",
+    "autofix",
+    "Update API surface snapshots",
+    "github.event_name == 'pull_request'",
+  ],
 ];
 
-for (const [file, job, turboStep] of jobs) {
+for (const [file, job, turboStep, restoreGate] of jobs) {
   test(`${job} restores every coverage shard's Turbo cache on pull requests before ${turboStep}`, () => {
     assert(saveKey?.includes("${{ matrix.shard }}"));
     assert(shards?.length);
@@ -41,6 +56,12 @@ for (const [file, job, turboStep] of jobs) {
     const names = all.map((step) => step.match(/^name: (.+)$/m)?.[1]);
     const turbo = names.indexOf(turboStep);
     assert.notEqual(turbo, -1);
+    assert.equal(
+      names.filter((name) =>
+        name?.startsWith("Restore main's coverage Turbo cache, shard "),
+      ).length,
+      shards.length,
+    );
     for (const shard of shards) {
       const index = names.indexOf(
         `Restore main's coverage Turbo cache, shard ${shard}`,
@@ -48,10 +69,7 @@ for (const [file, job, turboStep] of jobs) {
       assert.notEqual(index, -1, `shard ${shard}`);
       assert(index < turbo);
       const restore = all[index];
-      assert.match(
-        field(restore, "if"),
-        /^github\.event_name == 'pull_request'( &&|$)/,
-      );
+      assert.equal(field(restore, "if"), restoreGate);
       assert.match(field(restore, "uses"), /^actions\/cache\/restore@/);
       assert.equal(field(restore, "path"), ".turbo/cache");
       const key = saveKey.replace("${{ matrix.shard }}", shard);
