@@ -1598,7 +1598,14 @@ export class LocalThreadRuntimeCore
           updateMessage(r);
         }
       } else {
-        updateMessage(await promiseOrGenerator);
+        const result = await promiseOrGenerator;
+        if (
+          !abortSignal.aborted ||
+          (abortSignal.reason instanceof AbortError &&
+            abortSignal.reason.detach)
+        ) {
+          updateMessage(result);
+        }
       }
 
       if (shouldCancelMessage()) {
