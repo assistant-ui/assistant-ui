@@ -86,11 +86,17 @@ describe("published stylesheets", () => {
   });
 
   it("hides only the footer's duplicate edit link beside a filled rail", () => {
-    expect(themeCss()).toContain(
-      '[data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"]) .fd-page-footer > a',
+    expect(themeSelectors()).toContain(
+      '[data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"]) .fd-page-footer > a[href*="/edit/"]',
     );
     expect(themeCss()).not.toContain(
       ".fd-page-footer:not(:has(.fd-last-updated-footer))",
+    );
+  });
+
+  it("keeps the fixed sidebar width on the Next layout only", () => {
+    expect(themeCss()).toMatch(
+      /\.aui-docs #nd-docs-layout \{\s*--fd-sidebar-width: 260px !important;/,
     );
   });
 

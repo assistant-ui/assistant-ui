@@ -166,6 +166,16 @@ it("renders the assistant-ui chrome from the theme in the shared layout", async 
     expect(rail?.textContent).toContain("View as Markdown");
     expect(rail?.textContent).not.toContain("Ask AI");
     expect(container.querySelector(".aui-docs")).toBeNull();
+    const trigger = titleRow?.querySelector<HTMLElement>(
+      ".fd-page-actions-menu-trigger",
+    );
+    await act(async () => trigger?.click());
+    const menu = document.querySelector(".fd-page-actions-menu");
+    expect(menu?.textContent).toContain("Copy page");
+    expect(menu?.textContent).toContain("Markdown, ready to paste into an LLM");
+    expect(menu?.textContent).toContain("Open in Codex");
+    expect(menu?.textContent).toContain("Open Codex in ChatGPT");
+    expect(menu?.textContent).not.toContain("Copy MCP server URL");
   } finally {
     await unmount();
   }

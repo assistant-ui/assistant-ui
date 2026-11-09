@@ -861,6 +861,7 @@ html.dark
     display: flex;
   }
 
+  /* createDocsLayout keeps its fixed 260px rail; the shared layout reads ui.layout.sidebarWidth. */
   .aui-docs #nd-docs-layout {
     --fd-sidebar-width: 260px !important;
   }
@@ -1450,9 +1451,11 @@ body:has([data-fd-theme="assistant-ui"])
 }
 
 @media (min-width: 1280px) {
-  [data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"]) .fd-page-footer > a,
   [data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"])
-    .fd-page-footer:not(:has(> :not(a))) {
+    .fd-page-footer
+    > a[href*="/edit/"],
+  [data-fd-theme="assistant-ui"]:has(#nd-toc a[href^="#"])
+    .fd-page-footer:not(:has(> :not(a), > a:not([href*="/edit/"]))) {
     display: none;
   }
 }
