@@ -5,6 +5,7 @@ import {
   parsePartialJsonObject,
 } from "./parse-partial-json-object";
 import { IncrementalJsonObjectParser } from "./incremental-json-object-parser";
+import { registerJsonParserBackend } from "./json-parser-backend";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json-value";
 
 const inputs = [
@@ -40,6 +41,71 @@ const expectPrefixParity = (input: string) => {
 };
 
 describe("IncrementalJsonObjectParser", () => {
+  it("falls back when the backend args getter throws during creation", () => {
+    const unregister = registerJsonParserBackend(() => ({
+      get currentArgs(): ReadonlyJSONObject {
+        throw new Error("Backend snapshot unavailable");
+      },
+      append: () => undefined,
+    }));
+
+    try {
+      let text = '{"nested":{"value":"hel';
+      let parser = IncrementalJsonObjectParser.from(text);
+
+      expect(() => parser.currentArgs).not.toThrow();
+      expect(parser.currentArgs).toEqual(parsePartialJsonObject(text));
+      const args = parser.currentArgs;
+      expect(parser.currentArgs).toBe(args);
+
+      for (const delta of ["lo", '"},"ready":', "true}"]) {
+        text += delta;
+        expect(() => {
+          parser = parser.append(delta);
+        }).not.toThrow();
+        expect(parser.currentArgs).toEqual(parsePartialJsonObject(text));
+      }
+      expect(args).toMatchObject({ nested: { value: "hel" } });
+    } finally {
+      unregister();
+    }
+  });
+
+  it("falls back when the backend args getter throws after a successful append", () => {
+    let text = '{"nested":{"value":"hel';
+    const args = parsePartialJsonObject(text)!;
+    const unregister = registerJsonParserBackend(() => ({
+      currentArgs: args,
+      append: () => ({
+        get currentArgs(): ReadonlyJSONObject {
+          throw new Error("Backend snapshot unavailable");
+        },
+        append: () => undefined,
+      }),
+    }));
+
+    try {
+      const initial = IncrementalJsonObjectParser.from(text);
+      expect(initial.currentArgs).toBe(args);
+      let parser = initial;
+
+      for (const delta of ["lo", '"},"ready":', "true}"]) {
+        text += delta;
+        expect(() => {
+          parser = parser.append(delta);
+        }).not.toThrow();
+        expect(() => parser.currentArgs).not.toThrow();
+        expect(parser.currentArgs).toEqual(parsePartialJsonObject(text));
+        const snapshot = parser.currentArgs;
+        expect(parser.currentArgs).toBe(snapshot);
+      }
+      expect(initial.currentArgs).toBe(args);
+      expect(args).toMatchObject({ nested: { value: "hel" } });
+    } finally {
+      unregister();
+    }
+  });
+
   it.each([false, true])(
     "preserves caller-owned fallback objects before parsing starts (frozen=%s)",
     (frozen) => {

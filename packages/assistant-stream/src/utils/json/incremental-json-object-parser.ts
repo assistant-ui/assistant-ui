@@ -214,15 +214,22 @@ export class IncrementalJsonObjectParser {
       return parser;
     }
     if (allowBackend) {
-      parser.backend = createJsonParserBackend({
-        text,
-        fallback,
-        createSnapshot: (value, state, partialPath) =>
-          materializeArgsSnapshot(
-            createArgsSnapshot(value, state, [...partialPath]),
-          ),
-      });
-      if (parser.backend) return parser;
+      try {
+        parser.backend = createJsonParserBackend({
+          text,
+          fallback,
+          createSnapshot: (value, state, partialPath) =>
+            materializeArgsSnapshot(
+              createArgsSnapshot(value, state, [...partialPath]),
+            ),
+        });
+        if (parser.backend) {
+          parser.publishedArgs = parser.backend.currentArgs;
+          return parser;
+        }
+      } catch {
+        parser.backend = undefined;
+      }
     }
     parser.consumeDelta(text, true);
     parser.args = parser.snapshot(fallback);
@@ -237,18 +244,17 @@ export class IncrementalJsonObjectParser {
   }
 
   get currentArgs() {
-    return (
-      this.backend?.currentArgs ??
-      (this.publishedArgs ??= materializeArgsSnapshot(this.args))
-    );
+    return (this.publishedArgs ??= materializeArgsSnapshot(this.args));
   }
 
   append(delta: string) {
     if (delta.length === 0) return this;
     if (this.backend) {
       let backend: JsonParserBackend | undefined;
+      let args: ReadonlyJSONObject | undefined;
       try {
         backend = this.backend.append(delta);
+        args = backend?.currentArgs;
       } catch {
         backend = undefined;
       }
@@ -260,6 +266,7 @@ export class IncrementalJsonObjectParser {
         );
       const parser = new IncrementalJsonObjectParser(this.args);
       parser.backend = backend;
+      parser.publishedArgs = args;
       parser.text = {
         length: this.currentTextLength + delta.length,
         previous: this.text,
