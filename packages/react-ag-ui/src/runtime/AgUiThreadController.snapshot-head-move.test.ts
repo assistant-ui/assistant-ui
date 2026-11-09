@@ -278,6 +278,108 @@ describe("AgUiThreadController snapshot head moves", () => {
     ).toEqual([{ type: "text", text: "Next step." }]);
   });
 
+  it.each([
+    {
+      name: "finish",
+      terminal: {
+        type: "SUBAGENT_FINISHED",
+        subagentRunId: "sub",
+        result: "worker result",
+      },
+      status: { type: "complete", reason: "unknown" },
+      metadata: { result: "worker result" },
+    },
+    {
+      name: "error",
+      terminal: {
+        type: "SUBAGENT_ERROR",
+        subagentRunId: "sub",
+        message: "worker failed",
+        code: "WORKER_FAILED",
+      },
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: "worker failed",
+      },
+      metadata: { errorCode: "WORKER_FAILED" },
+    },
+  ])(
+    "routes late sub-agent text and $name to the moved-off answer",
+    async ({ terminal, status, metadata }) => {
+      const core = createController((wire) => [
+        start,
+        ...answerText,
+        ...taskCallEvents,
+        {
+          type: "SUBAGENT_STARTED",
+          subagentRunId: "sub",
+          name: "worker",
+          parentToolCallId: "task",
+        },
+        {
+          type: "TEXT_MESSAGE_START",
+          messageId: "s1",
+          role: "assistant",
+          subagentRunId: "sub",
+        },
+        {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "s1",
+          delta: "working",
+          subagentRunId: "sub",
+        },
+        { type: "TEXT_MESSAGE_END", messageId: "s1", subagentRunId: "sub" },
+        snapshot(wire, otherRecord),
+        {
+          type: "TEXT_MESSAGE_START",
+          messageId: "s2",
+          role: "assistant",
+          subagentRunId: "sub",
+        },
+        {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "s2",
+          delta: " still working",
+          subagentRunId: "sub",
+        },
+        { type: "TEXT_MESSAGE_END", messageId: "s2", subagentRunId: "sub" },
+        terminal,
+        taskResult,
+        finished,
+      ]);
+      await core.append(userMessage);
+
+      const answer = core.getMessages().find(({ id }) => id === "answer");
+      const other = core.getMessages().find(({ id }) => id === "other");
+      const nested = statuses(core);
+      const taskCall = taskPartFor(core, "answer");
+
+      expect(taskCall).toMatchObject({
+        messages: [
+          {
+            id: "sub",
+            content: [
+              { type: "text", text: "working" },
+              { type: "text", text: " still working" },
+            ],
+            status,
+            metadata: { custom: { agui: metadata } },
+          },
+        ],
+      });
+      expect(nested).toEqual({
+        answer: "complete",
+        subagent: status.type,
+      });
+      expect(answer?.content).not.toContainEqual({
+        type: "text",
+        text: "still working",
+      });
+      expect(other?.content).toEqual([{ type: "text", text: "Next step." }]);
+    },
+  );
+
   it.each([false, true])(
     "preserves current text when the moved result arrives during streaming: %s",
     async (duringStreaming) => {

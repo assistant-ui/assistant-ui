@@ -2136,11 +2136,53 @@ export class AgUiThreadController {
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
-    const aggregator = new RunAggregator({
+    const historicalAggregators = new Map<RunAggregator, string>();
+    const subagentAggregators = new Map<string, RunAggregator>();
+    const aggregatorsByMessageId = new Map<string, RunAggregator>();
+    let aggregator = new RunAggregator({
       showThinking: this.showThinking,
       joinStrategy,
       logger: this.logger,
-      emit: (update) => {
+      emit: (update, source) => {
+        const historicalOwnerId = source
+          ? historicalAggregators.get(source)
+          : undefined;
+        if (historicalOwnerId !== undefined) {
+          const current =
+            this.session.tryGetMessage(historicalOwnerId)?.message;
+          if (current?.role !== "assistant") return;
+          const incomingCalls = update.content
+            ? new Map(
+                Array.from(
+                  iterateToolCallParts(
+                    update.content as ThreadAssistantMessage["content"],
+                  ),
+                  (part) => [part.toolCallId, part] as const,
+                ),
+              )
+            : undefined;
+          const historicalUpdate: ChatModelRunResult = update.content
+            ? {
+                content: mapToolCallPartsDeep(current.content, (part) => {
+                  const incoming = incomingCalls?.get(part.toolCallId);
+                  if (!incoming?.messages) return part;
+                  return {
+                    ...part,
+                    messages: this.mergeNestedTranscripts(
+                      part.messages ?? [],
+                      incoming.messages,
+                      false,
+                    ),
+                  };
+                }).content,
+                ...(update.metadata ? { metadata: update.metadata } : {}),
+              }
+            : update.metadata
+              ? { metadata: update.metadata }
+              : {};
+          this.updateAssistantMessage(historicalOwnerId, historicalUpdate);
+          return;
+        }
         const currentSnapshotAssistant =
           assistantMessageId === undefined
             ? undefined
@@ -2266,6 +2308,11 @@ export class AgUiThreadController {
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
+      if (event.type === "RUN_STARTED") {
+        historicalAggregators.clear();
+        subagentAggregators.clear();
+        aggregatorsByMessageId.clear();
+      }
       if (event.type === "RUN_FINISHED") {
         runFinished = true;
         if (event.outcome?.type === "interrupt")
@@ -2290,9 +2337,26 @@ export class AgUiThreadController {
         event.type === "RUN_CANCELLED";
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
+      const previousAssistantMessageId = assistantMessageId;
+      const previousAggregator = aggregator;
+      let eventAggregator = aggregator;
+      if (event.type === "SUBAGENT_STARTED") {
+        eventAggregator =
+          subagentAggregators.get(event.subagentRunId) ??
+          (event.parentToolCallId
+            ? aggregatorsByMessageId.get(
+                this.findMessageIdForToolCall(event.parentToolCallId) ?? "",
+              )
+            : undefined) ??
+          aggregator;
+        subagentAggregators.set(event.subagentRunId, eventAggregator);
+      } else if ("subagentRunId" in event && event.subagentRunId) {
+        eventAggregator =
+          subagentAggregators.get(event.subagentRunId) ?? aggregator;
+      }
       try {
         const nextAssistantMessageId = this.handleEvent(
-          aggregator,
+          eventAggregator,
           event,
           assistantMessageId,
           joinStrategy,
@@ -2330,6 +2394,34 @@ export class AgUiThreadController {
             const tail = this.session.getMessages().at(-1);
             snapshotAssistantId =
               tail?.role === "assistant" ? tail.id : undefined;
+          }
+          if (
+            joinStrategy !== "concat-content" &&
+            previousAssistantMessageId &&
+            assistantMessageId &&
+            assistantMessageId !== previousAssistantMessageId
+          ) {
+            historicalAggregators.set(
+              previousAggregator,
+              previousAssistantMessageId,
+            );
+            aggregatorsByMessageId.set(
+              previousAssistantMessageId,
+              previousAggregator,
+            );
+            aggregator =
+              previousAggregator.createRebasedMessage(assistantMessageId);
+          }
+          if (assistantMessageId)
+            aggregatorsByMessageId.set(assistantMessageId, aggregator);
+        }
+        if (
+          event.type === "RUN_FINISHED" ||
+          event.type === "RUN_ERROR" ||
+          event.type === "RUN_CANCELLED"
+        ) {
+          for (const historicalAggregator of historicalAggregators.keys()) {
+            historicalAggregator.handle(event);
           }
         }
       } finally {
@@ -3343,9 +3435,6 @@ export class AgUiThreadController {
             }
           }
           activeAssistantId = nextActiveAssistantId;
-          if (activeAssistantId && joinStrategy !== "concat-content") {
-            aggregator.rebaseMessage(activeAssistantId);
-          }
           if (hasNewPendingToolCallAnswer && head) {
             this.updateAssistantMessage(head.id, {
               status: { type: "running" },

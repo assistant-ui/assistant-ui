@@ -75,7 +75,7 @@ type BuildContext = {
   };
 };
 
-type Emit = (update: ChatModelRunResult) => void;
+type Emit = (update: ChatModelRunResult, aggregator?: RunAggregator) => void;
 
 type ToolCallState = {
   toolCallId: string;
@@ -270,12 +270,42 @@ export class RunAggregator {
   rebaseMessage(messageId: string): void {
     const snapshotText = this.pendingSnapshotText.get(messageId);
     this.resetMessageParts();
+    this.status = { type: "running" };
     this.lastTextMessageId = messageId;
     this.reportedServerMessageId = messageId;
     if (snapshotText !== undefined) {
       this.pendingSnapshotText.set(messageId, snapshotText);
     }
     this.startTextMessage(ROOT_SCOPE, messageId);
+  }
+
+  createRebasedMessage(messageId: string): RunAggregator {
+    const aggregator = new RunAggregator({
+      showThinking: this.showThinking,
+      joinStrategy: this.joinStrategy,
+      logger: this.logger,
+      emit: this.emitUpdate,
+      ...(this.onServerMessageId
+        ? { onServerMessageId: this.onServerMessageId }
+        : {}),
+      ...(this.onTextMessageStart
+        ? { onTextMessageStart: this.onTextMessageStart }
+        : {}),
+    });
+    aggregator.status = this.status;
+    aggregator.interrupts = this.interrupts;
+    aggregator.pendingToolCallIds = this.pendingToolCallIds;
+    aggregator.hasEmittedOpaqueReasoning = this.hasEmittedOpaqueReasoning;
+    aggregator.serverMessageIdReported = this.serverMessageIdReported;
+    aggregator.streamStartTime = this.streamStartTime;
+    aggregator.firstTokenTime = this.firstTokenTime;
+    aggregator.totalChunks = this.totalChunks;
+    const snapshotText = this.pendingSnapshotText.get(messageId);
+    if (snapshotText !== undefined) {
+      aggregator.pendingSnapshotText.set(messageId, snapshotText);
+    }
+    aggregator.rebaseMessage(messageId);
+    return aggregator;
   }
 
   handle(event: AgUiEvent): void {
@@ -1540,7 +1570,7 @@ export class RunAggregator {
       ...(this.status ? { status: this.status } : undefined),
       ...(Object.keys(metadata).length > 0 ? { metadata } : undefined),
     };
-    this.emitUpdate(result);
+    this.emitUpdate(result, this);
   }
 
   private recordFirstToken(): void {
