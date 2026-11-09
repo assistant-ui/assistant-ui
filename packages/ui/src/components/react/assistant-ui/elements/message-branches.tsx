@@ -21,56 +21,47 @@ export function MessageBranches({
   className,
   ...props
 }: MessageBranchesProps) {
-  const message = variants[index] ?? variants[0] ?? "";
-  const hasNavigation = variants.length > 1;
-
-  const goPrevious = () => {
-    if (!hasNavigation) return;
-    onIndexChange(index === 0 ? variants.length - 1 : index - 1);
-  };
-  const goNext = () => {
-    if (!hasNavigation) return;
-    onIndexChange(index === variants.length - 1 ? 0 : index + 1);
-  };
+  const current = variants[index] === undefined ? 0 : index;
+  const message = variants[current];
+  if (message === undefined) return null;
 
   return (
     <div
       data-slot="message-branches"
       className={cn("flex max-w-sm flex-col gap-2", className)}
-
       {...props}
     >
       <p
-        key={index}
+        key={current}
         className="fade-in slide-in-from-bottom-1 animate-in text-foreground/90 min-h-[4.25rem] text-sm leading-relaxed duration-300 motion-reduce:animate-none"
       >
         {message}
       </p>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          aria-label="Show previous response"
-          disabled={!hasNavigation}
-          onClick={goPrevious}
-          className={cn(ghostButton, "size-6")}
-        >
-          <ChevronLeftIcon className="size-3.5" />
-        </button>
-        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
-          {variants.length === 0
-            ? "0 / 0"
-            : `${index + 1} / ${variants.length}`}
-        </span>
-        <button
-          type="button"
-          aria-label="Show next response"
-          disabled={!hasNavigation}
-          onClick={goNext}
-          className={cn(ghostButton, "size-6")}
-        >
-          <ChevronRightIcon className="size-3.5" />
-        </button>
-      </div>
+      {variants.length > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Show previous response"
+            disabled={current === 0}
+            onClick={() => onIndexChange(current - 1)}
+            className={cn(ghostButton, "size-6")}
+          >
+            <ChevronLeftIcon className="size-3.5" />
+          </button>
+          <span className={cn(mono, "text-muted-foreground tabular-nums")}>
+            {current + 1} / {variants.length}
+          </span>
+          <button
+            type="button"
+            aria-label="Show next response"
+            disabled={current === variants.length - 1}
+            onClick={() => onIndexChange(current + 1)}
+            className={cn(ghostButton, "size-6")}
+          >
+            <ChevronRightIcon className="size-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
