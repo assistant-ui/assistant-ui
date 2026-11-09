@@ -223,7 +223,7 @@ export class CloudMessagePersistence {
       this.closeRun(messageId);
       return;
     }
-    const forkedId = (response as typeof response | undefined)?.message_id;
+    const forkedId = response ? response.message_id : undefined;
     if (forkedId && forkedId !== open.remoteId) {
       open.remoteId = forkedId;
       this.idMapping.set(messageId, forkedId);

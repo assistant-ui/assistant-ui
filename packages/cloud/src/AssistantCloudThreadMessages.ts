@@ -220,11 +220,12 @@ export class AssistantCloudThreadMessages {
     };
   }
 
+  /** Resolves to the fork target when a superseded lease's write became a sibling; `void` stays assignable for implementations typed against the earlier `Promise<void>`. */
   public async update(
     threadId: string,
     messageId: string,
     body: AssistantCloudThreadMessageUpdateBody,
-  ): Promise<AssistantCloudThreadMessageUpdateResponse> {
+  ): Promise<AssistantCloudThreadMessageUpdateResponse | void> {
     const response: unknown = await this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}`,
       { method: "PUT", body },

@@ -334,7 +334,7 @@ declare class AssistantCloudThreadMessages {
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
-  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<AssistantCloudThreadMessageUpdateResponse>;
+  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<AssistantCloudThreadMessageUpdateResponse | void>;
   heartbeat(threadId: string, messageId: string, body: {
     lease_id: string;
   }): Promise<AssistantCloudMessageHeartbeatResponse>;
