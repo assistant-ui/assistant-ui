@@ -209,9 +209,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   private _addTransformedStream(
     stream: AssistantStream,
-    transformer:
-      | ReadableWritablePair<AssistantStreamChunk, AssistantStreamChunk>
-      | undefined,
+    transformer: ReadableWritablePair<
+      AssistantStreamChunk,
+      AssistantStreamChunk
+    >,
     options?: {
       orderedFinish?: MergeStreamFinishOrder | undefined;
       written?: () => number;
@@ -222,11 +223,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       throw new TypeError(
         "Cannot merge a stream that is already locked to a reader.",
       );
-    }
-
-    if (!transformer) {
-      this._state.merger.addStream(stream, undefined, options);
-      return Promise.resolve();
     }
 
     const pipeTask = stream
@@ -272,7 +268,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   merge(stream: AssistantStream) {
-    // The transform boundary preserves raw step-finish ordering around buffered merged parts.
+    // The identity stage delays the merged stream's buffered chunks, so a raw
+    // chunk enqueued before they are delivered lands ahead of the merged part,
+    // never between its part-start and deltas.
     this._addTransformedStream(
       stream,
       new TransformStream<AssistantStreamChunk, AssistantStreamChunk>(),

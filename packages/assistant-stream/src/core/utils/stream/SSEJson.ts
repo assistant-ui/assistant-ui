@@ -9,9 +9,8 @@ export const SSE_HEADERS = {
   Connection: "keep-alive",
 };
 
-type SSEJsonDoneOptions<T> = {
+type SSEJsonDoneOptions = {
   marker: string;
-  onDone?: (controller: TransformStreamDefaultController<T>) => void;
   onMissing?: () => void;
 };
 
@@ -20,7 +19,7 @@ type SSEJsonDecoderOptions<T> = {
     data: string,
     controller: TransformStreamDefaultController<T>,
   ) => void;
-  done?: SSEJsonDoneOptions<T>;
+  done?: SSEJsonDoneOptions;
   maxLineLength?: number | undefined;
   maxEventLength?: number | undefined;
 } & (
@@ -53,6 +52,7 @@ export const createSSEJsonDecoder =
   <T>(options: SSEJsonDecoderOptions<T>) =>
   (readable: ReadableStream<Uint8Array<ArrayBuffer>>) => {
     let receivedDone = false;
+    const done = options.done;
 
     // Let the SSE parser consume the single permitted leading BOM.
     return readable
@@ -61,6 +61,11 @@ export const createSSEJsonDecoder =
         new SSEEventDecoderStream({
           maxLineLength: options.maxLineLength,
           maxEventLength: options.maxEventLength,
+          stopAfter: done
+            ? (event) =>
+                (event.event || "message") === "message" &&
+                event.data === done.marker
+            : undefined,
         }),
       )
       .pipeThrough(
@@ -78,7 +83,6 @@ export const createSSEJsonDecoder =
               options.done !== undefined &&
               event.data === options.done.marker
             ) {
-              options.done.onDone?.(controller);
               receivedDone = true;
               controller.terminate();
               return;

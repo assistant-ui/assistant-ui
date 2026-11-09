@@ -28,6 +28,18 @@ describe("media vocabulary in Vue", () => {
       'src="https://cdn.example.com/photo.png"',
     );
   });
+
+  it("sets the referrer policy before the image source", () => {
+    const { container } = renderVueSpec(
+      spec({ main: { type: "Image", props: { src: "/a.png", alt: "Photo" } } }),
+    );
+    const image = container.querySelector("img")!;
+    const names = image.getAttributeNames();
+
+    expect(image.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(names.indexOf("referrerpolicy")).toBeLessThan(names.indexOf("src"));
+  });
+
   it.each<[string, Spec["elements"]]>([
     [
       "a token sized image",

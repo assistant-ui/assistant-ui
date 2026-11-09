@@ -2,7 +2,6 @@ import type * as PageTree from "fumadocs-core/page-tree";
 import type { InferPageType, LoaderPlugin } from "fumadocs-core/source";
 import { loader } from "fumadocs-core/source";
 import { lucideIconsPlugin } from "fumadocs-core/source/lucide-icons";
-import { toFumadocsSource } from "fumadocs-mdx/runtime/server";
 import {
   docs,
   docsSites,
@@ -11,7 +10,7 @@ import {
   elements as elementsMdx,
   blog as blogPosts,
   careers as careersCollection,
-} from "fumadocs-mdx:collections/server";
+} from "../.source/content";
 import { DOCS_SITES, type DocsSiteId } from "./docs-sites";
 
 /**
@@ -46,7 +45,7 @@ function platformsPlugin(): LoaderPlugin {
 
 export const source = loader({
   baseUrl: "/docs",
-  source: docs.toFumadocsSource(),
+  source: docs,
   plugins: [lucideIconsPlugin(), platformsPlugin()],
 });
 
@@ -65,7 +64,7 @@ function siteSource<F extends { path: string }>(
 function createSiteLoader(id: DocsSiteId) {
   return loader({
     baseUrl: `/${id}/docs`,
-    source: siteSource(docsSites.toFumadocsSource(), id),
+    source: siteSource(docsSites, id),
     plugins: [lucideIconsPlugin()],
   });
 }
@@ -100,28 +99,28 @@ export function siteTree(id: DocsSiteId): PageTree.Root {
 
 export const examples = loader({
   baseUrl: "/examples",
-  source: toFumadocsSource(examplePages, []),
+  source: examplePages,
 });
 
 export type ExamplePage = InferPageType<typeof examples>;
 
 export const elementsDocs = loader({
   baseUrl: "/elements",
-  source: toFumadocsSource(elementsMdx, []),
+  source: elementsMdx,
 });
 
 export type ElementsDocsPage = InferPageType<typeof elementsDocs>;
 
 export const design = loader({
   baseUrl: "/design",
-  source: toFumadocsSource(designPages, []),
+  source: designPages,
 });
 
 export type DesignPage = InferPageType<typeof design>;
 
 export const blog = loader({
   baseUrl: "/blog",
-  source: toFumadocsSource(blogPosts, []),
+  source: blogPosts,
 });
 
 type BaseBlogPage = InferPageType<typeof blog>;
@@ -135,7 +134,7 @@ export type BlogPage = Omit<BaseBlogPage, "data"> & {
 
 export const careers = loader({
   baseUrl: "/careers",
-  source: toFumadocsSource(careersCollection, []),
+  source: careersCollection,
 });
 
 type BaseCareerPage = InferPageType<typeof careers>;

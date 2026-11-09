@@ -70,7 +70,12 @@ export function createGenerativeUISuite({
     // Model calls dominate a trial, so a case's trials run a dozen at a time.
     concurrency: 12,
     candidates: models.flatMap((model) =>
-      FORMATS.map((format) => ({
+      (process.env.CANDIDATES?.split(",")
+        .map((label) => label.trim())
+        .includes(`json-render:${modelName(model)}`)
+        ? [...FORMATS, "json-render" as const]
+        : FORMATS
+      ).map((format) => ({
         label: `${format}:${modelName(model)}`,
         format,
         model,

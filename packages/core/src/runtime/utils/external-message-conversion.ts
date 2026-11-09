@@ -42,6 +42,7 @@ export type ExternalMessageConverterMessage =
       toolName?: string | undefined;
       result: any;
       artifact?: any;
+      modelContent?: ToolCallMessagePart["modelContent"];
       isError?: boolean;
       messages?: readonly ThreadMessage[];
     };
@@ -190,6 +191,7 @@ export const joinExternalMessages = (
           },
           result: output.result,
           artifact: output.artifact,
+          modelContent: output.modelContent ?? toolCall.modelContent,
           isError: output.isError,
           messages: output.messages ?? toolCall.messages,
         };

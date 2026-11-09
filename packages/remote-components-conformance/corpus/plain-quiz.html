@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Quiz</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 480px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  h1 { margin-top: 0; font-size: 1.4rem; color: #333; }
+  .progress { color: #888; font-size: 0.9rem; margin-bottom: 0.5rem; }
+  .question { font-size: 1.15rem; margin-bottom: 1.2rem; color: #222; }
+  .option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.6rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .option:hover:not(:disabled) { border-color: #667eea; background: #f0f2ff; }
+  .option.correct { border-color: #2ecc71; background: #eafaf1; }
+  .option.wrong { border-color: #e74c3c; background: #fdecea; }
+  .option:disabled { cursor: default; }
+  .btn {
+    margin-top: 0.8rem;
+    padding: 0.7rem 1.4rem;
+    border: none;
+    border-radius: 8px;
+    background: #667eea;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .btn:hover { background: #5568d3; }
+  .hidden { display: none; }
+  .score { font-size: 2.5rem; font-weight: bold; color: #667eea; text-align: center; margin: 1rem 0; }
+  .message { text-align: center; color: #555; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="quiz">
+    <h1>Quick Quiz</h1>
+    <div class="progress" id="progress"></div>
+    <div class="question" id="question"></div>
+    <div id="options"></div>
+    <button class="btn hidden" id="nextBtn">Next</button>
+  </div>
+  <div id="result" class="hidden">
+    <h1 class="center">Quiz Complete!</h1>
+    <div class="score" id="score"></div>
+    <p class="message" id="message"></p>
+    <div class="center"><button class="btn" id="restartBtn">Try Again</button></div>
+  </div>
+</div>
+
+<script>
+  const questions = [
+    {
+      q: "What is the capital of France?",
+      options: ["Berlin", "Madrid", "Paris", "Rome"],
+      answer: 2
+    },
+    {
+      q: "Which planet is known as the Red Planet?",
+      options: ["Venus", "Mars", "Jupiter", "Saturn"],
+      answer: 1
+    },
+    {
+      q: "What is 7 × 8?",
+      options: ["54", "56", "64", "48"],
+      answer: 1
+    }
+  ];
+
+  let current = 0;
+  let score = 0;
+
+  const progressEl = document.getElementById("progress");
+  const questionEl = document.getElementById("question");
+  const optionsEl = document.getElementById("options");
+  const nextBtn = document.getElementById("nextBtn");
+  const quizEl = document.getElementById("quiz");
+  const resultEl = document.getElementById("result");
+
+  function showQuestion() {
+    const q = questions[current];
+    progressEl.textContent = `Question ${current + 1} of ${questions.length}`;
+    questionEl.textContent = q.q;
+    optionsEl.innerHTML = "";
+    nextBtn.classList.add("hidden");
+
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement("button");
+      btn.className = "option";
+      btn.textContent = opt;
+      btn.addEventListener("click", () => selectAnswer(i));
+      optionsEl.appendChild(btn);
+    });
+  }
+
+  function selectAnswer(i) {
+    const q = questions[current];
+    const buttons = optionsEl.querySelectorAll(".option");
+    buttons.forEach(b => b.disabled = true);
+    buttons[q.answer].classList.add("correct");
+    if (i === q.answer) {
+      score++;
+    } else {
+      buttons[i].classList.add("wrong");
+    }
+    nextBtn.textContent = current === questions.length - 1 ? "See Score" : "Next";
+    nextBtn.classList.remove("hidden");
+  }
+
+  nextBtn.addEventListener("click", () => {
+    current++;
+    if (current < questions.length) {
+      showQuestion();
+    } else {
+      showResult();
+    }
+  });
+
+  function showResult() {
+    quizEl.classList.add("hidden");
+    resultEl.classList.remove("hidden");
+    document.getElementById("score").textContent = `${score} / ${questions.length}`;
+    const messages = ["Better luck next time!", "Not bad, keep practicing!", "Great job!", "Perfect score! 🎉"];
+    document.getElementById("message").textContent = messages[score];
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", () => {
+    current = 0;
+    score = 0;
+    resultEl.classList.add("hidden");
+    quizEl.classList.remove("hidden");
+    showQuestion();
+  });
+
+  showQuestion();
+</script>
+</body>
+</html>

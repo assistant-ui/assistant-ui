@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body { font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text, inherit); }
+  .card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 10px);
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+  form { display: flex; gap: 8px; margin-bottom: 12px; }
+  input[type=text] {
+    flex: 1; min-width: 0; padding: 8px 10px; font: inherit; color: inherit;
+    background: transparent;
+    border: 1px solid var(--color-border, #ccc);
+    border-radius: var(--radius-md, 8px);
+  }
+  input[type=text]:focus { outline: 2px solid var(--color-accent, #3b82f6); outline-offset: -1px; }
+  button.add {
+    padding: 8px 14px; font: inherit; cursor: pointer; border: none;
+    background: var(--color-accent, #3b82f6); color: #fff;
+    border-radius: var(--radius-md, 8px);
+  }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    display: flex; align-items: center; gap: 10px; padding: 8px 4px;
+    border-top: 1px solid var(--color-border, #eee);
+  }
+  li:first-child { border-top: none; }
+  li input { width: 18px; height: 18px; accent-color: var(--color-accent, #3b82f6); cursor: pointer; }
+  li span { flex: 1; word-break: break-word; }
+  li.done span { text-decoration: line-through; color: var(--color-text-muted, #888); }
+  .del {
+    border: none; background: transparent; cursor: pointer; font-size: 18px; line-height: 1;
+    color: var(--color-text-muted, #888); padding: 2px 6px; border-radius: 6px;
+  }
+  .del:hover { color: #e5484d; }
+  .empty, .count { color: var(--color-text-muted, #888); font-size: 13px; }
+  .empty { padding: 8px 4px; }
+  .count { margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>To-do</h2>
+  <form id="f">
+    <input type="text" id="t" placeholder="Add a task…" aria-label="New task" autocomplete="off">
+    <button class="add" type="submit">Add</button>
+  </form>
+  <ul id="list"></ul>
+  <div class="count" id="count"></div>
+</div>
+<script>
+  let items = [
+    { text: "Buy groceries", done: false },
+    { text: "Reply to emails", done: true }
+  ];
+  const list = document.getElementById('list');
+  const count = document.getElementById('count');
+  function render() {
+    list.innerHTML = '';
+    if (!items.length) {
+      list.innerHTML = '<li class="empty">Nothing to do 🎉</li>';
+    }
+    items.forEach((it, i) => {
+      const li = document.createElement('li');
+      if (it.done) li.className = 'done';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = it.done;
+      cb.setAttribute('aria-label', 'Complete ' + it.text);
+      cb.onchange = () => { it.done = cb.checked; render(); };
+      const sp = document.createElement('span'); sp.textContent = it.text;
+      const del = document.createElement('button');
+      del.className = 'del'; del.textContent = '×';
+      del.setAttribute('aria-label', 'Delete ' + it.text);
+      del.onclick = () => { items.splice(i, 1); render(); };
+      li.append(cb, sp, del);
+      list.appendChild(li);
+    });
+    const left = items.filter(x => !x.done).length;
+    count.textContent = items.length ? `${left} of ${items.length} remaining` : '';
+  }
+  document.getElementById('f').onsubmit = e => {
+    e.preventDefault();
+    const t = document.getElementById('t');
+    const v = t.value.trim();
+    if (!v) return;
+    items.push({ text: v, done: false });
+    t.value = '';
+    render();
+  };
+  render();
+</script>
+</body>
+</html>

@@ -213,6 +213,25 @@ describe("createPiHttpClient", () => {
     expect(cleared).toEqual({ steering: ["a"], followUp: ["b"] });
   });
 
+  it("scopes the model catalog to a thread", async () => {
+    const { fn, calls } = fakeFetch(() =>
+      json([{ provider: "extension", modelId: "proxy" }]),
+    );
+    const client = createPiHttpClient({ fetchImpl: fn });
+
+    await client.getAvailableModels({ workspacePath: "/ws", threadId: "t 1" });
+    await client.getAvailableModels({ threadId: "t1" });
+
+    expect(calls[0]).toMatchObject({
+      url: "/api/pi/models?workspacePath=%2Fws&threadId=t+1",
+      method: "GET",
+    });
+    expect(calls[1]).toMatchObject({
+      url: "/api/pi/models?threadId=t1",
+      method: "GET",
+    });
+  });
+
   it("gets models and sets model/thinking through routes", async () => {
     const { fn, calls } = fakeFetch((url) =>
       url.startsWith("/api/pi/models")

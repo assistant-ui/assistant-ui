@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/docs-theme",
-  "version": "0.0.2",
-  "description": "The assistant-ui documentation theme for Farming Labs Docs",
+  "version": "0.0.3",
+  "description": "Composable assistant-ui documentation UI and theme for Next.js",
   "license": "MIT",
   "author": "AgentbaseAI Inc.",
   "type": "module",
@@ -20,7 +20,12 @@
       "types": "./dist/provider.d.ts",
       "default": "./dist/provider.js"
     },
-    "./styles.css": "./styles/theme.css"
+    "./styles.css": "./styles/theme.css",
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "default": "./dist/ui.js"
+    },
+    "./site.css": "./styles/site.css"
   },
   "files": [
     "dist",
@@ -44,30 +49,32 @@
     "lucide-react": "^1.61.0"
   },
   "peerDependencies": {
-    "@farming-labs/docs": "0.2.127",
-    "@farming-labs/theme": "0.2.127",
-    "fumadocs-ui": "16.17.1",
+    "@farming-labs/docs": "0.2.137",
+    "@farming-labs/theme": "0.2.137",
+    "fumadocs-ui": "16.17.8",
     "next": "^16.0.0",
     "next-themes": "^0.4.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "motion": "^14.0.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@farming-labs/docs": "0.2.127",
-    "@farming-labs/theme": "0.2.127",
+    "@farming-labs/docs": "0.2.137",
+    "@farming-labs/theme": "0.2.137",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitest/coverage-v8": "^5.0.5",
-    "fumadocs-ui": "16.17.1",
+    "fumadocs-ui": "16.17.8",
     "jsdom": "^30.1.3",
     "next": "^16.4.3",
     "next-themes": "^0.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "motion": "^14.6.0"
   },
   "publishConfig": {
     "access": "public"
@@ -86,6 +93,9 @@
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "motion": {
       "optional": true
     }
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import "@/test/mock-fumadocs-collections";
+import "@/test/mock-content";
 
 vi.mock("@/lib/source", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/source")>();

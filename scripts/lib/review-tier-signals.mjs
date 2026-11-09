@@ -5,7 +5,9 @@ import {
   isLowRiskPath,
   isTestPath,
   matchesAny,
+  packageOwnerOf,
   parseTitleType,
+  PUBLIC_API_AREA,
 } from "./review-policy.mjs";
 
 function canonical(value) {
@@ -39,15 +41,23 @@ export function computeTier(input, policy) {
   const failures = [];
   const areas = new Set();
   const packages = new Set();
+  const signalOwners = new Set();
+  let hasUnownedSignal = false;
+  let hasOwnedApiSignal = false;
   let sourceLines = 0;
 
-  const addReason = (tier, code, detail) => {
+  const addReason = (tier, code, detail, ownedPath) => {
     const reason = { tier, code, detail };
     reasons.set(JSON.stringify(reason), reason);
+    if (tier < 2) return;
+    const owner = ownedPath && packageOwnerOf(policy, ownedPath);
+    if (owner) signalOwners.add(owner.id);
+    else hasUnownedSignal = true;
   };
-  const addApiReason = (tier, code, detail) => {
-    addReason(tier, code, detail);
-    areas.add("public-api");
+  const addApiReason = (tier, code, detail, ownedPath) => {
+    addReason(tier, code, detail, ownedPath);
+    if (packageOwnerOf(policy, ownedPath)) hasOwnedApiSignal = true;
+    else areas.add(PUBLIC_API_AREA);
   };
   const isSourcePath = (file) =>
     !isTestPath(policy, file) &&
@@ -67,7 +77,7 @@ export function computeTier(input, policy) {
         const code = fileAreas.some((area) => matchesAny(path, area.paths))
           ? "contract-area"
           : "contract-docs";
-        addReason(2, code, path);
+        addReason(2, code, path, path);
       } else if (isLowRiskPath(policy, path)) {
         addReason(0, "low-risk-path", path);
       } else if (isTestPath(policy, path)) {
@@ -79,7 +89,13 @@ export function computeTier(input, policy) {
       } else {
         addReason(1, "source", path);
       }
-      for (const area of fileAreas) areas.add(area.id);
+      for (const area of fileAreas) {
+        if (area.id === PUBLIC_API_AREA && packageOwnerOf(policy, path)) {
+          hasOwnedApiSignal = true;
+        } else {
+          areas.add(area.id);
+        }
+      }
     }
 
     if (isSourcePath(file.path)) {
@@ -107,7 +123,7 @@ export function computeTier(input, policy) {
       !isTestPath(policy, file.path) &&
       added.some((line) => line.includes("@deprecated"))
     ) {
-      addApiReason(2, "deprecation", file.path);
+      addApiReason(2, "deprecation", file.path, file.path);
     }
     if (
       file.path.startsWith(".github/workflows/") &&
@@ -141,22 +157,22 @@ export function computeTier(input, policy) {
 
   for (const { file, diff } of input.apiSurface) {
     for (const entry of diff.entriesAdded) {
-      addApiReason(3, "entry-point-added", `${file}: ${entry}`);
+      addApiReason(3, "entry-point-added", `${file}: ${entry}`, file);
     }
     for (const entry of diff.entriesRemoved) {
-      addApiReason(3, "entry-point-removed", `${file}: ${entry}`);
+      addApiReason(3, "entry-point-removed", `${file}: ${entry}`, file);
     }
     for (const [entry, names] of Object.entries(diff.exportsRemoved)) {
       for (const name of names) {
-        addApiReason(3, "export-removed", `${file}: ${entry} ${name}`);
+        addApiReason(3, "export-removed", `${file}: ${entry} ${name}`, file);
       }
     }
     for (const { entry, name } of diff.declarationsChanged) {
-      addApiReason(2, "declaration-changed", `${file}: ${entry} ${name}`);
+      addApiReason(2, "declaration-changed", `${file}: ${entry} ${name}`, file);
     }
     for (const [entry, names] of Object.entries(diff.exportsAdded)) {
       for (const name of names) {
-        addApiReason(2, "export-added", `${file}: ${entry} ${name}`);
+        addApiReason(2, "export-added", `${file}: ${entry} ${name}`, file);
       }
     }
     if (type === "refactor" && diff.changed) {
@@ -170,13 +186,13 @@ export function computeTier(input, policy) {
 
   for (const { path, diff } of input.exportsDiffs) {
     for (const entry of diff.added) {
-      addApiReason(3, "entry-point-added", `${path}: ${entry}`);
+      addApiReason(3, "entry-point-added", `${path}: ${entry}`, path);
     }
     for (const entry of diff.removed) {
-      addApiReason(3, "entry-point-removed", `${path}: ${entry}`);
+      addApiReason(3, "entry-point-removed", `${path}: ${entry}`, path);
     }
     for (const entry of diff.changed) {
-      addApiReason(2, "exports-map-changed", `${path}: ${entry}`);
+      addApiReason(2, "exports-map-changed", `${path}: ${entry}`, path);
     }
     if (type === "refactor") {
       failures.push({
@@ -211,7 +227,7 @@ export function computeTier(input, policy) {
     ]) {
       for (const name of Object.keys(head[field] ?? {})) {
         if (!baseDependencies.has(name)) {
-          addReason(3, "new-runtime-dependency", `${path}: ${name}`);
+          addReason(3, "new-runtime-dependency", `${path}: ${name}`, path);
         }
       }
     }
@@ -226,7 +242,7 @@ export function computeTier(input, policy) {
           headMajor !== null &&
           baseMajor !== headMajor
         ) {
-          addReason(3, "upstream-major", `${path}: ${field}.${name}`);
+          addReason(3, "upstream-major", `${path}: ${field}.${name}`, path);
           if (field === "peerDependencies") {
             peerHead = { ...peerHead, [name]: base[field][name] };
           }
@@ -236,7 +252,7 @@ export function computeTier(input, policy) {
     for (const field of ["peerDependencies", "engines", "sideEffects", "bin"]) {
       const headValue = field === "peerDependencies" ? peerHead : head[field];
       if (canonical(base[field]) !== canonical(headValue)) {
-        addApiReason(2, "manifest-contract-field", `${path}: ${field}`);
+        addApiReason(2, "manifest-contract-field", `${path}: ${field}`, path);
       }
     }
   }
@@ -272,14 +288,75 @@ export function computeTier(input, policy) {
     });
   }
 
+  const ownedPackages =
+    areas.size === 0 && !hasUnownedSignal ? [...signalOwners].toSorted() : [];
+  if (ownedPackages.length === 0 && hasOwnedApiSignal) {
+    areas.add(PUBLIC_API_AREA);
+  }
+
   return {
     tier,
     type,
     areas: policy.areas
       .filter((area) => areas.has(area.id))
       .map((area) => area.id),
+    ownedPackages,
     reasons: resultReasons,
     failures,
     sourceLines,
   };
+}
+
+const protectedCodes = new Set([
+  "decision-path",
+  "contract-area",
+  "contract-docs",
+  "new-package",
+  "deprecation",
+  "ci-permissions",
+]);
+
+// The paths among `files` that an approval cannot carry over: owner areas and
+// their contract docs (what CODEOWNERS is generated from), the paths of
+// packages with their own owners, decision paths,
+// package manifests (entry points, exports maps and contract fields), and any
+// change the signals treat as public API. A package source file without a
+// patch counts too, since a new @deprecated cannot be ruled out.
+export function protectedPaths(files, policy) {
+  const { reasons } = computeTier(
+    {
+      title: "",
+      labels: [],
+      files,
+      apiSurface: [],
+      manifests: [],
+      invalidManifests: [],
+      exportsDiffs: [],
+    },
+    policy,
+  );
+  const paths = new Set(
+    reasons
+      .filter((reason) => protectedCodes.has(reason.code))
+      .map((reason) => reason.detail),
+  );
+  for (const file of files) {
+    for (const path of [file.path, file.previousPath]) {
+      if (
+        path &&
+        (matchesAny(path, ["packages/*/package.json"]) ||
+          packageOwnerOf(policy, path))
+      ) {
+        paths.add(path);
+      }
+    }
+    if (
+      (file.patch ?? null) === null &&
+      file.path.startsWith("packages/") &&
+      !isTestPath(policy, file.path)
+    ) {
+      paths.add(file.path);
+    }
+  }
+  return [...paths].toSorted();
 }

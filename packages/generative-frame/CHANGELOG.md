@@ -1,5 +1,21 @@
 # generative-frame
 
+## 0.0.10
+
+### Patch Changes
+
+- [#10374](https://github.com/assistant-ui/assistant-ui/pull/10374) [`7876fe5`](https://github.com/assistant-ui/assistant-ui/commit/7876fe551aa5d1b569651aa9c6eb37e1db9bd1b9) - Add `confirm: true` on catalog actions and the `confirmAction` callback on `SpecRenderer` and `createSpecToolkit` for host confirmation before dispatch. A declined confirmation stops the action list, a protected action fails without `confirmAction`, and `watch` cannot dispatch one. ([@okisdev](https://github.com/okisdev))
+
+- [#10372](https://github.com/assistant-ui/assistant-ui/pull/10372) [`9a53f43`](https://github.com/assistant-ui/assistant-ui/commit/9a53f439dbea1ec6d4ad79d91113c5f8f1f29f44) - format spec formula text functions with an optional locale; omitted, invalid, or unsupported locales fall back to en-US. ([@okisdev](https://github.com/okisdev))
+
+- [#10373](https://github.com/assistant-ui/assistant-ui/pull/10373) [`4dc3fdd`](https://github.com/assistant-ui/assistant-ui/commit/4dc3fdda0191463b0c9ecf3bdbbeeb2863089d75) - preload spec guidance by default when the widget tools offer a spec module. pass `preload: { modules: [] }` to inline no guidance. retain on-demand instructions if default preloading fails. ([@okisdev](https://github.com/okisdev))
+
+- [#10371](https://github.com/assistant-ui/assistant-ui/pull/10371) [`f9dbafa`](https://github.com/assistant-ui/assistant-ui/commit/f9dbafab250c8ac315bfc010a30dfff62320a423) - Limit rendered specs to 5000 elements and 64 levels to prevent runaway repeats from freezing the interface. The React renderer no longer passes `slots.default` to components, matching the Vue renderer, since `children` is the default slot. ([@okisdev](https://github.com/okisdev))
+
+- [#10367](https://github.com/assistant-ui/assistant-ui/pull/10367) [`6a9b475`](https://github.com/assistant-ui/assistant-ui/commit/6a9b475fc0efe5cdae0140a842e09bb62d6fe635) - Prevent spec watch actions from running for model state changes while preserving dispatch for user writes. ([@okisdev](https://github.com/okisdev))
+
+- [#10365](https://github.com/assistant-ui/assistant-ui/pull/10365) [`fc2ae03`](https://github.com/assistant-ui/assistant-ui/commit/fc2ae0392c8a0bba3774070accfdb56fce288503) - Add a bounded `without(list, index)` formula for removing items from spec state lists. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.9
 
 ### Patch Changes

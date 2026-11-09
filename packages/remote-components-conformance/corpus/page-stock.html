@@ -1,0 +1,60 @@
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text, inherit); }
+  .card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 10px);
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .info { flex: 1 1 160px; min-width: 0; }
+  .sym { font-weight: 600; font-size: 15px; }
+  .name { color: var(--color-text-muted, #777); font-size: 12px; margin-left: 6px; font-weight: 400; }
+  .price { font-size: 28px; font-weight: 600; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+  .chg { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .up { color: #16a34a; } .down { color: #dc2626; }
+  .meta { color: var(--color-text-muted, #777); font-size: 11px; margin-top: 6px; }
+  svg { flex: 1 1 180px; max-width: 280px; height: 64px; }
+</style>
+</head>
+<body>
+<div class="card" role="group" aria-label="ACME stock quote">
+  <div class="info">
+    <div class="sym">ACME <span class="name">Acme Corp · NASDAQ</span></div>
+    <div class="price" id="price"></div>
+    <div class="chg" id="chg"></div>
+    <div class="meta">Intraday · sample data</div>
+  </div>
+  <svg id="spark" viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true"></svg>
+</div>
+<script>
+  const prevClose = 142.18;
+  const pts = [142.18,142.6,141.9,142.3,143.1,142.8,143.6,144.2,143.9,144.8,145.3,144.9,145.6,146.1,145.7,146.4];
+  const last = pts[pts.length - 1];
+  const diff = last - prevClose, pct = diff / prevClose * 100;
+  const up = diff >= 0;
+  document.getElementById('price').textContent = '$' + last.toFixed(2);
+  const chg = document.getElementById('chg');
+  chg.className = 'chg ' + (up ? 'up' : 'down');
+  chg.textContent = (up ? '▲ +' : '▼ ') + diff.toFixed(2) + ' (' + (up ? '+' : '') + pct.toFixed(2) + '%)';
+
+  const W = 200, H = 64, pad = 4;
+  const min = Math.min(...pts, prevClose), max = Math.max(...pts, prevClose);
+  const x = i => i / (pts.length - 1) * W;
+  const y = v => pad + (max - v) / (max - min) * (H - 2 * pad);
+  const line = pts.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const color = up ? '#16a34a' : '#dc2626';
+  document.getElementById('spark').innerHTML = `
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <line x1="0" x2="${W}" y1="${y(prevClose)}" y2="${y(prevClose)}" stroke="currentColor" stroke-opacity="0.3" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>
+    <path d="${line} L${W} ${H} L0 ${H} Z" fill="url(#g)"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  `;
+</script>
+</body>
+</html>

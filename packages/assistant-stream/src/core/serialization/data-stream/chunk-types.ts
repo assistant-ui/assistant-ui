@@ -104,13 +104,22 @@ type DataStreamStreamChunkValue = {
     messageId: string;
   };
   [DataStreamStreamChunkType.ReasoningDelta]: string;
-  [DataStreamStreamChunkType.Source]: {
-    sourceType: "url";
-    id: string;
-    url: string;
-    title?: string;
-    parentId?: string;
-  };
+  [DataStreamStreamChunkType.Source]:
+    | {
+        sourceType: "url";
+        id: string;
+        url: string;
+        title?: string;
+        parentId?: string;
+      }
+    | {
+        sourceType: "document";
+        id: string;
+        title: string;
+        mediaType: string;
+        filename?: string;
+        parentId?: string;
+      };
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
   [DataStreamStreamChunkType.File]: {

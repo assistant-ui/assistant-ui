@@ -2,6 +2,7 @@
 
 @import "tw-animate-css";
 @import "tw-shimmer";
+@import "@assistant-ui/docs-theme/site.css";
 @import "./docs.css";
 @import "./animate.css";
 @import "./codehike.css";

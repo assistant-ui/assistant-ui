@@ -12,14 +12,14 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.127 @farming-labs/next@0.2.127 @farming-labs/theme@0.2.127 fumadocs-ui@16.17.1
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.137 @farming-labs/next@0.2.137 @farming-labs/theme@0.2.137 fumadocs-ui@16.17.8 motion@^14
 ```
 
-Use Farming Labs Docs, Next, and Theme 0.2.127 with Fumadocs UI 16.17.1.
+Use the Farming Labs Docs, Next, and Theme stable patch 0.2.137 with Fumadocs UI 16.17.8. This version includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
 Fumadocs UI is a required peer because the theme imports its shared contexts.
 Package managers with automatic peer installation install it; otherwise, add
-`fumadocs-ui@16.17.1` directly and satisfy its peers. With Yarn PnP, also install
-`fumadocs-core@16.17.1` and align its Zod 4 peer with the version resolved by
+`fumadocs-ui@16.17.8` directly and satisfy its peers. With Yarn PnP, also install
+`fumadocs-core@16.17.8` and align its Zod 4 peer with the version resolved by
 `@farming-labs/theme`. PnP can create separate context instances for different
 peer environments even when the Fumadocs versions match.
 
@@ -35,7 +35,7 @@ this package supplies the appearance and navigation components.
 
 ```tsx
 // docs.config.tsx
-import { defineDocs } from "@farming-labs/docs";
+import { defineDocs } from "@farming-labs/docs/config";
 import { assistantUi, DocsBrand } from "@assistant-ui/docs-theme";
 
 export default defineDocs({
@@ -139,3 +139,87 @@ client provider without pulling server-only framework exports into the browser.
 In this workspace, use `"@assistant-ui/docs-theme": "workspace:*"`. To test local
 changes in another repository, run `pnpm pack` in this package and install the
 resulting archive with `pnpm add /path/to/package.tgz`.
+
+## Compose the assistant-ui site layout
+
+The `ui` entry supplies the responsive shell, header, animated sidebar sections,
+page typography, table of contents, and pager used by `apps/docs`. It does not
+import the framework’s layout into the browser. `apps/docs` compiles content with
+`withDocs` from `@farming-labs/next/config` and selects `assistantUi()` in its
+Farming Labs configuration. It retains application-owned search, platform
+selection, Markdown endpoints, and navigation metadata.
+The existing `next`, `provider`, and `styles.css` integration above remains available.
+
+Use Next.js App Router, React 19, Tailwind CSS 4, and `motion@^14` for the animated
+sidebar. Supply your existing semantic Tailwind tokens (`background`, `foreground`,
+`muted`, `muted-foreground`, `accent`, and `border`) and fonts. Import `site.css`
+instead of `styles.css`; it includes a source directive for the published component
+classes, so no source alias or monorepo-relative Tailwind path is necessary.
+
+```css
+@import "tailwindcss";
+@import "@assistant-ui/docs-theme/site.css";
+```
+
+```tsx
+import {
+  DocsBody, DocsContent, DocsPageShell, DocsShell,
+  DocsSidebar, DocsSidebarProvider,
+} from "@assistant-ui/docs-theme/ui";
+
+export function Documentation({ header, navigation, toc, footer, children }: {
+  header: React.ReactNode;
+  navigation: React.ReactNode;
+  toc: React.ReactNode;
+  footer: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <DocsSidebarProvider>
+      <DocsShell>
+        {header}
+        <DocsContent>
+          <DocsPageShell
+            toc={toc}
+            footer={footer}
+            mainProps={{ id: "main-content", tabIndex: -1 }}
+          >
+            <DocsBody>{children}</DocsBody>
+          </DocsPageShell>
+        </DocsContent>
+        <DocsSidebar>{navigation}</DocsSidebar>
+      </DocsShell>
+    </DocsSidebarProvider>
+  );
+}
+```
+
+`DocsSiteHeader` owns the mobile navigation/sidebar toggles and responsive header
+regions. Provide branding, search, theme controls, and application links through
+its slots. `navigationRoot` accepts your existing navigation provider;
+`mobileNavigation(close)` receives the action to close the menu and restore focus
+to its toggle after navigation. `useDocsSidebar` lets a custom header control the
+same sidebar; `DOCS_SIDEBAR_ID` identifies it for `aria-controls`.
+`DocsPageShell.mainProps` configures the main landmark, including a focusable target
+for an application-provided skip link.
+
+`DocsSidebarNavigation` accepts `sections` (folders with stable `$id` values),
+`pathname`, `activeSectionId`, and `onNavigate`. Use `isVisible` for platform-specific
+nodes and `banner`/`footer` for a platform selector and social links. The structural
+`DocsNode` types accept Fumadocs page trees without tying rendering to that engine.
+The active ancestor path is computed once per tree/path change; opening a section
+does not repeat a tree walk for each nested folder.
+
+`DocsTableOfContents` accepts `{title, url, depth}` items and an action area as
+children. `DocsPagerNavigation` accepts previous/next URLs with optional names for
+accessible link labels, and an actions menu as children. `DocsFooter` accepts named previous/next destinations and optional section
+labels. Copy, search, Ask AI, and analytics stay with the consuming application.
+
+The shell, page body, and footer can render as Server Components. Interactive
+components preserve their client boundaries in the published build. A separate
+module graph keeps the Farming Labs integration out of the `ui` consumer bundle;
+this does not remove Farming Labs’ internal Fumadocs dependencies or promise a
+particular page-load time.
+
+The table of contents observes headings only while its desktop region is visible,
+and reconnects when the viewport grows.

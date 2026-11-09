@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boarding Pass — SFO to JFK</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1e3c72, #2a5298 60%, #6dd5ed);
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  .pass {
+    display: flex;
+    width: 100%; max-width: 860px;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 25px 60px rgba(0,0,0,.35);
+    overflow: hidden;
+  }
+  .main { flex: 3; display: flex; flex-direction: column; }
+  .stub {
+    flex: 1.15;
+    border-left: 2px dashed #c9d3e0;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .stub::before, .stub::after {
+    content: ""; position: absolute; left: -15px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #2a5298;
+  }
+  .stub::before { top: -14px; }
+  .stub::after { bottom: -14px; }
+  header {
+    background: #0b2a5b; color: #fff;
+    padding: 16px 26px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .airline { font-weight: 700; letter-spacing: 2px; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+  .airline svg { width: 26px; height: 26px; fill: #6dd5ed; }
+  .tag { font-size: 12px; letter-spacing: 3px; opacity: .8; text-transform: uppercase; }
+  .route {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 26px 26px 10px;
+  }
+  .city .code { font-size: 54px; font-weight: 800; color: #0b2a5b; line-height: 1; }
+  .city .name { font-size: 13px; color: #6b7a90; margin-top: 4px; }
+  .city .time { font-size: 22px; font-weight: 600; color: #222; margin-top: 10px; }
+  .city .date { font-size: 12px; color: #8a96a8; }
+  .city.right { text-align: right; }
+  .path { flex: 1; margin: 0 22px; text-align: center; color: #6b7a90; font-size: 12px; }
+  .line { position: relative; height: 2px; background: repeating-linear-gradient(90deg,#b8c4d6 0 8px,transparent 8px 14px); margin: 10px 0; }
+  .line svg {
+    position: absolute; left: 50%; top: 50%;
+    width: 30px; height: 30px; transform: translate(-50%,-50%) rotate(90deg);
+    fill: #2a5298; background: #fff; padding: 3px;
+  }
+  .details {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; padding: 18px 26px 24px;
+    border-top: 1px solid #eef1f6; margin-top: 10px;
+  }
+  .label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #8a96a8; }
+  .value { font-size: 18px; font-weight: 700; color: #0b2a5b; margin-top: 3px; }
+  .value.hl { color: #e8573c; }
+  .stub header { justify-content: center; }
+  .stub .body { padding: 20px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .row { display: flex; justify-content: space-between; }
+  .barcode {
+    margin-top: auto; height: 60px;
+    background: repeating-linear-gradient(90deg,
+      #111 0 2px, transparent 2px 4px, #111 4px 5px, transparent 5px 8px,
+      #111 8px 11px, transparent 11px 12px, #111 12px 13px, transparent 13px 16px);
+    border-radius: 2px;
+  }
+  .code-txt { font-family: monospace; font-size: 11px; text-align: center; color: #6b7a90; letter-spacing: 2px; }
+  @media (max-width: 680px) {
+    .pass { flex-direction: column; }
+    .stub { border-left: none; border-top: 2px dashed #c9d3e0; }
+    .stub::before, .stub::after { display: none; }
+    .details { grid-template-columns: repeat(2, 1fr); }
+    .city .code { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+  <div class="pass">
+    <section class="main">
+      <header>
+        <div class="airline">
+          <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+          SKYLINE AIR
+        </div>
+        <div class="tag">Boarding Pass · Economy Plus</div>
+      </header>
+
+      <div class="route">
+        <div class="city">
+          <div class="code">SFO</div>
+          <div class="name">San Francisco Intl.</div>
+          <div class="time">07:45 AM</div>
+          <div class="date">Thu, Jun 12, 2025</div>
+        </div>
+        <div class="path">
+          <div>Nonstop</div>
+          <div class="line">
+            <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+          </div>
+          <div>5h 35m</div>
+        </div>
+        <div class="city right">
+          <div class="code">JFK</div>
+          <div class="name">New York John F. Kennedy</div>
+          <div class="time">04:20 PM</div>
+          <div class="date">Thu, Jun 12, 2025</div>
+        </div>
+      </div>
+
+      <div class="details">
+        <div><div class="label">Passenger</div><div class="value">Alex Morgan</div></div>
+        <div><div class="label">Flight</div><div class="value">SK 1428</div></div>
+        <div><div class="label">Gate</div><div class="value hl">B22</div></div>
+        <div><div class="label">Seat</div><div class="value hl">14A</div></div>
+        <div><div class="label">Boarding</div><div class="value">07:05 AM</div></div>
+        <div><div class="label">Terminal</div><div class="value">2</div></div>
+        <div><div class="label">Group</div><div class="value">3</div></div>
+        <div><div class="label">Class</div><div class="value">Economy+</div></div>
+      </div>
+    </section>
+
+    <aside class="stub">
+      <header><div class="tag">SK 1428</div></header>
+      <div class="body">
+        <div class="row">
+          <div><div class="label">From</div><div class="value">SFO</div></div>
+          <div style="text-align:right"><div class="label">To</div><div class="value">JFK</div></div>
+        </div>
+        <div><div class="label">Passenger</div><div class="value" style="font-size:15px">MORGAN / ALEX</div></div>
+        <div class="row">
+          <div><div class="label">Gate</div><div class="value hl">B22</div></div>
+          <div style="text-align:right"><div class="label">Seat</div><div class="value hl">14A</div></div>
+        </div>
+        <div class="row">
+          <div><div class="label">Boards</div><div class="value" style="font-size:15px">07:05</div></div>
+          <div style="text-align:right"><div class="label">Departs</div><div class="value" style="font-size:15px">07:45</div></div>
+        </div>
+        <div class="barcode"></div>
+        <div class="code-txt">PNR · X7QK2M</div>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

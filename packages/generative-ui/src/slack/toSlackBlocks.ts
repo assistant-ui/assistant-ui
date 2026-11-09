@@ -540,6 +540,23 @@ const toActionElement = (
   context: ConversionContext,
 ): SlackActionElement | SlackActionElement[] | undefined => {
   const { props, action } = element;
+  if (props["required"] === true)
+    warn(
+      context,
+      "dropped",
+      element.type,
+      "required cannot be enforced in a Slack actions block.",
+    );
+  if (
+    element.type === "DatePicker" &&
+    (props["min"] !== undefined || props["max"] !== undefined)
+  )
+    warn(
+      context,
+      "dropped",
+      "DatePicker",
+      "min and max cannot be enforced by Slack pickers.",
+    );
   switch (element.type) {
     case "Button":
       return buttonElement(
@@ -1796,6 +1813,35 @@ const convertElement = (
         context,
       );
       const defaultValue = props["defaultValue"];
+      const minLength = props["minLength"];
+      const maxLength = props["maxLength"];
+      const textual = props["inputType"] !== "number";
+      for (const [key, value] of [
+        ["minLength", minLength],
+        ["maxLength", maxLength],
+      ] as const) {
+        if (
+          textual &&
+          value !== undefined &&
+          (typeof value !== "number" ||
+            !Number.isInteger(value) ||
+            value < (key === "minLength" ? 0 : 1) ||
+            value > 3000)
+        )
+          warn(
+            context,
+            "dropped",
+            "Input",
+            `${key} cannot be expressed by Slack.`,
+          );
+      }
+      if (props["min"] !== undefined || props["max"] !== undefined)
+        warn(
+          context,
+          "dropped",
+          "Input",
+          "Numeric min and max cannot be enforced by Slack plain text inputs.",
+        );
       const multiline =
         props["multiline"] === true &&
         (props["inputType"] === undefined || props["inputType"] === "text");
@@ -1813,6 +1859,20 @@ const convertElement = (
           element: {
             type: "plain_text_input",
             action_id: actionId,
+            ...(textual &&
+            typeof minLength === "number" &&
+            Number.isInteger(minLength) &&
+            minLength > 0 &&
+            minLength <= 3000
+              ? { min_length: minLength }
+              : {}),
+            ...(textual &&
+            typeof maxLength === "number" &&
+            Number.isInteger(maxLength) &&
+            maxLength > 0 &&
+            maxLength <= 3000
+              ? { max_length: maxLength }
+              : {}),
             ...(dispatchAction
               ? {
                   dispatch_action_config: {

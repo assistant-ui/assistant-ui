@@ -30,7 +30,11 @@ import {
   type SpecStateStore,
   type SpecStateWrite,
 } from "../state";
-import { SpecRenderer, type SpecComponents } from "../vue/SpecRenderer";
+import {
+  SpecRenderer,
+  type SpecComponents,
+  type SpecRendererProps,
+} from "../vue/SpecRenderer";
 import { useSpecStream } from "../vue/useSpecStream";
 import {
   callHistory,
@@ -50,8 +54,11 @@ import {
 export type SpecToolkitOptions = {
   /** Vue components for the catalog's components. */
   components: SpecComponents;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
   /** Action handlers by name. */
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (
     name: string,
     params: Record<string, unknown>,
@@ -248,8 +255,12 @@ export function createSpecToolkit(
                     state: store,
                     catalog,
                     components: options.components,
+                    ...(options.locale !== undefined
+                      ? { locale: options.locale }
+                      : {}),
                     streaming: streaming.value,
                     handlers,
+                    confirmAction: options.confirmAction,
                     ...(options.onAction ? { onAction: options.onAction } : {}),
                     ...(options.placeholder
                       ? { placeholder: options.placeholder }

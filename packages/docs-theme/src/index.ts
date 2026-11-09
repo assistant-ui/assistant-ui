@@ -1,4 +1,4 @@
-import { createTheme, type DocsTheme } from "@farming-labs/docs";
+import { createTheme, type DocsTheme } from "@farming-labs/docs/config";
 import { shadcn } from "@farming-labs/theme/shadcn";
 
 const createAssistantTheme = createTheme({

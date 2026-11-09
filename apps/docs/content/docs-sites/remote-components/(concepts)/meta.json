@@ -1,0 +1,15 @@
+{
+  "title": "Concepts",
+  "description": "Layout, props, loading, theme, focus, overlays, network and security.",
+  "icon": "Layers",
+  "pages": [
+    "layout",
+    "props",
+    "loading",
+    "theming",
+    "keyboard",
+    "overlays",
+    "network",
+    "security"
+  ]
+}

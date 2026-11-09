@@ -1,7 +1,7 @@
 import {
   defineDocs as defineFarmingDocs,
   type DocsConfig,
-} from "@farming-labs/docs";
+} from "@farming-labs/docs/config";
 import { assistantUi } from "./index";
 
 export const withThemeDefaults = (options: DocsConfig): DocsConfig =>

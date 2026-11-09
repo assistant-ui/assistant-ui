@@ -126,6 +126,15 @@ jobs:
         if: matrix.shard == 0
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs
 
+      # Pull requests run without Turbo's remote cache, so they restore the local cache the latest main push saved. GitHub scopes a cache a pull request writes to its merge ref, so main never reads one.
+      - name: Restore the Turbo cache from main
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-${{ matrix.shard }}-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-${{ matrix.shard }}-
+
       # Each vitest run already spreads its files across every core, so prebuild its prerequisites at turbo's default concurrency before coverage limits concurrency to two.
       - name: Build packages
         env:
@@ -148,6 +157,14 @@ jobs:
           filters=$(node scripts/coverage-shards.mjs "${{ matrix.shard }}")
           mapfile -t args <<< "$filters"
           pnpm test:coverage --continue "${args[@]}"
+
+      # A main push starts with an empty local cache, and Turbo writes both its remote hits and the tasks it runs there, so the saved cache holds exactly this run's tasks.
+      - name: Save the Turbo cache for pull requests
+        if: github.event_name == 'push' && !cancelled()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/save@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-${{ matrix.shard }}-${{ github.sha }}
 
       - name: Write the coverage summary
         if: always()
