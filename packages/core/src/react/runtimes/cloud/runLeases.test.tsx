@@ -23,18 +23,19 @@ import { getMessageRunState } from "../../../store/message-run-state";
 type RunResult = { content: { type: "text"; text: string }[] };
 
 const lease = {
-  id: "lease_1",
-  expires_at: new Date(30_000),
-  ttl_ms: 30_000,
+  lease_id: "lease_1",
+  expires_in_ms: 30_000,
   heartbeat_interval_ms: 20_000,
 };
 
 const makeCloud = (stored: CloudMessage[] = []) => {
   let created = 0;
-  const create = vi.fn(async (_threadId: string, body: { run?: unknown }) => ({
-    message_id: `msg_${++created}`,
-    ...(body.run ? { lease } : undefined),
-  }));
+  const create = vi.fn(
+    async (_threadId: string, body: { open_run?: true }) => ({
+      message_id: `msg_${++created}`,
+      ...(body.open_run ? { run: lease } : undefined),
+    }),
+  );
   const cloud = {
     threads: {
       list: vi.fn().mockResolvedValue({
@@ -60,12 +61,14 @@ const makeCloud = (stored: CloudMessage[] = []) => {
       messages: {
         list: vi.fn().mockResolvedValue({ messages: stored }),
         create,
-        update: vi.fn().mockResolvedValue({}),
+        update: vi.fn().mockResolvedValue(undefined),
+      },
+      runs: {
         heartbeat: vi.fn().mockResolvedValue({
-          expires_at: new Date(50_000),
-          ttl_ms: 30_000,
+          expires_in_ms: 30_000,
           heartbeat_interval_ms: 20_000,
         }),
+        end: vi.fn().mockResolvedValue(undefined),
       },
     },
     events: { track: vi.fn() },
@@ -73,7 +76,11 @@ const makeCloud = (stored: CloudMessage[] = []) => {
     runs: { report: vi.fn().mockResolvedValue(undefined) },
     registerSdk: vi.fn(),
   } as unknown as AssistantCloud;
-  return { cloud, messages: vi.mocked(cloud.threads.messages) };
+  return {
+    cloud,
+    messages: vi.mocked(cloud.threads.messages),
+    threadRuns: vi.mocked(cloud.threads.runs),
+  };
 };
 
 const renderRuntime = async (cloud: AssistantCloud) => {
@@ -119,7 +126,7 @@ afterEach(() => {
 
 describe("cloud run leases", () => {
   it("stores the running reply with a lease and closes it with the settled write", async () => {
-    const { cloud, messages } = makeCloud();
+    const { cloud, messages, threadRuns } = makeCloud();
     const { runs, getAui } = await renderRuntime(cloud);
 
     await act(async () => {
@@ -127,11 +134,11 @@ describe("cloud run leases", () => {
     });
     await waitFor(() => expect(runs).toHaveLength(1));
     await waitFor(() =>
-      expect(createCalls(messages).some((body) => body.run)).toBe(true),
+      expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
     );
 
-    const running = createCalls(messages).find((body) => body.run)!;
-    expect(running.run).toEqual({ status: "running" });
+    const running = createCalls(messages).find((body) => body.open_run)!;
+    expect(running.open_run).toBe(true);
     expect(running.parent_id).toBe("msg_1");
     expect(running.content).toMatchObject({ role: "assistant" });
 
@@ -142,12 +149,17 @@ describe("cloud run leases", () => {
       expect(messages.update).toHaveBeenCalledWith(
         "remote-1",
         "msg_2",
-        expect.objectContaining({
-          run: { lease_id: "lease_1", status: "ended" },
-        }),
+        expect.objectContaining({ lease_id: "lease_1" }),
       ),
     );
-    expect(createCalls(messages).filter((body) => body.run)).toHaveLength(1);
+    await waitFor(() =>
+      expect(threadRuns.end).toHaveBeenCalledWith("remote-1", "lease_1", {
+        reason: "done",
+      }),
+    );
+    expect(createCalls(messages).filter((body) => body.open_run)).toHaveLength(
+      1,
+    );
   });
 
   it("loads a stale reply as an interrupted error that Resume continues from", async () => {
@@ -209,9 +221,9 @@ describe("cloud run leases", () => {
     });
     await waitFor(() => expect(runs).toHaveLength(1));
     await waitFor(() =>
-      expect(createCalls(messages).some((body) => body.run)).toBe(true),
+      expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
     );
-    const resumed = createCalls(messages).find((body) => body.run)!;
+    const resumed = createCalls(messages).find((body) => body.open_run)!;
     expect(resumed.parent_id).toBe("msg_2");
     const branch = getAui().thread.getState().messages;
     expect(branch.map((m) => [m.role, m.status?.type])).toEqual([

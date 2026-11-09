@@ -48,13 +48,13 @@ The [thread detail view](/docs/cloud/dashboard/threads) renders the conversation
 
 ## Interrupted runs
 
-A run lives in the tab that streams it. With the `aui/v0` history path (the local runtime, AG-UI and external store runtimes), the cloud adapter stores the assistant message as soon as its run starts and holds a run lease on it. While the run streams, the adapter sends a heartbeat every 20 seconds and checkpoints the message content when it changed. The runtime's settled write closes the lease.
+A run lives in the tab that streams it. With the `aui/v0` history path (the local runtime, AG-UI and external store runtimes), the cloud adapter stores the assistant message as soon as its run starts and holds a run lease on it. While the run streams, the adapter sends a heartbeat every 20 seconds and checkpoints the message content when it changed. After the runtime's settled write, the adapter ends the run with a `done`, `cancelled` or `error` reason. The endpoints are in the [Messages API reference](/docs/cloud/api/messages#run-leases).
 
 If the tab closes or loses its connection, the heartbeats stop. After 30 seconds without one the cloud reports the run as stale, and the message loads as an error with the code `run_stale` and `message.runState === "stale"`. `ActionBarPrimitive.Resume` continues it: the continuation is a new assistant message after the interrupted one, so the work done so far stays in the thread.
 
 A message whose run another tab or session is still writing loads with the code `run_in_progress` and `message.runState === "in-progress"`. The adapter re-reads its run state around the lease's expiry and updates the thread in place when it changes, so the message turns into the finished answer, or into the interrupted state, without a reload. `ActionBarPrimitive.RefreshRun` re-reads it on demand.
 
-A run that only lost its connection and later comes back keeps writing. If nobody resumed it, its writes revive the lease. If someone did, its writes land on a new sibling branch and never overwrite the resumed reply.
+A run that only lost its connection and later comes back keeps writing. If nobody resumed it, its writes revive the lease. If someone did, the cloud stores its writes on a new sibling branch, answers `409 superseded` with that sibling's id, and never overwrites the resumed reply.
 
 `ErrorPrimitive.Root` exposes the same value as `data-run-state`, and `ActionBarPrimitive.Root` with `hideWhenRunning` hides while another tab writes the reply.
 

@@ -113,8 +113,15 @@ const runPhaseOf = (
   persistence: CloudMessagePersistence,
 ): CloudMessageRunPhase | undefined => {
   if (message.role !== "assistant") return undefined;
-  if (message.status.type === "running") return "running";
-  return persistence.hasOpenRun(message.id) ? "ended" : undefined;
+  const { status } = message;
+  if (status.type === "running") return "running";
+  if (!persistence.hasOpenRun(message.id)) return undefined;
+  if (status.type !== "incomplete") return "done";
+  return status.reason === "cancelled"
+    ? "cancelled"
+    : status.reason === "error"
+      ? "error"
+      : "done";
 };
 
 const isSettledMessage = (message: ThreadMessage) =>
