@@ -20,10 +20,7 @@ const isAllowedOrigin = (value: string, allowWebSocket: boolean): boolean => {
   }
 };
 
-const getAllowedOrigins = (
-  values: unknown,
-  allowWebSocket = false,
-): string[] =>
+const getAllowedOrigins = (values: unknown, allowWebSocket = false): string[] =>
   Array.isArray(values)
     ? [
         ...new Set(

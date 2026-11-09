@@ -42,7 +42,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.33",
     "@assistant-ui/store": "^0.3.23",
-    "markdansi": "^0.3.7"
+    "markdansi": "^0.3.8"
   },
   "peerDependencies": {
     "@assistant-ui/react-ink": "^0.0.54",
@@ -72,8 +72,8 @@
     "ink": "^8.0.0",
     "ink-testing-library": "^4.0.0",
     "react": "^19.3.1",
-    "shiki": "^4.5.0",
-    "vitest": "^5.0.5"
+    "shiki": "^4.6.0",
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",
