@@ -12,14 +12,6 @@ export const states = defineStates([
     Component: () => <ThinkingIndicator label="Thinking" elapsed="0:14" />,
   },
   {
-    key: "tool-step",
-    label: "Tool step",
-    note: "The label names the file the agent is reading right now.",
-    Component: () => (
-      <ThinkingIndicator label="Reading thread.tsx" elapsed="0:03" />
-    ),
-  },
-  {
     key: "long-content",
     label: "Long label",
     note: "A label wider than the line truncates and keeps the timer visible.",

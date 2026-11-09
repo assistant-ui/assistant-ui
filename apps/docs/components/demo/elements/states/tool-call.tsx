@@ -29,21 +29,6 @@ export const states = defineStates([
     Component: () => <ToolCall {...base} running={false} open />,
   },
   {
-    key: "empty-result",
-    label: "No matches",
-    note: "The call finished and returned nothing.",
-    Component: () => (
-      <ToolCall
-        {...base}
-        query="sqlite wal checkpoint"
-        request='{"query": "sqlite wal checkpoint"}'
-        result="0 matches"
-        running={false}
-        open
-      />
-    ),
-  },
-  {
     key: "long-content",
     label: "Long input",
     note: "A long query truncates in the header, while the request and result wrap inside the same width.",
@@ -52,23 +37,19 @@ export const states = defineStates([
         {...base}
         label="Searched the docs"
         query="how do I persist a composer draft across reloads when the thread is remote"
-        request={JSON.stringify(
-          {
-            query:
-              "how do I persist a composer draft across reloads when the thread is remote",
-            limit: 10,
-            sections: ["runtime", "guides", "api-reference"],
-          },
-          null,
-          2,
-        )}
+        request={JSON.stringify({
+          query:
+            "how do I persist a composer draft across reloads when the thread is remote",
+          limit: 10,
+          sections: ["runtime", "guides", "api-reference"],
+        })}
         result={[
           "10 matches",
           "/docs/runtime/drafts",
           "/docs/guides/persistence",
           "/docs/api-reference/primitives/composer",
           "/docs/runtime/remote-thread-list",
-        ].join("\n")}
+        ].join(", ")}
         running={false}
         open
       />
