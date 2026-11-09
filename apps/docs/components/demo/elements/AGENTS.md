@@ -10,5 +10,6 @@ Live demos and state fixtures for the `/elements` catalog; `apps/docs/AGENTS.md`
 - Render a fixture from the element's real props with realistic data (real commands, paths, names, numbers). A fixture is static: no timers, no story phases, and no-op handlers.
 - Give each non-default state a kebab-case `key` (it is the `?state=` value, so keep it stable), a sentence-case `label` of at most two words and 16 characters, and a `note` of one plain sentence naming the edge case; the note becomes the figure caption.
 - Wrap a runtime-bound (`.aui.tsx`) fixture in the same runtime provider its demo uses, seeded with the messages or parts that put it in that state.
+- Keep focus where it is when a fixture mounts: the switcher remounts the fixture on every state change, so a popover opened on mount or an autofocused composer would pull keyboard users out of the radiogroup. Turn that off in the fixture (`initialFocus={false}`, `onOpenAutoFocus` prevented, `autoFocus={false}`); the states test fails a fixture that moves focus.
 - Generative elements need no file of their own: they share the states in `states/generative.tsx`, and the renderer draws a non-streaming component only once its tool call is done, so do not add a partial-spec state there.
 - Run `pnpm vitest run components/demo/elements/states` after adding or changing states; it renders every fixture.

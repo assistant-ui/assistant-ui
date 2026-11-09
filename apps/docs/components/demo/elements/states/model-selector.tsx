@@ -89,7 +89,7 @@ export const states = defineStates([
           onOpenChange={noop}
         >
           <ModelSelectorTrigger />
-          <ModelSelectorContent />
+          <ModelSelectorContent initialFocus={false} />
         </ModelSelectorRoot>
       </Stage>
     ),
@@ -121,7 +121,7 @@ export const states = defineStates([
           onOpenChange={noop}
         >
           <ModelSelectorTrigger />
-          <ModelSelectorContent />
+          <ModelSelectorContent initialFocus={false} />
         </ModelSelectorRoot>
       </Stage>
     ),
@@ -140,7 +140,7 @@ export const states = defineStates([
           onOpenChange={noop}
         >
           <ModelSelectorTrigger />
-          <ModelSelectorContent>
+          <ModelSelectorContent initialFocus={false}>
             <ModelSelectorSearch value="llama" onValueChange={noop} />
             <ModelSelectorList>
               <ModelSelectorEmpty />

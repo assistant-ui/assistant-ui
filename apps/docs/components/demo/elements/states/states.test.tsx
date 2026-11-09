@@ -129,10 +129,21 @@ describe("element states", () => {
           const Fixture = state.Component;
           if (!Fixture) continue;
           expect(() => renderToString(<Fixture />), state.key).not.toThrow();
+          // Stands in for the state switcher: a fixture must not take focus on
+          // mount, or arrowing onto its state leaves the radiogroup.
+          const switcher = document.createElement("button");
+          document.body.append(switcher);
+          switcher.focus();
           const view = render(<Fixture />);
           await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
           const html = view.container.innerHTML;
+          const focused = document.activeElement;
           view.unmount();
+          switcher.remove();
+          expect(
+            focused === switcher,
+            `${state.key} moves focus to ${focused?.outerHTML.slice(0, 80)}`,
+          ).toBe(true);
           expect(
             />[^<\s]/.test(html) ||
               /<(svg|img|canvas|video|audio|iframe|input|textarea)\b/.test(
