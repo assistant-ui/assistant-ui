@@ -17,6 +17,7 @@ import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
+  type CloudMessage,
   CloudAPIError,
   CloudMessagePersistence,
   type CloudMessageRunPhase,
@@ -92,14 +93,20 @@ const RUN_STALE_STATUS = {
     message: "This response was interrupted before it finished.",
   },
 } as const;
-const RUN_IN_PROGRESS_STATUS = {
-  type: "incomplete",
-  reason: "error",
+/** The `error.code` of a message whose run another tab or session is still writing. */
+export const RUN_IN_PROGRESS_ERROR_CODE = "run_in_progress";
+const runInProgressStatus = (expiresInMs: number | undefined) => ({
+  type: "incomplete" as const,
+  reason: "error" as const,
   error: {
-    code: "run_in_progress",
-    message: "This response is still being written in another session.",
+    code: RUN_IN_PROGRESS_ERROR_CODE,
+    message: "Running in another tab…",
+    ...(expiresInMs !== undefined ? { expires_in_ms: expiresInMs } : undefined),
   },
-} as const;
+});
+
+// A run another session drives is the newest message of its branch, so it sits on the first page.
+const RUN_STATE_PAGE_SIZE = 20;
 
 const runPhaseOf = (
   message: ThreadMessage,
@@ -492,6 +499,30 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     );
   }
 
+  /**
+   * Reads one stored message's run state with a short page instead of the
+   * whole thread; undefined when the row is not on that page.
+   */
+  public async readRunState(
+    messageId: string,
+  ): Promise<{ run: CloudMessage["run"]; updatedAt: number } | undefined> {
+    const threadListItem = this.aui.threadListItem;
+    const context = this.captureScope(threadListItem);
+    const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
+    if (!remoteThreadId) return undefined;
+    const remoteId =
+      context.persistence.getResolvedRemoteId(messageId) ?? messageId;
+    const { messages } = await context.cloud.threads.messages.list(
+      remoteThreadId,
+      { limit: RUN_STATE_PAGE_SIZE },
+    );
+    const row = messages.find((message) => message.id === remoteId);
+    return row
+      ? { run: row.run, updatedAt: row.updated_at.getTime() }
+      : undefined;
+  }
+
   /** Follows a running message whose runtime replaced its id while it streams. */
   public renameRun(from: string, to: string): Promise<void> {
     return this.getPersistence().rename(from, to);
@@ -802,7 +833,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
                 status:
                   row.run.status === "stale"
                     ? RUN_STALE_STATUS
-                    : RUN_IN_PROGRESS_STATUS,
+                    : runInProgressStatus(row.run.expires_in_ms),
               } as ThreadMessage,
             }
           : decoded;

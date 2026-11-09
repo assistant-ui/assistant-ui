@@ -4,6 +4,10 @@ import type { ThreadMessage } from "../../../types";
 import type { AssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 
 const CHECKPOINT_INTERVAL_MS = 20_000;
+const POLL_MIN_MS = 2_000;
+const POLL_MAX_MS = 10_000;
+// Past the lease's expiry, so a lapsed run reads as stale on the next poll.
+const POLL_EXPIRY_MARGIN_MS = 500;
 // A runtime writes its settled message right after the run ends; the tracker closes the lease itself only when that write never comes.
 const SETTLE_GRACE_MS = 3_000;
 
@@ -34,6 +38,37 @@ const readBranch = (aui: AssistantClient): readonly ThreadMessage[] => {
   }
 };
 
+/** The `error.code` of a stored run's status as the cloud adapter decodes it. */
+export const runErrorCode = (
+  message: Pick<ThreadMessage, "status"> | undefined,
+): string | undefined => {
+  const status = message?.status;
+  if (status?.type !== "incomplete" || status.reason !== "error") return;
+  const error = status.error;
+  if (typeof error !== "object" || error === null || Array.isArray(error))
+    return;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+};
+
+const pollDelay = (message: ThreadMessage) => {
+  const error = (message.status as { error?: { expires_in_ms?: unknown } })
+    .error;
+  const expiresInMs =
+    typeof error?.expires_in_ms === "number" ? error.expires_in_ms : 0;
+  return Math.min(
+    POLL_MAX_MS,
+    Math.max(POLL_MIN_MS, expiresInMs + POLL_EXPIRY_MARGIN_MS),
+  );
+};
+
+// Keyed by thread list item id, so a message's Refresh button reaches the tracker of the thread that renders it.
+const refreshers = new Map<string, () => Promise<void>>();
+
+/** Re-reads a thread whose run another session drives; resolves when the thread shows the stored state. */
+export const refreshCloudRun = (threadItemId: string): Promise<void> =>
+  refreshers.get(threadItemId)?.() ?? Promise.resolve();
+
 const findMessage = (
   aui: AssistantClient,
   messageId: string,
@@ -53,6 +88,54 @@ export const useCloudRunLeases = (
 ) => {
   useEffect(() => {
     let tracked: TrackedRun | undefined;
+    let poll:
+      | {
+          messageId: string;
+          timer: ReturnType<typeof setTimeout>;
+        }
+      | undefined;
+    let polledUpdatedAt: number | undefined;
+    let disposed = false;
+
+    const refresh = async () => {
+      const thread = getOwnThread(aui);
+      if (!thread || thread.getState().isRunning) return;
+      const repository = await adapter.load();
+      if (disposed) return;
+      const current = getOwnThread(aui);
+      if (!current || current.getState().isRunning) return;
+      polledUpdatedAt = undefined;
+      current.import(repository);
+    };
+
+    const watchRemoteRun = (message: ThreadMessage) => {
+      if (poll) return;
+      const messageId = message.id;
+      poll = {
+        messageId,
+        timer: setTimeout(() => {
+          void (async () => {
+            const state = await adapter
+              .readRunState(messageId)
+              .catch(() => null);
+            if (disposed) return;
+            if (state === null) {
+              poll = undefined;
+              check();
+              return;
+            }
+            const unchanged =
+              state?.run?.status === "running" &&
+              (polledUpdatedAt === undefined ||
+                polledUpdatedAt === state.updatedAt);
+            if (state) polledUpdatedAt = state.updatedAt;
+            if (!unchanged) await refresh().catch(() => undefined);
+            poll = undefined;
+            check();
+          })();
+        }, pollDelay(message)),
+      };
+    };
 
     const write = (run: TrackedRun, message: ThreadMessage) =>
       run.stored
@@ -77,6 +160,14 @@ export const useCloudRunLeases = (
         return;
       const branch = readBranch(aui);
       const head = branch.at(-1);
+      const remoteRun = branch.find(
+        (message) => runErrorCode(message) === "run_in_progress",
+      );
+      if (remoteRun) watchRemoteRun(remoteRun);
+      else if (poll) {
+        clearTimeout(poll.timer);
+        poll = undefined;
+      }
       const parentId = branch.at(-2)?.id ?? null;
       if (tracked && tracked.messageId !== head?.id) {
         const from = tracked.messageId;
@@ -134,9 +225,15 @@ export const useCloudRunLeases = (
       clearInterval(checkpoint);
       return;
     }
+    const threadItemId = aui.threadListItem.getState().id;
+    refreshers.set(threadItemId, refresh);
     const unsubscribe = thread.subscribe(check);
     check();
     return () => {
+      disposed = true;
+      if (refreshers.get(threadItemId) === refresh)
+        refreshers.delete(threadItemId);
+      if (poll) clearTimeout(poll.timer);
       unsubscribe();
       clearInterval(checkpoint);
       if (tracked?.settleTimer !== undefined) clearTimeout(tracked.settleTimer);

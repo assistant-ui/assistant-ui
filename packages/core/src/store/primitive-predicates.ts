@@ -45,7 +45,7 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.message.role !== "assistant" ||
   !s.thread.capabilities.reload;
 
-const isStaleRunStatus = (s: AssistantState): boolean => {
+const runErrorCodeIs = (s: AssistantState, code: string): boolean => {
   const status = s.message.status;
   if (status?.type !== "incomplete" || status.reason !== "error") return false;
   const error = status.error;
@@ -53,9 +53,16 @@ const isStaleRunStatus = (s: AssistantState): boolean => {
     typeof error === "object" &&
     error !== null &&
     !Array.isArray(error) &&
-    (error as { code?: unknown }).code === "run_stale"
+    (error as { code?: unknown }).code === code
   );
 };
+
+const isStaleRunStatus = (s: AssistantState): boolean =>
+  runErrorCodeIs(s, "run_stale");
+
+/** Refresh re-reads a message whose run another tab or session is still writing. */
+export const actionBarRefreshRunDisabled = (s: AssistantState): boolean =>
+  s.message.role !== "assistant" || !runErrorCodeIs(s, "run_in_progress");
 
 /** Resume continues a run that stopped heartbeating, from the stale message onward. */
 export const actionBarResumeDisabled = (s: AssistantState): boolean =>

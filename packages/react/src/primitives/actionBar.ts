@@ -2,6 +2,7 @@ export { ActionBarPrimitiveRoot as Root } from "./actionBar/ActionBarRoot";
 export { ActionBarPrimitiveCopy as Copy } from "./actionBar/ActionBarCopy";
 export { ActionBarPrimitiveReload as Reload } from "./actionBar/ActionBarReload";
 export { ActionBarPrimitiveResume as Resume } from "./actionBar/ActionBarResume";
+export { ActionBarPrimitiveRefreshRun as RefreshRun } from "./actionBar/ActionBarRefreshRun";
 export { ActionBarPrimitiveEdit as Edit } from "./actionBar/ActionBarEdit";
 export { ActionBarPrimitiveSpeak as Speak } from "./actionBar/ActionBarSpeak";
 export { ActionBarPrimitiveStopSpeaking as StopSpeaking } from "./actionBar/ActionBarStopSpeaking";

@@ -13,7 +13,11 @@ import {
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
-import { actionBarResumeDisabled } from "../../../store/primitive-predicates";
+import {
+  actionBarRefreshRunDisabled,
+  actionBarResumeDisabled,
+} from "../../../store/primitive-predicates";
+import { refreshCloudRun } from "./runLeases";
 
 type RunResult = { content: { type: "text"; text: string }[] };
 
@@ -249,10 +253,97 @@ describe("cloud run leases", () => {
     await waitFor(() =>
       expect(getAui().thread.getState().messages).toHaveLength(2),
     );
-    expect(getAui().thread.getState().messages[1]!.status).toMatchObject({
+    const remote = getAui().thread.getState().messages[1]!;
+    expect(remote.status).toMatchObject({
       type: "incomplete",
       reason: "error",
-      error: { code: "run_in_progress" },
+      error: { code: "run_in_progress", expires_in_ms: 10_000 },
     });
+    const state = {
+      thread: getAui().thread.getState(),
+      message: { ...remote, isLast: true },
+    } as unknown as Parameters<typeof actionBarRefreshRunDisabled>[0];
+    expect(actionBarRefreshRunDisabled(state)).toBe(false);
+    expect(actionBarResumeDisabled(state)).toBe(true);
   });
+
+  it("follows a run another session drives until it lapses, and refreshes on request", async () => {
+    const at = new Date(0);
+    const userRow: CloudMessage = {
+      id: "msg_1",
+      parent_id: null,
+      height: 0,
+      created_at: at,
+      updated_at: at,
+      format: "aui/v0",
+      content: { role: "user", content: [{ type: "text", text: "hello" }] },
+    };
+    const replyRow = (
+      text: string,
+      run: CloudMessage["run"],
+      updatedAt: number,
+    ): CloudMessage => ({
+      id: "msg_2",
+      parent_id: "msg_1",
+      height: 1,
+      created_at: at,
+      updated_at: new Date(updatedAt),
+      format: "aui/v0",
+      content: {
+        role: "assistant",
+        content: [{ type: "text", text }],
+        status: { type: "incomplete", reason: "cancelled" },
+      },
+      ...(run ? { run } : undefined),
+    });
+    let rows = [
+      replyRow("Step one", { status: "running", expires_in_ms: 0 }, 1),
+      userRow,
+    ];
+    const { cloud, messages } = makeCloud(rows);
+    messages.list.mockImplementation(async () => ({ messages: rows }));
+    const { getRuntime, getAui } = await renderRuntime(cloud);
+    await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+    const reply = () => getAui().thread.getState().messages[1];
+    await waitFor(() =>
+      expect(reply()?.status).toMatchObject({
+        error: { code: "run_in_progress", message: "Running in another tab…" },
+      }),
+    );
+
+    rows = [
+      replyRow(
+        "Step one, step two",
+        { status: "running", expires_in_ms: 0 },
+        2,
+      ),
+      userRow,
+    ];
+    await act(async () => {
+      await refreshCloudRun(getAui().threadListItem.getState().id);
+    });
+    expect(reply()?.content).toEqual([
+      { type: "text", text: "Step one, step two" },
+    ]);
+
+    const readsBefore = messages.list.mock.calls.length;
+    await waitFor(
+      () =>
+        expect(
+          messages.list.mock.calls
+            .slice(readsBefore)
+            .some(([, query]) => query?.limit === 20),
+        ).toBe(true),
+      { timeout: 5_000 },
+    );
+
+    rows = [replyRow("Step one, step two", { status: "stale" }, 3), userRow];
+    await waitFor(
+      () =>
+        expect(reply()?.status).toMatchObject({
+          error: { code: "run_stale" },
+        }),
+      { timeout: 8_000 },
+    );
+  }, 15_000);
 });

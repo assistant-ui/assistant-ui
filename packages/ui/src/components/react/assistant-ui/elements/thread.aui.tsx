@@ -58,6 +58,8 @@ import {
   PencilIcon,
   PhoneIcon,
   RefreshCwIcon,
+  TriangleAlertIcon,
+  Loader2Icon,
   SquareIcon,
   PlayIcon,
   ThumbsDownIcon,
@@ -660,22 +662,72 @@ const ComposerAction: FC = () => {
   );
 };
 
+const runStatusCode = (status: unknown): string | undefined => {
+  if (typeof status !== "object" || status === null) return undefined;
+  const { type, reason, error } = status as {
+    type?: unknown;
+    reason?: unknown;
+    error?: unknown;
+  };
+  if (type !== "incomplete" || reason !== "error") return undefined;
+  if (typeof error !== "object" || error === null) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+};
+
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-        <ActionBarPrimitive.Resume asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="aui-message-error-resume mt-2 h-7 gap-1.5 disabled:hidden"
-          >
-            <PlayIcon className="size-3.5" />
-            Resume
-          </Button>
-        </ActionBarPrimitive.Resume>
-      </ErrorPrimitive.Root>
+      <AuiIf condition={(s) => runStatusCode(s.message.status) === "run_stale"}>
+        <ErrorPrimitive.Root className="aui-message-interrupted-root mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:bg-amber-500/5 dark:text-amber-200">
+          <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
+          <ErrorPrimitive.Message className="aui-message-interrupted-message min-w-0 flex-1" />
+          <ActionBarPrimitive.Resume asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="aui-message-interrupted-resume h-7 gap-1.5 border-amber-500/40 bg-transparent hover:bg-amber-500/15 disabled:hidden dark:border-amber-400/30"
+            >
+              <PlayIcon className="size-3.5" />
+              Resume
+            </Button>
+          </ActionBarPrimitive.Resume>
+        </ErrorPrimitive.Root>
+      </AuiIf>
+      <AuiIf
+        condition={(s) => runStatusCode(s.message.status) === "run_in_progress"}
+      >
+        <ErrorPrimitive.Root
+          role="status"
+          className="aui-message-remote-run-root text-muted-foreground bg-muted/40 mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border p-3 text-sm"
+        >
+          <Loader2Icon
+            className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+            aria-hidden
+          />
+          <ErrorPrimitive.Message className="aui-message-remote-run-message min-w-0 flex-1" />
+          <ActionBarPrimitive.RefreshRun asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="aui-message-remote-run-refresh h-7 gap-1.5"
+            >
+              <RefreshCwIcon className="size-3.5" />
+              Refresh
+            </Button>
+          </ActionBarPrimitive.RefreshRun>
+        </ErrorPrimitive.Root>
+      </AuiIf>
+      <AuiIf
+        condition={(s) => {
+          const code = runStatusCode(s.message.status);
+          return code !== "run_stale" && code !== "run_in_progress";
+        }}
+      >
+        <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
+          <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+        </ErrorPrimitive.Root>
+      </AuiIf>
     </MessagePrimitive.Error>
   );
 };
