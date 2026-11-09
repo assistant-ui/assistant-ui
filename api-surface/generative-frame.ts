@@ -998,9 +998,9 @@ type SpecPromptOptions = {
   };
 };
 
-declare function SpecRenderer$1(_param1: SpecRendererProps): import("react").JSX.Element;
+declare function SpecRenderer(_param1: SpecRendererProps): import("react").JSX.Element;
 
-declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   spec: {
     type: PropType<Spec>;
     required: true;
@@ -2015,7 +2015,7 @@ declare namespace entry_react_exports {
 }
 
 declare namespace entry_spec_react_exports {
-  export { SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
+  export { SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer, SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
 }
 
 declare function readThemeTokens(element?: Element, sources?: ThemeTokenSources): ThemeTokens;
@@ -2073,7 +2073,7 @@ declare namespace entry_spec_assistant_ui_vue_exports {
 }
 
 declare namespace entry_spec_vue_exports {
-  export { SpecComponents$1 as SpecComponents, SpecElementContext, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$2 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
+  export { SpecComponents$1 as SpecComponents, SpecElementContext, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
 }
 
 declare const widgetStorageSalt: (id: string) => string;

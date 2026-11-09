@@ -2,9 +2,9 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { JSONSchema7 } from "json-schema";
 
-import { DropdownMenu, Popover, Slot } from "radix-ui";
+import { DropdownMenu, Popover } from "radix-ui";
 
-import { Primitive } from "radix-ui/internal";
+import "radix-ui/internal";
 
 import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, MouseEvent, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
 

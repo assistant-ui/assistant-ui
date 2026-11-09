@@ -1,4 +1,4 @@
-import { Chat, CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
+import { CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 

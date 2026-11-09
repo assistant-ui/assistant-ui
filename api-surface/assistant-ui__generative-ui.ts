@@ -12,7 +12,7 @@ import "react-textarea-autosize";
 
 import { Component } from "vue";
 
-import { ZodType, z } from "zod";
+import { ZodType } from "zod";
 
 import "zustand";
 

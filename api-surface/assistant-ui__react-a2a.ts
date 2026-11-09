@@ -2,6 +2,8 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { JSONSchema7 } from "json-schema";
 
+import "react";
+
 type A2AAgentCapabilities = {
   streaming?: boolean | undefined;
   pushNotifications?: boolean | undefined;

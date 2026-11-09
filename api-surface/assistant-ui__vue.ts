@@ -2,6 +2,8 @@ import "@standard-schema/spec";
 
 import "json-schema";
 
+import "react";
+
 import { ComputedRef, PropType, Ref, SlotsType, VNodeChild } from "vue";
 
 declare const ActionBarPrimitiveCopy: import("vue").DefineComponent<import("vue").ExtractPropTypes<{

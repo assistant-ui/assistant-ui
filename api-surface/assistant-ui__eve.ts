@@ -8,6 +8,8 @@ import { EveMessage, Interaction, UseEveAgentOptions, UseEveAgentReturn } from "
 
 import { JSONSchema7 } from "json-schema";
 
+import "react";
+
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;

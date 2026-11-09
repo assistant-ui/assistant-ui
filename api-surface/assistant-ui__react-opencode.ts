@@ -8,6 +8,8 @@ import "radix-ui";
 
 import "radix-ui/internal";
 
+import "react";
+
 import "react-textarea-autosize";
 
 import "zustand";
