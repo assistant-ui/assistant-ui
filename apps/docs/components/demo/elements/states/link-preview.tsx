@@ -28,20 +28,6 @@ export const states = defineStates([
     ),
   },
   {
-    key: "compact-no-image",
-    label: "Compact text",
-    note: "The compact layout without an image keeps its row height.",
-    Component: () => (
-      <LinkPreview
-        layout="compact"
-        href="https://react.dev/reference/react/useSyncExternalStore"
-        title="useSyncExternalStore"
-        description="A React Hook that lets you subscribe to an external store."
-        siteName="react.dev"
-      />
-    ),
-  },
-  {
     key: "long-content",
     label: "Long text",
     note: "A long title and description clamp to two lines each.",

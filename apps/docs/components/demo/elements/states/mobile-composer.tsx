@@ -63,7 +63,7 @@ export const states = defineStates([
   {
     key: "disabled",
     label: "Disabled",
-    note: "Without handlers the attach and quick action buttons are disabled.",
+    note: "Without handlers the attach button dims, quick actions stop responding, and the send button is gone.",
     Component: () => (
       <MobileComposer
         value=""

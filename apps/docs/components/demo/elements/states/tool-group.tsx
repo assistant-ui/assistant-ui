@@ -100,7 +100,7 @@ export const states = defineStates([
   {
     key: "partial",
     label: "One failed",
-    note: "One call in the group failed while the others finished.",
+    note: "The run failed before one call returned, while the others had already finished.",
     Component: () => (
       <Group
         calls={[

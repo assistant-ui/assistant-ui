@@ -126,7 +126,7 @@ export const states = defineStates([
   {
     key: "long-run",
     label: "Long run",
-    note: "A slow run with tool calls reads in seconds.",
+    note: "A slow run reads in seconds.",
     Component: () => (
       <TimingFixture
         timing={{
