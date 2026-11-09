@@ -7,7 +7,7 @@ import { useAgUiRuntime } from "./useAgUiRuntime";
 
 afterEach(cleanup);
 
-it("preserves the agent state through requests and streamed deltas", async () => {
+it("sends initialState on the first request and keeps middleware clientContext out of thread.state", async () => {
   const sentStates: unknown[] = [];
   const agent = new HttpAgent({
     url: "http://agent.test/agent",
@@ -41,6 +41,11 @@ it("preserves the agent state through requests and streamed deltas", async () =>
     next.run({ ...input, state: { ...input.state, clientContext: "x" } }),
   );
   const { result } = renderHook(() => useAgUiRuntime({ agent }));
+  const { result: otherThread } = renderHook(() => useAgUiRuntime({ agent }));
+
+  expect(result.current.thread.getState().state).toEqual({
+    fromInitialState: true,
+  });
 
   for (const text of ["first", "second"]) {
     await act(async () => {
@@ -52,6 +57,9 @@ it("preserves the agent state through requests and streamed deltas", async () =>
     await waitFor(() =>
       expect(result.current.thread.getState().isRunning).toBe(false),
     );
+    expect(otherThread.current.thread.getState().state).toEqual({
+      fromInitialState: true,
+    });
   }
 
   expect(sentStates).toEqual([
@@ -61,5 +69,19 @@ it("preserves the agent state through requests and streamed deltas", async () =>
   expect(result.current.thread.getState().state).toEqual({
     fromInitialState: true,
     foo: 1,
+  });
+
+  await act(async () => {
+    await otherThread.current.thread.append({
+      role: "user",
+      content: [{ type: "text", text: "other thread" }],
+    });
+  });
+  await waitFor(() =>
+    expect(otherThread.current.thread.getState().isRunning).toBe(false),
+  );
+  expect(sentStates[2]).toEqual({
+    fromInitialState: true,
+    clientContext: "x",
   });
 });

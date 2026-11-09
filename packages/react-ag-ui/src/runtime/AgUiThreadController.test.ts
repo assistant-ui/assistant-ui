@@ -540,6 +540,25 @@ describe("AgUiThreadController activity deltas", () => {
 });
 
 describe("AgUiThreadController run state", () => {
+  const createStateAgent = (sentStates: unknown[]) =>
+    new HttpAgent({
+      url: "http://agent.test/agent",
+      initialState: { fromInitialState: true },
+      fetch: async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        sentStates.push(body.state);
+        const events = [
+          { type: "RUN_STARTED", threadId: body.threadId, runId: body.runId },
+          { type: "STATE_SNAPSHOT", snapshot: { a: 1 } },
+          { type: "RUN_FINISHED", threadId: body.threadId, runId: body.runId },
+        ];
+        return new Response(
+          events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+
   type Subscriber = {
     onStateSnapshotEvent?: (payload: {
       event: { type: "STATE_SNAPSHOT"; snapshot: { count: number } };
@@ -578,33 +597,69 @@ describe("AgUiThreadController run state", () => {
     expect(agent.state).toBeNull();
   });
 
-  it("synchronizes agent and controller state changes", async () => {
+  it("isolates mounted threads sharing one agent through runs and setState", async () => {
+    const sentStates: unknown[] = [];
+    const agent = createStateAgent(sentStates);
+    const { core: threadA } = createCore(undefined, agent);
+    const { core: threadB } = createCore(undefined, agent);
+
+    await threadA.append({ ...userMessage("A"), startRun: true });
+    expect(threadA.getState()).toEqual({ a: 1 });
+    expect.soft(threadB.getState()).toEqual({ fromInitialState: true });
+
+    threadA.setState({ x: 1 });
+    await flush();
+    expect(threadA.getState()).toEqual({ x: 1 });
+    expect.soft(threadB.getState()).toEqual({ fromInitialState: true });
+
+    await threadB.append({ ...userMessage("B"), startRun: true });
+    expect
+      .soft(sentStates)
+      .toEqual([{ fromInitialState: true }, { fromInitialState: true }]);
+    expect.soft(threadA.getState()).toEqual({ x: 1 });
+  });
+
+  it("starts a later thread from the shared agent's initial state after a run", async () => {
+    const sentStates: unknown[] = [];
+    const agent = createStateAgent(sentStates);
+    const { core: threadA } = createCore(undefined, agent);
+
+    await threadA.append({ ...userMessage("A"), startRun: true });
+    expect(agent.state).toEqual({ a: 1 });
+
+    const { core: threadB } = createCore(undefined, agent);
+    expect.soft(threadB.getState()).toEqual({ fromInitialState: true });
+    await threadB.append({ ...userMessage("B"), startRun: true });
+    expect(sentStates).toEqual([
+      { fromInitialState: true },
+      { fromInitialState: true },
+    ]);
+  });
+
+  it("copies the initial state before the agent state is mutated", () => {
     const agent = new HttpAgent({
       url: "http://agent.test/agent",
-      initialState: { fromInitialState: true },
+      initialState: { nested: { count: 0 } },
     });
     const { core } = createCore(undefined, agent);
 
-    expect(core.getState()).toEqual({ fromInitialState: true });
+    agent.state.nested.count = 1;
+    expect(core.getState()).toEqual({ nested: { count: 0 } });
 
-    core.setState({ fromRuntime: true });
-    expect(agent.state).toEqual({ fromRuntime: true });
-
-    agent.setState({ fromAgent: true });
-    await flush();
-    expect(core.getState()).toEqual({ fromAgent: true });
-
-    core.resetState();
-    expect(core.getState()).toBeUndefined();
-    expect(agent.state).toEqual({});
-
-    core.setState({ fromPreviousThread: true });
-    core.resetThreadState();
-    expect(core.getState()).toBeUndefined();
-    expect(agent.state).toEqual({});
+    const { core: laterThread } = createCore(undefined, agent);
+    expect(laterThread.getState()).toEqual({ nested: { count: 0 } });
   });
 
-  it("adopts the incoming agent state when the thread has no snapshot", () => {
+  it("records an undefined initial state without adopting later agent state", () => {
+    const agent = {} as AbstractAgent;
+    createCore(undefined, agent);
+    agent.state = { fromPreviousThread: true };
+
+    const { core } = createCore(undefined, agent);
+    expect(core.getState()).toBeUndefined();
+  });
+
+  it("seeds a new agent's initial state on swap when the thread has no snapshot", () => {
     const { core } = createCore();
     const agent = new HttpAgent({
       url: "http://agent.test/agent",
@@ -622,18 +677,21 @@ describe("AgUiThreadController run state", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it("pushes the thread snapshot to the incoming agent", () => {
+  it("preserves the thread snapshot on swap and records the new agent's initial state", async () => {
     const { core } = createCore();
     core.setState({ fromThread: true });
-    const agent = new HttpAgent({
-      url: "http://agent.test/agent",
-      initialState: { a: 1 },
-    });
+    const sentStates: unknown[] = [];
+    const agent = createStateAgent(sentStates);
 
     core.updateOptions({ agent, logger: makeLogger(), showThinking: true });
 
-    expect(agent.state).toEqual({ fromThread: true });
+    expect(agent.state).toEqual({ fromInitialState: true });
     expect(core.getState()).toEqual({ fromThread: true });
+    await core.append({ ...userMessage("after swap"), startRun: true });
+    expect(sentStates).toEqual([{ fromThread: true }]);
+
+    const { core: laterThread } = createCore(undefined, agent);
+    expect(laterThread.getState()).toEqual({ fromInitialState: true });
   });
 });
 

@@ -26,7 +26,6 @@ import {
   appendToolInteraction,
   createHistoryWriteChain,
   createMessageRepositorySession,
-  isJSONValueEqual,
   invokeUserCallback,
   iterateToolCallParts,
   mapToolCallPartsDeep,
@@ -82,6 +81,24 @@ import {
   withSettledToolApprovals,
   withToolApprovalDecision,
 } from "./adapter/tool-approval";
+
+// The SDK does not retain initialState.
+const agentInitialStates = new WeakMap<
+  AbstractAgent,
+  ReadonlyJSONValue | undefined
+>();
+
+const getAgentInitialState = (agent: AbstractAgent) => {
+  if (!agentInitialStates.has(agent)) {
+    agentInitialStates.set(
+      agent,
+      agent.state === undefined
+        ? undefined
+        : (structuredClone(agent.state) as ReadonlyJSONValue),
+    );
+  }
+  return agentInitialStates.get(agent);
+};
 
 // AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
 // is cancelled through agent.abortRun(); the run options stay for subclasses
@@ -370,10 +387,6 @@ export class AgUiThreadController {
   });
   private state: AgUiThreadState = createAgUiThreadState();
   private abortController: AbortController | null = null;
-  private agentStateSubscription:
-    | ReturnType<AbstractAgent["subscribe"]>
-    | undefined;
-  private agentStateSubscriptionGeneration = 0;
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
@@ -391,13 +404,13 @@ export class AgUiThreadController {
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
-    if (this.agent.state !== undefined) {
+    const initialState = getAgentInitialState(this.agent);
+    if (initialState !== undefined) {
       this.dispatch({
         type: "stateSnapshot",
-        snapshot: this.agent.state as ReadonlyJSONValue,
+        snapshot: initialState,
       });
     }
-    this.subscribeToAgentState();
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.joinStrategy = options.joinStrategy;
@@ -427,56 +440,6 @@ export class AgUiThreadController {
     this.state = reduceAgUiThreadState(this.state, action);
   }
 
-  private subscribeToAgentState(): void {
-    const agent = this.agent;
-    if (typeof agent.subscribe !== "function") return;
-    const generation = ++this.agentStateSubscriptionGeneration;
-    this.agentStateSubscription = agent.subscribe({
-      onStateChanged: ({ state }) => {
-        if (
-          this.agent !== agent ||
-          this.agentStateSubscriptionGeneration !== generation
-        ) {
-          return;
-        }
-        this.updateStateSnapshotFromAgent(state as ReadonlyJSONValue);
-      },
-    });
-  }
-
-  private updateStateSnapshotFromAgent(snapshot: ReadonlyJSONValue): void {
-    if (
-      this.state.stateSnapshot !== undefined &&
-      isJSONValueEqual(this.state.stateSnapshot, snapshot)
-    ) {
-      return;
-    }
-    this.dispatch({ type: "stateSnapshot", snapshot });
-    this.publishUpdate();
-  }
-
-  private unsubscribeFromAgentState(): void {
-    this.agentStateSubscriptionGeneration++;
-    this.agentStateSubscription?.unsubscribe();
-    this.agentStateSubscription = undefined;
-  }
-
-  private setAgentState(snapshot: ReadonlyJSONValue): void {
-    if (typeof this.agent.setState === "function") {
-      this.agent.setState(snapshot);
-    } else {
-      try {
-        this.agent.state = snapshot;
-      } catch {}
-    }
-  }
-
-  private clearAgentState(): void {
-    try {
-      this.agent.state = {};
-    } catch {}
-  }
-
   private publishUpdate(): void {
     this.snapshot = undefined;
     for (const listener of this.listeners) listener();
@@ -484,17 +447,16 @@ export class AgUiThreadController {
 
   updateOptions(options: CoreOptions) {
     const agentChanged = this.agent !== options.agent;
-    if (agentChanged) this.unsubscribeFromAgentState();
     this.agent = options.agent;
     if (agentChanged) {
-      if (this.state.stateSnapshot !== undefined) {
-        this.setAgentState(this.state.stateSnapshot);
-      } else if (this.agent.state !== undefined) {
-        this.updateStateSnapshotFromAgent(
-          this.agent.state as ReadonlyJSONValue,
-        );
+      const initialState = getAgentInitialState(this.agent);
+      if (
+        this.state.stateSnapshot === undefined &&
+        initialState !== undefined
+      ) {
+        this.dispatch({ type: "stateSnapshot", snapshot: initialState });
+        this.publishUpdate();
       }
-      this.subscribeToAgentState();
     }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
@@ -519,12 +481,10 @@ export class AgUiThreadController {
 
   attachRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
-    if (!this.agentStateSubscription) this.subscribeToAgentState();
   }
 
   detachRuntime() {
     this.runtime = undefined;
-    this.unsubscribeFromAgentState();
     void this.cancel().catch((error) => {
       this.logger.error("[agui] failed to cancel run during teardown", error);
     });
@@ -1624,7 +1584,6 @@ export class AgUiThreadController {
       snapshot: state,
     });
     this.publishUpdate();
-    this.setAgentState(state);
   }
 
   setState(
@@ -1639,11 +1598,9 @@ export class AgUiThreadController {
       snapshot,
     });
     this.publishUpdate();
-    this.setAgentState(snapshot);
   }
 
   resetState(): void {
-    this.clearAgentState();
     this.dispatch({ type: "resetState" });
     this.publishUpdate();
   }
@@ -1657,9 +1614,6 @@ export class AgUiThreadController {
 
     this.dispatch({ type: "resetThread" });
     this.subagentParentToolCallIds.clear();
-    this.unsubscribeFromAgentState();
-    this.clearAgentState();
-    this.subscribeToAgentState();
 
     if (controller) {
       this.abortController = null;
