@@ -13,11 +13,6 @@ import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphInterruptState, useLangGraphSendCommand } from "./hooks";
 import type { LangChainMessage } from "./types";
 
-vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
-  ...(await import("../../core/src/react")),
-}));
-
 const TOOL_CALL_ID = "tc-1";
 
 const ToolRegistrar = ({
