@@ -58,16 +58,9 @@ export function workspacePackages(repoRoot) {
   return packages;
 }
 
-export function exampleInputs(repoRoot, example) {
+export function workspaceInputs(repoRoot, pkg, includedInputs = []) {
   const packages = workspacePackages(repoRoot);
-  const pkg = readJson(
-    path.join(repoRoot, "examples", example, "package.json"),
-  );
-  const inputs = new Set([
-    `examples/${example}`,
-    ...EXAMPLES[example].extraInputs,
-    ...SHARED_INPUTS,
-  ]);
+  const inputs = new Set(includedInputs);
   const queue = linkedDependencies(pkg, { withDev: true });
   while (queue.length > 0) {
     const dir = packages.get(queue.shift());
@@ -80,6 +73,19 @@ export function exampleInputs(repoRoot, example) {
       }),
     );
   }
+  return [...inputs].filter((input) => input.startsWith("packages/")).sort();
+}
+
+export function exampleInputs(repoRoot, example) {
+  const pkg = readJson(
+    path.join(repoRoot, "examples", example, "package.json"),
+  );
+  const inputs = new Set([
+    `examples/${example}`,
+    ...EXAMPLES[example].extraInputs,
+    ...SHARED_INPUTS,
+  ]);
+  for (const dir of workspaceInputs(repoRoot, pkg, inputs)) inputs.add(dir);
   return [...inputs].sort();
 }
 

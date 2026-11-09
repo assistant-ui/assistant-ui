@@ -17,29 +17,21 @@ on:
       - packages/generative-frame/**
       - packages/generative-ui/**
       - packages/heat-graph/**
-      - packages/react-devtools/**
-      - packages/react-langchain/**
-      - packages/react-langgraph/**
+      - packages/react/**
       - packages/react-markdown/**
       - packages/react-mcp/**
       - packages/react-native/**
-      - packages/react-pi/**
-      - packages/react-streamdown/**
       - packages/react-syntax-highlighter/**
-      - packages/react/**
       - packages/safe-content-frame/**
       - packages/store/**
       - packages/tap/**
       - packages/tw-shimmer/**
       - packages/ui/**
-      - packages/vite/**
       - packages/vscode/**
       - packages/vue/**
       - packages/x-buildutils/**
-      - packages/x-changelog/**
-      - packages/x-generative-compiler/**
-      - packages/x-performance/**
-      - packages/x-react18/**
+      - '!packages/**/*.test.ts'
+      - '!packages/**/*.test.tsx'
   push:
     branches:
       - main
@@ -58,29 +50,21 @@ on:
       - packages/generative-frame/**
       - packages/generative-ui/**
       - packages/heat-graph/**
-      - packages/react-devtools/**
-      - packages/react-langchain/**
-      - packages/react-langgraph/**
+      - packages/react/**
       - packages/react-markdown/**
       - packages/react-mcp/**
       - packages/react-native/**
-      - packages/react-pi/**
-      - packages/react-streamdown/**
       - packages/react-syntax-highlighter/**
-      - packages/react/**
       - packages/safe-content-frame/**
       - packages/store/**
       - packages/tap/**
       - packages/tw-shimmer/**
       - packages/ui/**
-      - packages/vite/**
       - packages/vscode/**
       - packages/vue/**
       - packages/x-buildutils/**
-      - packages/x-changelog/**
-      - packages/x-generative-compiler/**
-      - packages/x-performance/**
-      - packages/x-react18/**
+      - '!packages/**/*.test.ts'
+      - '!packages/**/*.test.tsx'
   workflow_dispatch:
 
 permissions:

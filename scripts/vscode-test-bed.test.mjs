@@ -2,13 +2,26 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
+import { workspaceInputs } from "./deploy-examples-changes.mjs";
+import { posixPath, readJson } from "./lib/workspace.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const workflow = readFileSync(
   path.join(root, ".github/workflows/vscode-test-bed.yaml"),
   "utf8",
 );
+const packageInputs = [
+  "examples/with-vscode/package.json",
+  "templates/vscode/package.json",
+];
+const expectedPackages = [
+  ...new Set([
+    "packages/x-buildutils",
+    ...packageInputs.flatMap((file) =>
+      workspaceInputs(root, readJson(path.join(root, file))).map(posixPath),
+    ),
+  ]),
+].sort();
 
 function pathsFor(event) {
   const block = workflow.match(
@@ -16,14 +29,19 @@ function pathsFor(event) {
   );
   assert.ok(block, event);
   return [...block[0].matchAll(/^      - (.+)$/gm)].map((match) =>
-    match[1].replace(/^["']|["']$/g, ""),
+    posixPath(match[1].replace(/^["']|["']$/g, "")),
   );
 }
 
 for (const event of ["pull_request", "push"]) {
   const paths = pathsFor(event);
   const runsFor = (file) =>
-    paths.some((pattern) => path.posix.matchesGlob(file, pattern));
+    paths.reduce((included, pattern) => {
+      const negative = pattern.startsWith("!");
+      return path.posix.matchesGlob(file, negative ? pattern.slice(1) : pattern)
+        ? !negative
+        : included;
+    }, false);
 
   test(`${event}: VS Code probes cover the extension and template`, () => {
     for (const file of [
@@ -36,39 +54,30 @@ for (const event of ["pull_request", "push"]) {
   });
 
   test(`${event}: VS Code probes cover installed workspace dependencies`, () => {
-    const { manifests } = readWorkspaceManifestEntries(root);
-    const entries = new Map(manifests.map((entry) => [entry.pkg.name, entry]));
-    const rootPackage = JSON.parse(
-      readFileSync(path.join(root, "package.json")),
+    assert.deepEqual(
+      paths
+        .filter((pattern) => pattern.startsWith("packages/"))
+        .map((pattern) => pattern.replace(/\/\*\*$/, ""))
+        .sort(),
+      expectedPackages,
     );
-    const queue = [
-      "with-vscode",
-      "@assistant-ui/react-devtools",
-      ...Object.keys(rootPackage.devDependencies).filter((name) =>
-        entries.has(name),
-      ),
-    ];
-    const visited = new Set();
-    const missing = [];
-    while (queue.length) {
-      const name = queue.shift();
-      if (visited.has(name)) continue;
-      visited.add(name);
-      const entry = entries.get(name);
-      assert.ok(entry, name);
-      const directory = path.posix.dirname(entry.manifest);
-      if (!runsFor(`${directory}/src/index.ts`)) missing.push(directory);
-      queue.push(
-        ...Object.keys({
-          ...entry.pkg.dependencies,
-          ...entry.pkg.devDependencies,
-          ...entry.pkg.peerDependencies,
-          ...entry.pkg.optionalDependencies,
-          ...entry.pkg.optionalDevDependencies,
-        }).filter((dependency) => entries.has(dependency)),
-      );
+  });
+
+  test(`${event}: package tests do not trigger VS Code probes`, () => {
+    const exclusions = ["!packages/**/*.test.ts", "!packages/**/*.test.tsx"];
+    assert.deepEqual(
+      paths.filter((pattern) => pattern.startsWith("!packages/")),
+      exclusions,
+    );
+    const lastPackage = paths.findLastIndex((pattern) =>
+      pattern.startsWith("packages/"),
+    );
+    for (const exclusion of exclusions) {
+      assert.ok(paths.indexOf(exclusion) > lastPackage, exclusion);
     }
-    assert.deepEqual(missing.sort(), []);
+    assert.equal(runsFor("packages/vscode/src/x.test.ts"), false);
+    assert.equal(runsFor("packages/vscode/src/x.test.tsx"), false);
+    assert.equal(runsFor("packages/vscode/src/x.ts"), true);
   });
 
   test(`${event}: VS Code probes cover shared build and workflow inputs`, () => {
@@ -78,6 +87,7 @@ for (const event of ["pull_request", "push"]) {
       "pnpm-workspace.yaml",
       "turbo.json",
       ".github/workflows/vscode-test-bed.yaml",
+      "packages/x-buildutils/src/index.ts",
     ]) {
       assert.equal(runsFor(file), true, file);
     }
