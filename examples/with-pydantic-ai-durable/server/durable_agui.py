@@ -321,7 +321,11 @@ class DurableAGUI(Generic[AgentDepsT]):
                 body = None
         return StreamingResponse(body or _empty_stream(), media_type=SSE)
 
-    async def cancel(self, thread_id: str) -> bool:
+    async def cancel(self, thread_id: str, run_id: str | None = None) -> bool:
+        """Cancel the thread's run, or only run `run_id` when given, so a late
+        cancel for a superseded run cannot stop its replacement."""
+        if run_id is not None:
+            return self._cancel_local(f"{thread_id}.{run_id}")
         record = await self.threads.get(thread_id)
         if record is None or not record.running or not record.stream_id:
             return False
@@ -357,7 +361,9 @@ class DurableAGUI(Generic[AgentDepsT]):
             return await self.stream(request.path_params["thread_id"])
 
         async def cancel(request: Request) -> Response:
-            cancelled = await self.cancel(request.path_params["thread_id"])
+            cancelled = await self.cancel(
+                request.path_params["thread_id"], request.query_params.get("run")
+            )
             return JSONResponse({"cancelled": cancelled})
 
         return [

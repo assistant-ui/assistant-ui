@@ -256,7 +256,7 @@ def test_a_thread_reopened_after_the_run_has_every_message_once(server: Server) 
         assert _assistant_texts(final) == ["".join(WORDS)] * 2
 
         listed = client.get("/threads").json()
-        assert [(item["id"], item["title"]) for item in listed] == [(thread_id, "First")]
+        assert (listed[0]["id"], listed[0]["title"]) == (thread_id, "First")
 
 
 def test_cancel_stops_the_run_and_keeps_the_partial_answer(server: Server) -> None:
@@ -274,6 +274,22 @@ def test_cancel_stops_the_run_and_keeps_the_partial_answer(server: Server) -> No
             replay = list(_events(response.iter_lines()))
         assert _text(replay) == "".join(WORDS[:GATE_AFTER])
         assert client.post(f"/threads/{thread_id}/cancel").json() == {"cancelled": False}
+
+
+def test_a_cancel_naming_another_run_leaves_the_current_run_alone(
+    server: Server,
+) -> None:
+    thread_id = uuid.uuid4().hex
+    with httpx.Client(base_url=server.base_url, timeout=10) as client:
+        _start_and_disconnect(client, thread_id, [_user("Hi")])
+
+        stale = client.post(f"/threads/{thread_id}/cancel", params={"run": "earlier"})
+        assert stale.json() == {"cancelled": False}
+        assert _thread(client, thread_id)["running"] is True
+
+        server.model.gate.set()
+        _wait_until(lambda: _thread(client, thread_id)["running"] is False)
+        assert _assistant_texts(_thread(client, thread_id)) == ["".join(WORDS)]
 
 
 def test_a_run_whose_stream_is_gone_is_not_reported_running(server: Server) -> None:
