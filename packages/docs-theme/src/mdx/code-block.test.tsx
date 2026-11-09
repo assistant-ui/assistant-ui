@@ -95,3 +95,27 @@ it("labels a code group's tabs from fence titles, even inside the fragments MDX 
   expect(container.querySelector("pre")?.textContent).toBe("untitled()");
   expect(document.activeElement).toBe(tabs[2]);
 });
+
+it("selects the first tab when the group shrinks below the active one", () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const group = (titles: string[]) => (
+    <CodeGroup>
+      {titles.map((title) => (
+        <pre key={title} title={title}>
+          <code>{title}</code>
+        </pre>
+      ))}
+    </CodeGroup>
+  );
+  act(() => root.render(group(["a.ts", "b.ts"])));
+  act(() => container.querySelectorAll<HTMLElement>("[role=tab]")[1]!.click());
+  act(() => root.render(group(["a.ts"])));
+  const tab = container.querySelector("[role=tab]")!;
+  expect(tab.getAttribute("aria-selected")).toBe("true");
+  expect(tab.getAttribute("tabindex")).toBe("0");
+  act(() => root.unmount());
+  container.remove();
+});

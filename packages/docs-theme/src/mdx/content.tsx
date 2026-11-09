@@ -49,9 +49,9 @@ export function Card({
           ))}
       </span>
       {(description || children) && (
-        <span className="aui-docs-card-description">
+        <div className="aui-docs-card-description">
           {description ?? children}
-        </span>
+        </div>
       )}
     </>
   );

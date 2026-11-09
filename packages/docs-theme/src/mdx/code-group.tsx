@@ -45,9 +45,10 @@ export function CodeGroup({
 }: Omit<ComponentProps<"figure">, "title">) {
   const items = codeGroupItems(children);
   const labels = items.map((item, index) => labelOf(item.props, index));
-  const [active, setActive] = useState(0);
+  const [stored, setActive] = useState(0);
+  const active = stored < items.length ? stored : 0;
   const id = useId();
-  const selected = items[active] ?? items[0];
+  const selected = items[active];
   if (!selected) return null;
 
   const {

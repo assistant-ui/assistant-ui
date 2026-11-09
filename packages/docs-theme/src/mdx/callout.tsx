@@ -40,7 +40,7 @@ export function Callout({
       data-type={type}
       className={cn("aui-docs-callout not-prose", className)}
     >
-      <p className="aui-docs-callout-label">{title ?? labels[type]}</p>
+      <div className="aui-docs-callout-label">{title ?? labels[type]}</div>
       <div className="aui-docs-callout-body">{children}</div>
     </div>
   );
