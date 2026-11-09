@@ -38,8 +38,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.32",
-    "@assistant-ui/store": "^0.3.22",
+    "@assistant-ui/core": "^0.3.33",
+    "@assistant-ui/store": "^0.3.23",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
@@ -61,7 +61,7 @@
     "jsdom": "^30.1.3",
     "react": "^19.3.1",
     "react-hook-form": "^7.91.0",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",

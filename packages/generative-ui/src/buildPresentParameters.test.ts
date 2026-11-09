@@ -202,8 +202,9 @@ describe("component schema references", () => {
     const pair = schema.properties!.pair as JSONSchema7 & {
       prefixItems?: JSONSchema7Definition[];
     };
-    const first = (pair.prefixItems ??
-      (pair.items as JSONSchema7Definition[]))[0]!;
+    const first = (
+      pair.prefixItems ?? (pair.items as JSONSchema7Definition[])
+    )[0]!;
     const tree = resolve(schema, first);
     expect(tree.properties!.label).toEqual({ type: "string" });
     expect(

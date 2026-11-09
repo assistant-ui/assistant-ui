@@ -17,26 +17,26 @@
     "test:coverage": "pnpm run test"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.102",
+    "@ai-sdk/openai": "^4.0.111",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/svelte": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@lucide/svelte": "^1.61.0",
-    "ai": "^7.0.153",
+    "@lucide/svelte": "^1.70.0",
+    "ai": "^7.0.165",
     "react": "^19.3.1",
-    "svelte": "^5.57.2"
+    "svelte": "^5.57.3"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^8.0.0",
-    "@sveltejs/kit": "^3.1.0",
+    "@sveltejs/kit": "^3.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.3.0",
-    "svelte-check": "^4.7.7",
-    "tailwindcss": "^4.3.3",
+    "svelte-check": "^4.7.8",
+    "tailwindcss": "^4.3.5",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.6"
   }
 }

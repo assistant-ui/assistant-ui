@@ -12,7 +12,7 @@
   "dependencies": {
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
-    "ai": "^7.0.153",
+    "ai": "^7.0.165",
     "bundle-shared": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -24,6 +24,6 @@
     "esbuild": "^0.28.2",
     "jsdom": "^30.1.3",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   }
 }

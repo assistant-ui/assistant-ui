@@ -71,7 +71,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-syntax-highlighter": "^16.1.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",
