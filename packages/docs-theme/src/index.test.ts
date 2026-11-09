@@ -2,6 +2,7 @@ import { defineDocs } from "@farming-labs/docs/config";
 import { describe, expect, it } from "vitest";
 import { assistantUi, assistantUiDefaults } from "./index";
 import { withThemeDefaults } from "./config";
+import { assistantUiCodeBlock, assistantUiMdxComponents } from "./mdx";
 
 describe("assistant-ui theme configuration", () => {
   it("keeps the framework page chrome off for createDocsLayout", () => {
@@ -85,6 +86,24 @@ describe("assistant-ui theme configuration", () => {
       askAi: false,
     });
     expect(assistantUi().configDefaults).toEqual(assistantUiDefaults);
+  });
+
+  it("leaves the MDX components and code themes opt-in", () => {
+    expect(assistantUi().configDefaults).not.toHaveProperty("components");
+    expect(assistantUi().ui?.codeBlock).toMatchObject({
+      showLineNumbers: false,
+    });
+    const config = defineDocs({
+      entry: "guide",
+      theme: assistantUi({ ui: { codeBlock: assistantUiCodeBlock } }),
+      components: assistantUiMdxComponents,
+    });
+    expect(config.components).toBe(assistantUiMdxComponents);
+    expect(config.theme?.ui?.codeBlock).toMatchObject({
+      showLineNumbers: true,
+      theme: "catppuccin-latte",
+      darkTheme: "catppuccin-mocha",
+    });
   });
 
   it("lets the site override a theme default", () => {

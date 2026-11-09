@@ -60,7 +60,6 @@ export default defineDocs({
   },
   footer: <span>© My project</span>,
   metadata: { titleTemplate: "%s – My project" },
-  mcp: true,
 });
 ```
 
@@ -75,14 +74,28 @@ change any of them. A site that serves MCP adds the Copy MCP server URL action
 with `pageActions: { connectMcp: { endpoint: "/api/docs/mcp" } }`.
 `assistantUiDefaults` exports the same defaults for spreading into a config.
 
-The theme also supplies the assistant-ui MDX components on React frameworks
-(Next.js, TanStack Start, Farm): numbered code blocks with a title bar and copy
-button, `CodeGroup` tabs, `Callout` (Markdown blockquotes render as one),
-`Tabs`/`Tab`, `Steps`/`Step`, `Cards`/`Card`, `Files`/`File`/`Folder`, linkable
-headings, tables, `Kbd`, `Code` and `ThemeImage`. Highlighting uses the
-`catppuccin-latte` and `catppuccin-mocha` Shiki themes. Pass `components` to
-replace any of them; the rest stay. `@assistant-ui/docs-theme/mdx` exports each
-component and the `assistantUiMdxComponents` map. On Farm, pass the Shiki themes
+The assistant-ui MDX components are opt-in on React frameworks (Next.js,
+TanStack Start, Farm): numbered code blocks with a title bar and copy button,
+`CodeGroup` tabs, `Callout` (Markdown blockquotes render as one), `Tabs`/`Tab`,
+`Steps`/`Step`, `Cards`/`Card`, `Files`/`File`/`Folder`, linkable headings,
+tables, `Kbd`, `Code` and `ThemeImage`. `assistantUiCodeBlock` adds line numbers
+and the `catppuccin-latte` and `catppuccin-mocha` Shiki themes:
+
+```tsx
+import { assistantUi } from "@assistant-ui/docs-theme";
+import {
+  assistantUiCodeBlock,
+  assistantUiMdxComponents,
+} from "@assistant-ui/docs-theme/mdx";
+
+export default defineDocs({
+  theme: assistantUi({ ui: { codeBlock: assistantUiCodeBlock } }),
+  components: assistantUiMdxComponents,
+});
+```
+
+`@assistant-ui/docs-theme/mdx` also exports each component, so a site can spread
+the map and replace any of them. On Farm, pass the Shiki themes
 to `withDocs` as `codeBlockThemes`, since its MDX compiler does not read them
 from the theme.
 

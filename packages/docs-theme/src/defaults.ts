@@ -1,5 +1,4 @@
 import type { DocsConfig } from "@farming-labs/docs/config";
-import { assistantUiMdxComponents } from "./mdx";
 
 export const sidebarDefaults = {
   collapsible: false,
@@ -8,10 +7,7 @@ export const sidebarDefaults = {
 } satisfies Exclude<DocsConfig["sidebar"], boolean | undefined>;
 
 export const assistantUiDefaults: Required<
-  Pick<
-    DocsConfig,
-    "sidebar" | "breadcrumb" | "lastUpdated" | "pageActions" | "components"
-  >
+  Pick<DocsConfig, "sidebar" | "breadcrumb" | "lastUpdated" | "pageActions">
 > = {
   sidebar: sidebarDefaults,
   breadcrumb: { enabled: false },
@@ -38,5 +34,4 @@ export const assistantUiDefaults: Required<
     toc: true,
     askAi: false,
   },
-  components: assistantUiMdxComponents,
 };

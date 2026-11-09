@@ -24,12 +24,7 @@ const createAssistantTheme = createTheme({
           body: { size: "0.875rem", lineHeight: "1.7" },
         },
       },
-      codeBlock: {
-        showCopyButton: true,
-        showLineNumbers: true,
-        theme: "catppuccin-latte",
-        darkTheme: "catppuccin-mocha",
-      },
+      codeBlock: { showCopyButton: true, showLineNumbers: false },
     },
   }),
   name: "assistant-ui",

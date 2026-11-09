@@ -34,6 +34,14 @@ export { Heading } from "./heading";
 export { File, Files, Folder } from "./interactive";
 export { Tab, Tabs, type TabProps, type TabsProps } from "./tabs";
 
+/** Line numbers and the Catppuccin themes, for `assistantUi({ ui: { codeBlock } })`. */
+export const assistantUiCodeBlock = {
+  showCopyButton: true,
+  showLineNumbers: true,
+  theme: "catppuccin-latte",
+  darkTheme: "catppuccin-mocha",
+};
+
 /** The MDX components that give docs content the assistant-ui look. */
 export const assistantUiMdxComponents = {
   h1: (props: ComponentProps<"h1">) => <Heading as="h1" {...props} />,
