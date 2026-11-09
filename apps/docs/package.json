@@ -115,7 +115,7 @@
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "remark-mdx": "^3.1.1",
-    "remark-mdx-frontmatter": "^5.0.0",
+    "remark-mdx-frontmatter": "^6.0.0",
     "remark-stringify": "^11.0.0",
     "safe-content-frame": "workspace:*",
     "setup-agent": "workspace:*",

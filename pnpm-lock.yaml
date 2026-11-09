@@ -683,8 +683,8 @@ importers:
         specifier: ^3.1.1
         version: 3.1.1(supports-color@10.2.2)
       remark-mdx-frontmatter:
-        specifier: ^5.0.0
-        version: 5.2.0
+        specifier: ^6.0.0
+        version: 6.0.0
       remark-stringify:
         specifier: ^11.0.0
         version: 11.0.0
@@ -21195,6 +21195,9 @@ packages:
   remark-mdx-frontmatter@5.2.0:
     resolution: {integrity: sha512-U/hjUYTkQqNjjMRYyilJgLXSPF65qbLPdoESOkXyrwz2tVyhAnm4GUKhfXqOOS9W34M3545xEMq+aMpHgVjEeQ==}
 
+  remark-mdx-frontmatter@6.0.0:
+    resolution: {integrity: sha512-Rz7oaxWwaKpWn/c+iqWOq5wQWPt8TdPyfUIZWBCGqwSqNZ7X8heHkPviy7/UHUXjtd8QTnEV6LXb+CKn9A+ZFA==}
+
   remark-mdx@3.1.1:
     resolution: {integrity: sha512-Pjj2IYlUY3+D8x00UJsIOg5BEvfMyeI+2uLPn9VO9Wg4MEtN/VTIq2NEJQfde9PnX15KgtHyl9S0BcTnWrIuWg==}
 
@@ -40363,6 +40366,15 @@ snapshots:
       '@types/mdast': 4.0.4
       estree-util-value-to-estree: 3.5.0
       toml: 3.0.0
+      unified: 11.0.5
+      unist-util-mdx-define: 1.1.2
+      yaml: 2.9.1
+
+  remark-mdx-frontmatter@6.0.0:
+    dependencies:
+      '@types/mdast': 4.0.4
+      estree-util-value-to-estree: 3.5.0
+      smol-toml: 1.9.1
       unified: 11.0.5
       unist-util-mdx-define: 1.1.2
       yaml: 2.9.1
