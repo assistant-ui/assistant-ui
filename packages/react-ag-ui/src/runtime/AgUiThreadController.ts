@@ -30,8 +30,8 @@ import {
   iterateToolCallParts,
   mapToolCallPartsDeep,
 } from "@assistant-ui/core/internal";
+import { AbstractAgent } from "@ag-ui/client";
 import type {
-  AbstractAgent,
   AgentSubscriber,
   Context,
   RunAgentParameters,
@@ -217,6 +217,14 @@ const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
 type ResumeStream = (
   options: ChatModelRunOptions,
 ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
+/** A run already in flight on the agent, joined through `agent.connectAgent()`. */
+type ResumeSource = ResumeStream | "connect";
+
+// connectAgent() swallows the base class's not-implemented error and resolves
+// with no events, so only an agent that overrides connect() can rejoin a run.
+const implementsConnect = (agent: AbstractAgent): boolean =>
+  (agent as unknown as { connect: unknown }).connect !==
+  (AbstractAgent.prototype as unknown as { connect: unknown }).connect;
 type ResumeRunConfig = {
   parentId: string | null;
   sourceId: string | null;
@@ -487,9 +495,14 @@ export class AgUiThreadController {
 
   detachRuntime() {
     this.runtime = undefined;
-    void this.cancel().catch((error) => {
-      this.logger.error("[agui] failed to cancel run during teardown", error);
+    this.dispatch({
+      type: "historyMutationAdvanced",
     });
+    try {
+      this.abortActiveRun(true);
+    } catch (error) {
+      this.logger.error("[agui] failed to cancel run during teardown", error);
+    }
   }
 
   getMessages(): readonly ThreadMessage[] {
@@ -551,12 +564,11 @@ export class AgUiThreadController {
       .then(async (repo) => {
         if (repo?.unstable_resume) {
           const parentId = repo.headId ?? this.session.headId;
-          const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
             parentId,
             this.state.lastRunConfig,
             undefined,
-            resumeStream,
+            this.getResumeSource(),
           );
         }
       })
@@ -697,14 +709,27 @@ export class AgUiThreadController {
   // synchronously, so a callback that starts another run must keep the
   // controller it installed, and a throw from a subclass's abortRun would
   // otherwise strand the thread as running.
-  private abortActiveRun(): void {
+  private abortActiveRun(leaveRunning = false): void {
     const controller = this.abortController;
     if (!controller) return;
     try {
-      (this.activeRunAgent ?? this.agent).abortRun();
+      this.stopAgent(this.activeRunAgent ?? this.agent, leaveRunning);
     } finally {
       controller.abort();
     }
+  }
+
+  // Leaving a thread (switch or teardown) detaches from a run the agent can
+  // rejoin through connect(), so the run keeps going server-side; every other
+  // agent, and every explicit cancel, aborts the run.
+  private stopAgent(agent: AbstractAgent, leaveRunning: boolean): void {
+    if (leaveRunning && implementsConnect(agent)) {
+      void agent.detachActiveRun().catch((error: unknown) => {
+        this.logger.error?.("[agui] agent detachActiveRun failed", error);
+      });
+      return;
+    }
+    agent.abortRun();
   }
 
   // Starting a run supersedes the active one, and reports whether the caller
@@ -743,11 +768,11 @@ export class AgUiThreadController {
   async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
     const historyImport = this.waitForHistoryImport();
     if (historyImport && !(await historyImport)) return;
-    // Without a resume stream startRun would re-run the agent from scratch.
-    const resumeStream = this.history?.resume?.bind(this.history);
-    if (!resumeStream) {
+    // Without a resume source startRun would re-run the agent from scratch.
+    const resumeSource = this.getResumeSource();
+    if (!resumeSource) {
       const error = new Error(
-        "[agui] unstable_resume requires a ThreadHistoryAdapter with a resume() method; skipping resume after thread switch",
+        "[agui] unstable_resume requires a ThreadHistoryAdapter with a resume() method or an agent that implements connect(); skipping resume after thread switch",
       );
       this.logger.error?.(error.message);
       invokeRuntimeCallback("onError", this.onError, error);
@@ -759,11 +784,17 @@ export class AgUiThreadController {
         parentId,
         this.state.lastRunConfig,
         undefined,
-        resumeStream,
+        resumeSource,
       );
     } catch {
       // startRun already reported via onError; don't reject the switch.
     }
+  }
+
+  private getResumeSource(): ResumeSource | undefined {
+    const resumeStream = this.history?.resume?.bind(this.history);
+    if (resumeStream) return resumeStream;
+    return implementsConnect(this.agent) ? "connect" : undefined;
   }
 
   private assertNoPendingInterrupts(): void {
@@ -1622,7 +1653,7 @@ export class AgUiThreadController {
       this.activeRunAgent = null;
       this.setRunning(false);
       try {
-        (activeRunAgent ?? this.agent).abortRun();
+        this.stopAgent(activeRunAgent ?? this.agent, true);
       } catch (error) {
         this.logger.error?.("[agui] agent abortRun failed", error);
       } finally {
@@ -1637,10 +1668,12 @@ export class AgUiThreadController {
     parentId: string | null,
     runConfig?: RunConfig,
     resume?: ResumeDispatch,
-    resumeStream?: ResumeStream,
+    resumeSource?: ResumeSource,
     replayExistingMessages = false,
   ): Promise<void> {
     if (this.isThreadSwitching?.()) return;
+    const resumeStream =
+      typeof resumeSource === "function" ? resumeSource : undefined;
     // A default AG-UI run supersedes the active run; the hook's opt-in message
     // queue serializes sends instead. append supersedes earlier, before it links
     // its message; this covers the entry points that start a run without one.
@@ -2401,9 +2434,13 @@ export class AgUiThreadController {
         } catch {
           // ignore
         }
-        const runAgent: RunAgentWithRunOptions =
-          runAgentInstance.runAgent.bind(runAgentInstance);
-        await runAgent(input, subscriber, { signal: abortSignal });
+        if (resumeSource === "connect") {
+          await runAgentInstance.connectAgent(input, subscriber);
+        } else {
+          const runAgent: RunAgentWithRunOptions =
+            runAgentInstance.runAgent.bind(runAgentInstance);
+          await runAgent(input, subscriber, { signal: abortSignal });
+        }
       }
     } catch (error) {
       // HttpAgent rethrows a failure it already passed to the subscriber's
