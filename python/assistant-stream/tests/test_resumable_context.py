@@ -360,20 +360,10 @@ async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
     cancel_from_source: bool, reason: str | None, hook_error: str,
 ) -> None:
     tasks: list[asyncio.Task[None]] = []
-    propagated: list[asyncio.CancelledError] = []
+    source_errors: list[asyncio.CancelledError] = []
     release = asyncio.Event()
     errors: list[object] = []
     finalizes: list[tuple[str, str, str | None]] = []
-    def record_cancellation(task: asyncio.Task[None]) -> None:
-        try:
-            task.result()
-        except asyncio.CancelledError as error:
-            propagated.append(error)
-
-    def track_task(task: asyncio.Task[None]) -> None:
-        tasks.append(task)
-        task.add_done_callback(record_cancellation)
-
     def on_error(_id: str, error: object) -> None:
         errors.append(error)
         if hook_error == "reraise":
@@ -384,7 +374,7 @@ async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
 
     ctx = create_resumable_stream_context(
         store=create_in_memory_resumable_stream_store(),
-        wait_until=track_task,
+        wait_until=tasks.append,
         on_error=on_error,
         on_finalize=lambda stream_id, status, error: finalizes.append(
             (stream_id, status, error)
@@ -393,10 +383,14 @@ async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
 
     async def source() -> AsyncIterator[bytes]:
         yield b"partial;"
-        await release.wait()
-        if reason is None:
-            raise asyncio.CancelledError()
-        raise asyncio.CancelledError(reason)
+        try:
+            await release.wait()
+            if reason is None:
+                raise asyncio.CancelledError()
+            raise asyncio.CancelledError(reason)
+        except asyncio.CancelledError as error:
+            source_errors.append(error)
+            raise
 
     stream = await ctx.run("a", source)
     assert await asyncio.wait_for(anext(stream), timeout=1) == b"partial;"
@@ -423,8 +417,8 @@ async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
     assert isinstance(errors[0], asyncio.CancelledError)
     assert finalizes == [("a", "error", message)]
 
-    assert len(propagated) == 1
-    assert propagated[0] is errors[0]
+    assert len(source_errors) == 1
+    assert errors[0] is source_errors[0]
 
 
 @pytest.mark.anyio
