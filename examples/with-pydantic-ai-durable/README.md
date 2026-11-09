@@ -43,7 +43,7 @@ On the client, `DurableHttpAgent` (`lib/durable-agent.ts`) implements AG-UI's `c
 
 ```sh
 cd server && uv run pytest              # server: disconnect, reopen, cancel
-pnpm test                               # browser runtime against the real server
+pnpm exec vitest run                    # browser runtime against the real server (needs uv)
 ```
 
 The server tests also run against Postgres and Redis when `DATABASE_URL` and `REDIS_URL` are set.
