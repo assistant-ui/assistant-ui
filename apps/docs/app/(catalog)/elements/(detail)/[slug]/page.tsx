@@ -22,6 +22,7 @@ import {
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
+import { ElementStatesPreview } from "@/components/pages/elements/element-states";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
 import { AgentSetup } from "@/components/shared/shop-entry";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -262,11 +263,16 @@ export default async function ElementPage({
             </NativeLane>
           )}
           <ReactLane>
-            <Figure
+            <ElementStatesPreview
+              key={element.slug}
+              slug={element.slug}
               caption={
                 replayable
                   ? "fig. 01 · plays once, replay from the corner"
                   : "fig. 01"
+              }
+              canvasClassName={
+                element.generative ? "min-h-[400px] py-10" : "h-[360px]"
               }
             >
               {element.variants ? (
@@ -283,7 +289,7 @@ export default async function ElementPage({
                   </DemoStage>
                 </div>
               )}
-            </Figure>
+            </ElementStatesPreview>
           </ReactLane>
 
           <article className="docs-prose prose mt-12 max-w-none">
