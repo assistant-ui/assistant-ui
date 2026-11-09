@@ -82,6 +82,26 @@ import {
   withToolApprovalDecision,
 } from "./adapter/tool-approval";
 
+// The SDK does not retain initialState.
+const agentInitialStates = new WeakMap<
+  AbstractAgent,
+  ReadonlyJSONValue | undefined
+>();
+
+const getAgentInitialState = (agent: AbstractAgent) => {
+  if (!agentInitialStates.has(agent)) {
+    const state = agent.state;
+    agentInitialStates.set(
+      agent,
+      state === undefined ||
+        (isPlainObject(state) && Object.keys(state).length === 0)
+        ? undefined
+        : (structuredClone(state) as ReadonlyJSONValue),
+    );
+  }
+  return agentInitialStates.get(agent);
+};
+
 // AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
 // is cancelled through agent.abortRun(); the run options stay for subclasses
 // that inherit the base no-op abortRun and have no other cancellation hook.
@@ -386,6 +406,13 @@ export class AgUiThreadController {
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
+    const initialState = getAgentInitialState(this.agent);
+    if (initialState !== undefined) {
+      this.dispatch({
+        type: "stateSnapshot",
+        snapshot: initialState,
+      });
+    }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.joinStrategy = options.joinStrategy;
@@ -421,7 +448,18 @@ export class AgUiThreadController {
   }
 
   updateOptions(options: CoreOptions) {
+    const agentChanged = this.agent !== options.agent;
     this.agent = options.agent;
+    if (agentChanged) {
+      const initialState = getAgentInitialState(this.agent);
+      if (
+        this.state.stateSnapshot === undefined &&
+        initialState !== undefined
+      ) {
+        this.dispatch({ type: "stateSnapshot", snapshot: initialState });
+        this.publishUpdate();
+      }
+    }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.joinStrategy = options.joinStrategy;
