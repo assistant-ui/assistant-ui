@@ -13,7 +13,11 @@ import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-ru
 import { THREAD_FIXTURES } from "./thread";
 import { defineStates } from "./types";
 
-/** Layout containment makes the box the containing block for the modal's fixed anchor, as in the demo. */
+/**
+ * Layout containment makes the box the containing block for the modal's fixed
+ * anchor, as in the demo. The modal opens on mount, so it skips autofocus:
+ * each state switch remounts the fixture, and focus would leave the switcher.
+ */
 function ModalStage({ messages }: { messages: ThreadMessageLike[] }) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   return (
@@ -23,7 +27,9 @@ function ModalStage({ messages }: { messages: ThreadMessageLike[] }) {
           ref={setContainer}
           className="[container-type:size] absolute inset-0 contain-[layout]"
         >
-          {container && <AssistantModal container={container} />}
+          {container && (
+            <AssistantModal container={container} autoFocus={false} />
+          )}
         </div>
       </div>
     </SampleRuntimeProvider>
