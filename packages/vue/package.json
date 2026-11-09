@@ -34,9 +34,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.32",
-    "@assistant-ui/store": "^0.3.22",
-    "@assistant-ui/tap": "^0.9.24"
+    "@assistant-ui/core": "^0.3.33",
+    "@assistant-ui/store": "^0.3.23",
+    "@assistant-ui/tap": "^0.9.25"
   },
   "peerDependencies": {
     "@types/react": "*",
