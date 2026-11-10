@@ -150,6 +150,99 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
     expect(transcript(core).at(-1)).toMatchObject({ text: "Hello again" });
   });
 
+  describe("a rejoined run that replays a messages snapshot", () => {
+    const question = { id: "question", role: "user", content: "Hi" };
+    const rejoin = async (events: object[]) => {
+      const fetch = fetchFor({ "https://agent.test/stream": events });
+      const agent = new ReconnectingAgent({ url: "https://agent.test", fetch });
+      const core = setup(agent, true);
+      await core.__internal_load();
+      return core;
+    };
+
+    it("continues the answer the snapshot restored", async () => {
+      const core = await rejoin([
+        { type: "RUN_STARTED", threadId: "thread", runId: "server-run" },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            question,
+            { id: "answer", role: "assistant", content: "Hello " },
+          ],
+        },
+        { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "again" },
+        { type: "TEXT_MESSAGE_END", messageId: "answer" },
+        { type: "RUN_FINISHED", threadId: "thread", runId: "server-run" },
+      ]);
+
+      expect(transcript(core)).toEqual([
+        { id: "question", role: "user", text: "Hi", status: undefined },
+        {
+          id: "answer",
+          role: "assistant",
+          text: "Hello again",
+          status: "complete",
+        },
+      ]);
+      expect(core.isRunning()).toBe(false);
+    });
+
+    it("keeps a snapshot taken mid-stream from duplicating the answer", async () => {
+      const core = await rejoin([
+        { type: "RUN_STARTED", threadId: "thread", runId: "server-run" },
+        { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "Hello " },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            question,
+            { id: "answer", role: "assistant", content: "Hello " },
+          ],
+        },
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "again" },
+        { type: "TEXT_MESSAGE_END", messageId: "answer" },
+        { type: "RUN_FINISHED", threadId: "thread", runId: "server-run" },
+      ]);
+
+      expect(transcript(core).map(({ id, text }) => [id, text])).toEqual([
+        ["question", "Hi"],
+        ["answer", "Hello again"],
+      ]);
+    });
+
+    it("settles a snapshot's pending tool call when the stream ends early", async () => {
+      const core = await rejoin([
+        { type: "RUN_STARTED", threadId: "thread", runId: "server-run" },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            question,
+            {
+              id: "answer",
+              role: "assistant",
+              content: "Let me check.",
+              toolCalls: [
+                {
+                  id: "call",
+                  type: "function",
+                  function: { name: "lookup", arguments: "{}" },
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(core.isRunning()).toBe(false);
+      expect(transcript(core).at(-1)).toMatchObject({
+        id: "answer",
+        text: "Let me check.",
+      });
+      expect(transcript(core).at(-1)?.status).not.toBe("running");
+    });
+  });
+
   describe("leaving a thread mid-run", () => {
     const startOpenRun = async () => {
       const agent = new ReconnectingAgent({
