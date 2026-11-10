@@ -18,10 +18,10 @@ import { getExternalStoreMessages } from "../../../runtime/utils/external-store-
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
-  type CloudMessage,
   CloudAPIError,
   CloudMessagePersistence,
   type CloudMessageRunPhase,
+  type CloudRunState,
   CloudRunReporter,
   createFormattedPersistence,
   type RunMessageTelemetry,
@@ -84,7 +84,7 @@ const runLedgerOf = (persistence: CloudMessagePersistence) => {
   return ledger;
 };
 
-/** The `error.code` of a message whose run lost its heartbeat before it finished. */
+/** The `error.code` of a message whose run went `staleAfter` without a heartbeat before it finished. */
 const RUN_STALE_ERROR_CODE = "run_stale";
 const RUN_STALE_STATUS = {
   type: "incomplete",
@@ -96,20 +96,23 @@ const RUN_STALE_STATUS = {
 } as const;
 /** The `error.code` of a message whose run another tab or session is still writing. */
 const RUN_IN_PROGRESS_ERROR_CODE = "run_in_progress";
-const runInProgressStatus = (expiresInMs: number | undefined) => ({
+const runInProgressStatus = (staleInMs: number) => ({
   type: "incomplete" as const,
   reason: "error" as const,
   error: {
     code: RUN_IN_PROGRESS_ERROR_CODE,
     message: "Running in another tab…",
-    ...(expiresInMs !== undefined ? { expires_in_ms: expiresInMs } : undefined),
+    stale_in_ms: staleInMs,
   },
 });
 
-const runStatusOf = (run: NonNullable<CloudMessage["run"]>) =>
-  run.status === "stale"
-    ? RUN_STALE_STATUS
-    : runInProgressStatus(run.expires_in_ms);
+/** The status a listed message shows for its run: none once the run ended. */
+const runStatusOf = (state: CloudRunState | undefined) =>
+  state === undefined
+    ? undefined
+    : state.status === "stale"
+      ? RUN_STALE_STATUS
+      : runInProgressStatus(state.staleInMs);
 
 // A run another session drives is the newest message of its branch, so it sits on the first page.
 const RUN_STATE_PAGE_SIZE = 20;
@@ -230,14 +233,18 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     Map<string, Promise<void>>
   >();
 
+  private getStaleAfter: () => number | undefined;
+
   constructor(
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
     scopeRef: RefObject<unknown>,
+    getStaleAfter: () => number | undefined = () => undefined,
   ) {
     this.cloudRef = cloudRef;
     this.scopeRef = scopeRef;
     this.getAui = getAui;
+    this.getStaleAfter = getStaleAfter;
   }
 
   private get aui(): AssistantClient {
@@ -299,6 +306,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         scope: snapshot.scope,
         persistence: new CloudMessagePersistence(
           () => cloudRef.current.current,
+          { staleAfter: this.getStaleAfter() },
         ),
       };
       globalPersistence.set(key, entry);
@@ -600,9 +608,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
                 format: row.format,
                 content: row.content as TStorageFormat,
               });
-              return row.run
-                ? { ...item, unstable_status: runStatusOf(row.run) }
-                : item;
+              const status = runStatusOf(
+                context.persistence.runStateOf(row.run),
+              );
+              return status ? { ...item, unstable_status: status } : item;
             }),
         };
       },
@@ -649,7 +658,9 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
    */
   public async readRunState(
     messageId: string,
-  ): Promise<{ run: CloudMessage["run"]; updatedAt: number } | undefined> {
+  ): Promise<
+    { state: CloudRunState | undefined; updatedAt: number } | undefined
+  > {
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
@@ -663,7 +674,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     );
     const row = messages.find((message) => message.id === remoteId);
     return row
-      ? { run: row.run, updatedAt: row.updated_at.getTime() }
+      ? {
+          state: context.persistence.runStateOf(row.run),
+          updatedAt: row.updated_at.getTime(),
+        }
       : undefined;
   }
 
@@ -978,16 +992,16 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     for (const row of rows) {
       const decoded = auiV0DecodeSafely(row);
       if (!decoded) continue;
-      const item =
-        row.run && decoded.message.role === "assistant"
-          ? {
-              ...decoded,
-              message: {
-                ...decoded.message,
-                status: runStatusOf(row.run),
-              } as ThreadMessage,
-            }
-          : decoded;
+      const status =
+        decoded.message.role === "assistant"
+          ? runStatusOf(context.persistence.runStateOf(row.run))
+          : undefined;
+      const item = status
+        ? {
+            ...decoded,
+            message: { ...decoded.message, status } as ThreadMessage,
+          }
+        : decoded;
       if (item.parentId && !loadedIds.has(item.parentId)) continue;
       loadedIds.add(item.message.id);
       if (isSettledMessage(item.message)) settled.add(item.message.id);
@@ -1105,6 +1119,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown>,
+  getStaleAfter?: () => number | undefined,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -1118,6 +1133,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
         cloudRef,
         () => auiRef.current,
         scopeRef,
+        getStaleAfter,
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);

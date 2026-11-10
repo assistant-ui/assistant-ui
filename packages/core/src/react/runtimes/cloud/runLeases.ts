@@ -10,8 +10,8 @@ import type {
 const CHECKPOINT_INTERVAL_MS = 20_000;
 const POLL_MIN_MS = 2_000;
 const POLL_MAX_MS = 10_000;
-// Past the lease's expiry, so a lapsed run reads as stale on the next poll.
-const POLL_EXPIRY_MARGIN_MS = 500;
+// Past the moment the run would read as stale, so a quiet run turns stale on the next poll.
+const POLL_STALE_MARGIN_MS = 500;
 // A runtime writes its settled message right after the run ends; the tracker closes the lease itself only when that write never comes.
 const SETTLE_GRACE_MS = 3_000;
 
@@ -45,14 +45,14 @@ const readBranch = (aui: AssistantClient): readonly ThreadMessage[] => {
   }
 };
 
+// Around the moment the run would cross staleAfter, and at least every POLL_MAX_MS while it is in progress.
 const pollDelay = (message: ThreadMessage) => {
-  const error = (message.status as { error?: { expires_in_ms?: unknown } })
-    .error;
-  const expiresInMs =
-    typeof error?.expires_in_ms === "number" ? error.expires_in_ms : 0;
+  const error = (message.status as { error?: { stale_in_ms?: unknown } }).error;
+  const staleInMs =
+    typeof error?.stale_in_ms === "number" ? error.stale_in_ms : 0;
   return Math.min(
     POLL_MAX_MS,
-    Math.max(POLL_MIN_MS, expiresInMs + POLL_EXPIRY_MARGIN_MS),
+    Math.max(POLL_MIN_MS, staleInMs + POLL_STALE_MARGIN_MS),
   );
 };
 
@@ -71,12 +71,12 @@ const findMessage = (
 
 /**
  * Stores a thread's running assistant message as soon as the run starts, so
- * the cloud holds a run lease the persistence keeps alive with heartbeats. A
- * tab that hides ends its runs as interrupted, and a run whose heartbeats
- * stop otherwise lapses after the server's TTL; either way the cloud reports
- * it stale. Runtimes keep writing the settled message as they do today; that
- * write lands on the same row and closes the lease. A lease the persistence
- * lost (stale, or resumed elsewhere) gets no more checkpoints.
+ * the cloud holds a run lease the persistence heartbeats, also while the tab
+ * is in the background. Other tabs show the reply as in progress, and as
+ * interrupted once it went `staleAfter` without a beat. Runtimes keep writing
+ * the settled message as they do today; that write lands on the same row and
+ * ends the lease. A lease the persistence lost (ended elsewhere or refused)
+ * gets no more checkpoints.
  *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
  * thread message maps to exactly one format-native message; their runtime
@@ -130,7 +130,7 @@ export const useCloudRunLeases = (
               return;
             }
             const unchanged =
-              state?.run?.status === "running" &&
+              state?.state?.status === "in-progress" &&
               (polledUpdatedAt === undefined ||
                 polledUpdatedAt === state.updatedAt);
             if (state) polledUpdatedAt = state.updatedAt;
