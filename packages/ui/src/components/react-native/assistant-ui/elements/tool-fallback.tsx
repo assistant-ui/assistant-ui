@@ -710,6 +710,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
   result,
+  isError,
   status,
   responseDeliveryStatus,
   approval,
@@ -727,7 +728,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
         ? `Running ${toolName}…`
         : status.type === "requires-action"
           ? `Waiting on ${toolName}`
-          : status.type === "incomplete"
+          : status.type === "incomplete" || isError
             ? `${isCancelled ? "Cancelled" : "Failed"} ${toolName}`
             : `Used ${toolName}`;
   const error =

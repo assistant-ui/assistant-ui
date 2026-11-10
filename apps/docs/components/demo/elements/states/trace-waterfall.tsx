@@ -54,7 +54,7 @@ export const states = defineStates([
   {
     key: "streaming",
     label: "Streaming",
-    note: "The run is still going, so only the first spans are in and the latest one pulses.",
+    note: "The run is still going, so only the first spans are in and the root and latest spans pulse.",
     Component: () => (
       <TraceWaterfall
         spans={[

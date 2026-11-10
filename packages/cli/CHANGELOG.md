@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.128
+
+### Patch Changes
+
+- [#10383](https://github.com/assistant-ui/assistant-ui/pull/10383) [`5d8b8c5`](https://github.com/assistant-ui/assistant-ui/commit/5d8b8c54f1900117af05d98ee4023759f6b98c9c) - accept any 127.0.0.0/8 address for plain HTTP cloud, accounts and setup URLs during development ([@lhy-dcf](https://github.com/lhy-dcf))
+
 ## 0.0.127
 
 ### Patch Changes

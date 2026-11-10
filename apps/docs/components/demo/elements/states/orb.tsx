@@ -6,7 +6,24 @@ import {
   type VoiceOrbState,
 } from "@/components/assistant-ui/elements/voice.aui";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
+import {
+  createVoiceSession,
+  type RealtimeVoiceAdapter,
+} from "@assistant-ui/react";
 import { defineStates } from "./types";
+
+const noop = () => {};
+
+const stubVoice: RealtimeVoiceAdapter = {
+  connect: (options) =>
+    createVoiceSession(options, async ({ setStatus, emitMode }) => {
+      setStatus({ type: "running" });
+      emitMode("listening");
+      return { disconnect: noop, mute: noop, unmute: noop };
+    }),
+};
+
+const adapters = { voice: stubVoice };
 
 function OrbFixture({
   state,
@@ -18,7 +35,7 @@ function OrbFixture({
   control?: boolean;
 }) {
   return (
-    <SampleRuntimeProvider>
+    <SampleRuntimeProvider adapters={adapters}>
       <div className="flex h-full w-full items-center justify-center">
         <div className="flex flex-col items-center gap-5">
           <VoiceOrb state={state} variant="blue" className="size-32" />
@@ -39,7 +56,7 @@ export const states = defineStates([
   {
     key: "idle",
     label: "Idle",
-    note: "No voice session is running, so the control offers Connect.",
+    note: "No voice session is running, so the control offers Connect, which a stub adapter answers.",
     Component: () => <OrbFixture state="idle" label="Idle" control />,
   },
   {

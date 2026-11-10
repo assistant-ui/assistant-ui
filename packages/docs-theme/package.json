@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/docs-theme",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Composable assistant-ui documentation UI and theme for Farming Labs Docs",
   "license": "MIT",
   "author": "AgentbaseAI Inc.",

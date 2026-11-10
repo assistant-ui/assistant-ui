@@ -28,6 +28,7 @@ import {
   type MessagePartStreamStatus,
   type RespondToToolApprovalOptions,
   type Unstable_ToolInteractionLog,
+  type MessageStatus,
 } from "@assistant-ui/core";
 import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
 import {
@@ -90,6 +91,8 @@ export type AISDKMessageConverterMetadata =
     toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
     cancelledToolApprovalIds?: ReadonlySet<string>;
     cancelledStatusMessageIds?: ReadonlySet<string>;
+    /** Statuses the history assigned on load, for messages whose run is interrupted or still written by another session. */
+    runStatuses?: ReadonlyMap<string, MessageStatus>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
@@ -836,6 +839,10 @@ export const convertAISDKMessage: useExternalMessageConverter.Callback<
               },
             }
           : undefined),
+        ...(message.role === "assistant" &&
+        metadata.runStatuses?.has(message.id)
+          ? { status: metadata.runStatuses.get(message.id)! }
+          : undefined),
         metadata: {
           ...toThreadMetadata(message.metadata),
           ...(timing && { timing }),
@@ -905,6 +912,10 @@ export const createAISDKMetadataKey =
         select: (message, metadata) =>
           readMetadata(metadata).cancelledStatusMessageIds?.has(message.id) ===
           true,
+      },
+      {
+        select: (message, metadata) =>
+          readMetadata(metadata).runStatuses?.get(message.id),
       },
       {
         select: (message, metadata) =>

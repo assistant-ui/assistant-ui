@@ -91,7 +91,7 @@ export const states = defineStates([
   {
     key: "long-content",
     label: "Long labels",
-    note: "Long chip labels wrap with the surrounding sentence.",
+    note: "Long chips stay on one line while the sentence wraps around them.",
     Component: () => (
       <Bubble>
         <IconDirectiveText

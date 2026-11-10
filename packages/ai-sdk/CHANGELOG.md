@@ -1,5 +1,15 @@
 # @assistant-ui/ai-sdk
 
+## 0.0.18
+
+### Patch Changes
+
+- [#10424](https://github.com/assistant-ui/assistant-ui/pull/10424) [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423) - store a running assistant message in Assistant Cloud as soon as its run starts, so its run lease is heartbeated while the tab streams it, also in the background; a reply whose run went `staleAfter` (default 30 seconds, an option on `useCloudThreadListAdapter`) without a heartbeat now loads as an interrupted error instead of disappearing, and the new `ActionBarPrimitive.Resume` starts a new branch beside it, the same way Regenerate does, with its own lease. A reply another tab is still writing shows as in progress and follows the run live until it finishes or goes quiet; the new `ActionBarPrimitive.RefreshRun` re-reads it on demand, and a late run that beats again shows as in progress again. The AI SDK runtime (`withFormat` history) holds run leases too when each thread message maps to one AI SDK message, and shows the same states on load; `MessageFormatItem` gains `unstable_status` and `GenericThreadHistoryAdapter` gains `unstable_onReload` for this. Messages carry `runState` (`"stale"` or `"in-progress"`), `ErrorPrimitive.Root` exposes it as `data-run-state` (with `role="status"` while in progress), and `ActionBarPrimitive.Root` with `hideWhenRunning` also hides while another tab writes the reply. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`f70872a`](https://github.com/assistant-ui/assistant-ui/commit/f70872a43574d311322c0b5071b4581e0a71bdff), [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - assistant-cloud@0.2.11
+  - @assistant-ui/core@0.3.34
+
 ## 0.0.17
 
 ### Patch Changes

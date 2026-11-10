@@ -3,7 +3,7 @@ title: ActionBarPrimitive
 description: Composable message action controls for copy, edit, reload, speech, and feedback in assistant-ui chat interfaces.
 ---
 
-import { ActionBarPrimitiveCopyProps, ActionBarPrimitiveEditProps, ActionBarPrimitiveExportMarkdownProps, ActionBarPrimitiveFeedbackNegativeProps, ActionBarPrimitiveFeedbackPositiveProps, ActionBarPrimitiveReloadProps, ActionBarPrimitiveRootProps, ActionBarPrimitiveSpeakProps, ActionBarPrimitiveStopSpeakingProps } from "@/generated/typeDocs";
+import { ActionBarPrimitiveCopyProps, ActionBarPrimitiveEditProps, ActionBarPrimitiveExportMarkdownProps, ActionBarPrimitiveFeedbackNegativeProps, ActionBarPrimitiveFeedbackPositiveProps, ActionBarPrimitiveRefreshRunProps, ActionBarPrimitiveReloadProps, ActionBarPrimitiveResumeProps, ActionBarPrimitiveRootProps, ActionBarPrimitiveSpeakProps, ActionBarPrimitiveStopSpeakingProps } from "@/generated/typeDocs";
 import { ActionBarPrimitive as ActionBarPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -122,6 +122,51 @@ const AssistantMessageBar = () => (
 ```
 
 <ParametersTable {...ActionBarPrimitiveReloadProps} />
+
+### Resume
+
+{ActionBarPrimitiveDocs.Resume?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ActionBarPrimitiveDocs.Resume.deprecated}
+  </Callout>
+)}
+
+{ActionBarPrimitiveDocs.Resume?.description}
+
+{ActionBarPrimitiveDocs.Resume?.element && (
+  <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.Resume?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+```tsx
+<MessagePrimitive.Error>
+  <ErrorPrimitive.Root>
+    <ErrorPrimitive.Message />
+    <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```
+
+<ParametersTable {...ActionBarPrimitiveResumeProps} />
+
+### RefreshRun
+
+{ActionBarPrimitiveDocs.RefreshRun?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ActionBarPrimitiveDocs.RefreshRun.deprecated}
+  </Callout>
+)}
+
+{ActionBarPrimitiveDocs.RefreshRun?.description}
+
+{ActionBarPrimitiveDocs.RefreshRun?.element && (
+  <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.RefreshRun?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+```tsx
+<ActionBarPrimitive.RefreshRun>Refresh</ActionBarPrimitive.RefreshRun>
+```
+
+<ParametersTable {...ActionBarPrimitiveRefreshRunProps} />
 
 ### Edit
 

@@ -22,7 +22,7 @@ export const states = defineStates([
   {
     key: "ready",
     label: "Not started",
-    note: "Playback has not started, so no word is spoken yet.",
+    note: "Playback has not started, so the first word is cued and the bar is empty.",
     Component: () => (
       <ReadAloud
         {...controls}

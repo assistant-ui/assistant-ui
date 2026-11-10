@@ -76,12 +76,6 @@ export const states = defineStates([
     Component: () => <ImageGallery images={IMAGES.slice(0, 6)} />,
   },
   {
-    key: "overflow",
-    label: "Overflow",
-    note: "More images than fit, so the last tile counts the rest.",
-    Component: () => <ImageGallery images={IMAGES} maxVisible={4} />,
-  },
-  {
     key: "error",
     label: "Broken image",
     note: "An image that fails to load shows a placeholder in its tile.",

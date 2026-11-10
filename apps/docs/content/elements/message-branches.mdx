@@ -145,7 +145,7 @@ async function regenerate() {
 </div>
 ```
 
-Standalone, the stepper wraps around: previous on the first variant goes to the last, next on the last goes to the first. With a single variant both buttons render disabled and the counter reads `1 / 1`; with no variants it reads `0 / 0`. The runtime primitives instead disable at the ends.
+The stepper matches the runtime picker: previous is disabled on the first variant and next on the last, and with a single variant the stepper is hidden so only the message shows.
 
 ## Examples
 
@@ -274,7 +274,7 @@ Both lanes take `className` on the root. The buttons use the shared `ghostButton
 |------|------|---------|-------------|
 | `variants` | `readonly string[]` | required | The sibling answers, in order. |
 | `index` | `number` | required | Index of the variant to show. An out-of-range index falls back to the first variant. |
-| `onIndexChange` | `(index: number) => void` | required | Called with the next index when a stepper button is pressed. Wraps around at both ends. |
+| `onIndexChange` | `(index: number) => void` | required | Called with the adjacent index when a stepper button is pressed. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

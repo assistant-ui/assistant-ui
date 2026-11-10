@@ -55,7 +55,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
 <div> {/* ToolFallbackRoot, a Collapsible */}
   <button aria-expanded={/* open */}>
     {/* status icon: spinner / check / X-circle / alert */}
-    <span>{/* "Running tool: <name>", "Waiting on tool: <name>", "Failed tool: <name>", "Cancelled tool: <name>", or "Used tool: <name>" */}</span>
+    <span>{/* "Running tool: <name>", "Waiting on tool: <name>", "Failed tool: <name>" (also for a "complete" call with isError), "Cancelled tool: <name>", or "Used tool: <name>" */}</span>
     <span>{/* elapsed duration, while known */}</span>
     {/* chevron, rotates open */}
   </button>
@@ -167,7 +167,7 @@ Every piece is a named export you can recompose, and each carries its own `data-
 ```tsx
 import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant-ui/elements/tool-fallback.aui";
 
-<ToolFallbackTrigger toolName={part.toolName} status={part.status} className="text-sm" />
+<ToolFallbackTrigger toolName={part.toolName} status={part.status} isError={part.isError} className="text-sm" />
 ```
 
 </RuntimeMode>
@@ -182,7 +182,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 |------|---------|-------|
 | `ToolFallback` | full composition | The composed renderer; a complete `ToolCallMessagePartComponent`. |
 | `ToolFallbackRoot` | `div` | Collapsible container. Takes `open`, `onOpenChange`, and `defaultOpen`; `ToolFallback` opens it on `"requires-action"`. |
-| `ToolFallbackTrigger` | `button` | Takes `toolName` and `status`. |
+| `ToolFallbackTrigger` | `button` | Takes `toolName`, `status`, and `isError`. A `"complete"` call with `isError` (a thrown tool or a denied approval) reads as failed. |
 | `ToolFallbackContent` | `div` | The collapsible panel. |
 | `ToolFallbackArgs` | `pre` | Takes `argsText`; renders `null` when empty. |
 | `ToolFallbackResult` | `pre` | Takes `result`; renders `null` when `undefined`. Stringifies non-string results. |
@@ -199,7 +199,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `toolName` | `string` | Name of the tool the model called. |
 | `argsText` | `string` | Raw, possibly partial, JSON the model has streamed so far. |
 | `result` | `TResult \| undefined` | The tool's result, once it has one; an interim value while `isPreliminary` is set. |
-| `isError` | `boolean \| undefined` | Whether the result represents a failure. |
+| `isError` | `boolean \| undefined` | Whether the result represents a failure. The runtime sets it when the tool throws or its approval is denied. |
 | `isPreliminary` | `boolean \| undefined` | Whether `result` is interim output from a tool that has not finished; the part then follows the message status instead of reading `"complete"`. |
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |

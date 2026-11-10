@@ -16,29 +16,21 @@ export const states = defineStates([
   {
     key: "last-branch",
     label: "Last branch",
-    note: "The newest of three versions is showing, and next wraps to the first.",
+    note: "The newest of three versions is showing, so next is disabled.",
     Component: () => (
       <MessageBranches variants={VARIANTS} index={2} onIndexChange={noop} />
     ),
   },
   {
-    key: "disabled",
+    key: "single",
     label: "Single version",
-    note: "With one version there is nothing to switch to, so both arrows are disabled.",
+    note: "With one version the picker is hidden and only the message shows.",
     Component: () => (
       <MessageBranches
         variants={VARIANTS.slice(0, 1)}
         index={0}
         onIndexChange={noop}
       />
-    ),
-  },
-  {
-    key: "empty",
-    label: "No versions",
-    note: "An empty list reads 0 / 0 and shows no text.",
-    Component: () => (
-      <MessageBranches variants={[]} index={0} onIndexChange={noop} />
     ),
   },
 ]);

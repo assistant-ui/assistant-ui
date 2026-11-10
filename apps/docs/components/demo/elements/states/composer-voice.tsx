@@ -61,7 +61,7 @@ export const states = defineStates([
   {
     key: "recording",
     label: "Recording",
-    note: "The mic is live, with a moving waveform and a timer.",
+    note: "The mic is live and shows the elapsed recording time.",
     Component: () => <Dictation voice="recording" seconds={14} />,
   },
   {
