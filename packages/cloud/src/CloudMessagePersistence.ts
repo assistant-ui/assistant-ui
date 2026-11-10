@@ -23,12 +23,14 @@ type OpenRun = {
 export type CloudMessagePersistenceOptions = {
   /**
    * Set when a run keeps going on the server after the tab that holds its
-   * lease goes away (a backend that finishes the reply without the client).
-   * By default a hidden page ends every run this persistence holds with
-   * reason `interrupted`, so the message reads `stale` at once; with this
-   * set, held runs stay open and lapse when their lease's TTL runs out.
+   * lease goes away (a backend that finishes the reply without the client,
+   * such as an AG-UI agent the client rejoins with `connect()`). By default a
+   * page that unloads ends every run this persistence holds with reason
+   * `interrupted`, so the message reads `stale` at once; with this set, held
+   * runs stay open and lapse when their lease's TTL runs out. A function is
+   * read when the page hides, so a runtime can decide after construction.
    */
-  runsContinueOnServer?: boolean | undefined;
+  runsContinueOnServer?: boolean | (() => boolean) | undefined;
 };
 
 /** 409 codes after which the lease is gone for good: nothing more is written for its message. */
@@ -55,6 +57,12 @@ const forkOf = (error: unknown): string | undefined => {
 };
 
 // A server that predates run leases rejects the unknown `run` key of its strict create schema.
+// The server refuses a plain write to a message whose run lease is live in another session.
+const isRunInProgress = (error: unknown) =>
+  error instanceof CloudAPIError &&
+  error.status === 409 &&
+  error.code === "run_in_progress";
+
 const isRunUnsupported = (error: unknown) =>
   error instanceof CloudAPIError && error.status === 400;
 
@@ -74,8 +82,11 @@ type FailedAppend = {
  *
  * A message appended as running holds a run lease, renewed by heartbeats on
  * the server's interval until a write with an end reason ends it. When the
- * page hides, the runs it holds end as `interrupted` with a keepalive request
- * unless `runsContinueOnServer` is set. A lease that is lost (expired,
+ * page unloads, the runs it holds end as `interrupted` with a keepalive
+ * request unless `runsContinueOnServer` is set; a page kept in the
+ * back/forward cache keeps them and heartbeats as soon as it is shown again.
+ * A plain write the server refuses because another session runs the message
+ * (409 `run_in_progress`) is dropped with a warning. A lease that is lost (expired,
  * superseded by a resume, or refused) is final: the message gets no further
  * writes from this persistence.
  */
@@ -234,7 +245,7 @@ export class CloudMessagePersistence {
       return;
     }
     if (!this.openRuns.has(messageId)) {
-      await cloud.threads.messages.update(threadId, remoteId, { content });
+      await this.plainUpdate(threadId, messageId, remoteId, content);
       return;
     }
     // Writes of one run are serialized so a checkpoint can never land after the write that ends it.
@@ -251,6 +262,25 @@ export class CloudMessagePersistence {
     }
   }
 
+  // A write without a lease; a message another session is running refuses it, and the write is dropped rather than surfaced.
+  private async plainUpdate(
+    threadId: string,
+    messageId: string,
+    remoteId: string,
+    content: ReadonlyJSONObject,
+  ): Promise<void> {
+    try {
+      await this.getCloud().threads.messages.update(threadId, remoteId, {
+        content,
+      });
+    } catch (error) {
+      if (!isRunInProgress(error)) throw error;
+      console.warn(
+        `[assistant-cloud] Skipped a write to message ${messageId}: another session is running it.`,
+      );
+    }
+  }
+
   private async writeRun(
     threadId: string,
     messageId: string,
@@ -264,7 +294,7 @@ export class CloudMessagePersistence {
       // Our own end closed the lease under an earlier write: a checkpoint is dropped, a final answer lands as a plain write.
       const remoteId = await this.getRemoteId(messageId);
       if (phase === "running" || !remoteId) return;
-      await cloud.threads.messages.update(threadId, remoteId, { content });
+      await this.plainUpdate(threadId, messageId, remoteId, content);
       return;
     }
     try {
@@ -398,7 +428,7 @@ export class CloudMessagePersistence {
   }
 
   private watchPageHide() {
-    if (this.options.runsContinueOnServer || this.pageHideTarget) return;
+    if (this.pageHideTarget) return;
     if (
       typeof window === "undefined" ||
       typeof window.addEventListener !== "function"
@@ -406,15 +436,24 @@ export class CloudMessagePersistence {
       return;
     this.pageHideTarget = window;
     window.addEventListener("pagehide", this.onPageHide);
+    window.addEventListener("pageshow", this.onPageShow);
   }
 
   private unwatchPageHide() {
     this.pageHideTarget?.removeEventListener("pagehide", this.onPageHide);
+    this.pageHideTarget?.removeEventListener("pageshow", this.onPageShow);
     this.pageHideTarget = undefined;
   }
 
-  // Heartbeats are main-thread timers that hidden tabs throttle, so a leaving page ends its runs as interrupted; the TTL covers a request that never lands.
-  private onPageHide = () => {
+  private runsContinueOnServer(): boolean {
+    const option = this.options.runsContinueOnServer;
+    return typeof option === "function" ? option() : !!option;
+  }
+
+  // Heartbeats are main-thread timers that hidden tabs throttle, so an unloading page ends its runs as interrupted; the TTL covers a request that never lands. A page kept in the back/forward cache may come back, so its runs stay open.
+  private onPageHide = (event: Event) => {
+    if ((event as { persisted?: boolean }).persisted) return;
+    if (this.runsContinueOnServer()) return;
     const cloud = this.getCloud();
     for (const [messageId, open] of [...this.openRuns]) {
       void cloud.threads.runs
@@ -426,6 +465,16 @@ export class CloudMessagePersistence {
         )
         .catch(() => undefined);
       this.loseRun(messageId, "interrupted", true);
+    }
+  };
+
+  // A page restored from the back/forward cache heartbeats at once: a lease still live keeps going, one that expired meanwhile is lost.
+  private onPageShow = (event: Event) => {
+    if (!(event as { persisted?: boolean }).persisted) return;
+    for (const [messageId, open] of [...this.openRuns]) {
+      if (open.timer !== undefined) clearTimeout(open.timer);
+      open.timer = undefined;
+      void this.heartbeat(messageId, open);
     }
   };
 

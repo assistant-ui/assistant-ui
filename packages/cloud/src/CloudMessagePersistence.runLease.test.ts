@@ -542,7 +542,15 @@ describe("CloudMessagePersistence run leases", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
     });
-    const hide = () => page.dispatchEvent(new Event("pagehide"));
+    const pageEvent = (type: string, persisted: boolean) => {
+      const event = new Event(type);
+      Object.defineProperty(event, "persisted", { value: persisted });
+      return event;
+    };
+    const hide = (persisted = false) =>
+      page.dispatchEvent(pageEvent("pagehide", persisted));
+    const show = (persisted: boolean) =>
+      page.dispatchEvent(pageEvent("pageshow", persisted));
 
     it("ends the runs this tab holds as interrupted with a keepalive request", async () => {
       const { cloud, messages, runs } = createCloud();
@@ -601,6 +609,79 @@ describe("CloudMessagePersistence run leases", () => {
       expect(persistence.hasOpenRun("a")).toBe(true);
     });
 
+    it("reads a function option when the page hides", async () => {
+      const { cloud, runs } = createCloud();
+      let continues = true;
+      const persistence = new CloudMessagePersistence(cloud, {
+        runsContinueOnServer: () => continues,
+      });
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+
+      hide();
+      expect(runs.end).not.toHaveBeenCalled();
+      continues = false;
+      hide();
+      expect(runs.end).toHaveBeenCalledWith(
+        "t1",
+        "lease_1",
+        { reason: "interrupted" },
+        { keepalive: true },
+      );
+    });
+
+    it("keeps runs open when the page goes into the back/forward cache", async () => {
+      const { cloud, runs } = createCloud();
+      const persistence = new CloudMessagePersistence(cloud);
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+
+      hide(true);
+      expect(runs.end).not.toHaveBeenCalled();
+      expect(persistence.hasOpenRun("a")).toBe(true);
+    });
+
+    it("heartbeats at once when the page comes back from the back/forward cache", async () => {
+      const { cloud, runs } = createCloud();
+      const persistence = new CloudMessagePersistence(cloud);
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+      hide(true);
+
+      show(false);
+      expect(runs.heartbeat).not.toHaveBeenCalled();
+      show(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runs.heartbeat).toHaveBeenCalledTimes(1);
+      expect(persistence.hasOpenRun("a")).toBe(true);
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(runs.heartbeat).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      ["run_stale", new CloudAPIError("stale", 409, "run_stale")],
+      [
+        "superseded",
+        new CloudAPIError("superseded", 409, "superseded", {
+          superseded_by: "msg_2",
+        }),
+      ],
+    ])(
+      "loses a run whose lease answers %s after the page comes back",
+      async (_name, error) => {
+        const { cloud, messages, runs } = createCloud();
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const persistence = new CloudMessagePersistence(cloud);
+        await persistence.append("t1", "a", null, "aui/v0", running, "running");
+        hide(true);
+        runs.heartbeat.mockRejectedValueOnce(error);
+
+        show(true);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(persistence.hasOpenRun("a")).toBe(false);
+        await persistence.update("t1", "a", "aui/v0", done, "done");
+        expect(messages.update).not.toHaveBeenCalled();
+        expect(runs.end).not.toHaveBeenCalled();
+      },
+    );
+
     it("stops listening on reset", async () => {
       const { cloud, runs } = createCloud();
       const persistence = new CloudMessagePersistence(cloud);
@@ -610,6 +691,26 @@ describe("CloudMessagePersistence run leases", () => {
       hide();
       expect(runs.end).not.toHaveBeenCalled();
     });
+  });
+
+  it("drops a plain write the server refuses because another session runs the message", async () => {
+    const { cloud, messages } = createCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    messages.update.mockRejectedValueOnce(
+      new CloudAPIError("busy", 409, "run_in_progress"),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+    persistence.record("local-a", "msg_9");
+
+    await expect(
+      persistence.update("t1", "local-a", "aui/v0", done),
+    ).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    messages.update.mockRejectedValueOnce(new CloudAPIError("down", 503));
+    await expect(
+      persistence.update("t1", "local-a", "aui/v0", done),
+    ).rejects.toThrow("down");
   });
 
   describe("through a format adapter", () => {
