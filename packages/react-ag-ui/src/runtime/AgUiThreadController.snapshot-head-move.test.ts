@@ -426,4 +426,112 @@ describe("AgUiThreadController snapshot head moves", () => {
       subagent: "complete",
     });
   });
+
+  it("keeps the open frame across a tool call that ends before the snapshot", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      { type: "TOOL_CALL_START", toolCallId: "call", toolCallName: "lookup" },
+      { type: "TOOL_CALL_ARGS", toolCallId: "call", delta: "{}" },
+      { type: "TOOL_CALL_END", toolCallId: "call" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          otherRecord,
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([
+      { type: "text", text: "a1a2" },
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call",
+        args: {},
+        argsText: "{}",
+      }),
+    ]);
+  });
+
+  it("hands the run to the snapshot head once the deferred frame ends", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          otherRecord,
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "TOOL_CALL_START", toolCallId: "next", toolCallName: "lookup" },
+      { type: "TOOL_CALL_ARGS", toolCallId: "next", delta: "{}" },
+      { type: "TOOL_CALL_END", toolCallId: "next" },
+      {
+        type: "TOOL_CALL_RESULT",
+        messageId: "tool-next",
+        toolCallId: "next",
+        content: "found",
+      },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([{ type: "text", text: "a1a2" }]);
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.content,
+    ).toEqual([
+      { type: "text", text: "Next step." },
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "next",
+        result: "found",
+      }),
+    ]);
+  });
+
+  it("continues the snapshot head from the text it already had", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          otherRecord,
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "TEXT_MESSAGE_START", messageId: "other", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "other", delta: " More." },
+      { type: "TEXT_MESSAGE_END", messageId: "other" },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.content,
+    ).toEqual([{ type: "text", text: "Next step. More." }]);
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([{ type: "text", text: "a1a2" }]);
+  });
 });

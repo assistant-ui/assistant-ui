@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-Keep streaming into an answer whose text frame is still open when a messages snapshot moves the head, instead of dropping the rest of that frame's deltas.
+Keep an answer that is still streaming when a messages snapshot moves the head, and hand the run to the new head once that answer's text frame ends.

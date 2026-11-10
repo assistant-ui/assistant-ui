@@ -392,6 +392,10 @@ export class AgUiThreadController {
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
+  // A snapshot that moved the head while the answer's text frame was still open
+  // leaves the frame where it is; this is the head to adopt once that frame
+  // ends, so later root events land on the message the snapshot made current.
+  private deferredSnapshotHeadId: string | undefined;
   private history: ThreadHistoryAdapter | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly subagentParentToolCallIds = new Map<
@@ -2290,6 +2294,13 @@ export class AgUiThreadController {
         event.type === "RUN_CANCELLED";
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
+      const deferredHeadId = this.deferredSnapshotHeadId;
+      const closesDeferredFrame =
+        event.type === "TEXT_MESSAGE_END" &&
+        event.messageId !== undefined &&
+        event.messageId === assistantMessageId &&
+        deferredHeadId !== undefined &&
+        aggregator.isTextFrameOpen(event.messageId);
       try {
         const nextAssistantMessageId = this.handleEvent(
           aggregator,
@@ -2332,6 +2343,35 @@ export class AgUiThreadController {
               tail?.role === "assistant" ? tail.id : undefined;
           }
         }
+        if (closesDeferredFrame && deferredHeadId !== undefined) {
+          // The frame kept the aggregator past the snapshot; now that it has
+          // ended, settle it and hand the rest of the run to the head the
+          // snapshot made current, so later calls and data land on it.
+          this.deferredSnapshotHeadId = undefined;
+          const finishedId = assistantMessageId;
+          const finished =
+            finishedId === undefined
+              ? undefined
+              : this.session.tryGetMessage(finishedId)?.message;
+          if (
+            finishedId !== undefined &&
+            finished?.role === "assistant" &&
+            finished.status?.type === "running"
+          ) {
+            this.updateAssistantMessage(finishedId, {
+              status: FALLBACK_USER_STATUS,
+              content: settleNestedContent(
+                finished.content,
+                FALLBACK_USER_STATUS,
+              ),
+            });
+          }
+          assistantMessageId = deferredHeadId;
+          if (joinStrategy !== "concat-content") {
+            aggregator.rebaseMessage(deferredHeadId);
+          }
+          this.updateActiveAssistantState(assistantMessageId);
+        }
       } finally {
         settlingRun = false;
       }
@@ -2340,6 +2380,7 @@ export class AgUiThreadController {
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;
+    this.deferredSnapshotHeadId = undefined;
 
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
     abortSignal.addEventListener(
@@ -3333,30 +3374,38 @@ export class AgUiThreadController {
         ) {
           const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
-          if (!frameStillOpen) {
+          if (
+            activeAssistantId !== nextActiveAssistantId &&
+            activeAssistantId
+          ) {
+            const previous =
+              this.session.tryGetMessage(activeAssistantId)?.message;
             if (
-              activeAssistantId !== nextActiveAssistantId &&
-              activeAssistantId
+              previous?.role === "assistant" &&
+              previous.status?.type === "running"
             ) {
-              const previous =
-                this.session.tryGetMessage(activeAssistantId)?.message;
-              if (
-                previous?.role === "assistant" &&
-                previous.status?.type === "running"
-              ) {
-                this.updateAssistantMessage(activeAssistantId, {
-                  status: FALLBACK_USER_STATUS,
-                  content: settleNestedContent(
-                    previous.content,
-                    FALLBACK_USER_STATUS,
-                  ),
-                });
-              }
+              this.updateAssistantMessage(activeAssistantId, {
+                status: FALLBACK_USER_STATUS,
+                content: settleNestedContent(
+                  previous.content,
+                  FALLBACK_USER_STATUS,
+                ),
+              });
             }
+          }
+          if (!frameStillOpen) {
+            this.deferredSnapshotHeadId = undefined;
             activeAssistantId = nextActiveAssistantId;
             if (activeAssistantId && joinStrategy !== "concat-content") {
               aggregator.rebaseMessage(activeAssistantId);
             }
+          } else if (
+            nextActiveAssistantId &&
+            nextActiveAssistantId !== activeAssistantId
+          ) {
+            // The frame keeps the aggregator for now; adopt the head once the
+            // frame ends, so calls and data that follow it belong to the head.
+            this.deferredSnapshotHeadId = nextActiveAssistantId;
           }
           if (hasNewPendingToolCallAnswer && head) {
             this.updateAssistantMessage(head.id, {

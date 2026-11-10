@@ -210,6 +210,11 @@ export class RunAggregator {
   private readonly textParts = new Map<string, { buffer: string }>();
   private readonly pendingSnapshotText = new Map<string, string>();
   private readonly activeTextMessageIdByScope = new Map<string, string>();
+  // The wire message whose TEXT_MESSAGE frame is open, as the protocol defines
+  // it: set by TEXT_MESSAGE_START and cleared only by its own
+  // TEXT_MESSAGE_END. Tool, data and reasoning boundaries end the part the next
+  // delta continues in, but they do not end the frame.
+  private openTextMessageId: string | undefined = undefined;
   private readonly reasoningParts = new Map<
     string,
     { buffer: string; timing?: MessagePartTiming }
@@ -272,10 +277,7 @@ export class RunAggregator {
   // to. A snapshot that arrives mid-frame must not rebase onto another message,
   // or the rest of that frame's deltas have nowhere to land.
   isTextFrameOpen(messageId: string): boolean {
-    return (
-      this.activeTextMessageIdByScope.get(ROOT_SCOPE) ===
-      this.partKey(ROOT_SCOPE, messageId)
-    );
+    return this.openTextMessageId === messageId;
   }
 
   rebaseMessage(messageId: string): void {
@@ -394,7 +396,10 @@ export class RunAggregator {
         if (scope === ROOT_SCOPE) {
           this.beginDistinctTextMessage(event.messageId);
           this.reportServerMessageId(event.messageId);
-          if (event.messageId) this.lastTextMessageId = event.messageId;
+          if (event.messageId) {
+            this.lastTextMessageId = event.messageId;
+            this.openTextMessageId = event.messageId;
+          }
         }
         this.startTextMessage(scope, event.messageId);
         this.emit();
@@ -406,7 +411,10 @@ export class RunAggregator {
         if (scope === ROOT_SCOPE) {
           this.beginDistinctTextMessage(incomingId, true);
           this.reportServerMessageId(incomingId);
-          if (incomingId) this.lastTextMessageId = incomingId;
+          if (incomingId) {
+            this.lastTextMessageId = incomingId;
+            this.openTextMessageId = incomingId;
+          }
         }
         if (!event.delta) break;
         this.recordFirstToken();
@@ -425,6 +433,12 @@ export class RunAggregator {
             this.partKey(scope, event.messageId)
         ) {
           this.activeTextMessageIdByScope.delete(scope);
+        }
+        if (
+          scope === ROOT_SCOPE &&
+          event.messageId === this.openTextMessageId
+        ) {
+          this.openTextMessageId = undefined;
         }
         this.emit();
         break;
@@ -830,6 +844,7 @@ export class RunAggregator {
 
   private resetMessageParts(): void {
     this.clearTextParts();
+    this.openTextMessageId = undefined;
     this.pendingSnapshotText.clear();
     this.reasoningParts.clear();
     this.reasoningSignatures.clear();
