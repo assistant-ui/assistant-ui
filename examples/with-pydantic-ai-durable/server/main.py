@@ -14,6 +14,11 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from assistant_stream.pydantic_ai import (
+    DurableAGUI,
+    PostgresThreadStore,
+    SqliteThreadStore,
+)
 from assistant_stream.resumable import (
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
@@ -24,8 +29,6 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-
-from durable_agui import DurableAGUI, PostgresThreadStore, SqliteThreadStore
 
 DEMO_ANSWER = (
     "This answer streams slowly on purpose. Close the tab or reload the page "

@@ -1,4 +1,4 @@
-"""Runs survive a closed client, and a reopened thread has every message once."""
+"""DurableAGUI: runs survive a closed client, and a reopened thread has every message once."""
 
 from __future__ import annotations
 
@@ -13,19 +13,29 @@ from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import httpx
 import pytest
-import uvicorn
-from assistant_stream.resumable import (
+
+pytest.importorskip("pydantic_ai.ui.ag_ui", reason="needs the pydantic-ai extra")
+
+import httpx  # noqa: E402
+import uvicorn  # noqa: E402
+from pydantic_ai import Agent  # noqa: E402
+from pydantic_ai.messages import ModelMessage  # noqa: E402
+from pydantic_ai.models.function import AgentInfo, FunctionModel  # noqa: E402
+from starlette.applications import Starlette  # noqa: E402
+from starlette.requests import Request  # noqa: E402
+
+from assistant_stream.pydantic_ai import (  # noqa: E402
+    DurableAGUI,
+    InMemoryThreadStore,
+    PostgresThreadStore,
+    SqliteThreadStore,
+    ThreadRecord,
+)
+from assistant_stream.resumable import (  # noqa: E402
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
 )
-from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage
-from pydantic_ai.models.function import AgentInfo, FunctionModel
-from starlette.applications import Starlette
-
-from durable_agui import DurableAGUI, PostgresThreadStore, SqliteThreadStore
 
 WORDS = [f"w{index} " for index in range(12)]
 GATE_AFTER = 3
@@ -100,9 +110,22 @@ class Server:
         return asyncio.run_coroutine_threadsafe(coroutine, self.app.state.loop).result(10)
 
 
+def _user_header(request: Request) -> str | None:
+    return request.headers.get("x-user")
+
+
 @pytest.fixture(params=BACKENDS)
 def server(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Server]:
     threads_kind, streams_kind = request.param
+    yield from _serve(tmp_path, threads_kind, streams_kind, owner=None)
+
+
+@pytest.fixture
+def owned_server(tmp_path: Path) -> Iterator[Server]:
+    yield from _serve(tmp_path, "sqlite", "memory", owner=_user_header)
+
+
+def _serve(tmp_path: Path, threads_kind: str, streams_kind: str, owner) -> Iterator[Server]:
     model = Model()
 
     @asynccontextmanager
@@ -113,6 +136,7 @@ def server(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Server]:
             Agent(FunctionModel(stream_function=model.stream)),
             threads=threads,
             streams=streams,
+            owner=owner,
         )
         app.state.loop = asyncio.get_running_loop()
         app.router.routes.extend(app.state.durable.routes())
@@ -309,3 +333,93 @@ def test_unknown_thread_is_404_and_bad_ids_are_rejected(server: Server) -> None:
         assert client.get("/threads/missing").status_code == 404
         assert client.post("/agent", json=_run_input("bad id", [_user("x")])).status_code == 400
         assert client.post("/agent", content=b"{}").status_code == 422
+
+
+def test_threads_are_scoped_to_their_owner(owned_server: Server) -> None:
+    thread_id = uuid.uuid4().hex
+    alice = {"x-user": "alice"}
+    bob = {"x-user": "bob"}
+    with httpx.Client(base_url=owned_server.base_url, timeout=10) as client:
+        assert client.get("/threads").status_code == 401
+        assert (
+            client.post("/agent", json=_run_input(thread_id, [_user("x")])).status_code
+            == 401
+        )
+
+        client.headers.update(alice)
+        _start_and_disconnect(client, thread_id, [_user("Mine")])
+
+        assert client.get("/threads", headers=bob).json() == []
+        assert client.get(f"/threads/{thread_id}", headers=bob).status_code == 404
+        assert client.get(f"/threads/{thread_id}/stream", headers=bob).status_code == 404
+        assert client.post(f"/threads/{thread_id}/cancel", headers=bob).json() == {
+            "cancelled": False
+        }
+        hijack = client.post(
+            "/agent", json=_run_input(thread_id, [_user("Theirs")]), headers=bob
+        )
+        assert hijack.status_code == 404
+
+        assert _thread(client, thread_id)["running"] is True
+        owned_server.model.gate.set()
+        _wait_until(lambda: _thread(client, thread_id)["running"] is False)
+        assert _assistant_texts(_thread(client, thread_id)) == ["".join(WORDS)]
+        assert [thread["id"] for thread in client.get("/threads").json()] == [thread_id]
+
+
+def test_defaults_keep_threads_and_streams_in_memory() -> None:
+    durable = DurableAGUI(Agent(FunctionModel(stream_function=Model().stream)))
+    assert isinstance(durable.threads, InMemoryThreadStore)
+    assert [route.path for route in durable.routes("/api")] == [
+        "/api/agent",
+        "/api/threads",
+        "/api/threads/{thread_id}",
+        "/api/threads/{thread_id}/stream",
+        "/api/threads/{thread_id}/cancel",
+    ]
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "memory",
+        "sqlite",
+        pytest.param(
+            "postgres",
+            marks=pytest.mark.skipif(
+                not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
+            ),
+        ),
+    ],
+)
+def test_thread_stores_list_by_owner_newest_first(kind: str, tmp_path: Path) -> None:
+    async def scenario() -> None:
+        if kind == "postgres":
+            store = await PostgresThreadStore.connect(
+                os.environ["DATABASE_URL"], table=f"t_{uuid.uuid4().hex}"
+            )
+        elif kind == "sqlite":
+            store = SqliteThreadStore(tmp_path / "threads.db")
+        else:
+            store = InMemoryThreadStore()
+        await store.put("a", ThreadRecord(owner="alice", updated_at=1))
+        await store.put("b", ThreadRecord(owner="alice", updated_at=3))
+        await store.put("c", ThreadRecord(owner="bob", updated_at=2))
+        await store.put("d", ThreadRecord(updated_at=4))
+        assert [i for i, _ in await store.list(owner="alice")] == ["b", "a"]
+        assert [i for i, _ in await store.list(owner="alice", limit=1)] == ["b"]
+        assert [i for i, _ in await store.list()] == ["d"]
+        await store.put("a", ThreadRecord(owner="alice", running=True, updated_at=5))
+        record = await store.get("a")
+        assert record is not None and record.running is True
+        assert [i for i, _ in await store.list(owner="alice")] == ["a", "b"]
+        assert await store.get("missing") is None
+        if isinstance(store, PostgresThreadStore):
+            await store.close()
+
+    asyncio.run(scenario())
+
+
+def test_sqlite_store_rejects_an_unsafe_table_name(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        SqliteThreadStore(tmp_path / "threads.db", table="threads; DROP TABLE x")
