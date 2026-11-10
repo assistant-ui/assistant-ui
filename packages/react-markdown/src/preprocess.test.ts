@@ -338,9 +338,9 @@ describe("rewriteLatexBracketDelimiters", () => {
   });
 
   it("fences a one-line body whose delimiters sit on lines of their own", () => {
-    expect(
-      rewriteLatexBracketDelimiters("Text\n\\[\nx = 1\n\\]\nmore"),
-    ).toBe("Text\n$$\nx = 1\n$$\nmore");
+    expect(rewriteLatexBracketDelimiters("Text\n\\[\nx = 1\n\\]\nmore")).toBe(
+      "Text\n$$\nx = 1\n$$\nmore",
+    );
   });
 
   it("leaves an empty delimiter pair as written", () => {
