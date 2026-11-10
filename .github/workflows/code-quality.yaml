@@ -307,7 +307,7 @@ jobs:
             plan=$(node scripts/update-api-surface.mjs --base "$BASE" --print-filters)
             mapfile -t filters < <(jq -r 'if length == 0 then "--filter=./packages/*..." else .[] | "--filter=\(.)..." end' <<< "$plan")
             pnpm install --frozen-lockfile \
-              --filter="." \
+              --filter="{.}..." \
               --filter="@assistant-ui/api-surface" \
               --filter="@assistant-ui/react-devtools..." \
               --filter="@assistant-ui/x-buildutils..." \
@@ -626,7 +626,7 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$CI_BASE]..." --filter="!@assistant-ui/api-surface"
+            pnpm install --frozen-lockfile --filter "{.}..." --filter="@assistant-ui/react-devtools..." --filter="...[$CI_BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
