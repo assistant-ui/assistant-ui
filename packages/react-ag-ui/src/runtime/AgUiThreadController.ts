@@ -2465,11 +2465,17 @@ export class AgUiThreadController {
         current.status?.type === "running"
       ) {
         // Finalization is transport cleanup, not proof of a terminal event.
-        const status: MessageStatus = {
-          type: "incomplete",
-          reason: "error",
-          error: "The connection ended before the answer finished.",
-        };
+        // A frame a snapshot already moved past is a finished turn whose end
+        // never arrived, not a failed answer.
+        const status: MessageStatus =
+          this.deferredSnapshotHeadId !== undefined
+            ? FALLBACK_USER_STATUS
+            : {
+                type: "incomplete",
+                reason: "error",
+                error: "The connection ended before the answer finished.",
+              };
+        this.deferredSnapshotHeadId = undefined;
         settleHeldMessages(status);
         applyUpdate({
           status,
@@ -3374,26 +3380,26 @@ export class AgUiThreadController {
         ) {
           const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
-          if (
-            activeAssistantId !== nextActiveAssistantId &&
-            activeAssistantId
-          ) {
-            const previous =
-              this.session.tryGetMessage(activeAssistantId)?.message;
-            if (
-              previous?.role === "assistant" &&
-              previous.status?.type === "running"
-            ) {
-              this.updateAssistantMessage(activeAssistantId, {
-                status: FALLBACK_USER_STATUS,
-                content: settleNestedContent(
-                  previous.content,
-                  FALLBACK_USER_STATUS,
-                ),
-              });
-            }
-          }
           if (!frameStillOpen) {
+            if (
+              activeAssistantId !== nextActiveAssistantId &&
+              activeAssistantId
+            ) {
+              const previous =
+                this.session.tryGetMessage(activeAssistantId)?.message;
+              if (
+                previous?.role === "assistant" &&
+                previous.status?.type === "running"
+              ) {
+                this.updateAssistantMessage(activeAssistantId, {
+                  status: FALLBACK_USER_STATUS,
+                  content: settleNestedContent(
+                    previous.content,
+                    FALLBACK_USER_STATUS,
+                  ),
+                });
+              }
+            }
             this.deferredSnapshotHeadId = undefined;
             activeAssistantId = nextActiveAssistantId;
             if (activeAssistantId && joinStrategy !== "concat-content") {
@@ -3403,10 +3409,13 @@ export class AgUiThreadController {
             // The frame keeps the aggregator for now; adopt the head once the
             // frame ends, so calls and data that follow it belong to the head.
             // Recompute it on every snapshot: a later one can move the head
-            // back to the frame or off the assistant messages entirely, and a
-            // head the snapshot leaves waiting for a tool keeps that status
-            // instead — the aggregator does not know its calls, so adopting it
-            // would let the run finish it as complete.
+            // back to the frame or off the assistant messages entirely.
+            //
+            // A head the snapshot left waiting for a tool is not adopted: the
+            // frame's next update would replace its imported parts with the
+            // text it is carrying, dropping the unresolved call, and the run
+            // would then finish it as complete. It keeps the status the
+            // snapshot gave it.
             this.deferredSnapshotHeadId =
               nextActiveAssistantId !== undefined &&
               nextActiveAssistantId !== activeAssistantId &&
