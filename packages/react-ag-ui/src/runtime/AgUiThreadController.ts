@@ -2465,16 +2465,21 @@ export class AgUiThreadController {
         current.status?.type === "running"
       ) {
         // Finalization is transport cleanup, not proof of a terminal event.
-        // A frame a snapshot already moved past is a finished turn whose end
-        // never arrived, not a failed answer.
-        const status: MessageStatus =
-          this.deferredSnapshotHeadId !== undefined
-            ? FALLBACK_USER_STATUS
-            : {
-                type: "incomplete",
-                reason: "error",
-                error: "The connection ended before the answer finished.",
-              };
+        // An answer the thread has moved past (a snapshot put a later message
+        // at the head) is a finished turn whose end never arrived; one that is
+        // still the head really was cut off.
+        const headId = this.session.headId;
+        const movedPastAnswer =
+          assistantMessageId !== undefined &&
+          headId !== null &&
+          headId !== assistantMessageId;
+        const status: MessageStatus = movedPastAnswer
+          ? FALLBACK_USER_STATUS
+          : {
+              type: "incomplete",
+              reason: "error",
+              error: "The connection ended before the answer finished.",
+            };
         this.deferredSnapshotHeadId = undefined;
         settleHeldMessages(status);
         applyUpdate({
