@@ -89,6 +89,13 @@ so concurrent appends land under the right parent. A parent whose create
 failed is created again before its child, and a child whose parent still
 cannot be created is stored as a root.
 
+A message appended as running holds a run lease, renewed by heartbeats on
+the server's interval until a write with an end reason ends it. When the
+page hides, the runs it holds end as `interrupted` with a keepalive request
+unless `runsContinueOnServer` is set. A lease that is lost (expired,
+superseded by a resume, or refused) is final: the message gets no further
+writes from this persistence.
+
 <ParametersTable {...assistantCloud_CloudMessagePersistence} />
 
 ### CloudResponseError
