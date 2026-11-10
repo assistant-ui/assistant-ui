@@ -615,4 +615,83 @@ describe("AgUiThreadController snapshot head moves", () => {
     ]);
     expect(core.getMessages().find(({ id }) => id === "other")).toBeUndefined();
   });
+
+  it("keeps the answer running while its deltas still arrive", async () => {
+    const head = [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          { id: "question", role: "user", content: "hello" },
+          { id: "answer", role: "assistant", content: "a1" },
+          otherRecord,
+        ],
+      },
+    ];
+    const tail = [
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      finished,
+    ];
+    const encode = (events: object[]) =>
+      new TextEncoder().encode(
+        events
+          .map(
+            (event) => `data: ${JSON.stringify(event)}
+
+`,
+          )
+          .join(""),
+      );
+    let releaseStream = () => {};
+    const streamCanClose = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            async start(controller) {
+              controller.enqueue(encode(head));
+              await streamCanClose;
+              controller.enqueue(encode(tail));
+              controller.close();
+            },
+          }),
+          { headers: { "Content-Type": "text/event-stream" } },
+        ),
+    });
+    const core = new AgUiThreadController({
+      agent,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+
+    const snapshotImported = new Promise<void>((resolve) => {
+      const unsubscribe = core.subscribe(() => {
+        if (!core.getMessages().some(({ id }) => id === "other")) return;
+        unsubscribe();
+        resolve();
+      });
+    });
+
+    const run = core.append(userMessage);
+    await snapshotImported;
+    // Let every queued update from the snapshot land before sampling.
+    for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+    const statusAtSnapshot = core
+      .getMessages()
+      .find(({ id }) => id === "answer")?.status;
+    releaseStream();
+    await run;
+
+    expect(statusAtSnapshot).toMatchObject({ type: "running" });
+    expect(core.getMessages().find(({ id }) => id === "answer")).toMatchObject({
+      content: [{ type: "text", text: "a1a2" }],
+      status: { type: "complete" },
+    });
+  });
 });
