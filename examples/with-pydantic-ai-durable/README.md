@@ -25,7 +25,7 @@ Open http://localhost:3000, send a message, and reload the page or close the tab
 
 ## How it works
 
-The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "assistant-stream[pydantic-ai]"`); `server/main.py` only picks the agent and the stores. See the [durable threads guide](https://www.assistant-ui.com/docs/runtimes/ag-ui/durable-threads).
+The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "assistant-stream[pydantic-ai]>=0.0.37"`; in this repo the server uses the package source); `server/main.py` only picks the agent and the stores. See the [durable threads guide](https://www.assistant-ui.com/docs/runtimes/ag-ui/durable-threads).
 
 | Piece | Keeps | Default here | Production |
 | --- | --- | --- | --- |

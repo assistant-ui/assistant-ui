@@ -346,6 +346,7 @@ def test_a_run_whose_stream_is_gone_is_not_reported_running(server: Server) -> N
         server.call(server.durable.streams.delete(record.stream_id))
 
         assert _thread(client, thread_id)["running"] is False
+        assert client.get("/threads").json()[0]["running"] is False
         with client.stream("GET", f"/threads/{thread_id}/stream") as response:
             assert list(_events(response.iter_lines())) == []
 
@@ -386,6 +387,11 @@ def test_threads_are_scoped_to_their_owner(owned_server: Server) -> None:
             "/agent", json=_run_input(thread_id, [_user("Theirs")]), headers=bob
         )
         assert hijack.status_code == 404
+        own_run = _thread(client, thread_id)["runId"]
+        replay = client.post(
+            "/agent", json=_run_input(thread_id, [_user("x")], own_run), headers=bob
+        )
+        assert replay.status_code == 404
 
         assert _thread(client, thread_id)["running"] is True
         owned_server.model.gate.set()
@@ -441,7 +447,19 @@ def test_thread_stores_list_by_owner_newest_first(kind: str, tmp_path: Path) -> 
         assert record is not None and record.running is True
         assert [i for i, _ in await store.list(owner="alice")] == ["a", "b"]
         assert await store.get("missing") is None
+
+        await store.put("s", ThreadRecord(stream_id="one", running=True))
+        assert not await store.put_if_current("s", ThreadRecord(stream_id="two"))
+        assert await store.put_if_current("s", ThreadRecord(stream_id="one"))
+        record = await store.get("s")
+        assert record is not None and record.running is False
+        assert not await store.put_if_current("missing", ThreadRecord(stream_id="one"))
+        with pytest.raises(ValueError):
+            await store.list(limit=-1)
+
         if isinstance(store, PostgresThreadStore):
+            async with store._pool.connection() as db:
+                await db.execute(f"DROP TABLE {store._table}")
             await store.close()
 
     asyncio.run(scenario())
@@ -450,6 +468,9 @@ def test_thread_stores_list_by_owner_newest_first(kind: str, tmp_path: Path) -> 
 def test_sqlite_store_rejects_an_unsafe_table_name(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         SqliteThreadStore(tmp_path / "threads.db", table="threads; DROP TABLE x")
+    with pytest.raises(ValueError):
+        SqliteThreadStore(":memory:")
+    SqliteThreadStore(tmp_path / "threads.db", table="order")
 
 
 def test_a_cancel_naming_the_current_run_stops_it(server: Server) -> None:
@@ -469,7 +490,31 @@ def test_a_cancel_naming_the_current_run_stops_it(server: Server) -> None:
         _wait_until(lambda: _thread(client, thread_id)["running"] is False)
 
 
-def test_a_run_id_cannot_reach_into_another_threads_stream(server: Server) -> None:
+def test_dotted_ids_do_not_collide_across_threads(server: Server) -> None:
+    server.model.gate.set()
     with httpx.Client(base_url=server.base_url, timeout=10) as client:
-        dotted = client.post("/agent", json=_run_input("a", [_user("x")], "b.c"))
-        assert dotted.status_code == 400
+        for thread_id, run_id in [("a", "b.c"), ("a.b", "c")]:
+            with client.stream(
+                "POST", "/agent", json=_run_input(thread_id, [_user("x")], run_id)
+            ) as response:
+                assert response.status_code == 200
+                list(response.iter_lines())
+            assert _assistant_texts(_thread(client, thread_id)) == ["".join(WORDS)]
+
+
+def test_a_superseded_run_does_not_overwrite_its_replacement(server: Server) -> None:
+    thread_id = uuid.uuid4().hex
+    with httpx.Client(base_url=server.base_url, timeout=10) as client:
+        first = _user("First")
+        _start_and_disconnect(client, thread_id, [first])
+        second = _user("Second")
+        replacement = _run_input(thread_id, [first, second])
+        server.model.gate.set()
+        with client.stream("POST", "/agent", json=replacement) as response:
+            list(response.iter_lines())
+
+        _wait_until(lambda: _thread(client, thread_id)["running"] is False)
+        final = _thread(client, thread_id)
+        assert final["runId"] == replacement["runId"]
+        assert [m["role"] for m in final["messages"]] == ["user", "user", "assistant"]
+        assert _assistant_texts(final) == ["".join(WORDS)]

@@ -35,6 +35,8 @@ const freePort = () =>
 
 type Browser = {
   fetches: string[];
+  /** Full URLs, with query strings. */
+  urls: string[];
   crash: () => void;
   fetch: typeof fetch;
 };
@@ -42,13 +44,16 @@ type Browser = {
 /** A fetch whose open requests can all be killed at once, like a closed tab. */
 const browser = (): Browser => {
   const fetches: string[] = [];
+  const urls: string[] = [];
   const crashed = new AbortController();
   return {
     fetches,
+    urls,
     crash: () => crashed.abort(),
     fetch: (input, init) => {
       const url = String(input);
       fetches.push(`${init?.method ?? "GET"} ${new URL(url).pathname}`);
+      urls.push(url);
       const signal = init?.signal
         ? AbortSignal.any([init.signal, crashed.signal])
         : crashed.signal;
@@ -224,5 +229,50 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
       1,
     );
     view.unmount();
+  }, 30_000);
+
+  it("scopes Stop after a rejoin to the rejoined run", async () => {
+    const threadId = crypto.randomUUID();
+    const firstTab = browser();
+    const first = openThread(baseUrl, threadId, firstTab);
+    await waitFor(() =>
+      expect(first.result.current.thread.getState().isLoading).toBe(false),
+    );
+    act(() => {
+      first.result.current.thread.append("Hi");
+    });
+    await waitFor(() =>
+      expect(
+        textOf(first.result.current.thread.getState().messages.at(-1)).length,
+      ).toBeGreaterThan(10),
+    );
+    firstTab.crash();
+    first.unmount();
+
+    const { runId } = await (
+      await fetch(`${baseUrl}/threads/${threadId}`)
+    ).json();
+    expect(runId).toEqual(expect.any(String));
+
+    const secondTab = browser();
+    const second = openThread(baseUrl, threadId, secondTab);
+    await waitFor(() =>
+      expect(second.result.current.thread.getState().isRunning).toBe(true),
+    );
+    act(() => {
+      second.result.current.thread.cancelRun();
+    });
+
+    await waitFor(async () => {
+      const stored = await (
+        await fetch(`${baseUrl}/threads/${threadId}`)
+      ).json();
+      expect(stored.running).toBe(false);
+    });
+    const cancels = secondTab.urls.filter((url) => url.includes("/cancel"));
+    expect(cancels).toEqual([
+      `${baseUrl}/threads/${threadId}/cancel?run=${encodeURIComponent(runId)}`,
+    ]);
+    second.unmount();
   }, 30_000);
 });

@@ -42,13 +42,17 @@ class ThreadRecord:
 class ThreadStore(Protocol):
     """Where thread records live. Implement it to use your own database.
 
-    `list` returns the owner's threads, most recently updated first. An owner
-    of None means threads written without an owner.
+    `put_if_current` writes the record only if the stored record has the same
+    `stream_id`, atomically, and reports whether it wrote. `list` returns the
+    owner's threads, most recently updated first; an owner of None means
+    threads written without an owner.
     """
 
     async def get(self, thread_id: str) -> ThreadRecord | None: ...
 
     async def put(self, thread_id: str, record: ThreadRecord) -> None: ...
+
+    async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool: ...
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100
@@ -67,9 +71,17 @@ class InMemoryThreadStore:
     async def put(self, thread_id: str, record: ThreadRecord) -> None:
         self._records[thread_id] = record
 
+    async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool:
+        current = self._records.get(thread_id)
+        if current is None or current.stream_id != record.stream_id:
+            return False
+        self._records[thread_id] = record
+        return True
+
     async def list(
         self, *, owner: str | None = None, limit: int = 100
     ) -> list[tuple[str, ThreadRecord]]:
+        _check_limit(limit)
         items = [item for item in self._records.items() if item[1].owner == owner]
         items.sort(key=lambda item: item[1].updated_at, reverse=True)
         return items[:limit]
@@ -81,12 +93,24 @@ def _table_name(table: str) -> str:
     return table
 
 
+def _check_limit(limit: int) -> None:
+    if limit < 0:
+        raise ValueError(f"limit must not be negative: {limit}")
+
+
 class SqliteThreadStore:
     """One row per thread in a SQLite file. For a single server."""
 
     def __init__(self, path: str | Path, *, table: str = DEFAULT_TABLE) -> None:
         self._path = str(path)
-        self._table = _table_name(table)
+        if self._path == ":memory:" or self._path.startswith("file::memory:"):
+            # Every operation opens its own connection, so an in-memory
+            # database would be gone after this constructor.
+            raise ValueError(
+                "use InMemoryThreadStore instead of an in-memory SQLite db"
+            )
+        name = _table_name(table)
+        self._table = f'"{name}"'
         with self._connect() as db:
             db.execute(
                 f"CREATE TABLE IF NOT EXISTS {self._table} ("
@@ -94,7 +118,7 @@ class SqliteThreadStore:
                 " updated_at REAL NOT NULL)"
             )
             db.execute(
-                f"CREATE INDEX IF NOT EXISTS {self._table}_owner_updated"
+                f'CREATE INDEX IF NOT EXISTS "{name}_owner_updated"'
                 f" ON {self._table} (owner, updated_at DESC)"
             )
 
@@ -118,6 +142,21 @@ class SqliteThreadStore:
                 (thread_id, record.owner, record.to_json(), record.updated_at),
             )
 
+    def _put_if_current(self, thread_id: str, record: ThreadRecord) -> bool:
+        with self._connect() as db:
+            cursor = db.execute(
+                f"UPDATE {self._table} SET owner = ?, record = ?, updated_at = ?"
+                " WHERE id = ? AND json_extract(record, '$.stream_id') IS ?",
+                (
+                    record.owner,
+                    record.to_json(),
+                    record.updated_at,
+                    thread_id,
+                    record.stream_id,
+                ),
+            )
+            return cursor.rowcount == 1
+
     def _list(self, owner: str | None, limit: int) -> list[tuple[str, ThreadRecord]]:
         with self._connect() as db:
             rows = db.execute(
@@ -133,9 +172,13 @@ class SqliteThreadStore:
     async def put(self, thread_id: str, record: ThreadRecord) -> None:
         await asyncio.to_thread(self._put, thread_id, record)
 
+    async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool:
+        return await asyncio.to_thread(self._put_if_current, thread_id, record)
+
     async def list(
         self, *, owner: str | None = None, limit: int = 100
     ) -> list[tuple[str, ThreadRecord]]:
+        _check_limit(limit)
         return await asyncio.to_thread(self._list, owner, limit)
 
 
@@ -148,7 +191,8 @@ class PostgresThreadStore:
 
     def __init__(self, pool: Any, *, table: str = DEFAULT_TABLE) -> None:
         self._pool = pool
-        self._table = _table_name(table)
+        self._name = _table_name(table)
+        self._table = f'"{self._name}"'
         self._owns_pool = False
 
     @classmethod
@@ -159,9 +203,13 @@ class PostgresThreadStore:
 
         pool = AsyncConnectionPool(dsn, open=False)
         await pool.open()
-        store = cls(pool, table=table)
+        try:
+            store = cls(pool, table=table)
+            await store.setup()
+        except BaseException:
+            await pool.close()
+            raise
         store._owns_pool = True
-        await store.setup()
         return store
 
     async def setup(self) -> None:
@@ -173,7 +221,7 @@ class PostgresThreadStore:
                 " updated_at DOUBLE PRECISION NOT NULL)"
             )
             await db.execute(
-                f"CREATE INDEX IF NOT EXISTS {self._table}_owner_updated"
+                f'CREATE INDEX IF NOT EXISTS "{self._name}_owner_updated"'
                 f" ON {self._table} (owner, updated_at DESC)"
             )
 
@@ -200,9 +248,26 @@ class PostgresThreadStore:
                 (thread_id, record.owner, record.to_json(), record.updated_at),
             )
 
+    async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool:
+        async with self._pool.connection() as db:
+            cursor = await db.execute(
+                f"UPDATE {self._table} SET owner = %s, record = %s::jsonb,"
+                " updated_at = %s WHERE id = %s"
+                " AND record->>'stream_id' IS NOT DISTINCT FROM %s::text",
+                (
+                    record.owner,
+                    record.to_json(),
+                    record.updated_at,
+                    thread_id,
+                    record.stream_id,
+                ),
+            )
+            return cursor.rowcount == 1
+
     async def list(
         self, *, owner: str | None = None, limit: int = 100
     ) -> list[tuple[str, ThreadRecord]]:
+        _check_limit(limit)
         async with self._pool.connection() as db:
             cursor = await db.execute(
                 f"SELECT id, record::text FROM {self._table}"

@@ -136,22 +136,16 @@ class DurableAGUI(Generic[AgentDepsT]):
 
         thread_id = run_input.thread_id
         run_id = run_input.run_id
-        if "." in run_id:
-            # Keeps "{thread}.{run}" unambiguous, so one thread's run id
-            # cannot name another thread's stream.
-            return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
-        stream_id = f"{thread_id}.{run_id}"
+        previous = await self.threads.get(thread_id)
+        if previous is not None and previous.owner != owner:
+            return _not_found()
+
+        stream_id = _stream_id(thread_id, run_id)
         status = await self._safe_status(stream_id)
         if status is None:
             return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
         if status != "missing":
             return JSONResponse({"error": "run already exists"}, status_code=409)
-
-        previous = await self.threads.get(thread_id)
-        if previous is not None and previous.owner != owner:
-            return _not_found()
-        if previous is not None and previous.running and previous.stream_id:
-            self._cancel_local(previous.stream_id)
 
         adapter = AGUIAdapter(
             agent=self.agent,
@@ -175,6 +169,10 @@ class DurableAGUI(Generic[AgentDepsT]):
                 owner=owner,
             ),
         )
+        # Supersede the previous run only after this run owns the record, so the
+        # previous run's settle finds it replaced and leaves it alone.
+        if previous is not None and previous.running and previous.stream_id:
+            self._cancel_local(previous.stream_id)
 
         token = CancellationToken()
         self._tokens[stream_id] = token
@@ -183,10 +181,9 @@ class DurableAGUI(Generic[AgentDepsT]):
         async def settle(new_messages: Sequence[ModelMessage]) -> None:
             nonlocal settled
             settled = True
-            current = await self.threads.get(thread_id)
-            if current is not None and current.stream_id != stream_id:
-                return
-            await self.threads.put(
+            # Written only while this run still owns the record; a run that
+            # replaced it keeps its own transcript.
+            await self.threads.put_if_current(
                 thread_id,
                 ThreadRecord(
                     messages=input_messages
@@ -229,10 +226,7 @@ class DurableAGUI(Generic[AgentDepsT]):
         record = await self._record(thread_id, owner)
         if record is None:
             return None
-        running = record.running
-        if running and record.stream_id:
-            # A run whose stream is gone died with its server and will not finish.
-            running = await self._safe_status(record.stream_id) == "streaming"
+        running = await self._is_running(record)
         return {
             "id": thread_id,
             "messages": record.messages,
@@ -248,7 +242,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             {
                 "id": thread_id,
                 "title": _title(record.messages),
-                "running": record.running,
+                "running": await self._is_running(record),
                 "updatedAt": record.updated_at,
             }
             for thread_id, record in await self.threads.list(owner=owner, limit=limit)
@@ -279,7 +273,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             return False
         if not record.running or not record.stream_id:
             return False
-        if run_id is not None and record.stream_id != f"{thread_id}.{run_id}":
+        if run_id is not None and record.run_id != run_id:
             return False
         return self._cancel_local(record.stream_id)
 
@@ -349,6 +343,12 @@ class DurableAGUI(Generic[AgentDepsT]):
             return None
         return record
 
+    async def _is_running(self, record: ThreadRecord) -> bool:
+        if not record.running or not record.stream_id:
+            return False
+        # A run whose stream is gone died with its server and will not finish.
+        return await self._safe_status(record.stream_id) == "streaming"
+
     def _cancel_local(self, stream_id: str) -> bool:
         token = self._tokens.get(stream_id)
         if token is None:
@@ -361,6 +361,11 @@ class DurableAGUI(Generic[AgentDepsT]):
             return await self.streams.status(stream_id)
         except ResumableStreamError:
             return None
+
+
+def _stream_id(thread_id: str, run_id: str) -> str:
+    # The length prefix keeps the id unambiguous when either part contains ".".
+    return f"{len(thread_id)}-{thread_id}.{run_id}"
 
 
 def _not_found() -> Response:

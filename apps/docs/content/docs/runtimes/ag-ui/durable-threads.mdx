@@ -14,10 +14,10 @@ The Python `assistant-stream` package ships the server side for Pydantic AI as `
 ## Install
 
 ```sh
-pip install "assistant-stream[pydantic-ai]"
+pip install "assistant-stream[pydantic-ai]>=0.0.37" uvicorn
 ```
 
-Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs Python 3.11 or later.
+Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs `assistant-stream` 0.0.37 or later and Python 3.11 or later.
 
 ## Server
 
@@ -32,7 +32,7 @@ durable = DurableAGUI(agent, threads=SqliteThreadStore("threads.db"))
 app = Starlette(routes=durable.routes())
 ```
 
-Run it with `uvicorn main:app --port 8000`. In a FastAPI app, add the routes to the existing router with `app.router.routes.extend(durable.routes(prefix="/api"))`.
+Run it with `uvicorn main:app --port 8000`. When the frontend is on another origin, wrap the app in Starlette's `CORSMiddleware` with that origin and the `Authorization` and `Content-Type` headers allowed. In a FastAPI app, add the routes to the existing router with `app.router.routes.extend(durable.routes(prefix="/api"))`.
 
 `DurableAGUI` serves five routes:
 
@@ -40,7 +40,7 @@ Run it with `uvicorn main:app --port 8000`. In a FastAPI app, add the routes to 
 | --- | --- |
 | `POST /agent` | Starts a run from an AG-UI `RunAgentInput` and streams its frames. |
 | `GET /threads` | Lists threads, newest first. |
-| `GET /threads/{id}` | Returns `{ id, messages, running }`. |
+| `GET /threads/{id}` | Returns `{ id, messages, running, runId }`. `runId` is the latest run, so Stop can cancel exactly that run. |
 | `GET /threads/{id}/stream` | Replays the latest run from its first frame, then follows it live. |
 | `POST /threads/{id}/cancel?run=` | Cancels the run. The partial answer is kept. |
 
@@ -52,7 +52,9 @@ Without `owner`, every client can see every thread. Pass `owner` to scope thread
 
 ```python
 async def current_user(request):
-    return await verify_session(request.headers.get("authorization"))
+    user = await verify_session(request.headers.get("authorization"))
+    request.state.user = user
+    return user.id if user else None
 
 durable = DurableAGUI(
     agent,

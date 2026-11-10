@@ -6,9 +6,11 @@ import {
   ThreadListPrimitive,
 } from "@assistant-ui/react";
 
-function ThreadList() {
+function ThreadList({ className }: { className?: string }) {
   return (
-    <ThreadListPrimitive.Root className="hidden flex-col gap-1 overflow-y-auto md:flex">
+    <ThreadListPrimitive.Root
+      className={`flex flex-col gap-1 overflow-y-auto ${className ?? ""}`}
+    >
       <ThreadListPrimitive.New className="hover:bg-muted flex h-9 items-center gap-2 rounded-lg border px-3 text-sm">
         New thread
       </ThreadListPrimitive.New>
@@ -28,8 +30,16 @@ function ThreadList() {
 export default function Home() {
   return (
     <main className="grid h-dvh grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 p-2 md:grid-cols-[220px_1fr] md:p-4">
-      <ThreadList />
-      <Thread />
+      <ThreadList className="hidden md:flex" />
+      <div className="flex min-h-0 flex-col gap-2">
+        <details className="rounded-lg border p-2 md:hidden">
+          <summary className="cursor-pointer text-sm">Threads</summary>
+          <ThreadList className="mt-2 max-h-60" />
+        </details>
+        <div className="min-h-0 flex-1">
+          <Thread />
+        </div>
+      </div>
     </main>
   );
 }

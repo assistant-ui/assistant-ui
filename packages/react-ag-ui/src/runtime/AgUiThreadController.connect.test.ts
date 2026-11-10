@@ -244,7 +244,14 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
         id: "answer",
         text: "Let me check.",
       });
-      expect(transcript(core).at(-1)?.status).not.toBe("running");
+      const answer = core.getMessages().at(-1);
+      expect(answer?.status).toMatchObject({
+        type: "incomplete",
+        reason: "error",
+      });
+      expect(
+        answer?.content.filter((part) => part.type === "tool-call"),
+      ).toMatchObject([{ toolCallId: "call", toolName: "lookup" }]);
     });
   });
 
