@@ -20,12 +20,6 @@ export const states = defineStates([
     Component: () => <ConnectionState phase="reconnecting" attempt={3} />,
   },
   {
-    key: "pending-no-count",
-    label: "No count",
-    note: "Reconnecting without an attempt number to show.",
-    Component: () => <ConnectionState phase="reconnecting" />,
-  },
-  {
     key: "success",
     label: "Resumed",
     note: "The stream picked back up with the tokens it missed.",

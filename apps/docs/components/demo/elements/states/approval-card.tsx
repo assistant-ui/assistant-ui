@@ -18,12 +18,6 @@ const command = {
 export const states = defineStates([
   { key: "default", label: "Default" },
   {
-    key: "requires-action",
-    label: "Pending",
-    note: "Waiting on the user before the command runs.",
-    Component: () => <ApprovalCard {...command} state="request" />,
-  },
-  {
     key: "running",
     label: "Running",
     note: "Approved and still executing.",

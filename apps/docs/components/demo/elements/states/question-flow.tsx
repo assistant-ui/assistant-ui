@@ -89,7 +89,9 @@ export const states = defineStates([
     note: "A receipt leaves out a question that got no answer.",
     Component: () => (
       <QuestionFlow
-        steps={STEPS}
+        steps={STEPS.map((step) =>
+          step.id === "topics" ? { ...step, minSelections: 0 } : step,
+        )}
         choice={{ audience: ["team"], topics: [], timing: ["today"] }}
       />
     ),

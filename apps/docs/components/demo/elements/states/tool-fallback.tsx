@@ -99,6 +99,30 @@ export const states = defineStates([
               }}
               status={{ type: "complete" }}
             />
+            <ToolFallbackResult result={{ error: "Tool approval denied" }} />
+          </ToolFallbackContent>
+        </ToolFallbackRoot>
+      </Frame>
+    ),
+  },
+  {
+    key: "tool-error",
+    label: "Tool threw",
+    note: "The tool threw, so its error message comes back as the result.",
+    Component: () => (
+      <Frame>
+        <ToolFallbackRoot open onOpenChange={noop}>
+          <ToolFallbackTrigger
+            toolName="run_sql"
+            status={{ type: "complete" }}
+          />
+          <ToolFallbackContent>
+            <ToolFallbackArgs
+              argsText={json({
+                query: "SELECT count(*) FROM orders WHERE status = 'open'",
+              })}
+            />
+            <ToolFallbackResult result="Error: connect ECONNREFUSED 10.0.4.12:5432" />
           </ToolFallbackContent>
         </ToolFallbackRoot>
       </Frame>
@@ -106,8 +130,8 @@ export const states = defineStates([
   },
   {
     key: "error",
-    label: "Failed",
-    note: "The tool threw, so the error message shows above the arguments.",
+    label: "Run failed",
+    note: "The run failed before the tool returned, so the run error shows above the arguments.",
     Component: () => {
       const status = {
         type: "incomplete",

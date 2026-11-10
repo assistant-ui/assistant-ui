@@ -42,7 +42,9 @@ export const states = defineStates([
     key: "streaming",
     label: "Streaming",
     note: "The session is still running and only the first two steps have arrived.",
-    Component: () => <ToolTimeline {...base} visibleSteps={2} streaming open />,
+    Component: () => (
+      <ToolTimeline {...base} stats={[]} visibleSteps={2} streaming open />
+    ),
   },
   {
     key: "collapsed",

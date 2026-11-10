@@ -91,12 +91,6 @@ export const states = defineStates([
     Component: () => <Mentions value="Ask @Zoe" />,
   },
   {
-    key: "completed",
-    label: "Completed",
-    note: "A finished mention ends in a space and closes the menu.",
-    Component: () => <Mentions value="Ask @Mara to review the migration " />,
-  },
-  {
     key: "long-content",
     label: "Long names",
     note: "Long names truncate and keep the role tag visible.",
