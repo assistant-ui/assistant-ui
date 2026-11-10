@@ -36,7 +36,15 @@ export const SearchDocsToolUI: ToolCallMessagePartComponent<
       activeLabel="Searching the docs"
       query={args.query ?? ""}
       request={argsText}
-      result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
+      result={
+        status.type === "incomplete"
+          ? String(status.error ?? "")
+          : isError
+            ? JSON.stringify(result)
+            : result
+              ? `${result.count} matches, best hit ${result.bestPath}`
+              : ""
+      }
       running={status.type === "running"}
       failed={isError === true || (status.type === "incomplete" && status.reason === "error")}
       open={open}
@@ -194,7 +202,15 @@ function makeSearchToolUI(label: string, activeLabel: string) {
         activeLabel={activeLabel}
         query={args.query ?? ""}
         request={argsText}
-        result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
+        result={
+          status.type === "incomplete"
+            ? String(status.error ?? "")
+            : isError
+              ? JSON.stringify(result)
+              : result
+                ? `${result.count} matches, best hit ${result.bestPath}`
+                : ""
+        }
         running={status.type === "running"}
         failed={isError === true || (status.type === "incomplete" && status.reason === "error")}
         open={open}

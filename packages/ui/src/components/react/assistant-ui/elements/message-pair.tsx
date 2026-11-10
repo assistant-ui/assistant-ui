@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useRef, type ComponentProps } from "react";
 import { CopyIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, paper } from "./surfaces";
@@ -31,6 +31,7 @@ export function MessagePair({
   ...props
 }: MessagePairProps) {
   const shown = take(words, visibleWords);
+  const replyRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -49,7 +50,11 @@ export function MessagePair({
       >
         {userMessage}
       </p>
-      <div className="group/message flex flex-col items-start">
+      <div
+        ref={replyRef}
+        tabIndex={-1}
+        className="group/message flex flex-col items-start outline-none"
+      >
         <p className="min-h-[4.25rem] text-sm leading-relaxed">
           {shown.map((word, index) => {
             const fresh = streaming && shown.length - 1 - index < 2;
@@ -93,7 +98,11 @@ export function MessagePair({
               <button
                 type="button"
                 aria-label="Regenerate response"
-                onClick={onRegenerate}
+                onClick={() => {
+                  // Streaming unmounts this button, so keep focus in the reply.
+                  replyRef.current?.focus();
+                  onRegenerate();
+                }}
                 className={cn(ghostButton, "size-7")}
               >
                 <RefreshCwIcon className="size-3.5" />

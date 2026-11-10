@@ -128,7 +128,7 @@ export function Turn() {
 
 ### Handle the hover actions
 
-Pass `onCopy` and `onRegenerate` to show the matching buttons and own their behavior. If a callback is absent, its button is not rendered, so the standalone element never exposes an action that cannot run. Neither button renders while `streaming` is true.
+Pass `onCopy` and `onRegenerate` to show the matching buttons and own their behavior. If a callback is absent, its button is not rendered, so the standalone element never exposes an action that cannot run. Neither button renders while `streaming` is true, so Regenerate moves focus to the reply before it calls `onRegenerate`, and keyboard users keep their place.
 
   </Step>
 </Steps>
