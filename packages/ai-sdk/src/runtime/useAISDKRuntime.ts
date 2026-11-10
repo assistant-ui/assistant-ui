@@ -598,8 +598,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [runStatuses, setRunStatuses] = useState<
     ReadonlyMap<string, MessageStatus>
   >(() => new Map());
-  const runStatusesRef = useRef(runStatuses);
-  runStatusesRef.current = runStatuses;
   const toolApprovalResponsesRef = useRef(
     new Map(toApprovalResponses(ownedApprovals)),
   );
@@ -1312,29 +1310,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onReload: async (parentId: string | null, config) => {
       messageQueue.clear();
       lastRunConfigRef.current = config.runConfig;
-      const parentRunStatus =
-        parentId === null ? undefined : runStatusesRef.current.get(parentId);
-      if (
-        parentRunStatus?.type === "incomplete" &&
-        (parentRunStatus.error as { code?: unknown } | undefined)?.code ===
-          "run_stale"
-      ) {
-        // Resume continues the interrupted message in place, the AI SDK's own continuation of a trailing assistant message.
-        const next = new Map(runStatusesRef.current);
-        next.delete(parentId!);
-        runStatusesRef.current = next;
-        setRunStatuses(next);
-        chatHelpers.setMessages(
-          sliceMessagesUntil(
-            chatHelpers.messages,
-            lastAISDKMessageId(parentId),
-          ),
-        );
-        await chatHelpers.sendMessage(undefined, {
-          metadata: config.runConfig,
-        });
-        return;
-      }
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
         lastAISDKMessageId(parentId),

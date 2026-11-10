@@ -1,17 +1,14 @@
 import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { actionBarResumeDisabled } from "../../store/primitive-predicates";
-import { reportRunFailure } from "../../utils/report-run-failure";
 
 export const useActionBarResume = () => {
   const aui = useAui();
   const disabled = useAuiState(actionBarResumeDisabled);
 
+  // Resume starts a new branch beside the interrupted reply, the same way Regenerate does; the interrupted reply stays as it is.
   const resume = useCallback(() => {
-    reportRunFailure(
-      "Resume",
-      aui.thread().startRun({ parentId: aui.message.getState().id }),
-    );
+    aui.message.reload();
   }, [aui]);
 
   return { resume, disabled };

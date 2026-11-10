@@ -111,66 +111,6 @@ const runStatusOf = (run: NonNullable<CloudMessage["run"]>) =>
     ? RUN_STALE_STATUS
     : runInProgressStatus(run.expires_in_ms);
 
-// A formatted runtime resumes a stale message in place, so its continuation row holds the whole message under this external id and stands in for the stale row on load.
-const CONTINUATION_PREFIX = "aui-continuation:";
-
-/**
- * Decodes a formatted thread's rows oldest first. A continuation row replaces
- * the stale row it continues (it holds the whole message), and a row with a
- * run carries the status the run implies; stale rows are collected so their
- * resume opens a continuation.
- */
-const decodeFormattedRows = <
-  TMessage,
-  TStorageFormat extends Record<string, unknown>,
->(
-  rows: readonly CloudMessage[],
-  formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
-  staleIds: Set<string>,
-): MessageFormatItem<TMessage>[] => {
-  const ordered = rows
-    .filter((row) => row.format === formatAdapter.format)
-    .reverse();
-  const continued = new Map<string, CloudMessage>();
-  for (const row of ordered) {
-    const of = row.external_id?.startsWith(CONTINUATION_PREFIX)
-      ? row.external_id.slice(CONTINUATION_PREFIX.length)
-      : undefined;
-    if (of !== undefined && of === row.parent_id) continued.set(of, row);
-  }
-  const replaced = new Map<string, string | null>();
-  const items: MessageFormatItem<TMessage>[] = [];
-  for (const row of ordered) {
-    if (continued.has(row.id)) {
-      replaced.set(
-        row.id,
-        row.parent_id !== null && replaced.has(row.parent_id)
-          ? replaced.get(row.parent_id)!
-          : row.parent_id,
-      );
-      continue;
-    }
-    const parentId =
-      row.parent_id !== null && replaced.has(row.parent_id)
-        ? replaced.get(row.parent_id)!
-        : row.parent_id;
-    const item = formatAdapter.decode({
-      id: row.id,
-      parent_id: parentId,
-      format: row.format,
-      content: row.content as TStorageFormat,
-    });
-    if (row.run) {
-      if (row.run.status === "stale")
-        staleIds.add(formatAdapter.getId(item.message));
-      items.push({ ...item, unstable_status: runStatusOf(row.run) });
-    } else {
-      items.push(item);
-    }
-  }
-  return items;
-};
-
 // A run another session drives is the newest message of its branch, so it sits on the first page.
 const RUN_STATE_PAGE_SIZE = 20;
 
@@ -495,17 +435,8 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       return threadListItem;
     };
     const resolvePinned = () => threadListItem ?? pinCurrent();
-    // A resumed message keeps its local id while its writes go to the continuation row, mapped under an alias.
-    const aliases = new Map<string, string>();
-    const aliasOf = (id: string) => aliases.get(id) ?? id;
-    // Messages loaded with a stale run; the first running write of one opens its continuation.
-    const staleIds = new Set<string>();
-    const aliasedFormat: MessageFormatAdapter<TMessage, TStorageFormat> = {
-      ...formatAdapter,
-      getId: (message) => aliasOf(formatAdapter.getId(message)),
-    };
     const getTargetFormatted = (context: CloudScopeContext) =>
-      createFormattedPersistence(context.persistence, aliasedFormat);
+      createFormattedPersistence(context.persistence, formatAdapter);
     // A run's end reason, noted when the tracker sees its message settle, for the runtime's settled write of the same row.
     const endPhases = new Map<string, CloudMessageRunPhase>();
     const settledPhase = (
@@ -547,24 +478,12 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         const parentId = innerParentKey(parent);
         const pinned = resolvePinned();
         if (inner === undefined || parentId === undefined || !pinned) return;
-        const id = formatAdapter.getId(inner);
+        const key = formatAdapter.getId(inner);
         const context = adapter.captureScope(pinned);
         const { remoteId } = await pinned.initialize();
         adapter.assertCurrentScope(context);
         const { persistence } = context;
         const formatted = getTargetFormatted(context);
-        if (message.status?.type === "running" && staleIds.delete(id)) {
-          // Resume continues the stale message in place: its continuation is a child row with a new lease, which supersedes the stale run.
-          const staleRemoteId = persistence.getResolvedRemoteId(id) ?? id;
-          aliases.set(id, `${CONTINUATION_PREFIX}${staleRemoteId}`);
-          await formatted.append(
-            remoteId,
-            { parentId: id, message: inner },
-            "running",
-          );
-          return;
-        }
-        const key = aliasOf(id);
         const run = runPhaseOf(message, persistence, key);
         if (run !== "running") endPhases.delete(key);
         const item = { parentId, message: inner };
@@ -574,14 +493,13 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           await formatted.update?.(remoteId, item, key, run);
         }
       },
-      hasOpenRun: (key) => !!pinnedPersistence()?.hasOpenRun(aliasOf(key)),
+      hasOpenRun: (key) => !!pinnedPersistence()?.hasOpenRun(key),
       rename: (from, to) =>
-        pinnedPersistence()?.rename(aliasOf(from), aliasOf(to)) ??
-        Promise.resolve(),
+        pinnedPersistence()?.rename(from, to) ?? Promise.resolve(),
       noteSettled(message) {
         const key = this.keyOf(message);
         if (key !== undefined && this.hasOpenRun(key))
-          endPhases.set(aliasOf(key), endPhaseOf(message));
+          endPhases.set(key, endPhaseOf(message));
       },
     };
     return {
@@ -601,7 +519,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         await getTargetFormatted(context).append(
           remoteId,
           item,
-          settledPhase(context.persistence, aliasedFormat.getId(item.message)),
+          settledPhase(context.persistence, formatAdapter.getId(item.message)),
         );
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
@@ -611,12 +529,11 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         const remoteId = await adapter.resolveExistingRemoteId(pinned);
         adapter.assertCurrentScope(context);
         if (!remoteId) return;
-        const key = aliasOf(localMessageId);
         await getTargetFormatted(context).update?.(
           remoteId,
           item,
-          key,
-          settledPhase(context.persistence, key),
+          localMessageId,
+          settledPhase(context.persistence, localMessageId),
         );
       },
       async delete(items: MessageFormatItem<TMessage>[]) {
@@ -671,9 +588,23 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           formatAdapter.format,
         );
         adapter.assertCurrentScope(context);
-        aliases.clear();
-        staleIds.clear();
-        return { messages: decodeFormattedRows(rows, formatAdapter, staleIds) };
+        // Rows come newest first; a row with a run carries the status it implies, which the runtime shows and never stores.
+        return {
+          messages: rows
+            .filter((row) => row.format === formatAdapter.format)
+            .reverse()
+            .map((row) => {
+              const item = formatAdapter.decode({
+                id: row.id,
+                parent_id: row.parent_id,
+                format: row.format,
+                content: row.content as TStorageFormat,
+              });
+              return row.run
+                ? { ...item, unstable_status: runStatusOf(row.run) }
+                : item;
+            }),
+        };
       },
       unstable_onReload(listener) {
         reloadListeners.add(listener);
