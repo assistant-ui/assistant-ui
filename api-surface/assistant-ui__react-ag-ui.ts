@@ -1187,7 +1187,6 @@ type ThreadHistoryAdapter = {
   append(item: ExportedMessageRepositoryItem): Promise<void>;
   update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
-  unstable_setRunsContinueOnServer?(continues: boolean): void;
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
 
