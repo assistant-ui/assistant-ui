@@ -149,13 +149,12 @@ trustPolicyExclude:
   - expo-router@57.0.29
   - expo-splash-screen@57.0.10
   - expo@57.0.31
-  - semver@5.7.2
   - semver@6.3.1
-  - seroval-plugins@1.7.2
-  - seroval@1.7.2
   - ua-parser-js@1.0.41
   - undici@5.29.0
   - vercel@65.2.0
+# Drop entries on add, update and remove once the locked version is gone.
+trustPolicyExcludePrune: true
 
 allowBuilds:
   '@clerk/shared': false
