@@ -188,7 +188,6 @@ declare class AssistantCloudProjects {
 }
 
 type AssistantCloudRunHeartbeatResponse = {
-  expires_in_ms: number;
   heartbeat_interval_ms: number;
 };
 
@@ -364,12 +363,9 @@ declare class AssistantCloudThreadMessages {
 declare class AssistantCloudThreadRuns {
   #private;
   constructor(cloud: AssistantCloudAPI);
-  open(threadId: string, messageId: string): Promise<CloudRunLease>;
   heartbeat(threadId: string, leaseId: string): Promise<AssistantCloudRunHeartbeatResponse>;
   end(threadId: string, leaseId: string, body?: {
     reason?: CloudRunEndReason;
-  }, options?: {
-    keepalive?: boolean;
   }): Promise<void>;
 }
 
@@ -716,16 +712,14 @@ type CloudMessage = {
 };
 
 type CloudMessageRun = {
-  status: "running" | "stale";
-  expires_in_ms?: number | undefined;
-  superseded_by?: string | undefined;
+  status: "ended" | "running";
+  last_heartbeat_ms_ago: number;
 };
 
-type CloudRunEndReason = "cancelled" | "done" | "error" | "interrupted";
+type CloudRunEndReason = "cancelled" | "done" | "error";
 
 type CloudRunLease = {
   lease_id: string;
-  expires_in_ms: number;
   heartbeat_interval_ms: number;
 };
 

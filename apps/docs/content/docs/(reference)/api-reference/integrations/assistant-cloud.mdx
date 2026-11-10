@@ -55,13 +55,12 @@ Every call returns a promise and throws `CloudAPIError` on a non 2xx response, w
 
 ### AssistantCloudThreadRuns
 
-Run leases on thread messages. A run's holder keeps its lease alive with
-heartbeats on the server's `heartbeat_interval_ms`; the server sets the
-lease's TTL. A run that stops heartbeating reads as stale once its lease
-expires, and an expired lease never comes back: heartbeats and writes with
-it answer 409 `run_stale`. A new run opened under a stale message resumes
-it and supersedes the stale lease. Writes as the holder go through
-`threads.messages` with the `lease_id`.
+Run leases on thread messages. A lease is opened with `open_run` when its
+message is created, belongs to that message alone, and runs until its
+holder ends it; the server never expires one. The holder heartbeats on the
+server's `heartbeat_interval_ms`, and listed messages report how long ago
+the last beat was, so readers can tell a run whose tab went away. Writes as
+the holder go through `threads.messages` with the `lease_id`.
 
 <ParametersTable {...assistantCloud_AssistantCloudThreadRuns} />
 
@@ -90,13 +89,11 @@ failed is created again before its child, and a child whose parent still
 cannot be created is stored as a root.
 
 A message appended as running holds a run lease, renewed by heartbeats on
-the server's interval until a write with an end reason ends it. When the
-page unloads, the runs it holds end as `interrupted` with a keepalive
-request; a page kept in the back/forward cache keeps them and heartbeats
-as soon as it is shown again.
-A plain write the server refuses because another session runs the message
-(409 `run_in_progress`) is dropped with a warning. A lease that is lost (expired,
-superseded by a resume, or refused) is final: the message gets no further
+the server's interval until a write with an end reason ends it. Heartbeats
+keep running while the page is in the background. The server never
+expires a lease; readers show a run as stale once it has gone `staleAfter`
+without a beat, and a late run keeps writing its own message. A lease that
+is lost (ended elsewhere or refused) is final: the message gets no further
 writes from this persistence.
 
 <ParametersTable {...assistantCloud_CloudMessagePersistence} />
@@ -156,6 +153,14 @@ const calls = collector.getCalls(); // SamplingCallData[]
 
 ```ts
 function createSamplingCollector(): { collect: (data: SamplingCallData) => number; getCalls: () => SamplingCallData[]; reset: () => void; };
+```
+
+### DEFAULT_RUN_STALE_AFTER_MS
+
+How long a running lease may go without a heartbeat before its message reads as stale.
+
+```ts
+const DEFAULT_RUN_STALE_AFTER_MS: 30000;
 ```
 
 ### deriveRunOutcome
