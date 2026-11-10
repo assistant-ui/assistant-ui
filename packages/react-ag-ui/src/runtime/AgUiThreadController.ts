@@ -300,22 +300,35 @@ const replaceTextParts = (
   return result;
 };
 
+/**
+ * Settles nested sub-agent messages with `status`. Without `runSubagentIds`,
+ * only running messages settle. With it, only that run's sub-agent messages
+ * settle, and an incomplete `status` also settles one still waiting on its own
+ * tool call: the run that could answer it has ended.
+ */
 const settleNestedContent = (
   content: ThreadAssistantMessage["content"],
   status: MessageStatus,
+  runSubagentIds?: ReadonlySet<string>,
 ) =>
-  mapToolCallPartsDeep(content, (part) =>
-    part.messages
-      ? {
-          ...part,
-          messages: part.messages.map((message) =>
-            message.role === "assistant" && message.status?.type === "running"
-              ? { ...message, status }
-              : message,
-          ),
-        }
-      : part,
-  ).content;
+  mapToolCallPartsDeep(content, (part) => {
+    if (!part.messages) return part;
+    let changed = false;
+    const messages = part.messages.map((message) => {
+      if (message.role !== "assistant") return message;
+      const settles = !runSubagentIds
+        ? message.status?.type === "running"
+        : runSubagentIds.has(message.id) &&
+          (message.status?.type === "running" ||
+            (status.type === "incomplete" &&
+              message.status?.type === "requires-action" &&
+              message.status.reason === "tool-calls"));
+      if (!settles) return message;
+      changed = true;
+      return { ...message, status };
+    });
+    return changed ? { ...part, messages } : part;
+  }).content;
 
 type AgUiRuntimeCallbackName = "onError" | "onCancel";
 
@@ -1721,6 +1734,8 @@ export class AgUiThreadController {
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
     let snapshotAssistantId: string | undefined;
+    const importedRunAssistants = new Set<string>();
+    const runSubagentIds = new Set<string>();
     let replayInterruptMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
@@ -2263,9 +2278,25 @@ export class AgUiThreadController {
         adoptServerMessageId(serverId, true, frameOpenIds);
       },
     });
+    const settleRunSubagents = (status: MessageStatus) => {
+      if (runSubagentIds.size === 0) return;
+      for (const message of this.session.getMessages()) {
+        if (message.role !== "assistant") continue;
+        const content = settleNestedContent(
+          message.content,
+          status,
+          runSubagentIds,
+        );
+        if (content === message.content) continue;
+        this.updateAssistantMessage(message.id, { content });
+        this.persistSettledAssistant(message.id);
+      }
+    };
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
+      if (event.type === "SUBAGENT_STARTED")
+        runSubagentIds.add(event.subagentRunId);
       if (event.type === "RUN_FINISHED") {
         runFinished = true;
         if (event.outcome?.type === "interrupt")
@@ -2301,6 +2332,23 @@ export class AgUiThreadController {
           candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
+          // Assistants this snapshot adds belong to the run's history even
+          // when the run never streams into them.
+          const previousIds = new Set(
+            beforeSnapshot.map((message) => message.id),
+          );
+          for (const message of this.session.getMessages()) {
+            if (
+              message.role !== "assistant" ||
+              previousIds.has(message.id) ||
+              runStartMessageIds.has(message.id)
+            )
+              continue;
+            const item = this.session.tryGetMessage(message.id);
+            if (!item) continue;
+            this.markPendingAssistantHistory(message.id, item.parentId);
+            importedRunAssistants.add(message.id);
+          }
           for (const message of beforeSnapshot) {
             const context = replayContexts.get(message.id);
             const current = this.session.tryGetMessage(message.id)?.message;
@@ -2331,6 +2379,15 @@ export class AgUiThreadController {
             snapshotAssistantId =
               tail?.role === "assistant" ? tail.id : undefined;
           }
+        }
+        if (event.type === "RUN_ERROR") {
+          settleRunSubagents({
+            type: "incomplete",
+            reason: "error",
+            ...(event.message !== undefined ? { error: event.message } : {}),
+          });
+        } else if (event.type === "RUN_CANCELLED") {
+          settleRunSubagents({ type: "incomplete", reason: "cancelled" });
         }
       } finally {
         settlingRun = false;
@@ -2434,6 +2491,28 @@ export class AgUiThreadController {
           status,
           content: settleNestedContent(current.content, status),
         });
+      }
+      if (this.abortController === abortController && !runFinished) {
+        // The run ended without RUN_FINISHED, so no sub-agent call it left
+        // open can still be answered.
+        const settled = assistantMessageId
+          ? this.session.tryGetMessage(assistantMessageId)?.message
+          : undefined;
+        settleRunSubagents(
+          settled?.status?.type === "incomplete"
+            ? settled.status
+            : {
+                type: "incomplete",
+                reason: "error",
+                error: "The connection ended before the answer finished.",
+              },
+        );
+      }
+      // A snapshot can make one of its own assistants the run's answer, or
+      // deliver the answer only in the snapshot; neither goes through the
+      // streamed answer's history write.
+      for (const messageId of importedRunAssistants) {
+        this.persistAssistantHistory(messageId);
       }
       this.finishRun(abortController);
     }
