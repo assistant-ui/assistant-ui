@@ -54,12 +54,6 @@ When the page unloads (the tab closes, navigates away or is discarded), the adap
 
 A message whose run another tab or session is still writing loads with the code `run_in_progress` and `message.runState === "in-progress"`. The adapter re-reads its run state around the lease's expiry and updates the thread in place when it changes, so the message turns into the finished answer, or into the interrupted state, without a reload. `ActionBarPrimitive.RefreshRun` re-reads it on demand. These load states are read from `aui/v0` rows; an AI SDK thread loads the reply as it was last stored.
 
-If your backend keeps a run going after the tab leaves, so the client can rejoin it later, the page should not end it. AG-UI agents that implement `connect()` are detected and report this on their own. For any other runtime, pass `runsContinueOnServer: true` to `useCloudThreadListAdapter`; that option also overrides what the runtime reports. Such runs stay open when the page unloads and read as stale once the lease's TTL passes without a heartbeat.
-
-```tsx
-const adapter = useCloudThreadListAdapter({ cloud, runsContinueOnServer: true });
-```
-
 While another session holds a live lease on a message, the cloud refuses plain writes to it with `409 run_in_progress`. The adapter drops such a write with a warning instead of failing the runtime.
 
 An expired lease never comes back. A tab that reconnects after its run went stale gets `409 run_stale` and stops writing that message. If another session already resumed the run, the old tab's next write is stored once on a new sibling branch (`409 superseded` with that sibling's id), the tab writes nothing more, and the resumed reply is never overwritten.

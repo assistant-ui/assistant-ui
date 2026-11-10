@@ -15,7 +15,6 @@ import type {
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import {
   DEFAULT_CLOUD_SCOPE,
-  type CloudHistoryAdapterOptions,
   useScopedAssistantCloudThreadHistoryAdapter,
 } from "./AssistantCloudThreadHistoryAdapter";
 import { createScopedCloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
@@ -45,13 +44,6 @@ export type CloudThreadListAdapterOptions = {
   /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
   create?: ((threadId: string) => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
-  /**
-   * Set when runs keep going on your backend after the tab that streams them
-   * leaves, so a closing page leaves their run leases open (they lapse after
-   * the server's TTL) instead of ending them as interrupted. AG-UI agents that
-   * implement `connect()` set this on their own.
-   */
-  runsContinueOnServer?: boolean | undefined;
   /** Creates each cloud thread with `upsert`, so a retried create reuses the thread that already has the external id `create` returned; set it when that id names exactly one conversation. */
   upsert?: boolean | undefined;
 };
@@ -96,12 +88,10 @@ export const createCommittedScopeRef = (
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: CommittedScopeRef,
-  options?: CloudHistoryAdapterOptions,
 ): RuntimeAdapters => {
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
     scopeRef,
-    options,
   );
   const [attachments] = useState(() =>
     createScopedCloudFileAttachmentAdapter(
@@ -192,9 +182,7 @@ export const createCloudThreadListAdapter = (
       cloudRef.current = cloud;
       scopeRef.update(scopeId ?? DEFAULT_CLOUD_SCOPE);
     }, [cloud, scopeId, scopeRef]);
-    return useCloudRuntimeAdapters(cloudRef, scopeRef, {
-      runsContinueOnServer: () => getOptions().runsContinueOnServer,
-    });
+    return useCloudRuntimeAdapters(cloudRef, scopeRef);
   };
 
   cloud.registerSdk?.(CORE_SDK);
