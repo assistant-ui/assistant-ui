@@ -2292,6 +2292,19 @@ export class AgUiThreadController {
         this.persistSettledAssistant(message.id);
       }
     };
+    // Writes this run's other assistants in branch order: before the answer
+    // settles, the ones above it; after, the ones below. An adapter that
+    // moves its head on each first write then ends on the branch's tail.
+    const persistRunAssistants = (aboveAnswer: boolean) => {
+      for (const message of this.session.getMessages()) {
+        if (message.id === assistantMessageId) {
+          if (aboveAnswer) return;
+          continue;
+        }
+        if (message.role === "assistant" && !runStartMessageIds.has(message.id))
+          this.persistAssistantHistory(message.id);
+      }
+    };
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
@@ -2319,6 +2332,7 @@ export class AgUiThreadController {
         event.type === "RUN_FINISHED" ||
         event.type === "RUN_ERROR" ||
         event.type === "RUN_CANCELLED";
+      if (settlingRun) persistRunAssistants(true);
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
       try {
@@ -2333,16 +2347,14 @@ export class AgUiThreadController {
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
           // Assistants a snapshot adds belong to the run's history even when
-          // the run never streams into them. Importing clears the pending
-          // history marks, so every snapshot marks them again.
-          const previousIds = new Set(
-            beforeSnapshot.map((message) => message.id),
-          );
+          // the run never streams into them. Every import resets the pending
+          // marks, so each snapshot marks them again.
+          const previousIds = new Set(beforeSnapshot.map(({ id }) => id));
           for (const message of this.session.getMessages()) {
             if (
               message.role === "assistant" &&
-              !previousIds.has(message.id) &&
-              !runStartMessageIds.has(message.id)
+              !runStartMessageIds.has(message.id) &&
+              !previousIds.has(message.id)
             )
               importedRunAssistants.add(message.id);
           }
@@ -2391,6 +2403,7 @@ export class AgUiThreadController {
         } else if (event.type === "RUN_CANCELLED") {
           settleRunSubagents({ type: "incomplete", reason: "cancelled" });
         }
+        if (settlingRun) persistRunAssistants(false);
       } finally {
         settlingRun = false;
       }
@@ -2482,6 +2495,7 @@ export class AgUiThreadController {
         current?.role === "assistant" &&
         current.status?.type === "running"
       ) {
+        persistRunAssistants(true);
         // Finalization is transport cleanup, not proof of a terminal event.
         const status: MessageStatus = {
           type: "incomplete",
@@ -2510,12 +2524,12 @@ export class AgUiThreadController {
               },
         );
       }
-      // A snapshot can make one of its own assistants the run's answer, or
-      // deliver the answer only in the snapshot; neither goes through the
-      // streamed answer's history write.
-      for (const messageId of importedRunAssistants) {
-        this.persistAssistantHistory(messageId);
-      }
+      // Stop already finished the run; a newer run owns its own writes.
+      if (
+        this.abortController === abortController ||
+        this.abortController === null
+      )
+        persistRunAssistants(false);
       this.finishRun(abortController);
     }
 

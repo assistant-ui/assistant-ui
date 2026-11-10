@@ -1,5 +1,3 @@
-// assistant-ui/assistant-ui#10442: a sub-agent's message imported from a MESSAGES_SNAPSHOT while it
-// waits on its own tool call settles when the run ends without RUN_FINISHED (close, RUN_ERROR, Stop).
 import { describe, expect, it } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { HttpAgent } from "@ag-ui/client";

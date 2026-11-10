@@ -1,5 +1,3 @@
-// assistant-ui/assistant-ui#10441: an assistant a MESSAGES_SNAPSHOT adds and moves the run onto
-// is written to history, so it is still there after a reload.
 import { describe, expect, it } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { HttpAgent } from "@ag-ui/client";
@@ -24,27 +22,49 @@ const userMessage = {
 
 type Row = { id: string; status: string | undefined };
 
-async function run(events: (requestMessages: any[]) => object[][]) {
-  const rows = new Map<string, Row>();
-  const writes: string[] = [];
-  const history = {
-    load: async () => ({ headId: null, messages: [] }),
+// Mirrors the local history adapter: both writes upsert by message id; an
+// append, or an update that inserts, moves the stored head.
+function createHistory(writes: string[]) {
+  const items = new Map<string, any>();
+  let headId: string | null = null;
+  const store = (item: any, moveHead: boolean) => {
+    if (moveHead || !items.has(item.message.id)) headId = item.message.id;
+    items.set(item.message.id, structuredClone(item));
+  };
+  return {
+    rows: () =>
+      new Map<string, Row>(
+        [...items.values()].map((item) => [
+          item.message.id,
+          { id: item.message.id, status: item.message.status?.type },
+        ]),
+      ),
+    load: async () => ({ headId, messages: [...items.values()] }),
     append: async (item: any) => {
       writes.push(`append ${item.message.id}`);
-      rows.set(item.message.id, {
-        id: item.message.id,
-        status: item.message.status?.type,
-      });
+      store(item, true);
     },
-    // ThreadHistoryAdapter.update's contract: an upsert keyed on the message id
     update: async (item: any) => {
       writes.push(`update ${item.message.id}`);
-      rows.set(item.message.id, {
-        id: item.message.id,
-        status: item.message.status?.type,
-      });
+      store(item, false);
     },
   };
+}
+
+async function reload(history: ReturnType<typeof createHistory>) {
+  const core = new AgUiThreadController({
+    agent: new HttpAgent({ url: "https://agent.test" }),
+    logger: makeLogger(),
+    showThinking: false,
+    history: history as any,
+  });
+  await core.__internal_load();
+  return core.getMessages().map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
+}
+
+async function run(events: (requestMessages: any[]) => object[][]) {
+  const writes: string[] = [];
+  const history = createHistory(writes);
   let write!: (e: object) => void;
   let close!: () => void;
   let requestMessages: any[] = [];
@@ -83,7 +103,12 @@ async function run(events: (requestMessages: any[]) => object[][]) {
   const shown = core
     .getMessages()
     .map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
-  return { rows, writes, shown };
+  return {
+    rows: history.rows(),
+    writes,
+    shown,
+    reloaded: await reload(history),
+  };
 }
 
 const start = [
@@ -103,17 +128,18 @@ const moveSnapshot = (req: any[]) => ({
 
 describe("ag-ui: a snapshot's new head and the history adapter", () => {
   it("stores the new head after one head-move snapshot and RUN_FINISHED", async () => {
-    const { rows, writes, shown } = await run((req) => [
+    const { rows, writes, shown, reloaded } = await run((req) => [
       start,
       [moveSnapshot(req)],
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
     expect(shown).toContain("other:complete");
     expect(rows.get("other")?.status, writes.join(", ")).toBe("complete");
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
   it("stores the new head after one head-move snapshot and RUN_ERROR", async () => {
-    const { rows, writes, shown } = await run((req) => [
+    const { rows, writes, shown, reloaded } = await run((req) => [
       start,
       [moveSnapshot(req)],
       [{ type: "RUN_ERROR", message: "boom" }],
@@ -123,6 +149,7 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
     const other = shown.find((entry) => entry.startsWith("other:"));
     expect(["other:incomplete", "other:complete"]).toContain(other);
     expect(`other:${rows.get("other")?.status}`, writes.join(", ")).toBe(other);
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
   it("stores a snapshot-only answer that a second snapshot repeats", async () => {
@@ -130,16 +157,17 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       type: "MESSAGES_SNAPSHOT",
       messages: [...req, { id: "only", role: "assistant", content: "o" }],
     });
-    const { rows, writes } = await run((req) => [
+    const { rows, writes, shown, reloaded } = await run((req) => [
       [{ type: "RUN_STARTED", threadId: "t", runId: "r" }, snapshot(req)],
       [snapshot(req)],
       [{ type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
     expect(rows.get("only")?.status, writes.join(", ")).toBe("complete");
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
   it("stores an answer that arrives only in a snapshot", async () => {
-    const { rows, writes, shown } = await run((req) => [
+    const { rows, writes, shown, reloaded } = await run((req) => [
       [
         { type: "RUN_STARTED", threadId: "t", runId: "r" },
         {
@@ -152,10 +180,30 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
     expect(shown).toContain("only:complete");
     expect(rows.get("only")?.status, writes.join(", ")).toBe("complete");
     expect(writes.filter((w) => w.endsWith(" only"))).toHaveLength(1);
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+  });
+
+  it("keeps the streamed answer as the head after a snapshot adds an earlier step", async () => {
+    const { writes, shown, reloaded } = await run((req) => [
+      start,
+      [
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            ...req,
+            { id: "step", role: "assistant", content: "s" },
+            { id: "answer", role: "assistant", content: "a1" },
+          ],
+        },
+      ],
+      [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
+    ]);
+    expect(shown.slice(1)).toEqual(["step:complete", "answer:complete"]);
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
   it("control: a second snapshot after the head move stores the new head", async () => {
-    const { rows, writes, shown } = await run((req) => [
+    const { rows, writes, shown, reloaded } = await run((req) => [
       start,
       [moveSnapshot(req)],
       [moveSnapshot(req)],
@@ -164,13 +212,15 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
     expect(rows.get("other")?.status, JSON.stringify({ writes, shown })).toBe(
       "complete",
     );
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
   it("control: the streamed answer without a snapshot is stored", async () => {
-    const { rows } = await run(() => [
+    const { rows, shown, reloaded } = await run(() => [
       start,
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
     expect(rows.get("answer")?.status).toBe("complete");
+    expect(reloaded).toEqual(shown);
   });
 });
