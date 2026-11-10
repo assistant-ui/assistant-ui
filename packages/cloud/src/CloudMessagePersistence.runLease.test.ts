@@ -597,38 +597,6 @@ describe("CloudMessagePersistence run leases", () => {
       expect(runs.end).not.toHaveBeenCalled();
     });
 
-    it("leaves runs open when they continue on the server", async () => {
-      const { cloud, runs } = createCloud();
-      const persistence = new CloudMessagePersistence(cloud, {
-        runsContinueOnServer: true,
-      });
-      await persistence.append("t1", "a", null, "aui/v0", running, "running");
-
-      hide();
-      expect(runs.end).not.toHaveBeenCalled();
-      expect(persistence.hasOpenRun("a")).toBe(true);
-    });
-
-    it("reads a function option when the page hides", async () => {
-      const { cloud, runs } = createCloud();
-      let continues = true;
-      const persistence = new CloudMessagePersistence(cloud, {
-        runsContinueOnServer: () => continues,
-      });
-      await persistence.append("t1", "a", null, "aui/v0", running, "running");
-
-      hide();
-      expect(runs.end).not.toHaveBeenCalled();
-      continues = false;
-      hide();
-      expect(runs.end).toHaveBeenCalledWith(
-        "t1",
-        "lease_1",
-        { reason: "interrupted" },
-        { keepalive: true },
-      );
-    });
-
     it("keeps runs open when the page goes into the back/forward cache", async () => {
       const { cloud, runs } = createCloud();
       const persistence = new CloudMessagePersistence(cloud);

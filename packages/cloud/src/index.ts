@@ -56,7 +56,6 @@ export {
 export { readAnonymousRefreshToken } from "./AssistantCloudAuthStrategy";
 export {
   CloudMessagePersistence,
-  type CloudMessagePersistenceOptions,
   type CloudMessageRunPhase,
 } from "./CloudMessagePersistence";
 export {

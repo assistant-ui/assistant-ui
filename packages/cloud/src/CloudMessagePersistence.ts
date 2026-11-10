@@ -20,19 +20,6 @@ type OpenRun = {
   timer: ReturnType<typeof setTimeout> | undefined;
 };
 
-export type CloudMessagePersistenceOptions = {
-  /**
-   * Set when a run keeps going on the server after the tab that holds its
-   * lease goes away (a backend that finishes the reply without the client,
-   * such as an AG-UI agent the client rejoins with `connect()`). By default a
-   * page that unloads ends every run this persistence holds with reason
-   * `interrupted`, so the message reads `stale` at once; with this set, held
-   * runs stay open and lapse when their lease's TTL runs out. A function is
-   * read when the page hides, so a runtime can decide after construction.
-   */
-  runsContinueOnServer?: boolean | (() => boolean) | undefined;
-};
-
 /** 409 codes after which the lease is gone for good: nothing more is written for its message. */
 const LOST_LEASE_CODES = new Set([
   "run_stale",
@@ -83,8 +70,8 @@ type FailedAppend = {
  * A message appended as running holds a run lease, renewed by heartbeats on
  * the server's interval until a write with an end reason ends it. When the
  * page unloads, the runs it holds end as `interrupted` with a keepalive
- * request unless `runsContinueOnServer` is set; a page kept in the
- * back/forward cache keeps them and heartbeats as soon as it is shown again.
+ * request; a page kept in the back/forward cache keeps them and heartbeats
+ * as soon as it is shown again.
  * A plain write the server refuses because another session runs the message
  * (409 `run_in_progress`) is dropped with a warning. A lease that is lost (expired,
  * superseded by a resume, or refused) is final: the message gets no further
@@ -101,19 +88,11 @@ export class CloudMessagePersistence {
   private leasedMessages = new Set<string>();
   private pageHideTarget: Window | undefined;
   private getCloud: () => AssistantCloud;
-  private options: CloudMessagePersistenceOptions;
 
-  constructor(cloud: AssistantCloud, options?: CloudMessagePersistenceOptions);
-  constructor(
-    getCloud: () => AssistantCloud,
-    options?: CloudMessagePersistenceOptions,
-  );
-  constructor(
-    cloud: AssistantCloud | (() => AssistantCloud),
-    options: CloudMessagePersistenceOptions = {},
-  ) {
+  constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
+  constructor(cloud: AssistantCloud | (() => AssistantCloud)) {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
-    this.options = options;
   }
 
   /**
@@ -444,15 +423,9 @@ export class CloudMessagePersistence {
     this.pageHideTarget = undefined;
   }
 
-  private runsContinueOnServer(): boolean {
-    const option = this.options.runsContinueOnServer;
-    return typeof option === "function" ? option() : !!option;
-  }
-
   // Heartbeats are main-thread timers that hidden tabs throttle, so an unloading page ends its runs as interrupted; the TTL covers a request that never lands. A page kept in the back/forward cache may come back, so its runs stay open.
   private onPageHide = (event: Event) => {
     if ((event as { persisted?: boolean }).persisted) return;
-    if (this.runsContinueOnServer()) return;
     const cloud = this.getCloud();
     for (const [messageId, open] of [...this.openRuns]) {
       void cloud.threads.runs
