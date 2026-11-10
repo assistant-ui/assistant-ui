@@ -153,7 +153,7 @@ export const useCloudRunLeases = (
       if (run.settleTimer !== undefined) return;
       const settled = findMessage(aui, run.messageId);
       if (settled && settled.status?.type !== "running")
-        run.writer.noteSettled(settled);
+        run.writer.noteSettled?.(settled);
       run.settleTimer = setTimeout(() => {
         if (!run.writer.hasOpenRun(run.key)) return;
         const message = findMessage(aui, run.messageId);
@@ -209,7 +209,7 @@ export const useCloudRunLeases = (
       if (tracked?.messageId === head.id) return;
       const key = writer.keyOf(head);
       // A formatted row is chained under its parent's row, so the store waits for the runtime to store the prompt.
-      if (key === undefined || !writer.canStore(parent)) return;
+      if (key === undefined || writer.canStore?.(parent) === false) return;
       const run: TrackedRun = {
         writer,
         messageId: head.id,

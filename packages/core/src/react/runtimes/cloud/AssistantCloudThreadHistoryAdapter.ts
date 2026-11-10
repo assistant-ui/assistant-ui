@@ -204,8 +204,8 @@ const runPhaseOf = (
 export type CloudRunWriter = {
   /** The message's persistence key, or undefined when it cannot be stored as one row. */
   keyOf(message: ThreadMessage): string | undefined;
-  /** Whether the row can be chained under its parent yet. */
-  canStore(parent: ThreadMessage | undefined): boolean;
+  /** Whether the row can be chained under its parent yet; always, when absent. */
+  canStore?(parent: ThreadMessage | undefined): boolean;
   /** Stores the message (appending it on first write), with its run phase read from its status. */
   write(
     message: ThreadMessage,
@@ -213,8 +213,8 @@ export type CloudRunWriter = {
   ): Promise<void>;
   hasOpenRun(key: string): boolean;
   rename(from: string, to: string): Promise<void>;
-  /** Records how a settled message ends its run, for the runtime's own settled write that follows. */
-  noteSettled(message: ThreadMessage): void;
+  /** Records how a settled message ends its run, for a runtime whose own settled write cannot say. */
+  noteSettled?(message: ThreadMessage): void;
 };
 
 const isSettledMessage = (message: ThreadMessage) =>
@@ -750,12 +750,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
   private threadMessageRunWriter: CloudRunWriter = {
     keyOf: (message) => message.id,
-    canStore: () => true,
     write: (message, parent) =>
       this.update({ parentId: parent?.id ?? null, message }),
     hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),
     rename: (from, to) => this.getPersistence().rename(from, to),
-    noteSettled: () => {},
   };
 
   async update(item: ExportedMessageRepositoryItem) {
