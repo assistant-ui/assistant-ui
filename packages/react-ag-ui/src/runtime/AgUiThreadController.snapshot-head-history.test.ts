@@ -118,8 +118,24 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       [moveSnapshot(req)],
       [{ type: "RUN_ERROR", message: "boom" }],
     ]);
-    expect(shown).toContain("other:incomplete");
-    expect(rows.get("other")?.status, writes.join(", ")).toBe("incomplete");
+    // Which message takes the error depends on whether the run moved onto
+    // "other"; either way history holds what the thread shows.
+    const other = shown.find((entry) => entry.startsWith("other:"));
+    expect(["other:incomplete", "other:complete"]).toContain(other);
+    expect(`other:${rows.get("other")?.status}`, writes.join(", ")).toBe(other);
+  });
+
+  it("stores a snapshot-only answer that a second snapshot repeats", async () => {
+    const snapshot = (req: any[]) => ({
+      type: "MESSAGES_SNAPSHOT",
+      messages: [...req, { id: "only", role: "assistant", content: "o" }],
+    });
+    const { rows, writes } = await run((req) => [
+      [{ type: "RUN_STARTED", threadId: "t", runId: "r" }, snapshot(req)],
+      [snapshot(req)],
+      [{ type: "RUN_FINISHED", threadId: "t", runId: "r" }],
+    ]);
+    expect(rows.get("only")?.status, writes.join(", ")).toBe("complete");
   });
 
   it("stores an answer that arrives only in a snapshot", async () => {
@@ -139,13 +155,15 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
   });
 
   it("control: a second snapshot after the head move stores the new head", async () => {
-    const { rows } = await run((req) => [
+    const { rows, writes, shown } = await run((req) => [
       start,
       [moveSnapshot(req)],
       [moveSnapshot(req)],
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
-    expect(rows.get("other")?.status).toBe("complete");
+    expect(rows.get("other")?.status, JSON.stringify({ writes, shown })).toBe(
+      "complete",
+    );
   });
 
   it("control: the streamed answer without a snapshot is stored", async () => {

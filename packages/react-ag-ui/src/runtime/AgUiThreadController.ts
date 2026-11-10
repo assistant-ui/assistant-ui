@@ -2332,22 +2332,24 @@ export class AgUiThreadController {
           candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
-          // Assistants this snapshot adds belong to the run's history even
-          // when the run never streams into them.
+          // Assistants a snapshot adds belong to the run's history even when
+          // the run never streams into them. Importing clears the pending
+          // history marks, so every snapshot marks them again.
           const previousIds = new Set(
             beforeSnapshot.map((message) => message.id),
           );
           for (const message of this.session.getMessages()) {
             if (
-              message.role !== "assistant" ||
-              previousIds.has(message.id) ||
-              runStartMessageIds.has(message.id)
+              message.role === "assistant" &&
+              !previousIds.has(message.id) &&
+              !runStartMessageIds.has(message.id)
             )
-              continue;
-            const item = this.session.tryGetMessage(message.id);
-            if (!item) continue;
-            this.markPendingAssistantHistory(message.id, item.parentId);
-            importedRunAssistants.add(message.id);
+              importedRunAssistants.add(message.id);
+          }
+          for (const messageId of importedRunAssistants) {
+            const item = this.session.tryGetMessage(messageId);
+            if (item)
+              this.markPendingAssistantHistory(messageId, item.parentId);
           }
           for (const message of beforeSnapshot) {
             const context = replayContexts.get(message.id);
