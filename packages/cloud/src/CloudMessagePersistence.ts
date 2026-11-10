@@ -38,19 +38,22 @@ const LOST_LEASE_CODES = new Set([
   "lease_mismatch",
 ]);
 
-const lostLeaseCode = (error: unknown): string | undefined =>
-  error instanceof CloudAPIError &&
-  error.status === 409 &&
-  error.code !== undefined &&
-  LOST_LEASE_CODES.has(error.code)
-    ? error.code
-    : undefined;
-
-// A superseded lease's first write is stored once as a sibling of its message; the response names it.
-const forkOf = (error: unknown): string | undefined => {
-  if (lostLeaseCode(error) !== "superseded") return undefined;
-  const forked = (error as CloudAPIError).details?.message_id;
-  return typeof forked === "string" ? forked : undefined;
+// Why a lease write was refused for good; a superseded lease's first write is stored once as a sibling, which the response names.
+const lostLease = (
+  error: unknown,
+): { code: string; forkedId: string | undefined } | undefined => {
+  if (
+    !(error instanceof CloudAPIError) ||
+    error.status !== 409 ||
+    error.code === undefined ||
+    !LOST_LEASE_CODES.has(error.code)
+  )
+    return undefined;
+  const forked = error.details?.message_id;
+  return {
+    code: error.code,
+    forkedId: typeof forked === "string" ? forked : undefined,
+  };
 };
 
 // The server refuses a plain write to a message whose run lease is live in another session.
@@ -229,11 +232,11 @@ export class CloudMessagePersistence {
       );
       return;
     }
-    if (!isOpen(this.runs.get(messageId))) {
+    if (!this.runs.has(messageId)) {
       await this.plainUpdate(threadId, messageId, remoteId, content);
       return;
     }
-    // Writes of one run are serialized so a checkpoint can never land after the write that ends it.
+    // Writes of a leased message are serialized so a checkpoint can never land after the write that ends it.
     const previous = this.runWrites.get(messageId) ?? Promise.resolve();
     const task = previous
       .catch(() => undefined)
@@ -288,14 +291,13 @@ export class CloudMessagePersistence {
         lease_id: open.leaseId,
       });
     } catch (error) {
-      const code = lostLeaseCode(error);
-      if (!code) throw error;
-      const forkedId = forkOf(error);
+      const lost = lostLease(error);
+      if (!lost) throw error;
       // Another session resumed this run: this write was stored once as a sibling, and nothing more is written there.
-      if (forkedId) this.idMapping.set(messageId, forkedId);
+      if (lost.forkedId) this.idMapping.set(messageId, lost.forkedId);
       this.loseRun(
         messageId,
-        forkedId ? `superseded, forked to ${forkedId}` : code,
+        lost.forkedId ? `superseded, forked to ${lost.forkedId}` : lost.code,
       );
       return;
     }
@@ -389,13 +391,12 @@ export class CloudMessagePersistence {
   }
 
   /** The lease is gone for good: stop heartbeating and drop every later write for the message. */
-  private loseRun(messageId: string, reason: string, quiet = false) {
+  private loseRun(messageId: string, reason: string) {
     if (this.runs.get(messageId) === "lost") return;
     this.closeRun(messageId, "lost");
-    if (!quiet)
-      console.warn(
-        `[assistant-cloud] Lost the run lease of message ${messageId} (${reason}); later writes for it are dropped.`,
-      );
+    console.warn(
+      `[assistant-cloud] Lost the run lease of message ${messageId} (${reason}); later writes for it are dropped.`,
+    );
   }
 
   private openRunEntries(): [string, OpenRun][] {
@@ -442,7 +443,7 @@ export class CloudMessagePersistence {
           { keepalive: true },
         )
         .catch(() => undefined);
-      this.loseRun(messageId, "interrupted", true);
+      this.closeRun(messageId, "lost");
     }
   };
 
