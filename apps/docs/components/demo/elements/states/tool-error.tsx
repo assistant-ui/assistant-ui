@@ -25,7 +25,7 @@ export const states = defineStates([
   {
     key: "final-attempt",
     label: "Final attempt",
-    note: "The last allowed attempt also failed.",
+    note: "The last allowed attempt also failed, so Retry is disabled.",
     Component: () => (
       <ToolError
         {...base}

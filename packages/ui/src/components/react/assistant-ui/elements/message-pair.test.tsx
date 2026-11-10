@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -40,5 +41,62 @@ describe("MessagePair", () => {
 
     expect(onCopy).toHaveBeenCalledOnce();
     expect(onRegenerate).toHaveBeenCalledOnce();
+  });
+
+  it("hides copy and regenerate while the reply streams", () => {
+    const { rerender } = render(
+      <MessagePair
+        {...defaultProps}
+        visibleWords={2}
+        streaming
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Copy response" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Regenerate response" }),
+    ).toBeNull();
+
+    rerender(
+      <MessagePair
+        {...defaultProps}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Copy response" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Regenerate response" }),
+    ).toBeTruthy();
+  });
+
+  it("keeps focus in the reply when regenerating hides the actions", () => {
+    function Harness() {
+      const [streaming, setStreaming] = useState(false);
+      return (
+        <MessagePair
+          {...defaultProps}
+          streaming={streaming}
+          onCopy={() => {}}
+          onRegenerate={() => setStreaming(true)}
+        />
+      );
+    }
+    const { container } = render(<Harness />);
+    const regenerate = screen.getByRole("button", {
+      name: "Regenerate response",
+    });
+
+    regenerate.focus();
+    fireEvent.click(regenerate);
+
+    expect(
+      screen.queryByRole("button", { name: "Regenerate response" }),
+    ).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(container.contains(document.activeElement)).toBe(true);
   });
 });

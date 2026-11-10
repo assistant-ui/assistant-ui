@@ -57,6 +57,7 @@ import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
 import { SyntaxHighlightingSample } from "@/components/pages/docs/samples/syntax-highlighting";
 import { MermaidSample } from "@/components/pages/docs/samples/mermaid";
 import { GenerativeWeatherCurrentDemo } from "./generative-demos";
+import { THREAD_LIST_FIXTURES, ThreadListRuntime } from "./states/thread-list";
 
 const sampleClassName =
   "[&_.not-prose]:m-0! [&_.not-prose]:h-full [&_.not-prose]:w-full [&_.not-prose>div]:h-full! [&_.not-prose>div]:min-h-0!";
@@ -166,13 +167,13 @@ export function AuiContextDisplayDemo() {
 
 export function AuiThreadListDemo() {
   return (
-    <SampleRuntimeProvider>
+    <ThreadListRuntime threads={THREAD_LIST_FIXTURES.grouped}>
       <DemoSurface>
         <div className="bg-background h-full w-full max-w-72 overflow-hidden rounded-2xl shadow-sm">
           <ThreadList />
         </div>
       </DemoSurface>
-    </SampleRuntimeProvider>
+    </ThreadListRuntime>
   );
 }
 
@@ -282,9 +283,11 @@ export function AuiToolGroupDemo() {
 
 export function AuiThreadListSidebarDemo() {
   return (
-    <RuntimeDemo>
-      <ThreadListSample />
-    </RuntimeDemo>
+    <ThreadListRuntime threads={THREAD_LIST_FIXTURES.grouped}>
+      <DemoSurface>
+        <ThreadListSample />
+      </DemoSurface>
+    </ThreadListRuntime>
   );
 }
 

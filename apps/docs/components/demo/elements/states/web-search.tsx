@@ -61,6 +61,20 @@ export const states = defineStates([
     ),
   },
   {
+    key: "no-results",
+    label: "No results",
+    note: "The search finished without finding a source.",
+    Component: () => (
+      <WebSearch
+        query="assistant-ui draft persistence on a fax machine"
+        results={[]}
+        visibleResults={0}
+        searching={false}
+        cycle={0}
+      />
+    ),
+  },
+  {
     key: "long-content",
     label: "Long titles",
     note: "A long query wraps and long result titles truncate inside the same width.",
