@@ -235,7 +235,6 @@ export class CloudMessagePersistence {
     run?: CloudMessageRunPhase,
   ): Promise<void> {
     if (this.lostRuns.has(messageId)) return;
-    const cloud = this.getCloud();
     const remoteId = await this.getRemoteId(messageId);
     if (this.lostRuns.has(messageId)) return;
     if (!remoteId) {
