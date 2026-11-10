@@ -19,11 +19,11 @@ export namespace ActionBarPrimitiveResume {
 }
 
 /**
- * A button that continues an assistant message whose run stopped before it
- * finished (its tab closed or lost its connection). The continuation is a new
- * assistant message after the interrupted one, so the work already done stays
- * in the thread. It renders disabled unless the message is the last one on
- * its branch and the cloud reported its run stale.
+ * A button that answers again in place of an assistant message whose run
+ * stopped before it finished (its tab closed or lost its connection). Like
+ * Regenerate, it starts a new branch beside the interrupted reply, which
+ * stays as it is. It renders disabled unless the message is the last one on
+ * its branch and its run went `staleAfter` without a heartbeat.
  *
  * @example
  * ```tsx

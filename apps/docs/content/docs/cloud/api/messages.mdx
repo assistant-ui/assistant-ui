@@ -16,7 +16,7 @@ A message is one stored node in a thread's conversation tree. The browser reache
 | `format` | string | The stored message format, such as `aui/v0`, `ai-sdk/v5`, or `ai-sdk/v6`. |
 | `content` | object | The format's message payload. Its serialized JSON is at most 1,048,576 characters. |
 | `height` | integer | The message's depth in the tree. Assistant Cloud calculates it from the parent. |
-| `run` | object | Present only while a [run lease](#run-leases) on the message is open or was interrupted. `status` is `running` (with `expires_in_ms`, measured by the server) or `stale`; a stale run that another run resumed names it in `superseded_by`. A sibling stored from a superseded run's write also reads `stale`. |
+| `run` | object | Present on a message that had a [run lease](#run-leases): its running lease, or else its latest ended one. `status` is `running` or `ended`, and `last_heartbeat_ms_ago` is the time since the lease's last heartbeat, measured by the server. |
 
 ## Create a message
 
@@ -32,7 +32,7 @@ POST /v1/threads/{thread_id}/messages
 | `parent_external_id` | string | no | 1 to 255 characters. When present, it takes precedence over `parent_id` and must identify a message in this thread. |
 | `format` | string | yes | 1 to 255 characters. It is stored as sent. Read conversion recognizes `aui/v0`, `ai-sdk/v5`, and `ai-sdk/v6`. |
 | `content` | object | yes | The serialized JSON is at most 1,048,576 characters. Its `role` controls user activity tracking and the title trigger. |
-| `open_run` | `true` | no | Opens a [run lease](#run-leases) on the stored message in the same transaction. The response adds `lease_id`, `expires_in_ms` and `heartbeat_interval_ms`. |
+| `open_run` | `true` | no | Opens a [run lease](#run-leases) on the stored message in the same transaction. The response adds `lease_id` and `heartbeat_interval_ms`. |
 | `lease_id` | string | no | Writes the message that `external_id` names as the holder of this lease. Requires `external_id`; cannot be combined with `open_run`. |
 
 Unknown fields are refused.
@@ -85,10 +85,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `404` | `{ "error": "Project not found" }` | The project no longer exists. |
 | `409` | `{ "error": "Message role cannot change" }` | An `external_id` repeat changes the stored message role. |
-| `409` | `{ "error": "run_in_progress" }` | `open_run` was sent and the message or its parent holds a live run. Nothing is stored. |
-| `409` | `{ "error": "superseded", "message_id": "msg_…", "forked_from": "msg_…" }` | `lease_id` was sent for a run another run resumed. This first write was stored once as a sibling, `message_id`, of the message the lease wrote; the resumed branch is unchanged. |
-| `409` | `{ "error": "superseded", "superseded_by": "msg_…" }` | `lease_id` was sent for a resumed run whose sibling was already stored. Nothing is written. |
-| `409` | `{ "error": "run_stale" }` | `lease_id` names a run whose lease expired. Nothing is written. |
+| `409` | `{ "error": "run_in_progress" }` | `open_run` was sent for a message that already has a running lease. Nothing is stored. |
 | `409` | `{ "error": "run_ended" }` or `{ "error": "lease_mismatch" }` | `lease_id` names an ended run, or no run of this message. Nothing is written. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -208,7 +205,7 @@ PUT /v1/threads/{thread_id}/messages/{message_id}
 | `thread_id` | string | yes | 1 to 255 characters. |
 | `message_id` | string | yes | 1 to 255 characters. |
 | `content` | object | yes | Replaces the content. Its serialized JSON is at most 1,048,576 characters. |
-| `lease_id` | string | no | Writes as the holder of this [run lease](#run-leases), which also renews it. |
+| `lease_id` | string | no | Writes as the holder of this [run lease](#run-leases). |
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages/msg_0qzof3jPoDwr7K3agyJN3D4U \
@@ -247,10 +244,6 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `200` | `{}` | The message was updated. |
 | `400` | `{ "error": "Schema validation error", "details": […] }` | `content` is missing or invalid, too large, or an unknown field was sent. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
-| `409` | `{ "error": "run_in_progress" }` | No `lease_id` was sent and the message holds a live run lease. Nothing is written. Writes to a stale or ended message are allowed. |
-| `409` | `{ "error": "superseded", "message_id": "msg_…", "forked_from": "msg_…" }` | `lease_id` was sent for a run another run resumed. This first write was stored once as a sibling, `message_id`; the lease writes nothing more. |
-| `409` | `{ "error": "superseded", "superseded_by": "msg_…" }` | `lease_id` was sent for a resumed run whose sibling was already stored. Nothing is written. |
-| `409` | `{ "error": "run_stale" }` | `lease_id` names a run whose lease expired. Nothing is written. |
 | `409` | `{ "error": "run_ended" }` or `{ "error": "lease_mismatch" }` | `lease_id` names an ended run, or no run of this message. Nothing is written. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -258,19 +251,17 @@ Any message in the thread can be updated, including one that later messages foll
 
 ## Run leases
 
-A run lease marks an assistant message as being written. Its holder sends a heartbeat every `heartbeat_interval_ms`; after `expires_in_ms` without one, listed messages show the run as `stale`. The server sets both: 20 seconds and 90 seconds by default. Clients should schedule heartbeats from the values in each response, not from constants. A lease moves only forward, from running to ended, stale or superseded: once it expired, heartbeats and writes with it answer `409 run_stale`. Opening a run on a child of a stale message resumes it: the stale run is superseded in the same transaction, and the stale run's next write is stored once as a sibling instead of overwriting anything.
+A run lease marks an assistant message as being written. It opens with `open_run` on [create](#create-a-message), belongs to that message alone, and stays `running` until its holder ends it; the server never expires one. The holder sends a heartbeat every `heartbeat_interval_ms` (server config, 20 seconds by default) and should schedule beats from that value, not a constant. Readers decide from `last_heartbeat_ms_ago` when a quiet run counts as interrupted; the assistant-ui client uses 30 seconds by default (`staleAfter`). A late run that beats or writes again is still running.
 
 ```http
-POST /v1/threads/{thread_id}/messages/{message_id}/runs
 POST /v1/threads/{thread_id}/runs/{lease_id}/heartbeat
 POST /v1/threads/{thread_id}/runs/{lease_id}/end
 ```
 
 | Route | Body | Success | Errors |
 |---|---|---|---|
-| Open | none | `201` `{ "lease_id": "lease_…", "expires_in_ms": 90000, "heartbeat_interval_ms": 20000 }` | `409` `run_in_progress` while the message or its parent holds a live run, including a live continuation of the same stale message; `404` for an unknown message. |
-| Heartbeat | none | `200` `{ "expires_in_ms": 90000, "heartbeat_interval_ms": 20000 }` | `409` `run_stale` once the lease expired; `409` `{ "error": "superseded", "superseded_by": "msg_…" }`; `409` `run_ended`; `404` `{ "error": "not_found" }` (`Run not found`) for an unknown lease. |
-| End | `{ "reason"?: "done" \| "cancelled" \| "error" \| "interrupted" }`, default `done` | `200` `{}`. Ending an ended run again succeeds and keeps the first reason. `interrupted` is for a holder that is going away: the lease expires at once, so the message reads `stale` and can be resumed without waiting for the TTL. | `409` `run_stale` once the lease expired; `409` `{ "error": "superseded", "superseded_by": "msg_…" }`; `404` `{ "error": "not_found" }` (`Run not found`) for an unknown lease. |
+| Heartbeat | none | `200` `{ "heartbeat_interval_ms": 20000 }` | `409` `run_ended` once the run ended; `404` `{ "error": "not_found" }` (`Run not found`) for an unknown lease. |
+| End | `{ "reason"?: "done" \| "cancelled" \| "error" }`, default `done` | `200` `{}`. Ending an ended run again succeeds and keeps the first reason. | `404` `{ "error": "not_found" }` (`Run not found`) for an unknown lease. |
 
 Writes as the holder go through [create](#create-a-message) or [update](#update-a-message) with `lease_id`. A heartbeat touches only the lease, so it never reorders threads or counts as a message write.
 

@@ -22,8 +22,9 @@ export namespace ActionBarPrimitiveRefreshRun {
  * A button that re-reads an assistant message whose run another tab or
  * session is still writing, so the thread shows its latest stored state
  * without a page reload. The thread also re-reads it on its own around the
- * run's lease expiry. It renders disabled unless Assistant Cloud reported
- * the run in progress elsewhere, and while a refresh is in flight.
+ * moment the run would cross `staleAfter`. It renders disabled unless
+ * Assistant Cloud reported the run in progress elsewhere, and while a
+ * refresh is in flight.
  *
  * @example
  * ```tsx

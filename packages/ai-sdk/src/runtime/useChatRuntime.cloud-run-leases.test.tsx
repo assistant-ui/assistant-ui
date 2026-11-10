@@ -13,7 +13,6 @@ import { useChatRuntime } from "./useChatRuntime";
 
 const lease = {
   lease_id: "lease_1",
-  expires_in_ms: 90_000,
   heartbeat_interval_ms: 20_000,
 };
 
@@ -61,7 +60,6 @@ const makeCloud = (getRows: () => CloudMessage[] = () => []) => {
       },
       runs: {
         heartbeat: vi.fn().mockResolvedValue({
-          expires_in_ms: 90_000,
           heartbeat_interval_ms: 20_000,
         }),
         end: vi.fn().mockResolvedValue(undefined),
@@ -236,7 +234,11 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
 
   it("shows a reply another tab still writes as in progress, follows it and shows the result once it ends", async () => {
     let rows = [
-      replyRow("Step one", { status: "running", expires_in_ms: 0 }, 1),
+      replyRow(
+        "Step one",
+        { status: "running", last_heartbeat_ms_ago: 28_500 },
+        1,
+      ),
       userRow,
     ];
     const { cloud, messages } = makeCloud(() => rows);
@@ -261,8 +263,11 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
     expect(messages.update).not.toHaveBeenCalled();
   }, 15_000);
 
-  it("resumes a stale reply in place through a continuation row with a new lease", async () => {
-    const rows = [replyRow("partial", { status: "stale" }), userRow];
+  it("shows a reply quiet for longer than staleAfter as interrupted; Resume starts a sibling with its own lease", async () => {
+    const rows = [
+      replyRow("partial", { status: "running", last_heartbeat_ms_ago: 60_000 }),
+      userRow,
+    ];
     const { cloud, messages, threadRuns } = makeCloud(() => rows);
     const { transport, emit, close } = createControlledTransport();
     const { harness, reply } = await openThread(cloud, transport);
@@ -272,14 +277,14 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
     );
 
     await act(async () => {
-      void harness.client().thread().startRun({ parentId: "a1" });
+      harness.client().thread.message({ index: 1 }).reload();
     });
     await waitFor(() => expect(harness.isRunning()).toBe(true));
     await act(async () => {
       emit(
         { type: "start" },
         { type: "text-start", id: "t2" },
-        { type: "text-delta", id: "t2", delta: " and the rest" },
+        { type: "text-delta", id: "t2", delta: "a fresh answer" },
       );
     });
     await waitFor(() =>
@@ -287,15 +292,15 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
         true,
       ),
     );
-    const continuation = messages.create.mock.calls.find(
+    const sibling = messages.create.mock.calls.find(
       ([, body]) => body.open_run,
     )![1];
-    expect(continuation).toMatchObject({
-      parent_id: "a1",
-      external_id: "aui-continuation:a1",
+    expect(sibling).toMatchObject({
+      parent_id: "u1",
       format: "ai-sdk/v6",
       open_run: true,
     });
+    expect(sibling.external_id).not.toBe("a1");
 
     await act(async () => {
       emit({ type: "text-end", id: "t2" }, { type: "finish" });
@@ -317,6 +322,8 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
       true,
     );
     expect(harness.client().thread.getState().messages).toHaveLength(2);
+    expect(reply().id).not.toBe("a1");
+    expect(textOf(reply())).toBe("a fresh answer");
     expect(reply().status?.type).not.toBe("incomplete");
   }, 15_000);
 
