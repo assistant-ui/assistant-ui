@@ -3,7 +3,11 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
-import type { AssistantCloud, CloudMessage } from "assistant-cloud";
+import {
+  CloudAPIError,
+  type AssistantCloud,
+  type CloudMessage,
+} from "assistant-cloud";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import {
@@ -24,7 +28,7 @@ type RunResult = { content: { type: "text"; text: string }[] };
 
 const lease = {
   lease_id: "lease_1",
-  expires_in_ms: 30_000,
+  expires_in_ms: 90_000,
   heartbeat_interval_ms: 20_000,
 };
 
@@ -65,7 +69,7 @@ const makeCloud = (stored: CloudMessage[] = []) => {
       },
       runs: {
         heartbeat: vi.fn().mockResolvedValue({
-          expires_in_ms: 30_000,
+          expires_in_ms: 90_000,
           heartbeat_interval_ms: 20_000,
         }),
         end: vi.fn().mockResolvedValue(undefined),
@@ -160,6 +164,42 @@ describe("cloud run leases", () => {
     expect(createCalls(messages).filter((body) => body.open_run)).toHaveLength(
       1,
     );
+  });
+
+  it("stops writing a reply whose lease the server reports stale", async () => {
+    const { cloud, messages, threadRuns } = makeCloud();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    messages.create.mockImplementation(async (_threadId, body) =>
+      body.open_run
+        ? {
+            message_id: "msg_2",
+            run: { ...lease, heartbeat_interval_ms: 10 },
+          }
+        : { message_id: "msg_1" },
+    );
+    threadRuns.heartbeat.mockRejectedValue(
+      new CloudAPIError("stale", 409, "run_stale"),
+    );
+    const { runs, getAui } = await renderRuntime(cloud);
+
+    await act(async () => {
+      getAui().thread.append("hello");
+    });
+    await waitFor(() => expect(runs).toHaveLength(1));
+    await waitFor(() => expect(threadRuns.heartbeat).toHaveBeenCalled());
+
+    await act(async () => {
+      runs[0]!.resolve({ content: [{ type: "text", text: "hi" }] });
+    });
+    await waitFor(() =>
+      expect(getAui().thread.getState().isRunning).toBe(false),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(messages.update).not.toHaveBeenCalled();
+    expect(threadRuns.end).not.toHaveBeenCalled();
+    expect(threadRuns.heartbeat).toHaveBeenCalledTimes(1);
   });
 
   it("loads a stale reply as an interrupted error that Resume continues from", async () => {

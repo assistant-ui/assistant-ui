@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import type { AssistantClient } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../../types";
 import { getMessageRunState } from "../../../store/message-run-state";
-import type { AssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import type {
+  AssistantCloudThreadHistoryAdapter,
+  CloudRunWriter,
+} from "./AssistantCloudThreadHistoryAdapter";
 
 const CHECKPOINT_INTERVAL_MS = 20_000;
 const POLL_MIN_MS = 2_000;
@@ -13,8 +16,11 @@ const POLL_EXPIRY_MARGIN_MS = 500;
 const SETTLE_GRACE_MS = 3_000;
 
 type TrackedRun = {
+  writer: CloudRunWriter;
   messageId: string;
-  parentId: string | null;
+  /** The persistence key of the message: its id, or its format-native message's id. */
+  key: string;
+  parent: ThreadMessage | undefined;
   stored: Promise<void>;
   checkpointed: ThreadMessage["content"];
   settleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -66,9 +72,15 @@ const findMessage = (
 /**
  * Stores a thread's running assistant message as soon as the run starts, so
  * the cloud holds a run lease the persistence keeps alive with heartbeats. A
- * run whose tab closes stops heartbeating and the cloud reports it stale.
- * Runtimes keep writing the settled message as they do today; that write
- * lands on the same row and closes the lease.
+ * tab that hides ends its runs as interrupted, and a run whose heartbeats
+ * stop otherwise lapses after the server's TTL; either way the cloud reports
+ * it stale. Runtimes keep writing the settled message as they do today; that
+ * write lands on the same row and closes the lease. A lease the persistence
+ * lost (stale, or resumed elsewhere) gets no more checkpoints.
+ *
+ * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
+ * thread message maps to exactly one format-native message; their stored run
+ * state is not shown on load.
  */
 export const useCloudRunLeases = (
   adapter: AssistantCloudThreadHistoryAdapter,
@@ -86,6 +98,7 @@ export const useCloudRunLeases = (
     let disposed = false;
 
     const refresh = async () => {
+      if (adapter.servesFormattedMessages) return;
       const thread = getOwnThread(aui);
       if (!thread || thread.getState().isRunning) return;
       const repository = await adapter.load();
@@ -127,15 +140,18 @@ export const useCloudRunLeases = (
 
     const write = (run: TrackedRun, message: ThreadMessage) =>
       run.stored
-        .then(() => adapter.update({ parentId: run.parentId, message }))
+        .then(() => run.writer.write(message, run.parent))
         .catch((error: unknown) => {
           console.warn("[assistant-ui] Cloud run checkpoint failed:", error);
         });
 
     const settle = (run: TrackedRun) => {
       if (run.settleTimer !== undefined) return;
+      const settled = findMessage(aui, run.messageId);
+      if (settled && settled.status?.type !== "running")
+        run.writer.noteSettled(settled);
       run.settleTimer = setTimeout(() => {
-        if (!adapter.hasOpenRun(run.messageId)) return;
+        if (!run.writer.hasOpenRun(run.key)) return;
         const message = findMessage(aui, run.messageId);
         if (message && message.status?.type !== "running") {
           void write(run, message);
@@ -144,8 +160,8 @@ export const useCloudRunLeases = (
     };
 
     const check = () => {
-      if (!adapter.servesThreadMessages || adapter.servesFormattedMessages)
-        return;
+      const writer = adapter.getRunWriter();
+      if (!writer) return;
       const branch = readBranch(aui);
       const head = branch.at(-1);
       const remoteRun = branch.find(
@@ -156,7 +172,7 @@ export const useCloudRunLeases = (
         clearTimeout(poll.timer);
         poll = undefined;
       }
-      const parentId = branch.at(-2)?.id ?? null;
+      const parent = branch.at(-2);
       if (tracked && tracked.messageId !== head?.id) {
         const from = tracked.messageId;
         // AG-UI replaces its placeholder with the backend's message once the reply starts, and may hang it under another parent when the agent's history skipped an empty message; the stored row keeps its place.
@@ -166,12 +182,18 @@ export const useCloudRunLeases = (
           tracked.settleTimer === undefined &&
           !branch.some((message) => message.id === from)
         ) {
-          const to = head.id;
-          tracked.messageId = to;
-          tracked.stored = tracked.stored.then(() =>
-            adapter.renameRun(from, to),
-          );
-          return;
+          const toKey = tracked.writer.keyOf(head);
+          if (toKey !== undefined) {
+            const fromKey = tracked.key;
+            const { writer } = tracked;
+            tracked.messageId = head.id;
+            tracked.key = toKey;
+            if (toKey !== fromKey)
+              tracked.stored = tracked.stored.then(() =>
+                writer.rename(fromKey, toKey),
+              );
+            return;
+          }
         }
         settle(tracked);
       }
@@ -181,26 +203,29 @@ export const useCloudRunLeases = (
         return;
       }
       if (tracked?.messageId === head.id) return;
+      const key = writer.keyOf(head);
+      // A formatted row is chained under its parent's row, so the store waits for the runtime to store the prompt.
+      if (key === undefined || !writer.canStore(parent)) return;
       const run: TrackedRun = {
+        writer,
         messageId: head.id,
-        parentId,
+        key,
+        parent,
         checkpointed: head.content,
         settleTimer: undefined,
-        stored: adapter
-          .append({ parentId, message: head })
-          .catch((error: unknown) => {
-            console.warn(
-              "[assistant-ui] Could not store the running message:",
-              error,
-            );
-          }),
+        stored: writer.write(head, parent).catch((error: unknown) => {
+          console.warn(
+            "[assistant-ui] Could not store the running message:",
+            error,
+          );
+        }),
       };
       tracked = run;
     };
 
     const checkpoint = setInterval(() => {
       const run = tracked;
-      if (!run || !adapter.hasOpenRun(run.messageId)) return;
+      if (!run || !run.writer.hasOpenRun(run.key)) return;
       const message = findMessage(aui, run.messageId);
       if (!message || message.status?.type !== "running") return;
       if (message.content === run.checkpointed) return;
