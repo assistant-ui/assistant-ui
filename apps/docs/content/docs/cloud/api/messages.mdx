@@ -269,8 +269,8 @@ POST /v1/threads/{thread_id}/runs/{lease_id}/end
 | Route | Body | Success | Errors |
 |---|---|---|---|
 | Open | none | `201` `{ "lease_id": "lease_…", "expires_in_ms": 90000, "heartbeat_interval_ms": 20000 }` | `409` `run_in_progress` while the message or its parent holds a live run, including a live continuation of the same stale message; `404` for an unknown message. |
-| Heartbeat | none | `200` `{ "expires_in_ms": 90000, "heartbeat_interval_ms": 20000 }` | `409` `run_stale` once the lease expired; `409` `{ "error": "superseded", "superseded_by": "msg_…" }`; `409` `run_ended`; `404` `Run not found`. |
-| End | `{ "reason"?: "done" \| "cancelled" \| "error" \| "interrupted" }`, default `done` | `200` `{}`. Ending an ended run again succeeds and keeps the first reason. `interrupted` is for a holder that is going away: the lease expires at once, so the message reads `stale` and can be resumed without waiting for the TTL. | `409` `run_stale` once the lease expired; `409` `{ "error": "superseded", "superseded_by": "msg_…" }`; `404` `Run not found`. |
+| Heartbeat | none | `200` `{ "expires_in_ms": 90000, "heartbeat_interval_ms": 20000 }` | `409` `run_stale` once the lease expired; `409` `{ "error": "superseded", "superseded_by": "msg_…" }`; `409` `run_ended`; `404` `{ "error": "not_found" }` (`Run not found`) for an unknown lease. |
+| End | `{ "reason"?: "done" \| "cancelled" \| "error" \| "interrupted" }`, default `done` | `200` `{}`. Ending an ended run again succeeds and keeps the first reason. `interrupted` is for a holder that is going away: the lease expires at once, so the message reads `stale` and can be resumed without waiting for the TTL. | `409` `run_stale` once the lease expired; `409` `{ "error": "superseded", "superseded_by": "msg_…" }`; `404` `{ "error": "not_found" }` (`Run not found`) for an unknown lease. |
 
 Writes as the holder go through [create](#create-a-message) or [update](#update-a-message) with `lease_id`. A heartbeat touches only the lease, so it never reorders threads or counts as a message write.
 

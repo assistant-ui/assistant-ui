@@ -85,7 +85,7 @@ const runLedgerOf = (persistence: CloudMessagePersistence) => {
 };
 
 /** The `error.code` of a message whose run lost its heartbeat before it finished. */
-export const RUN_STALE_ERROR_CODE = "run_stale";
+const RUN_STALE_ERROR_CODE = "run_stale";
 const RUN_STALE_STATUS = {
   type: "incomplete",
   reason: "error",
@@ -95,7 +95,7 @@ const RUN_STALE_STATUS = {
   },
 } as const;
 /** The `error.code` of a message whose run another tab or session is still writing. */
-export const RUN_IN_PROGRESS_ERROR_CODE = "run_in_progress";
+const RUN_IN_PROGRESS_ERROR_CODE = "run_in_progress";
 const runInProgressStatus = (expiresInMs: number | undefined) => ({
   type: "incomplete" as const,
   reason: "error" as const,
@@ -281,7 +281,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     CloudMessagePersistence,
     Map<string, Promise<CopiedThread>>
   >();
-  /** Set once a runtime reads or writes this thread in the aui/v0 shape, the only shape run leases cover. */
+  /** Set once a runtime reads or writes this thread as `aui/v0` rows. */
   public servesThreadMessages = false;
   /** Set once a runtime persists through `withFormat`; the run tracker then writes through `formattedRunWriter`. */
   public servesFormattedMessages = false;
