@@ -19,5 +19,6 @@ export default defineConfig({
     fsModuleCache: true,
     include: ["src/**/*.test.{ts,tsx}"],
     globals: true,
+    setupFiles: ["../../scripts/vitest-waitfor-interval.mjs"],
   },
 });
