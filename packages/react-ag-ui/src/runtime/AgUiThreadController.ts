@@ -3405,9 +3405,16 @@ export class AgUiThreadController {
           ) {
             // The frame keeps the aggregator for now; adopt the head once the
             // frame ends, so calls and data that follow it belong to the head.
-            this.deferredSnapshotHeadId = nextActiveAssistantId;
+            // A head the snapshot left waiting for a tool keeps that status
+            // instead: the aggregator does not know its calls, so adopting it
+            // would let the run finish it as complete.
+            this.deferredSnapshotHeadId =
+              head?.role === "assistant" &&
+              head.status?.type === "requires-action"
+                ? undefined
+                : nextActiveAssistantId;
           }
-          if (hasNewPendingToolCallAnswer && head) {
+          if (!frameStillOpen && hasNewPendingToolCallAnswer && head) {
             this.updateAssistantMessage(head.id, {
               status: { type: "running" },
             });

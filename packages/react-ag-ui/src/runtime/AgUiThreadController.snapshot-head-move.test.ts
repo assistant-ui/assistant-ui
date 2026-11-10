@@ -534,4 +534,41 @@ describe("AgUiThreadController snapshot head moves", () => {
       core.getMessages().find(({ id }) => id === "answer")?.content,
     ).toEqual([{ type: "text", text: "a1a2" }]);
   });
+
+  it("leaves a snapshot head that waits for a tool while the answer streams", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          {
+            ...otherRecord,
+            toolCalls: [
+              {
+                id: "ask",
+                type: "function",
+                function: { name: "ask", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(core.getMessages().find(({ id }) => id === "answer")).toMatchObject({
+      content: [{ type: "text", text: "a1a2" }],
+      status: { type: "complete" },
+    });
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.status,
+    ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
+  });
 });
