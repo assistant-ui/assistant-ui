@@ -343,6 +343,15 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("keeps a one-line body on one span when prose shares a delimiter's line", () => {
+    expect(
+      rewriteLatexBracketDelimiters("**Result \\[\nx\n\\] correct**"),
+    ).toBe("**Result $$x$$ correct**");
+    expect(rewriteLatexBracketDelimiters("\\[\nx\n\\] holds")).toBe(
+      "$$x$$ holds",
+    );
+  });
+
   it("leaves an empty delimiter pair as written", () => {
     expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
     expect(rewriteLatexBracketDelimiters("\\[ \n \\]\nrest")).toBe(
@@ -795,6 +804,12 @@ describe("rewriteCustomMathTags", () => {
   it("keeps a single-line math tag body on its line", () => {
     expect(rewriteCustomMathTags("See [/math]x=1[/math] ok.")).toBe(
       "See $$x=1$$ ok.",
+    );
+  });
+
+  it("fences a one-line math tag body whose tags sit on lines of their own", () => {
+    expect(rewriteCustomMathTags("Text\n[/math]\nx = 1\n[/math]\nmore")).toBe(
+      "Text\n$$\nx = 1\n$$\nmore",
     );
   });
 
@@ -2029,7 +2044,7 @@ describe("HTML blocks", () => {
     ["[/math]", "[/math]"],
   ])("normalizes %s display math containing block tags", (open, close) => {
     expect(normalizeMathDelimiters(`${open}\n<p> = m <v>\n${close}`)).toBe(
-      "$$<p> = m <v>$$",
+      "$$\n<p> = m <v>\n$$",
     );
     expect(
       normalizeMathDelimiters(`${open}\n<pre>\nx\n${close}\n\\(y\\)`),

@@ -1055,6 +1055,29 @@ function crossesSpanBoundary(body: string): boolean {
 /** A display body whose delimiters sit on lines of their own. */
 const OWN_LINE_BODY = /^[ \t]*\r?\n[\s\S]*\n[ \t>]*$/;
 
+/**
+ * Whether a display's opener has only a block prefix before it on its line,
+ * its closer nothing after it on its line, and its body lines of its own.
+ */
+function delimitersOwnTheirLines(
+  match: string,
+  body: string,
+  offset: number,
+  source: string,
+  followedBy: string,
+  head: string,
+): boolean {
+  if (!OWN_LINE_BODY.test(body)) return false;
+  if (LINE_PREFIX.exec(head)?.[0] !== head) return false;
+  const afterStart = offset + match.length;
+  const lineEnd = source.indexOf("\n", afterStart);
+  const rest =
+    afterStart === source.length
+      ? followedBy
+      : source.slice(afterStart, lineEnd === -1 ? source.length : lineEnd);
+  return rest.trim() === "";
+}
+
 function emitDisplayMath(
   match: string,
   body: string,
@@ -1082,7 +1105,10 @@ function emitDisplayMath(
     .join("\n")
     .trim();
   if (content === "") return match;
-  if (!body.trim().includes("\n") && !OWN_LINE_BODY.test(body))
+  if (
+    !body.trim().includes("\n") &&
+    !delimitersOwnTheirLines(match, body, offset, source, followedBy, head)
+  )
     return `$$${content}$$`;
 
   const before = offset === 0 ? precededBy : source[offset - 1]!;
