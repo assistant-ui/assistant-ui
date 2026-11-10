@@ -53,7 +53,7 @@ import {
   MessageRepository,
 } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { AssistantError } from "@assistant-ui/core";
+import type { AssistantError, MessageStatus } from "@assistant-ui/core";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../converters/toCreateMessage";
 import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
@@ -594,6 +594,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolInteractions, setToolInteractions] = useState<
     ReadonlyMap<string, Unstable_ToolInteractionLog>
   >(() => new Map());
+  // Loaded from a history that tracks runs: an interrupted message, or one another session still writes.
+  const [runStatuses, setRunStatuses] = useState<
+    ReadonlyMap<string, MessageStatus>
+  >(() => new Map());
+  const runStatusesRef = useRef(runStatuses);
+  runStatusesRef.current = runStatuses;
   const toolApprovalResponsesRef = useRef(
     new Map(toApprovalResponses(ownedApprovals)),
   );
@@ -820,6 +826,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
         ...(toolApprovalResponses.size > 0 && { toolApprovalResponses }),
+        ...(runStatuses.size > 0 && { runStatuses }),
       }),
       [
         createdAtCache,
@@ -833,6 +840,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         supersededApprovalProjection,
         toolArtifacts,
         toolInteractions,
+        runStatuses,
       ],
     ),
     getMetadataKey: getConverterMetadataKey,
@@ -892,6 +900,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     restoreToolInteractions,
     toolApprovalResponsesRef.current,
     restoreToolApprovalResponses,
+    setRunStatuses,
   );
 
   const {
@@ -1303,6 +1312,29 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onReload: async (parentId: string | null, config) => {
       messageQueue.clear();
       lastRunConfigRef.current = config.runConfig;
+      const parentRunStatus =
+        parentId === null ? undefined : runStatusesRef.current.get(parentId);
+      if (
+        parentRunStatus?.type === "incomplete" &&
+        (parentRunStatus.error as { code?: unknown } | undefined)?.code ===
+          "run_stale"
+      ) {
+        // Resume continues the interrupted message in place, the AI SDK's own continuation of a trailing assistant message.
+        const next = new Map(runStatusesRef.current);
+        next.delete(parentId!);
+        runStatusesRef.current = next;
+        setRunStatuses(next);
+        chatHelpers.setMessages(
+          sliceMessagesUntil(
+            chatHelpers.messages,
+            lastAISDKMessageId(parentId),
+          ),
+        );
+        await chatHelpers.sendMessage(undefined, {
+          metadata: config.runConfig,
+        });
+        return;
+      }
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
         lastAISDKMessageId(parentId),
