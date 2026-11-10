@@ -28,7 +28,6 @@ type RunResult = { content: { type: "text"; text: string }[] };
 
 const lease = {
   lease_id: "lease_1",
-  expires_in_ms: 90_000,
   heartbeat_interval_ms: 20_000,
 };
 
@@ -69,7 +68,6 @@ const makeCloud = (stored: CloudMessage[] = []) => {
       },
       runs: {
         heartbeat: vi.fn().mockResolvedValue({
-          expires_in_ms: 90_000,
           heartbeat_interval_ms: 20_000,
         }),
         end: vi.fn().mockResolvedValue(undefined),
@@ -87,7 +85,10 @@ const makeCloud = (stored: CloudMessage[] = []) => {
   };
 };
 
-const renderRuntime = async (cloud: AssistantCloud) => {
+const renderRuntime = async (
+  cloud: AssistantCloud,
+  options: { staleAfter?: number } = {},
+) => {
   const runs: ReturnType<typeof deferred<RunResult>>[] = [];
   let runtime!: AssistantRuntime;
   let aui!: AssistantClient;
@@ -96,7 +97,7 @@ const renderRuntime = async (cloud: AssistantCloud) => {
     return null;
   };
   const Harness = () => {
-    const adapter = useCloudThreadListAdapter({ cloud });
+    const adapter = useCloudThreadListAdapter({ cloud, ...options });
     runtime = useRemoteThreadListRuntime({
       adapter,
       runtimeHook: function RuntimeHook() {
@@ -166,7 +167,7 @@ describe("cloud run leases", () => {
     );
   });
 
-  it("stops writing a reply whose lease the server reports stale", async () => {
+  it("stops writing a reply whose lease was ended elsewhere", async () => {
     const { cloud, messages, threadRuns } = makeCloud();
     vi.spyOn(console, "warn").mockImplementation(() => {});
     messages.create.mockImplementation(async (_threadId, body) =>
@@ -178,7 +179,7 @@ describe("cloud run leases", () => {
         : { message_id: "msg_1" },
     );
     threadRuns.heartbeat.mockRejectedValue(
-      new CloudAPIError("stale", 409, "run_stale"),
+      new CloudAPIError("ended", 409, "run_ended"),
     );
     const { runs, getAui } = await renderRuntime(cloud);
 
@@ -202,7 +203,7 @@ describe("cloud run leases", () => {
     expect(threadRuns.heartbeat).toHaveBeenCalledTimes(1);
   });
 
-  it("ends a held run as interrupted when the page unloads", async () => {
+  it("keeps a held run open when the page hides or unloads", async () => {
     const { cloud, messages, threadRuns } = makeCloud();
     const { runs, getAui } = await renderRuntime(cloud);
     await act(async () => {
@@ -215,16 +216,14 @@ describe("cloud run leases", () => {
 
     await act(async () => {
       window.dispatchEvent(new Event("pagehide"));
+      window.dispatchEvent(new Event("beforeunload"));
+      document.dispatchEvent(new Event("visibilitychange"));
     });
-    expect(threadRuns.end).toHaveBeenCalledWith(
-      "remote-1",
-      "lease_1",
-      { reason: "interrupted" },
-      { keepalive: true },
-    );
+    expect(threadRuns.end).not.toHaveBeenCalled();
+    expect(getAui().thread.getState().isRunning).toBe(true);
   });
 
-  it("loads a stale reply as an interrupted error that Resume continues from", async () => {
+  it("loads a running reply that went staleAfter without a beat as interrupted; Resume starts a sibling with its own lease", async () => {
     const at = new Date(0);
     const { cloud, messages } = makeCloud([
       {
@@ -239,7 +238,7 @@ describe("cloud run leases", () => {
           content: [{ type: "text", text: "partial" }],
           status: { type: "incomplete", reason: "cancelled" },
         },
-        run: { status: "stale" },
+        run: { status: "running", last_heartbeat_ms_ago: 60_000 },
       },
       {
         id: "msg_1",
@@ -279,21 +278,23 @@ describe("cloud run leases", () => {
     ).toBe(true);
 
     await act(async () => {
-      getAui().thread.startRun({ parentId: "msg_2" });
+      getAui().thread.message({ index: 1 }).reload();
     });
     await waitFor(() => expect(runs).toHaveLength(1));
     await waitFor(() =>
       expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
     );
     const resumed = createCalls(messages).find((body) => body.open_run)!;
-    expect(resumed.parent_id).toBe("msg_2");
+    expect(resumed.parent_id).toBe("msg_1");
     const branch = getAui().thread.getState().messages;
     expect(branch.map((m) => [m.role, m.status?.type])).toEqual([
       ["user", undefined],
-      ["assistant", "incomplete"],
       ["assistant", "running"],
     ]);
-    expect(branch[1]!.id).toBe("msg_2");
+    expect(branch[1]!.id).not.toBe("msg_2");
+    expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
+      2,
+    );
   });
 
   it("reports a run another session still drives as in progress", async () => {
@@ -311,7 +312,7 @@ describe("cloud run leases", () => {
           content: [],
           status: { type: "incomplete", reason: "cancelled" },
         },
-        run: { status: "running", expires_in_ms: 10_000 },
+        run: { status: "running", last_heartbeat_ms_ago: 2_000 },
       },
       {
         id: "msg_1",
@@ -332,7 +333,7 @@ describe("cloud run leases", () => {
     expect(remote.status).toMatchObject({
       type: "incomplete",
       reason: "error",
-      error: { code: "run_in_progress", expires_in_ms: 10_000 },
+      error: { code: "run_in_progress", stale_in_ms: 28_000 },
     });
     const state = {
       thread: getAui().thread.getState(),
@@ -346,7 +347,7 @@ describe("cloud run leases", () => {
     expect(actionBarResumeDisabled(state)).toBe(true);
   });
 
-  it("follows a run another session drives until it lapses, and refreshes on request", async () => {
+  it("follows a run another session drives until it goes quiet, refreshes on request, and flips back on a late beat", async () => {
     const at = new Date(0);
     const userRow: CloudMessage = {
       id: "msg_1",
@@ -376,12 +377,14 @@ describe("cloud run leases", () => {
       ...(run ? { run } : undefined),
     });
     let rows = [
-      replyRow("Step one", { status: "running", expires_in_ms: 0 }, 1),
+      replyRow("Step one", { status: "running", last_heartbeat_ms_ago: 0 }, 1),
       userRow,
     ];
     const { cloud, messages } = makeCloud(rows);
     messages.list.mockImplementation(async () => ({ messages: rows }));
-    const { getRuntime, getAui } = await renderRuntime(cloud);
+    const { getRuntime, getAui } = await renderRuntime(cloud, {
+      staleAfter: 3_000,
+    });
     await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
     const reply = () => getAui().thread.getState().messages[1];
     await waitFor(() =>
@@ -393,7 +396,7 @@ describe("cloud run leases", () => {
     rows = [
       replyRow(
         "Step one, step two",
-        { status: "running", expires_in_ms: 0 },
+        { status: "running", last_heartbeat_ms_ago: 0 },
         2,
       ),
       userRow,
@@ -416,7 +419,14 @@ describe("cloud run leases", () => {
       { timeout: 5_000 },
     );
 
-    rows = [replyRow("Step one, step two", { status: "stale" }, 3), userRow];
+    rows = [
+      replyRow(
+        "Step one, step two",
+        { status: "running", last_heartbeat_ms_ago: 3_000 },
+        2,
+      ),
+      userRow,
+    ];
     await waitFor(
       () =>
         expect(reply()?.status).toMatchObject({
@@ -424,5 +434,29 @@ describe("cloud run leases", () => {
         }),
       { timeout: 8_000 },
     );
-  }, 15_000);
+
+    rows = [
+      replyRow(
+        "Step one, step two, three",
+        { status: "running", last_heartbeat_ms_ago: 100 },
+        4,
+      ),
+      userRow,
+    ];
+    await act(async () => {
+      await refreshCloudRun(getAui().threadListItem.getState().id);
+    });
+    expect(reply()?.status).toMatchObject({
+      error: { code: "run_in_progress" },
+    });
+
+    rows = [replyRow("All three steps", undefined, 5), userRow];
+    await act(async () => {
+      await refreshCloudRun(getAui().threadListItem.getState().id);
+    });
+    expect(reply()?.content).toEqual([
+      { type: "text", text: "All three steps" },
+    ]);
+    expect(getMessageRunState(reply()!)).toBeUndefined();
+  }, 20_000);
 });
