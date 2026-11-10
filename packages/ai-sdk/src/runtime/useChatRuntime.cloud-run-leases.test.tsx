@@ -108,11 +108,12 @@ const replyRow = (
   ...(run ? { run } : undefined),
 });
 
-const textOf = (message: { content: readonly { type: string }[] }) =>
+const textOf = (message: { content: readonly unknown[] }) =>
   message.content
-    .map((part) =>
-      part.type === "text" ? (part as { text: string }).text : "",
-    )
+    .map((part) => {
+      const { type, text } = part as { type: string; text?: string };
+      return type === "text" ? (text ?? "") : "";
+    })
     .join("");
 
 const openThread = async (
