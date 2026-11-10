@@ -100,9 +100,8 @@ export const useCloudRunLeases = (
     const refresh = async () => {
       const thread = getOwnThread(aui);
       if (!thread || thread.getState().isRunning) return;
-      if (adapter.servesFormattedMessages) {
-        // A formatted thread's messages live in its runtime, which re-reads them itself.
-        await adapter.reloadFormatted();
+      // A formatted thread's messages live in its runtime, which re-reads them itself.
+      if (await adapter.reloadFormatted()) {
         polledUpdatedAt = undefined;
         return;
       }

@@ -283,8 +283,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   >();
   /** Set once a runtime reads or writes this thread as `aui/v0` rows. */
   public servesThreadMessages = false;
-  /** Set once a runtime persists through `withFormat`; the run tracker then writes through `formattedRunWriter`. */
-  public servesFormattedMessages = false;
+  /** Set once a runtime persists through `withFormat`; the run tracker then writes through it. */
   private formattedRunWriter: CloudRunWriter | undefined;
   private copyQueues = new WeakMap<
     CloudMessagePersistence,
@@ -488,7 +487,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
-    adapter.servesFormattedMessages = true;
     const reloadListeners = adapter.reloadListeners;
     let threadListItem: CloudThreadListItem | undefined;
     const pinCurrent = () => {
@@ -744,10 +742,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
    * runtime reads or writes `aui/v0` rows, otherwise none.
    */
   public getRunWriter(): CloudRunWriter | undefined {
-    if (this.formattedRunWriter) return this.formattedRunWriter;
-    if (!this.servesThreadMessages || this.servesFormattedMessages)
-      return undefined;
-    return this.threadMessageRunWriter;
+    return (
+      this.formattedRunWriter ??
+      (this.servesThreadMessages ? this.threadMessageRunWriter : undefined)
+    );
   }
 
   private threadMessageRunWriter: CloudRunWriter = {
@@ -755,20 +753,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     canStore: () => true,
     write: (message, parent) =>
       this.update({ parentId: parent?.id ?? null, message }),
-    hasOpenRun: (key) => this.hasOpenRun(key),
-    rename: (from, to) => this.renameRun(from, to),
+    hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),
+    rename: (from, to) => this.getPersistence().rename(from, to),
     noteSettled: () => {},
   };
-
-  /** Follows a running message whose runtime replaced its id while it streams. */
-  public renameRun(from: string, to: string): Promise<void> {
-    return this.getPersistence().rename(from, to);
-  }
-
-  /** Whether this adapter holds an open run lease for the message. */
-  public hasOpenRun(messageId: string): boolean {
-    return this.getPersistence().hasOpenRun(messageId);
-  }
 
   async update(item: ExportedMessageRepositoryItem) {
     const threadListItem = this.aui.threadListItem;
