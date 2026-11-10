@@ -3399,20 +3399,23 @@ export class AgUiThreadController {
             if (activeAssistantId && joinStrategy !== "concat-content") {
               aggregator.rebaseMessage(activeAssistantId);
             }
-          } else if (
-            nextActiveAssistantId &&
-            nextActiveAssistantId !== activeAssistantId
-          ) {
+          } else {
             // The frame keeps the aggregator for now; adopt the head once the
             // frame ends, so calls and data that follow it belong to the head.
-            // A head the snapshot left waiting for a tool keeps that status
-            // instead: the aggregator does not know its calls, so adopting it
+            // Recompute it on every snapshot: a later one can move the head
+            // back to the frame or off the assistant messages entirely, and a
+            // head the snapshot leaves waiting for a tool keeps that status
+            // instead — the aggregator does not know its calls, so adopting it
             // would let the run finish it as complete.
             this.deferredSnapshotHeadId =
-              head?.role === "assistant" &&
-              head.status?.type === "requires-action"
-                ? undefined
-                : nextActiveAssistantId;
+              nextActiveAssistantId !== undefined &&
+              nextActiveAssistantId !== activeAssistantId &&
+              !(
+                head?.role === "assistant" &&
+                head.status?.type === "requires-action"
+              )
+                ? nextActiveAssistantId
+                : undefined;
           }
           if (!frameStillOpen && hasNewPendingToolCallAnswer && head) {
             this.updateAssistantMessage(head.id, {

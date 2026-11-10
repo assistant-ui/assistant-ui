@@ -571,4 +571,48 @@ describe("AgUiThreadController snapshot head moves", () => {
       core.getMessages().find(({ id }) => id === "other")?.status,
     ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
   });
+
+  it("drops a head a later snapshot no longer points at", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          otherRecord,
+        ],
+      },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      { type: "TOOL_CALL_START", toolCallId: "after", toolCallName: "lookup" },
+      { type: "TOOL_CALL_ARGS", toolCallId: "after", delta: "{}" },
+      { type: "TOOL_CALL_END", toolCallId: "after" },
+      {
+        type: "TOOL_CALL_RESULT",
+        messageId: "tool-after",
+        toolCallId: "after",
+        content: "found",
+      },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([
+      { type: "text", text: "a1a2" },
+      expect.objectContaining({ type: "tool-call", toolCallId: "after" }),
+    ]);
+    expect(core.getMessages().find(({ id }) => id === "other")).toBeUndefined();
+  });
 });
