@@ -9,85 +9,122 @@ By default an AG-UI run lives inside its HTTP response. If the browser closes or
 - Opening the thread again shows everything so far, then follows the run to the end.
 - Every message appears once.
 
-[`examples/with-pydantic-ai-durable`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-pydantic-ai-durable) is the complete reference: a Pydantic AI server and a Next.js frontend, with tests that close the client mid-run and reopen the thread.
+The Python `assistant-stream` package ships the server side for Pydantic AI as `DurableAGUI`. [`examples/with-pydantic-ai-durable`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-pydantic-ai-durable) is a complete app: the server, a Next.js frontend, and tests that close the client mid-run and reopen the thread.
 
-## How it fits together
+## Install
 
-| Layer | Keeps | Backed by |
-| --- | --- | --- |
-| Thread store | the transcript, and whether a run is active, in one record | Postgres or SQLite |
-| Resumable stream | every AG-UI frame of the active run | Redis or memory, through `assistant_stream.resumable` |
-| Agent run | the model and tool calls | Pydantic AI, optionally with Temporal or DBOS durable execution |
+```sh
+pip install "assistant-stream[pydantic-ai]"
+```
 
-1. `POST /agent` writes the run's input to the thread record, starts the run in a background task, and streams frames out of the resumable stream. A disconnect stops only the read.
-2. When the run finishes or is cancelled, the full transcript and "not running" are written in one record.
-3. On load, the frontend reads the thread. While a run is active, the record holds only the run's input, so the output arrives once, from the stream.
-4. The runtime rejoins the run through AG-UI's `connect()`, which replays the run from its first frame and then follows it live.
+Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs Python 3.11 or later.
 
 ## Server
 
-The example's `server/durable_agui.py` wraps the Pydantic AI `AGUIAdapter`. It runs the agent with a `CancellationToken`, persists `new_messages()` from `on_complete` and `on_cancel`, and serves five routes:
+```python title="main.py"
+from pydantic_ai import Agent
+from starlette.applications import Starlette
+from assistant_stream.pydantic_ai import DurableAGUI, SqliteThreadStore
+
+agent = Agent("openai:gpt-5.4-mini", instructions="You are a helpful assistant.")
+durable = DurableAGUI(agent, threads=SqliteThreadStore("threads.db"))
+
+app = Starlette(routes=durable.routes())
+```
+
+Run it with `uvicorn main:app --port 8000`. In a FastAPI app, add the routes to the existing router with `app.router.routes.extend(durable.routes(prefix="/api"))`.
+
+`DurableAGUI` serves five routes:
 
 | Route | Does |
 | --- | --- |
-| `POST /agent` | Starts a run from an AG-UI `RunAgentInput`. |
+| `POST /agent` | Starts a run from an AG-UI `RunAgentInput` and streams its frames. |
 | `GET /threads` | Lists threads, newest first. |
-| `GET /threads/{id}` | Returns `{ messages, running }`. |
-| `GET /threads/{id}/stream` | Replays the active run from the start, then follows it. |
+| `GET /threads/{id}` | Returns `{ id, messages, running }`. |
+| `GET /threads/{id}/stream` | Replays the latest run from its first frame, then follows it live. |
 | `POST /threads/{id}/cancel?run=` | Cancels the run. The partial answer is kept. |
 
-```python title="server/main.py"
-from assistant_stream.resumable import (
-    create_redis_resumable_stream_store,
-    create_resumable_stream_context,
-)
-from redis.asyncio import Redis
-from durable_agui import DurableAGUI, PostgresThreadStore
+### Users and dependencies
 
-threads = await PostgresThreadStore.connect(DATABASE_URL)
-streams = create_resumable_stream_context(
-    store=create_redis_resumable_stream_store(Redis.from_url(REDIS_URL)),
-)
-durable = DurableAGUI(agent, threads=threads, streams=streams)
-app.router.routes.extend(durable.routes())
-```
+Without `owner`, every client can see every thread. Pass `owner` to scope threads to the signed-in user. It gets the request and returns a user id, or `None` to answer 401. A thread that belongs to someone else answers 404.
 
-`run_options` passes per-request arguments to the run, such as `deps`:
+`run_options` returns extra arguments for the run, such as `deps`. Both can be sync or async.
 
 ```python
+async def current_user(request):
+    return await verify_session(request.headers.get("authorization"))
+
 durable = DurableAGUI(
     agent,
     threads=threads,
-    streams=streams,
+    owner=current_user,
     run_options=lambda request, run_input: {"deps": Deps(user=request.state.user)},
 )
 ```
 
 ## Frontend
 
-Two pieces connect `useAgUiRuntime` to the server, both in the example's `lib/durable-agent.ts`:
+Copy `lib/durable-agent.ts` from the example. It has two pieces:
 
-- `DurableHttpAgent` extends `HttpAgent`. Its `connect()` reads `GET /threads/{id}/stream`, and its `abortRun()` posts the cancel.
+- `DurableHttpAgent` extends `HttpAgent`. Its `connect()` reads `GET /threads/{id}/stream`, and its `abortRun()` posts the cancel. Every request carries the agent's `headers`, so put the auth header there.
 - `durableThreadHistory(agent)` loads the thread and returns `unstable_resume: true` while a run is active. Its `append` does nothing, because the server stores every message.
 
 ```tsx
 const [agent] = useState(
-  () => new DurableHttpAgent({ baseUrl: "http://localhost:8000", threadId }),
+  () =>
+    new DurableHttpAgent({
+      baseUrl: "https://api.example.com/api",
+      threadId,
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 );
 const history = useMemo(() => durableThreadHistory(agent), [agent]);
 
 const runtime = useAgUiRuntime({ agent, adapters: { history } });
 ```
 
-When the history adapter reports a running thread and has no `resume()` method, the runtime calls `agent.connectAgent()` instead of starting a new run. A thread list's `onSwitchToThread` can return `unstable_resume: true` the same way.
+Keep one agent instance and set its `threadId` when switching threads, because the runtime rejoins through the agent it already holds. A thread list's `onSwitchToThread` returns `unstable_resume: true` for a running thread the same way the history adapter does; the example's `MyRuntimeProvider.tsx` shows both.
 
-The runtime tells leaving a thread apart from stopping a run. Stop calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting calls `detachActiveRun()` on an agent that implements `connect()`, so the run keeps going and can be rejoined.
+## Production
 
-Keep one agent instance and set its `threadId` when switching threads, because the runtime rejoins through the agent it already holds.
+| Piece | Keeps | Development | Production |
+| --- | --- | --- | --- |
+| `threads` | the transcript, and whether a run is active, in one record | `InMemoryThreadStore` (default) or `SqliteThreadStore` | `PostgresThreadStore` |
+| `streams` | every AG-UI frame of the active run | in memory (default) | Redis |
+
+```python
+from redis.asyncio import Redis
+from assistant_stream.pydantic_ai import DurableAGUI, PostgresThreadStore
+from assistant_stream.resumable import (
+    create_redis_resumable_stream_store,
+    create_resumable_stream_context,
+)
+
+threads = await PostgresThreadStore.connect(DATABASE_URL)  # creates aui_threads
+streams = create_resumable_stream_context(
+    store=create_redis_resumable_stream_store(Redis.from_url(REDIS_URL)),
+    ttl_ms=60 * 60 * 1000,
+)
+durable = DurableAGUI(agent, threads=threads, streams=streams, owner=current_user)
+```
+
+Open the store in your app's lifespan and call `await threads.close()` on shutdown. To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, and `list(owner=, limit=)`.
+
+Use Redis as soon as more than one worker serves the app. Any worker can then replay a run, whichever worker started it.
+
+## Closing and reopening the tab
+
+1. `POST /agent` writes the run's input to the thread record, starts the run in a background task, and streams frames out of the resumable stream.
+2. The tab closes. Only the read stops. The run keeps going and keeps writing frames.
+3. When the run finishes or is cancelled, the full transcript and `running: false` are written in one record.
+4. The tab opens the thread again. While the run is still going, `GET /threads/{id}` returns only the run's input, and the runtime rejoins through `agent.connectAgent()`. That replays the run from its first frame and follows it live, so the answer shows up once and finishes in place.
+5. If the run already finished, the transcript has the whole answer and nothing is replayed.
+
+Stop in the UI calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting calls `detachActiveRun()`, so the run keeps going and can be rejoined.
 
 ## Limits
 
-- The run executes in the server process that received `POST /agent`. With Redis any process can serve the replay, but cancel reaches only the owning process.
-- A run whose server process dies stops. Its stream is reported as not running once the resumable store drops it. To survive server crashes, wrap the agent with Pydantic AI's `DBOSAgent` or `TemporalAgent`.
+- The run executes in the worker that received `POST /agent`. Cancel reaches only that worker.
+- A run whose worker dies stops. Its thread is reported as not running once the resumable store drops the stream. To survive worker crashes, wrap the agent with Pydantic AI's `DBOSAgent` or `TemporalAgent`.
 - Assistant messages get server-generated ids when the run ends, so their ids change once between the live stream and the first reload.
 - Each `POST /agent` replaces the stored transcript with the one the client sent, the same trust model as `AGUIAdapter`.

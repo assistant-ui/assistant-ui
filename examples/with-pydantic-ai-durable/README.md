@@ -25,6 +25,8 @@ Open http://localhost:3000, send a message, and reload the page or close the tab
 
 ## How it works
 
+The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "assistant-stream[pydantic-ai]"`); `server/main.py` only picks the agent and the stores. See the [durable threads guide](https://www.assistant-ui.com/docs/runtimes/ag-ui/durable-threads).
+
 | Piece | Keeps | Default here | Production |
 | --- | --- | --- | --- |
 | `ThreadStore` | the thread transcript and whether a run is active | SQLite (`threads.db`) | Postgres: set `DATABASE_URL` and `uv sync --extra postgres` |
@@ -42,8 +44,7 @@ On the client, `DurableHttpAgent` (`lib/durable-agent.ts`) implements AG-UI's `c
 ## Tests
 
 ```sh
-cd server && uv run pytest              # server: disconnect, reopen, cancel
 pnpm exec vitest run                    # browser runtime against the real server (needs uv)
 ```
 
-The server tests also run against Postgres and Redis when `DATABASE_URL` and `REDIS_URL` are set.
+The adapter's own tests (disconnect, reopen, cancel, owners) live in `python/assistant-stream/tests/test_pydantic_ai_durable.py` and also run against Postgres and Redis when `DATABASE_URL` and `REDIS_URL` are set.
