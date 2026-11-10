@@ -25,8 +25,8 @@ import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 export default defineToolkit({
   web_search: {
     execute: externalTool(),
-    render: ({ args, result, status }) =>
-      status.type === "incomplete" ? null : (
+    render: ({ args, result, isError, status }) =>
+      isError || status.type === "incomplete" ? null : (
         <WebSearch
           query={args.query ?? ""}
           results={result?.results ?? []}
@@ -168,11 +168,12 @@ type SearchResult = { results: WebSearchResult[] };
 function SearchToolUI({
   args,
   result,
+  isError,
   status,
 }: ToolCallMessagePartProps<SearchArgs, SearchResult>) {
   const { propStatus } = useToolArgsStatus<SearchArgs>();
 
-  if (status.type === "incomplete") return null;
+  if (isError || status.type === "incomplete") return null;
 
   return (
     <WebSearch
@@ -206,7 +207,7 @@ Both lanes take `className` on the root. The query pill uses the shared `field` 
 |------|------|-------------|
 | `args` | `{ query?: string }` | Model-supplied arguments. Partial while streaming; use `useToolArgsStatus` to tell a finished field from one still arriving. |
 | `result` | `{ results: WebSearchResult[] } \| undefined` | Set once the tool call resolves. |
-| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` and `"requires-action"` show the searching shimmer. An `"incomplete"` call (cancelled or failed) has no results, so the examples render nothing for it rather than "No sources found"; render a failure element such as Tool failure there if the user should see it. |
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` and `"requires-action"` show the searching shimmer. A thrown call (`isError`) and an `"incomplete"` call (cancelled or failed) have no results, so the examples render nothing for them rather than "No sources found"; render a failure element such as Tool failure there if the user should see it. |
 
 `WebSearchResult` is `{ title: string; domain: string }`. See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
 
