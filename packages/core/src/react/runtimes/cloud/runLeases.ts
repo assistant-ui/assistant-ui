@@ -79,8 +79,8 @@ const findMessage = (
  * lost (stale, or resumed elsewhere) gets no more checkpoints.
  *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
- * thread message maps to exactly one format-native message; their stored run
- * state is not shown on load.
+ * thread message maps to exactly one format-native message; their runtime
+ * shows the loaded run state and re-reads the thread on refresh.
  */
 export const useCloudRunLeases = (
   adapter: AssistantCloudThreadHistoryAdapter,
@@ -98,9 +98,14 @@ export const useCloudRunLeases = (
     let disposed = false;
 
     const refresh = async () => {
-      if (adapter.servesFormattedMessages) return;
       const thread = getOwnThread(aui);
       if (!thread || thread.getState().isRunning) return;
+      if (adapter.servesFormattedMessages) {
+        // A formatted thread's messages live in its runtime, which re-reads them itself.
+        await adapter.reloadFormatted();
+        polledUpdatedAt = undefined;
+        return;
+      }
       const repository = await adapter.load();
       if (disposed) return;
       const current = getOwnThread(aui);
