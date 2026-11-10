@@ -110,4 +110,13 @@ describe("templates", () => {
       expect(pkg.scripts["format:fix"]).toBe("oxfmt");
     },
   );
+
+  it.each(templates)("%s oxfmt config matches the default template", (name) => {
+    const read = (template: string) =>
+      fs.readFileSync(
+        path.join(templatesDir, template, ".oxfmtrc.json"),
+        "utf-8",
+      );
+    expect(read(name)).toBe(read("default"));
+  });
 });
