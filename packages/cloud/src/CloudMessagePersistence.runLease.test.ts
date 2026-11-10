@@ -307,6 +307,14 @@ describe("CloudMessagePersistence run leases", () => {
     expect(messages.update).toHaveBeenLastCalledWith("t1", "msg_1", {
       content: done,
     });
+
+    // A runtime that appends its settled message after the lease closed rewrites the row instead of storing a second one.
+    await persistence.append("t1", "local-a", null, "aui/v0", done);
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).toHaveBeenCalledTimes(3);
+    expect(messages.update).toHaveBeenLastCalledWith("t1", "msg_1", {
+      content: done,
+    });
   });
 
   it("schedules heartbeats from the server's interval, not a client TTL", async () => {

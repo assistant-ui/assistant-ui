@@ -413,6 +413,8 @@ declare class AssistantCloudThreadRuns {
   heartbeat(threadId: string, leaseId: string): Promise<AssistantCloudRunHeartbeatResponse>;
   end(threadId: string, leaseId: string, body?: {
     reason?: CloudRunEndReason;
+  }, options?: {
+    keepalive?: boolean;
   }): Promise<void>;
 }
 
@@ -754,7 +756,7 @@ type CloudMessageRun = {
   superseded_by?: string | undefined;
 };
 
-type CloudRunEndReason = "cancelled" | "done" | "error";
+type CloudRunEndReason = "cancelled" | "done" | "error" | "interrupted";
 
 type CloudRunLease = {
   lease_id: string;

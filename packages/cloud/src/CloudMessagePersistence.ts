@@ -71,6 +71,13 @@ type FailedAppend = {
  * so concurrent appends land under the right parent. A parent whose create
  * failed is created again before its child, and a child whose parent still
  * cannot be created is stored as a root.
+ *
+ * A message appended as running holds a run lease, renewed by heartbeats on
+ * the server's interval until a write with an end reason ends it. When the
+ * page hides, the runs it holds end as `interrupted` with a keepalive request
+ * unless `runsContinueOnServer` is set. A lease that is lost (expired,
+ * superseded by a resume, or refused) is final: the message gets no further
+ * writes from this persistence.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -79,6 +86,8 @@ export class CloudMessagePersistence {
   private runWrites = new Map<string, Promise<unknown>>();
   /** Local ids whose lease was lost (stale, superseded, ended elsewhere); their later writes are dropped. */
   private lostRuns = new Set<string>();
+  /** Local ids this persistence opened a lease for; a repeated append of one is a write to its row, not a new row. */
+  private leasedMessages = new Set<string>();
   private pageHideTarget: Window | undefined;
   private getCloud: () => AssistantCloud;
   private options: CloudMessagePersistenceOptions;
@@ -123,12 +132,12 @@ export class CloudMessagePersistence {
     const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
       await existing.catch(() => undefined);
-      if (this.openRuns.has(messageId) || this.lostRuns.has(messageId)) {
+      if (this.leasedMessages.has(messageId)) {
         await this.update(threadId, messageId, format, content, run);
       }
       return;
     }
-    if (existing !== undefined && this.openRuns.has(messageId)) {
+    if (existing !== undefined && this.leasedMessages.has(messageId)) {
       await this.update(threadId, messageId, format, content, run);
       return;
     }
@@ -301,6 +310,7 @@ export class CloudMessagePersistence {
     this.idMapping.delete(from);
     this.idMapping.set(to, remoteId);
     if (this.lostRuns.delete(from)) this.lostRuns.add(to);
+    if (this.leasedMessages.delete(from)) this.leasedMessages.add(to);
     const open = this.openRuns.get(from);
     if (!open) return;
     this.openRuns.delete(from);
@@ -323,6 +333,7 @@ export class CloudMessagePersistence {
   ) {
     this.closeRun(messageId);
     this.lostRuns.delete(messageId);
+    this.leasedMessages.add(messageId);
     this.openRuns.set(messageId, {
       threadId,
       leaseId: lease.lease_id,
@@ -553,6 +564,7 @@ export class CloudMessagePersistence {
     this.idMapping = new Map();
     this.failedAppends = new Map();
     this.lostRuns = new Set();
+    this.leasedMessages = new Set();
     for (const messageId of [...this.openRuns.keys()]) this.closeRun(messageId);
     this.unwatchPageHide();
   }
