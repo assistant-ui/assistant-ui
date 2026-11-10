@@ -78,8 +78,8 @@ export function MessagePair({
           )}
         </p>
         {(onCopy || onRegenerate) && (
-          <div className="flex items-center gap-1 pt-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none">
-            {onCopy && (
+          <div className="flex min-h-8 items-center gap-1 pt-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none">
+            {!streaming && onCopy && (
               <button
                 type="button"
                 aria-label="Copy response"
@@ -89,7 +89,7 @@ export function MessagePair({
                 <CopyIcon className="size-3.5" />
               </button>
             )}
-            {onRegenerate && (
+            {!streaming && onRegenerate && (
               <button
                 type="button"
                 aria-label="Regenerate response"

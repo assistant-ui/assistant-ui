@@ -41,4 +41,34 @@ describe("MessagePair", () => {
     expect(onCopy).toHaveBeenCalledOnce();
     expect(onRegenerate).toHaveBeenCalledOnce();
   });
+
+  it("hides copy and regenerate while the reply streams", () => {
+    const { rerender } = render(
+      <MessagePair
+        {...defaultProps}
+        visibleWords={2}
+        streaming
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Copy response" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Regenerate response" }),
+    ).toBeNull();
+
+    rerender(
+      <MessagePair
+        {...defaultProps}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Copy response" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Regenerate response" }),
+    ).toBeTruthy();
+  });
 });

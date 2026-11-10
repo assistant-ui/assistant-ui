@@ -83,9 +83,6 @@ export function ThreadListRuntime(props: {
   );
 }
 
-const DAY = 24 * 60 * 60 * 1000;
-const ago = (ms: number) => new Date(Date.now() - ms);
-
 const thread = (
   remoteId: string,
   title: string | undefined,
@@ -97,37 +94,55 @@ const thread = (
   lastMessageAt,
 });
 
-export const THREAD_LIST_FIXTURES = {
-  empty: [],
-  grouped: [
-    thread("t-1", "Persist composer drafts", ago(20 * 60 * 1000)),
-    thread("t-2", "Fix flaky checkout test", ago(3 * 60 * 60 * 1000)),
-    thread("t-3", "Postgres 17 upgrade plan", ago(DAY + 2 * 60 * 60 * 1000)),
-    thread("t-4", "Rate limit headers", ago(DAY + 5 * 60 * 60 * 1000)),
-    thread("t-5", "Quarterly usage report", ago(4 * DAY)),
-    thread("t-6", "Onboarding email copy", ago(9 * DAY)),
-  ],
-  untitled: [
-    thread("t-1", undefined, ago(5 * 60 * 1000)),
-    thread("t-2", undefined, ago(40 * 60 * 1000)),
-    thread("t-3", "Rate limit headers", ago(2 * 60 * 60 * 1000)),
-  ],
-  long: [
-    thread(
-      "t-1",
-      "Why does the staging deploy pick up the production environment variables after a rollback from the release branch",
-      ago(10 * 60 * 1000),
-    ),
-    thread(
-      "t-2",
-      "Compare p95 latency across us-east-1, eu-west-1, and ap-southeast-2 for the last 30 days",
-      ago(2 * 60 * 60 * 1000),
-    ),
-    ...Array.from({ length: 14 }, (_, i) =>
-      thread(`t-${i + 3}`, `Support ticket #${4812 - i}`, ago((i + 2) * DAY)),
-    ),
-  ],
-} satisfies Record<string, RemoteThreadMetadata[]>;
+/**
+ * Builds the fixtures against the local calendar, so each row lands in its
+ * intended Today, Yesterday, or Earlier group at any hour.
+ */
+export function threadListFixtures(now = new Date()) {
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const today = (fraction: number) =>
+    new Date(startOfToday + (now.getTime() - startOfToday) * fraction);
+  const daysAgo = (days: number, hour: number) =>
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - days, hour);
+
+  return {
+    empty: [],
+    grouped: [
+      thread("t-1", "Persist composer drafts", today(1)),
+      thread("t-2", "Fix flaky checkout test", today(0.5)),
+      thread("t-3", "Postgres 17 upgrade plan", daysAgo(1, 18)),
+      thread("t-4", "Rate limit headers", daysAgo(1, 9)),
+      thread("t-5", "Quarterly usage report", daysAgo(4, 12)),
+      thread("t-6", "Onboarding email copy", daysAgo(9, 12)),
+    ],
+    untitled: [
+      thread("t-1", undefined, today(1)),
+      thread("t-2", undefined, today(2 / 3)),
+      thread("t-3", "Rate limit headers", today(1 / 3)),
+    ],
+    long: [
+      thread(
+        "t-1",
+        "Why does the staging deploy pick up the production environment variables after a rollback from the release branch",
+        today(1),
+      ),
+      thread(
+        "t-2",
+        "Compare p95 latency across us-east-1, eu-west-1, and ap-southeast-2 for the last 30 days",
+        today(0.5),
+      ),
+      ...Array.from({ length: 14 }, (_, i) =>
+        thread(`t-${i + 3}`, `Support ticket #${4812 - i}`, daysAgo(i + 2, 12)),
+      ),
+    ],
+  } satisfies Record<string, RemoteThreadMetadata[]>;
+}
+
+export const THREAD_LIST_FIXTURES = threadListFixtures();
 
 function ThreadListFixture({
   threads,
@@ -158,14 +173,6 @@ export const states = defineStates([
     label: "Empty",
     note: "No saved threads, so only the new thread button shows and search is hidden.",
     Component: () => <ThreadListFixture threads={THREAD_LIST_FIXTURES.empty} />,
-  },
-  {
-    key: "grouped",
-    label: "Grouped",
-    note: "Saved threads sort by last activity under Today, Yesterday, and Earlier.",
-    Component: () => (
-      <ThreadListFixture threads={THREAD_LIST_FIXTURES.grouped} />
-    ),
   },
   {
     key: "untitled",

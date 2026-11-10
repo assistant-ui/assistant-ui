@@ -50,7 +50,7 @@ function TurnMessage() {
 
 ### Reveal actions on hover
 
-Wrap the action row in `ActionBarPrimitive.Root` with `autohide="always"`: it renders nothing until `s.message.isHovering` turns true, which `MessagePrimitive.Root` already tracks from pointer enter and leave.
+Wrap the action row in `ActionBarPrimitive.Root` with `autohide="always"`: it renders nothing until `s.message.isHovering` turns true, which `MessagePrimitive.Root` already tracks from pointer enter and leave. `hideWhenRunning` also hides it while the thread is running.
 
 ```tsx
 import { ActionBarPrimitive } from "@assistant-ui/react";
@@ -63,7 +63,7 @@ function AssistantReply() {
       <div className="min-h-[4.25rem] text-sm leading-relaxed">
         <MessagePrimitive.Parts />
       </div>
-      <ActionBarPrimitive.Root autohide="always" className="flex items-center gap-1 pt-1">
+      <ActionBarPrimitive.Root hideWhenRunning autohide="always" className="flex items-center gap-1 pt-1">
         <ActionBarPrimitive.Copy aria-label="Copy response" className={cn(ghostButton, "size-7")}>
           <CopyIcon className="size-3.5" />
         </ActionBarPrimitive.Copy>
@@ -128,7 +128,7 @@ export function Turn() {
 
 ### Handle the hover actions
 
-Pass `onCopy` and `onRegenerate` to show the matching buttons and own their behavior. If a callback is absent, its button is not rendered, so the standalone element never exposes an action that cannot run.
+Pass `onCopy` and `onRegenerate` to show the matching buttons and own their behavior. If a callback is absent, its button is not rendered, so the standalone element never exposes an action that cannot run. Neither button renders while `streaming` is true.
 
   </Step>
 </Steps>
@@ -142,12 +142,12 @@ Pass `onCopy` and `onRegenerate` to show the matching buttons and own their beha
   <p>{/* the sent message */}</p>
   <div>
     <p>{/* the reply, word by word */}</p>
-    <div>{/* available actions, hidden until hover or focus */}</div>
+    <div>{/* available actions, hidden until hover or focus, and absent while streaming */}</div>
   </div>
 </div>
 ```
 
-Hovering or focusing anywhere in the reply's group reveals the action row, which goes from `opacity-0` to `opacity-100`. Each word fades in on its own, and while `streaming` is true the newest two words are tinted blue before settling to ink over 700ms. A trailing cursor blinks after the last word while streaming; it is absent when `streaming` is false or no word is shown yet. Standalone, `visibleWords` drives the reveal as it catches up to `words.length`. A runtime renders the accumulated text as it streams, with no reveal count to manage, and its default `Text` part renderer shows a trailing "●" (through `MessagePartPrimitive.InProgress`), so the per-word blue tint exists only in the standalone element.
+Hovering or focusing anywhere in the reply's group reveals the action row, which goes from `opacity-0` to `opacity-100`. While `streaming` is true the row holds its height but renders no buttons, matching `hideWhenRunning` on the runtime action bar. Each word fades in on its own, and while `streaming` is true the newest two words are tinted blue before settling to ink over 700ms. A trailing cursor blinks after the last word while streaming; it is absent when `streaming` is false or no word is shown yet. Standalone, `visibleWords` drives the reveal as it catches up to `words.length`. A runtime renders the accumulated text as it streams, with no reveal count to manage, and its default `Text` part renderer shows a trailing "●" (through `MessagePartPrimitive.InProgress`), so the per-word blue tint exists only in the standalone element.
 
 ## Examples
 

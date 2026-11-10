@@ -139,12 +139,12 @@ useEffect(() => {
 ```tsx
 <div data-slot="web-search">
   <span>{/* query, in a rounded field with a search icon */}</span>
-  <div>{/* "Searching" (shimmer) while searching, else fixed "Read 3 sources" text */}</div>
+  <div>{/* "Searching" (shimmer) while searching, else "Read N sources" from `results.length`, or "No sources found" */}</div>
   <div>{/* the first `visibleResults` results: domain-initial avatar, title, domain */}</div>
 </div>
 ```
 
-`visibleResults` clamps to `0…results.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The "Read 3 sources" line is literal text in the source, not derived from `results.length`; edit it directly if the count should track what you pass in. `cycle` is mixed into each visible result's key, so bumping it re-triggers the entrance animation even when `results` and `visibleResults` are unchanged, useful for a search that runs again with the same shape of answer. An empty `results` array renders the status line with no rows beneath it; the results region keeps its reserved height either way.
+`visibleResults` clamps to `0…results.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The finished line counts `results`, not `visibleResults`, and reads "No sources found" when `results` is empty. `cycle` is mixed into each visible result's key, so bumping it re-triggers the entrance animation even when `results` and `visibleResults` are unchanged, useful for a search that runs again with the same shape of answer. The results region keeps its reserved height either way.
 
 ## Examples
 

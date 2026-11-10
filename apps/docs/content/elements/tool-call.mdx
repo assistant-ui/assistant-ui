@@ -3,7 +3,7 @@ title: "Tool call"
 description: "One tool invocation with its request and result tucked behind a disclosure."
 ---
 
-A tool call collapses to one line while it works: a chevron, a shimmering label, and the tool's primary argument as a chip, with a checkmark once it settles. Clicking it reveals the raw request and result. With a runtime the request, result, and running state come from the matching tool-call part; standalone you supply them directly.
+A tool call collapses to one line while it works: a chevron, a shimmering label, and the tool's primary argument as a chip, with a checkmark once it settles, or a red cross when it failed. Clicking it reveals the raw request and result. With a runtime the request, result, and running state come from the matching tool-call part; standalone you supply them directly.
 
 ## Getting started
 
@@ -28,7 +28,7 @@ export type SearchDocsResult = { count: number; bestPath: string };
 export const SearchDocsToolUI: ToolCallMessagePartComponent<
   { query: string },
   SearchDocsResult
-> = ({ args, argsText, result, status }) => {
+> = ({ args, argsText, result, isError, status }) => {
   const [open, setOpen] = useState(false);
   return (
     <ToolCall
@@ -38,6 +38,7 @@ export const SearchDocsToolUI: ToolCallMessagePartComponent<
       request={argsText}
       result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
       running={status.type === "running"}
+      failed={isError === true || status.type === "incomplete"}
       open={open}
       onOpenChange={setOpen}
     />
@@ -156,13 +157,13 @@ async function search(query: string) {
 ```tsx
 <div data-slot="tool-call">
   <button>
-    {/* chevron, shimmering label while running, query chip, checkmark once settled */}
+    {/* chevron, shimmering label while running, query chip, checkmark once settled, cross when failed */}
   </button>
   <div>{/* Request block, divider, Result block — mounted only while open */}</div>
 </div>
 ```
 
-The trigger is always visible; the checkmark only replaces the empty space once `running` turns false. The content panel's height animates between zero and its measured height, so opening and closing never jumps. `open` is controlled: the element keeps no internal open state and calls `onOpenChange` when the trigger is clicked. There is no disabled state; a tool call with an empty request or result renders empty strings.
+The trigger is always visible; the checkmark (or the cross, when `failed` is true) only replaces the empty space once `running` turns false. The content panel's height animates between zero and its measured height, so opening and closing never jumps. `open` is controlled: the element keeps no internal open state and calls `onOpenChange` when the trigger is clicked. There is no disabled state; a tool call with an empty request or result renders empty strings.
 
 ## Examples
 
@@ -185,7 +186,7 @@ function makeSearchToolUI(label: string, activeLabel: string) {
   const SearchToolUI: ToolCallMessagePartComponent<
     { query: string },
     SearchDocsResult
-  > = ({ args, argsText, result, status }) => {
+  > = ({ args, argsText, result, isError, status }) => {
     const [open, setOpen] = useState(false);
     return (
       <ToolCall
@@ -195,6 +196,7 @@ function makeSearchToolUI(label: string, activeLabel: string) {
         request={argsText}
         result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
         running={status.type === "running"}
+        failed={isError === true || status.type === "incomplete"}
         open={open}
         onOpenChange={setOpen}
       />
@@ -259,6 +261,7 @@ Register the renderer on a toolkit entry's `render` field and attach the toolkit
 | `request` | `string` | required | Raw request text shown in the disclosure panel. |
 | `result` | `string` | required | Result text shown in the disclosure panel. |
 | `running` | `boolean` | required | Swaps the label and hides the checkmark while true. |
+| `failed` | `boolean` | `false` | Shows a red cross instead of the checkmark once settled. Pass it for a thrown or denied call (`isError`) or a failed run. |
 | `open` | `boolean` | required | Whether the disclosure panel is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
 | `className` | `string` | | Merged onto the root. |

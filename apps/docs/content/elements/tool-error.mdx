@@ -155,12 +155,12 @@ async function retry(query: string) {
   <div>{/* message, monospace */}</div>
   <div>
     <button>{/* Skip, disabled when onSkip is absent */}</button>
-    <button>{/* Retry, disabled and spinning while retrying */}</button>
+    <button>{/* Retry, disabled and spinning while retrying, disabled on the final attempt */}</button>
   </div>
 </div>
 ```
 
-Skip has no default behavior: passing no `onSkip` leaves the button rendered but disabled, so a card with only a retry path still shows both actions. Retry disables itself while `retrying` is true and swaps its icon for a spinner; nothing else in the card reacts to `retrying`.
+Skip has no default behavior: passing no `onSkip` leaves the button rendered but disabled, so a card with only a retry path still shows both actions. Retry disables itself while `retrying` is true and swaps its icon for a spinner; nothing else in the card reacts to `retrying`. Once `attempt` reaches `maxAttempts`, Retry stays disabled and dims, so only Skip remains.
 
 ## Examples
 
@@ -208,7 +208,7 @@ Both lanes take `className` on the root. The root uses the shared `paper` surfac
 | `target` | `string` | required | What the call acted on. |
 | `message` | `string` | required | The error text. |
 | `attempt` | `number` | required | Current attempt number. |
-| `maxAttempts` | `number` | required | Attempts allowed. |
+| `maxAttempts` | `number` | required | Attempts allowed. Retry disables once `attempt` reaches it. |
 | `retrying` | `boolean` | required | Disables and spins the retry button while true. |
 | `onRetry` | `() => void` | | Called from the retry button. |
 | `onSkip` | `() => void` | | Called from the skip button. Omit it and the button stays disabled. |

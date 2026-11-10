@@ -76,13 +76,14 @@ export const states = defineStates([
   {
     key: "denied",
     label: "Denied",
-    note: "The user refused the call, so the receipt records the decision.",
+    note: "The user refused the call, so it reads as failed and the receipt records the decision.",
     Component: () => (
       <Frame>
         <ToolFallbackRoot open onOpenChange={noop}>
           <ToolFallbackTrigger
             toolName="send_email"
             status={{ type: "complete" }}
+            isError
           />
           <ToolFallbackContent>
             <ToolFallbackArgs
@@ -108,13 +109,14 @@ export const states = defineStates([
   {
     key: "tool-error",
     label: "Tool threw",
-    note: "The tool threw, so its error message comes back as the result.",
+    note: "The tool threw, so it reads as failed and its error message comes back as the result.",
     Component: () => (
       <Frame>
         <ToolFallbackRoot open onOpenChange={noop}>
           <ToolFallbackTrigger
             toolName="run_sql"
             status={{ type: "complete" }}
+            isError
           />
           <ToolFallbackContent>
             <ToolFallbackArgs
@@ -149,32 +151,6 @@ export const states = defineStates([
                 argsText={json({
                   query: "SELECT count(*) FROM orders WHERE status = 'open'",
                 })}
-              />
-            </ToolFallbackContent>
-          </ToolFallbackRoot>
-        </Frame>
-      );
-    },
-  },
-  {
-    key: "cancelled",
-    label: "Cancelled",
-    note: "The run stopped before the tool finished, so the call is struck through.",
-    Component: () => {
-      const status = {
-        type: "incomplete",
-        reason: "cancelled",
-        error: "Stopped by the user",
-      } as const;
-      return (
-        <Frame>
-          <ToolFallbackRoot open onOpenChange={noop}>
-            <ToolFallbackTrigger toolName="crawl_site" status={status} />
-            <ToolFallbackContent>
-              <ToolFallbackError status={status} />
-              <ToolFallbackArgs
-                className="opacity-60"
-                argsText={json({ url: "https://docs.acme.dev", maxPages: 500 })}
               />
             </ToolFallbackContent>
           </ToolFallbackRoot>

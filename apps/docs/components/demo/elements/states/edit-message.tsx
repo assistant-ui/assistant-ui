@@ -32,7 +32,7 @@ export const states = defineStates([
   {
     key: "no-loss",
     label: "No replies",
-    note: "Nothing has answered this message yet, so no warning shows.",
+    note: "Nothing has answered this message yet, so no notice shows.",
     Component: () => (
       <EditMessage
         {...handlers}
@@ -45,7 +45,7 @@ export const states = defineStates([
   {
     key: "one-reply",
     label: "One reply",
-    note: "The warning uses the singular when only one reply would be lost.",
+    note: "The notice uses the singular when only one reply moves to the old branch.",
     Component: () => (
       <EditMessage
         {...handlers}

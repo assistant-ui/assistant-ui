@@ -29,6 +29,20 @@ export const states = defineStates([
     Component: () => <ToolCall {...base} running={false} open />,
   },
   {
+    key: "failed",
+    label: "Failed",
+    note: "The tool threw or was denied, so the call settles with a cross.",
+    Component: () => (
+      <ToolCall
+        {...base}
+        result="Error: search index unavailable"
+        running={false}
+        failed
+        open
+      />
+    ),
+  },
+  {
     key: "long-content",
     label: "Long input",
     note: "A long query truncates in the header, while the request and result wrap inside the same width.",
