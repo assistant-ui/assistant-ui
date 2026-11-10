@@ -5,18 +5,16 @@ import { readCloudNumber, readCloudRecord } from "./cloudResponse";
 export type CloudRunEndReason = "done" | "cancelled" | "error";
 
 export type AssistantCloudRunHeartbeatResponse = {
-  expires_in_ms: number;
   heartbeat_interval_ms: number;
 };
 
 /**
  * Run leases on thread messages. A lease is opened with `open_run` when its
- * message is created and belongs to that message alone. Its holder keeps it
- * alive with heartbeats on the server's `heartbeat_interval_ms`; the server
- * sets the TTL. A run that stops heartbeating reads as stale once its lease
- * expires, and an expired lease never comes back: heartbeats and writes with
- * it answer 409 `run_stale`. Writes as the holder go through
- * `threads.messages` with the `lease_id`.
+ * message is created, belongs to that message alone, and runs until its
+ * holder ends it; the server never expires one. The holder heartbeats on the
+ * server's `heartbeat_interval_ms`, and listed messages report how long ago
+ * the last beat was, so readers can tell a run whose tab went away. Writes as
+ * the holder go through `threads.messages` with the `lease_id`.
  */
 export class AssistantCloudThreadRuns {
   private cloud: AssistantCloudAPI;
@@ -26,8 +24,8 @@ export class AssistantCloudThreadRuns {
   }
 
   /**
-   * Keeps a run lease alive. 409 `run_stale` once it expired, 409
-   * `run_ended` after it ended, 404 for a lease the server does not know.
+   * Records a beat of a running lease. 409 `run_ended` after it ended, 404
+   * for a lease the server does not know.
    */
   public async heartbeat(
     threadId: string,
@@ -41,7 +39,6 @@ export class AssistantCloudThreadRuns {
       "run heartbeat response",
     );
     return {
-      expires_in_ms: readCloudNumber(response.expires_in_ms, "expires_in_ms"),
       heartbeat_interval_ms: readCloudNumber(
         response.heartbeat_interval_ms,
         "heartbeat_interval_ms",
@@ -50,9 +47,8 @@ export class AssistantCloudThreadRuns {
   }
 
   /**
-   * Ends a run without a content write; ending an ended run again succeeds.
-   * 409 `run_stale` once the lease expired, 404 for a lease the server does
-   * not know.
+   * Ends a run without a content write; ending an ended run again succeeds
+   * and keeps the first reason. 404 for a lease the server does not know.
    */
   public async end(
     threadId: string,

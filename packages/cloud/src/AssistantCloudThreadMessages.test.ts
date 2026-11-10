@@ -180,7 +180,6 @@ describe("AssistantCloudThreadMessages run leases", () => {
     makeRequest.mockResolvedValueOnce({
       message_id: "msg_1",
       lease_id: "lease_1",
-      expires_in_ms: 90000,
       heartbeat_interval_ms: 20000,
     });
 
@@ -195,7 +194,6 @@ describe("AssistantCloudThreadMessages run leases", () => {
       message_id: "msg_1",
       run: {
         lease_id: "lease_1",
-        expires_in_ms: 90000,
         heartbeat_interval_ms: 20000,
       },
     });
@@ -240,16 +238,20 @@ describe("AssistantCloudThreadMessages run leases", () => {
     };
     makeRequest.mockResolvedValueOnce({
       messages: [
-        { ...row, run: { status: "running", expires_in_ms: 1200 } },
-        { ...row, id: "msg_2", run: { status: "stale" } },
+        { ...row, run: { status: "running", last_heartbeat_ms_ago: 1200 } },
+        {
+          ...row,
+          id: "msg_2",
+          run: { status: "ended", last_heartbeat_ms_ago: 40_000 },
+        },
         { ...row, id: "msg_3", run: null },
       ],
     });
 
     const { messages: listed } = await messages.list("t1");
     expect(listed.map((m) => m.run)).toEqual([
-      { status: "running", expires_in_ms: 1200 },
-      { status: "stale" },
+      { status: "running", last_heartbeat_ms_ago: 1200 },
+      { status: "ended", last_heartbeat_ms_ago: 40_000 },
       undefined,
     ]);
 

@@ -2,6 +2,7 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "./AssistantCloud";
 import type {
   CloudMessage,
+  CloudMessageRun,
   CloudRunLease,
 } from "./AssistantCloudThreadMessages";
 import { CloudAPIError } from "./AssistantCloudAPI";
@@ -21,7 +22,7 @@ type OpenRun = {
 
 /**
  * A message's run lease as this persistence knows it: held, ended by our own
- * final write, or lost (expired or refused). A lost run's message gets no
+ * final write, or lost (ended elsewhere or refused). A lost run's message gets no
  * further writes; an ended one only plain writes.
  */
 type Run = OpenRun | "ended" | "lost";
@@ -29,8 +30,26 @@ type Run = OpenRun | "ended" | "lost";
 const isOpen = (run: Run | undefined): run is OpenRun =>
   typeof run === "object";
 
+/** How long a running lease may go without a heartbeat before its message reads as stale. */
+export const DEFAULT_RUN_STALE_AFTER_MS = 30_000;
+
+export type CloudMessagePersistenceOptions = {
+  /**
+   * Milliseconds without a heartbeat after which a running lease reads as
+   * stale, which is what a run whose tab went away looks like. Default
+   * 30 000. The server never expires a run: a late run that beats again
+   * reads as running again, and its writes still land.
+   */
+  staleAfter?: number | undefined;
+};
+
+/** Where a listed message's run stands for a reader: still beating, or quiet for longer than `staleAfter`. */
+export type CloudRunState =
+  | { status: "in-progress"; staleInMs: number }
+  | { status: "stale" };
+
 /** 409 codes after which the lease is gone for good: nothing more is written for its message. */
-const LOST_LEASE_CODES = new Set(["run_stale", "run_ended", "lease_mismatch"]);
+const LOST_LEASE_CODES = new Set(["run_ended", "lease_mismatch"]);
 
 const lostLeaseCode = (error: unknown): string | undefined =>
   error instanceof CloudAPIError &&
@@ -60,10 +79,11 @@ type FailedAppend = {
  *
  * A message appended as running holds a run lease, renewed by heartbeats on
  * the server's interval until a write with an end reason ends it. Heartbeats
- * keep running while the page is in the background; a run whose heartbeats
- * stop reads as stale once the server's TTL passes. A lease that is lost
- * (expired or refused) is final: the message gets no further writes from
- * this persistence.
+ * keep running while the page is in the background. The server never
+ * expires a lease; readers show a run as stale once it has gone `staleAfter`
+ * without a beat, and a late run keeps writing its own message. A lease that
+ * is lost (ended elsewhere or refused) is final: the message gets no further
+ * writes from this persistence.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -72,11 +92,34 @@ export class CloudMessagePersistence {
   private runs = new Map<string, Run>();
   private runWrites = new Map<string, Promise<unknown>>();
   private getCloud: () => AssistantCloud;
+  private staleAfter: number;
 
-  constructor(cloud: AssistantCloud);
-  constructor(getCloud: () => AssistantCloud);
-  constructor(cloud: AssistantCloud | (() => AssistantCloud)) {
+  constructor(cloud: AssistantCloud, options?: CloudMessagePersistenceOptions);
+  constructor(
+    getCloud: () => AssistantCloud,
+    options?: CloudMessagePersistenceOptions,
+  );
+  constructor(
+    cloud: AssistantCloud | (() => AssistantCloud),
+    options: CloudMessagePersistenceOptions = {},
+  ) {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
+    this.staleAfter = options.staleAfter ?? DEFAULT_RUN_STALE_AFTER_MS;
+  }
+
+  /**
+   * Reads a listed message's run against `staleAfter`; `sinceReadMs` is the
+   * time since the list was read. Undefined for no run or an ended one.
+   */
+  runStateOf(
+    run: CloudMessageRun | undefined,
+    sinceReadMs = 0,
+  ): CloudRunState | undefined {
+    if (run?.status !== "running") return undefined;
+    const quietMs = run.last_heartbeat_ms_ago + sinceReadMs;
+    return quietMs >= this.staleAfter
+      ? { status: "stale" }
+      : { status: "in-progress", staleInMs: this.staleAfter - quietMs };
   }
 
   /**
@@ -89,8 +132,8 @@ export class CloudMessagePersistence {
    * @param content - Message content (format-specific)
    * @param run - `running` stores the message with an open run lease that is
    *   kept alive by heartbeats until a write with an end reason closes it.
-   *   Once the lease is lost (it went stale or the server refused it), later
-   *   writes for the message are dropped.
+   *   Once the lease is lost (it was ended elsewhere or the server refused
+   *   it), later writes for the message are dropped.
    */
   async append(
     threadId: string,
@@ -324,7 +367,7 @@ export class CloudMessagePersistence {
       open.intervalMs = response.heartbeat_interval_ms;
     } catch (error) {
       if (this.runs.get(messageId) !== open) return;
-      // A stale or ended lease, or one the server does not know, is final; a network error is retried on the next beat.
+      // An ended lease, or one the server does not know, is final; a network error is retried on the next beat.
       if (
         error instanceof CloudAPIError &&
         (error.status === 409 || error.status === 404)

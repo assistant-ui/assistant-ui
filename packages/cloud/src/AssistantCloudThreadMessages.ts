@@ -21,20 +21,20 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
-  /** Present while the message's run lease is open: `running` while its holder heartbeats, `stale` once its heartbeats stopped for longer than the TTL. */
+  /** Present on a message that had a run lease: its running lease, or else its latest ended one. */
   run?: CloudMessageRun | undefined;
 };
 
 export type CloudMessageRun = {
-  status: "running" | "stale";
-  /** Server-measured time until a running lease lapses. */
-  expires_in_ms?: number | undefined;
+  /** A lease runs until its holder ends it; the server never expires one. */
+  status: "running" | "ended";
+  /** Time since the lease's last heartbeat, measured by the server when it listed the message. */
+  last_heartbeat_ms_ago: number;
 };
 
-/** A run lease the server granted, with its timing measured by the server. */
+/** A run lease the server granted. */
 export type CloudRunLease = {
   lease_id: string;
-  expires_in_ms: number;
   heartbeat_interval_ms: number;
 };
 
@@ -72,7 +72,7 @@ type AssistantCloudThreadMessageUpdateBody = {
   lease_id?: string | undefined;
 };
 
-const RUN_STATUSES = ["running", "stale"] as const;
+const RUN_STATUSES = ["running", "ended"] as const;
 
 const decodeCloudMessageRun = (
   value: unknown,
@@ -82,9 +82,10 @@ const decodeCloudMessageRun = (
   const run = readCloudRecord(value, field);
   return {
     status: readCloudEnum(run.status, `${field}.status`, RUN_STATUSES),
-    ...(typeof run.expires_in_ms === "number"
-      ? { expires_in_ms: run.expires_in_ms }
-      : undefined),
+    last_heartbeat_ms_ago: readCloudNumber(
+      run.last_heartbeat_ms_ago,
+      `${field}.last_heartbeat_ms_ago`,
+    ),
   };
 };
 
@@ -93,7 +94,6 @@ const decodeCloudRunLease = (
   response: Record<string, unknown>,
 ): CloudRunLease => ({
   lease_id: readCloudString(response.lease_id, "lease_id"),
-  expires_in_ms: readCloudNumber(response.expires_in_ms, "expires_in_ms"),
   heartbeat_interval_ms: readCloudNumber(
     response.heartbeat_interval_ms,
     "heartbeat_interval_ms",

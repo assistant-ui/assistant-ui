@@ -9,7 +9,6 @@ import {
 
 const run = {
   lease_id: "lease_1",
-  expires_in_ms: 90_000,
   heartbeat_interval_ms: 20_000,
 };
 
@@ -22,7 +21,6 @@ const createCloud = () => {
   };
   const runs = {
     heartbeat: vi.fn().mockResolvedValue({
-      expires_in_ms: 90_000,
       heartbeat_interval_ms: 20_000,
     }),
     end: vi.fn().mockResolvedValue(undefined),
@@ -179,7 +177,6 @@ describe("CloudMessagePersistence run leases", () => {
   });
 
   it.each([
-    ["run_stale", new CloudAPIError("stale", 409, "run_stale")],
     ["run_ended", new CloudAPIError("ended", 409, "run_ended")],
     ["lease_mismatch", new CloudAPIError("mismatch", 409, "lease_mismatch")],
   ])(
@@ -213,34 +210,6 @@ describe("CloudMessagePersistence run leases", () => {
     },
   );
 
-  it("drops the final write of a run the server reported stale on a heartbeat", async () => {
-    const { cloud, messages, runs } = createCloud();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    runs.heartbeat.mockRejectedValueOnce(
-      new CloudAPIError("stale", 409, "run_stale"),
-    );
-    const persistence = new CloudMessagePersistence(cloud);
-    await persistence.append(
-      "t1",
-      "local-a",
-      null,
-      "aui/v0",
-      running,
-      "running",
-    );
-
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect(persistence.hasOpenRun("local-a")).toBe(false);
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(runs.heartbeat).toHaveBeenCalledTimes(1);
-
-    await persistence.append("t1", "local-a", null, "aui/v0", done);
-    await persistence.update("t1", "local-a", "aui/v0", done, "done");
-    expect(messages.update).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
-  });
-
   it("keeps a plain final write after the run's own end closed the lease", async () => {
     const { cloud, messages } = createCloud();
     const persistence = new CloudMessagePersistence(cloud);
@@ -273,12 +242,10 @@ describe("CloudMessagePersistence run leases", () => {
       message_id: "msg_1",
       run: {
         lease_id: "lease_1",
-        expires_in_ms: 90_000,
         heartbeat_interval_ms: 20_000,
       },
     });
     runs.heartbeat.mockResolvedValueOnce({
-      expires_in_ms: 90_000,
       heartbeat_interval_ms: 45_000,
     });
     const persistence = new CloudMessagePersistence(cloud);
@@ -306,7 +273,7 @@ describe("CloudMessagePersistence run leases", () => {
     const { cloud, runs } = createCloud();
     const persistence = new CloudMessagePersistence(cloud);
     runs.end.mockRejectedValueOnce(
-      new CloudAPIError("stale", 409, "run_stale"),
+      new CloudAPIError("Run not found", 404, "not_found"),
     );
     await persistence.append("t1", "a", null, "aui/v0", running, "running");
     await expect(
@@ -346,15 +313,52 @@ describe("CloudMessagePersistence run leases", () => {
     await gone.append("t1", "local-b", null, "aui/v0", running, "running");
     await vi.advanceTimersByTimeAsync(20_000);
     expect(gone.hasOpenRun("local-b")).toBe(false);
-
-    const stale = new CloudMessagePersistence(cloud);
-    runs.heartbeat.mockRejectedValueOnce(
-      new CloudAPIError("stale", 409, "run_stale"),
-    );
-    await stale.append("t1", "local-c", null, "aui/v0", running, "running");
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect(stale.hasOpenRun("local-c")).toBe(false);
     vi.mocked(console.warn).mockRestore();
+  });
+
+  it("keeps writing a run that comes back late after a long quiet stretch", async () => {
+    const { cloud, messages, runs } = createCloud();
+    runs.heartbeat.mockRejectedValueOnce(new TypeError("offline"));
+    const persistence = new CloudMessagePersistence(cloud);
+    await persistence.append("t1", "a", null, "aui/v0", running, "running");
+
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(persistence.hasOpenRun("a")).toBe(true);
+    await persistence.update("t1", "a", "aui/v0", done, "done");
+    expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
+      content: done,
+      lease_id: "lease_1",
+    });
+    expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", { reason: "done" });
+  });
+
+  it("reads a running lease as stale once it went staleAfter without a beat", () => {
+    const { cloud } = createCloud();
+    const persistence = new CloudMessagePersistence(cloud);
+    expect(
+      persistence.runStateOf({
+        status: "running",
+        last_heartbeat_ms_ago: 5_000,
+      }),
+    ).toEqual({ status: "in-progress", staleInMs: 25_000 });
+    expect(
+      persistence.runStateOf(
+        { status: "running", last_heartbeat_ms_ago: 5_000 },
+        25_000,
+      ),
+    ).toEqual({ status: "stale" });
+    expect(
+      persistence.runStateOf({
+        status: "ended",
+        last_heartbeat_ms_ago: 90_000,
+      }),
+    ).toBeUndefined();
+    expect(persistence.runStateOf(undefined)).toBeUndefined();
+
+    const patient = new CloudMessagePersistence(cloud, { staleAfter: 120_000 });
+    expect(
+      patient.runStateOf({ status: "running", last_heartbeat_ms_ago: 60_000 }),
+    ).toEqual({ status: "in-progress", staleInMs: 60_000 });
   });
 
   it("keeps heartbeating through a network error", async () => {
