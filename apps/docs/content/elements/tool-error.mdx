@@ -9,7 +9,7 @@ A failed tool call gets its own card: what was called, the error, how many attem
 
 <RuntimeMode>
 
-A failed call is one whose status settled on `"incomplete"`. Branch on it inside the same renderer that shows the tool's normal result.
+A call fails in one of two ways. A tool whose `execute` throws completes with `isError` set and the error as its `result`. A run that fails before the tool returns leaves the call `"incomplete"` with `status.error`. Branch on both inside the same renderer that shows the tool's normal result.
 
 <Steps>
   <Step>
@@ -22,16 +22,18 @@ A failed call is one whose status settled on `"incomplete"`. Branch on it inside
 import { useAui, useAuiState, type ToolCallMessagePartProps } from "@assistant-ui/react";
 import { ToolError } from "@/components/assistant-ui/elements/tool-error";
 
-export function SearchTool({ toolName, args, status, result }: ToolCallMessagePartProps<{ query: string }, string>) {
-  const attempt = useAuiState((s) => s.message.branchNumber);
+export function SearchTool({ toolName, args, status, result, isError }: ToolCallMessagePartProps<{ query: string }, string>) {
+  const attempt = useAuiState((s) => s.message.branchCount);
   const aui = useAui();
 
-  if (status?.type === "incomplete") {
+  const runFailed = status.type === "incomplete" && status.reason === "error";
+  if (isError === true || runFailed) {
+    const error = isError ? result : status.type === "incomplete" ? status.error : undefined;
     return (
       <ToolError
         name={toolName}
         target={args.query}
-        message={typeof status.error === "string" ? status.error : JSON.stringify(status.error)}
+        message={typeof error === "string" ? error : JSON.stringify(error)}
         attempt={attempt}
         maxAttempts={3}
         retrying={false}
@@ -44,7 +46,7 @@ export function SearchTool({ toolName, args, status, result }: ToolCallMessagePa
 }
 ```
 
-`status.error` carries whatever the failed `execute` threw or whatever the backend reported; it's `unknown`, so guard the string case before rendering it directly.
+A thrown error arrives as `result`, and a failed run's error as `status.error`, which is `unknown`, so guard the string case before rendering it directly.
 
   </Step>
   <Step>
@@ -77,7 +79,7 @@ function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-assistant-ui doesn't retry a single tool call in place; `aui.message.reload()` reissues the whole turn as a new branch of the assistant message, which calls `search_web` again. The branch number counts the attempts, so it survives the remount a reload causes.
+assistant-ui doesn't retry a single tool call in place; `aui.message.reload()` reissues the whole turn as a new branch of the assistant message, which calls `search_web` again. `branchCount` counts the attempts, survives the remount a reload causes, and doesn't change when the user steps back to an earlier branch.
 
   </Step>
 </Steps>
@@ -164,7 +166,7 @@ Skip has no default behavior: passing no `onSkip` leaves the button rendered but
 
 <RuntimeMode>
 
-`status.type === "incomplete"` covers more than tool errors: `status.reason` can also be `"cancelled"`, `"length"`, `"content-filter"`, or `"other"`. Only show the retry card for `"error"`, and give the rest their own message:
+`status.type === "incomplete"` covers more than errors: `status.reason` can also be `"cancelled"`, `"length"`, `"content-filter"`, or `"other"`. The example above shows the retry card only for `"error"`; give the rest their own message:
 
 ```tsx
 if (status?.type === "incomplete" && status.reason !== "error") {
@@ -186,7 +188,8 @@ Both lanes take `className` on the root. The root uses the shared `paper` surfac
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | `"incomplete"` is the failed (or cancelled) state. |
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | A thrown tool reads `"complete"` with `isError`; `"incomplete"` is a run that failed or stopped before the tool returned. |
+| `isError` | `boolean \| undefined` | Set when `result` is the error a tool threw or a denied approval. |
 | `status.reason` | `"cancelled" \| "length" \| "content-filter" \| "other" \| "error"` | Only present when `status.type` is `"incomplete"`. |
 | `status.error` | `unknown` | Only present when `status.type` is `"incomplete"`; the thrown value or backend-reported error. |
 | `useToolCallElapsed()` | `number \| undefined` | Elapsed time for the current call; `undefined` once it has settled with no recorded duration. |

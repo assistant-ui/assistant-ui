@@ -53,7 +53,7 @@ export function MessagePair({
       <div
         ref={replyRef}
         tabIndex={-1}
-        className="group/message flex flex-col items-start outline-none"
+        className="group/message focus-visible:ring-foreground/20 flex flex-col items-start rounded-lg outline-none focus-visible:ring-1"
       >
         <p className="min-h-[4.25rem] text-sm leading-relaxed">
           {shown.map((word, index) => {
