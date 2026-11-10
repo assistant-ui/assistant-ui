@@ -5,8 +5,13 @@ import {
   decodeCloudRunLease,
 } from "./AssistantCloudThreadMessages";
 
-/** Why a run ended. */
-export type CloudRunEndReason = "done" | "cancelled" | "error";
+/**
+ * Why a run ended. `interrupted` means its holder is going away (a closing
+ * tab) while the reply is unfinished: the lease expires at once, so the
+ * message reads `stale` and can be resumed right away instead of after the
+ * lease's TTL.
+ */
+export type CloudRunEndReason = "done" | "cancelled" | "error" | "interrupted";
 
 export type AssistantCloudRunHeartbeatResponse = {
   expires_in_ms: number;
@@ -15,8 +20,11 @@ export type AssistantCloudRunHeartbeatResponse = {
 
 /**
  * Run leases on thread messages. A run's holder keeps its lease alive with
- * heartbeats; a run that stops heartbeating reads as stale, and a new run
- * opened under it resumes it. Writes as the holder go through
+ * heartbeats on the server's `heartbeat_interval_ms`; the server sets the
+ * lease's TTL. A run that stops heartbeating reads as stale once its lease
+ * expires, and an expired lease never comes back: heartbeats and writes with
+ * it answer 409 `run_stale`. A new run opened under a stale message resumes
+ * it and supersedes the stale lease. Writes as the holder go through
  * `threads.messages` with the `lease_id`.
  */
 export class AssistantCloudThreadRuns {
@@ -42,7 +50,10 @@ export class AssistantCloudThreadRuns {
     );
   }
 
-  /** Keeps a run lease alive; 409 `superseded` once another run resumed it, 409 `run_ended` after it ended. */
+  /**
+   * Keeps a run lease alive. 409 `run_stale` once it expired, 409
+   * `superseded` once another run resumed it, 409 `run_ended` after it ended.
+   */
   public async heartbeat(
     threadId: string,
     leaseId: string,
@@ -63,15 +74,24 @@ export class AssistantCloudThreadRuns {
     };
   }
 
-  /** Ends a run without a content write; ending an ended run again succeeds. */
+  /**
+   * Ends a run without a content write; ending an ended run again succeeds.
+   * 409 `run_stale` once the lease expired, 409 `superseded` once another
+   * run resumed it. `keepalive` lets the request outlive a closing page.
+   */
   public async end(
     threadId: string,
     leaseId: string,
     body: { reason?: CloudRunEndReason } = {},
+    options: { keepalive?: boolean } = {},
   ): Promise<void> {
     await this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(leaseId)}/end`,
-      { method: "POST", body },
+      {
+        method: "POST",
+        body,
+        ...(options.keepalive ? { keepalive: true } : undefined),
+      },
     );
   }
 }

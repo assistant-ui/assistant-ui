@@ -18,26 +18,43 @@ type OpenRun = {
   remoteId: string;
   intervalMs: number;
   timer: ReturnType<typeof setTimeout> | undefined;
-  superseded: boolean;
 };
 
-const isRunWriteRefusal = (error: unknown): error is CloudAPIError =>
+export type CloudMessagePersistenceOptions = {
+  /**
+   * Set when a run keeps going on the server after the tab that holds its
+   * lease goes away (a backend that finishes the reply without the client).
+   * By default a hidden page ends every run this persistence holds with
+   * reason `interrupted`, so the message reads `stale` at once; with this
+   * set, held runs stay open and lapse when their lease's TTL runs out.
+   */
+  runsContinueOnServer?: boolean | undefined;
+};
+
+/** 409 codes after which the lease is gone for good: nothing more is written for its message. */
+const LOST_LEASE_CODES = new Set([
+  "run_stale",
+  "superseded",
+  "run_ended",
+  "lease_mismatch",
+]);
+
+const lostLeaseCode = (error: unknown): string | undefined =>
   error instanceof CloudAPIError &&
   error.status === 409 &&
-  (error.code === "run_ended" || error.code === "lease_mismatch");
+  error.code !== undefined &&
+  LOST_LEASE_CODES.has(error.code)
+    ? error.code
+    : undefined;
 
-// A server that predates run leases rejects the unknown `run` key of its strict create schema.
+// A superseded lease's first write is stored once as a sibling of its message; the response names it.
 const forkOf = (error: unknown): string | undefined => {
-  if (
-    !(error instanceof CloudAPIError) ||
-    error.status !== 409 ||
-    error.code !== "superseded"
-  )
-    return undefined;
-  const forked = error.details?.message_id;
+  if (lostLeaseCode(error) !== "superseded") return undefined;
+  const forked = (error as CloudAPIError).details?.message_id;
   return typeof forked === "string" ? forked : undefined;
 };
 
+// A server that predates run leases rejects the unknown `run` key of its strict create schema.
 const isRunUnsupported = (error: unknown) =>
   error instanceof CloudAPIError && error.status === 400;
 
@@ -60,12 +77,23 @@ export class CloudMessagePersistence {
   private failedAppends = new Map<string, FailedAppend>();
   private openRuns = new Map<string, OpenRun>();
   private runWrites = new Map<string, Promise<unknown>>();
+  /** Local ids whose lease was lost (stale, superseded, ended elsewhere); their later writes are dropped. */
+  private lostRuns = new Set<string>();
+  private pageHideTarget: Window | undefined;
   private getCloud: () => AssistantCloud;
+  private options: CloudMessagePersistenceOptions;
 
-  constructor(cloud: AssistantCloud);
-  constructor(getCloud: () => AssistantCloud);
-  constructor(cloud: AssistantCloud | (() => AssistantCloud)) {
+  constructor(cloud: AssistantCloud, options?: CloudMessagePersistenceOptions);
+  constructor(
+    getCloud: () => AssistantCloud,
+    options?: CloudMessagePersistenceOptions,
+  );
+  constructor(
+    cloud: AssistantCloud | (() => AssistantCloud),
+    options: CloudMessagePersistenceOptions = {},
+  ) {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
+    this.options = options;
   }
 
   /**
@@ -77,7 +105,10 @@ export class CloudMessagePersistence {
    * @param format - Message format (e.g., "aui/v0", "ai-sdk/v6")
    * @param content - Message content (format-specific)
    * @param run - `running` stores the message with an open run lease that is
-   *   kept alive by heartbeats until a write with an end reason closes it
+   *   kept alive by heartbeats until a write with an end reason closes it.
+   *   Once the lease is lost (it went stale, another session resumed the
+   *   message, or the server refused it), later writes for the message are
+   *   dropped.
    */
   async append(
     threadId: string,
@@ -87,11 +118,12 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
   ): Promise<void> {
+    if (this.lostRuns.has(messageId)) return;
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
       await existing.catch(() => undefined);
-      if (this.openRuns.has(messageId)) {
+      if (this.openRuns.has(messageId) || this.lostRuns.has(messageId)) {
         await this.update(threadId, messageId, format, content, run);
       }
       return;
@@ -182,8 +214,10 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
   ): Promise<void> {
+    if (this.lostRuns.has(messageId)) return;
     const cloud = this.getCloud();
     const remoteId = await this.getRemoteId(messageId);
+    if (this.lostRuns.has(messageId)) return;
     if (!remoteId) {
       console.warn(
         `Skipping update for message ${messageId}: no remote id is mapped.`,
@@ -214,10 +248,11 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     phase: CloudMessageRunPhase,
   ): Promise<void> {
+    if (this.lostRuns.has(messageId)) return;
     const open = this.openRuns.get(messageId);
     const cloud = this.getCloud();
     if (!open) {
-      // The lease closed under an earlier write: a checkpoint is dropped, a final answer lands as a plain write.
+      // Our own end closed the lease under an earlier write: a checkpoint is dropped, a final answer lands as a plain write.
       const remoteId = await this.getRemoteId(messageId);
       if (phase === "running" || !remoteId) return;
       await cloud.threads.messages.update(threadId, remoteId, { content });
@@ -229,17 +264,16 @@ export class CloudMessagePersistence {
         lease_id: open.leaseId,
       });
     } catch (error) {
+      const code = lostLeaseCode(error);
+      if (!code) throw error;
       const forkedId = forkOf(error);
-      if (forkedId) {
-        // Another session resumed this run; the write was stored as a sibling and the lease now writes there.
-        open.remoteId = forkedId;
-        this.idMapping.set(messageId, forkedId);
-      } else if (isRunWriteRefusal(error)) {
-        this.closeRun(messageId);
-        return;
-      } else {
-        throw error;
-      }
+      // Another session resumed this run: this write was stored once as a sibling, and nothing more is written there.
+      if (forkedId) this.idMapping.set(messageId, forkedId);
+      this.loseRun(
+        messageId,
+        forkedId ? `superseded, forked to ${forkedId}` : code,
+      );
+      return;
     }
     if (phase === "running") {
       this.scheduleHeartbeat(messageId);
@@ -266,6 +300,7 @@ export class CloudMessagePersistence {
     if (typeof remoteId !== "string" || this.idMapping.has(to)) return;
     this.idMapping.delete(from);
     this.idMapping.set(to, remoteId);
+    if (this.lostRuns.delete(from)) this.lostRuns.add(to);
     const open = this.openRuns.get(from);
     if (!open) return;
     this.openRuns.delete(from);
@@ -287,20 +322,21 @@ export class CloudMessagePersistence {
     lease: CloudRunLease,
   ) {
     this.closeRun(messageId);
+    this.lostRuns.delete(messageId);
     this.openRuns.set(messageId, {
       threadId,
       leaseId: lease.lease_id,
       remoteId,
       intervalMs: lease.heartbeat_interval_ms,
       timer: undefined,
-      superseded: false,
     });
+    this.watchPageHide();
     this.scheduleHeartbeat(messageId);
   }
 
   private scheduleHeartbeat(messageId: string) {
     const open = this.openRuns.get(messageId);
-    if (!open || open.superseded) return;
+    if (!open) return;
     if (open.timer !== undefined) clearTimeout(open.timer);
     open.timer = setTimeout(() => {
       open.timer = undefined;
@@ -317,17 +353,13 @@ export class CloudMessagePersistence {
       );
       open.intervalMs = response.heartbeat_interval_ms;
     } catch (error) {
+      if (this.openRuns.get(messageId) !== open) return;
       if (error instanceof CloudAPIError && error.status === 409) {
-        if (error.code === "superseded") {
-          // Another session resumed this run; its next write forks to a sibling instead of overwriting the resumed reply.
-          open.superseded = true;
-          return;
-        }
-        this.closeRun(messageId);
+        this.loseRun(messageId, error.code ?? "conflict");
         return;
       }
       if (error instanceof CloudAPIError && error.status === 404) {
-        this.closeRun(messageId);
+        this.loseRun(messageId, "not found");
         return;
       }
     }
@@ -335,12 +367,56 @@ export class CloudMessagePersistence {
       this.scheduleHeartbeat(messageId);
   }
 
+  /** The lease is gone for good: stop heartbeating and drop every later write for the message. */
+  private loseRun(messageId: string, reason: string, quiet = false) {
+    this.closeRun(messageId);
+    if (this.lostRuns.has(messageId)) return;
+    this.lostRuns.add(messageId);
+    if (!quiet)
+      console.warn(
+        `[assistant-cloud] Lost the run lease of message ${messageId} (${reason}); later writes for it are dropped.`,
+      );
+  }
+
   private closeRun(messageId: string) {
     const open = this.openRuns.get(messageId);
     if (!open) return;
     if (open.timer !== undefined) clearTimeout(open.timer);
     this.openRuns.delete(messageId);
+    if (this.openRuns.size === 0) this.unwatchPageHide();
   }
+
+  private watchPageHide() {
+    if (this.options.runsContinueOnServer || this.pageHideTarget) return;
+    if (
+      typeof window === "undefined" ||
+      typeof window.addEventListener !== "function"
+    )
+      return;
+    this.pageHideTarget = window;
+    window.addEventListener("pagehide", this.onPageHide);
+  }
+
+  private unwatchPageHide() {
+    this.pageHideTarget?.removeEventListener("pagehide", this.onPageHide);
+    this.pageHideTarget = undefined;
+  }
+
+  // Heartbeats are main-thread timers that hidden tabs throttle, so a leaving page ends its runs as interrupted; the TTL covers a request that never lands.
+  private onPageHide = () => {
+    const cloud = this.getCloud();
+    for (const [messageId, open] of [...this.openRuns]) {
+      void cloud.threads.runs
+        .end(
+          open.threadId,
+          open.leaseId,
+          { reason: "interrupted" },
+          { keepalive: true },
+        )
+        .catch(() => undefined);
+      this.loseRun(messageId, "interrupted", true);
+    }
+  };
 
   /**
    * Delete mapped messages from the cloud and clear their local ID mappings.
@@ -476,6 +552,8 @@ export class CloudMessagePersistence {
   reset() {
     this.idMapping = new Map();
     this.failedAppends = new Map();
+    this.lostRuns = new Set();
     for (const messageId of [...this.openRuns.keys()]) this.closeRun(messageId);
+    this.unwatchPageHide();
   }
 }

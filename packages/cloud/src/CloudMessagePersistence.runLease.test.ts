@@ -2,10 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudMessagePersistence } from "./CloudMessagePersistence";
 import type { AssistantCloud } from "./AssistantCloud";
 import { CloudAPIError } from "./AssistantCloudAPI";
+import {
+  createFormattedPersistence,
+  type MessageFormatAdapter,
+} from "./FormattedCloudPersistence";
 
 const run = {
   lease_id: "lease_1",
-  expires_in_ms: 30_000,
+  expires_in_ms: 90_000,
   heartbeat_interval_ms: 20_000,
 };
 
@@ -18,7 +22,7 @@ const createCloud = () => {
   };
   const runs = {
     heartbeat: vi.fn().mockResolvedValue({
-      expires_in_ms: 30_000,
+      expires_in_ms: 90_000,
       heartbeat_interval_ms: 20_000,
     }),
     end: vi.fn().mockResolvedValue(undefined),
@@ -180,14 +184,91 @@ describe("CloudMessagePersistence run leases", () => {
     });
   });
 
-  it("follows the fork when a superseded run's write answers 409 superseded", async () => {
+  it("stores a superseded run's write once on the fork and drops every later write", async () => {
     const { cloud, messages, runs } = createCloud();
-    runs.heartbeat.mockRejectedValueOnce(
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    messages.update.mockRejectedValueOnce(superseded("msg_fork"));
+    const persistence = new CloudMessagePersistence(cloud);
+    await persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+
+    await persistence.update(
+      "t1",
+      "local-a",
+      "aui/v0",
+      { text: "partial" },
+      "running",
+    );
+    expect(persistence.getResolvedRemoteId("local-a")).toBe("msg_fork");
+    expect(persistence.hasOpenRun("local-a")).toBe(false);
+
+    await persistence.update("t1", "local-a", "aui/v0", running, "running");
+    await persistence.update("t1", "local-a", "aui/v0", done, "done");
+    await persistence.update("t1", "local-a", "aui/v0", done);
+    await persistence.append("t1", "local-a", null, "aui/v0", done);
+    expect(messages.update).toHaveBeenCalledTimes(1);
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(runs.end).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(runs.heartbeat).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it.each([
+    ["run_stale", new CloudAPIError("stale", 409, "run_stale")],
+    [
+      "superseded after the fork",
       new CloudAPIError("superseded", 409, "superseded", {
         superseded_by: "msg_2",
       }),
+    ],
+    ["run_ended", new CloudAPIError("ended", 409, "run_ended")],
+    ["lease_mismatch", new CloudAPIError("mismatch", 409, "lease_mismatch")],
+  ])(
+    "closes the run and drops later writes when a write answers %s",
+    async (_name, error) => {
+      const { cloud, messages, runs } = createCloud();
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      messages.update.mockRejectedValueOnce(error);
+      const persistence = new CloudMessagePersistence(cloud);
+      await persistence.append(
+        "t1",
+        "local-a",
+        null,
+        "aui/v0",
+        running,
+        "running",
+      );
+
+      await expect(
+        persistence.update("t1", "local-a", "aui/v0", running, "running"),
+      ).resolves.toBeUndefined();
+      expect(persistence.hasOpenRun("local-a")).toBe(false);
+      expect(persistence.getResolvedRemoteId("local-a")).toBe("msg_1");
+
+      await persistence.update("t1", "local-a", "aui/v0", done, "done");
+      await persistence.update("t1", "local-a", "aui/v0", done);
+      expect(messages.update).toHaveBeenCalledTimes(1);
+      expect(runs.end).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    },
+  );
+
+  it("drops the final write of a run the server reported stale on a heartbeat", async () => {
+    const { cloud, messages, runs } = createCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    runs.heartbeat.mockRejectedValueOnce(
+      new CloudAPIError("stale", 409, "run_stale"),
     );
-    messages.update.mockRejectedValueOnce(superseded("msg_fork"));
     const persistence = new CloudMessagePersistence(cloud);
     await persistence.append(
       "t1",
@@ -199,44 +280,19 @@ describe("CloudMessagePersistence run leases", () => {
     );
 
     await vi.advanceTimersByTimeAsync(20_000);
-    expect(runs.heartbeat).toHaveBeenCalledTimes(1);
+    expect(persistence.hasOpenRun("local-a")).toBe(false);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(runs.heartbeat).toHaveBeenCalledTimes(1);
 
-    await persistence.update("t1", "local-a", "aui/v0", running, "running");
-    expect(persistence.getResolvedRemoteId("local-a")).toBe("msg_fork");
+    await persistence.append("t1", "local-a", null, "aui/v0", done);
     await persistence.update("t1", "local-a", "aui/v0", done, "done");
-    expect(messages.update).toHaveBeenLastCalledWith("t1", "msg_fork", {
-      content: done,
-      lease_id: "lease_1",
-    });
-    expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", { reason: "done" });
+    expect(messages.update).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
-  it("ends a forked run in the same final write", async () => {
-    const { cloud, messages, runs } = createCloud();
-    messages.update.mockRejectedValueOnce(superseded("msg_fork"));
-    const persistence = new CloudMessagePersistence(cloud);
-    await persistence.append(
-      "t1",
-      "local-a",
-      null,
-      "aui/v0",
-      running,
-      "running",
-    );
-
-    await persistence.update("t1", "local-a", "aui/v0", done, "done");
-    expect(persistence.getResolvedRemoteId("local-a")).toBe("msg_fork");
-    expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", { reason: "done" });
-    expect(persistence.hasOpenRun("local-a")).toBe(false);
-  });
-
-  it("drops a checkpoint the server refuses because the run already ended", async () => {
+  it("keeps a plain final write after the run's own end closed the lease", async () => {
     const { cloud, messages } = createCloud();
-    messages.update.mockRejectedValueOnce(
-      new CloudAPIError("ended", 409, "run_ended"),
-    );
     const persistence = new CloudMessagePersistence(cloud);
     await persistence.append(
       "t1",
@@ -246,16 +302,46 @@ describe("CloudMessagePersistence run leases", () => {
       running,
       "running",
     );
-
-    await expect(
-      persistence.update("t1", "local-a", "aui/v0", running, "running"),
-    ).resolves.toBeUndefined();
-    expect(persistence.hasOpenRun("local-a")).toBe(false);
-
+    await persistence.update("t1", "local-a", "aui/v0", done, "cancelled");
     await persistence.update("t1", "local-a", "aui/v0", done);
     expect(messages.update).toHaveBeenLastCalledWith("t1", "msg_1", {
       content: done,
     });
+  });
+
+  it("schedules heartbeats from the server's interval, not a client TTL", async () => {
+    const { cloud, messages, runs } = createCloud();
+    messages.create.mockResolvedValueOnce({
+      message_id: "msg_1",
+      run: {
+        lease_id: "lease_1",
+        expires_in_ms: 90_000,
+        heartbeat_interval_ms: 20_000,
+      },
+    });
+    runs.heartbeat.mockResolvedValueOnce({
+      expires_in_ms: 90_000,
+      heartbeat_interval_ms: 45_000,
+    });
+    const persistence = new CloudMessagePersistence(cloud);
+    await persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(runs.heartbeat).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(runs.heartbeat).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(44_999);
+    expect(runs.heartbeat).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(runs.heartbeat).toHaveBeenCalledTimes(2);
+    expect(persistence.hasOpenRun("local-a")).toBe(true);
   });
 
   it("tolerates a refused end but rethrows a server failure", async () => {
@@ -278,6 +364,7 @@ describe("CloudMessagePersistence run leases", () => {
 
   it("stops heartbeating when the server no longer knows the run", async () => {
     const { cloud, runs } = createCloud();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     runs.heartbeat.mockRejectedValueOnce(
       new CloudAPIError("ended", 409, "run_ended"),
     );
@@ -299,6 +386,17 @@ describe("CloudMessagePersistence run leases", () => {
     await gone.append("t1", "local-b", null, "aui/v0", running, "running");
     await vi.advanceTimersByTimeAsync(20_000);
     expect(gone.hasOpenRun("local-b")).toBe(false);
+
+    const resumed = new CloudMessagePersistence(cloud);
+    runs.heartbeat.mockRejectedValueOnce(
+      new CloudAPIError("superseded", 409, "superseded", {
+        superseded_by: "msg_2",
+      }),
+    );
+    await resumed.append("t1", "local-c", null, "aui/v0", running, "running");
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(resumed.hasOpenRun("local-c")).toBe(false);
+    vi.mocked(console.warn).mockRestore();
   });
 
   it("keeps heartbeating through a network error", async () => {
@@ -425,5 +523,172 @@ describe("CloudMessagePersistence run leases", () => {
     await persistence.rename("plain", "renamed");
     expect(persistence.getResolvedRemoteId("renamed")).toBe("msg_1");
     expect(persistence.hasOpenRun("renamed")).toBe(false);
+  });
+
+  describe("on pagehide", () => {
+    let page: EventTarget;
+    beforeEach(() => {
+      page = new EventTarget();
+      vi.stubGlobal("window", page);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+    const hide = () => page.dispatchEvent(new Event("pagehide"));
+
+    it("ends the runs this tab holds as interrupted with a keepalive request", async () => {
+      const { cloud, messages, runs } = createCloud();
+      messages.create
+        .mockResolvedValueOnce({ message_id: "msg_1", run })
+        .mockResolvedValueOnce({
+          message_id: "msg_2",
+          run: { ...run, lease_id: "lease_2" },
+        });
+      const persistence = new CloudMessagePersistence(cloud);
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+      await persistence.append("t1", "b", null, "aui/v0", running, "running");
+      await persistence.update("t1", "b", "aui/v0", done, "done");
+      runs.end.mockClear();
+
+      hide();
+      expect(runs.end).toHaveBeenCalledTimes(1);
+      expect(runs.end).toHaveBeenCalledWith(
+        "t1",
+        "lease_1",
+        { reason: "interrupted" },
+        { keepalive: true },
+      );
+      expect(persistence.hasOpenRun("a")).toBe(false);
+
+      messages.update.mockClear();
+      await persistence.update("t1", "a", "aui/v0", done, "done");
+      expect(messages.update).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(runs.heartbeat).not.toHaveBeenCalled();
+
+      hide();
+      expect(runs.end).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends nothing once every run ended", async () => {
+      const { cloud, runs } = createCloud();
+      const persistence = new CloudMessagePersistence(cloud);
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+      await persistence.update("t1", "a", "aui/v0", done, "done");
+      runs.end.mockClear();
+
+      hide();
+      expect(runs.end).not.toHaveBeenCalled();
+    });
+
+    it("leaves runs open when they continue on the server", async () => {
+      const { cloud, runs } = createCloud();
+      const persistence = new CloudMessagePersistence(cloud, {
+        runsContinueOnServer: true,
+      });
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+
+      hide();
+      expect(runs.end).not.toHaveBeenCalled();
+      expect(persistence.hasOpenRun("a")).toBe(true);
+    });
+
+    it("stops listening on reset", async () => {
+      const { cloud, runs } = createCloud();
+      const persistence = new CloudMessagePersistence(cloud);
+      await persistence.append("t1", "a", null, "aui/v0", running, "running");
+      persistence.reset();
+
+      hide();
+      expect(runs.end).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("through a format adapter", () => {
+    type UIMessage = { id: string; parts: { text: string }[] };
+    const adapter: MessageFormatAdapter<UIMessage, Record<string, unknown>> = {
+      format: "ai-sdk/v6",
+      encode: ({ message }) => ({ parts: message.parts }),
+      decode: (stored) => ({
+        parentId: stored.parent_id,
+        message: {
+          id: stored.id,
+          parts: stored.content.parts as UIMessage["parts"],
+        },
+      }),
+      getId: (message) => message.id,
+    };
+    const partial = { id: "ui-1", parts: [{ text: "hel" }] };
+    const final = { id: "ui-1", parts: [{ text: "hello" }] };
+
+    it("opens a run on a running append, writes as the lease holder and ends it on the final write", async () => {
+      const { cloud, messages, runs } = createCloud();
+      const formatted = createFormattedPersistence(
+        new CloudMessagePersistence(cloud),
+        adapter,
+      );
+
+      await formatted.append(
+        "t1",
+        { parentId: null, message: partial },
+        "running",
+      );
+      expect(messages.create).toHaveBeenCalledWith("t1", {
+        parent_id: null,
+        external_id: "ui-1",
+        format: "ai-sdk/v6",
+        content: { parts: partial.parts },
+        open_run: true,
+      });
+
+      await formatted.update!(
+        "t1",
+        { parentId: null, message: partial },
+        "ui-1",
+        "running",
+      );
+      expect(messages.update).toHaveBeenLastCalledWith("t1", "msg_1", {
+        content: { parts: partial.parts },
+        lease_id: "lease_1",
+      });
+      expect(runs.end).not.toHaveBeenCalled();
+
+      await formatted.update!(
+        "t1",
+        { parentId: null, message: final },
+        "ui-1",
+        "done",
+      );
+      expect(messages.update).toHaveBeenLastCalledWith("t1", "msg_1", {
+        content: { parts: final.parts },
+        lease_id: "lease_1",
+      });
+      expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", {
+        reason: "done",
+      });
+    });
+
+    it("ends the lease on a settled append without a phase", async () => {
+      const { cloud, messages, runs } = createCloud();
+      const formatted = createFormattedPersistence(
+        new CloudMessagePersistence(cloud),
+        adapter,
+      );
+      await formatted.append(
+        "t1",
+        { parentId: null, message: partial },
+        "running",
+      );
+      await formatted.append("t1", { parentId: null, message: final });
+
+      expect(messages.create).toHaveBeenCalledTimes(1);
+      expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
+        content: { parts: final.parts },
+        lease_id: "lease_1",
+      });
+      expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", {
+        reason: "done",
+      });
+    });
   });
 });
