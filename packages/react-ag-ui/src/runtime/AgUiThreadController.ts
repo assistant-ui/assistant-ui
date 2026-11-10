@@ -30,8 +30,8 @@ import {
   iterateToolCallParts,
   mapToolCallPartsDeep,
 } from "@assistant-ui/core/internal";
-import { AbstractAgent } from "@ag-ui/client";
 import type {
+  AbstractAgent,
   AgentSubscriber,
   Context,
   RunAgentParameters,
@@ -222,14 +222,21 @@ type ResumeSource = ResumeStream | "connect";
 
 // connectAgent() swallows the base class's not-implemented error and resolves
 // with no events, so only an agent that overrides connect() can rejoin a run.
+// AbstractAgent extends nothing, so the prototype owning connect() is the base
+// exactly when its own prototype is Object.prototype. Checking ownership instead
+// of function identity holds when the app loads its own copy of @ag-ui/client.
 const implementsConnect = (agent: AbstractAgent): boolean => {
-  const connect = (agent as unknown as { connect?: unknown }).connect;
-  return (
-    typeof connect === "function" &&
-    typeof agent.connectAgent === "function" &&
-    connect !==
-      (AbstractAgent.prototype as unknown as { connect: unknown }).connect
-  );
+  if (typeof agent.connectAgent !== "function") return false;
+  for (
+    let proto: object | null = Object.getPrototypeOf(agent);
+    proto !== null;
+    proto = Object.getPrototypeOf(proto)
+  ) {
+    if (Object.prototype.hasOwnProperty.call(proto, "connect")) {
+      return Object.getPrototypeOf(proto) !== Object.prototype;
+    }
+  }
+  return false;
 };
 type ResumeRunConfig = {
   parentId: string | null;
@@ -501,14 +508,22 @@ export class AgUiThreadController {
 
   detachRuntime() {
     this.runtime = undefined;
-    this.dispatch({
-      type: "historyMutationAdvanced",
-    });
     try {
-      this.abortActiveRun(true);
+      this.leave();
     } catch (error) {
       this.logger.error("[agui] failed to cancel run during teardown", error);
     }
+  }
+
+  /**
+   * Stops following the active run because the thread is being left (a thread
+   * switch or teardown), as opposed to cancel(), which the user asked for.
+   */
+  leave(): void {
+    this.dispatch({
+      type: "historyMutationAdvanced",
+    });
+    this.abortActiveRun(true);
   }
 
   getMessages(): readonly ThreadMessage[] {

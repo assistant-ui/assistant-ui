@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   HttpAgent,
+  type AbstractAgent,
   runHttpRequest,
   transformHttpEventStream,
   type RunAgentInput,
@@ -30,7 +31,11 @@ class ReconnectingAgent extends HttpAgent {
   protected override connect(input: RunAgentInput) {
     this.connectInputs.push(input);
     return transformHttpEventStream(
-      runHttpRequest(() => this.fetch(`${this.url}/stream`, {})),
+      runHttpRequest(() =>
+        this.fetch(`${this.url}/stream`, {
+          signal: this.abortController.signal,
+        }),
+      ),
     );
   }
 }
@@ -54,7 +59,7 @@ const historyOf = (unstableResume: boolean): ThreadHistoryAdapter => ({
 });
 
 function setup(
-  agent: HttpAgent,
+  agent: AbstractAgent,
   unstableResume: boolean,
   onError?: (error: Error) => void,
 ) {
@@ -285,6 +290,46 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
 
       expect(abortRun).toHaveBeenCalledTimes(1);
       expect(detachActiveRun).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("with an agent built on another copy of @ag-ui/client", () => {
+    // Same shape as AbstractAgent: a root class that defines connect() and
+    // connectAgent() and extends nothing, as a second installed copy would.
+    class ForeignAbstractAgent {
+      threadId = "thread";
+      messages: unknown[] = [];
+      state = {};
+      readonly runAgent = vi.fn(async () => ({ newMessages: [] }));
+      readonly connectAgent = vi.fn(async () => ({ newMessages: [] }));
+      readonly abortRun = vi.fn();
+      readonly detachActiveRun = vi.fn(async () => {});
+      connect(): never {
+        throw new Error("connect not implemented");
+      }
+    }
+    class ForeignReconnectingAgent extends ForeignAbstractAgent {
+      override connect(): never {
+        throw new Error("unused");
+      }
+    }
+    const asAgent = (agent: ForeignAbstractAgent) =>
+      agent as unknown as AbstractAgent;
+
+    it("starts a run for a stock agent", async () => {
+      const agent = new ForeignAbstractAgent();
+      await setup(asAgent(agent), true).__internal_load();
+
+      expect(agent.runAgent).toHaveBeenCalledTimes(1);
+      expect(agent.connectAgent).not.toHaveBeenCalled();
+    });
+
+    it("rejoins through connectAgent() for an agent that overrides connect()", async () => {
+      const agent = new ForeignReconnectingAgent();
+      await setup(asAgent(agent), true).__internal_load();
+
+      expect(agent.connectAgent).toHaveBeenCalledTimes(1);
+      expect(agent.runAgent).not.toHaveBeenCalled();
     });
   });
 });
