@@ -92,8 +92,8 @@ cannot be created is stored as a root.
 A message appended as running holds a run lease, renewed by heartbeats on
 the server's interval until a write with an end reason ends it. When the
 page unloads, the runs it holds end as `interrupted` with a keepalive
-request unless `runsContinueOnServer` is set; a page kept in the
-back/forward cache keeps them and heartbeats as soon as it is shown again.
+request; a page kept in the back/forward cache keeps them and heartbeats
+as soon as it is shown again.
 A plain write the server refuses because another session runs the message
 (409 `run_in_progress`) is dropped with a warning. A lease that is lost (expired,
 superseded by a resume, or refused) is final: the message gets no further
