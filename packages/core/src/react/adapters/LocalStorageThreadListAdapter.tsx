@@ -193,14 +193,12 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         const idx = repo.messages.findIndex(
           (m) => m.message.id === item.message.id,
         );
-        // An update that inserts stands in for the append that never landed,
-        // as the cloud adapter's update does, so it moves the head too.
         if (idx >= 0) {
           repo.messages[idx] = item;
         } else {
           repo.messages.push(item);
         }
-        if (moveHead || idx < 0) repo.headId = item.message.id;
+        if (moveHead) repo.headId = item.message.id;
 
         return serializeStoredMessageRepository(repo);
       },

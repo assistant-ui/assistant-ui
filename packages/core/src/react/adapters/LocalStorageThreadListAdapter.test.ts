@@ -720,44 +720,6 @@ describe("createLocalStorageAdapter", () => {
     ).toEqual({ type: "positive" });
   });
 
-  it("moves the history head when an update inserts a new message", async () => {
-    const messagesKey = "@assistant-ui:messages:thread-1";
-    const storage = createStorage({
-      "@assistant-ui:threads": JSON.stringify([
-        { remoteId: "thread-1", status: "regular" },
-      ]),
-      [messagesKey]: JSON.stringify({
-        headId: "question",
-        messages: [{ message: storedMessage("question"), parentId: null }],
-      }),
-    });
-    const history = createHistory(
-      storage,
-      () =>
-        ({
-          threadListItem: {
-            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
-            initialize: async () => ({
-              remoteId: "thread-1",
-              externalId: undefined,
-            }),
-          },
-        }) as never,
-    );
-
-    await history.update?.({
-      message: storedMessage("answer", "assistant"),
-      parentId: "question",
-    } as never);
-
-    const repo = parseStoredMessageRepository(storage.get(messagesKey) ?? null);
-    expect(repo.headId).toBe("answer");
-    expect(repo.messages.map(({ message }) => message.id)).toEqual([
-      "question",
-      "answer",
-    ]);
-  });
-
   it("persists concurrent appends that share initialization", async () => {
     const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";

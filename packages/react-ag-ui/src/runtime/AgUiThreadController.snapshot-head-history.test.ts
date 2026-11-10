@@ -22,13 +22,13 @@ const userMessage = {
 
 type Row = { id: string; status: string | undefined };
 
-// Mirrors the local history adapter: both writes upsert by message id; an
-// append, or an update that inserts, moves the stored head.
+// Follows the ThreadHistoryAdapter contract: both writes upsert by message
+// id, and only append moves the stored head.
 function createHistory(writes: string[]) {
   const items = new Map<string, any>();
   let headId: string | null = null;
   const store = (item: any, moveHead: boolean) => {
-    if (moveHead || !items.has(item.message.id)) headId = item.message.id;
+    if (moveHead) headId = item.message.id;
     items.set(item.message.id, structuredClone(item));
   };
   return {

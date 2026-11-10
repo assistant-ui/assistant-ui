@@ -405,6 +405,8 @@ export class AgUiThreadController {
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
+  // Counts runs started, so a finished run can tell a newer one began.
+  private runCount = 0;
   private history: ThreadHistoryAdapter | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly subagentParentToolCallIds = new Map<
@@ -2348,15 +2350,23 @@ export class AgUiThreadController {
         if (event.type === "MESSAGES_SNAPSHOT") {
           // Assistants a snapshot adds belong to the run's history even when
           // the run never streams into them. Every import resets the pending
-          // marks, so each snapshot marks them again.
+          // marks, so each snapshot marks them again. The import also routes
+          // every message to update; a run assistant this client never wrote
+          // gets an append first, which is what moves the stored head.
           const previousIds = new Set(beforeSnapshot.map(({ id }) => id));
           for (const message of this.session.getMessages()) {
             if (
-              message.role === "assistant" &&
-              !runStartMessageIds.has(message.id) &&
-              !previousIds.has(message.id)
+              message.role !== "assistant" ||
+              runStartMessageIds.has(message.id)
             )
+              continue;
+            if (!previousIds.has(message.id))
               importedRunAssistants.add(message.id);
+            if (
+              !this.persistedHistoryIds.has(message.id) &&
+              this.historyWrites.pending(message.id) === undefined
+            )
+              this.snapshotHistoryIds.delete(message.id);
           }
           for (const messageId of importedRunAssistants) {
             const item = this.session.tryGetMessage(messageId);
@@ -2412,6 +2422,7 @@ export class AgUiThreadController {
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;
+    const runNumber = ++this.runCount;
 
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
     abortSignal.addEventListener(
@@ -2524,12 +2535,9 @@ export class AgUiThreadController {
               },
         );
       }
-      // Stop already finished the run; a newer run owns its own writes.
-      if (
-        this.abortController === abortController ||
-        this.abortController === null
-      )
-        persistRunAssistants(false);
+      // Stop may have finished this run already; a newer run owns its own
+      // writes.
+      if (this.runCount === runNumber) persistRunAssistants(false);
       this.finishRun(abortController);
     }
 
