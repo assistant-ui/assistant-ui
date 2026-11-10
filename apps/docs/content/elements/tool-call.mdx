@@ -40,7 +40,7 @@ export const SearchDocsToolUI: ToolCallMessagePartComponent<
         status.type === "incomplete"
           ? String(status.error ?? "")
           : isError
-            ? JSON.stringify(result)
+            ? typeof result === "string" ? result : JSON.stringify(result)
             : result
               ? `${result.count} matches, best hit ${result.bestPath}`
               : ""
@@ -206,7 +206,7 @@ function makeSearchToolUI(label: string, activeLabel: string) {
           status.type === "incomplete"
             ? String(status.error ?? "")
             : isError
-              ? JSON.stringify(result)
+              ? typeof result === "string" ? result : JSON.stringify(result)
               : result
                 ? `${result.count} matches, best hit ${result.bestPath}`
                 : ""

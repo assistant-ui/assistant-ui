@@ -207,6 +207,7 @@ Both lanes take `className` on the root. The query pill uses the shared `field` 
 |------|------|-------------|
 | `args` | `{ query?: string }` | Model-supplied arguments. Partial while streaming; use `useToolArgsStatus` to tell a finished field from one still arriving. |
 | `result` | `{ results: WebSearchResult[] } \| undefined` | Set once the tool call resolves. |
+| `isError` | `boolean \| undefined` | Set when the tool threw; `result` then holds the error, not results. |
 | `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` and `"requires-action"` show the searching shimmer. A thrown call (`isError`) and an `"incomplete"` call (cancelled or failed) have no results, so the examples render nothing for them rather than "No sources found"; render a failure element such as Tool failure there if the user should see it. |
 
 `WebSearchResult` is `{ title: string; domain: string }`. See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
