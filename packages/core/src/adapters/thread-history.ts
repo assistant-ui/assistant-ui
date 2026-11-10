@@ -7,7 +7,7 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import type { ThreadMessage } from "../types";
+import type { MessageStatus, ThreadMessage } from "../types";
 
 export interface MessageStorageEntry<TPayload> {
   id: string;
@@ -19,6 +19,14 @@ export interface MessageStorageEntry<TPayload> {
 export interface MessageFormatItem<TMessage> {
   parentId: string | null;
   message: TMessage;
+  /**
+   * A status the history assigns on load, for a message whose run another
+   * session is still writing or that was interrupted. Runtimes show it in
+   * place of the message's own status; it is never stored.
+   *
+   * @deprecated Experimental since 2026-11-10. Not scheduled for removal; the API may change in any release.
+   */
+  unstable_status?: MessageStatus | undefined;
 }
 
 export interface MessageFormatRepository<TMessage> {
@@ -42,6 +50,14 @@ export type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   /** Snapshot the current thread so later writes survive a switch. */
   pin?(): void;
+  /**
+   * Registers how the runtime re-reads the thread, for a history that follows
+   * a run another session drives. The history calls it to replace the loaded
+   * messages; returns the unsubscribe.
+   *
+   * @deprecated Experimental since 2026-11-10. Not scheduled for removal; the API may change in any release.
+   */
+  unstable_onReload?(listener: () => Promise<void>): () => void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(
     item: MessageFormatItem<TMessage>,

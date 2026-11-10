@@ -1195,6 +1195,7 @@ type CloudThreadListAdapterOptions = {
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  staleAfter?: number | undefined;
   upsert?: boolean | undefined;
 };
 
@@ -2124,6 +2125,7 @@ type GenerativeUISpec = {
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   pin?(): void;
+  unstable_onReload?(listener: () => Promise<void>): () => void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -2518,6 +2520,7 @@ interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, u
 interface MessageFormatItem<TMessage> {
   parentId: string | null;
   message: TMessage;
+  unstable_status?: MessageStatus | undefined;
 }
 
 interface MessageFormatRepository<TMessage> {
@@ -2865,6 +2868,8 @@ type MessageRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
 };
 
+type MessageRunState = "in-progress" | "stale";
+
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
@@ -2954,6 +2959,7 @@ type MessageState = ThreadMessage & {
   readonly isHovering: boolean;
   readonly index: number;
   readonly submission?: ComposerSubmission | undefined;
+  readonly runState?: MessageRunState | undefined;
 };
 
 type MessageStateBinding = SubscribableWithState<ThreadMessage & {

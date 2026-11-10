@@ -1055,6 +1055,7 @@ type GenerativeUISpec = {
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   pin?(): void;
+  unstable_onReload?(listener: () => Promise<void>): () => void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -1286,6 +1287,7 @@ interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, u
 interface MessageFormatItem<TMessage> {
   parentId: string | null;
   message: TMessage;
+  unstable_status?: MessageStatus | undefined;
 }
 
 interface MessageFormatRepository<TMessage> {

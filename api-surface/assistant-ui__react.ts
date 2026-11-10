@@ -118,12 +118,34 @@ declare const ActionBarPrimitiveFeedbackPositive: import("react").ForwardRefExot
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
+declare namespace ActionBarPrimitiveRefreshRun {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useActionBarRefreshRun>;
+}
+
+declare const ActionBarPrimitiveRefreshRun: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean | undefined;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
 declare namespace ActionBarPrimitiveReload {
   type Element = ActionButtonElement;
   type Props = ActionButtonProps<typeof useActionBarReload>;
 }
 
 declare const ActionBarPrimitiveReload: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean | undefined;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
+declare namespace ActionBarPrimitiveResume {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useActionBarResume>;
+}
+
+declare const ActionBarPrimitiveResume: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
   asChild?: boolean | undefined;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
@@ -1516,6 +1538,7 @@ type CloudThreadListAdapterOptions = {
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  staleAfter?: number | undefined;
   upsert?: boolean | undefined;
 };
 
@@ -2677,6 +2700,7 @@ type GenerativeUISpec = {
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   pin?(): void;
+  unstable_onReload?(listener: () => Promise<void>): () => void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -3049,6 +3073,7 @@ interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, u
 interface MessageFormatItem<TMessage> {
   parentId: string | null;
   message: TMessage;
+  unstable_status?: MessageStatus | undefined;
 }
 
 interface MessageFormatRepository<TMessage> {
@@ -3428,6 +3453,8 @@ declare class MessageRepository {
 
 type MessageRole = ThreadMessage["role"];
 
+type MessageRunState = "in-progress" | "stale";
+
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
@@ -3517,6 +3544,7 @@ type MessageState = ThreadMessage & {
   readonly isHovering: boolean;
   readonly index: number;
   readonly submission?: ComposerSubmission | undefined;
+  readonly runState?: MessageRunState | undefined;
 };
 
 type MessageState$1 = MessageRuntimeState;
@@ -6580,7 +6608,7 @@ declare namespace actionBarMore_d_exports {
 }
 
 declare namespace actionBar_d_exports {
-  export { ActionBarPrimitiveCopy as Copy, ActionBarPrimitiveEdit as Edit, ActionBarPrimitiveExportMarkdown as ExportMarkdown, ActionBarPrimitiveFeedbackNegative as FeedbackNegative, ActionBarPrimitiveFeedbackPositive as FeedbackPositive, ActionBarPrimitiveReload as Reload, ActionBarPrimitiveRoot as Root, ActionBarPrimitiveSpeak as Speak, ActionBarPrimitiveStopSpeaking as StopSpeaking };
+  export { ActionBarPrimitiveCopy as Copy, ActionBarPrimitiveEdit as Edit, ActionBarPrimitiveExportMarkdown as ExportMarkdown, ActionBarPrimitiveFeedbackNegative as FeedbackNegative, ActionBarPrimitiveFeedbackPositive as FeedbackPositive, ActionBarPrimitiveRefreshRun as RefreshRun, ActionBarPrimitiveReload as Reload, ActionBarPrimitiveResume as Resume, ActionBarPrimitiveRoot as Root, ActionBarPrimitiveSpeak as Speak, ActionBarPrimitiveStopSpeaking as StopSpeaking };
 }
 
 declare namespace assistantModal_d_exports {
@@ -6891,7 +6919,11 @@ declare const useActionBarPrimitiveCopy: (_param11?: {
   copiedDuration?: number | undefined;
 }) => (() => void) | null;
 
+declare const useActionBarRefreshRun: () => (() => void) | null;
+
 declare const useActionBarReload: () => (() => void) | null;
+
+declare const useActionBarResume: () => (() => void) | null;
 
 declare const useActionBarSpeak: () => (() => Promise<void>) | null;
 
