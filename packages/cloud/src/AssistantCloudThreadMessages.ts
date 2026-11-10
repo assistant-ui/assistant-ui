@@ -21,7 +21,7 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
-  /** Present while a run lease on the message is open: `running` while its holder heartbeats, `stale` once it lapsed or was resumed. */
+  /** Present while the message's run lease is open: `running` while its holder heartbeats, `stale` once it lapsed or was interrupted. */
   run?: CloudMessageRun | undefined;
 };
 
@@ -29,8 +29,6 @@ export type CloudMessageRun = {
   status: "running" | "stale";
   /** Server-measured time until a running lease lapses. */
   expires_in_ms?: number | undefined;
-  /** The message that resumed this one. */
-  superseded_by?: string | undefined;
 };
 
 /** A run lease the server granted, with its timing measured by the server. */
@@ -87,14 +85,11 @@ const decodeCloudMessageRun = (
     ...(typeof run.expires_in_ms === "number"
       ? { expires_in_ms: run.expires_in_ms }
       : undefined),
-    ...(typeof run.superseded_by === "string"
-      ? { superseded_by: run.superseded_by }
-      : undefined),
   };
 };
 
 /** Reads the lease fields of a response that granted or renewed one. */
-export const decodeCloudRunLease = (
+const decodeCloudRunLease = (
   response: Record<string, unknown>,
 ): CloudRunLease => ({
   lease_id: readCloudString(response.lease_id, "lease_id"),

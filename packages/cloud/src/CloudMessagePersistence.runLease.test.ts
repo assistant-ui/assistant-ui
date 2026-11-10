@@ -35,12 +35,6 @@ const createCloud = () => {
 const running = { role: "assistant", status: { type: "running" } };
 const done = { role: "assistant", content: [{ type: "text", text: "done" }] };
 
-const superseded = (forkId: string) =>
-  new CloudAPIError("superseded", 409, "superseded", {
-    message_id: forkId,
-    forked_from: "msg_1",
-  });
-
 describe("CloudMessagePersistence run leases", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -184,52 +178,8 @@ describe("CloudMessagePersistence run leases", () => {
     });
   });
 
-  it("stores a superseded run's write once on the fork and drops every later write", async () => {
-    const { cloud, messages, runs } = createCloud();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    messages.update.mockRejectedValueOnce(superseded("msg_fork"));
-    const persistence = new CloudMessagePersistence(cloud);
-    await persistence.append(
-      "t1",
-      "local-a",
-      null,
-      "aui/v0",
-      running,
-      "running",
-    );
-
-    await persistence.update(
-      "t1",
-      "local-a",
-      "aui/v0",
-      { text: "partial" },
-      "running",
-    );
-    expect(persistence.getResolvedRemoteId("local-a")).toBe("msg_fork");
-    expect(persistence.hasOpenRun("local-a")).toBe(false);
-
-    await persistence.update("t1", "local-a", "aui/v0", running, "running");
-    await persistence.update("t1", "local-a", "aui/v0", done, "done");
-    await persistence.update("t1", "local-a", "aui/v0", done);
-    await persistence.append("t1", "local-a", null, "aui/v0", done);
-    expect(messages.update).toHaveBeenCalledTimes(1);
-    expect(messages.create).toHaveBeenCalledTimes(1);
-    expect(runs.end).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(runs.heartbeat).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
-  });
-
   it.each([
     ["run_stale", new CloudAPIError("stale", 409, "run_stale")],
-    [
-      "superseded after the fork",
-      new CloudAPIError("superseded", 409, "superseded", {
-        superseded_by: "msg_2",
-      }),
-    ],
     ["run_ended", new CloudAPIError("ended", 409, "run_ended")],
     ["lease_mismatch", new CloudAPIError("mismatch", 409, "lease_mismatch")],
   ])(
@@ -356,7 +306,7 @@ describe("CloudMessagePersistence run leases", () => {
     const { cloud, runs } = createCloud();
     const persistence = new CloudMessagePersistence(cloud);
     runs.end.mockRejectedValueOnce(
-      new CloudAPIError("superseded", 409, "superseded"),
+      new CloudAPIError("stale", 409, "run_stale"),
     );
     await persistence.append("t1", "a", null, "aui/v0", running, "running");
     await expect(
@@ -397,15 +347,13 @@ describe("CloudMessagePersistence run leases", () => {
     await vi.advanceTimersByTimeAsync(20_000);
     expect(gone.hasOpenRun("local-b")).toBe(false);
 
-    const resumed = new CloudMessagePersistence(cloud);
+    const stale = new CloudMessagePersistence(cloud);
     runs.heartbeat.mockRejectedValueOnce(
-      new CloudAPIError("superseded", 409, "superseded", {
-        superseded_by: "msg_2",
-      }),
+      new CloudAPIError("stale", 409, "run_stale"),
     );
-    await resumed.append("t1", "local-c", null, "aui/v0", running, "running");
+    await stale.append("t1", "local-c", null, "aui/v0", running, "running");
     await vi.advanceTimersByTimeAsync(20_000);
-    expect(resumed.hasOpenRun("local-c")).toBe(false);
+    expect(stale.hasOpenRun("local-c")).toBe(false);
     vi.mocked(console.warn).mockRestore();
   });
 
@@ -627,12 +575,7 @@ describe("CloudMessagePersistence run leases", () => {
 
     it.each([
       ["run_stale", new CloudAPIError("stale", 409, "run_stale")],
-      [
-        "superseded",
-        new CloudAPIError("superseded", 409, "superseded", {
-          superseded_by: "msg_2",
-        }),
-      ],
+      ["run_ended", new CloudAPIError("ended", 409, "run_ended")],
     ])(
       "loses a run whose lease answers %s after the page comes back",
       async (_name, error) => {

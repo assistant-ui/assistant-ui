@@ -241,7 +241,7 @@ describe("AssistantCloudThreadMessages run leases", () => {
     makeRequest.mockResolvedValueOnce({
       messages: [
         { ...row, run: { status: "running", expires_in_ms: 1200 } },
-        { ...row, id: "msg_2", run: { status: "stale", superseded_by: "m" } },
+        { ...row, id: "msg_2", run: { status: "stale" } },
         { ...row, id: "msg_3", run: null },
       ],
     });
@@ -249,7 +249,7 @@ describe("AssistantCloudThreadMessages run leases", () => {
     const { messages: listed } = await messages.list("t1");
     expect(listed.map((m) => m.run)).toEqual([
       { status: "running", expires_in_ms: 1200 },
-      { status: "stale", superseded_by: "m" },
+      { status: "stale" },
       undefined,
     ]);
 

@@ -1,15 +1,10 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { readCloudNumber, readCloudRecord } from "./cloudResponse";
-import {
-  type CloudRunLease,
-  decodeCloudRunLease,
-} from "./AssistantCloudThreadMessages";
 
 /**
  * Why a run ended. `interrupted` means its holder is going away (a closing
  * tab) while the reply is unfinished: the lease expires at once, so the
- * message reads `stale` and can be resumed right away instead of after the
- * lease's TTL.
+ * message reads `stale` right away instead of after the lease's TTL.
  */
 export type CloudRunEndReason = "done" | "cancelled" | "error" | "interrupted";
 
@@ -19,12 +14,12 @@ export type AssistantCloudRunHeartbeatResponse = {
 };
 
 /**
- * Run leases on thread messages. A run's holder keeps its lease alive with
- * heartbeats on the server's `heartbeat_interval_ms`; the server sets the
- * lease's TTL. A run that stops heartbeating reads as stale once its lease
+ * Run leases on thread messages. A lease is opened with `open_run` when its
+ * message is created and belongs to that message alone. Its holder keeps it
+ * alive with heartbeats on the server's `heartbeat_interval_ms`; the server
+ * sets the TTL. A run that stops heartbeating reads as stale once its lease
  * expires, and an expired lease never comes back: heartbeats and writes with
- * it answer 409 `run_stale`. A new run opened under a stale message resumes
- * it and supersedes the stale lease. Writes as the holder go through
+ * it answer 409 `run_stale`. Writes as the holder go through
  * `threads.messages` with the `lease_id`.
  */
 export class AssistantCloudThreadRuns {
@@ -34,26 +29,9 @@ export class AssistantCloudThreadRuns {
     this.cloud = cloud;
   }
 
-  /** Opens a run lease on a stored message; 409 `run_in_progress` while it or its parent holds a live run. */
-  public async open(
-    threadId: string,
-    messageId: string,
-  ): Promise<CloudRunLease> {
-    return decodeCloudRunLease(
-      readCloudRecord(
-        await this.cloud.makeRequest(
-          `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}/runs`,
-          { method: "POST" },
-        ),
-        "run open response",
-      ),
-    );
-  }
-
   /**
    * Keeps a run lease alive. 409 `run_stale` once it expired, 409
-   * `superseded` once another run resumed it, 409 `run_ended` after it ended,
-   * 404 `not_found` for a lease the server does not know.
+   * `run_ended` after it ended, 404 for a lease the server does not know.
    */
   public async heartbeat(
     threadId: string,
@@ -77,8 +55,8 @@ export class AssistantCloudThreadRuns {
 
   /**
    * Ends a run without a content write; ending an ended run again succeeds.
-   * 409 `run_stale` once the lease expired, 409 `superseded` once another
-   * run resumed it, 404 `not_found` for a lease the server does not know.
+   * 409 `run_stale` once the lease expired, 404 for a lease the server does
+   * not know.
    * `keepalive` lets the request outlive a closing page.
    */
   public async end(

@@ -22,7 +22,7 @@ type OpenRun = {
 
 /**
  * A message's run lease as this persistence knows it: held, ended by our own
- * final write, or lost (expired, superseded, refused). A lost run's message
+ * final write, or lost (expired or refused). A lost run's message
  * gets no further writes; an ended one only plain writes.
  */
 type Run = OpenRun | "ended" | "lost";
@@ -31,30 +31,15 @@ const isOpen = (run: Run | undefined): run is OpenRun =>
   typeof run === "object";
 
 /** 409 codes after which the lease is gone for good: nothing more is written for its message. */
-const LOST_LEASE_CODES = new Set([
-  "run_stale",
-  "superseded",
-  "run_ended",
-  "lease_mismatch",
-]);
+const LOST_LEASE_CODES = new Set(["run_stale", "run_ended", "lease_mismatch"]);
 
-// Why a lease write was refused for good; a superseded lease's first write is stored once as a sibling, which the response names.
-const lostLease = (
-  error: unknown,
-): { code: string; forkedId: string | undefined } | undefined => {
-  if (
-    !(error instanceof CloudAPIError) ||
-    error.status !== 409 ||
-    error.code === undefined ||
-    !LOST_LEASE_CODES.has(error.code)
-  )
-    return undefined;
-  const forked = error.details?.message_id;
-  return {
-    code: error.code,
-    forkedId: typeof forked === "string" ? forked : undefined,
-  };
-};
+const lostLeaseCode = (error: unknown): string | undefined =>
+  error instanceof CloudAPIError &&
+  error.status === 409 &&
+  error.code !== undefined &&
+  LOST_LEASE_CODES.has(error.code)
+    ? error.code
+    : undefined;
 
 // The server refuses a plain write to a message whose run lease is live in another session.
 const isRunInProgress = (error: unknown) =>
@@ -87,7 +72,7 @@ type FailedAppend = {
  * as soon as it is shown again.
  * A plain write the server refuses because another session runs the message
  * (409 `run_in_progress`) is dropped with a warning. A lease that is lost (expired,
- * superseded by a resume, or refused) is final: the message gets no further
+ * or refused) is final: the message gets no further
  * writes from this persistence.
  */
 export class CloudMessagePersistence {
@@ -115,9 +100,8 @@ export class CloudMessagePersistence {
    * @param content - Message content (format-specific)
    * @param run - `running` stores the message with an open run lease that is
    *   kept alive by heartbeats until a write with an end reason closes it.
-   *   Once the lease is lost (it went stale, another session resumed the
-   *   message, or the server refused it), later writes for the message are
-   *   dropped.
+   *   Once the lease is lost (it went stale or the server refused it), later
+   *   writes for the message are dropped.
    */
   async append(
     threadId: string,
@@ -291,14 +275,9 @@ export class CloudMessagePersistence {
         lease_id: open.leaseId,
       });
     } catch (error) {
-      const lost = lostLease(error);
-      if (!lost) throw error;
-      // Another session resumed this run: this write was stored once as a sibling, and nothing more is written there.
-      if (lost.forkedId) this.idMapping.set(messageId, lost.forkedId);
-      this.loseRun(
-        messageId,
-        lost.forkedId ? `superseded, forked to ${lost.forkedId}` : lost.code,
-      );
+      const code = lostLeaseCode(error);
+      if (!code) throw error;
+      this.loseRun(messageId, code);
       return;
     }
     if (phase === "running") {
@@ -378,7 +357,7 @@ export class CloudMessagePersistence {
       open.intervalMs = response.heartbeat_interval_ms;
     } catch (error) {
       if (this.runs.get(messageId) !== open) return;
-      // Any conflict (stale, superseded, ended) or an unknown lease is final; a network error is retried on the next beat.
+      // A stale or ended lease, or one the server does not know, is final; a network error is retried on the next beat.
       if (
         error instanceof CloudAPIError &&
         (error.status === 409 || error.status === 404)
