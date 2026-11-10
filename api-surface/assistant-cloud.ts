@@ -555,7 +555,7 @@ declare class CloudMessagePersistence {
 }
 
 type CloudMessagePersistenceOptions = {
-  runsContinueOnServer?: boolean | undefined;
+  runsContinueOnServer?: boolean | (() => boolean) | undefined;
 };
 
 type CloudMessageRun = {
