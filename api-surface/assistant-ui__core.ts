@@ -1333,6 +1333,7 @@ type CloudThreadListAdapterOptions = {
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  runsContinueOnServer?: boolean | undefined;
   upsert?: boolean | undefined;
 };
 
@@ -5014,6 +5015,7 @@ type ThreadHistoryAdapter = {
   append(item: ExportedMessageRepositoryItem): Promise<void>;
   update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
+  unstable_setRunsContinueOnServer?(continues: boolean): void;
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
 
