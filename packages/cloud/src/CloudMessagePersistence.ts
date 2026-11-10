@@ -20,6 +20,16 @@ type OpenRun = {
   timer: ReturnType<typeof setTimeout> | undefined;
 };
 
+/**
+ * A message's run lease as this persistence knows it: held, ended by our own
+ * final write, or lost (expired, superseded, refused). A lost run's message
+ * gets no further writes; an ended one only plain writes.
+ */
+type Run = OpenRun | "ended" | "lost";
+
+const isOpen = (run: Run | undefined): run is OpenRun =>
+  typeof run === "object";
+
 /** 409 codes after which the lease is gone for good: nothing more is written for its message. */
 const LOST_LEASE_CODES = new Set([
   "run_stale",
@@ -80,12 +90,9 @@ type FailedAppend = {
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
   private failedAppends = new Map<string, FailedAppend>();
-  private openRuns = new Map<string, OpenRun>();
+  /** Every message this persistence opened a lease for; a repeated append of one writes its row instead of storing another. */
+  private runs = new Map<string, Run>();
   private runWrites = new Map<string, Promise<unknown>>();
-  /** Local ids whose lease was lost (stale, superseded, ended elsewhere); their later writes are dropped. */
-  private lostRuns = new Set<string>();
-  /** Local ids this persistence opened a lease for; a repeated append of one is a write to its row, not a new row. */
-  private leasedMessages = new Set<string>();
   private pageHideTarget: Window | undefined;
   private getCloud: () => AssistantCloud;
 
@@ -117,17 +124,17 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
   ): Promise<void> {
-    if (this.lostRuns.has(messageId)) return;
+    if (this.runs.get(messageId) === "lost") return;
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
       await existing.catch(() => undefined);
-      if (this.leasedMessages.has(messageId)) {
+      if (this.runs.has(messageId)) {
         await this.update(threadId, messageId, format, content, run);
       }
       return;
     }
-    if (existing !== undefined && this.leasedMessages.has(messageId)) {
+    if (existing !== undefined && this.runs.has(messageId)) {
       await this.update(threadId, messageId, format, content, run);
       return;
     }
@@ -213,16 +220,16 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
   ): Promise<void> {
-    if (this.lostRuns.has(messageId)) return;
+    if (this.runs.get(messageId) === "lost") return;
     const remoteId = await this.getRemoteId(messageId);
-    if (this.lostRuns.has(messageId)) return;
+    if (this.runs.get(messageId) === "lost") return;
     if (!remoteId) {
       console.warn(
         `Skipping update for message ${messageId}: no remote id is mapped.`,
       );
       return;
     }
-    if (!this.openRuns.has(messageId)) {
+    if (!isOpen(this.runs.get(messageId))) {
       await this.plainUpdate(threadId, messageId, remoteId, content);
       return;
     }
@@ -265,10 +272,10 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     phase: CloudMessageRunPhase,
   ): Promise<void> {
-    if (this.lostRuns.has(messageId)) return;
-    const open = this.openRuns.get(messageId);
+    const open = this.runs.get(messageId);
+    if (open === "lost") return;
     const cloud = this.getCloud();
-    if (!open) {
+    if (!isOpen(open)) {
       // Our own end closed the lease under an earlier write: a checkpoint is dropped, a final answer lands as a plain write.
       const remoteId = await this.getRemoteId(messageId);
       if (phase === "running" || !remoteId) return;
@@ -296,7 +303,7 @@ export class CloudMessagePersistence {
       this.scheduleHeartbeat(messageId);
       return;
     }
-    this.closeRun(messageId);
+    this.closeRun(messageId, "ended");
     await cloud.threads.runs
       .end(open.threadId, open.leaseId, { reason: phase })
       .catch((error: unknown) => {
@@ -317,20 +324,16 @@ export class CloudMessagePersistence {
     if (typeof remoteId !== "string" || this.idMapping.has(to)) return;
     this.idMapping.delete(from);
     this.idMapping.set(to, remoteId);
-    if (this.lostRuns.delete(from)) this.lostRuns.add(to);
-    if (this.leasedMessages.delete(from)) this.leasedMessages.add(to);
-    const open = this.openRuns.get(from);
-    if (!open) return;
-    this.openRuns.delete(from);
-    if (open.timer !== undefined) clearTimeout(open.timer);
-    open.timer = undefined;
-    this.openRuns.set(to, open);
-    this.scheduleHeartbeat(to);
+    const run = this.runs.get(from);
+    if (run === undefined) return;
+    this.runs.delete(from);
+    this.runs.set(to, run);
+    if (isOpen(run)) this.scheduleHeartbeat(to);
   }
 
   /** Whether a run lease this persistence opened for the message is still held. */
   hasOpenRun(messageId: string): boolean {
-    return this.openRuns.has(messageId);
+    return isOpen(this.runs.get(messageId));
   }
 
   private openRun(
@@ -339,10 +342,10 @@ export class CloudMessagePersistence {
     remoteId: string,
     lease: CloudRunLease,
   ) {
-    this.closeRun(messageId);
-    this.lostRuns.delete(messageId);
-    this.leasedMessages.add(messageId);
-    this.openRuns.set(messageId, {
+    const previous = this.runs.get(messageId);
+    if (isOpen(previous) && previous.timer !== undefined)
+      clearTimeout(previous.timer);
+    this.runs.set(messageId, {
       threadId,
       leaseId: lease.lease_id,
       remoteId,
@@ -354,8 +357,8 @@ export class CloudMessagePersistence {
   }
 
   private scheduleHeartbeat(messageId: string) {
-    const open = this.openRuns.get(messageId);
-    if (!open) return;
+    const open = this.runs.get(messageId);
+    if (!isOpen(open)) return;
     if (open.timer !== undefined) clearTimeout(open.timer);
     open.timer = setTimeout(() => {
       open.timer = undefined;
@@ -364,7 +367,7 @@ export class CloudMessagePersistence {
   }
 
   private async heartbeat(messageId: string, open: OpenRun) {
-    if (this.openRuns.get(messageId) !== open) return;
+    if (this.runs.get(messageId) !== open) return;
     try {
       const response = await this.getCloud().threads.runs.heartbeat(
         open.threadId,
@@ -372,37 +375,40 @@ export class CloudMessagePersistence {
       );
       open.intervalMs = response.heartbeat_interval_ms;
     } catch (error) {
-      if (this.openRuns.get(messageId) !== open) return;
-      if (error instanceof CloudAPIError && error.status === 409) {
-        this.loseRun(messageId, error.code ?? "conflict");
-        return;
-      }
-      if (error instanceof CloudAPIError && error.status === 404) {
-        this.loseRun(messageId, "not found");
+      if (this.runs.get(messageId) !== open) return;
+      // Any conflict (stale, superseded, ended) or an unknown lease is final; a network error is retried on the next beat.
+      if (
+        error instanceof CloudAPIError &&
+        (error.status === 409 || error.status === 404)
+      ) {
+        this.loseRun(messageId, error.code ?? String(error.status));
         return;
       }
     }
-    if (this.openRuns.get(messageId) === open)
-      this.scheduleHeartbeat(messageId);
+    if (this.runs.get(messageId) === open) this.scheduleHeartbeat(messageId);
   }
 
   /** The lease is gone for good: stop heartbeating and drop every later write for the message. */
   private loseRun(messageId: string, reason: string, quiet = false) {
-    this.closeRun(messageId);
-    if (this.lostRuns.has(messageId)) return;
-    this.lostRuns.add(messageId);
+    if (this.runs.get(messageId) === "lost") return;
+    this.closeRun(messageId, "lost");
     if (!quiet)
       console.warn(
         `[assistant-cloud] Lost the run lease of message ${messageId} (${reason}); later writes for it are dropped.`,
       );
   }
 
-  private closeRun(messageId: string) {
-    const open = this.openRuns.get(messageId);
-    if (!open) return;
-    if (open.timer !== undefined) clearTimeout(open.timer);
-    this.openRuns.delete(messageId);
-    if (this.openRuns.size === 0) this.unwatchPageHide();
+  private openRunEntries(): [string, OpenRun][] {
+    return [...this.runs].filter((entry): entry is [string, OpenRun] =>
+      isOpen(entry[1]),
+    );
+  }
+
+  private closeRun(messageId: string, as: "ended" | "lost") {
+    const open = this.runs.get(messageId);
+    if (isOpen(open) && open.timer !== undefined) clearTimeout(open.timer);
+    this.runs.set(messageId, as);
+    if (this.openRunEntries().length === 0) this.unwatchPageHide();
   }
 
   private watchPageHide() {
@@ -427,7 +433,7 @@ export class CloudMessagePersistence {
   private onPageHide = (event: Event) => {
     if ((event as { persisted?: boolean }).persisted) return;
     const cloud = this.getCloud();
-    for (const [messageId, open] of [...this.openRuns]) {
+    for (const [messageId, open] of this.openRunEntries()) {
       void cloud.threads.runs
         .end(
           open.threadId,
@@ -443,7 +449,7 @@ export class CloudMessagePersistence {
   // A page restored from the back/forward cache heartbeats at once: a lease still live keeps going, one that expired meanwhile is lost.
   private onPageShow = (event: Event) => {
     if (!(event as { persisted?: boolean }).persisted) return;
-    for (const [messageId, open] of [...this.openRuns]) {
+    for (const [messageId, open] of this.openRunEntries()) {
       if (open.timer !== undefined) clearTimeout(open.timer);
       open.timer = undefined;
       void this.heartbeat(messageId, open);
@@ -584,9 +590,9 @@ export class CloudMessagePersistence {
   reset() {
     this.idMapping = new Map();
     this.failedAppends = new Map();
-    this.lostRuns = new Set();
-    this.leasedMessages = new Set();
-    for (const messageId of [...this.openRuns.keys()]) this.closeRun(messageId);
+    for (const [, open] of this.openRunEntries())
+      if (open.timer !== undefined) clearTimeout(open.timer);
+    this.runs = new Map();
     this.unwatchPageHide();
   }
 }
