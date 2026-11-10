@@ -180,7 +180,7 @@ describe("AssistantCloudThreadMessages run leases", () => {
     makeRequest.mockResolvedValueOnce({
       message_id: "msg_1",
       lease_id: "lease_1",
-      expires_in_ms: 30000,
+      expires_in_ms: 90000,
       heartbeat_interval_ms: 20000,
     });
 
@@ -195,7 +195,7 @@ describe("AssistantCloudThreadMessages run leases", () => {
       message_id: "msg_1",
       run: {
         lease_id: "lease_1",
-        expires_in_ms: 30000,
+        expires_in_ms: 90000,
         heartbeat_interval_ms: 20000,
       },
     });

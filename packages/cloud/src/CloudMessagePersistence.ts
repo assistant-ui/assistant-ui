@@ -43,13 +43,13 @@ const forkOf = (error: unknown): string | undefined => {
   return typeof forked === "string" ? forked : undefined;
 };
 
-// A server that predates run leases rejects the unknown `run` key of its strict create schema.
 // The server refuses a plain write to a message whose run lease is live in another session.
 const isRunInProgress = (error: unknown) =>
   error instanceof CloudAPIError &&
   error.status === 409 &&
   error.code === "run_in_progress";
 
+// A server that predates run leases rejects the unknown `open_run` key of its strict create schema.
 const isRunUnsupported = (error: unknown) =>
   error instanceof CloudAPIError && error.status === 400;
 

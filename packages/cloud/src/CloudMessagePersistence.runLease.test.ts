@@ -390,7 +390,9 @@ describe("CloudMessagePersistence run leases", () => {
     expect(persistence.hasOpenRun("local-a")).toBe(false);
 
     const gone = new CloudMessagePersistence(cloud);
-    runs.heartbeat.mockRejectedValueOnce(new CloudAPIError("gone", 404));
+    runs.heartbeat.mockRejectedValueOnce(
+      new CloudAPIError("Run not found", 404, "not_found"),
+    );
     await gone.append("t1", "local-b", null, "aui/v0", running, "running");
     await vi.advanceTimersByTimeAsync(20_000);
     expect(gone.hasOpenRun("local-b")).toBe(false);

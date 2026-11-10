@@ -14,12 +14,12 @@ describe("AssistantCloudThreadRuns", () => {
     const { runs, makeRequest } = createRuns();
     makeRequest.mockResolvedValueOnce({
       lease_id: "lease_1",
-      expires_in_ms: 30000,
+      expires_in_ms: 90000,
       heartbeat_interval_ms: 20000,
     });
     await expect(runs.open("t/1", "msg/1")).resolves.toEqual({
       lease_id: "lease_1",
-      expires_in_ms: 30000,
+      expires_in_ms: 90000,
       heartbeat_interval_ms: 20000,
     });
     expect(makeRequest).toHaveBeenCalledWith(
@@ -34,11 +34,11 @@ describe("AssistantCloudThreadRuns", () => {
   it("heartbeats by lease id alone", async () => {
     const { runs, makeRequest } = createRuns();
     makeRequest.mockResolvedValueOnce({
-      expires_in_ms: 30000,
+      expires_in_ms: 90000,
       heartbeat_interval_ms: 20000,
     });
     await expect(runs.heartbeat("t1", "lease/1")).resolves.toEqual({
-      expires_in_ms: 30000,
+      expires_in_ms: 90000,
       heartbeat_interval_ms: 20000,
     });
     expect(makeRequest).toHaveBeenCalledWith(

@@ -52,7 +52,8 @@ export class AssistantCloudThreadRuns {
 
   /**
    * Keeps a run lease alive. 409 `run_stale` once it expired, 409
-   * `superseded` once another run resumed it, 409 `run_ended` after it ended.
+   * `superseded` once another run resumed it, 409 `run_ended` after it ended,
+   * 404 `not_found` for a lease the server does not know.
    */
   public async heartbeat(
     threadId: string,
@@ -77,7 +78,8 @@ export class AssistantCloudThreadRuns {
   /**
    * Ends a run without a content write; ending an ended run again succeeds.
    * 409 `run_stale` once the lease expired, 409 `superseded` once another
-   * run resumed it. `keepalive` lets the request outlive a closing page.
+   * run resumed it, 404 `not_found` for a lease the server does not know.
+   * `keepalive` lets the request outlive a closing page.
    */
   public async end(
     threadId: string,
