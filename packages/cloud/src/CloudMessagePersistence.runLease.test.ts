@@ -236,7 +236,7 @@ describe("CloudMessagePersistence run leases", () => {
     });
   });
 
-  it("schedules heartbeats from the server's interval, not a client TTL", async () => {
+  it("schedules heartbeats from the server's interval, not a client constant", async () => {
     const { cloud, messages, runs } = createCloud();
     messages.create.mockResolvedValueOnce({
       message_id: "msg_1",
