@@ -30,26 +30,12 @@ describe("AssistantCloudThreadRuns", () => {
     makeRequest.mockResolvedValue({});
     await runs.end("t1", "lease_1", { reason: "cancelled" });
     await runs.end("t1", "lease_1");
-    await runs.end(
-      "t1",
-      "lease_1",
-      { reason: "interrupted" },
-      { keepalive: true },
-    );
     expect(makeRequest.mock.calls).toEqual([
       [
         "/threads/t1/runs/lease_1/end",
         { method: "POST", body: { reason: "cancelled" } },
       ],
       ["/threads/t1/runs/lease_1/end", { method: "POST", body: {} }],
-      [
-        "/threads/t1/runs/lease_1/end",
-        {
-          method: "POST",
-          body: { reason: "interrupted" },
-          keepalive: true,
-        },
-      ],
     ]);
   });
 });

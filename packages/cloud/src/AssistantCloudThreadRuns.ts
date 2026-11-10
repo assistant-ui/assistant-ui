@@ -1,12 +1,8 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { readCloudNumber, readCloudRecord } from "./cloudResponse";
 
-/**
- * Why a run ended. `interrupted` means its holder is going away (a closing
- * tab) while the reply is unfinished: the lease expires at once, so the
- * message reads `stale` right away instead of after the lease's TTL.
- */
-export type CloudRunEndReason = "done" | "cancelled" | "error" | "interrupted";
+/** Why a run ended. */
+export type CloudRunEndReason = "done" | "cancelled" | "error";
 
 export type AssistantCloudRunHeartbeatResponse = {
   expires_in_ms: number;
@@ -57,21 +53,15 @@ export class AssistantCloudThreadRuns {
    * Ends a run without a content write; ending an ended run again succeeds.
    * 409 `run_stale` once the lease expired, 404 for a lease the server does
    * not know.
-   * `keepalive` lets the request outlive a closing page.
    */
   public async end(
     threadId: string,
     leaseId: string,
     body: { reason?: CloudRunEndReason } = {},
-    options: { keepalive?: boolean } = {},
   ): Promise<void> {
     await this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(leaseId)}/end`,
-      {
-        method: "POST",
-        body,
-        ...(options.keepalive ? { keepalive: true } : undefined),
-      },
+      { method: "POST", body },
     );
   }
 }

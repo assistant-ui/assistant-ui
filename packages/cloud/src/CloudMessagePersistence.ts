@@ -59,11 +59,11 @@ type FailedAppend = {
  * cannot be created is stored as a root.
  *
  * A message appended as running holds a run lease, renewed by heartbeats on
- * the server's interval until a write with an end reason ends it. When the
- * page unloads, the runs it holds end as `interrupted` with a keepalive
- * request; a page kept in the back/forward cache keeps them and heartbeats
- * as soon as it is shown again. A lease that is lost (expired or refused) is
- * final: the message gets no further writes from this persistence.
+ * the server's interval until a write with an end reason ends it. Heartbeats
+ * keep running while the page is in the background; a run whose heartbeats
+ * stop reads as stale once the server's TTL passes. A lease that is lost
+ * (expired or refused) is final: the message gets no further writes from
+ * this persistence.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -71,7 +71,6 @@ export class CloudMessagePersistence {
   /** Every message this persistence opened a lease for; a repeated append of one writes its row instead of storing another. */
   private runs = new Map<string, Run>();
   private runWrites = new Map<string, Promise<unknown>>();
-  private pageHideTarget: Window | undefined;
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -304,7 +303,6 @@ export class CloudMessagePersistence {
       intervalMs: lease.heartbeat_interval_ms,
       timer: undefined,
     });
-    this.watchPageHide();
     this.scheduleHeartbeat(messageId);
   }
 
@@ -349,63 +347,11 @@ export class CloudMessagePersistence {
     );
   }
 
-  private openRunEntries(): [string, OpenRun][] {
-    return [...this.runs].filter((entry): entry is [string, OpenRun] =>
-      isOpen(entry[1]),
-    );
-  }
-
   private closeRun(messageId: string, as: "ended" | "lost") {
     const open = this.runs.get(messageId);
     if (isOpen(open) && open.timer !== undefined) clearTimeout(open.timer);
     this.runs.set(messageId, as);
-    if (this.openRunEntries().length === 0) this.unwatchPageHide();
   }
-
-  private watchPageHide() {
-    if (this.pageHideTarget) return;
-    if (
-      typeof window === "undefined" ||
-      typeof window.addEventListener !== "function"
-    )
-      return;
-    this.pageHideTarget = window;
-    window.addEventListener("pagehide", this.onPageHide);
-    window.addEventListener("pageshow", this.onPageShow);
-  }
-
-  private unwatchPageHide() {
-    this.pageHideTarget?.removeEventListener("pagehide", this.onPageHide);
-    this.pageHideTarget?.removeEventListener("pageshow", this.onPageShow);
-    this.pageHideTarget = undefined;
-  }
-
-  // Heartbeats are main-thread timers that hidden tabs throttle, so an unloading page ends its runs as interrupted; the TTL covers a request that never lands. A page kept in the back/forward cache may come back, so its runs stay open.
-  private onPageHide = (event: Event) => {
-    if ((event as { persisted?: boolean }).persisted) return;
-    const cloud = this.getCloud();
-    for (const [messageId, open] of this.openRunEntries()) {
-      void cloud.threads.runs
-        .end(
-          open.threadId,
-          open.leaseId,
-          { reason: "interrupted" },
-          { keepalive: true },
-        )
-        .catch(() => undefined);
-      this.closeRun(messageId, "lost");
-    }
-  };
-
-  // A page restored from the back/forward cache heartbeats at once: a lease still live keeps going, one that expired meanwhile is lost.
-  private onPageShow = (event: Event) => {
-    if (!(event as { persisted?: boolean }).persisted) return;
-    for (const [messageId, open] of this.openRunEntries()) {
-      if (open.timer !== undefined) clearTimeout(open.timer);
-      open.timer = undefined;
-      void this.heartbeat(messageId, open);
-    }
-  };
 
   /**
    * Delete mapped messages from the cloud and clear their local ID mappings.
@@ -541,9 +487,8 @@ export class CloudMessagePersistence {
   reset() {
     this.idMapping = new Map();
     this.failedAppends = new Map();
-    for (const [, open] of this.openRunEntries())
-      if (open.timer !== undefined) clearTimeout(open.timer);
+    for (const run of this.runs.values())
+      if (isOpen(run) && run.timer !== undefined) clearTimeout(run.timer);
     this.runs = new Map();
-    this.unwatchPageHide();
   }
 }

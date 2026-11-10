@@ -21,7 +21,7 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
-  /** Present while the message's run lease is open: `running` while its holder heartbeats, `stale` once it lapsed or was interrupted. */
+  /** Present while the message's run lease is open: `running` while its holder heartbeats, `stale` once its heartbeats stopped for longer than the TTL. */
   run?: CloudMessageRun | undefined;
 };
 
