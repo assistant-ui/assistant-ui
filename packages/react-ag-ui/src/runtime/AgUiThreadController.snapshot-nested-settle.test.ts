@@ -22,7 +22,7 @@ const userMessage = {
 
 type End = "close" | "error" | "stop" | "finish";
 
-async function run(end: End, withSnapshot = true) {
+async function run(end: End, withSnapshot = true, history?: unknown) {
   let write!: (e: object) => void;
   let close!: () => void;
   let requestMessages: any[] = [];
@@ -61,6 +61,7 @@ async function run(end: End, withSnapshot = true) {
     agent,
     logger: makeLogger(),
     showThinking: false,
+    ...(history ? { history: history as any } : {}),
   });
   const sending = core.append(userMessage).catch(() => {});
   for (let i = 0; i < 50 && !write; i++) await tick();
@@ -174,5 +175,36 @@ describe("ag-ui: a nested message waiting on its own call after the run ends", (
     const { before, after } = await run("close", false);
     expect(before.sub, JSON.stringify(before)).toBe("complete");
     expect(after.sub, JSON.stringify(after)).not.toBe("requires-action");
+  });
+
+  it("appends the answer again when its first append fails under a queued update", async () => {
+    const writes: string[] = [];
+    let headId: string | null = null;
+    const rows = new Set<string>();
+    let failed = false;
+    const history = {
+      load: async () => ({ headId: null, messages: [] }),
+      append: async (item: any) => {
+        const id = item.message.id;
+        writes.push(`append ${id}`);
+        if (id === "answer" && !failed) {
+          failed = true;
+          await tick();
+          throw new Error("write failed");
+        }
+        rows.add(id);
+        headId = id;
+      },
+      // Follows the ThreadHistoryAdapter contract: update does not move the head.
+      update: async (item: any) => {
+        writes.push(`update ${item.message.id}`);
+        rows.add(item.message.id);
+      },
+    };
+    const { after } = await run("error", true, history);
+    expect(after.sub, JSON.stringify(after)).not.toBe("requires-action");
+    expect(writes, writes.join(", ")).not.toContain("update answer");
+    expect(rows.has("answer"), writes.join(", ")).toBe(true);
+    expect(headId, writes.join(", ")).toBe("answer");
   });
 });

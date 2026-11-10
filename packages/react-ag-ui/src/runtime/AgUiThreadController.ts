@@ -415,6 +415,9 @@ export class AgUiThreadController {
   >();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
+  // Ids whose append has not succeeded yet. A write queued behind that append
+  // runs as an append too, since an update may not move the stored head.
+  private readonly unappendedHistoryIds = new Set<string>();
   private readonly historyWrites = createHistoryWriteChain();
   private _historyImportPromise: Promise<void> | undefined;
   private _loadPromise: Promise<void> | undefined;
@@ -540,6 +543,7 @@ export class AgUiThreadController {
       this.subagentParentToolCallIds.clear();
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
+      this.unappendedHistoryIds.clear();
       for (const { message } of repo.messages) {
         this.persistedHistoryIds.add(message.id);
       }
@@ -2876,11 +2880,14 @@ export class AgUiThreadController {
       oldId,
       collidesWithExisting ? undefined : newId,
     );
+    if (this.unappendedHistoryIds.delete(oldId) && !collidesWithExisting)
+      this.unappendedHistoryIds.add(newId);
     if (pendingWrite && !collidesWithExisting) {
       void pendingWrite.then(
         () => {
           this.persistedHistoryIds.delete(oldId);
           this.persistedHistoryIds.add(newId);
+          this.unappendedHistoryIds.delete(newId);
         },
         () => {},
       );
@@ -3962,7 +3969,9 @@ export class AgUiThreadController {
 
     if (shouldUpdate) {
       const write = this.historyWrites.chain(messageId, () =>
-        update.call(history, { parentId, message }),
+        this.unappendedHistoryIds.has(messageId)
+          ? this.appendOnce(history, messageId, { parentId, message })
+          : update.call(history, { parentId, message }),
       );
       this.assistantHistoryParents.delete(messageId);
       void write.then(
@@ -4000,6 +4009,15 @@ export class AgUiThreadController {
     );
   }
 
+  private async appendOnce(
+    history: ThreadHistoryAdapter,
+    messageId: string,
+    item: { parentId: string | null; message: ThreadMessage },
+  ): Promise<void> {
+    await history.append(item);
+    this.unappendedHistoryIds.delete(messageId);
+  }
+
   private appendHistoryItem(
     parentId: string | null,
     message: ThreadMessage,
@@ -4008,9 +4026,10 @@ export class AgUiThreadController {
     const pending = this.historyWrites.pending(message.id);
     if (pending) return pending;
 
-    const append = this.history.append.bind(this.history);
+    const history = this.history;
+    this.unappendedHistoryIds.add(message.id);
     const write = this.historyWrites.chain(message.id, () =>
-      append({ parentId, message }),
+      this.appendOnce(history, message.id, { parentId, message }),
     );
     void write.then(
       () => {
