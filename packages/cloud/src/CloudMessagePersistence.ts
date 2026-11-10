@@ -21,8 +21,8 @@ type OpenRun = {
 
 /**
  * A message's run lease as this persistence knows it: held, ended by our own
- * final write, or lost (expired or refused). A lost run's message
- * gets no further writes; an ended one only plain writes.
+ * final write, or lost (expired or refused). A lost run's message gets no
+ * further writes; an ended one only plain writes.
  */
 type Run = OpenRun | "ended" | "lost";
 
@@ -240,9 +240,7 @@ export class CloudMessagePersistence {
     if (!isOpen(open)) {
       // Our own end closed the lease under an earlier write: a checkpoint is dropped, a final answer lands as a plain write.
       if (phase === "running") return;
-      await this.getCloud().threads.messages.update(threadId, remoteId, {
-        content,
-      });
+      await cloud.threads.messages.update(threadId, remoteId, { content });
       return;
     }
     try {
