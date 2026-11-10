@@ -92,23 +92,39 @@ Keep one agent instance and set its `threadId` when switching threads, because t
 | `threads` | the transcript, and whether a run is active, in one record | `InMemoryThreadStore` (default) or `SqliteThreadStore` | `PostgresThreadStore` |
 | `streams` | every AG-UI frame of the active run | in memory (default) | Redis |
 
-```python
+```python title="main.py"
+from contextlib import asynccontextmanager
+
 from redis.asyncio import Redis
+from starlette.applications import Starlette
 from assistant_stream.pydantic_ai import DurableAGUI, PostgresThreadStore
 from assistant_stream.resumable import (
     create_redis_resumable_stream_store,
     create_resumable_stream_context,
 )
 
-threads = await PostgresThreadStore.connect(DATABASE_URL)  # creates aui_threads
-streams = create_resumable_stream_context(
-    store=create_redis_resumable_stream_store(Redis.from_url(REDIS_URL)),
-    ttl_ms=60 * 60 * 1000,
-)
-durable = DurableAGUI(agent, threads=threads, streams=streams, owner=current_user)
+
+@asynccontextmanager
+async def lifespan(app):
+    threads = await PostgresThreadStore.connect(DATABASE_URL)  # creates aui_threads
+    redis = Redis.from_url(REDIS_URL)
+    streams = create_resumable_stream_context(
+        store=create_redis_resumable_stream_store(redis),
+        ttl_ms=60 * 60 * 1000,
+    )
+    durable = DurableAGUI(agent, threads=threads, streams=streams, owner=current_user)
+    app.router.routes.extend(durable.routes())
+    try:
+        yield
+    finally:
+        await redis.aclose()
+        await threads.close()
+
+
+app = Starlette(lifespan=lifespan)
 ```
 
-Open the store in your app's lifespan and call `await threads.close()` on shutdown. To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, and `list(owner=, limit=)`.
+To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, and `list(owner=, limit=)`.
 
 Use Redis as soon as more than one worker serves the app. Any worker can then replay a run, whichever worker started it.
 
@@ -125,6 +141,6 @@ Stop in the UI calls `abortRun()`, which cancels the run on the server. Switchin
 ## Limits
 
 - The run executes in the worker that received `POST /agent`. Cancel reaches only that worker.
-- A run whose worker dies stops. Its thread is reported as not running once the resumable store drops the stream. To survive worker crashes, wrap the agent with Pydantic AI's `DBOSAgent` or `TemporalAgent`.
+- A run whose worker dies stops, and its answer is not saved. The thread is reported as not running once the resumable store drops the stream. Pydantic AI's `DBOSAgent` or `TemporalAgent` alone doesn't change this, because the frames and the final transcript are written by the worker that took the request.
 - Assistant messages get server-generated ids when the run ends, so their ids change once between the live stream and the first reload.
 - Each `POST /agent` replaces the stored transcript with the one the client sent, the same trust model as `AGUIAdapter`.

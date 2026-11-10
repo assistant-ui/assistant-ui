@@ -8,7 +8,7 @@ import {
 
 function ThreadList() {
   return (
-    <ThreadListPrimitive.Root className="flex flex-col gap-1 overflow-y-auto">
+    <ThreadListPrimitive.Root className="hidden flex-col gap-1 overflow-y-auto md:flex">
       <ThreadListPrimitive.New className="hover:bg-muted flex h-9 items-center gap-2 rounded-lg border px-3 text-sm">
         New thread
       </ThreadListPrimitive.New>
@@ -27,7 +27,7 @@ function ThreadList() {
 
 export default function Home() {
   return (
-    <main className="grid h-dvh grid-cols-[220px_1fr] grid-rows-[minmax(0,1fr)] gap-4 p-4">
+    <main className="grid h-dvh grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 p-2 md:grid-cols-[220px_1fr] md:p-4">
       <ThreadList />
       <Thread />
     </main>

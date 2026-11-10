@@ -31,7 +31,7 @@ The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "a
 | --- | --- | --- | --- |
 | `ThreadStore` | the thread transcript and whether a run is active | SQLite (`threads.db`) | Postgres: set `DATABASE_URL` and `uv sync --extra postgres` |
 | Resumable stream (`assistant_stream.resumable`) | every AG-UI frame of the active run | in memory | Redis: set `REDIS_URL` |
-| Pydantic AI | the agent run | in-process task | add `DBOSAgent` or `TemporalAgent` to survive server crashes |
+| Pydantic AI | the agent run | in-process task | in-process task; a run stops if its server process dies |
 
 - `POST /agent` stores the run's input, starts the run in a background task, and streams its frames from the resumable stream. A closed browser only stops the read; the run keeps going.
 - When the run ends, the transcript and "not running" are written in one record.

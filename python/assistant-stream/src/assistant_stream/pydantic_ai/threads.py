@@ -24,6 +24,7 @@ class ThreadRecord:
 
     messages: list[dict[str, Any]] = field(default_factory=list)
     stream_id: str | None = None
+    run_id: str | None = None
     running: bool = False
     owner: str | None = None
     updated_at: float = field(default_factory=time.time)

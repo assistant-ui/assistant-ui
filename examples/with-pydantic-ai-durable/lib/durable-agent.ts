@@ -18,6 +18,8 @@ export type DurableThread = {
   id: string;
   messages: unknown[];
   running: boolean;
+  /** The thread's latest run. */
+  runId: string | null;
 };
 
 export type DurableThreadSummary = {
@@ -42,6 +44,8 @@ type DurableHttpAgentConfig = Omit<HttpAgentConfig, "url"> & {
 export class DurableHttpAgent extends HttpAgent {
   readonly baseUrl: string;
   private runId: string | undefined;
+  // The run a restored thread reported as running, which connectAgent() rejoins.
+  private runningRunIds = new Map<string, string>();
 
   constructor({ baseUrl, ...config }: DurableHttpAgentConfig) {
     super({ ...config, url: `${baseUrl}/agent` });
@@ -61,7 +65,7 @@ export class DurableHttpAgent extends HttpAgent {
     parameters?: RunAgentParameters,
     subscriber?: AgentSubscriber,
   ) {
-    this.runId = undefined;
+    this.runId = this.runningRunIds.get(this.threadId);
     this.abortController = new AbortController();
     return super.connectAgent(parameters, subscriber);
   }
@@ -104,7 +108,13 @@ export class DurableHttpAgent extends HttpAgent {
     );
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`GET thread failed: ${response.status}`);
-    return (await response.json()) as DurableThread;
+    const thread = (await response.json()) as DurableThread;
+    if (thread.running && thread.runId) {
+      this.runningRunIds.set(threadId, thread.runId);
+    } else {
+      this.runningRunIds.delete(threadId);
+    }
+    return thread;
   }
 
   async listThreads(): Promise<DurableThreadSummary[]> {

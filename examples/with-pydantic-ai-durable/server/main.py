@@ -56,13 +56,11 @@ def build_agent() -> Agent[None, str]:
     return Agent(FunctionModel(stream_function=demo_stream))
 
 
-def build_streams():
-    redis_url = os.environ.get("REDIS_URL")
-    if redis_url:
+def build_streams(redis):
+    if redis is not None:
         from assistant_stream.resumable import create_redis_resumable_stream_store
-        from redis.asyncio import Redis
 
-        store = create_redis_resumable_stream_store(Redis.from_url(redis_url))
+        store = create_redis_resumable_stream_store(redis)
     else:
         store = create_in_memory_resumable_stream_store()
     return create_resumable_stream_context(store=store, ttl_ms=60 * 60 * 1000)
@@ -73,11 +71,21 @@ async def lifespan(app: Starlette):
     database_url = os.environ.get("DATABASE_URL")
     postgres = await PostgresThreadStore.connect(database_url) if database_url else None
     threads = postgres or SqliteThreadStore(os.environ.get("SQLITE_PATH", "threads.db"))
-    app.state.durable = DurableAGUI(build_agent(), threads=threads, streams=build_streams())
+    redis_url = os.environ.get("REDIS_URL")
+    redis = None
+    if redis_url:
+        from redis.asyncio import Redis
+
+        redis = Redis.from_url(redis_url)
+    app.state.durable = DurableAGUI(
+        build_agent(), threads=threads, streams=build_streams(redis)
+    )
     app.router.routes.extend(app.state.durable.routes())
     try:
         yield
     finally:
+        if redis is not None:
+            await redis.aclose()
         if postgres is not None:
             await postgres.close()
 
@@ -87,7 +95,11 @@ app = Starlette(
     middleware=[
         Middleware(
             CORSMiddleware,
-            allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
+            allow_origins=[
+                origin.strip()
+                for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+                if origin.strip()
+            ],
             allow_methods=["*"],
             allow_headers=["*"],
         )

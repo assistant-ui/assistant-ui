@@ -72,16 +72,27 @@ async def _thread_store(kind: str, tmp_path: Path):
 
 
 def _stream_store(kind: str):
+    """The store, and a coroutine function that removes its keys and closes it."""
     if kind == "redis":
         from redis.asyncio import Redis
 
         from assistant_stream.resumable import create_redis_resumable_stream_store
 
-        return create_redis_resumable_stream_store(
-            Redis.from_url(os.environ["REDIS_URL"]),
-            key_prefix=f"aui-test-{uuid.uuid4().hex}",
-        )
-    return create_in_memory_resumable_stream_store()
+        client = Redis.from_url(os.environ["REDIS_URL"])
+        prefix = f"aui-test-{uuid.uuid4().hex}"
+
+        async def cleanup() -> None:
+            keys = [key async for key in client.scan_iter(match=f"{prefix}*")]
+            if keys:
+                await client.delete(*keys)
+            await client.aclose()
+
+        return create_redis_resumable_stream_store(client, key_prefix=prefix), cleanup
+
+    async def nothing() -> None:
+        return None
+
+    return create_in_memory_resumable_stream_store(), nothing
 
 
 BACKENDS = [
@@ -136,7 +147,8 @@ def _serve(
     @asynccontextmanager
     async def lifespan(app: Starlette):
         threads = await _thread_store(threads_kind, tmp_path)
-        streams = create_resumable_stream_context(store=_stream_store(streams_kind))
+        store, cleanup_streams = _stream_store(streams_kind)
+        streams = create_resumable_stream_context(store=store)
         app.state.durable = DurableAGUI(
             Agent(FunctionModel(stream_function=model.stream)),
             threads=threads,
@@ -151,6 +163,7 @@ def _serve(
             model.gate.set()
             if isinstance(threads, PostgresThreadStore):
                 await threads.close()
+            await cleanup_streams()
 
     app = Starlette(lifespan=lifespan)
     port = _free_port()
@@ -170,10 +183,10 @@ def _serve(
         thread.join(timeout=10)
 
 
-def _run_input(thread_id: str, messages: list[dict]) -> dict:
+def _run_input(thread_id: str, messages: list[dict], run_id: str | None = None) -> dict:
     return {
         "threadId": thread_id,
-        "runId": uuid.uuid4().hex,
+        "runId": run_id or uuid.uuid4().hex,
         "state": {},
         "messages": messages,
         "tools": [],
@@ -437,3 +450,26 @@ def test_thread_stores_list_by_owner_newest_first(kind: str, tmp_path: Path) -> 
 def test_sqlite_store_rejects_an_unsafe_table_name(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         SqliteThreadStore(tmp_path / "threads.db", table="threads; DROP TABLE x")
+
+
+def test_a_cancel_naming_the_current_run_stops_it(server: Server) -> None:
+    thread_id = uuid.uuid4().hex
+    run_id = uuid.uuid4().hex
+    with httpx.Client(base_url=server.base_url, timeout=10) as client:
+        with client.stream(
+            "POST", "/agent", json=_run_input(thread_id, [_user("Hi")], run_id)
+        ) as response:
+            for event in _events(response.iter_lines()):
+                if event["type"] == "TEXT_MESSAGE_CONTENT":
+                    break
+
+        assert _thread(client, thread_id)["runId"] == run_id
+        cancelled = client.post(f"/threads/{thread_id}/cancel", params={"run": run_id})
+        assert cancelled.json() == {"cancelled": True}
+        _wait_until(lambda: _thread(client, thread_id)["running"] is False)
+
+
+def test_a_run_id_cannot_reach_into_another_threads_stream(server: Server) -> None:
+    with httpx.Client(base_url=server.base_url, timeout=10) as client:
+        dotted = client.post("/agent", json=_run_input("a", [_user("x")], "b.c"))
+        assert dotted.status_code == 400

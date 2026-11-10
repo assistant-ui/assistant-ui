@@ -135,7 +135,12 @@ class DurableAGUI(Generic[AgentDepsT]):
             )
 
         thread_id = run_input.thread_id
-        stream_id = f"{thread_id}.{run_input.run_id}"
+        run_id = run_input.run_id
+        if "." in run_id:
+            # Keeps "{thread}.{run}" unambiguous, so one thread's run id
+            # cannot name another thread's stream.
+            return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
+        stream_id = f"{thread_id}.{run_id}"
         status = await self._safe_status(stream_id)
         if status is None:
             return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
@@ -165,6 +170,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             ThreadRecord(
                 messages=input_messages,
                 stream_id=stream_id,
+                run_id=run_id,
                 running=True,
                 owner=owner,
             ),
@@ -186,6 +192,7 @@ class DurableAGUI(Generic[AgentDepsT]):
                     messages=input_messages
                     + _dump(AGUIAdapter.dump_messages(new_messages)),
                     stream_id=stream_id,
+                    run_id=run_id,
                     running=False,
                     owner=owner,
                 ),
@@ -226,7 +233,12 @@ class DurableAGUI(Generic[AgentDepsT]):
         if running and record.stream_id:
             # A run whose stream is gone died with its server and will not finish.
             running = await self._safe_status(record.stream_id) == "streaming"
-        return {"id": thread_id, "messages": record.messages, "running": running}
+        return {
+            "id": thread_id,
+            "messages": record.messages,
+            "running": running,
+            "runId": record.run_id,
+        }
 
     async def list_threads(
         self, *, owner: str | None = None, limit: int = 100
@@ -265,9 +277,9 @@ class DurableAGUI(Generic[AgentDepsT]):
         record = await self._record(thread_id, owner)
         if record is None:
             return False
-        if run_id is not None:
-            return self._cancel_local(f"{thread_id}.{run_id}")
         if not record.running or not record.stream_id:
+            return False
+        if run_id is not None and record.stream_id != f"{thread_id}.{run_id}":
             return False
         return self._cancel_local(record.stream_id)
 

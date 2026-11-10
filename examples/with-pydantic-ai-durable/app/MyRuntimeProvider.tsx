@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -44,8 +45,17 @@ export function MyRuntimeProvider({
   const [threads, setThreads] = useState<DurableThreadSummary[]>([]);
   const history = useMemo(() => durableThreadHistory(agent), [agent]);
 
+  // Only the latest list request may update the list, so an older response
+  // that arrives late cannot hide a newer thread.
+  const listRequest = useRef(0);
   const refreshThreads = useCallback(() => {
-    agent.listThreads().then(setThreads, () => {});
+    const request = ++listRequest.current;
+    agent.listThreads().then(
+      (list) => {
+        if (request === listRequest.current) setThreads(list);
+      },
+      () => {},
+    );
   }, [agent]);
   useEffect(refreshThreads, [refreshThreads]);
 
@@ -68,8 +78,9 @@ export function MyRuntimeProvider({
       })),
       onSwitchToNewThread: () => select(crypto.randomUUID()),
       onSwitchToThread: async (id: string) => {
-        select(id);
+        // Load first, so a failed load leaves the current thread selected.
         const thread = await agent.getThread(id);
+        select(id);
         return {
           messages: toThreadMessages(thread),
           unstable_resume: thread?.running ?? false,
