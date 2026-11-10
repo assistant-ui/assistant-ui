@@ -61,13 +61,6 @@ TEMPLATE_MIRRORS=(
     "templates/cloud/app/api/chat/route.ts:templates/cloud-clerk/app/api/chat/route.ts"
     "templates/minimal/app/globals.css:templates/cloud-harness/app/globals.css"
     "templates/default/app/layout.tsx:templates/mcp/app/layout.tsx"
-    "templates/default/.oxfmtrc.json:templates/minimal/.oxfmtrc.json"
-    "templates/default/.oxfmtrc.json:templates/cloud/.oxfmtrc.json"
-    "templates/default/.oxfmtrc.json:templates/cloud-clerk/.oxfmtrc.json"
-    "templates/default/.oxfmtrc.json:templates/cloud-harness/.oxfmtrc.json"
-    "templates/default/.oxfmtrc.json:templates/langchain/.oxfmtrc.json"
-    "templates/default/.oxfmtrc.json:templates/mcp/.oxfmtrc.json"
-    "templates/default/.oxfmtrc.json:templates/eve/.oxfmtrc.json"
 )
 MIRRORS=("${REGISTRY_MIRRORS[@]}" "${TEMPLATE_MIRRORS[@]}")
 
