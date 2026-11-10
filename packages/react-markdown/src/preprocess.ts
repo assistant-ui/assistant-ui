@@ -993,11 +993,11 @@ function rewriteOutsideCode(
 
 /**
  * Emits a display-math body in the `$$` form remark-math parses: `$$body$$` on
- * one span for a single-line body, and for a body spanning lines the fenced
- * form, on lines the `$$` markers own. remark-math parses multiline `$$` as a
- * flow construct: the opening marker has to start a line and the closing marker
- * to end one, and it reads whatever else shares those lines as fence metadata
- * rather than as math.
+ * one span for a single-line body, and for a body spanning lines, or one whose
+ * delimiters sit on lines of their own, the fenced form, on lines the `$$`
+ * markers own. remark-math parses multiline `$$` as a flow construct: the
+ * opening marker has to start a line and the closing marker to end one, and it
+ * reads whatever else shares those lines as fence metadata rather than as math.
  *
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
@@ -1052,6 +1052,9 @@ function crossesSpanBoundary(body: string): boolean {
   return !body.includes("\n") || SPAN_BOUNDARY.test(body);
 }
 
+/** A display body whose delimiters sit on lines of their own. */
+const OWN_LINE_BODY = /^[ \t]*\r?\n[\s\S]*\n[ \t>]*$/;
+
 function emitDisplayMath(
   match: string,
   body: string,
@@ -1079,7 +1082,8 @@ function emitDisplayMath(
     .join("\n")
     .trim();
   if (content === "") return match;
-  if (!body.trim().includes("\n")) return `$$${content}$$`;
+  if (!body.trim().includes("\n") && !OWN_LINE_BODY.test(body))
+    return `$$${content}$$`;
 
   const before = offset === 0 ? precededBy : source[offset - 1]!;
   const afterStart = offset + match.length;

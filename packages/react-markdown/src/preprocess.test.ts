@@ -337,6 +337,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("fences a one-line body whose delimiters sit on lines of their own", () => {
+    expect(
+      rewriteLatexBracketDelimiters("Text\n\\[\nx = 1\n\\]\nmore"),
+    ).toBe("Text\n$$\nx = 1\n$$\nmore");
+  });
+
   it("leaves an empty delimiter pair as written", () => {
     expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
     expect(rewriteLatexBracketDelimiters("\\[ \n \\]\nrest")).toBe(
@@ -396,10 +402,10 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("converts displays with blank lines only at the body edges", () => {
     expect(
       rewriteLatexBracketDelimiters("\\[\n\\text{`x`} = 1\n\n\\]\nText"),
-    ).toBe("$$\\text{`x`} = 1$$\nText");
+    ).toBe("$$\n\\text{`x`} = 1\n$$\nText");
     expect(
       rewriteLatexBracketDelimiters("\\[\n\n\\text{`x`} = 1\n\\]\nText"),
-    ).toBe("$$\\text{`x`} = 1$$\nText");
+    ).toBe("$$\n\\text{`x`} = 1\n$$\nText");
     expect(
       rewriteLatexBracketDelimiters(
         "> \\[\n> \\text{`x`} = 1\n>\n> \\]\n> Text",
@@ -453,7 +459,7 @@ describe("rewriteLatexBracketDelimiters", () => {
       rewriteLatexBracketDelimiters(
         "Read \\[ this\n\n`code`\n\\[\n\\text{`x`}\n\\]",
       ),
-    ).toBe("Read \\[ this\n\n`code`\n$$\\text{`x`}$$");
+    ).toBe("Read \\[ this\n\n`code`\n$$\n\\text{`x`}\n$$");
   });
 
   it("does not span newlines for inline math", () => {
@@ -969,9 +975,9 @@ describe("normalizeMathDelimiters", () => {
     },
   );
 
-  it("keeps a one-equation display inline after an empty list marker", () => {
+  it("fences a one-equation display after an empty list marker", () => {
     expect(normalizeMathDelimiters("Steps:\n- \\[\nx\n\\]")).toBe(
-      "Steps:\n- $$x$$",
+      "Steps:\n- $$\n  x\n  $$",
     );
   });
 
