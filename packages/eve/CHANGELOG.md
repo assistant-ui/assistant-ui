@@ -1,5 +1,14 @@
 # @assistant-ui/eve
 
+## 0.0.26
+
+### Patch Changes
+
+- [#10407](https://github.com/assistant-ui/assistant-ui/pull/10407) [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`f70872a`](https://github.com/assistant-ui/assistant-ui/commit/f70872a43574d311322c0b5071b4581e0a71bdff), [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423)]:
+  - assistant-cloud@0.2.11
+  - @assistant-ui/core@0.3.34
+
 ## 0.0.25
 
 ### Patch Changes
