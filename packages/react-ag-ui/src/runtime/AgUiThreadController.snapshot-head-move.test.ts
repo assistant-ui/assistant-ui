@@ -174,6 +174,89 @@ describe("AgUiThreadController snapshot head moves", () => {
     expect(statuses(core).answer).toBe("complete");
   });
 
+  it("keeps appending to an answer that is still streaming when a snapshot moves the head", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          { id: "other", role: "assistant", content: "o" },
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(core.getMessages().find(({ id }) => id === "answer")).toMatchObject({
+      content: [{ type: "text", text: "a1a2" }],
+      status: { type: "complete" },
+    });
+    expect(core.getMessages().find(({ id }) => id === "other")).toMatchObject({
+      content: [{ type: "text", text: "o" }],
+      status: { type: "complete" },
+    });
+  });
+
+  it("routes a call streamed after the snapshot to the answer that still owns the frame", async () => {
+    const core = createController((wire) => [
+      start,
+      { type: "TEXT_MESSAGE_START", messageId: "answer", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a1" },
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          ...wire.messages,
+          { id: "answer", role: "assistant", content: "a1" },
+          { id: "other", role: "assistant", content: "o" },
+        ],
+      },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+      {
+        type: "TOOL_CALL_START",
+        messageId: "answer",
+        parentMessageId: "answer",
+        toolCallId: "lookup",
+        toolCallName: "lookup",
+      },
+      { type: "TOOL_CALL_ARGS", toolCallId: "lookup", delta: "{}" },
+      { type: "TOOL_CALL_END", toolCallId: "lookup" },
+      {
+        type: "TOOL_CALL_RESULT",
+        messageId: "tool-lookup",
+        toolCallId: "lookup",
+        content: "found",
+      },
+      { type: "TEXT_MESSAGE_END", messageId: "answer" },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(
+      core.getMessages().find(({ id }) => id === "answer")?.content,
+    ).toEqual([
+      { type: "text", text: "a1a2" },
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "lookup",
+        toolName: "lookup",
+        args: {},
+        argsText: "{}",
+        result: "found",
+        unstable_toolMessageId: "tool-lookup",
+      }),
+    ]);
+    expect(taskPartFor(core, "other")).toBeUndefined();
+    expect(
+      core.getMessages().find(({ id }) => id === "other")?.content,
+    ).toEqual([{ type: "text", text: "o" }]);
+  });
+
   it("settles the moved-off answer and sub-agent after the tool result", async () => {
     const core = createController((wire) => [
       start,

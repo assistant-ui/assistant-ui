@@ -3317,34 +3317,46 @@ export class AgUiThreadController {
           !runStartMessageIds.has(head.id) &&
           head.status?.type === "requires-action" &&
           head.status.reason === "tool-calls";
+        // A snapshot can move the head while the run is still streaming the
+        // answer it started with — a rejoin replays the whole thread, and a
+        // server-side thread can list a message created after that answer. The
+        // open frame owns the parts its next deltas append to, so rebasing onto
+        // the new head now would drop the rest of the frame.
+        const frameStillOpen =
+          joinStrategy !== "concat-content" &&
+          activeAssistantId !== undefined &&
+          activeAssistant?.role === "assistant" &&
+          aggregator.isTextFrameOpen(activeAssistantId);
         if (
           headId !== previousHeadId &&
           (hasActiveText || hasNewPendingToolCallAnswer)
         ) {
           const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
-          if (
-            activeAssistantId !== nextActiveAssistantId &&
-            activeAssistantId
-          ) {
-            const previous =
-              this.session.tryGetMessage(activeAssistantId)?.message;
+          if (!frameStillOpen) {
             if (
-              previous?.role === "assistant" &&
-              previous.status?.type === "running"
+              activeAssistantId !== nextActiveAssistantId &&
+              activeAssistantId
             ) {
-              this.updateAssistantMessage(activeAssistantId, {
-                status: FALLBACK_USER_STATUS,
-                content: settleNestedContent(
-                  previous.content,
-                  FALLBACK_USER_STATUS,
-                ),
-              });
+              const previous =
+                this.session.tryGetMessage(activeAssistantId)?.message;
+              if (
+                previous?.role === "assistant" &&
+                previous.status?.type === "running"
+              ) {
+                this.updateAssistantMessage(activeAssistantId, {
+                  status: FALLBACK_USER_STATUS,
+                  content: settleNestedContent(
+                    previous.content,
+                    FALLBACK_USER_STATUS,
+                  ),
+                });
+              }
             }
-          }
-          activeAssistantId = nextActiveAssistantId;
-          if (activeAssistantId && joinStrategy !== "concat-content") {
-            aggregator.rebaseMessage(activeAssistantId);
+            activeAssistantId = nextActiveAssistantId;
+            if (activeAssistantId && joinStrategy !== "concat-content") {
+              aggregator.rebaseMessage(activeAssistantId);
+            }
           }
           if (hasNewPendingToolCallAnswer && head) {
             this.updateAssistantMessage(head.id, {

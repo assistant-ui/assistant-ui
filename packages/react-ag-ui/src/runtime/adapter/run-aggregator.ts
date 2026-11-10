@@ -267,6 +267,17 @@ export class RunAggregator {
     return this.toolCalls.has(toolCallId);
   }
 
+  // A root text frame stays open between TEXT_MESSAGE_START and
+  // TEXT_MESSAGE_END, and only the frame owns the parts a later delta appends
+  // to. A snapshot that arrives mid-frame must not rebase onto another message,
+  // or the rest of that frame's deltas have nowhere to land.
+  isTextFrameOpen(messageId: string): boolean {
+    return (
+      this.activeTextMessageIdByScope.get(ROOT_SCOPE) ===
+      this.partKey(ROOT_SCOPE, messageId)
+    );
+  }
+
   rebaseMessage(messageId: string): void {
     const snapshotText = this.pendingSnapshotText.get(messageId);
     this.resetMessageParts();
