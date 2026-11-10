@@ -807,12 +807,6 @@ describe("rewriteCustomMathTags", () => {
     );
   });
 
-  it("fences a one-line math tag body whose tags sit on lines of their own", () => {
-    expect(rewriteCustomMathTags("Text\n[/math]\nx = 1\n[/math]\nmore")).toBe(
-      "Text\n$$\nx = 1\n$$\nmore",
-    );
-  });
-
   it("does not add a blank line before a CRLF suffix", () => {
     expect(rewriteCustomMathTags("[/math]\na\nb\n[/math]\r\nrest")).toBe(
       "$$\na\nb\n$$\r\nrest",
@@ -2039,13 +2033,11 @@ describe("HTML blocks", () => {
   });
 
   it.each([
-    ["\\[", "\\]"],
-    ["\\\\[", "\\\\]"],
-    ["[/math]", "[/math]"],
-  ])("normalizes %s display math containing block tags", (open, close) => {
-    expect(normalizeMathDelimiters(`${open}\n<p> = m <v>\n${close}`)).toBe(
-      "$$\n<p> = m <v>\n$$",
-    );
+    ["\\[", "\\]", "$$\n<p> = m <v>\n$$"],
+    ["\\\\[", "\\\\]", "$$\n<p> = m <v>\n$$"],
+    ["[/math]", "[/math]", "$$<p> = m <v>$$"],
+  ])("normalizes %s display math containing block tags", (open, close, expected) => {
+    expect(normalizeMathDelimiters(`${open}\n<p> = m <v>\n${close}`)).toBe(expected);
     expect(
       normalizeMathDelimiters(`${open}\n<pre>\nx\n${close}\n\\(y\\)`),
     ).toBe("$$\n<pre>\nx\n$$\n$y$");

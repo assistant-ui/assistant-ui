@@ -993,9 +993,9 @@ function rewriteOutsideCode(
 
 /**
  * Emits a display-math body in the `$$` form remark-math parses: `$$body$$` on
- * one span for a single-line body, and for a body spanning lines, or one whose
- * delimiters sit on lines of their own, the fenced form, on lines the `$$`
- * markers own. remark-math parses multiline `$$` as a flow construct: the
+ * one span for a single-line body, and for a body spanning lines, or with
+ * `fenceOwnLineBody` one whose delimiters sit on lines of their own, the fenced
+ * form, on lines the `$$` markers own. remark-math parses multiline `$$` as a flow construct: the
  * opening marker has to start a line and the closing marker to end one, and it
  * reads whatever else shares those lines as fence metadata rather than as math.
  *
@@ -1086,6 +1086,7 @@ function emitDisplayMath(
   precededBy: string,
   followedBy: string,
   lineHead: (offset: number) => string,
+  fenceOwnLineBody: boolean,
 ): string {
   // Markers written at the root column would end the list item or blockquote the
   // math was written inside, so they carry that container's prefix and the body
@@ -1107,7 +1108,10 @@ function emitDisplayMath(
   if (content === "") return match;
   if (
     !body.trim().includes("\n") &&
-    !delimitersOwnTheirLines(match, body, offset, source, followedBy, head)
+    !(
+      fenceOwnLineBody &&
+      delimitersOwnTheirLines(match, body, offset, source, followedBy, head)
+    )
   )
     return `$$${content}$$`;
 
@@ -1255,7 +1259,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       if (!body.includes("\n")) {
         out +=
           block.slice(cursor, opener) +
-          emitDisplayMath(match, body, opener, block, "", "", () => "");
+          emitDisplayMath(match, body, opener, block, "", "", () => "", true);
         cursor = end;
         opener = -1;
         continue;
@@ -1287,6 +1291,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         "",
         "",
         lineHead,
+        true,
       );
       if (
         openedOnReindentedLine &&
@@ -1455,6 +1460,7 @@ function rewriteMathTags(text: string, handoffBrackets: boolean): string {
             precededBy,
             followedBy,
             head,
+            false,
           );
           if (replacement.endsWith(`\n${prefix}`)) {
             const end = segmentStart + offset + match.length;
