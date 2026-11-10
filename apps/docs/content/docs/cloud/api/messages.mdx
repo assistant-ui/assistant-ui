@@ -247,6 +247,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `200` | `{}` | The message was updated. |
 | `400` | `{ "error": "Schema validation error", "details": […] }` | `content` is missing or invalid, too large, or an unknown field was sent. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
+| `409` | `{ "error": "run_in_progress" }` | No `lease_id` was sent and the message holds a live run lease. Nothing is written. Writes to a stale or ended message are allowed. |
 | `409` | `{ "error": "superseded", "message_id": "msg_…", "forked_from": "msg_…" }` | `lease_id` was sent for a run another run resumed. This first write was stored once as a sibling, `message_id`; the lease writes nothing more. |
 | `409` | `{ "error": "superseded", "superseded_by": "msg_…" }` | `lease_id` was sent for a resumed run whose sibling was already stored. Nothing is written. |
 | `409` | `{ "error": "run_stale" }` | `lease_id` names a run whose lease expired. Nothing is written. |

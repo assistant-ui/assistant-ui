@@ -16,7 +16,7 @@ import {
 } from "../../../tests/remote-thread-list-test-helpers";
 import { useEffect } from "react";
 import { useLocalRuntime } from "../useLocalRuntime";
-import { useRuntimeAdapters } from "../../../runtimes/adapters/RuntimeAdapterProvider";
+import { useRuntimeAdapters } from "../useRuntimeAdapters";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 import {
