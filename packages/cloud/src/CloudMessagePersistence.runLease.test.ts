@@ -606,26 +606,6 @@ describe("CloudMessagePersistence run leases", () => {
     });
   });
 
-  it("drops a plain write the server refuses because another session runs the message", async () => {
-    const { cloud, messages } = createCloud();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    messages.update.mockRejectedValueOnce(
-      new CloudAPIError("busy", 409, "run_in_progress"),
-    );
-    const persistence = new CloudMessagePersistence(cloud);
-    persistence.record("local-a", "msg_9");
-
-    await expect(
-      persistence.update("t1", "local-a", "aui/v0", done),
-    ).resolves.toBeUndefined();
-    expect(warn).toHaveBeenCalledTimes(1);
-
-    messages.update.mockRejectedValueOnce(new CloudAPIError("down", 503));
-    await expect(
-      persistence.update("t1", "local-a", "aui/v0", done),
-    ).rejects.toThrow("down");
-  });
-
   describe("through a format adapter", () => {
     type UIMessage = { id: string; parts: { text: string }[] };
     const adapter: MessageFormatAdapter<UIMessage, Record<string, unknown>> = {
