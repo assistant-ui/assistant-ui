@@ -56,7 +56,7 @@ export const states = defineStates([
   {
     key: "idle",
     label: "Idle",
-    note: "No voice session is running, so the control offers Connect. A stub adapter answers it.",
+    note: "No voice session is running, so the control offers Connect, which a stub adapter answers.",
     Component: () => <OrbFixture state="idle" label="Idle" control />,
   },
   {

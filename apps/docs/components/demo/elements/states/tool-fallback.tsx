@@ -159,6 +159,27 @@ export const states = defineStates([
     },
   },
   {
+    key: "cancelled",
+    label: "Cancelled",
+    note: "The run stopped before the tool finished, so the call is struck through.",
+    Component: () => {
+      const status = { type: "incomplete", reason: "cancelled" } as const;
+      return (
+        <Frame>
+          <ToolFallbackRoot open onOpenChange={noop}>
+            <ToolFallbackTrigger toolName="crawl_site" status={status} />
+            <ToolFallbackContent>
+              <ToolFallbackArgs
+                className="opacity-60"
+                argsText={json({ url: "https://docs.acme.dev", maxPages: 500 })}
+              />
+            </ToolFallbackContent>
+          </ToolFallbackRoot>
+        </Frame>
+      );
+    },
+  },
+  {
     key: "long-content",
     label: "Long result",
     note: "A large JSON result wraps inside the panel.",

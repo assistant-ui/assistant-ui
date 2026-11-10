@@ -38,7 +38,7 @@ export const SearchDocsToolUI: ToolCallMessagePartComponent<
       request={argsText}
       result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
       running={status.type === "running"}
-      failed={isError === true || status.type === "incomplete"}
+      failed={isError === true || (status.type === "incomplete" && status.reason === "error")}
       open={open}
       onOpenChange={setOpen}
     />
@@ -196,7 +196,7 @@ function makeSearchToolUI(label: string, activeLabel: string) {
         request={argsText}
         result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
         running={status.type === "running"}
-        failed={isError === true || status.type === "incomplete"}
+        failed={isError === true || (status.type === "incomplete" && status.reason === "error")}
         open={open}
         onOpenChange={setOpen}
       />
@@ -261,7 +261,7 @@ Register the renderer on a toolkit entry's `render` field and attach the toolkit
 | `request` | `string` | required | Raw request text shown in the disclosure panel. |
 | `result` | `string` | required | Result text shown in the disclosure panel. |
 | `running` | `boolean` | required | Swaps the label and hides the checkmark while true. |
-| `failed` | `boolean` | `false` | Shows a red cross instead of the checkmark once settled. Pass it for a thrown or denied call (`isError`) or a failed run. |
+| `failed` | `boolean` | `false` | Shows a red cross instead of the checkmark once settled. Pass it for a thrown or denied call (`isError`) or a run that failed with an error. |
 | `open` | `boolean` | required | Whether the disclosure panel is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
 | `className` | `string` | | Merged onto the root. |

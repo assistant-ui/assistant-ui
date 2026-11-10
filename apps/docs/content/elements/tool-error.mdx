@@ -19,12 +19,11 @@ A failed call is one whose status settled on `"incomplete"`. Branch on it inside
 ```tsx title="app/search-toolkit.tsx"
 "use client";
 
-import { useState } from "react";
-import { useAui, type ToolCallMessagePartProps } from "@assistant-ui/react";
+import { useAui, useAuiState, type ToolCallMessagePartProps } from "@assistant-ui/react";
 import { ToolError } from "@/components/assistant-ui/elements/tool-error";
 
 export function SearchTool({ toolName, args, status, result }: ToolCallMessagePartProps<{ query: string }, string>) {
-  const [attempt, setAttempt] = useState(1);
+  const attempt = useAuiState((s) => s.message.branchNumber);
   const aui = useAui();
 
   if (status?.type === "incomplete") {
@@ -36,10 +35,7 @@ export function SearchTool({ toolName, args, status, result }: ToolCallMessagePa
         attempt={attempt}
         maxAttempts={3}
         retrying={false}
-        onRetry={() => {
-          setAttempt((a) => Math.min(a + 1, 3));
-          aui.message.reload();
-        }}
+        onRetry={() => aui.message.reload()}
       />
     );
   }
@@ -81,7 +77,7 @@ function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-assistant-ui doesn't retry a single tool call in place; `aui.message.reload()` reissues the whole turn, which calls `search_web` again with a fresh attempt.
+assistant-ui doesn't retry a single tool call in place; `aui.message.reload()` reissues the whole turn as a new branch of the assistant message, which calls `search_web` again. The branch number counts the attempts, so it survives the remount a reload causes.
 
   </Step>
 </Steps>
@@ -160,7 +156,7 @@ async function retry(query: string) {
 </div>
 ```
 
-Skip has no default behavior: passing no `onSkip` leaves the button rendered but disabled, so a card with only a retry path still shows both actions. Retry disables itself while `retrying` is true and swaps its icon for a spinner; nothing else in the card reacts to `retrying`. Once `attempt` reaches `maxAttempts`, Retry stays disabled and dims, so only Skip remains.
+Skip has no default behavior: passing no `onSkip` leaves the button rendered but disabled, so a card with only a retry path still shows both actions. Retry disables itself while `retrying` is true and swaps its icon for a spinner; nothing else in the card reacts to `retrying`. Once `attempt` reaches `maxAttempts`, Retry stays disabled and dims; Skip still works when `onSkip` is passed.
 
 ## Examples
 

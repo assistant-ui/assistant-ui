@@ -45,7 +45,7 @@ export const states = defineStates([
   {
     key: "one-reply",
     label: "One reply",
-    note: "The notice uses the singular when only one reply moves to the old branch.",
+    note: "The notice uses the singular when only one reply stays on the old branch.",
     Component: () => (
       <EditMessage
         {...handlers}
