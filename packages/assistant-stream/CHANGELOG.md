@@ -1,5 +1,15 @@
 # assistant-stream
 
+## 0.3.57
+
+### Patch Changes
+
+- [#10359](https://github.com/assistant-ui/assistant-ui/pull/10359) [`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2) - route UI message stream approval responses without copying every registered approval per response. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10395](https://github.com/assistant-ui/assistant-ui/pull/10395) [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357) - Stop scanning SSE input at the done marker so an oversized suffix in the same chunk cannot reject an otherwise complete stream. Preserve line and event limits before the marker. ([@Elon-Jiang](https://github.com/Elon-Jiang))
+
+- [#10139](https://github.com/assistant-ui/assistant-ui/pull/10139) [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340) - feat: expose generic JSON parser backend registration with shared registration, isolated snapshots, and native fallback. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.56
 
 ### Patch Changes

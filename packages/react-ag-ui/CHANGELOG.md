@@ -1,5 +1,17 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.3
+
+### Patch Changes
+
+- [#10288](https://github.com/assistant-ui/assistant-ui/pull/10288) [`ece6d9e`](https://github.com/assistant-ui/assistant-ui/commit/ece6d9ed29f9d93f71b7750b822ebc27d4a43c71) - send the agent's initialState on a thread's first request, with each thread starting from it even when threads share one agent ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10358](https://github.com/assistant-ui/assistant-ui/pull/10358) [`855e9fa`](https://github.com/assistant-ui/assistant-ui/commit/855e9fafc30d026c6889737c605395746e546336) - Keep moved-off assistant messages settled across repeated snapshots and attach streamed tool results to their originating message. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`47b6556`](https://github.com/assistant-ui/assistant-ui/commit/47b6556da134f3f52447c6f8325523e89b3b1f4f), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - @assistant-ui/generative-ui@0.0.10
+  - @assistant-ui/core@0.3.34
+
 ## 0.1.2
 
 ### Patch Changes

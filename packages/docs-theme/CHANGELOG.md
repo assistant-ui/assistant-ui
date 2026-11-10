@@ -1,5 +1,11 @@
 # @assistant-ui/docs-theme
 
+## 0.0.4
+
+### Patch Changes
+
+- [#10407](https://github.com/assistant-ui/assistant-ui/pull/10407) [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.3
 
 ### Patch Changes
