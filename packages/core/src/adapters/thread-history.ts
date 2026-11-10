@@ -23,6 +23,8 @@ export interface MessageFormatItem<TMessage> {
    * A status the history assigns on load, for a message whose run another
    * session is still writing or that was interrupted. Runtimes show it in
    * place of the message's own status; it is never stored.
+   *
+   * @deprecated Experimental since 2026-11-10. Not scheduled for removal; the API may change in any release.
    */
   unstable_status?: MessageStatus | undefined;
 }
@@ -52,6 +54,8 @@ export type GenericThreadHistoryAdapter<TMessage> = {
    * Registers how the runtime re-reads the thread, for a history that follows
    * a run another session drives. The history calls it to replace the loaded
    * messages; returns the unsubscribe.
+   *
+   * @deprecated Experimental since 2026-11-10. Not scheduled for removal; the API may change in any release.
    */
   unstable_onReload?(listener: () => Promise<void>): () => void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
