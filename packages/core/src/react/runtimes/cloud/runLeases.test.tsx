@@ -14,7 +14,9 @@ import {
   actSettled,
   deferred,
 } from "../../../tests/remote-thread-list-test-helpers";
+import { useEffect } from "react";
 import { useLocalRuntime } from "../useLocalRuntime";
+import { useRuntimeAdapters } from "../../../runtimes/adapters/RuntimeAdapterProvider";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 import {
@@ -87,7 +89,10 @@ const makeCloud = (stored: CloudMessage[] = []) => {
   };
 };
 
-const renderRuntime = async (cloud: AssistantCloud) => {
+const renderRuntime = async (
+  cloud: AssistantCloud,
+  options: { runsContinueOnServer?: boolean; runtimeReports?: boolean } = {},
+) => {
   const runs: ReturnType<typeof deferred<RunResult>>[] = [];
   let runtime!: AssistantRuntime;
   let aui!: AssistantClient;
@@ -96,10 +101,20 @@ const renderRuntime = async (cloud: AssistantCloud) => {
     return null;
   };
   const Harness = () => {
-    const adapter = useCloudThreadListAdapter({ cloud });
+    const adapter = useCloudThreadListAdapter({
+      cloud,
+      ...(options.runsContinueOnServer !== undefined
+        ? { runsContinueOnServer: options.runsContinueOnServer }
+        : undefined),
+    });
     runtime = useRemoteThreadListRuntime({
       adapter,
       runtimeHook: function RuntimeHook() {
+        const history = useRuntimeAdapters()?.history;
+        useEffect(() => {
+          if (options.runtimeReports)
+            history?.unstable_setRunsContinueOnServer?.(true);
+        }, [history]);
         return useLocalRuntime({
           run: () => {
             const run = deferred<RunResult>();
@@ -200,6 +215,59 @@ describe("cloud run leases", () => {
     expect(messages.update).not.toHaveBeenCalled();
     expect(threadRuns.end).not.toHaveBeenCalled();
     expect(threadRuns.heartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  describe("when the page unloads", () => {
+    const startRun = async (
+      options: Parameters<typeof renderRuntime>[1] = {},
+    ) => {
+      const { cloud, messages, threadRuns } = makeCloud();
+      const { runs, getAui } = await renderRuntime(cloud, options);
+      await act(async () => {
+        getAui().thread.append("hello");
+      });
+      await waitFor(() => expect(runs).toHaveLength(1));
+      await waitFor(() =>
+        expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
+      );
+      await act(async () => {
+        window.dispatchEvent(new Event("pagehide"));
+      });
+      return threadRuns;
+    };
+
+    it("ends a held run as interrupted", async () => {
+      const threadRuns = await startRun();
+      expect(threadRuns.end).toHaveBeenCalledWith(
+        "remote-1",
+        "lease_1",
+        { reason: "interrupted" },
+        { keepalive: true },
+      );
+    });
+
+    it("leaves the run open when the app says runs continue on the server", async () => {
+      const threadRuns = await startRun({ runsContinueOnServer: true });
+      expect(threadRuns.end).not.toHaveBeenCalled();
+    });
+
+    it("leaves the run open when the runtime reports it continues on the server", async () => {
+      const threadRuns = await startRun({ runtimeReports: true });
+      expect(threadRuns.end).not.toHaveBeenCalled();
+    });
+
+    it("lets the app's option override the runtime's report", async () => {
+      const threadRuns = await startRun({
+        runsContinueOnServer: false,
+        runtimeReports: true,
+      });
+      expect(threadRuns.end).toHaveBeenCalledWith(
+        "remote-1",
+        "lease_1",
+        { reason: "interrupted" },
+        { keepalive: true },
+      );
+    });
   });
 
   it("loads a stale reply as an interrupted error that Resume continues from", async () => {

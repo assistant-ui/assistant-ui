@@ -107,6 +107,12 @@ export type ThreadHistoryAdapter = {
    * Deletes messages from history. The runtime may send a second delete for the same message after a write it issued before the delete lands; treat deleting a missing entry as success.
    */
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
+  /**
+   * Called by a runtime whose runs keep going on its backend after the tab
+   * leaves (an AG-UI agent rejoined through `connect()`), so an adapter that
+   * holds run leases does not end them as interrupted when the page unloads.
+   */
+  unstable_setRunsContinueOnServer?(continues: boolean): void;
   /** Required when used with `useAISDKRuntime` / `useChatRuntime`. */
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,

@@ -47,8 +47,14 @@ import {
 } from "../keyedThreadListItem";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
 
+export type CloudHistoryAdapterOptions = {
+  /** Read when the page unloads; see `CloudThreadListAdapterOptions.runsContinueOnServer`. */
+  runsContinueOnServer?: (() => boolean | undefined) | undefined;
+};
+
 type ScopedPersistence = {
   cloudRef: { current: RefObject<AssistantCloud> };
+  ownerRef: { current: AssistantCloudThreadHistoryAdapter };
   persistence: CloudMessagePersistence;
   scope: unknown;
 };
@@ -226,14 +232,31 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     Map<string, Promise<void>>
   >();
 
+  private options: CloudHistoryAdapterOptions;
+  private runtimeRunsContinueOnServer = false;
+
   constructor(
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
     scopeRef: RefObject<unknown>,
+    options: CloudHistoryAdapterOptions = {},
   ) {
     this.cloudRef = cloudRef;
     this.scopeRef = scopeRef;
     this.getAui = getAui;
+    this.options = options;
+  }
+
+  /** A runtime whose runs continue on its backend (AG-UI with `connect()`) reports it here. */
+  public unstable_setRunsContinueOnServer(continues: boolean): void {
+    this.runtimeRunsContinueOnServer = continues;
+  }
+
+  /** Whether a closing page should leave this thread's run leases open; the app's option wins over the runtime's report. */
+  public runsContinueOnServer(): boolean {
+    return (
+      this.options.runsContinueOnServer?.() ?? this.runtimeRunsContinueOnServer
+    );
   }
 
   private get aui(): AssistantClient {
@@ -290,11 +313,16 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     let entry = globalPersistence.get(key);
     if (!entry || !Object.is(entry.scope, snapshot.scope)) {
       const cloudRef = { current: this.cloudRef };
+      const ownerRef = { current: this as AssistantCloudThreadHistoryAdapter };
       entry = {
         cloudRef,
+        ownerRef,
         scope: snapshot.scope,
         persistence: new CloudMessagePersistence(
           () => cloudRef.current.current,
+          {
+            runsContinueOnServer: () => ownerRef.current.runsContinueOnServer(),
+          },
         ),
       };
       globalPersistence.set(key, entry);
@@ -302,6 +330,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       // Thread items can outlive the hook that created their persistence, so a
       // later adapter must reconnect the retained mapping to its live client ref.
       entry.cloudRef.current = this.cloudRef;
+      entry.ownerRef.current = this;
     }
     return entry.persistence;
   }
@@ -1081,6 +1110,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown>,
+  options?: CloudHistoryAdapterOptions,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -1094,6 +1124,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
         cloudRef,
         () => auiRef.current,
         scopeRef,
+        options,
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);

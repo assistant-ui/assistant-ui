@@ -35,6 +35,7 @@ import type {
   UseAgUiRuntimeOptions,
 } from "./runtime/types";
 import { AgUiThreadController } from "./runtime/AgUiThreadController";
+import { implementsConnect } from "./runtime/implementsConnect";
 import { agUiExtras } from "./agUiExtras";
 import type { QueueItemState } from "@assistant-ui/core/store";
 
@@ -106,6 +107,12 @@ export function useAgUiRuntime(
       ...(historyAdapter && { history: historyAdapter }),
     });
   });
+
+  // An agent that implements connect() keeps its run going on the server, so a cloud history adapter leaves its run leases open when the page unloads.
+  const runsContinueOnServer = implementsConnect(options.agent);
+  useEffect(() => {
+    historyAdapter?.unstable_setRunsContinueOnServer?.(runsContinueOnServer);
+  }, [historyAdapter, runsContinueOnServer]);
 
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
