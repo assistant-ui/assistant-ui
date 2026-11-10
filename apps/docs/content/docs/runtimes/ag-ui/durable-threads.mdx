@@ -126,7 +126,7 @@ async def lifespan(app):
 app = Starlette(lifespan=lifespan)
 ```
 
-To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, and `list(owner=, limit=)`.
+To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, `list(owner=, limit=)`, and `put_if_current`, which writes a record only if the stored record has the same `stream_id` and must do so atomically (a conditional `UPDATE`). It's how a run that was replaced leaves its replacement's transcript alone.
 
 Use Redis as soon as more than one worker serves the app. Any worker can then replay a run, whichever worker started it.
 
