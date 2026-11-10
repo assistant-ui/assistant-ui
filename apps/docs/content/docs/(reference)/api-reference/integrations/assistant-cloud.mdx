@@ -56,8 +56,11 @@ Every call returns a promise and throws `CloudAPIError` on a non 2xx response, w
 ### AssistantCloudThreadRuns
 
 Run leases on thread messages. A run's holder keeps its lease alive with
-heartbeats; a run that stops heartbeating reads as stale, and a new run
-opened under it resumes it. Writes as the holder go through
+heartbeats on the server's `heartbeat_interval_ms`; the server sets the
+lease's TTL. A run that stops heartbeating reads as stale once its lease
+expires, and an expired lease never comes back: heartbeats and writes with
+it answer 409 `run_stale`. A new run opened under a stale message resumes
+it and supersedes the stale lease. Writes as the holder go through
 `threads.messages` with the `lease_id`.
 
 <ParametersTable {...assistantCloud_AssistantCloudThreadRuns} />
@@ -108,8 +111,13 @@ Wraps a CloudMessagePersistence with a MessageFormatAdapter's encode and
 decode. The persistence parameter is typed structurally, so a caller does
 not need to import the class.
 
+`append` and `update` take an optional run phase that is passed through to
+the persistence: `running` opens (on append) or renews (on update) the
+message's run lease, and an end reason makes the write the lease's final
+write and ends it, the same as for `aui/v0` messages.
+
 ```ts
-const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject) => Promise<void>; load: (threadId: string, format?: string) => Promise<any[]>; isPersisted: (messageId: string) => boolean; update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>; delete?: (threadId: string, messageIds: string[]) => Promise<void>; }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => { append: (threadId: string, item: { parentId: string | null; message: TMessage; }) => Promise<void>; update: ((threadId: string, item: { parentId: string | null; message: TMessage; }, messageId: string) => Promise<void>) | undefined; delete: ((threadId: string, items: { parentId: string | null; message: TMessage; }[]) => Promise<void>) | undefined; load: (threadId: string) => Promise<{ messages: { parentId: string | null; message: TMessage; }[]; }>; isPersisted: (messageId: string) => boolean; };
+const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase) => Promise<void>; load: (threadId: string, format?: string) => Promise<any[]>; isPersisted: (messageId: string) => boolean; update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase) => Promise<void>; delete?: (threadId: string, messageIds: string[]) => Promise<void>; }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => { append: (threadId: string, item: { parentId: string | null; message: TMessage; }, run?: CloudMessageRunPhase) => Promise<void>; update: ((threadId: string, item: { parentId: string | null; message: TMessage; }, messageId: string, run?: CloudMessageRunPhase) => Promise<void>) | undefined; delete: ((threadId: string, items: { parentId: string | null; message: TMessage; }[]) => Promise<void>) | undefined; load: (threadId: string) => Promise<{ messages: { parentId: string | null; message: TMessage; }[]; }>; isPersisted: (messageId: string) => boolean; };
 ```
 
 ### createRunReport
