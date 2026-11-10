@@ -163,9 +163,11 @@ describe("ag-ui: a nested message waiting on its own call after the run ends", (
     });
   }
 
-  it("control: after RUN_FINISHED the nested call may stay waiting (it can be answered)", async () => {
+  it("control: after RUN_FINISHED the nested call stays open and is not settled as an error", async () => {
     const { after } = await run("finish");
     expect(after.answer, JSON.stringify(after)).toBe("requires-action");
+    expect(after.ncallOpen, JSON.stringify(after)).toBe(true);
+    expect(after.subReason, JSON.stringify(after)).not.toBe("error");
   });
 
   it("control: without the snapshot the nested message is the stream's (complete) and settles", async () => {
