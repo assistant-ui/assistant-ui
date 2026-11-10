@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
-from typing import Any, Generic, Union
+from typing import Any, Generic
 
 from ag_ui.core import Message, RunAgentInput
 from pydantic import ValidationError
@@ -24,9 +24,14 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
-from assistant_stream.pydantic_ai.threads import InMemoryThreadStore, ThreadRecord, ThreadStore
+from assistant_stream.pydantic_ai.threads import (
+    InMemoryThreadStore,
+    ThreadRecord,
+    ThreadStore,
+)
 from assistant_stream.resumable import (
     ResumableStreamContext,
+    ResumableStreamError,
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
 )
@@ -34,7 +39,7 @@ from assistant_stream.resumable import (
 SSE = "text/event-stream"
 DEFAULT_STREAM_TTL_MS = 60 * 60 * 1000
 
-_MaybeAwaitable = Union[Any, Awaitable[Any]]
+_MaybeAwaitable = Any | Awaitable[Any]
 RunOptions = Callable[[Request, RunAgentInput], _MaybeAwaitable]
 """Returns keyword arguments for `AGUIAdapter.run_stream` (deps, model_settings, ...)."""
 Owner = Callable[[Request], _MaybeAwaitable]
@@ -246,7 +251,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             return None
         try:
             return await self.streams.resume(record.stream_id)
-        except Exception:
+        except ResumableStreamError:
             return None
 
     async def cancel(
@@ -289,7 +294,9 @@ class DurableAGUI(Generic[AgentDepsT]):
             return JSONResponse(await self.list_threads(owner=owner))
 
         async def get_thread(request: Request, owner: str | None) -> Response:
-            thread = await self.get_thread(request.path_params["thread_id"], owner=owner)
+            thread = await self.get_thread(
+                request.path_params["thread_id"], owner=owner
+            )
             return _not_found() if thread is None else JSONResponse(thread)
 
         async def stream(request: Request, owner: str | None) -> Response:
@@ -340,7 +347,7 @@ class DurableAGUI(Generic[AgentDepsT]):
     async def _safe_status(self, stream_id: str) -> str | None:
         try:
             return await self.streams.status(stream_id)
-        except Exception:
+        except ResumableStreamError:
             return None
 
 

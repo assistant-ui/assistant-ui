@@ -17,22 +17,22 @@ import pytest
 
 pytest.importorskip("pydantic_ai.ui.ag_ui", reason="needs the pydantic-ai extra")
 
-import httpx  # noqa: E402
-import uvicorn  # noqa: E402
-from pydantic_ai import Agent  # noqa: E402
-from pydantic_ai.messages import ModelMessage  # noqa: E402
-from pydantic_ai.models.function import AgentInfo, FunctionModel  # noqa: E402
-from starlette.applications import Starlette  # noqa: E402
-from starlette.requests import Request  # noqa: E402
+import httpx
+import uvicorn
+from pydantic_ai import Agent
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.models.function import AgentInfo, FunctionModel
+from starlette.applications import Starlette
+from starlette.requests import Request
 
-from assistant_stream.pydantic_ai import (  # noqa: E402
+from assistant_stream.pydantic_ai import (
     DurableAGUI,
     InMemoryThreadStore,
     PostgresThreadStore,
     SqliteThreadStore,
     ThreadRecord,
 )
-from assistant_stream.resumable import (  # noqa: E402
+from assistant_stream.resumable import (
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
 )
@@ -73,8 +73,9 @@ async def _thread_store(kind: str, tmp_path: Path):
 
 def _stream_store(kind: str):
     if kind == "redis":
-        from assistant_stream.resumable import create_redis_resumable_stream_store
         from redis.asyncio import Redis
+
+        from assistant_stream.resumable import create_redis_resumable_stream_store
 
         return create_redis_resumable_stream_store(
             Redis.from_url(os.environ["REDIS_URL"]),
@@ -107,7 +108,9 @@ class Server:
         return self.app.state.durable
 
     def call(self, coroutine):
-        return asyncio.run_coroutine_threadsafe(coroutine, self.app.state.loop).result(10)
+        return asyncio.run_coroutine_threadsafe(coroutine, self.app.state.loop).result(
+            10
+        )
 
 
 def _user_header(request: Request) -> str | None:
@@ -125,7 +128,9 @@ def owned_server(tmp_path: Path) -> Iterator[Server]:
     yield from _serve(tmp_path, "sqlite", "memory", owner=_user_header)
 
 
-def _serve(tmp_path: Path, threads_kind: str, streams_kind: str, owner) -> Iterator[Server]:
+def _serve(
+    tmp_path: Path, threads_kind: str, streams_kind: str, owner
+) -> Iterator[Server]:
     model = Model()
 
     @asynccontextmanager
@@ -217,7 +222,9 @@ def _assistant_texts(thread: dict) -> list[str]:
 def _start_and_disconnect(client: httpx.Client, thread_id: str, messages: list[dict]):
     """POST a run, read until the gate holds it mid-answer, then drop the connection."""
     seen: list[dict] = []
-    with client.stream("POST", "/agent", json=_run_input(thread_id, messages)) as response:
+    with client.stream(
+        "POST", "/agent", json=_run_input(thread_id, messages)
+    ) as response:
         assert response.status_code == 200
         for event in _events(response.iter_lines()):
             seen.append(event)
@@ -297,7 +304,9 @@ def test_cancel_stops_the_run_and_keeps_the_partial_answer(server: Server) -> No
         with client.stream("GET", f"/threads/{thread_id}/stream") as response:
             replay = list(_events(response.iter_lines()))
         assert _text(replay) == "".join(WORDS[:GATE_AFTER])
-        assert client.post(f"/threads/{thread_id}/cancel").json() == {"cancelled": False}
+        assert client.post(f"/threads/{thread_id}/cancel").json() == {
+            "cancelled": False
+        }
 
 
 def test_a_cancel_naming_another_run_leaves_the_current_run_alone(
@@ -331,7 +340,10 @@ def test_a_run_whose_stream_is_gone_is_not_reported_running(server: Server) -> N
 def test_unknown_thread_is_404_and_bad_ids_are_rejected(server: Server) -> None:
     with httpx.Client(base_url=server.base_url, timeout=10) as client:
         assert client.get("/threads/missing").status_code == 404
-        assert client.post("/agent", json=_run_input("bad id", [_user("x")])).status_code == 400
+        assert (
+            client.post("/agent", json=_run_input("bad id", [_user("x")])).status_code
+            == 400
+        )
         assert client.post("/agent", content=b"{}").status_code == 422
 
 
@@ -351,7 +363,9 @@ def test_threads_are_scoped_to_their_owner(owned_server: Server) -> None:
 
         assert client.get("/threads", headers=bob).json() == []
         assert client.get(f"/threads/{thread_id}", headers=bob).status_code == 404
-        assert client.get(f"/threads/{thread_id}/stream", headers=bob).status_code == 404
+        assert (
+            client.get(f"/threads/{thread_id}/stream", headers=bob).status_code == 404
+        )
         assert client.post(f"/threads/{thread_id}/cancel", headers=bob).json() == {
             "cancelled": False
         }
