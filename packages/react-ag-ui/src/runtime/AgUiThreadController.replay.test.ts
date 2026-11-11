@@ -3417,6 +3417,15 @@ describe("AgUiThreadController selected-turn replay", () => {
       content: [{ type: "text", text: "old off branch" }],
       status: { type: "complete" },
     });
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "fresh-b")?.message,
+    ).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({ toolCallId: "t", result: "server result" }),
+      ]),
+    });
   });
 
   it.each(["frontend", "server"] as const)(
