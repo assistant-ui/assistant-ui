@@ -86,7 +86,6 @@ for (const file of [
   "examples/minimal/app/page.tsx",
   "templates/default/app/api/chat/route.ts",
   "evals/src/runner.ts",
-  "scripts/example-bundles.json",
   "scripts/coverage-shards.mjs",
   "scripts/coverage-shards.test.mjs",
   "scripts/coverage-runtimes.mjs",

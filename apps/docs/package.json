@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ../../scripts/prepare-example-bundles.mjs --dev && pnpm build:remote-components && next dev",
+    "dev": "pnpm build:remote-components && next dev",
     "dev:full": "node ./scripts/with-env.mjs DOCS_FULL=1 pnpm dev",
     "dev:lite": "node ./scripts/with-env.mjs DOCS_LITE=1 pnpm dev",
-    "build": "pnpm generate:source-snapshot && node ../../scripts/prepare-example-bundles.mjs && pnpm build:remote-components && next build && pnpm verify:repo-source-traces",
+    "build": "pnpm generate:source-snapshot && pnpm build:remote-components && next build && pnpm verify:repo-source-traces",
     "build:remote-components": "node ./scripts/build-remote-components.mjs",
     "build:brand-kit": "tsx ./scripts/build-brand-kit.mts",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
