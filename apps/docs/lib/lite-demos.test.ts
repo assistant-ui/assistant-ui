@@ -14,8 +14,9 @@ it("aliases each demo to a placeholder until it is loaded", () => {
     "./.source/lite-demos/home.tsx",
   );
   const home = () => readFileSync(join(root, liteDemoModule("home")), "utf8");
-  expect(home()).toContain("LiteDemoPlaceholder");
-  expect(home()).toContain("export const HomeDemo = Placeholder;");
+  expect(home()).toBe(
+    'export { HomeDemoPlaceholder as HomeDemo } from "../../components/shared/lite-demo-placeholder.tsx";\n',
+  );
 
   loadLiteDemo(root, "home");
   expect(home()).toBe(
@@ -23,9 +24,9 @@ it("aliases each demo to a placeholder until it is loaded", () => {
   );
   expect(
     readFileSync(join(root, liteDemoModule("playground")), "utf8"),
-  ).toContain("export default Placeholder;");
+  ).toContain("PlaygroundPlaceholder as default");
 
   // A restart keeps the demos that were loaded.
   writeLiteDemos(root);
-  expect(home()).not.toContain("LiteDemoPlaceholder");
+  expect(home()).not.toContain("Placeholder");
 });

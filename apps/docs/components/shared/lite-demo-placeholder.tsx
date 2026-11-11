@@ -4,13 +4,7 @@ import { useState } from "react";
 import { loadLiteDemoAction } from "@/lib/lite-demos-action";
 
 // Stands in for a heavy demo under `pnpm dev:lite`; see lib/lite-demos.ts.
-export function LiteDemoPlaceholder({
-  demo,
-  label,
-}: {
-  demo: string;
-  label: string;
-}) {
+function LiteDemoPlaceholder({ demo, label }: { demo: string; label: string }) {
   const [loading, setLoading] = useState(false);
   return (
     <div
@@ -34,3 +28,11 @@ export function LiteDemoPlaceholder({
     </div>
   );
 }
+
+export const HomeDemoPlaceholder = () => (
+  <LiteDemoPlaceholder demo="home" label="the home page demo" />
+);
+
+export const PlaygroundPlaceholder = () => (
+  <LiteDemoPlaceholder demo="playground" label="the playground" />
+);

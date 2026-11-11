@@ -10,13 +10,13 @@ export const LITE_DEMOS = {
     specifier: "@/components/pages/home/demo",
     module: "components/pages/home/demo/index.tsx",
     exports: ["HomeDemo"],
-    label: "the home page demo",
+    placeholder: "HomeDemoPlaceholder",
   },
   playground: {
     specifier: "@/components/pages/playground/playground-page",
     module: "components/pages/playground/playground-page.tsx",
     exports: ["default"],
-    label: "the playground",
+    placeholder: "PlaygroundPlaceholder",
   },
 } as const;
 
@@ -59,21 +59,10 @@ function demoSource(root: string, demo: LiteDemo, loaded: boolean) {
   const file = resolve(root, liteDemoModule(demo));
   const from = (target: string) =>
     JSON.stringify(relative(dirname(file), resolve(root, target)));
-  const { module, exports, label } = LITE_DEMOS[demo];
+  const { module, exports, placeholder } = LITE_DEMOS[demo];
   if (loaded) return `export { ${exports.join(", ")} } from ${from(module)};\n`;
-  const lines = [
-    '"use client";',
-    `import { LiteDemoPlaceholder } from ${from("components/shared/lite-demo-placeholder.tsx")};`,
-    "",
-    `const Placeholder = () => <LiteDemoPlaceholder demo=${JSON.stringify(demo)} label=${JSON.stringify(label)} />;`,
-    ...exports.map((name) =>
-      name === "default"
-        ? "export default Placeholder;"
-        : `export const ${name} = Placeholder;`,
-    ),
-    "",
-  ];
-  return lines.join("\n");
+  const names = exports.map((name) => `${placeholder} as ${name}`).join(", ");
+  return `export { ${names} } from ${from("components/shared/lite-demo-placeholder.tsx")};\n`;
 }
 
 /** Writes the generated demo modules; returns the alias map for Turbopack. */
