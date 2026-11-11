@@ -31,4 +31,19 @@ describe("initialElicitationDraft", () => {
       }),
     ).toEqual({});
   });
+
+  it("skips non-finite number defaults and keeps the other fields", () => {
+    for (const value of [Number.NaN, Infinity, -Infinity]) {
+      expect(
+        initialElicitationDraft({
+          type: "object",
+          properties: {
+            ratio: { type: "number", default: value },
+            count: { type: "integer", default: value },
+            name: { type: "string", default: "Ada" },
+          },
+        }),
+      ).toEqual({ name: "Ada" });
+    }
+  });
 });

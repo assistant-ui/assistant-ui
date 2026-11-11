@@ -46,12 +46,6 @@ export const states = defineStates([
     Component: () => <SidebarFixture threads={THREAD_LIST_FIXTURES.empty} />,
   },
   {
-    key: "grouped",
-    label: "Grouped",
-    note: "Saved threads sort by last activity under Today, Yesterday, and Earlier.",
-    Component: () => <SidebarFixture threads={THREAD_LIST_FIXTURES.grouped} />,
-  },
-  {
     key: "long-content",
     label: "Long list",
     note: "Long titles truncate and a long history scrolls inside the sidebar.",

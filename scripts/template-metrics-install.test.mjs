@@ -41,7 +41,7 @@ test("installs each measured template's dependency graph and aliased UI sources"
   assert.deepEqual(installArgs(templates), [
     "install",
     "--frozen-lockfile",
-    "--filter=.",
+    "--filter={.}...",
     "--filter=@assistant-ui/ui...",
     "--filter=@assistant-ui/react-devtools...",
     ...templates

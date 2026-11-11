@@ -59,7 +59,7 @@ export const states = defineStates([
   {
     key: "same-page",
     label: "Same page",
-    note: "Two passages from one page, with only the first marked current.",
+    note: "Two passages from one page: the first is current until the other is clicked.",
     Component: () => (
       <DocumentReference
         title="migration-0.14.pdf"

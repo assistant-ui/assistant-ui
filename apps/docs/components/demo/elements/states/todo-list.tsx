@@ -48,22 +48,6 @@ export const states = defineStates([
     ),
   },
   {
-    key: "cancelled",
-    label: "Dropped item",
-    note: "An item the agent decided not to do stays crossed out and leaves the count.",
-    Component: () => (
-      <TodoList
-        revision={2}
-        items={[
-          { id: "read", text: "Read the failing test", status: "done" },
-          { id: "scope", text: "Rewrite the fixture", status: "cancelled" },
-          { id: "fix", text: "Fix the converter", status: "active" },
-          { id: "verify", text: "Re-run the suite", status: "pending" },
-        ]}
-      />
-    ),
-  },
-  {
     key: "success",
     label: "Done",
     note: "Every item is complete.",

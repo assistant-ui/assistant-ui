@@ -54,7 +54,7 @@ export const states = defineStates([
   {
     key: "unknown-language",
     label: "Unregistered",
-    note: "A language with no registered grammar renders as plain monospace text.",
+    note: "A language Prism has no grammar for renders as plain monospace text.",
     Component: () => <Block language="gleam" code={GLEAM} />,
   },
   {

@@ -69,7 +69,7 @@ export const states = defineStates([
   {
     key: "empty",
     label: "No threads",
-    note: "The user has no threads yet, so every query comes back empty.",
+    note: "The user has no threads yet.",
     Component: () => (
       <ThreadSearch threads={[]} query="" activeId="" {...handlers} />
     ),

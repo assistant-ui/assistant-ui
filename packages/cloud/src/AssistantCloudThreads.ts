@@ -1,3 +1,4 @@
+import { AssistantCloudThreadRuns } from "./AssistantCloudThreadRuns";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
 import {
@@ -87,12 +88,14 @@ export const decodeCloudThread = (
 
 export class AssistantCloudThreads {
   public readonly messages: AssistantCloudThreadMessages;
+  public readonly runs: AssistantCloudThreadRuns;
 
   private cloud: AssistantCloudAPI;
 
   constructor(cloud: AssistantCloudAPI) {
     this.cloud = cloud;
     this.messages = new AssistantCloudThreadMessages(cloud);
+    this.runs = new AssistantCloudThreadRuns(cloud);
   }
 
   public async list(

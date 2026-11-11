@@ -29,16 +29,15 @@ export const states = defineStates([
     Component: () => <ToolCall {...base} running={false} open />,
   },
   {
-    key: "empty-result",
-    label: "No matches",
-    note: "The call finished and returned nothing.",
+    key: "failed",
+    label: "Failed",
+    note: "The tool threw or was denied, so the call settles with a cross.",
     Component: () => (
       <ToolCall
         {...base}
-        query="sqlite wal checkpoint"
-        request='{"query": "sqlite wal checkpoint"}'
-        result="0 matches"
+        result="Error: search index unavailable"
         running={false}
+        failed
         open
       />
     ),
@@ -52,23 +51,19 @@ export const states = defineStates([
         {...base}
         label="Searched the docs"
         query="how do I persist a composer draft across reloads when the thread is remote"
-        request={JSON.stringify(
-          {
-            query:
-              "how do I persist a composer draft across reloads when the thread is remote",
-            limit: 10,
-            sections: ["runtime", "guides", "api-reference"],
-          },
-          null,
-          2,
-        )}
+        request={JSON.stringify({
+          query:
+            "how do I persist a composer draft across reloads when the thread is remote",
+          limit: 10,
+          sections: ["runtime", "guides", "api-reference"],
+        })}
         result={[
           "10 matches",
           "/docs/runtime/drafts",
           "/docs/guides/persistence",
           "/docs/api-reference/primitives/composer",
           "/docs/runtime/remote-thread-list",
-        ].join("\n")}
+        ].join(", ")}
         running={false}
         open
       />

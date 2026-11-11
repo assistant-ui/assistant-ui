@@ -1,5 +1,17 @@
 # assistant-ui
 
+## 0.0.129
+
+### Patch Changes
+
+- [#10443](https://github.com/assistant-ui/assistant-ui/pull/10443) [`43fb4c8`](https://github.com/assistant-ui/assistant-ui/commit/43fb4c829f8a0be3a10a6661b8cd8fa29b99a682) - fix(cli): `create` projects now pass `npm run lint` out of the box. Templates ship an `.oxfmtrc.json`, and `create` runs the project's `format:fix` script after components are added. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.128
+
+### Patch Changes
+
+- [#10383](https://github.com/assistant-ui/assistant-ui/pull/10383) [`5d8b8c5`](https://github.com/assistant-ui/assistant-ui/commit/5d8b8c54f1900117af05d98ee4023759f6b98c9c) - accept any 127.0.0.0/8 address for plain HTTP cloud, accounts and setup URLs during development ([@lhy-dcf](https://github.com/lhy-dcf))
+
 ## 0.0.127
 
 ### Patch Changes

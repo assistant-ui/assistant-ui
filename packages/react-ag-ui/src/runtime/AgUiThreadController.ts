@@ -300,22 +300,35 @@ const replaceTextParts = (
   return result;
 };
 
+/**
+ * Settles nested sub-agent messages with `status`. Without `runSubagentIds`,
+ * only running messages settle. With it, only that run's sub-agent messages
+ * settle, and an incomplete `status` also settles one still waiting on its own
+ * tool call: the run that could answer it has ended.
+ */
 const settleNestedContent = (
   content: ThreadAssistantMessage["content"],
   status: MessageStatus,
+  runSubagentIds?: ReadonlySet<string>,
 ) =>
-  mapToolCallPartsDeep(content, (part) =>
-    part.messages
-      ? {
-          ...part,
-          messages: part.messages.map((message) =>
-            message.role === "assistant" && message.status?.type === "running"
-              ? { ...message, status }
-              : message,
-          ),
-        }
-      : part,
-  ).content;
+  mapToolCallPartsDeep(content, (part) => {
+    if (!part.messages) return part;
+    let changed = false;
+    const messages = part.messages.map((message) => {
+      if (message.role !== "assistant") return message;
+      const settles = !runSubagentIds
+        ? message.status?.type === "running"
+        : runSubagentIds.has(message.id) &&
+          (message.status?.type === "running" ||
+            (status.type === "incomplete" &&
+              message.status?.type === "requires-action" &&
+              message.status.reason === "tool-calls"));
+      if (!settles) return message;
+      changed = true;
+      return { ...message, status };
+    });
+    return changed ? { ...part, messages } : part;
+  }).content;
 
 type AgUiRuntimeCallbackName = "onError" | "onCancel";
 
@@ -392,6 +405,8 @@ export class AgUiThreadController {
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
+  // Counts runs started, so a finished run can tell a newer one began.
+  private runCount = 0;
   private history: ThreadHistoryAdapter | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly subagentParentToolCallIds = new Map<
@@ -400,6 +415,9 @@ export class AgUiThreadController {
   >();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
+  // Ids whose append has not succeeded yet. A write queued behind that append
+  // runs as an append too, since an update may not move the stored head.
+  private readonly unappendedHistoryIds = new Set<string>();
   private readonly historyWrites = createHistoryWriteChain();
   private _historyImportPromise: Promise<void> | undefined;
   private _loadPromise: Promise<void> | undefined;
@@ -525,6 +543,7 @@ export class AgUiThreadController {
       this.subagentParentToolCallIds.clear();
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
+      this.unappendedHistoryIds.clear();
       for (const { message } of repo.messages) {
         this.persistedHistoryIds.add(message.id);
       }
@@ -681,6 +700,17 @@ export class AgUiThreadController {
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     await this.startRun(parentId, config.runConfig);
+  }
+
+  /** Deletes a message that has no replies under it, and its stored history entry. */
+  async deleteMessage(messageId: string): Promise<void> {
+    const item = this.session.tryGetMessage(messageId);
+    if (!item) return;
+    const parentId = item.parentId ?? null;
+    this.session.deleteMessage(messageId, parentId);
+    this.snapshotHistoryIds.delete(messageId);
+    this.publishUpdate();
+    await this.history?.delete?.([{ parentId, message: item.message }]);
   }
 
   async cancel(): Promise<void> {
@@ -1721,6 +1751,8 @@ export class AgUiThreadController {
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
     let snapshotAssistantId: string | undefined;
+    const importedRunAssistants = new Set<string>();
+    const runSubagentIds = new Set<string>();
     let replayInterruptMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
@@ -2263,9 +2295,38 @@ export class AgUiThreadController {
         adoptServerMessageId(serverId, true, frameOpenIds);
       },
     });
+    const settleRunSubagents = (status: MessageStatus) => {
+      if (runSubagentIds.size === 0) return;
+      for (const message of this.session.getMessages()) {
+        if (message.role !== "assistant") continue;
+        const content = settleNestedContent(
+          message.content,
+          status,
+          runSubagentIds,
+        );
+        if (content === message.content) continue;
+        this.updateAssistantMessage(message.id, { content });
+        this.persistSettledAssistant(message.id);
+      }
+    };
+    // Writes this run's other assistants in branch order: before the answer
+    // settles, the ones above it; after, the ones below. An adapter that
+    // moves its head on each first write then ends on the branch's tail.
+    const persistRunAssistants = (aboveAnswer: boolean) => {
+      for (const message of this.session.getMessages()) {
+        if (message.id === assistantMessageId) {
+          if (aboveAnswer) return;
+          continue;
+        }
+        if (message.role === "assistant" && !runStartMessageIds.has(message.id))
+          this.persistAssistantHistory(message.id);
+      }
+    };
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
+      if (event.type === "SUBAGENT_STARTED")
+        runSubagentIds.add(event.subagentRunId);
       if (event.type === "RUN_FINISHED") {
         runFinished = true;
         if (event.outcome?.type === "interrupt")
@@ -2288,6 +2349,7 @@ export class AgUiThreadController {
         event.type === "RUN_FINISHED" ||
         event.type === "RUN_ERROR" ||
         event.type === "RUN_CANCELLED";
+      if (settlingRun) persistRunAssistants(true);
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
       try {
@@ -2301,6 +2363,31 @@ export class AgUiThreadController {
           candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
+          // Assistants a snapshot adds belong to the run's history even when
+          // the run never streams into them. Every import resets the pending
+          // marks, so each snapshot marks them again. The import also routes
+          // every message to update; a run assistant this client never wrote
+          // gets an append first, which is what moves the stored head.
+          const previousIds = new Set(beforeSnapshot.map(({ id }) => id));
+          for (const message of this.session.getMessages()) {
+            if (
+              message.role !== "assistant" ||
+              runStartMessageIds.has(message.id)
+            )
+              continue;
+            if (!previousIds.has(message.id))
+              importedRunAssistants.add(message.id);
+            if (
+              !this.persistedHistoryIds.has(message.id) &&
+              this.historyWrites.pending(message.id) === undefined
+            )
+              this.snapshotHistoryIds.delete(message.id);
+          }
+          for (const messageId of importedRunAssistants) {
+            const item = this.session.tryGetMessage(messageId);
+            if (item)
+              this.markPendingAssistantHistory(messageId, item.parentId);
+          }
           for (const message of beforeSnapshot) {
             const context = replayContexts.get(message.id);
             const current = this.session.tryGetMessage(message.id)?.message;
@@ -2332,6 +2419,16 @@ export class AgUiThreadController {
               tail?.role === "assistant" ? tail.id : undefined;
           }
         }
+        if (event.type === "RUN_ERROR") {
+          settleRunSubagents({
+            type: "incomplete",
+            reason: "error",
+            ...(event.message !== undefined ? { error: event.message } : {}),
+          });
+        } else if (event.type === "RUN_CANCELLED") {
+          settleRunSubagents({ type: "incomplete", reason: "cancelled" });
+        }
+        if (settlingRun) persistRunAssistants(false);
       } finally {
         settlingRun = false;
       }
@@ -2340,6 +2437,7 @@ export class AgUiThreadController {
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;
+    const runNumber = ++this.runCount;
 
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
     abortSignal.addEventListener(
@@ -2423,6 +2521,7 @@ export class AgUiThreadController {
         current?.role === "assistant" &&
         current.status?.type === "running"
       ) {
+        persistRunAssistants(true);
         // Finalization is transport cleanup, not proof of a terminal event.
         const status: MessageStatus = {
           type: "incomplete",
@@ -2435,6 +2534,25 @@ export class AgUiThreadController {
           content: settleNestedContent(current.content, status),
         });
       }
+      if (this.abortController === abortController && !runFinished) {
+        // The run ended without RUN_FINISHED, so no sub-agent call it left
+        // open can still be answered.
+        const settled = assistantMessageId
+          ? this.session.tryGetMessage(assistantMessageId)?.message
+          : undefined;
+        settleRunSubagents(
+          settled?.status?.type === "incomplete"
+            ? settled.status
+            : {
+                type: "incomplete",
+                reason: "error",
+                error: "The connection ended before the answer finished.",
+              },
+        );
+      }
+      // Stop may have finished this run already; a newer run owns its own
+      // writes.
+      if (this.runCount === runNumber) persistRunAssistants(false);
       this.finishRun(abortController);
     }
 
@@ -2773,11 +2891,14 @@ export class AgUiThreadController {
       oldId,
       collidesWithExisting ? undefined : newId,
     );
+    if (this.unappendedHistoryIds.delete(oldId) && !collidesWithExisting)
+      this.unappendedHistoryIds.add(newId);
     if (pendingWrite && !collidesWithExisting) {
       void pendingWrite.then(
         () => {
           this.persistedHistoryIds.delete(oldId);
           this.persistedHistoryIds.add(newId);
+          this.unappendedHistoryIds.delete(newId);
         },
         () => {},
       );
@@ -3863,7 +3984,9 @@ export class AgUiThreadController {
 
     if (shouldUpdate) {
       const write = this.historyWrites.chain(messageId, () =>
-        update.call(history, { parentId, message }),
+        this.unappendedHistoryIds.has(messageId)
+          ? this.appendOnce(history, messageId, { parentId, message })
+          : update.call(history, { parentId, message }),
       );
       this.assistantHistoryParents.delete(messageId);
       void write.then(
@@ -3901,6 +4024,15 @@ export class AgUiThreadController {
     );
   }
 
+  private async appendOnce(
+    history: ThreadHistoryAdapter,
+    messageId: string,
+    item: { parentId: string | null; message: ThreadMessage },
+  ): Promise<void> {
+    await history.append(item);
+    this.unappendedHistoryIds.delete(messageId);
+  }
+
   private appendHistoryItem(
     parentId: string | null,
     message: ThreadMessage,
@@ -3909,9 +4041,10 @@ export class AgUiThreadController {
     const pending = this.historyWrites.pending(message.id);
     if (pending) return pending;
 
-    const append = this.history.append.bind(this.history);
+    const history = this.history;
+    this.unappendedHistoryIds.add(message.id);
     const write = this.historyWrites.chain(message.id, () =>
-      append({ parentId, message }),
+      this.appendOnce(history, message.id, { parentId, message }),
     );
     void write.then(
       () => {

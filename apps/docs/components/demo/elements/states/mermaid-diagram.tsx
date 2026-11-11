@@ -28,11 +28,6 @@ const PARTIAL = `graph TD
     B -->|Yes| C[Return cached]
     B -->|No| `;
 
-const UNSUPPORTED = `pie title Traffic by region
-    "North America" : 48
-    "Europe" : 31
-    "Asia Pacific" : 21`;
-
 const LARGE = `graph LR
     A[Push] --> B[Install]
     B --> C[Lint]
@@ -63,20 +58,10 @@ export const states = defineStates([
   {
     key: "partial",
     label: "Incomplete",
-    note: "Source that ends on a dangling edge falls back to the raw code.",
+    note: "Source the renderer cannot draw, like a dangling edge, falls back to the raw code with a notice.",
     Component: () => (
       <Frame>
         <MermaidDiagram code={PARTIAL} />
-      </Frame>
-    ),
-  },
-  {
-    key: "error",
-    label: "Unsupported",
-    note: "A diagram type the renderer cannot draw shows the code with a short notice.",
-    Component: () => (
-      <Frame>
-        <MermaidDiagram code={UNSUPPORTED} />
       </Frame>
     ),
   },

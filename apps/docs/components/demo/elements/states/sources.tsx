@@ -71,7 +71,7 @@ export const states = defineStates([
   {
     key: "unsafe-url",
     label: "Unsafe URL",
-    note: "A source with a non-http URL renders as plain text with no link.",
+    note: "A javascript: URL renders as a chip with no link.",
     Component: () => (
       <Row>
         <Sources

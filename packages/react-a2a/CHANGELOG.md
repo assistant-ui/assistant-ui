@@ -1,5 +1,15 @@
 # @assistant-ui/react-a2a
 
+## 0.2.51
+
+### Patch Changes
+
+- [#10397](https://github.com/assistant-ui/assistant-ui/pull/10397) [`0f86640`](https://github.com/assistant-ui/assistant-ui/commit/0f86640b50eea60a9850719a1473ce1dbffa9cc2) - Merge protocol headers case-insensitively so custom header spelling cannot duplicate the A2A content type or version. Preserve streaming and configured extension header priority. ([@Elon-Jiang](https://github.com/Elon-Jiang))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`47b6556`](https://github.com/assistant-ui/assistant-ui/commit/47b6556da134f3f52447c6f8325523e89b3b1f4f), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - @assistant-ui/generative-ui@0.0.10
+  - @assistant-ui/core@0.3.34
+
 ## 0.2.50
 
 ### Patch Changes

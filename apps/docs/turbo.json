@@ -30,7 +30,8 @@
         "build/**",
         "public/example-bundles/**"
       ],
-      "env": ["$TURBO_EXTENDS$", "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED"]
+      "env": ["$TURBO_EXTENDS$", "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED"],
+      "passThroughEnv": ["DOCS_BUILD_CPUS"]
     },
     "generate:type-docs": {
       "dependsOn": ["^build"],
@@ -51,7 +52,8 @@
     "dev": {
       "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["DOCS_FULL", "DOCS_LITE"]
     },
     "test": {
       "inputs": [
