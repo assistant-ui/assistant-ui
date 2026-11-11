@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,6 +117,16 @@ export function ContactSalesForm({
   );
   const [errors, setErrors] = useState<ContactSalesErrors>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Back from cal.com can restore this page from the bfcache with the button
+  // still disabled, so re-enable it whenever the page is shown again.
+  useEffect(() => {
+    const reset = (event: PageTransitionEvent) => {
+      if (event.persisted) setSubmitting(false);
+    };
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
 
   const fieldId = (field: ContactSalesField) => `${id}-${field}`;
 

@@ -31,7 +31,7 @@ const expectTalkToAnExpert = () => {
 };
 
 describe("hero", () => {
-  it("opens the setup dialog from the one call to action when checkout is configured", async () => {
+  it("opens the setup dialog from the primary call to action when checkout is configured", async () => {
     const { Hero } = await load();
     render(<Hero stars={null} downloads={null} />);
     const trigger = screen.getByRole("button", { name: "Quick Start" });
@@ -41,7 +41,7 @@ describe("hero", () => {
     expect(screen.queryByText("npx assistant-ui init")).toBeNull();
   });
 
-  it("links the call to action to the installation guide without a checkout worker", async () => {
+  it("links the primary call to action to the installation guide without a checkout worker", async () => {
     vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     vi.stubEnv("NODE_ENV", "production");
     const { Hero } = await load();
