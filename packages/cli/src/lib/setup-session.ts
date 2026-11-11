@@ -4,9 +4,9 @@ import { connectCheckout, detectAgentKind } from "setup-agent";
 import type { Checkout, CheckoutClient } from "setup-agent";
 import { agentInstructions, parseSetupUrl } from "setup-agent/cli";
 
-export const DEFAULT_DOCS_URL = "https://www.assistant-ui.com";
-export const DEFAULT_SETUP_SERVER = "https://setup.assistant-ui.com";
-export const DEFAULT_PRODUCTS = ["assistant-ui"] as const;
+const DEFAULT_DOCS_URL = "https://www.assistant-ui.com";
+const DEFAULT_SETUP_SERVER = "https://setup.assistant-ui.com";
+const DEFAULT_PRODUCTS = ["assistant-ui"] as const;
 
 const ID_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

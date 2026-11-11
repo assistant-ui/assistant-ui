@@ -6393,13 +6393,13 @@ importers:
 
   packages/setup-agent:
     dependencies:
-      '@assistant-ui/tap':
-        specifier: ^0.9.25
-        version: link:../tap
       statewire:
         specifier: ^0.22.1
         version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
