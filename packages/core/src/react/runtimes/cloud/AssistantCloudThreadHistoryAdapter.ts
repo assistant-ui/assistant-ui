@@ -275,6 +275,8 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   public servesThreadMessages = false;
   /** Set once a runtime persists through `withFormat`; the run tracker then writes through it. */
   private formattedRunWriter: CloudRunWriter | undefined;
+  /** The thread list item a `withFormat` runtime pinned, whose persistence holds its rows. */
+  private formattedItem: (() => CloudThreadListItem | undefined) | undefined;
   private copyQueues = new WeakMap<
     CloudMessagePersistence,
     Map<string, Promise<void>>
@@ -518,6 +520,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       const pinned = resolvePinned();
       return pinned ? adapter.getPersistence(pinned) : undefined;
     };
+    adapter.formattedItem = resolvePinned;
     adapter.formattedRunWriter = {
       keyOf(message) {
         const inner = onlyInner(message);
@@ -723,7 +726,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   ): Promise<
     { state: CloudRunState | undefined; updatedAt: number } | undefined
   > {
-    const threadListItem = this.aui.threadListItem;
+    const threadListItem = this.runThreadListItem() ?? this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
     this.assertCurrentScope(context);
@@ -752,7 +755,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
    * needs a full reload to show.
    */
   public async readThreadRun(head: ThreadMessage): Promise<boolean> {
-    const threadListItem = this.aui.threadListItem;
+    const threadListItem = this.runThreadListItem() ?? this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
     this.assertCurrentScope(context);
@@ -788,8 +791,8 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
    * from that reply instead.
    */
   public replyRunOf(head: ThreadMessage, key: string = head.id): CloudReplyRun {
-    const threadListItem = this.aui.threadListItem;
-    if (!threadListItem.source) return undefined;
+    const threadListItem = this.runThreadListItem();
+    if (!threadListItem) return undefined;
     const remoteThreadId = threadListItem.getState().remoteId;
     if (!remoteThreadId) return undefined;
     const persistence = this.getPersistence(threadListItem);
@@ -806,9 +809,17 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
   /** Whether a message is stored, so a thread that ends with it reads as unanswered rather than as just sent. */
   public isStored(key: string): boolean {
-    const threadListItem = this.aui.threadListItem;
-    if (!threadListItem.source) return false;
+    const threadListItem = this.runThreadListItem();
+    if (!threadListItem) return false;
     return this.getPersistence(threadListItem).isPersisted(key);
+  }
+
+  /** The item whose persistence holds the thread's rows: the one a formatted runtime pinned, else the live one. */
+  private runThreadListItem(): CloudThreadListItem | undefined {
+    const pinned = this.formattedRunWriter ? this.formattedItem?.() : undefined;
+    if (pinned) return pinned;
+    const live = this.aui.threadListItem;
+    return live.source ? live : undefined;
   }
 
   private liftedRuns = new WeakMap<
