@@ -11,12 +11,7 @@ import {
   type CheckoutContextValue,
 } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
-import { useCart, useCartEntries } from "@/lib/catalog/cart-store";
-import {
-  abandonCheckout,
-  checkoutCart,
-  connectAgentSetup,
-} from "@/lib/checkout/flow";
+import { abandonCheckout, connectAgentSetup } from "@/lib/checkout/flow";
 import {
   parseAgentFragment,
   useCheckoutSession,
@@ -32,8 +27,8 @@ function EmptyState() {
         Nothing here yet.
       </h1>
       <p className={cn("mt-4", typeDeck)}>
-        Add a product from the Components page, then start setup to have your
-        coding agent install it.
+        Tell your coding agent to <code>set up assistant-ui</code>. It opens
+        your setup here.
       </p>
       <Button
         nativeButton={false}
@@ -43,44 +38,6 @@ function EmptyState() {
         <ArrowLeftIcon data-icon="inline-start" />
         Browse components
       </Button>
-    </div>
-  );
-}
-
-function StartState({
-  count,
-  needsConfiguration,
-}: {
-  count: number;
-  needsConfiguration: boolean;
-}) {
-  return (
-    <div className="max-w-xl">
-      <h1 className={cn(typePage, "text-2xl md:text-2xl")}>Start setup</h1>
-      <p className={cn("mt-4", typeDeck)}>
-        {needsConfiguration ? (
-          "Choose what each agent tool should do in your cart before starting setup."
-        ) : (
-          <>
-            Your cart holds {count} {count === 1 ? "product" : "products"}.
-            Starting opens a session that your coding agent joins from your
-            terminal.
-          </>
-        )}
-      </p>
-      {needsConfiguration ? (
-        <Button
-          nativeButton={false}
-          className="mt-8"
-          render={<Link href="/components/cart" />}
-        >
-          Configure tools
-        </Button>
-      ) : (
-        <Button className="mt-8" onClick={() => checkoutCart("checkout_page")}>
-          Start setup
-        </Button>
-      )}
     </div>
   );
 }
@@ -152,8 +109,6 @@ function usePendingAgentLink() {
 export function CheckoutView() {
   const { pending, settle } = usePendingAgentLink();
   const hydrated = useHydrated();
-  const slugs = useCart();
-  const entries = useCartEntries();
   const session = useCheckoutSession();
   const checkout = useCheckout();
   const failed = useCheckoutFailed();
@@ -189,16 +144,7 @@ export function CheckoutView() {
   }
   return (
     <div className="ring-foreground/10 bg-background w-full max-w-xl rounded-xl p-6 ring-1 sm:p-8">
-      {failed ? (
-        <UnreadableState />
-      ) : slugs.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <StartState
-          count={slugs.length}
-          needsConfiguration={entries.includes("agent-tools")}
-        />
-      )}
+      {failed ? <UnreadableState /> : <EmptyState />}
     </div>
   );
 }

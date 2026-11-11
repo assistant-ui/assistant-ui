@@ -184,11 +184,6 @@ const config: NextConfig = {
     ...LEGACY_TAP_DOCS_REDIRECTS,
     ...DOCS_SITE_REDIRECTS,
     {
-      source: "/hack",
-      destination: "/hackathon",
-      permanent: false,
-    },
-    {
       source: "/getting-started",
       destination: "/docs/installation",
       permanent: true,

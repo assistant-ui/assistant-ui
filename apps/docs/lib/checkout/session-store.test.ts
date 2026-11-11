@@ -72,18 +72,7 @@ describe("checkout session store", () => {
   it("keeps the snapshot and subscribers unchanged for equivalent stored sessions", async () => {
     setupStorage();
     const store = await loadStore();
-    store.startCheckout(["agent-tools"], "Use the existing backend", {
-      fromCart: true,
-      cartEntries: [
-        {
-          id: "lookup",
-          slug: "agent-tools",
-          name: "Lookup",
-          purpose: "Search records",
-        },
-      ],
-      cartInstructions: "Use the existing backend",
-    });
+    store.startCheckout(["agent-tools"], "Use the existing backend");
     store.acknowledgeSetupIntro();
     const snapshot = store.getCheckoutSession();
     const listener = vi.fn();

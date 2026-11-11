@@ -10,7 +10,6 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { useRouter } from "next/navigation";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -153,7 +152,6 @@ function EndSetupDialog({
   onOpenChange: (open: boolean) => void;
   trigger: RefObject<HTMLButtonElement | null>;
 }) {
-  const fromCart = checkout.session.fromCart === true;
   const dropped = useRef<() => void>(undefined);
   useEffect(() => {
     if (checkout.degraded) dropped.current?.();
@@ -187,7 +185,7 @@ function EndSetupDialog({
           <DialogTitle>End this setup?</DialogTitle>
           <DialogDescription>
             Your agent will be told to stop and the progress shown here will be
-            lost.{fromCart ? " Its products go back into your cart." : ""}
+            lost.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -663,7 +661,6 @@ export function SetupWizard({
   /** Called before the session ends and the page is left. */
   onExit?: () => void;
 }) {
-  const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
   const name = useAgentName(checkout);
   const formId = useId();
@@ -749,7 +746,6 @@ export function SetupWizard({
       analytics.setup.error({ reason: "agent_disconnected", step });
   }, [disconnected, step]);
   const reviewing = index !== liveIndex;
-  const fromCart = checkout.session.fromCart === true;
   const products = state?.products.length
     ? state.products.map((product) => product.name)
     : checkout.session.products.map(
@@ -785,8 +781,7 @@ export function SetupWizard({
     onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
-    if (fromCart) router.push(finished ? "/components" : "/components/cart");
-    else leaveSetup();
+    leaveSetup();
   };
   const leave = () => exit(done);
 

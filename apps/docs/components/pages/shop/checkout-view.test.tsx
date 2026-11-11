@@ -21,7 +21,6 @@ import {
 } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 import type { CheckoutSession } from "../../../lib/checkout/session-store";
-import { clearCart, replaceCart } from "../../../lib/catalog/cart-store";
 
 const { connectAgentSetup } = vi.hoisted(() => ({
   connectAgentSetup: vi.fn(),
@@ -96,7 +95,6 @@ const session: CheckoutSession = {
   id: "test",
   products: ["assistant-ui"],
   startedAt: 1,
-  fromCart: true,
 };
 
 const state: Checkout.State = {
@@ -130,7 +128,6 @@ const checkout: CheckoutContextValue = {
 
 afterEach(() => {
   cleanup();
-  clearCart();
   sessions.set(null);
   connectAgentSetup.mockReset();
   window.history.replaceState(null, "", "/components/setup");
@@ -170,16 +167,6 @@ describe("CheckoutView", () => {
     expect(sessionStorage.getItem("aui-agent-link-pending")).toBeNull();
   });
 
-  it("offers configuration for a legacy tool selection instead of an inert setup action", () => {
-    replaceCart(["agent-tools"]);
-    render(<CheckoutView />);
-    expect(
-      screen
-        .getByRole("button", { name: "Configure tools" })
-        .getAttribute("href"),
-    ).toBe("/components/cart");
-    expect(screen.queryByRole("button", { name: "Start setup" })).toBeNull();
-  });
   it("keeps the finished setup on screen after Finish while the page is being left", () => {
     sessions.set(session);
     render(<CheckoutView />);
@@ -192,14 +179,13 @@ describe("CheckoutView", () => {
       }),
     );
     expect(sessions.get()).toBeNull();
-    expect(push).toHaveBeenCalledWith("/components");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Setup complete",
     );
     expect(screen.queryByText("Nothing here yet.")).toBeNull();
   });
 
-  it("shows the empty cart when the session ends elsewhere", () => {
+  it("shows the empty state when the session ends elsewhere", () => {
     sessions.set(session);
     render(<CheckoutView />);
     act(() => sessions.set(null));

@@ -88,7 +88,6 @@ const commands = {
 const context = (
   state: Checkout.State,
   agentPresent = true,
-  fromCart = false,
   session: Partial<CheckoutContextValue["session"]> = {},
 ): CheckoutContextValue => ({
   state,
@@ -96,7 +95,6 @@ const context = (
     id: "test",
     products: ["assistant-ui"],
     startedAt: 1,
-    fromCart,
     ...session,
   },
   url: "http://localhost/test",
@@ -189,7 +187,7 @@ describe("SetupWizard", () => {
         cwd: "/Users/me/app",
       },
     });
-    render(<SetupWizard checkout={context(state, true, false, started)} />);
+    render(<SetupWizard checkout={context(state, true, started)} />);
     expect(screen.getByTestId("agent-connection").textContent).toBe(
       "Connected to Claude Code in /Users/me/app",
     );
@@ -207,7 +205,6 @@ describe("SetupWizard", () => {
       <SetupWizard
         checkout={context(
           { ...initialCheckoutState(), createdAt: 1 },
-          false,
           false,
           started,
         )}
@@ -249,7 +246,7 @@ describe("SetupWizard", () => {
   it("keeps the introduction's title to one line and lists a longer set of products under it", () => {
     render(
       <SetupWizard
-        checkout={context(initialCheckoutState(), false, false, {
+        checkout={context(initialCheckoutState(), false, {
           products: ["assistant-ui", "cloud", "agent-tools"],
         })}
       />,
@@ -274,7 +271,7 @@ describe("SetupWizard", () => {
       );
       render(
         <SetupWizard
-          checkout={context(initialCheckoutState(), false, false, {
+          checkout={context(initialCheckoutState(), false, {
             products: ["assistant-ui", "cloud"],
           })}
         />,
@@ -324,7 +321,7 @@ describe("SetupWizard", () => {
       lines.mockReturnValue(rects(1));
       render(
         <SetupWizard
-          checkout={context(initialCheckoutState(), false, false, {
+          checkout={context(initialCheckoutState(), false, {
             products: ["assistant-ui", "cloud"],
           })}
         />,
@@ -1265,10 +1262,10 @@ describe("SetupWizard", () => {
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
   });
 
-  it("cancels from the footer after confirming and returns the products to the cart", async () => {
+  it("cancels from the footer after confirming", async () => {
     render(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), true, true)}
+        checkout={context(connected({ status: "planning" }), true)}
       />,
     );
     fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
@@ -1276,7 +1273,6 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
     expect(finishCheckout).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
   it("ends the setup without waiting on the session while the page has lost the connection to it", async () => {
@@ -1289,7 +1285,7 @@ describe("SetupWizard", () => {
     render(
       <SetupWizard
         checkout={{
-          ...context(connected({ status: "planning" }), true, true),
+          ...context(connected({ status: "planning" }), true),
           degraded: true,
           connection: {
             status: "retrying",
@@ -1306,7 +1302,6 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
     expect(cancel).toHaveBeenCalled();
     expect(onExit).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
   it("waits for the cancel through a brief reconnect that has not outlasted the grace", async () => {
@@ -1320,7 +1315,7 @@ describe("SetupWizard", () => {
     render(
       <SetupWizard
         checkout={{
-          ...context(connected({ status: "planning" }), true, true),
+          ...context(connected({ status: "planning" }), true),
           connection: {
             status: "connecting",
             degraded: false,
@@ -1340,7 +1335,7 @@ describe("SetupWizard", () => {
   it("ends the setup locally when the connection drops while the cancel is pending", async () => {
     const cancel = vi.mocked(commands["checkout/cancel"]);
     cancel.mockReturnValueOnce(new Promise<never>(() => {}));
-    const checkout = context(connected({ status: "planning" }), true, true);
+    const checkout = context(connected({ status: "planning" }), true);
     const { rerender } = render(<SetupWizard checkout={checkout} />);
     fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
     fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
@@ -1353,7 +1348,7 @@ describe("SetupWizard", () => {
   it("asks before ending the setup on Escape, unless the key was pressed inside a dialog", async () => {
     render(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), true, true)}
+        checkout={context(connected({ status: "planning" }), true)}
       />,
     );
     const cancel = vi.mocked(commands["checkout/cancel"]);
@@ -1377,13 +1372,12 @@ describe("SetupWizard", () => {
     });
     fireEvent.click(within(again).getByRole("button", { name: "End setup" }));
     await waitFor(() => expect(cancel).toHaveBeenCalled());
-    expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
   it("closes the setup-agent details on Escape without asking to end the setup", async () => {
     render(
       <SetupWizard
-        checkout={context(initialCheckoutState(), false, false, {
+        checkout={context(initialCheckoutState(), false, {
           introSeen: true,
         })}
       />,
@@ -1445,7 +1439,7 @@ describe("SetupWizard", () => {
       status: "installing",
       completion: { proposedAt: 5 },
     });
-    render(<SetupWizard checkout={context(state, true, true)} />);
+    render(<SetupWizard checkout={context(state, true)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Claude Code finished",
     );
@@ -1453,7 +1447,6 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(commands["checkout/finish"]).toHaveBeenCalled());
     await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
     expect(abandonCheckout).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/components");
   });
 
   it("installs the plan from the footer and moves change requests into the body", async () => {
@@ -1860,7 +1853,7 @@ describe("SetupWizard messages", () => {
     vi.useFakeTimers();
     const { rerender } = render(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), true, false, {
+        checkout={context(connected({ status: "planning" }), true, {
           id: "exploring-title",
         })}
       />,
@@ -1875,7 +1868,7 @@ describe("SetupWizard messages", () => {
     expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
     rerender(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), false, false, {
+        checkout={context(connected({ status: "planning" }), false, {
           id: "exploring-title",
         })}
       />,
@@ -1889,7 +1882,7 @@ describe("SetupWizard messages", () => {
     vi.useFakeTimers();
     render(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), true, false, {
+        checkout={context(connected({ status: "planning" }), true, {
           id: "exploring-cycle",
         })}
       />,
@@ -1912,7 +1905,7 @@ describe("SetupWizard messages", () => {
     vi.useFakeTimers();
     render(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), true, false, {
+        checkout={context(connected({ status: "planning" }), true, {
           id: "exploring-title",
         })}
       />,
@@ -1966,7 +1959,6 @@ describe("SetupWizard analytics", () => {
         checkout={context(
           { ...initialCheckoutState(), status: "planning" },
           true,
-          false,
           { introSeen: true },
         )}
       />,

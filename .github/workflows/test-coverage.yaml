@@ -9,7 +9,6 @@ on:
       - "examples/**"
       - "templates/**"
       - "evals/**"
-      - "scripts/example-bundles.json"
       - "scripts/coverage-shards.mjs"
       - "scripts/coverage-shards.test.mjs"
       - "scripts/coverage-runtimes.mjs"
@@ -70,7 +69,6 @@ jobs:
             examples \
             templates \
             evals \
-            scripts/example-bundles.json \
             scripts/coverage-shards.mjs \
             scripts/coverage-shards.test.mjs \
             scripts/coverage-runtimes.mjs \

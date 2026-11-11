@@ -1,83 +1,20 @@
 "use client";
 
-import { analytics, type CartCheckoutLocation } from "@/lib/analytics";
-import {
-  clearCart,
-  getCart,
-  getCartEntries,
-  mergeIntoCart,
-  getCartInstructions,
-  setCartInstructions,
-} from "@/lib/catalog/cart-store";
-import {
-  cartEntrySlug,
-  configuredToolInstructions,
-} from "@/lib/catalog/agent-tool-config";
 import {
   endCheckout,
   getCheckoutSession,
   joinAgentLink,
-  startCheckout,
 } from "@/lib/checkout/session-store";
 
-/** Moves the cart into a new checkout; the cart is empty afterwards. */
-export const checkoutCart = (location: CartCheckoutLocation) => {
-  const running = getCheckoutSession();
-  if (running !== null) return running;
-  const entries = getCartEntries();
-  if (entries.includes("agent-tools")) return null;
-  const draft = getCartInstructions();
-  const tools = configuredToolInstructions(entries);
-  const cart = getCart();
-  const session = startCheckout(
-    cart,
-    [draft.trim(), tools].filter(Boolean).join("\n\n"),
-    {
-      fromCart: true,
-      ...(tools && { cartEntries: entries, cartInstructions: draft }),
-    },
-  );
-  if (session === null) return session;
-  clearCart();
-  const products = session.products.join(",");
-  analytics.shop.checkoutStarted({
-    cart_size: cart.length,
-    products,
-    location,
-  });
-  analytics.setup.sessionStarted({
-    source: "cart",
-    location,
-    products,
-    product_count: session.products.length,
-  });
-  return session;
-};
+/** Ends the checkout the user left. */
+export const abandonCheckout = endCheckout;
 
-/** Ends the checkout; products that came out of the cart return to it. */
-export const abandonCheckout = () => {
-  const session = getCheckoutSession();
-  if (session === null) return;
-  endCheckout();
-  if (!session.fromCart) return;
-  const entries = session.cartEntries ?? session.products;
-  mergeIntoCart([
-    ...entries,
-    ...session.products.filter(
-      (slug) => !entries.some((entry) => cartEntrySlug(entry) === slug),
-    ),
-  ]);
-  const instructions = session.cartInstructions ?? session.instructions;
-  if (!getCartInstructions() && instructions) setCartInstructions(instructions);
-};
-
-/** Ends a finished checkout; its products stay installed, not in the cart. */
+/** Ends a finished checkout. */
 export const finishCheckout = endCheckout;
 
 /**
  * Connects to the setup a coding agent opened this page on, once the user
- * confirmed it. A different running setup ends first, its cart products
- * going back to the cart.
+ * confirmed it. A different running setup ends first.
  */
 export const connectAgentSetup = (link: string, setup?: string) => {
   const running = getCheckoutSession();

@@ -4,40 +4,18 @@ description: Get assistant-ui running in 5 minutes with npm and your first chat 
 platforms: ["react"]
 ---
 
-<Callout title="Coding agents">
-  Recommended for coding agents: run `npx assistant-ui@latest setup`. It opens a guided setup in the user's browser and walks you through the install.
+<Callout title="With a coding agent">
+  Tell your coding agent: `set up assistant-ui`. Agents run `npx assistant-ui@latest setup`, which opens a guided setup in your browser. The steps below install it by hand.
 </Callout>
 
 ## Quick Start
-
-<ThemeImage
-  light="/docs/cli-create-light.webp"
-  dark="/docs/cli-create.webp"
-  alt="Running npx assistant-ui@latest create, adding an API key to .env, starting npm run dev, then sending a first message in the new chat app"
-  width={1320}
-  height={720}
-/>
 
 <Steps>
   <Step>
 
 ### Initialize assistant-ui
 
-**Create a new project:**
-
-```sh
-npx assistant-ui@latest create
-```
-
-Or start from a template:
-
-```sh
-npx assistant-ui@latest create -t cloud
-```
-
-The [CLI reference](/docs/cli#create) lists every template and example, and what each one includes.
-
-**Add to an existing project:**
+**Add to a project:**
 
 ```sh
 npx assistant-ui@latest init
