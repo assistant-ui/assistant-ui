@@ -81,7 +81,7 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
 
 ### Integration guides
 
-For frameworks without a dedicated adapter, these wiring guides route through an existing runtime: an adapter above, or one of the core runtimes.
+These integrations connect frameworks through an existing runtime: an adapter above, or one of the core runtimes.
 
   <Cards>
     <Card
@@ -111,6 +111,11 @@ For frameworks without a dedicated adapter, these wiring guides route through an
       title="Claude Managed Agents"
       description="Anthropic-hosted agent sessions. Wired through the external store runtime: event-log replay, approval gates, sessions as threads."
       href="/docs/runtimes/claude-managed-agents"
+    />
+    <Card
+      title="Pi Durable"
+      description="Community-maintained adapter for Pi Durable conversations. Wired through the external store runtime: streaming, reconnects, forks, and a local demo."
+      href="https://github.com/usecontextlayer/pi-durable-assistant-ui/blob/main/packages/adapter/README.md"
     />
   </Cards>
 
