@@ -16,4 +16,5 @@ const { status, signal, error } = spawnSync(command, rest, {
 });
 if (error) throw error;
 if (signal) process.kill(process.pid, signal);
-else process.exit(status ?? 1);
+// Node ignores some signals, such as SIGPIPE, so never fall through to 0.
+process.exit(status ?? 1);

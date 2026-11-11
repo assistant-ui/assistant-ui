@@ -83,7 +83,7 @@ export function liteAliases(root: string) {
     for (const [key, target] of targets) {
       const specifier =
         key === "." ? manifest.name : `${manifest.name}/${key.slice(2)}`;
-      const path = relative(root, join(dir, target!));
+      const path = relative(root, join(dir, target!)).replaceAll("\\", "/");
       aliases[specifier] = path.startsWith(".") ? path : `./${path}`;
     }
   }

@@ -58,7 +58,9 @@ function writeIfChanged(file: string, text: string) {
 function demoSource(root: string, demo: LiteDemo, loaded: boolean) {
   const file = resolve(root, liteDemoModule(demo));
   const from = (target: string) =>
-    JSON.stringify(relative(dirname(file), resolve(root, target)));
+    JSON.stringify(
+      relative(dirname(file), resolve(root, target)).replaceAll("\\", "/"),
+    );
   const { module, exports, placeholder } = LITE_DEMOS[demo];
   if (loaded) return `export { ${exports.join(", ")} } from ${from(module)};\n`;
   const names = exports.map((name) => `${placeholder} as ${name}`).join(", ");

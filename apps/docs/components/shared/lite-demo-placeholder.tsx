@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadLiteDemoAction } from "@/lib/lite-demos-action";
 
 // Stands in for a heavy demo under `pnpm dev:lite`; see lib/lite-demos.ts.
 function LiteDemoPlaceholder({ demo, label }: { demo: string; label: string }) {
   const [loading, setLoading] = useState(false);
+  const reload = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(reload.current), []);
   return (
     <div
       data-lite-placeholder
@@ -17,9 +19,15 @@ function LiteDemoPlaceholder({ demo, label }: { demo: string; label: string }) {
         disabled={loading}
         onClick={async () => {
           setLoading(true);
-          await loadLiteDemoAction(demo);
+          try {
+            await loadLiteDemoAction(demo);
+          } catch (error) {
+            console.error(error);
+            setLoading(false);
+            return;
+          }
           // The demo compiles on the next request; give the watcher a moment.
-          setTimeout(() => window.location.reload(), 1500);
+          reload.current = setTimeout(() => window.location.reload(), 1500);
         }}
         className="bg-foreground text-background rounded-md px-3 py-1.5 font-medium disabled:opacity-60"
       >
