@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { CheckIcon, CopyIcon, LoaderCircleIcon } from "lucide-react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { CheckIcon, CopyIcon, LoaderCircleIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import {
@@ -140,30 +145,94 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
 }
 
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
+const AGENT_MARK_COUNT = WORKS_WITH.length + 1;
+const AGENT_MARK_SHIFT_REM = 1;
 
-/** The coding agents a setup can be handed to, each with its mark and name. */
-export function AgentMarks() {
+type AgentMarksAlign = "start" | "end";
+
+/** At rest the marks collapse toward the side the row is aligned to. */
+const agentMarkStyle = (index: number, align: AgentMarksAlign) =>
+  ({
+    "--agent-offset": `${(align === "end" ? AGENT_MARK_COUNT - 1 - index : -index) * AGENT_MARK_SHIFT_REM}rem`,
+    zIndex: AGENT_MARK_COUNT - index,
+  }) as CSSProperties;
+
+function AgentMark({
+  name,
+  index,
+  align,
+  children,
+}: {
+  name: string;
+  index: number;
+  align: AgentMarksAlign;
+  children: ReactNode;
+}) {
+  return (
+    <li
+      className="relative shrink-0 transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
+      style={agentMarkStyle(index, align)}
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span
+              role="img"
+              aria-label={name}
+              tabIndex={0}
+              className="bg-background focus-visible:outline-ring flex size-5 items-center justify-center rounded-full outline-offset-2 focus-visible:outline-2"
+            />
+          }
+        >
+          {children}
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={6}>
+          {name}
+        </TooltipContent>
+      </Tooltip>
+    </li>
+  );
+}
+
+/** The stacked marks of the coding agents a setup can be handed to; each names its agent in a tooltip. */
+export function AgentMarks({
+  className = "size-4",
+  align = "end",
+}: {
+  className?: string;
+  align?: AgentMarksAlign;
+}) {
   return (
     <ul
       aria-label="Coding agents"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1"
+      className="group/agents text-muted-foreground flex items-center gap-1.5"
     >
-      {WORKS_WITH.map((kind) => (
-        <li key={kind} className="flex items-center gap-1.5">
-          <AgentKindIcon kind={kind} className="size-4 shrink-0" />
-          {agentKindName(kind)}
-        </li>
+      {WORKS_WITH.map((kind, index) => (
+        <AgentMark
+          key={kind}
+          name={agentKindName(kind) ?? kind}
+          index={index}
+          align={align}
+        >
+          <AgentKindIcon kind={kind} className={cn("shrink-0", className)} />
+        </AgentMark>
       ))}
-      <li>and others</li>
+      <AgentMark
+        name="And other agents"
+        index={WORKS_WITH.length}
+        align={align}
+      >
+        <PlusIcon aria-hidden="true" className={cn("shrink-0", className)} />
+      </AgentMark>
     </ul>
   );
 }
 
 function WorksWith() {
   return (
-    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+    <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
       <span>Works with</span>
-      <AgentMarks />
+      <AgentMarks className="size-3.5" align="start" />
     </div>
   );
 }
