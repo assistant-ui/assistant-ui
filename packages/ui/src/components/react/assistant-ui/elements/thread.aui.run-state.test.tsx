@@ -112,20 +112,34 @@ describe("Thread run states", () => {
     ).toBeNull();
   });
 
-  it("offers the composer's Resume on a thread that ends on the user message", () => {
+  it("shows an interrupted reply that had no content as a warning with Resume", () => {
     render(
       <RunStateThread
         messages={[{ id: "u", role: "user", content: "hello" }]}
         canResume
       />,
     );
+    const box = screen
+      .getByText("This response was interrupted before it finished.")
+      .closest<HTMLElement>(".aui-interrupted-reply-root")!;
+    expect(box.getAttribute("role")).toBe("alert");
     expect(
-      screen.getByRole<HTMLButtonElement>("button", {
-        name: "Resume generating",
-      }).disabled,
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
+        .disabled,
     ).toBe(false);
-    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Resume generating" }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeTruthy();
     expect(document.querySelector(".aui-message-error-root")).toBeNull();
+  });
+
+  it("keeps the composer's Resume for a resumable run that ends on an assistant message", () => {
+    render(<RunStateThread messages={replyWith(undefined)} canResume />);
+    expect(document.querySelector(".aui-interrupted-reply-root")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Resume generating" }),
+    ).toBeTruthy();
   });
 
   it("keeps other errors in the error box", () => {

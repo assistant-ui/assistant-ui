@@ -53,7 +53,7 @@ A run lives in the tab that streams it. The cloud adapter stores the assistant m
 The server never expires a run. Other tabs read how long ago its last heartbeat was. A reply whose run went `staleAfter` without one (30 seconds by default) loads as interrupted. That is what a run whose tab closed or lost its connection looks like. What the thread shows depends on what the reply had when it stopped:
 
 - **With content**, it is a regular error with the code `run_stale` and `message.runState === "stale"`. Regenerate (`ActionBarPrimitive.Reload`) answers again on a new branch, with its own lease.
-- **Without content**, it is not shown. The thread ends on the user message, and `thread.canResume` is true, so `ComposerPrimitive.Resume` runs the agent again from that message, with no branch. The next run in the thread deletes the empty row. This covers the `aui/v0` history path; in the AI SDK runtime an empty interrupted reply shows as an error like the one above.
+- **Without content**, the empty message is not kept. The thread ends on the user message and `thread.canResume` is true. The default `Thread` shows an "interrupted" warning in the reply's place, with a Resume button (`ComposerPrimitive.Resume`) that runs the agent again from that message, with no branch. The next run in the thread deletes the empty row. This covers the `aui/v0` history path; in the AI SDK runtime an empty interrupted reply shows as an error like the one above.
 
 ```tsx
 const adapter = useCloudThreadListAdapter({ cloud, staleAfter: 60_000 });
