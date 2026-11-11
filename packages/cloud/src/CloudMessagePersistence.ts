@@ -170,6 +170,11 @@ export class CloudMessagePersistence {
     )
       return isOpen(this.runs.get(messageId));
     const runs = this.runs;
+    // A cloud client from before thread leases (or a test double) has no `open`.
+    if (typeof this.getCloud().threads.runs?.open !== "function") {
+      this.threadLeases = false;
+      return false;
+    }
     const task = (async () => {
       const resolvedParentId = parentId
         ? await this.resolveParentId(parentId)

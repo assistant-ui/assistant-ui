@@ -256,6 +256,26 @@ describe("AssistantCloudThreadMessages run leases", () => {
     ]);
 
     makeRequest.mockResolvedValueOnce({
+      messages: [],
+      run: {
+        status: "running",
+        message_id: null,
+        parent_id: "msg_1",
+        last_heartbeat_ms_ago: 500,
+      },
+    });
+    expect((await messages.list("t1")).run).toEqual({
+      status: "running",
+      message_id: null,
+      parent_id: "msg_1",
+      last_heartbeat_ms_ago: 500,
+    });
+    makeRequest.mockResolvedValueOnce({ messages: [], run: null });
+    expect((await messages.list("t1")).run).toBeNull();
+    makeRequest.mockResolvedValueOnce({ messages: [] });
+    expect("run" in (await messages.list("t1"))).toBe(false);
+
+    makeRequest.mockResolvedValueOnce({
       messages: [{ ...row, run: { status: "paused" } }],
     });
     await expect(messages.list("t1")).rejects.toThrow(CloudResponseError);

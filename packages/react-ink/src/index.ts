@@ -196,6 +196,10 @@ export {
 } from "@assistant-ui/core/react";
 
 export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
+export {
+  useThreadReplyState,
+  type ThreadReplyState,
+} from "@assistant-ui/core/react";
 
 // Model context, tools & clients
 export {

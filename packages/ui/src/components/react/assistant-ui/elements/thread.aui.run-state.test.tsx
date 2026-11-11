@@ -164,7 +164,7 @@ describe("Thread run states", () => {
 
   it("shows an interrupted thread as a warning at its end; Resume runs from the user's message", async () => {
     let id = "";
-    const onReload = vi.fn(async () => {});
+    const onReload = vi.fn(async (_parentId: string | null) => {});
     render(
       <UnansweredThread
         onReload={onReload}

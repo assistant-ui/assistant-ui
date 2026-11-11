@@ -23,6 +23,28 @@ describe("AssistantCloudThreadRuns", () => {
     );
   });
 
+  it("opens a thread's lease under the message it answers", async () => {
+    const { runs, makeRequest } = createRuns();
+    makeRequest.mockResolvedValue({
+      lease_id: "lease_1",
+      heartbeat_interval_ms: 20000,
+    });
+    await expect(runs.open("t/1", { parent_id: "msg_1" })).resolves.toEqual({
+      lease_id: "lease_1",
+      heartbeat_interval_ms: 20000,
+    });
+    await runs.open("t1", { parent_external_id: "u1" });
+    await runs.open("t1");
+    expect(makeRequest.mock.calls).toEqual([
+      ["/threads/t%2F1/runs", { method: "POST", body: { parent_id: "msg_1" } }],
+      [
+        "/threads/t1/runs",
+        { method: "POST", body: { parent_external_id: "u1" } },
+      ],
+      ["/threads/t1/runs", { method: "POST", body: {} }],
+    ]);
+  });
+
   it("ends a run with an optional reason", async () => {
     const { runs, makeRequest } = createRuns();
     makeRequest.mockResolvedValue({});
