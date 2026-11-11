@@ -10,7 +10,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { submitted } = vi.hoisted(() => ({ submitted: vi.fn() }));
+const { submitted } = vi.hoisted(() => ({
+  submitted: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock("@/lib/analytics", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -21,7 +23,7 @@ import { ContactSalesForm } from "./contact-sales-form";
 
 afterEach(() => {
   cleanup();
-  submitted.mockReset();
+  submitted.mockClear();
 });
 
 const type = (label: string | RegExp, value: string) =>
@@ -93,7 +95,7 @@ describe("ContactSalesForm", () => {
 
     submit();
 
-    expect(navigate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
     const url = new URL(navigate.mock.calls[0]![0] as string);
     expect(`${url.origin}${url.pathname}`).toBe(
       "https://cal.com/simon-farshid/assistant-ui",

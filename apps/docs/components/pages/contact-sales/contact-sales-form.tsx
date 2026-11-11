@@ -167,13 +167,16 @@ export function ContactSalesForm({
       return;
     }
     setSubmitting(true);
-    analytics.contactSales.submitted({
-      company_size: values.companySize,
-      role: values.role || "unspecified",
-      referral: values.referral || "unspecified",
-      personal_email: isPersonalEmail(values.email),
-    });
-    navigate(buildSalesBookingUrl(values));
+    const url = buildSalesBookingUrl(values);
+    void analytics.contactSales
+      .submitted({
+        company_size: values.companySize,
+        role: values.role || "unspecified",
+        referral: values.referral || "unspecified",
+        personal_email: isPersonalEmail(values.email),
+      })
+      .catch(() => undefined)
+      .then(() => navigate(url));
   };
 
   return (

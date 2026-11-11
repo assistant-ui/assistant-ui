@@ -62,6 +62,24 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   void getVercelTrack().then((track) => track?.(event, properties));
 };
 
+/**
+ * Tracks an event right before the page navigates away. PostHog flushes its
+ * queue on pagehide, but the Vercel tracker loads lazily, so this waits for it
+ * (at most `timeoutMs`) before resolving.
+ */
+const trackEventBeforeLeaving = (
+  event: string,
+  properties: AnalyticsProperties,
+  timeoutMs = 300,
+): Promise<void> => {
+  if (typeof window === "undefined") return Promise.resolve();
+  window.posthog?.capture?.(event, properties);
+  return Promise.race([
+    getVercelTrack().then((track) => track?.(event, properties)),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]).then(() => undefined);
+};
+
 export const analytics = {
   cta: {
     clicked: (
@@ -84,13 +102,13 @@ export const analytics = {
   },
 
   contactSales: {
-    /** The demo form passed validation and is handing off to the cal.com booking. Carries no contact details. */
+    /** The demo form passed validation and is handing off to the cal.com booking. Carries no contact details; resolves once it is safe to navigate. */
     submitted: (props: {
       company_size: string;
       role: string;
       referral: string;
       personal_email: boolean;
-    }) => trackEvent("contact_sales_submitted", props),
+    }) => trackEventBeforeLeaving("contact_sales_submitted", props),
   },
 
   demo: {
