@@ -29,7 +29,7 @@ const isSelfReference = (key: string, value: string) =>
   value.replace(/\s+/g, "") === `var(${key})`;
 
 /** Reads the `--font-*` theme values a stylesheet sets before shadcn rewrites it. */
-export function readFontSnapshot(css: string): FontSnapshot {
+function readFontSnapshot(css: string): FontSnapshot {
   const snapshot: FontSnapshot = {};
   for (const key of FONT_KEYS) {
     const match = css.match(declarationPattern(key));
@@ -55,7 +55,7 @@ export function snapshotProjectFonts(
 }
 
 /** CSS variables the root layout's next/font calls declare, e.g. `--font-geist-sans`. */
-export function readLayoutFontVariables(layoutSource: string): string[] {
+function readLayoutFontVariables(layoutSource: string): string[] {
   return [...layoutSource.matchAll(/variable:\s*["'`](--[\w-]+)["'`]/g)].map(
     (match) => match[1]!,
   );
@@ -110,7 +110,7 @@ export function repairSelfReferencingFonts(
 const STARTER_MARKERS = [/utm_source=create-next-app/, /\/next\.svg/];
 
 /** True for the page.tsx create-next-app writes, before anyone edits it. */
-export function isCreateNextAppStarterPage(source: string): boolean {
+function isCreateNextAppStarterPage(source: string): boolean {
   return STARTER_MARKERS.every((marker) => marker.test(source));
 }
 
