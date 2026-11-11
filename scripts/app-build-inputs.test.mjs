@@ -46,8 +46,6 @@ test("detects app build inputs", () => {
     "packages/core/src/client.test.mts",
     "packages/core/tests/client.test.ts",
     "packages/ui/src/components/react/thread.test.tsx",
-    "packages/react-devtools/src/views/thread.test.tsx",
-    "packages/metro/src/transformer.test.ts",
     "apps/registry/src/registry.test.ts",
     "examples/with-ai-sdk-v7/app/page.test.tsx",
     "templates/minimal/app/page.test.tsx",
@@ -185,7 +183,14 @@ function bundleFixture(t) {
       typeof value === "string" ? value : JSON.stringify(value),
     );
   };
-  write("pnpm-workspace.yaml", "packages:\n  - packages/*\n  - examples/*\n");
+  write(
+    "pnpm-workspace.yaml",
+    "packages:\n  - packages/*\n  - examples/*\n  - apps/*\n  - templates/*\n",
+  );
+  write("package.json", {
+    name: "monorepo",
+    devDependencies: { "release-tool": "workspace:*" },
+  });
   write("scripts/example-bundles.json", [{ package: "bundle-new" }]);
   write("examples/bundle-new/package.json", {
     name: "bundle-new",
@@ -209,6 +214,20 @@ function bundleFixture(t) {
   write("packages/compiler/package.json", { name: "compiler" });
   write("packages/optional/package.json", { name: "optional" });
   write("packages/unrelated/package.json", { name: "unrelated" });
+  write("packages/release-tool/package.json", { name: "release-tool" });
+  write("templates/starter/package.json", {
+    name: "starter",
+    dependencies: { runtime: "workspace:*" },
+  });
+  write("apps/docs/package.json", {
+    name: "docs",
+    dependencies: { unrelated: "workspace:*" },
+  });
+  write("examples/with-adapter/package.json", {
+    name: "with-adapter",
+    dependencies: { adapter: "workspace:*" },
+  });
+  write("packages/adapter/package.json", { name: "adapter" });
   return { root, write };
 }
 
@@ -225,6 +244,32 @@ test("new bundles follow transitive workspace dependencies, including peers and 
   assert.equal(
     hasExampleBundleInputs(["packages/unrelated/src/index.ts"], root),
     false,
+  );
+});
+
+test("app builds follow the workspace graph of the apps they build", (t) => {
+  const { root } = bundleFixture(t);
+  for (const file of [
+    "packages/runtime/src/index.ts",
+    "packages/bridge/src/index.ts",
+    "packages/compiler/src/index.ts",
+    "packages/optional/src/index.ts",
+    "packages/release-tool/src/index.ts",
+  ]) {
+    assert.equal(hasAppBuildInputs([file], root), true, file);
+  }
+  for (const file of [
+    "packages/unrelated/src/index.ts",
+    "packages/adapter/src/index.ts",
+  ]) {
+    assert.equal(hasAppBuildInputs([file], root), false, file);
+  }
+  assert.equal(
+    hasAppBuildInputs(
+      ["packages/unrelated/src/index.ts", "packages/runtime/src/index.ts"],
+      root,
+    ),
+    true,
   );
 });
 
@@ -296,6 +341,18 @@ test("the workflow gates dependency-backed app build steps", () => {
   );
 });
 
+test("the app build filters match the detector's build roots", () => {
+  const build = step("Build apps");
+  assert.match(
+    build,
+    /pnpm turbo build --filter="\.\.\.\[\$BASE\]" --filter="!\.\/packages\/\*" --filter="!\.\/api-surface" --filter="!@assistant-ui\/docs-site" --filter="!\.\/examples\/\*"\n/,
+  );
+  assert.match(
+    build,
+    /pnpm turbo build --filter="\{\.\/examples\/\*\}\[\$BASE\]"\n/,
+  );
+});
+
 test("the app build installs without the pnpm store cache", () => {
   assert.match(step("Setup pnpm and node.js"), /cache: false/);
 });
@@ -345,7 +402,7 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
         .map((line) => line.split("=")),
     );
   };
-  assert.deepEqual(detect(base), { run: "true", bundles: "false", base });
+  assert.deepEqual(detect(base), { run: "false", bundles: "false", base });
   assert.deepEqual(detect("missing"), {
     run: "true",
     bundles: "true",

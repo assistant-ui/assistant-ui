@@ -26,7 +26,6 @@ export const APP_BUILD_INPUTS = [
   ...SHARED_BUILD_INPUTS,
   "apps/docs/content",
   "examples",
-  "packages",
   "templates",
 ];
 
@@ -43,18 +42,82 @@ const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 const touchesBuiltApp = (file) =>
   file.startsWith("apps/") && !file.startsWith("apps/docs/");
 
-export function hasAppBuildInputs(changedFiles) {
-  return changedFiles.some(
-    (file) =>
-      !isExcludedPackageTest(file) &&
-      (touchesBuiltApp(file) ||
-        APP_BUILD_INPUTS.some((input) => touches(file, input))),
+const defaultRepoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+
+const dependencyNames = (pkg) =>
+  Object.keys({
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+    ...pkg.peerDependencies,
+    ...pkg.optionalDependencies,
+    ...pkg.optionalDevDependencies,
+  });
+
+function workspaceInputs(workspaces, roots) {
+  const queue = [...roots];
+  const inputs = new Set();
+  while (queue.length > 0) {
+    const name = queue.shift();
+    const entry = workspaces.get(name);
+    if (!entry) throw new Error(`Missing workspace: ${name}`);
+    const directory = path.posix.dirname(entry.manifest);
+    if (inputs.has(directory)) continue;
+    inputs.add(directory);
+    queue.push(
+      ...dependencyNames(entry.pkg).filter((dependency) =>
+        workspaces.has(dependency),
+      ),
+    );
+  }
+  return [...inputs];
+}
+
+const readWorkspaces = (repoRoot) =>
+  new Map(
+    readWorkspaceManifestEntries(repoRoot).manifests.map((entry) => [
+      entry.pkg.name,
+      entry,
+    ]),
+  );
+
+const isAppBuildRoot = (manifest) =>
+  !/^(?:packages|examples)\/|^api-surface\/|^apps\/docs\//.test(manifest);
+
+export function hasAppBuildInputs(changedFiles, repoRoot = defaultRepoRoot) {
+  const files = changedFiles.filter((file) => !isExcludedPackageTest(file));
+  if (
+    files.some(
+      (file) =>
+        touchesBuiltApp(file) ||
+        APP_BUILD_INPUTS.some((input) => touches(file, input)),
+    )
+  )
+    return true;
+  const packageFiles = files.filter((file) => file.startsWith("packages/"));
+  if (packageFiles.length === 0) return false;
+
+  // The roots are the workspaces the Build apps filters select, plus the root
+  // package, which Turbo treats as a dependency of every workspace.
+  const workspaces = readWorkspaces(repoRoot);
+  const inputs = workspaceInputs(workspaces, [
+    ...[...workspaces.values()]
+      .filter(({ manifest }) => isAppBuildRoot(manifest))
+      .map(({ pkg }) => pkg.name),
+    ...dependencyNames(readJson(path.join(repoRoot, "package.json"))).filter(
+      (dependency) => workspaces.has(dependency),
+    ),
+  ]);
+  return packageFiles.some((file) =>
+    inputs.some((input) => touches(file, input)),
   );
 }
 
 export function hasExampleBundleInputs(
   changedFiles,
-  repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
+  repoRoot = defaultRepoRoot,
 ) {
   if (changedFiles.length === 0) return false;
   if (
@@ -68,38 +131,17 @@ export function hasExampleBundleInputs(
   )
     return true;
 
-  const { manifests } = readWorkspaceManifestEntries(repoRoot);
-  const workspaces = new Map(manifests.map((entry) => [entry.pkg.name, entry]));
   const bundles = readJson(path.join(repoRoot, "scripts/example-bundles.json"));
-  const queue = [
+  const inputs = workspaceInputs(readWorkspaces(repoRoot), [
     ...bundles.map((bundle) => bundle.package),
     "bundle-shared",
     "@assistant-ui/ui",
     "@assistant-ui/x-buildutils",
-  ];
-  const inputs = new Set();
-  while (queue.length > 0) {
-    const name = queue.shift();
-    const entry = workspaces.get(name);
-    if (!entry) throw new Error(`Missing bundle workspace: ${name}`);
-    const directory = path.posix.dirname(entry.manifest);
-    if (inputs.has(directory)) continue;
-    inputs.add(directory);
-    const { pkg } = entry;
-    queue.push(
-      ...Object.keys({
-        ...pkg.dependencies,
-        ...pkg.devDependencies,
-        ...pkg.peerDependencies,
-        ...pkg.optionalDependencies,
-        ...pkg.optionalDevDependencies,
-      }).filter((dependency) => workspaces.has(dependency)),
-    );
-  }
+  ]);
   return changedFiles.some(
     (file) =>
       !isExcludedPackageTest(file) &&
-      [...inputs].some((input) => touches(file, input)),
+      inputs.some((input) => touches(file, input)),
   );
 }
 
