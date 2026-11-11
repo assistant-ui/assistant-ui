@@ -87,29 +87,14 @@ describe("CloudMessagePersistence thread leases", () => {
     expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", { reason: "done" });
   });
 
-  it("falls back to a lease on the row when the server has no thread leases", async () => {
-    const { cloud, messages, runs } = createCloud();
-    runs.open.mockRejectedValue(apiError(404));
-    messages.create.mockResolvedValue({ message_id: "msg_a", run: lease });
-    const persistence = new CloudMessagePersistence(cloud);
-
-    expect(await persistence.beginRun("t1", "a1", null)).toBe(false);
-    expect(persistence.hasOpenRun("a1")).toBe(false);
-    await persistence.append("t1", "a1", null, "aui/v0", partial, "running");
-    expect(messages.create.mock.calls[0]![1]).toMatchObject({ open_run: true });
-    expect(persistence.hasOpenRun("a1")).toBe(true);
-
-    // The server is not asked again.
-    expect(await persistence.beginRun("t1", "a2", null)).toBe(false);
-    expect(runs.open).toHaveBeenCalledTimes(1);
-  });
-
-  it("treats a cloud client without thread leases as unsupported", async () => {
+  it("rejects with a clear error on a server without thread leases", async () => {
     const { cloud, runs } = createCloud();
-    (runs as { open?: unknown }).open = undefined;
+    runs.open.mockRejectedValue(apiError(404));
     const persistence = new CloudMessagePersistence(cloud);
-    expect(await persistence.beginRun("t1", "a1", null)).toBe(false);
-    expect(await persistence.beginRun("t1", "a2", null)).toBe(false);
+    await expect(persistence.beginRun("t1", "a1", null)).rejects.toThrow(
+      /needs Assistant Cloud v0\.2\.11 or newer/,
+    );
+    expect(persistence.hasOpenRun("a1")).toBe(false);
   });
 
   it("drops the reply when a newer run superseded the lease before the first write", async () => {
@@ -167,9 +152,8 @@ describe("CloudMessagePersistence thread leases", () => {
       readAt: expect.any(Number),
     });
 
-    messages.list.mockResolvedValue({ messages: [] });
-    const old = new CloudMessagePersistence(cloud);
-    await old.load("t1");
-    expect(old.threadRunOf("t1")).toBeUndefined();
+    messages.list.mockResolvedValue({ messages: [], run: null });
+    await persistence.load("t1");
+    expect(persistence.threadRunOf("t1")?.run).toBeNull();
   });
 });

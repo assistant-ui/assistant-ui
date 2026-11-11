@@ -29,9 +29,6 @@ export type AssistantCloudThreadRunOpenBody = {
  * report the thread's running lease with how long ago it last beat, so
  * readers can tell a run whose tab went away. The holder's first message
  * write with the `lease_id` stores the reply and binds the lease to it.
- *
- * Servers before v0.2.11 open leases only on a message, with `open_run` on
- * `threads.messages.create`, and answer `open` with 404.
  */
 export class AssistantCloudThreadRuns {
   private cloud: AssistantCloudAPI;
