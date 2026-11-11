@@ -806,12 +806,17 @@ export class AgUiThreadController {
   private findRequiresActionAssistant(
     reason: "interrupt" | "tool-calls",
   ): ThreadAssistantMessage | null {
+    const matchesReason = (message: ThreadAssistantMessage) =>
+      message.status?.type === "requires-action" &&
+      message.status.reason === reason;
     return (
-      this.getTrailingAssistantTurn().findLast(
-        (message) =>
-          message.status?.type === "requires-action" &&
-          message.status.reason === reason,
-      ) ?? null
+      this.getTrailingAssistantTurn().findLast(matchesReason) ??
+      (reason === "interrupt"
+        ? (this.getMessages().findLast(
+            (message): message is ThreadAssistantMessage =>
+              message.role === "assistant" && matchesReason(message),
+          ) ?? null)
+        : null)
     );
   }
 
@@ -824,6 +829,23 @@ export class AgUiThreadController {
       turn.unshift(message as ThreadAssistantMessage);
     }
     return turn;
+  }
+
+  private getAssistantMessagesForInterrupts(
+    interrupts: readonly AgUiInterrupt[],
+  ): ThreadAssistantMessage[] {
+    const owners = new Map(
+      this.getTrailingAssistantTurn().map((message) => [message.id, message]),
+    );
+    for (const interrupt of interrupts) {
+      if (!interrupt.toolCallId) continue;
+      const messageId = this.findMessageIdForToolCall(interrupt.toolCallId);
+      const message = messageId
+        ? this.session.tryGetMessage(messageId)?.message
+        : undefined;
+      if (message?.role === "assistant") owners.set(message.id, message);
+    }
+    return [...owners.values()];
   }
 
   private getPendingToolCallMessages(): ThreadAssistantMessage[] {
@@ -987,12 +1009,14 @@ export class AgUiThreadController {
 
     // Bound against the message the gates landed on, so this check claims a
     // batch only where the projection did.
-    const gatedMessage = this.session.tryGetMessage(pending.messageId)
-      ?.message as ThreadAssistantMessage | undefined;
+    const interruptOwners = this.getAssistantMessagesForInterrupts(
+      pending.interrupts,
+    );
+    const ownerContent = interruptOwners.flatMap((message) => message.content);
     const gated = projectAgUiToolApprovals(
       pending.interrupts,
       new Set(
-        Array.from(iterateToolCallParts(gatedMessage?.content ?? [])).map(
+        Array.from(iterateToolCallParts(ownerContent)).map(
           (part) => part.toolCallId,
         ),
       ),
@@ -1014,16 +1038,18 @@ export class AgUiThreadController {
       pending.interrupts,
     );
 
-    const recorded = this.session.updateMessage(
-      pending.messageId,
-      (message) => {
-        if (message.role !== "assistant") return message;
-        const assistant = message as ThreadAssistantMessage;
+    let recorded = false;
+    for (const message of interruptOwners) {
+      const updated = this.session.updateMessage(message.id, (current) => {
+        if (current.role !== "assistant") return current;
+        const assistant = current as ThreadAssistantMessage;
         const content = withToolApprovalDecision(assistant.content, options);
         if (content === assistant.content) return assistant;
+        recorded = true;
         return { ...assistant, content };
-      },
-    );
+      });
+      if (!updated) continue;
+    }
     if (!recorded) {
       throw new Error(
         `[agui] respondToToolApproval: approval "${options.approvalId}" is already decided`,
@@ -1031,15 +1057,13 @@ export class AgUiThreadController {
     }
     this.publishUpdate();
 
-    const assistant = this.session.tryGetMessage(pending.messageId)?.message as
-      | ThreadAssistantMessage
-      | undefined;
-    if (!assistant) return;
-
     // AG-UI resumes a run with one response per open interrupt, so the run
     // stays paused until every gate in the batch has been answered.
     const resume = buildToolApprovalResume(
-      assistant.content,
+      interruptOwners.flatMap((message) => {
+        const current = this.session.tryGetMessage(message.id)?.message;
+        return current?.role === "assistant" ? current.content : [];
+      }),
       pending.interrupts,
     );
     if (!resume) return;
@@ -1180,35 +1204,64 @@ export class AgUiThreadController {
     messageId: string,
     resume: readonly AgUiResumeEntry[],
   ): void {
-    const touched = this.session.updateMessage(messageId, (message) => {
-      if (message.role !== "assistant") return message;
-      const assistant = message as ThreadAssistantMessage;
-      if (
-        assistant.status?.type !== "requires-action" ||
-        assistant.status.reason !== "interrupt"
-      ) {
-        return assistant;
-      }
-      const aguiMeta = assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
-        | AgUiCustomMetadata
-        | undefined;
-      const { interrupts: _drop, ...restAgui } = aguiMeta ?? {};
-      const newCustom = { ...assistant.metadata.custom };
-      if (Object.keys(restAgui).length > 0) {
-        newCustom[AG_UI_METADATA_NAMESPACE] = restAgui;
-      } else {
-        delete newCustom[AG_UI_METADATA_NAMESPACE];
-      }
-      return {
-        ...assistant,
-        content: withSettledToolApprovals(assistant.content, resume),
-        status: { type: "complete" as const, reason: "unknown" as const },
-        metadata: { ...assistant.metadata, custom: newCustom },
-      };
-    });
-    if (touched) {
+    const changedMessageIds: string[] = [];
+    const pending = this.getPendingInterrupts();
+    const assistants = new Map(
+      this.getAssistantMessagesForInterrupts(pending?.interrupts ?? []).map(
+        (message) => [message.id, message],
+      ),
+    );
+    const pendingMessage = this.session.tryGetMessage(messageId)?.message;
+    if (pendingMessage?.role === "assistant")
+      assistants.set(messageId, pendingMessage);
+    for (const assistant of assistants.values()) {
+      let changed = false;
+      this.session.updateMessage(assistant.id, (message) => {
+        if (message.role !== "assistant") return message;
+        const current = message as ThreadAssistantMessage;
+        const isInterruptOwner =
+          current.id === messageId &&
+          current.status?.type === "requires-action" &&
+          current.status.reason === "interrupt";
+        const content = withSettledToolApprovals(current.content, resume);
+        if (content === current.content && !isInterruptOwner) return current;
+
+        let metadata = current.metadata;
+        if (isInterruptOwner) {
+          const aguiMeta = current.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+            | AgUiCustomMetadata
+            | undefined;
+          const { interrupts: _drop, ...restAgui } = aguiMeta ?? {};
+          const custom = { ...current.metadata.custom };
+          if (Object.keys(restAgui).length > 0) {
+            custom[AG_UI_METADATA_NAMESPACE] = restAgui;
+          } else {
+            delete custom[AG_UI_METADATA_NAMESPACE];
+          }
+          metadata = { ...current.metadata, custom };
+        }
+
+        changed = true;
+        return {
+          ...current,
+          content,
+          ...(isInterruptOwner
+            ? {
+                status: {
+                  type: "complete" as const,
+                  reason: "unknown" as const,
+                },
+                metadata,
+              }
+            : {}),
+        };
+      });
+      if (changed) changedMessageIds.push(assistant.id);
+    }
+    if (changedMessageIds.length > 0) {
       this.publishUpdate();
-      this.persistSettledAssistant(messageId);
+      for (const changedMessageId of changedMessageIds)
+        this.persistSettledAssistant(changedMessageId);
     }
   }
 
@@ -2362,6 +2415,12 @@ export class AgUiThreadController {
           hasRunUserBoundary,
           candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
+        if (
+          event.type === "RUN_FINISHED" &&
+          event.outcome?.type === "interrupt"
+        ) {
+          this.projectRetainedInterruptApprovals(event.outcome.interrupts);
+        }
         if (event.type === "MESSAGES_SNAPSHOT") {
           // Assistants a snapshot adds belong to the run's history even when
           // the run never streams into them. Every import resets the pending
@@ -2578,7 +2637,12 @@ export class AgUiThreadController {
       const message = this.session.tryGetMessage(pending.messageId)?.message;
       const responses =
         message?.role === "assistant"
-          ? buildToolApprovalResume(message.content, pending.interrupts)
+          ? buildToolApprovalResume(
+              this.getAssistantMessagesForInterrupts(
+                pending.interrupts,
+              ).flatMap((assistant) => assistant.content),
+              pending.interrupts,
+            )
           : null;
       if (responses) {
         this.clearDeferredContinuations(abortController);
@@ -3443,7 +3507,12 @@ export class AgUiThreadController {
           (hasActiveText || hasNewPendingToolCallAnswer)
         ) {
           const nextActiveAssistantId =
-            head?.role === "assistant" ? (headId ?? undefined) : undefined;
+            head?.role === "assistant"
+              ? (headId ?? undefined)
+              : activeAssistantId;
+          const movedToAssistantHead =
+            head?.role === "assistant" &&
+            activeAssistantId !== nextActiveAssistantId;
           if (
             activeAssistantId !== nextActiveAssistantId &&
             activeAssistantId
@@ -3464,7 +3533,11 @@ export class AgUiThreadController {
             }
           }
           activeAssistantId = nextActiveAssistantId;
-          if (activeAssistantId && joinStrategy !== "concat-content") {
+          if (
+            movedToAssistantHead &&
+            activeAssistantId &&
+            joinStrategy !== "concat-content"
+          ) {
             aggregator.rebaseMessage(activeAssistantId);
           }
         }
@@ -3694,6 +3767,59 @@ export class AgUiThreadController {
     this.publishUpdate();
     if (this.maybeCompleteAfterToolResults(messageId)) return;
     this.persistSettledAssistant(messageId);
+  }
+
+  private projectRetainedInterruptApprovals(
+    interrupts: readonly AgUiInterrupt[],
+  ): void {
+    const turn = this.getAssistantMessagesForInterrupts(interrupts);
+    const toolCallIds = new Set(
+      turn.flatMap((message) =>
+        Array.from(
+          iterateToolCallParts(message.content),
+          (part) => part.toolCallId,
+        ),
+      ),
+    );
+    const approvals = projectAgUiToolApprovals(interrupts, toolCallIds);
+    if (approvals.size === 0) return;
+
+    const approvalsByMessage = new Map<
+      string,
+      Map<string, NonNullable<ReturnType<typeof approvals.get>>>
+    >();
+    for (const [toolCallId, approval] of approvals) {
+      const messageId = this.findMessageIdForToolCall(toolCallId);
+      if (!messageId || !turn.some((message) => message.id === messageId))
+        continue;
+      const ownerApprovals = approvalsByMessage.get(messageId) ?? new Map();
+      ownerApprovals.set(toolCallId, approval);
+      approvalsByMessage.set(messageId, ownerApprovals);
+    }
+
+    const changedMessageIds: string[] = [];
+    for (const [messageId, ownerApprovals] of approvalsByMessage) {
+      let changed = false;
+      this.session.updateMessage(messageId, (message) => {
+        if (message.role !== "assistant") return message;
+        const assistant = message as ThreadAssistantMessage;
+        const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+          const approval = ownerApprovals.get(part.toolCallId);
+          if (!approval) return part;
+          const next = { ...part, approval };
+          const preserved = preserveToolApprovalDecision(part, next);
+          changed = true;
+          return preserved ? { ...next, approval: preserved } : next;
+        });
+        return changed ? { ...assistant, content } : assistant;
+      });
+      if (changed) changedMessageIds.push(messageId);
+    }
+
+    if (changedMessageIds.length === 0) return;
+    this.publishUpdate();
+    for (const messageId of changedMessageIds)
+      this.persistAssistantHistory(messageId);
   }
 
   private importMessagesSnapshot(

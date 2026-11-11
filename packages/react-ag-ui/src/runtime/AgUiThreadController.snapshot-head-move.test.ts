@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { HttpAgent } from "@ag-ui/client";
 import type { AppendMessage } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
@@ -172,6 +172,139 @@ describe("AgUiThreadController snapshot head moves", () => {
     ]);
     await core.append(userMessage);
     expect(statuses(core).answer).toBe("complete");
+  });
+
+  it("projects an interrupt onto its moved-off call and resumes from that gate", async () => {
+    const interrupt = {
+      id: "approval",
+      reason: "tool_call",
+      toolCallId: "task",
+    };
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, otherRecord),
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "interrupt", interrupts: [interrupt] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval" },
+    });
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "other",
+      interrupts: [interrupt],
+    });
+
+    const startRun = vi
+      .spyOn(core as any, "startRun")
+      .mockResolvedValue(undefined);
+    await core.respondToToolApproval({
+      approvalId: "approval",
+      approved: true,
+    });
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval", approved: true },
+    });
+    expect(startRun).toHaveBeenCalledWith(
+      "other",
+      {},
+      {
+        entries: [
+          {
+            interruptId: "approval",
+            status: "resolved",
+            payload: { approved: true },
+          },
+        ],
+        interruptedMessageId: "other",
+      },
+    );
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it("keeps a moved-off interrupt answerable after a snapshot to a user head", async () => {
+    const interrupt = {
+      id: "approval",
+      reason: "tool_call",
+      toolCallId: "task",
+    };
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, { id: "next-user", role: "user", content: "More" }),
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "interrupt", interrupts: [interrupt] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval" },
+    });
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "answer",
+      interrupts: [interrupt],
+    });
+
+    const startRun = vi
+      .spyOn(core as any, "startRun")
+      .mockResolvedValue(undefined);
+    await core.respondToToolApproval({
+      approvalId: "approval",
+      approved: true,
+    });
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval", approved: true },
+    });
+    expect(startRun).toHaveBeenCalledWith(
+      "next-user",
+      {},
+      {
+        entries: [
+          {
+            interruptId: "approval",
+            status: "resolved",
+            payload: { approved: true },
+          },
+        ],
+        interruptedMessageId: "answer",
+      },
+    );
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it("keeps the prior assistant as the event owner when a snapshot head is non-assistant", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, { id: "next-user", role: "user", content: "More" }),
+      taskResult,
+      finished,
+    ]);
+
+    await core.append(userMessage);
+
+    expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "next-user",
+      role: "user",
+    });
   });
 
   it("settles the moved-off answer and sub-agent after the tool result", async () => {
