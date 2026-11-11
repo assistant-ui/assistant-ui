@@ -104,6 +104,14 @@ describe("CloudMessagePersistence thread leases", () => {
     expect(runs.open).toHaveBeenCalledTimes(1);
   });
 
+  it("treats a cloud client without thread leases as unsupported", async () => {
+    const { cloud, runs } = createCloud();
+    (runs as { open?: unknown }).open = undefined;
+    const persistence = new CloudMessagePersistence(cloud);
+    expect(await persistence.beginRun("t1", "a1", null)).toBe(false);
+    expect(await persistence.beginRun("t1", "a2", null)).toBe(false);
+  });
+
   it("drops the reply when a newer run superseded the lease before the first write", async () => {
     const { cloud, messages, runs } = createCloud();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
