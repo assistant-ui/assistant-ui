@@ -68,6 +68,14 @@ describe("docs Next config composition", () => {
     expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("3");
   });
 
+  it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {
+    vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", "8");
+    vi.resetModules();
+    const reloaded = await (await import("./next.config.mts")).default;
+    expect(reloaded.experimental?.cpus).toBe(3);
+    expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("8");
+  });
+
   it("compiles navigation anchors, highlighted code, tables and Mermaid through Farming Labs", async () => {
     const javascriptHighlighter = vi.spyOn(defaultShikiFactory, "getOrInit");
     const compiled = await evaluate(

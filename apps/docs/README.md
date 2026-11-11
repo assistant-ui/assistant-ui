@@ -33,6 +33,6 @@ To cap memory during `pnpm build`, limit the prerender workers and Turbopack's M
 DOCS_BUILD_CPUS=4 pnpm build
 ```
 
-On an 18-core machine this takes the peak from about 27 GB to about 16 GB, and the build from about 45 s to about 55 s.
+On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s. With `DOCS_BUILD_CPUS=4` it peaks at about 16 GB and takes about 55 s. The PR that added this (assistant-ui/assistant-ui#10486) has the measurements.
 
 None of these settings change what a build produces.
