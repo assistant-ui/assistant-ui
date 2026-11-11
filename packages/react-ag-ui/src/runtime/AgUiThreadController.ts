@@ -384,6 +384,8 @@ export class AgUiThreadController {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly listeners = new Set<() => void>();
+  private deferUpdateNotifications = false;
+  private pendingUpdateNotification: ReturnType<typeof setTimeout> | undefined;
   private snapshot:
     | {
         isLoading: boolean;
@@ -474,6 +476,18 @@ export class AgUiThreadController {
 
   private publishUpdate(): void {
     this.snapshot = undefined;
+    if (this.deferUpdateNotifications) {
+      if (this.pendingUpdateNotification !== undefined) return;
+      this.pendingUpdateNotification = setTimeout(() => {
+        this.pendingUpdateNotification = undefined;
+        for (const listener of this.listeners) listener();
+      }, 0);
+      return;
+    }
+    if (this.pendingUpdateNotification !== undefined) {
+      clearTimeout(this.pendingUpdateNotification);
+      this.pendingUpdateNotification = undefined;
+    }
     for (const listener of this.listeners) listener();
   }
 
@@ -2477,6 +2491,14 @@ export class AgUiThreadController {
       if (settlingRun) persistRunAssistants(true);
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
+      const previousDeferredNotifications = this.deferUpdateNotifications;
+      this.deferUpdateNotifications =
+        previousDeferredNotifications ||
+        event.type === "TEXT_MESSAGE_CONTENT" ||
+        event.type === "REASONING_MESSAGE_CONTENT" ||
+        event.type === "TOOL_CALL_ARGS" ||
+        event.type === "ACTIVITY_DELTA" ||
+        event.type === "STATE_DELTA";
       try {
         const nextAssistantMessageId = this.handleEvent(
           aggregator,
@@ -2569,6 +2591,7 @@ export class AgUiThreadController {
         }
         if (settlingRun) persistRunAssistants(false);
       } finally {
+        this.deferUpdateNotifications = previousDeferredNotifications;
         settlingRun = false;
       }
     };
