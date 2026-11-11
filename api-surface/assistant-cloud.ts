@@ -547,7 +547,7 @@ declare class CloudMessagePersistence {
   runStateOf(run: CloudMessageRun | undefined, sinceReadMs?: number): CloudRunState | undefined;
   beginRun(threadId: string, messageId: string, parentId: string | null): Promise<boolean>;
   threadRunOf(threadId: string): CloudThreadRunRead | undefined;
-  recordThreadRun(threadId: string, run: CloudThreadRun | null | undefined, readAt?: number): void;
+  recordThreadRun(threadId: string, run: CloudThreadRun | null, readAt?: number): void;
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
   rename(from: string, to: string): Promise<void>;

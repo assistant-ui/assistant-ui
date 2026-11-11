@@ -8,7 +8,7 @@ import {
   useRemoteThreadListRuntime,
   useThreadReplyState,
 } from "@assistant-ui/core/react";
-import { useThreadResume } from "@assistant-ui/core/internal";
+import { useThreadResume } from "@assistant-ui/core/react/internal";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
 import { AssistantCloud } from "assistant-cloud";

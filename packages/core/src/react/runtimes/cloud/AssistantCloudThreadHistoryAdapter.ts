@@ -716,26 +716,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   }
 
   /**
-   * Re-reads the thread's run with a short page; resolves whether the run
-   * answering `head` stored a reply or ended since, which needs a full reload.
-   */
-  public async readThreadRun(head: ThreadMessage): Promise<boolean> {
-    const threadListItem = this.runThreadListItem() ?? this.aui.threadListItem;
-    const context = this.captureScope(threadListItem);
-    const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
-    this.assertCurrentScope(context);
-    if (!remoteThreadId) return false;
-    const readAt = Date.now();
-    const { run } = await context.cloud.threads.messages.list(remoteThreadId, {
-      limit: RUN_STATE_PAGE_SIZE,
-    });
-    this.assertCurrentScope(context);
-    context.persistence.recordThreadRun(remoteThreadId, run ?? null, readAt);
-    const headId = context.persistence.getResolvedRemoteId(head.id) ?? head.id;
-    return !run || run.parent_id !== headId || run.message_id !== null;
-  }
-
-  /**
    * Where the run answering `head`, the stored last message of the shown
    * branch, stands: null when no run answers it, undefined before the thread
    * loaded or while `head` is not stored.

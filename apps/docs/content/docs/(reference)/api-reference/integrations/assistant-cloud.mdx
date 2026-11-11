@@ -64,9 +64,6 @@ report the thread's running lease with how long ago it last beat, so
 readers can tell a run whose tab went away. The holder's first message
 write with the `lease_id` stores the reply and binds the lease to it.
 
-Servers before v0.2.11 open leases only on a message, with `open_run` on
-`threads.messages.create`, and answer `open` with 404.
-
 <ParametersTable {...assistantCloud_AssistantCloudThreadRuns} />
 
 ### CloudAPIError
@@ -95,10 +92,9 @@ cannot be created is stored as a root.
 
 A run holds the thread's run lease, opened with `beginRun` before its
 reply is stored: the reply's first write stores the row and binds the
-lease to it, so a run that never writes leaves no message. Against a
-server before v0.2.11, a message appended as running opens a lease on its
-row instead. A lease is renewed by heartbeats on the server's interval
-until a write with an end reason ends it. Heartbeats
+lease to it, so a run that never writes leaves no message. A message
+appended as running opens the lease itself. Heartbeats renew a lease on
+the server's interval until a write with an end reason ends it. Heartbeats
 keep running while the page is in the background. The server never
 expires a lease; readers show a run as stale once it has gone `staleAfter`
 without a beat, and a late run keeps writing its own message. A lease that
