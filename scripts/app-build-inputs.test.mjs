@@ -296,6 +296,10 @@ test("the workflow gates dependency-backed app build steps", () => {
   );
 });
 
+test("the app build installs without the pnpm store cache", () => {
+  assert.match(step("Setup pnpm and node.js"), /cache: false/);
+});
+
 test("the workflow emits independent app and bundle decisions and keeps an unknown base enabled", (t) => {
   const { root, write } = bundleFixture(t);
   for (const file of ["app-build-inputs.mjs", "prepare-ci-base.mjs", "lib"]) {

@@ -487,7 +487,7 @@ jobs:
         if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
