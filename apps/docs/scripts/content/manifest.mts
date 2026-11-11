@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { watch, type FSWatcher } from "node:fs";
 import { DocsBuildCache, docsBuildCacheDigest } from "@farming-labs/docs/build";
-import { resolve, relative } from "node:path";
+import { dirname, resolve, relative } from "node:path";
 import glob from "fast-glob";
 import matter from "gray-matter";
 import {
@@ -9,6 +9,7 @@ import {
   contentSchemas,
   navigationSchema,
 } from "../../content.config.ts";
+import { LITE_PAGES_FILE } from "../../lib/content-lite-pages.ts";
 
 async function readContent(root: string) {
   return Promise.all(
@@ -73,10 +74,31 @@ async function createContentProcessor() {
   return { processor, VFile };
 }
 
+/**
+ * Lite mode (`pnpm dev:lite`): pages outside `compiled` load a placeholder
+ * instead of their MDX, so Turbopack compiles only the pages someone opens.
+ * See lib/content-lite.tsx.
+ */
+type LiteOptions = { compiled: ReadonlySet<string> };
+
+async function readLitePages(root: string): Promise<string[]> {
+  try {
+    const pages: unknown = JSON.parse(
+      await readFile(resolve(root, LITE_PAGES_FILE), "utf8"),
+    );
+    return Array.isArray(pages)
+      ? pages.filter((page) => typeof page === "string").sort()
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 async function compileContent(
   root: string,
   collections: Awaited<ReturnType<typeof readContent>>,
   cache?: { pages: DocsBuildCache<CompiledPage>; compiler: string },
+  lite?: LiteOptions,
 ) {
   let compiler: Awaited<ReturnType<typeof createContentProcessor>> | undefined;
   const output = [
@@ -126,7 +148,9 @@ async function compileContent(
       pages.push({ path, metadata: page.metadata });
       search[path] = page.search;
       modules.push(
-        `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(`../${relative(root, absolute)}`)})`,
+        lite && !lite.compiled.has(`${collection}/${path}`)
+          ? `${serializeSourceLiteral(path)}: () => import("../lib/content-lite").then((module) => module.pendingPage(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(path)}))`
+          : `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(`../${relative(root, absolute)}`)})`,
       );
     }
     output.push(
@@ -142,8 +166,19 @@ async function writeIfChanged(destination: string, output: string) {
   if (previous !== output) await writeFile(destination, output);
 }
 
-export async function generateContentManifest(root: string) {
+export type ContentManifestOptions = {
+  /** Compile only the pages listed in LITE_PAGES_FILE; dev only. */
+  lite?: boolean;
+};
+
+export async function generateContentManifest(
+  root: string,
+  options: ContentManifestOptions = {},
+) {
   const collections = await readContent(root);
+  const lite = options.lite
+    ? { compiled: new Set(await readLitePages(root)) }
+    : undefined;
   const inputs = await Promise.all([
     readFile(new URL(import.meta.url), "utf8"),
     readFile(new URL("../../content.config.ts", import.meta.url), "utf8"),
@@ -153,7 +188,7 @@ export async function generateContentManifest(root: string) {
     JSON.stringify([process.version, ...inputs]),
   );
   const fingerprint = docsBuildCacheDigest(
-    JSON.stringify([compiler, collections]),
+    JSON.stringify([compiler, collections, lite ? [...lite.compiled] : null]),
   );
   const cache = new DocsBuildCache<Awaited<ReturnType<typeof compileContent>>>(
     resolve(root, ".next/cache/aui-content-manifest.json"),
@@ -163,10 +198,12 @@ export async function generateContentManifest(root: string) {
     const pages = new DocsBuildCache<CompiledPage>(
       resolve(root, ".next/cache/aui-content-pages.json"),
     );
-    const compiled = await compileContent(root, collections, {
-      pages,
-      compiler,
-    });
+    const compiled = await compileContent(
+      root,
+      collections,
+      { pages, compiler },
+      lite,
+    );
     await pages.flush();
     return compiled;
   });
@@ -186,24 +223,43 @@ export async function generateContentManifest(root: string) {
 
 const watchers = new Map<string, FSWatcher>();
 
-export function watchContentManifest(root: string) {
+export function watchContentManifest(
+  root: string,
+  options: ContentManifestOptions = {},
+) {
   const existing = watchers.get(root);
   if (existing) return existing;
   let queued = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const regenerate = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      queued = queued
+        .then(() => generateContentManifest(root, options))
+        .catch((error: unknown) => console.error(error));
+    }, 100);
+    timer.unref();
+  };
   const watcher = watch(
     resolve(root, "content"),
     { recursive: true, persistent: false },
-    () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        queued = queued
-          .then(() => generateContentManifest(root))
-          .catch((error: unknown) => console.error(error));
-      }, 100);
-      timer.unref();
-    },
+    regenerate,
   );
+  if (options.lite) {
+    // A placeholder page records itself in LITE_PAGES_FILE when it renders.
+    // Watch the directory, since the file may not exist yet.
+    const litePages = resolve(root, LITE_PAGES_FILE);
+    const liteWatcher = watch(
+      dirname(litePages),
+      { persistent: false },
+      (_event, file) => {
+        // Some platforms omit the filename; regenerating is cheap.
+        if (!file || file === relative(dirname(litePages), litePages))
+          regenerate();
+      },
+    );
+    watcher.on("close", () => liteWatcher.close());
+  }
   watchers.set(root, watcher);
   return watcher;
 }

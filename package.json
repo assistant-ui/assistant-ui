@@ -14,6 +14,7 @@
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs-site",
+    "docs:dev:lite": "node apps/docs/scripts/with-lite.mjs turbo run dev --filter=@assistant-ui/docs-site --concurrency=2",
     "ci:version": "changeset version",
     "build": "turbo build --concurrency=4",
     "api-surface": "node scripts/update-api-surface.mjs",
