@@ -2,10 +2,15 @@ import { useEffect } from "react";
 import type { AssistantClient } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../../types";
 import { getMessageRunState } from "../../../store/message-run-state";
-import type {
-  AssistantCloudThreadHistoryAdapter,
-  CloudRunWriter,
+import {
+  type AssistantCloudThreadHistoryAdapter,
+  type CloudRunWriter,
+  isEmptyReply,
 } from "./AssistantCloudThreadHistoryAdapter";
+import {
+  setThreadReplyState,
+  type ThreadReplyState,
+} from "../../../store/thread-reply-state";
 
 const CHECKPOINT_INTERVAL_MS = 20_000;
 const POLL_MIN_MS = 2_000;
@@ -21,7 +26,12 @@ type TrackedRun = {
   /** The persistence key of the message: its id, or its format-native message's id. */
   key: string;
   parent: ThreadMessage | undefined;
+  /** Settles once the run's lease is opened and its writes so far landed. */
   stored: Promise<void>;
+  /** Whether the thread lease was opened; when not, the first running write opens a lease on the row. */
+  leased: boolean;
+  /** Whether a write stored the reply. */
+  written: boolean;
   checkpointed: ThreadMessage["content"];
   settleTimer: ReturnType<typeof setTimeout> | undefined;
 };
@@ -70,13 +80,19 @@ const findMessage = (
   readBranch(aui).find((message) => message.id === messageId);
 
 /**
- * Stores a thread's running assistant message as soon as the run starts, so
- * the cloud holds a run lease the persistence heartbeats, also while the tab
- * is in the background. Other tabs show the reply as in progress, and as
- * interrupted once it went `staleAfter` without a beat. Runtimes keep writing
- * the settled message as they do today; that write lands on the same row and
- * ends the lease. A lease the persistence lost (ended elsewhere or refused)
- * gets no more checkpoints.
+ * Opens the thread's run lease as soon as a run starts, which the
+ * persistence heartbeats, also while the tab is in the background; nothing
+ * is stored yet. Checkpoints every 20 s store the reply once it has content
+ * and update it after, and the runtime's own settled write lands on the same
+ * row and ends the lease. A run that dies before its first write leaves no
+ * message. A lease the persistence lost (ended elsewhere, or superseded by a
+ * newer run) gets no more writes.
+ *
+ * Other tabs read the lease: a reply already stored shows as in progress, or
+ * as an ordinary interrupted reply once its run went `staleAfter` without a
+ * beat. A thread whose last message is the user's reads `in-progress` while
+ * a fresh lease answers it, and `interrupted` once none does
+ * (`useThreadReplyState`).
  *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
  * thread message maps to exactly one format-native message; their runtime
@@ -142,9 +158,75 @@ export const useCloudRunLeases = (
       };
     };
 
+    let replyTimer: ReturnType<typeof setTimeout> | undefined;
+    const threadItemId = aui.threadListItem.source
+      ? aui.threadListItem.getState().id
+      : undefined;
+
+    const watchThreadRun = (head: ThreadMessage, staleInMs: number) => {
+      if (poll) return;
+      poll = {
+        messageId: head.id,
+        timer: setTimeout(
+          () => {
+            void (async () => {
+              const changed = await adapter
+                .readThreadRun(head)
+                .catch(() => false);
+              if (disposed) return;
+              if (changed) await refresh().catch(() => undefined);
+              poll = undefined;
+              check();
+            })();
+          },
+          Math.min(
+            POLL_MAX_MS,
+            Math.max(POLL_MIN_MS, staleInMs + POLL_STALE_MARGIN_MS),
+          ),
+        ),
+      };
+    };
+
+    // The run answering the last message, when no reply on the branch shows it.
+    const updateReplyState = (
+      writer: CloudRunWriter | undefined,
+      branch: readonly ThreadMessage[],
+    ) => {
+      if (threadItemId === undefined) return;
+      if (replyTimer !== undefined) {
+        clearTimeout(replyTimer);
+        replyTimer = undefined;
+      }
+      let state: ThreadReplyState | undefined;
+      const head = branch.at(-1);
+      const thread = getOwnThread(aui)?.getState();
+      if (
+        writer &&
+        head?.role === "user" &&
+        thread &&
+        !thread.isRunning &&
+        !thread.isLoading
+      ) {
+        const key = writer.keyOf(head) ?? head.id;
+        const run = adapter.replyRunOf(head, key);
+        if (run?.status === "in-progress") {
+          state = "in-progress";
+          watchThreadRun(head, run.staleInMs);
+          // Turns interrupted the moment the run would cross staleAfter, even between polls.
+          replyTimer = setTimeout(check, run.staleInMs + POLL_STALE_MARGIN_MS);
+        } else if (run !== undefined && adapter.isStored(key)) {
+          state = "interrupted";
+        }
+      }
+      setThreadReplyState(threadItemId, state);
+    };
+
     const write = (run: TrackedRun, message: ThreadMessage) =>
       run.stored
-        .then(() => run.writer.write(message, run.parent))
+        .then(() => {
+          run.written = true;
+          return run.writer.write(message, run.parent);
+        })
         .catch((error: unknown) => {
           console.warn("[assistant-ui] Cloud run checkpoint failed:", error);
         });
@@ -172,10 +254,11 @@ export const useCloudRunLeases = (
         (message) => getMessageRunState(message) === "in-progress",
       );
       if (remoteRun) watchRemoteRun(remoteRun);
-      else if (poll) {
+      else if (poll && poll.messageId !== head?.id) {
         clearTimeout(poll.timer);
         poll = undefined;
       }
+      updateReplyState(writer, branch);
       const parent = branch.at(-2);
       if (tracked && tracked.messageId !== head?.id) {
         const from = tracked.messageId;
@@ -217,22 +300,31 @@ export const useCloudRunLeases = (
         parent,
         checkpointed: head.content,
         settleTimer: undefined,
-        stored: writer.write(head, parent).catch((error: unknown) => {
-          console.warn(
-            "[assistant-ui] Could not store the running message:",
-            error,
-          );
-        }),
+        leased: false,
+        written: false,
+        stored: Promise.resolve(),
       };
+      run.stored = writer.begin(head, parent).then(
+        (leased) => {
+          run.leased = leased;
+        },
+        (error: unknown) => {
+          console.warn("[assistant-ui] Could not open the run lease:", error);
+        },
+      );
       tracked = run;
     };
 
     const checkpoint = setInterval(() => {
       const run = tracked;
-      if (!run || !run.writer.hasOpenRun(run.key)) return;
+      if (!run) return;
+      // Without a thread lease, the first running write opens a lease on the row.
+      const unleased = !run.leased && !run.written;
+      if (!unleased && !run.writer.hasOpenRun(run.key)) return;
       const message = findMessage(aui, run.messageId);
       if (!message || message.status?.type !== "running") return;
       if (message.content === run.checkpointed) return;
+      if (isEmptyReply(message)) return;
       run.checkpointed = message.content;
       void write(run, message);
     }, CHECKPOINT_INTERVAL_MS);
@@ -242,14 +334,17 @@ export const useCloudRunLeases = (
       clearInterval(checkpoint);
       return;
     }
-    const threadItemId = aui.threadListItem.getState().id;
-    refreshers.set(threadItemId, refresh);
+    if (threadItemId !== undefined) refreshers.set(threadItemId, refresh);
     const unsubscribe = thread.subscribe(check);
     check();
     return () => {
       disposed = true;
-      if (refreshers.get(threadItemId) === refresh)
-        refreshers.delete(threadItemId);
+      if (threadItemId !== undefined) {
+        if (refreshers.get(threadItemId) === refresh)
+          refreshers.delete(threadItemId);
+        setThreadReplyState(threadItemId, undefined);
+      }
+      if (replyTimer !== undefined) clearTimeout(replyTimer);
       if (poll) clearTimeout(poll.timer);
       unsubscribe();
       clearInterval(checkpoint);
