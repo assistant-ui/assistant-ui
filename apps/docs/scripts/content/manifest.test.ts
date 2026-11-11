@@ -332,7 +332,7 @@ it("imports only recorded pages in lite mode and keeps every page listed", async
   await writeFile(join(directory, "other.mdx"), "---\ntitle: Other\n---\nB.");
   const generated = () => readFile(join(root, ".source/content.ts"), "utf8");
 
-  await generateContentManifest(root, { lite: true });
+  await generateContentManifest(root, { onDemand: true });
   expect(await generated()).not.toContain('import("../content/docs/');
   expect(await generated()).toContain(
     'module.pendingPage("docs", "other.mdx")',
@@ -348,7 +348,7 @@ it("imports only recorded pages in lite mode and keeps every page listed", async
     join(root, ".source/lite-pages.json"),
     JSON.stringify(["docs/other.mdx"]),
   );
-  await generateContentManifest(root, { lite: true });
+  await generateContentManifest(root, { onDemand: true });
   expect(await generated()).toContain('import("../content/docs/other.mdx")');
   expect(await generated()).toContain(
     'module.pendingPage("docs", "index.mdx")',
