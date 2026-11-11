@@ -8,9 +8,9 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
-const title = "Talk to an expert";
+const title = "Contact sales";
 const description =
-  "Book a call with the assistant-ui team about your agent UI, Assistant Cloud, or an enterprise agreement.";
+  "Talk to the assistant-ui team about shipping AI chat in production, scaling on Assistant Cloud, and enterprise terms.";
 
 export const metadata: Metadata = {
   title,
@@ -20,19 +20,29 @@ export const metadata: Metadata = {
 
 const TOPICS = [
   {
-    title: "Architecture review",
+    title: "Ship your AI product sooner",
     description:
-      "Walk through your backend, the runtime adapter that fits it, and how threads, tools and streaming map onto your product.",
+      "Start from production chat primitives for streaming, tool calls, attachments and auto-scroll instead of building them from scratch.",
   },
   {
-    title: "Assistant Cloud",
+    title: "Keep your engineers on your product",
     description:
-      "Pricing, usage limits, and running the API and dashboard on your own infrastructure.",
+      "The runtime owns threads, streaming and tool state. Adapters connect it to the backend you already run.",
   },
   {
-    title: "Enterprise agreements",
+    title: "A chat experience users trust",
     description:
-      "Dedicated support, a 99.9% uptime SLA, custom terms, and on-premises deployment.",
+      "Accessible components your team owns as source code and styles to your brand.",
+  },
+  {
+    title: "Scale with Assistant Cloud",
+    description:
+      "Hosted thread history, titles and user auth, priced by monthly active users as you grow.",
+  },
+  {
+    title: "Enterprise terms",
+    description:
+      "Dedicated support, a 99.9% uptime SLA, custom pricing, your own backend integration and on-premises deployment.",
   },
 ];
 
@@ -40,38 +50,41 @@ const QUOTE = TESTIMONIALS.find((item) => item.username === "@neondatabase");
 
 export default function ContactSalesPage() {
   return (
-    <PageFrame
-      pad="sub"
-      className="grid gap-x-20 gap-y-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]"
-    >
-      <header className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
-        <h1 className={typePage}>Talk to an expert</h1>
-        <p className={cn(typeDeck, "max-w-[48ch]")}>
-          Tell us what you are building, then pick a time for a 15 minute call
-          with the team that maintains assistant-ui.
-        </p>
-      </header>
+    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-24">
+      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-16 xl:gap-x-24">
+        {/* Below lg the wrapper dissolves so the form sits between the intro and the talking points. */}
+        <div className="contents lg:flex lg:flex-col lg:gap-12">
+          <header className="order-1 flex flex-col gap-4">
+            <h1 className={typePage}>Talk to the assistant-ui team</h1>
+            <p className={cn(typeDeck, "max-w-[46ch]")}>
+              See how assistant-ui and Assistant Cloud fit your product, your
+              stack and your requirements. Tell us about your team and we will
+              get you to the right people.
+            </p>
+          </header>
+
+          <dl className="order-3 flex flex-col gap-6">
+            {TOPICS.map((topic) => (
+              <div key={topic.title} className="flex flex-col gap-1.5">
+                <dt className="text-[15px] font-medium">{topic.title}</dt>
+                <dd className="text-muted-foreground max-w-[52ch] text-sm leading-relaxed text-pretty">
+                  {topic.description}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <section aria-label="Your details" className="order-2">
+          <ContactSalesForm />
+        </section>
+      </div>
 
       <section
-        aria-label="Your details"
-        className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
+        aria-label="Customers"
+        className="border-foreground/10 grid gap-x-16 gap-y-10 border-t pt-10 lg:grid-cols-2 xl:gap-x-24"
       >
-        <ContactSalesForm />
-      </section>
-
-      <aside className="flex flex-col gap-12 lg:col-start-1 lg:row-start-2">
-        <dl className="flex flex-col gap-6">
-          {TOPICS.map((topic) => (
-            <div key={topic.title} className="flex flex-col gap-1.5">
-              <dt className="text-[15px] font-medium">{topic.title}</dt>
-              <dd className="text-muted-foreground max-w-[52ch] text-sm leading-relaxed text-pretty">
-                {topic.description}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        <div className="border-foreground/10 flex flex-col gap-6 border-t pt-8">
+        <div className="flex flex-col gap-6">
           <p className="text-muted-foreground text-xs font-medium">
             Used by teams at
           </p>
@@ -79,30 +92,33 @@ export default function ContactSalesPage() {
         </div>
 
         {QUOTE ? (
-          <figure className="flex max-w-[52ch] flex-col gap-3">
-            <blockquote className="text-[15px] leading-relaxed text-pretty">
-              {QUOTE.message}
+          <figure className="flex flex-col gap-4">
+            <blockquote className="max-w-[56ch] text-[15px] leading-relaxed text-pretty sm:[text-indent:-0.4em]">
+              “{QUOTE.message}”
             </blockquote>
             <figcaption>
               <a
                 href={QUOTE.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-xs font-medium transition-colors"
+                className="group inline-flex items-center gap-2.5 text-xs"
               >
                 <Image
                   src={QUOTE.avatar}
                   alt=""
-                  width={20}
-                  height={20}
-                  className="rounded-capsule size-5"
+                  width={24}
+                  height={24}
+                  className="rounded-capsule ring-foreground/10 size-6 ring-1"
                 />
-                Neon, {QUOTE.username}
+                <span className="font-medium">Neon</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  {QUOTE.username} on X
+                </span>
               </a>
             </figcaption>
           </figure>
         ) : null}
-      </aside>
+      </section>
     </PageFrame>
   );
 }

@@ -37,7 +37,7 @@ const fillText = () => {
 };
 
 const submit = () =>
-  fireEvent.click(screen.getByRole("button", { name: "Continue to booking" }));
+  fireEvent.click(screen.getByRole("button", { name: "Contact sales" }));
 
 describe("ContactSalesForm", () => {
   it("shows an error on each missing required field and does not navigate", () => {
@@ -105,7 +105,7 @@ describe("ContactSalesForm", () => {
     expect(url.searchParams.get("notes")).toBe(
       "Company: Acme\nCompany size: 51-200\n\nWhat are you building?\nA support agent.",
     );
-    const button = screen.getByRole("button", { name: "Opening the calendar" });
+    const button = screen.getByRole("button", { name: "Sending" });
     expect(button.hasAttribute("disabled")).toBe(true);
     const restored = new Event("pageshow") as PageTransitionEvent;
     Object.defineProperty(restored, "persisted", { value: true });
@@ -114,7 +114,7 @@ describe("ContactSalesForm", () => {
     });
     expect(
       screen
-        .getByRole("button", { name: "Continue to booking" })
+        .getByRole("button", { name: "Contact sales" })
         .hasAttribute("disabled"),
     ).toBe(false);
 

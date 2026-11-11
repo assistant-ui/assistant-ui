@@ -183,8 +183,8 @@ export function ContactSalesForm({
     <form
       noValidate
       onSubmit={submit}
-      aria-label="Talk to an expert"
-      className="flex flex-col gap-5"
+      aria-label="Contact sales"
+      className="[&_:is(input,textarea,button):focus-visible]:ring-foreground/25 [&_button[type=submit]:focus-visible]:ring-offset-background flex flex-col gap-5 [&_:is(input,textarea,button):focus-visible]:ring-2 [&_button[type=submit]:focus-visible]:ring-offset-2"
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
@@ -289,11 +289,10 @@ export function ContactSalesForm({
           className="w-full"
           disabled={submitting}
         >
-          {submitting ? "Opening the calendar" : "Continue to booking"}
+          {submitting ? "Sending" : "Contact sales"}
         </Button>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Next you pick a time on cal.com. Your answers are attached to the
-          booking.
+          Your answers go straight to the team that builds assistant-ui.
         </p>
       </div>
     </form>
