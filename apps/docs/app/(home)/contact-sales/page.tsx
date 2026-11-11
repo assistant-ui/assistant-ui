@@ -30,7 +30,7 @@ const TOPICS = [
       "The runtime owns threads, streaming and tool state. Adapters connect it to the backend you already run.",
   },
   {
-    title: "A chat experience users trust",
+    title: "Production-ready chat UX",
     description:
       "Accessible components your team owns as source code and styles to your brand.",
   },
@@ -51,33 +51,33 @@ const QUOTE = TESTIMONIALS.find((item) => item.username === "@neondatabase");
 export default function ContactSalesPage() {
   return (
     <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-24">
-      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-16 xl:gap-x-24">
-        {/* Below lg the wrapper dissolves so the form sits between the intro and the talking points. */}
-        <div className="contents lg:flex lg:flex-col lg:gap-12">
-          <header className="order-1 flex flex-col gap-4">
-            <h1 className={typePage}>Talk to the assistant-ui team</h1>
-            <p className={cn(typeDeck, "max-w-[46ch]")}>
-              See how assistant-ui and Assistant Cloud fit your product, your
-              stack and your requirements. Tell us about your team and we will
-              get you to the right people.
-            </p>
-          </header>
+      <div className="grid gap-x-16 gap-y-12 lg:grid-cols-2 lg:grid-rows-[auto_1fr] xl:gap-x-24">
+        <header className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
+          <h1 className={typePage}>Talk to the assistant-ui team</h1>
+          <p className={cn(typeDeck, "max-w-[46ch]")}>
+            See how assistant-ui and Assistant Cloud fit your product, your
+            stack and your requirements. Tell us about your team and we will get
+            you to the right people.
+          </p>
+        </header>
 
-          <dl className="order-3 flex flex-col gap-6">
-            {TOPICS.map((topic) => (
-              <div key={topic.title} className="flex flex-col gap-1.5">
-                <dt className="text-[15px] font-medium">{topic.title}</dt>
-                <dd className="text-muted-foreground max-w-[52ch] text-sm leading-relaxed text-pretty">
-                  {topic.description}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        <section aria-label="Your details" className="order-2">
+        <section
+          aria-label="Your details"
+          className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
+        >
           <ContactSalesForm />
         </section>
+
+        <dl className="flex flex-col gap-6 self-start lg:col-start-1 lg:row-start-2">
+          {TOPICS.map((topic) => (
+            <div key={topic.title} className="flex flex-col gap-1.5">
+              <dt className="text-[15px] font-medium">{topic.title}</dt>
+              <dd className="text-muted-foreground max-w-[52ch] text-sm leading-relaxed text-pretty">
+                {topic.description}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
 
       <section

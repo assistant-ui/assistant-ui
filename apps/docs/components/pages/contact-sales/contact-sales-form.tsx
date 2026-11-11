@@ -292,7 +292,7 @@ export function ContactSalesForm({
           {submitting ? "Sending" : "Contact sales"}
         </Button>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Your answers go straight to the team that builds assistant-ui.
+          Next you continue to cal.com with your answers filled in.
         </p>
       </div>
     </form>

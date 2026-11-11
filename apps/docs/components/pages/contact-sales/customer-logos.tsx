@@ -16,7 +16,9 @@ const LOGO_BOXES = [
 
 export const CUSTOMER_LOGOS = LOGO_BOXES.flatMap(({ name, box }) => {
   const logo = LOGOS.find((item) => item.alt === name);
-  return logo ? [{ ...logo, box }] : [];
+  return logo
+    ? [{ ...logo, alt: name === "Langchain" ? "LangChain" : name, box }]
+    : [];
 });
 
 const markClass =
@@ -29,7 +31,7 @@ export function CustomerLogos() {
         <li key={logo.alt} className={cn("relative block", logo.box)}>
           <Image
             src={logo.src}
-            alt={logo.alt === "Langchain" ? "LangChain" : logo.alt}
+            alt={logo.alt}
             fill
             sizes="136px"
             className={cn(
