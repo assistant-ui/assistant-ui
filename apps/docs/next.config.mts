@@ -6,7 +6,7 @@ import {
   watchContentManifest,
 } from "./scripts/content/manifest.mts";
 import { withAui } from "@assistant-ui/next";
-import { writeLiteTsconfig } from "./scripts/lite-packages.mts";
+import { liteAliases } from "./scripts/lite-packages.mts";
 import { writeLiteDemos } from "./lib/lite-demos.ts";
 import type { NextConfig } from "next";
 import {
@@ -626,20 +626,18 @@ const onDemandPages = isDev && process.env.DOCS_FULL !== "1";
 const contentOptions = { onDemand: onDemandPages };
 
 // `pnpm dev:lite` (DOCS_LITE=1) also uses the built SDK packages instead of
-// their sources and swaps the heaviest demos for a "Load demo" button.
+// their sources, swaps the heaviest demos for a "Load demo" button, and drops
+// Turbopack's source maps and persistent cache, which hold ~1 GB each.
 const lite = onDemandPages && process.env.DOCS_LITE === "1";
 const liteConfig = (): NextConfig => {
   if (!lite) return {};
-  const { tsconfigPath } = writeLiteTsconfig(process.cwd());
   return {
-    ...(process.env.XP_NOPKG
-      ? {}
-      : { typescript: { ...config.typescript, tsconfigPath } }),
     turbopack: {
       ...config.turbopack,
       resolveAlias: {
         ...config.turbopack?.resolveAlias,
-        ...(process.env.XP_NODEMO ? {} : writeLiteDemos(process.cwd())),
+        ...liteAliases(process.cwd()),
+        ...writeLiteDemos(process.cwd()),
       },
     },
   };
@@ -662,12 +660,16 @@ export default generateContentManifest(process.cwd(), contentOptions).then(
         },
       },
     );
-    const exp = process.env.DOCS_EXPERIMENT
-      ? JSON.parse(process.env.DOCS_EXPERIMENT)
-      : {};
     return {
       ...compiled,
-      experimental: { ...compiled.experimental, ...exp },
+      ...(lite && {
+        experimental: {
+          ...compiled.experimental,
+          turbopackSourceMaps: false,
+          turbopackInputSourceMaps: false,
+          turbopackFileSystemCacheForDev: false,
+        },
+      }),
       rewrites: config.rewrites,
       redirects: config.redirects,
     };

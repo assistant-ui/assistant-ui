@@ -1,94 +1,94 @@
 // `pnpm dev:lite` resolves the workspace SDK packages to their built `dist`
-// instead of compiling their sources. tsconfig.json maps them to `src`, so
-// this writes a copy of it without those paths for Turbopack to read.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+// instead of compiling their sources. tsconfig.json maps them to `src`, and
+// Turbopack reads only that file, so each package export is aliased to its
+// built file instead.
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 
-export const LITE_TSCONFIG = ".source/tsconfig.lite.json";
+type Exports = string | null | { [key: string]: Exports };
 
-type Paths = Record<string, string[]>;
-
-/** The workspace package a tsconfig path target points into, if it is one with a dist build. */
-function builtPackage(root: string, target: string) {
-  const match = /^\.\.\/\.\.\/packages\/([^/]+)\/src(?:\/|$)/.exec(target);
-  if (!match) return undefined;
-  // `@assistant-ui/*` maps every package; the dist check below covers them.
-  if (match[1] === "*") return { name: "*", dir: undefined };
-  const dir = resolve(root, "../../packages", match[1]!);
-  const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-  // Packages that publish their sources (such as @assistant-ui/ui) stay as they are.
-  if (!JSON.stringify(manifest.exports ?? manifest.main ?? "").includes("dist"))
-    return undefined;
-  return { name: manifest.name as string, dir: dir as string | undefined };
+/** The build output an export resolves to outside React Server Components. */
+function defaultTarget(entry: Exports): string | undefined {
+  if (typeof entry === "string") return entry;
+  if (!entry) return undefined;
+  return defaultTarget(entry.default ?? null);
 }
 
-export function writeLiteTsconfig(root: string) {
-  const tsconfig = JSON.parse(
-    readFileSync(resolve(root, "tsconfig.json"), "utf8"),
+function hasCondition(entry: Exports, condition: string): boolean {
+  if (!entry || typeof entry === "string") return false;
+  return Object.entries(entry).some(
+    ([key, value]) => key === condition || hasCondition(value, condition),
   );
-  const paths: Paths = tsconfig.compilerOptions?.paths ?? {};
-  const kept: Paths = {};
-  let dropped = 0;
-  for (const [key, targets] of Object.entries(paths)) {
-    // `@/` aliases are the app's own files and the copied UI sources.
-    const packages = key.startsWith("@/")
-      ? []
-      : targets.map((target) => builtPackage(root, target));
-    if (packages.length && packages.every(Boolean)) {
-      dropped++;
+}
+
+const readJson = (file: string) => JSON.parse(readFileSync(file, "utf8"));
+
+/** Workspace packages the docs site depends on, directly or not; turbo builds these first. */
+function workspaceDependencies(root: string, byName: Map<string, unknown>) {
+  const seen = new Set<string>();
+  const visit = (manifest: Record<string, Record<string, string>>) => {
+    for (const [name, version] of Object.entries({
+      ...manifest.dependencies,
+      ...manifest.devDependencies,
+    })) {
+      if (!version.startsWith("workspace:") || seen.has(name)) continue;
+      seen.add(name);
+      const dependency = byName.get(name);
+      if (dependency) visit(dependency as typeof manifest);
+    }
+  };
+  visit(readJson(resolve(root, "package.json")));
+  return seen;
+}
+
+export function liteAliases(root: string) {
+  const packagesDir = resolve(root, "../../packages");
+  const manifests = new Map<string, { dir: string; manifest: any }>();
+  for (const name of readdirSync(packagesDir)) {
+    const file = join(packagesDir, name, "package.json");
+    if (existsSync(file))
+      manifests.set(readJson(file).name, {
+        dir: join(packagesDir, name),
+        manifest: readJson(file),
+      });
+  }
+  const dependencies = workspaceDependencies(
+    root,
+    new Map([...manifests].map(([name, { manifest }]) => [name, manifest])),
+  );
+  const aliases: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const { dir, manifest } of manifests.values()) {
+    const exports: Exports =
+      typeof manifest.exports === "string"
+        ? { ".": manifest.exports }
+        : (manifest.exports ?? null);
+    if (!exports || typeof exports === "string") continue;
+    // Packages that ship their sources (@assistant-ui/ui) stay as they are,
+    // and an alias cannot pick a react-server build, so those stay too.
+    const targets = Object.entries(exports)
+      .map(([key, entry]) => [key, defaultTarget(entry)] as const)
+      .filter(([, target]) => target?.startsWith("./dist/"));
+    if (!targets.length || hasCondition(exports, "react-server")) continue;
+    if (!existsSync(join(dir, "dist"))) {
+      // Packages outside the docs dependencies are not built first; their
+      // imports (in code samples, say) keep compiling from source.
+      if (dependencies.has(manifest.name)) missing.push(manifest.name);
       continue;
     }
-    kept[key] = targets;
+    for (const [key, target] of targets) {
+      const specifier =
+        key === "." ? manifest.name : `${manifest.name}/${key.slice(2)}`;
+      const path = relative(root, join(dir, target!));
+      aliases[specifier] = path.startsWith(".") ? path : `./${path}`;
+    }
   }
-
-  // Every workspace dependency that publishes a dist build must have one.
-  const docs = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
-  const built = new Map<string, string>();
-  for (const [name, version] of Object.entries<string>({
-    ...docs.dependencies,
-    ...docs.devDependencies,
-  })) {
-    if (!version.startsWith("workspace:")) continue;
-    const link = resolve(root, "node_modules", name, "package.json");
-    if (!existsSync(link)) continue;
-    const manifest = JSON.parse(readFileSync(link, "utf8"));
-    if (
-      JSON.stringify(manifest.exports ?? manifest.main ?? "").includes("dist")
-    )
-      built.set(name, dirname(link));
-  }
-  const missing = [...built].filter(
-    ([, dir]) => !existsSync(join(dir, "dist")),
-  );
   if (missing.length)
     throw new Error(
-      `pnpm dev:lite uses the built SDK packages, but ${missing
-        .map(([name]) => name)
-        .join(", ")} ${missing.length === 1 ? "has" : "have"} no dist yet. ` +
-        "Run `pnpm docs:dev:lite` from the repo root (it builds them first), " +
+      `pnpm dev:lite uses the built SDK packages, but ${missing.join(", ")} ` +
+        `${missing.length === 1 ? "has" : "have"} no dist yet. Run ` +
+        "`pnpm docs:dev:lite` from the repo root, which builds them first, " +
         "or `pnpm turbo run build --filter=@assistant-ui/docs-site^...`.",
     );
-
-  // Paths without a baseUrl resolve against the file that declares them.
-  const file = resolve(root, LITE_TSCONFIG);
-  const rebase = (target: string) =>
-    relative(dirname(file), resolve(root, target)) || ".";
-  const output = {
-    extends: relative(dirname(file), resolve(root, "tsconfig.json")),
-    compilerOptions: {
-      paths: Object.fromEntries(
-        Object.entries(kept).map(([key, targets]) => [
-          key,
-          targets.map(rebase),
-        ]),
-      ),
-    },
-    include: (tsconfig.include ?? []).map(rebase),
-    exclude: (tsconfig.exclude ?? []).map(rebase),
-  };
-  mkdirSync(dirname(file), { recursive: true });
-  const text = `${JSON.stringify(output, null, 2)}\n`;
-  if (!existsSync(file) || readFileSync(file, "utf8") !== text)
-    writeFileSync(file, text);
-  return { tsconfigPath: LITE_TSCONFIG, droppedPaths: dropped };
+  return aliases;
 }
