@@ -187,6 +187,66 @@ describe("RunAggregator routing after the current message moves", () => {
     });
   });
 
+  it("routes reasoning and activity deltas to the message that holds them", () => {
+    const { aggregator, send, lastRetained, current } = setup();
+    aggregator.rebaseMessage("answer", "other");
+    send(
+      { type: "REASONING_MESSAGE_START", messageId: "r" },
+      { type: "REASONING_MESSAGE_CONTENT", messageId: "r", delta: "think" },
+      {
+        type: "ACTIVITY_SNAPSHOT",
+        messageId: "act",
+        activityType: "progress",
+        content: { step: 1 },
+      } as AgUiEvent,
+    );
+    aggregator.rebaseMessage("other", "answer");
+    const emitted = current.length;
+    send({ type: "REASONING_MESSAGE_CONTENT", messageId: "r", delta: "ing" }, {
+      type: "ACTIVITY_DELTA",
+      messageId: "act",
+      activityType: "progress",
+      patch: [{ op: "replace", path: "/step", value: 2 }],
+    } as AgUiEvent);
+
+    expect(current).toHaveLength(emitted);
+    expect(lastRetained()?.update.content).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "reasoning", text: "thinking" }),
+        expect.objectContaining({ type: "data", data: { step: 2 } }),
+      ]),
+    );
+  });
+
+  it("keeps parsing args a snapshot started", () => {
+    const { send, retainedTask } = setup();
+    send(
+      {
+        type: "MESSAGES_SNAPSHOT",
+        messages: [
+          {
+            id: "answer",
+            role: "assistant",
+            content: "a1",
+            toolCalls: [
+              {
+                id: "task",
+                type: "function",
+                function: { name: "task", arguments: '{"q":' },
+              },
+            ],
+          },
+        ],
+      },
+      { type: "TOOL_CALL_ARGS", toolCallId: "task", delta: '"x"}' },
+    );
+
+    expect(retainedTask()).toMatchObject({
+      argsText: '{"q":"x"}',
+      args: { q: "x" },
+    });
+  });
+
   it("keeps root reasoning and custom events on the current message", () => {
     const { send, lastCurrent, retained } = setup();
     const announced = retained.length;

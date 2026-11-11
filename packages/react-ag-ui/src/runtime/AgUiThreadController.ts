@@ -2218,9 +2218,19 @@ export class AgUiThreadController {
               snapshot.toolCallIds,
             )
           : update.content;
-      const unresolved = openToolCallIds.filter(
-        (id) => !snapshotResultIds.has(id),
-      );
+      // A call only the snapshot carried stays open until a result arrives.
+      const unresolved = [
+        ...new Set([
+          ...openToolCallIds,
+          ...Array.from(iterateToolCallParts(content ?? item.message.content))
+            .filter(
+              (part) =>
+                snapshot.toolCallIds.has(part.toolCallId) &&
+                !isResolvedToolCall(part),
+            )
+            .map((part) => part.toolCallId),
+        ]),
+      ].filter((id) => !snapshotResultIds.has(id));
       // A terminal event settles a held message with the run instead.
       const held =
         streaming ||

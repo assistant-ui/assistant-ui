@@ -554,6 +554,25 @@ describe("AgUiThreadController events after a snapshot moves the head", () => {
     });
   });
 
+  it("asks for a call only the snapshot carried on the moved-off answer", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      snapshot(wire, otherRecord),
+      { type: "TEXT_MESSAGE_START", messageId: "other", role: "assistant" },
+      { type: "TEXT_MESSAGE_CONTENT", messageId: "other", delta: " More." },
+      { type: "TEXT_MESSAGE_END", messageId: "other" },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(message(core, "answer")?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(core.getPendingToolCalls()).not.toBeNull();
+  });
+
   it("keeps the answer running while its frame is open", async () => {
     const { core, sampled } = await sampleBetween(
       [...openAnswer, moveSnapshot],

@@ -470,15 +470,33 @@ export class RunAggregator {
           ? this.ownerForSubagent(event.subagentRunId)
           : this.current;
       case "ACTIVITY_DELTA":
+        if (event.subagentRunId !== undefined)
+          return this.ownerForSubagent(event.subagentRunId);
+        return (
+          this.buffers().find((buffer) =>
+            buffer.activityParts.has(`message:${event.messageId}`),
+          ) ?? this.current
+        );
       case "REASONING_START":
       case "REASONING_MESSAGE_START":
       case "REASONING_MESSAGE_CONTENT":
       case "REASONING_MESSAGE_END":
       case "REASONING_END":
-      case "REASONING_ENCRYPTED_VALUE":
-        return event.subagentRunId !== undefined
-          ? this.ownerForSubagent(event.subagentRunId)
-          : this.current;
+      case "REASONING_ENCRYPTED_VALUE": {
+        if (event.subagentRunId !== undefined)
+          return this.ownerForSubagent(event.subagentRunId);
+        const id =
+          event.type === "REASONING_ENCRYPTED_VALUE"
+            ? event.entityId
+            : event.messageId;
+        return (
+          this.buffers().find(
+            (buffer) =>
+              buffer.reasoningParts.has(id) ||
+              buffer.hiddenReasoningIds.has(id),
+          ) ?? this.current
+        );
+      }
       default:
         return this.current;
     }
@@ -547,6 +565,8 @@ export class RunAggregator {
               const entry = buffer.toolCalls.get(call.id);
               if (entry === undefined || entry.argsText !== "") continue;
               entry.argsText = args;
+              entry.argsTextScanner = createJSONContainerScanner();
+              scanJSONContainerDelta(entry.argsTextScanner, args);
               const parsed = tryParseJSON(args);
               entry.parsedArgs = isPlainObject(parsed) ? parsed : undefined;
             }
