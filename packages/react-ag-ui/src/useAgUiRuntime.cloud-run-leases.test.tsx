@@ -107,6 +107,13 @@ const createServer = (
         if (row) row.content = body.content;
         return json({});
       }
+      if (method === "DELETE" && path === "/threads/remote-1/messages") {
+        for (const id of body.message_ids as string[]) {
+          const index = rows.findIndex((r) => r.id === id);
+          if (index !== -1) rows.splice(index, 1);
+        }
+        return json({});
+      }
       if (/^\/threads\/remote-1\/runs\/[^/]+\/heartbeat$/.test(path))
         return json({ heartbeat_interval_ms: heartbeatIntervalMs });
       if (/^\/threads\/remote-1\/runs\/[^/]+\/end$/.test(path)) return json({});
@@ -219,13 +226,14 @@ const renderApp = async (staleAfter?: number) => {
 const assistantRow = (
   last_heartbeat_ms_ago: number,
   status: "running" | "ended" = "running",
+  content: readonly unknown[] = [{ type: "text", text: "half an answer" }],
 ): Row => ({
   id: "a1",
   parent_id: "u1",
   format: "aui/v0",
   content: {
     role: "assistant",
-    content: [{ type: "text", text: "half an answer" }],
+    content: [...content],
     status: { type: "incomplete", reason: "cancelled" },
   },
   external_id: "a1",
@@ -304,7 +312,52 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     expect(reply.id).toBe("agent-msg-1");
   });
 
-  it("shows a reloaded run quiet for longer than staleAfter as interrupted; Resume posts a sibling with its own lease and runs the agent again", async () => {
+  it("drops a reloaded empty run quiet for longer than staleAfter; the composer's Resume runs the agent again from the user message with no sibling", async () => {
+    useServer([userRow, assistantRow(45_000, "running", [])]);
+    const { agent, getAui, getRuntime } = await renderApp();
+    await act(async () => {
+      await getRuntime().threads.switchToThread("remote-1");
+    });
+    await waitFor(() =>
+      expect(getAui().thread.getState().canResume).toBe(true),
+    );
+    expect(
+      getAui()
+        .thread.getState()
+        .messages.map((m) => m.id),
+    ).toEqual(["u1"]);
+
+    await act(async () => {
+      getAui().thread().resumeRun({ parentId: "u1" });
+    });
+    await waitFor(() => expect(agent.runs).toHaveLength(1));
+    await waitFor(() =>
+      expect(createsWith(server.calls, true)).toHaveLength(1),
+    );
+    expect(createsWith(server.calls, true)[0]!.body).toMatchObject({
+      parent_id: "u1",
+      open_run: true,
+    });
+    await act(async () => {
+      agent.runs[0]!.finish();
+    });
+    await waitFor(() =>
+      expect(
+        server.calls.some((c) => c.path.endsWith("/runs/lease_1/end")),
+      ).toBe(true),
+    );
+    const deletes = server.calls.filter((c) => c.method === "DELETE");
+    expect(deletes.map((c) => c.body)).toEqual([{ message_ids: ["a1"] }]);
+    expect(server.rows.map((r) => r.id)).toEqual(["u1", "msg_1"]);
+    const messages = getAui().thread.getState().messages;
+    expect(messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
+      1,
+    );
+    expect(getAui().thread.getState().canResume).toBe(false);
+  });
+
+  it("shows a reloaded run quiet for longer than staleAfter as interrupted; Regenerate posts a sibling with its own lease and runs the agent again", async () => {
     useServer([userRow, assistantRow(45_000)]);
     const { agent, getAui, getRuntime } = await renderApp();
     await act(async () => {

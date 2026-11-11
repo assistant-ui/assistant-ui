@@ -19,7 +19,8 @@ import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 import {
   actionBarRefreshRunDisabled,
-  actionBarResumeDisabled,
+  actionBarReloadDisabled,
+  composerResumeDisabled,
 } from "../../../store/primitive-predicates";
 import { refreshCloudRun } from "./runLeases";
 import { getMessageRunState } from "../../../store/message-run-state";
@@ -65,6 +66,7 @@ const makeCloud = (stored: CloudMessage[] = []) => {
         list: vi.fn().mockResolvedValue({ messages: stored }),
         create,
         update: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
       },
       runs: {
         heartbeat: vi.fn().mockResolvedValue({
@@ -120,6 +122,34 @@ const renderRuntime = async (
   await actSettled(() => aui.threads.getLoadThreadsPromise());
   return { runs, getRuntime: () => runtime, getAui: () => aui };
 };
+
+const userRow = (at: Date): CloudMessage => ({
+  id: "msg_1",
+  parent_id: null,
+  height: 0,
+  created_at: at,
+  updated_at: at,
+  format: "aui/v0",
+  content: { role: "user", content: [{ type: "text", text: "hello" }] },
+});
+
+const staleReply = (
+  at: Date,
+  content: readonly { type: "text"; text: string }[],
+): CloudMessage => ({
+  id: "msg_2",
+  parent_id: "msg_1",
+  height: 1,
+  created_at: at,
+  updated_at: at,
+  format: "aui/v0",
+  content: {
+    role: "assistant",
+    content: [...content],
+    status: { type: "incomplete", reason: "cancelled" },
+  },
+  run: { status: "running", last_heartbeat_ms_ago: 60_000 },
+});
 
 const createCalls = (messages: ReturnType<typeof makeCloud>["messages"]) =>
   messages.create.mock.calls.map(([, body]) => body);
@@ -223,32 +253,11 @@ describe("cloud run leases", () => {
     expect(getAui().thread.getState().isRunning).toBe(true);
   });
 
-  it("loads a running reply that went staleAfter without a beat as interrupted; Resume starts a sibling with its own lease", async () => {
+  it("loads an interrupted reply with content as an error that Regenerate branches", async () => {
     const at = new Date(0);
     const { cloud, messages } = makeCloud([
-      {
-        id: "msg_2",
-        parent_id: "msg_1",
-        height: 1,
-        created_at: at,
-        updated_at: at,
-        format: "aui/v0",
-        content: {
-          role: "assistant",
-          content: [{ type: "text", text: "partial" }],
-          status: { type: "incomplete", reason: "cancelled" },
-        },
-        run: { status: "running", last_heartbeat_ms_ago: 60_000 },
-      },
-      {
-        id: "msg_1",
-        parent_id: null,
-        height: 0,
-        created_at: at,
-        updated_at: at,
-        format: "aui/v0",
-        content: { role: "user", content: [{ type: "text", text: "hello" }] },
-      },
+      staleReply(at, [{ type: "text", text: "partial" }]),
+      userRow(at),
     ]);
     const { runs, getRuntime, getAui } = await renderRuntime(cloud);
     await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
@@ -265,17 +274,15 @@ describe("cloud run leases", () => {
         message: "This response was interrupted before it finished.",
       },
     });
+    const thread = getAui().thread.getState();
+    expect(thread.canResume).toBe(false);
     const state = {
-      thread: getAui().thread.getState(),
+      thread,
       message: { ...stale, isLast: true, runState: getMessageRunState(stale) },
-    } as unknown as Parameters<typeof actionBarResumeDisabled>[0];
-    expect(actionBarResumeDisabled(state)).toBe(false);
-    expect(
-      actionBarResumeDisabled({
-        ...state,
-        message: { ...state.message, isLast: false },
-      } as typeof state),
-    ).toBe(true);
+      composer: { type: "thread", isEmpty: true },
+    } as unknown as Parameters<typeof actionBarReloadDisabled>[0];
+    expect(actionBarReloadDisabled(state)).toBe(false);
+    expect(composerResumeDisabled(state)).toBe(true);
 
     await act(async () => {
       getAui().thread.message({ index: 1 }).reload();
@@ -284,8 +291,8 @@ describe("cloud run leases", () => {
     await waitFor(() =>
       expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
     );
-    const resumed = createCalls(messages).find((body) => body.open_run)!;
-    expect(resumed.parent_id).toBe("msg_1");
+    const regenerated = createCalls(messages).find((body) => body.open_run)!;
+    expect(regenerated.parent_id).toBe("msg_1");
     const branch = getAui().thread.getState().messages;
     expect(branch.map((m) => [m.role, m.status?.type])).toEqual([
       ["user", undefined],
@@ -295,6 +302,137 @@ describe("cloud run leases", () => {
     expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
       2,
     );
+    expect(messages.delete).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, { type: "text"; text: string }[]]>([
+    ["no parts", []],
+    ["an empty text part", [{ type: "text", text: "" }]],
+  ])(
+    "drops an interrupted reply with %s; the composer's Resume runs the user message again in place",
+    async (_label, content) => {
+      const at = new Date(0);
+      const { cloud, messages } = makeCloud([
+        staleReply(at, content),
+        userRow(at),
+      ]);
+      const { runs, getRuntime, getAui } = await renderRuntime(cloud);
+      await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+      await waitFor(() =>
+        expect(getAui().thread.getState().canResume).toBe(true),
+      );
+      expect(
+        getAui()
+          .thread.getState()
+          .messages.map((m) => m.id),
+      ).toEqual(["msg_1"]);
+      expect(
+        composerResumeDisabled({
+          thread: getAui().thread.getState(),
+          composer: { type: "thread", isEmpty: true },
+        } as unknown as Parameters<typeof composerResumeDisabled>[0]),
+      ).toBe(false);
+
+      await act(async () => {
+        getAui().thread().resumeRun({ parentId: "msg_1" });
+      });
+      await waitFor(() => expect(runs).toHaveLength(1));
+      await waitFor(() =>
+        expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
+      );
+      expect(
+        createCalls(messages).find((body) => body.open_run)!.parent_id,
+      ).toBe("msg_1");
+      const branch = getAui().thread.getState().messages;
+      expect(branch.map((m) => [m.role, m.status?.type])).toEqual([
+        ["user", undefined],
+        ["assistant", "running"],
+      ]);
+      expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
+        1,
+      );
+      expect(getAui().thread.getState().canResume).toBe(false);
+      await waitFor(() =>
+        expect(messages.delete).toHaveBeenCalledWith("remote-1", ["msg_2"]),
+      );
+
+      await act(async () => {
+        runs[0]!.resolve({ content: [{ type: "text", text: "hi" }] });
+      });
+      await waitFor(() =>
+        expect(getAui().thread.getState().isRunning).toBe(false),
+      );
+      expect(messages.delete).toHaveBeenCalledTimes(1);
+      expect(
+        createCalls(messages).filter((body) => body.open_run),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("drops an empty reply another tab drives once it goes quiet, and offers Resume then", async () => {
+    const at = new Date(0);
+    let rows = [
+      {
+        ...staleReply(at, []),
+        run: { status: "running" as const, last_heartbeat_ms_ago: 0 },
+      },
+      userRow(at),
+    ];
+    const { cloud, messages } = makeCloud(rows);
+    messages.list.mockImplementation(async () => ({ messages: rows }));
+    const { getRuntime, getAui } = await renderRuntime(cloud, {
+      staleAfter: 3_000,
+    });
+    await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+    await waitFor(() =>
+      expect(getAui().thread.getState().messages).toHaveLength(2),
+    );
+    expect(getMessageRunState(getAui().thread.getState().messages[1]!)).toBe(
+      "in-progress",
+    );
+    expect(getAui().thread.getState().canResume).toBe(false);
+
+    rows = [
+      {
+        ...staleReply(at, []),
+        updated_at: new Date(1),
+        run: { status: "running" as const, last_heartbeat_ms_ago: 3_000 },
+      },
+      userRow(at),
+    ];
+    await waitFor(
+      () => expect(getAui().thread.getState().canResume).toBe(true),
+      { timeout: 8_000 },
+    );
+    expect(
+      getAui()
+        .thread.getState()
+        .messages.map((m) => m.id),
+    ).toEqual(["msg_1"]);
+    expect(messages.delete).not.toHaveBeenCalled();
+  }, 15_000);
+
+  it("keeps an empty interrupted reply that has replies under it", async () => {
+    const at = new Date(0);
+    const { cloud } = makeCloud([
+      {
+        id: "msg_3",
+        parent_id: "msg_2",
+        height: 2,
+        created_at: at,
+        updated_at: at,
+        format: "aui/v0",
+        content: { role: "user", content: [{ type: "text", text: "again" }] },
+      },
+      staleReply(at, []),
+      userRow(at),
+    ]);
+    const { getRuntime, getAui } = await renderRuntime(cloud);
+    await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+    await waitFor(() =>
+      expect(getAui().thread.getState().messages).toHaveLength(3),
+    );
+    expect(getAui().thread.getState().canResume).toBe(false);
   });
 
   it("reports a run another session still drives as in progress", async () => {
@@ -344,7 +482,8 @@ describe("cloud run leases", () => {
       },
     } as unknown as Parameters<typeof actionBarRefreshRunDisabled>[0];
     expect(actionBarRefreshRunDisabled(state)).toBe(false);
-    expect(actionBarResumeDisabled(state)).toBe(true);
+    expect(actionBarReloadDisabled(state)).toBe(true);
+    expect(getAui().thread.getState().canResume).toBe(false);
   });
 
   it("follows a run another session drives until it goes quiet, refreshes on request, and flips back on a late beat", async () => {

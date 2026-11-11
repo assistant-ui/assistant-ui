@@ -4691,6 +4691,8 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       loadEarlier?(): Promise<void>;
       isRunning?: boolean | undefined;
       canResume?: boolean | undefined;
+      readonly __internal_rerunFrom?: string | undefined;
+      __internal_offerRerun?(parentId: string | undefined): void;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion$1[];
