@@ -234,7 +234,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     });
   });
 
-  it("settles a nested assistant when a snapshot advances past its step", async () => {
+  it("settles a cut-off answer and its nested assistant when a snapshot advanced past them", async () => {
     const core = createController([
       start,
       ...text,
@@ -294,13 +294,67 @@ describe("AgUiThreadController HTTP stream closure", () => {
     await core.append(userMessage);
 
     const answer = core.getMessages().find(({ id }) => id === "answer");
-    expect(answer?.status?.type).toBe("complete");
+    expect(answer?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+    });
     expect(answer?.content[1]).toMatchObject({
       type: "tool-call",
       toolCallId: "task",
-      messages: [{ id: "sub", status: { type: "complete" } }],
+      messages: [
+        { id: "sub", status: { type: "incomplete", reason: "error" } },
+      ],
     });
+    expect(
+      core.getMessages().find(({ id }) => id === "next")?.status?.type,
+    ).toBe("complete");
   });
+
+  it.each([
+    {
+      name: "mid-text after the move",
+      events: [
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: " more" },
+      ],
+      status: { type: "incomplete", reason: "error" },
+    },
+    {
+      name: "right after the move",
+      events: [],
+      status: { type: "incomplete", reason: "error" },
+    },
+    {
+      name: "after the frame closed",
+      before: [{ type: "TEXT_MESSAGE_END", messageId: "answer" }],
+      events: [],
+      status: { type: "complete" },
+    },
+  ])(
+    "settles a moved-off answer at EOF $name",
+    async ({ before = [], events, status }) => {
+      const core = createController([
+        start,
+        ...text,
+        ...before,
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "question", role: "user", content: "hello" },
+            { id: "answer", role: "assistant", content: "partial answer" },
+            { id: "next", role: "assistant", content: "next step" },
+          ],
+        },
+        ...events,
+      ]);
+
+      await core.append(userMessage);
+
+      expect(core.isRunning()).toBe(false);
+      expect(
+        core.getMessages().find(({ id }) => id === "answer")?.status,
+      ).toMatchObject(status);
+    },
+  );
 
   it("streams a nested assistant that starts after a snapshot", async () => {
     const core = createController([
