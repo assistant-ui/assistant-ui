@@ -1,5 +1,13 @@
 # @assistant-ui/docs-theme
 
+## 0.0.5
+
+### Patch Changes
+
+- [#10314](https://github.com/assistant-ui/assistant-ui/pull/10314) [`e1e7ea3`](https://github.com/assistant-ui/assistant-ui/commit/e1e7ea39dc64247f5ba9bd913b5fd4fb8e201d63) - perf: the MDX headings and code blocks render as server components, and only their copy buttons are client components. On Next.js, a page with headings and code blocks loads 838 B gzipped of the theme's MDX client code instead of 2,750 B. `CodeGroup` stays a client component, since it switches tabs. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10314](https://github.com/assistant-ui/assistant-ui/pull/10314) [`e1e7ea3`](https://github.com/assistant-ui/assistant-ui/commit/e1e7ea39dc64247f5ba9bd913b5fd4fb8e201d63) - feat: `theme: assistantUi()` with `@assistant-ui/docs-theme/styles.css` now gives the assistant-ui docs look on every Farming Labs framework, without a custom layout. The theme renders the header across the top with search, `nav.links` and the theme toggle, a skip link, previous/next arrows and a page actions menu beside the title (Copy page, View as Markdown, Open in Claude or Codex, each with a one-line description), table of contents actions, a flat sidebar and no breadcrumb; site configuration overrides any of these defaults. The stylesheet applies to layouts marked `data-fd-theme="assistant-ui"` and to `createDocsLayout` (`.aui-docs`) layouts. Requires Farming Labs Docs and Theme 0.2.141. `createDocsLayout` keeps its own header and page controls, now built on Fumadocs' framework-neutral `Link` and `usePathname`, which adds `fumadocs-core` as a peer. `assistantUiDefaults` exports the theme's configuration defaults. `@assistant-ui/docs-theme/mdx` adds the assistant-ui MDX components (numbered code blocks, `CodeGroup`, `Callout` and blockquotes, `Tabs`, `Steps`, `Cards`, `Files`, linkable headings, tables, `Kbd`, `Code`, `ThemeImage`) and `assistantUiCodeBlock` for the Catppuccin code themes as an opt-in, styled by the same stylesheet. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.4
 
 ### Patch Changes
