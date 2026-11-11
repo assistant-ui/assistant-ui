@@ -91,6 +91,22 @@ jobs:
           done
           pnpm install --frozen-lockfile "${filters[@]}"
 
+      - name: Restore main's coverage Turbo cache, shard 0
+        if: github.event_name == 'pull_request' && steps.bundles.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
+
+      - name: Restore main's coverage Turbo cache, shard 1
+        if: github.event_name == 'pull_request' && steps.bundles.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
+
       - name: Build templates (bundle subset)
         if: steps.bundles.outputs.run == 'true'
         env:
