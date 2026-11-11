@@ -4,11 +4,13 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { HttpAgent, type RunAgentInput } from "@ag-ui/client";
 import {
   AssistantRuntimeProvider,
+  MessageByIndexProvider,
+  useActionBarResume,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
-import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
@@ -107,6 +109,13 @@ const createServer = (
         if (row) row.content = body.content;
         return json({});
       }
+      if (method === "DELETE" && path === "/threads/remote-1/messages") {
+        for (const id of body.message_ids as string[]) {
+          const index = rows.findIndex((r) => r.id === id);
+          if (index !== -1) rows.splice(index, 1);
+        }
+        return json({});
+      }
       if (/^\/threads\/remote-1\/runs\/[^/]+\/heartbeat$/.test(path))
         return json({ heartbeat_interval_ms: heartbeatIntervalMs });
       if (/^\/threads\/remote-1\/runs\/[^/]+\/end$/.test(path)) return json({});
@@ -192,6 +201,20 @@ const renderApp = async (staleAfter?: number) => {
     aui = useAui();
     return null;
   };
+  const resume: { current: ReturnType<typeof useActionBarResume> | undefined } =
+    { current: undefined };
+  const CaptureResume = () => {
+    resume.current = useActionBarResume();
+    return null;
+  };
+  const ReplyResume = () => {
+    const hasReply = useAuiState((s) => s.thread.messages.length >= 2);
+    return hasReply ? (
+      <MessageByIndexProvider index={1}>
+        <CaptureResume />
+      </MessageByIndexProvider>
+    ) : null;
+  };
   const App = () => {
     const adapter = useCloudThreadListAdapter({
       cloud,
@@ -206,6 +229,7 @@ const renderApp = async (staleAfter?: number) => {
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <Capture />
+        <ReplyResume />
       </AssistantRuntimeProvider>
     );
   };
@@ -213,19 +237,25 @@ const renderApp = async (staleAfter?: number) => {
   await act(async () => {
     await aui.threads.getLoadThreadsPromise();
   });
-  return { agent, getAui: () => aui, getRuntime: () => runtime };
+  return {
+    agent,
+    getAui: () => aui,
+    getRuntime: () => runtime,
+    getResume: () => resume.current,
+  };
 };
 
 const assistantRow = (
   last_heartbeat_ms_ago: number,
   status: "running" | "ended" = "running",
+  content: readonly unknown[] = [{ type: "text", text: "half an answer" }],
 ): Row => ({
   id: "a1",
   parent_id: "u1",
   format: "aui/v0",
   content: {
     role: "assistant",
-    content: [{ type: "text", text: "half an answer" }],
+    content: [...content],
     status: { type: "incomplete", reason: "cancelled" },
   },
   external_id: "a1",
@@ -304,7 +334,50 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     expect(reply.id).toBe("agent-msg-1");
   });
 
-  it("shows a reloaded run quiet for longer than staleAfter as interrupted; Resume posts a sibling with its own lease and runs the agent again", async () => {
+  it("shows a reloaded empty run quiet for longer than staleAfter as stale; Resume deletes it and runs the agent again from the user message with no sibling", async () => {
+    useServer([userRow, assistantRow(45_000, "running", [])]);
+    const { agent, getAui, getRuntime, getResume } = await renderApp();
+    await act(async () => {
+      await getRuntime().threads.switchToThread("remote-1");
+    });
+    await waitFor(() =>
+      expect(getAui().thread.message({ index: 1 }).getState().runState).toBe(
+        "stale",
+      ),
+    );
+    await waitFor(() => expect(getResume()?.disabled).toBe(false));
+
+    await act(async () => {
+      getResume()!.resume();
+    });
+    await waitFor(() => expect(agent.runs).toHaveLength(1));
+    await waitFor(() =>
+      expect(createsWith(server.calls, true)).toHaveLength(1),
+    );
+    expect(createsWith(server.calls, true)[0]!.body).toMatchObject({
+      parent_id: "u1",
+      open_run: true,
+    });
+    await act(async () => {
+      agent.runs[0]!.finish();
+    });
+    await waitFor(() =>
+      expect(
+        server.calls.some((c) => c.path.endsWith("/runs/lease_1/end")),
+      ).toBe(true),
+    );
+    const deletes = server.calls.filter((c) => c.method === "DELETE");
+    expect(deletes.map((c) => c.body)).toEqual([{ message_ids: ["a1"] }]);
+    expect(server.rows.map((r) => r.id)).toEqual(["u1", "msg_1"]);
+    const messages = getAui().thread.getState().messages;
+    expect(messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(messages[1]!.id).not.toBe("a1");
+    expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
+      1,
+    );
+  });
+
+  it("shows a reloaded run quiet for longer than staleAfter as interrupted; Regenerate posts a sibling with its own lease and runs the agent again", async () => {
     useServer([userRow, assistantRow(45_000)]);
     const { agent, getAui, getRuntime } = await renderApp();
     await act(async () => {
@@ -314,7 +387,12 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
       expect(getAui().thread.getState().messages).toHaveLength(2),
     );
     const stale = getAui().thread.message({ index: 1 });
-    await waitFor(() => expect(stale.getState().runState).toBe("stale"));
+    await waitFor(() =>
+      expect(stale.getState().status).toMatchObject({
+        error: { code: "run_stale" },
+      }),
+    );
+    expect(stale.getState().runState).toBeUndefined();
 
     await act(async () => {
       stale.reload();
@@ -363,8 +441,8 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     });
     await waitFor(() =>
       expect(
-        short.getAui().thread.message({ index: 1 }).getState().runState,
-      ).toBe("stale"),
+        short.getAui().thread.message({ index: 1 }).getState().status,
+      ).toMatchObject({ error: { code: "run_stale" } }),
     );
   });
 

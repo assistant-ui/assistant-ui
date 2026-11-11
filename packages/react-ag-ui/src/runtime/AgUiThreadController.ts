@@ -702,6 +702,17 @@ export class AgUiThreadController {
     await this.startRun(parentId, config.runConfig);
   }
 
+  /** Deletes a message that has no replies under it, and its stored history entry. */
+  async deleteMessage(messageId: string): Promise<void> {
+    const item = this.session.tryGetMessage(messageId);
+    if (!item) return;
+    const parentId = item.parentId ?? null;
+    this.session.deleteMessage(messageId, parentId);
+    this.snapshotHistoryIds.delete(messageId);
+    this.publishUpdate();
+    await this.history?.delete?.([{ parentId, message: item.message }]);
+  }
+
   async cancel(): Promise<void> {
     this.dispatch({
       type: "historyMutationAdvanced",
