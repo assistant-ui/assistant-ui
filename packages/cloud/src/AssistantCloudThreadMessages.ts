@@ -32,6 +32,17 @@ export type CloudMessageRun = {
   last_heartbeat_ms_ago: number;
 };
 
+/** A thread's running lease, as a message list reports it. */
+export type CloudThreadRun = {
+  status: "running";
+  /** The reply the run has stored, or null before its first write. */
+  message_id: string | null;
+  /** The message the run answers. */
+  parent_id: string | null;
+  /** Time since the lease's last heartbeat or write, measured by the server when it listed the thread. */
+  last_heartbeat_ms_ago: number;
+};
+
 /** A run lease the server granted. */
 export type CloudRunLease = {
   lease_id: string;
@@ -46,6 +57,11 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+  /**
+   * The thread's running lease, or null when it has none. Undefined from a
+   * server before v0.2.11, which reports runs only on messages.
+   */
+  run?: CloudThreadRun | null | undefined;
 };
 
 type AssistantCloudThreadMessageCreateBody = {
@@ -85,6 +101,23 @@ const decodeCloudMessageRun = (
     last_heartbeat_ms_ago: readCloudNumber(
       run.last_heartbeat_ms_ago,
       `${field}.last_heartbeat_ms_ago`,
+    ),
+  };
+};
+
+const decodeCloudThreadRun = (value: unknown): CloudThreadRun | null => {
+  if (value === null) return null;
+  const run = readCloudRecord(value, "run");
+  return {
+    status: readCloudEnum(run.status, "run.status", ["running"] as const),
+    message_id: readCloudNullableString(
+      run.message_id ?? null,
+      "run.message_id",
+    ),
+    parent_id: readCloudNullableString(run.parent_id ?? null, "run.parent_id"),
+    last_heartbeat_ms_ago: readCloudNumber(
+      run.last_heartbeat_ms_ago,
+      "run.last_heartbeat_ms_ago",
     ),
   };
 };
@@ -160,6 +193,9 @@ export class AssistantCloudThreadMessages {
       messages: messages.map((message, index) =>
         decodeCloudMessage(message, `messages[${index}]`),
       ),
+      ...(response.run !== undefined
+        ? { run: decodeCloudThreadRun(response.run) }
+        : undefined),
     };
   }
 

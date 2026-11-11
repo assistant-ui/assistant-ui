@@ -1,5 +1,10 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
-import { readCloudNumber, readCloudRecord } from "./cloudResponse";
+import {
+  readCloudNumber,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
+import type { CloudRunLease } from "./AssistantCloudThreadMessages";
 
 /** Why a run ended. */
 export type CloudRunEndReason = "done" | "cancelled" | "error";
@@ -8,19 +13,62 @@ export type AssistantCloudRunHeartbeatResponse = {
   heartbeat_interval_ms: number;
 };
 
+export type AssistantCloudThreadRunOpenBody = {
+  /** The cloud id of the message the run answers. */
+  parent_id?: string | null | undefined;
+  /** The external id of the message the run answers, instead of `parent_id`. */
+  parent_external_id?: string | undefined;
+};
+
 /**
- * Run leases on thread messages. A lease is opened with `open_run` when its
- * message is created, belongs to that message alone, and runs until its
- * holder ends it; the server never expires one. The holder heartbeats on the
- * server's `heartbeat_interval_ms`, and listed messages report how long ago
- * the last beat was, so readers can tell a run whose tab went away. Writes as
- * the holder go through `threads.messages` with the `lease_id`.
+ * Run leases on threads. A thread holds at most one running lease: opening
+ * one ends the thread's other running lease, so the newest run wins and the
+ * older holder's next beat or write answers `409 run_ended`. A lease runs
+ * until its holder ends it; the server never expires one. The holder
+ * heartbeats on the server's `heartbeat_interval_ms`, and message lists
+ * report the thread's running lease with how long ago it last beat, so
+ * readers can tell a run whose tab went away. The holder's first message
+ * write with the `lease_id` stores the reply and binds the lease to it.
+ *
+ * Servers before v0.2.11 open leases only on a message, with `open_run` on
+ * `threads.messages.create`, and answer `open` with 404.
  */
 export class AssistantCloudThreadRuns {
   private cloud: AssistantCloudAPI;
 
   constructor(cloud: AssistantCloudAPI) {
     this.cloud = cloud;
+  }
+
+  /** Opens the thread's run lease, ending any other running lease of the thread. */
+  public async open(
+    threadId: string,
+    body: AssistantCloudThreadRunOpenBody = {},
+  ): Promise<CloudRunLease> {
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        `/threads/${encodeURIComponent(threadId)}/runs`,
+        {
+          method: "POST",
+          body: {
+            ...(body.parent_id !== undefined
+              ? { parent_id: body.parent_id }
+              : undefined),
+            ...(body.parent_external_id !== undefined
+              ? { parent_external_id: body.parent_external_id }
+              : undefined),
+          },
+        },
+      ),
+      "run open response",
+    );
+    return {
+      lease_id: readCloudString(response.lease_id, "lease_id"),
+      heartbeat_interval_ms: readCloudNumber(
+        response.heartbeat_interval_ms,
+        "heartbeat_interval_ms",
+      ),
+    };
   }
 
   /**
