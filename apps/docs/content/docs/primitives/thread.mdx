@@ -398,14 +398,6 @@ const InterruptedBar = () =>
   ) : null;
 ```
 
-### RefreshRun
-
-Re-reads a thread whose reply another tab or session is generating (`useThreadReplyState()` reads `"in-progress"`). The thread also re-reads on its own while that run goes on. Disabled otherwise, and while a refresh is in flight. Renders a `<button>` element unless `asChild` is set.
-
-```tsx
-<ThreadPrimitive.RefreshRun>Refresh</ThreadPrimitive.RefreshRun>
-```
-
 ### Suggestions
 
 Renders suggestion prompts via a component.

@@ -159,27 +159,23 @@ export const useCloudRunLeases = (
       ? aui.threadListItem.getState().id
       : undefined;
 
+    // Re-reads a thread another session is answering until its reply shows or its run goes quiet.
     const watchThreadRun = (head: ThreadMessage, staleInMs: number) => {
       if (poll) return;
+      const delay = Math.min(
+        POLL_MAX_MS,
+        Math.max(POLL_MIN_MS, staleInMs + POLL_STALE_MARGIN_MS),
+      );
       poll = {
         messageId: head.id,
-        timer: setTimeout(
-          () => {
-            void (async () => {
-              const changed = await adapter
-                .readThreadRun(head)
-                .catch(() => false);
-              if (disposed) return;
-              if (changed) await refresh().catch(() => undefined);
+        timer: setTimeout(() => {
+          void refresh()
+            .catch(() => undefined)
+            .then(() => {
               poll = undefined;
-              check();
-            })();
-          },
-          Math.min(
-            POLL_MAX_MS,
-            Math.max(POLL_MIN_MS, staleInMs + POLL_STALE_MARGIN_MS),
-          ),
-        ),
+              if (!disposed) check();
+            });
+        }, delay),
       };
     };
 

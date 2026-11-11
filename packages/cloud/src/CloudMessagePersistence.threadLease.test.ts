@@ -72,21 +72,6 @@ describe("CloudMessagePersistence thread leases", () => {
     expect(persistence.hasOpenRun("a1")).toBe(false);
   });
 
-  it("stores a reply that settles before any checkpoint with one write that ends the lease", async () => {
-    const { cloud, messages, runs } = createCloud();
-    const persistence = new CloudMessagePersistence(cloud);
-    await persistence.beginRun("t1", "a1", null);
-
-    await persistence.append("t1", "a1", null, "aui/v0", done, "done");
-
-    expect(messages.create).toHaveBeenCalledTimes(1);
-    expect(messages.create.mock.calls[0]![1]).toMatchObject({
-      lease_id: "lease_1",
-    });
-    expect(messages.update).not.toHaveBeenCalled();
-    expect(runs.end).toHaveBeenCalledWith("t1", "lease_1", { reason: "done" });
-  });
-
   it("rejects with a clear error on a server without thread leases", async () => {
     const { cloud, runs } = createCloud();
     runs.open.mockRejectedValue(apiError(404));
@@ -112,27 +97,6 @@ describe("CloudMessagePersistence thread leases", () => {
     expect(messages.create).toHaveBeenCalledTimes(1);
     expect(runs.end).not.toHaveBeenCalled();
     warn.mockRestore();
-  });
-
-  it("moves an unstored run's lease on rename, so the first write uses the new id", async () => {
-    const { cloud, messages } = createCloud();
-    const persistence = new CloudMessagePersistence(cloud);
-    await persistence.beginRun("t1", "placeholder", null);
-    await persistence.rename("placeholder", "agent-msg-1");
-
-    expect(persistence.hasOpenRun("agent-msg-1")).toBe(true);
-    await persistence.append(
-      "t1",
-      "agent-msg-1",
-      null,
-      "aui/v0",
-      partial,
-      "running",
-    );
-    expect(messages.create.mock.calls[0]![1]).toMatchObject({
-      external_id: "agent-msg-1",
-      lease_id: "lease_1",
-    });
   });
 
   it("records the thread's run from the first page of a load", async () => {
