@@ -6,6 +6,15 @@ declare const AGENT_HEARTBEAT_MS = 5000;
 
 declare const AGENT_PRESENCE_MS = 15000;
 
+type AgentInstructionsOptions = {
+  startedByAgent?: {
+    browserUrl: string;
+    opened?: boolean;
+  };
+};
+
+declare const CODING_AGENTS: readonly CodingAgent[];
+
 declare namespace Checkout {
   type StepStatus = "active" | "blocked" | "done" | "pending" | "skipped";
   type Step = {
@@ -232,11 +241,21 @@ declare const CheckoutHost: (restored?: unknown) => ResourceElement<{
 
 type ChoiceAnswerKind = "custom" | "invalid" | "option";
 
+type CodingAgent = {
+  kind: string;
+  name: string;
+  launch?: {
+    commands: readonly string[];
+    args: (prompt: string) => string[];
+    install: string;
+  };
+};
+
 declare const HELP: string;
 
 declare const INPUT_PRESETS: Record<PresetId, Preset>;
 
-declare const INSTRUCTIONS: (setupUrl: string) => string;
+declare const INSTRUCTIONS: (setupUrl: string, options?: AgentInstructionsOptions) => string;
 
 declare const OPTION_ICONS: readonly [
   "code",
@@ -354,7 +373,7 @@ type StreamEvent = {
   products: string[];
 };
 
-declare const agentInstructions: (setupUrl: string) => string;
+declare const agentInstructions: (setupUrl: string, options?: AgentInstructionsOptions) => string;
 
 declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Checkout.InputSeed & {
   stepId?: string;
@@ -363,7 +382,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, parseSetupUrl, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { AgentInstructionsOptions, HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, parseSetupUrl, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -374,6 +393,8 @@ declare const detectAgentKind: (env?: NodeJS.ProcessEnv) => string | undefined;
 
 declare const diffEvents: (before: Checkout.State, after: Checkout.State) => StreamEvent[];
 
+declare const findCommand: (commands: readonly string[], env?: NodeJS.ProcessEnv) => string | undefined;
+
 declare const finishProposed: (state: Checkout.State) => boolean;
 
 declare const followedUpSinceProposal: (state: Checkout.State) => boolean;
@@ -383,7 +404,7 @@ declare namespace entry_host_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, Checkout, CheckoutClient, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
+  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, CODING_AGENTS, Checkout, CheckoutClient, CodingAgent, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, detectAgentKind, findCommand, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isDirectInvocation, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, runCodingAgent, stepProgress };
 }
 
 declare const initialCheckoutState: () => Checkout.State;
@@ -432,6 +453,8 @@ declare const planNeedsReview: (state: Checkout.State) => boolean;
 declare const presetInput: (id: PresetId, overrides?: PresetOverrides) => Checkout.InputSeed & {
   stepId?: string;
 };
+
+declare const runCodingAgent: (agent: CodingAgent, prompt: string) => Promise<number | undefined>;
 
 declare const stepProgress: (state: Checkout.State) => {
   total: number;
