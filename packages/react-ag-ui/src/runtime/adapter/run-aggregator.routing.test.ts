@@ -65,7 +65,7 @@ describe("RunAggregator routing after the current message moves", () => {
     expect(retained).toHaveLength(1);
     expect(retained[0]?.state).toEqual({
       messageId: "answer",
-      open: true,
+      streaming: true,
       openToolCallIds: ["task"],
     });
     expect(aggregator.isRetained("answer")).toBe(true);
@@ -88,7 +88,7 @@ describe("RunAggregator routing after the current message moves", () => {
     const { send, lastRetained } = setup();
     send({ type: "TEXT_MESSAGE_END", messageId: "answer" });
 
-    expect(lastRetained()?.state.open).toBe(true);
+    expect(lastRetained()?.state.streaming).toBe(true);
     send(
       { type: "SUBAGENT_FINISHED", subagentRunId: "sub" },
       {
@@ -100,7 +100,7 @@ describe("RunAggregator routing after the current message moves", () => {
     );
     expect(lastRetained()?.state).toEqual({
       messageId: "answer",
-      open: false,
+      streaming: false,
       openToolCallIds: [],
     });
   });

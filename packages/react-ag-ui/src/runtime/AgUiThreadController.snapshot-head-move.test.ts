@@ -454,6 +454,106 @@ describe("AgUiThreadController events after a snapshot moves the head", () => {
     ]);
   });
 
+  it("keeps snapshot text on an answer that a later tool call names", async () => {
+    const core = createController(() => [
+      start,
+      moveSnapshot,
+      {
+        type: "TOOL_CALL_START",
+        toolCallId: "lookup",
+        toolCallName: "lookup",
+        parentMessageId: "answer",
+      },
+      { type: "TOOL_CALL_ARGS", toolCallId: "lookup", delta: "{}" },
+      { type: "TOOL_CALL_END", toolCallId: "lookup" },
+      {
+        type: "TOOL_CALL_RESULT",
+        messageId: "tool-lookup",
+        toolCallId: "lookup",
+        content: "found",
+      },
+      finished,
+    ]);
+    await core.append(userMessage);
+
+    expect(message(core, "answer")).toMatchObject({
+      status: { type: "complete" },
+      content: [
+        { type: "text", text: "a1" },
+        { type: "tool-call", toolCallId: "lookup", result: "found" },
+      ],
+    });
+  });
+
+  it("does not continue the run for a result the snapshot delivered", async () => {
+    let requests = 0;
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async (_url: unknown, init: RequestInit) => {
+        requests++;
+        const wire = JSON.parse(init.body as string).messages ?? [];
+        const events =
+          requests > 1
+            ? [start, finished]
+            : [
+                start,
+                ...answerText,
+                {
+                  type: "TOOL_CALL_START",
+                  toolCallId: "task",
+                  toolCallName: "task",
+                  parentMessageId: "answer",
+                },
+                { type: "TOOL_CALL_ARGS", toolCallId: "task", delta: "{}" },
+                { type: "TOOL_CALL_END", toolCallId: "task" },
+                snapshot(
+                  { messages: wire },
+                  {
+                    id: "tool-task",
+                    role: "tool",
+                    toolCallId: "task",
+                    content: "done",
+                  },
+                  otherRecord,
+                ),
+                finished,
+              ];
+        return new Response(
+          events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+          { headers: { "Content-Type": "text/event-stream" } },
+        );
+      },
+    });
+    const core = new AgUiThreadController({
+      agent,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    await core.append(userMessage);
+    for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(requests).toBe(1);
+    expect(statuses(core).answer).toBe("complete");
+    expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
+  });
+
+  it("settles an answer whose only open work was a sub-agent incomplete when the run errors", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskAndSubagentEvents,
+      taskResult,
+      snapshot(wire, otherRecord),
+      { type: "RUN_ERROR", message: "boom" },
+    ]);
+    await core.append(userMessage).catch(() => {});
+
+    expect(statuses(core)).toEqual({
+      answer: "incomplete",
+      subagent: "incomplete",
+    });
+  });
+
   it("keeps the answer running while its frame is open", async () => {
     const { core, sampled } = await sampleBetween(
       [...openAnswer, moveSnapshot],

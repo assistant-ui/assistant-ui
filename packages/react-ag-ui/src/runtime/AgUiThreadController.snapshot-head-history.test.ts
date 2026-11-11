@@ -20,7 +20,7 @@ const userMessage = {
   startRun: true,
 } as unknown as AppendMessage;
 
-type Row = { id: string; status: string | undefined };
+type Row = { id: string; status: string | undefined; text: string };
 
 // Follows the ThreadHistoryAdapter contract: both writes upsert by message
 // id, and only append moves the stored head.
@@ -36,7 +36,13 @@ function createHistory(writes: string[]) {
       new Map<string, Row>(
         [...items.values()].map((item) => [
           item.message.id,
-          { id: item.message.id, status: item.message.status?.type },
+          {
+            id: item.message.id,
+            status: item.message.status?.type,
+            text: item.message.content
+              .flatMap((part: any) => (part.type === "text" ? [part.text] : []))
+              .join(""),
+          },
         ]),
       ),
     load: async () => ({ headId, messages: [...items.values()] }),
@@ -210,7 +216,10 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
     expect(shown.slice(1)).toEqual(["answer:complete", "other:complete"]);
-    expect(rows.get("answer")?.status, writes.join(", ")).toBe("complete");
+    expect(rows.get("answer"), writes.join(", ")).toMatchObject({
+      status: "complete",
+      text: "a1a2",
+    });
     expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
@@ -224,6 +233,17 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
     expect(rows.get("other")?.status, JSON.stringify({ writes, shown })).toBe(
       "complete",
     );
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+  });
+
+  it("stores the new head when the stream ends after the moved-off answer's frame closes", async () => {
+    const { rows, writes, shown, reloaded } = await run((req) => [
+      start,
+      [moveSnapshot(req)],
+      [end],
+    ]);
+    expect(shown.slice(1)).toEqual(["answer:complete", "other:incomplete"]);
+    expect(rows.get("other")?.status, writes.join(", ")).toBe("incomplete");
     expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 

@@ -321,7 +321,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     {
       name: "right after the move",
       events: [],
-      status: { type: "incomplete" },
+      status: { type: "incomplete", reason: "error" },
     },
     {
       name: "after the frame closed",

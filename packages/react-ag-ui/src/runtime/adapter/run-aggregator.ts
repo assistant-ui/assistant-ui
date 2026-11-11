@@ -250,7 +250,8 @@ const createMessageBuffer = (id?: string): MessageBuffer => ({
 
 export type RetainedMessageState = {
   messageId: string;
-  open: boolean;
+  /** A root text frame or a sub-agent run is still open. */
+  streaming: boolean;
   openToolCallIds: string[];
 };
 
@@ -265,7 +266,11 @@ export type RunAggregatorOptions = {
   ) => void;
   canRetainMessage?: (messageId: string) => boolean;
   onServerMessageId?: (messageId: string) => void;
-  onTextMessageStart?: (messageId: string, openToolCallIds: string[]) => void;
+  /** Returns the id the outgoing message lives under, when it may keep receiving events. */
+  onTextMessageStart?: (
+    messageId: string,
+    openToolCallIds: string[],
+  ) => string | void;
 };
 
 /**
@@ -285,9 +290,7 @@ export class RunAggregator {
   private readonly joinStrategy: JoinStrategy | undefined;
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
-  private readonly onTextMessageStart:
-    | ((messageId: string, openToolCallIds: string[]) => void)
-    | undefined;
+  private readonly onTextMessageStart: RunAggregatorOptions["onTextMessageStart"];
   private readonly onRetainedMessage: RunAggregatorOptions["onRetainedMessage"];
   private readonly canRetainMessage: RunAggregatorOptions["canRetainMessage"];
 
@@ -397,6 +400,10 @@ export class RunAggregator {
     if (this.canRetainMessage?.(messageId)) {
       const buffer = createMessageBuffer(messageId);
       this.retained.set(messageId, buffer);
+      if (this.pendingSnapshotText.has(messageId))
+        this.withBuffer(buffer, () =>
+          this.startTextMessage(ROOT_SCOPE, messageId),
+        );
       return buffer;
     }
     return this.current;
@@ -488,9 +495,8 @@ export class RunAggregator {
     return {
       messageId: buffer.id!,
       openToolCallIds,
-      open:
+      streaming:
         buffer.openTextFrames.size > 0 ||
-        openToolCallIds.length > 0 ||
         Array.from(buffer.subagentRuns.values()).some(
           (run) => run.status.type === "running",
         ),
@@ -522,7 +528,7 @@ export class RunAggregator {
         this.pendingSnapshotText.clear();
         const buffers = this.buffers();
         for (const message of event.messages) {
-          if (message.role !== "assistant") continue;
+          if (message?.role !== "assistant") continue;
           if (typeof message.content === "string") {
             const part = buffers
               .map((buffer) => buffer.textParts.get(message.id))
@@ -1111,8 +1117,9 @@ export class RunAggregator {
       .filter((call) => call.result === undefined)
       .map((call) => call.toolCallId);
     if (!preserveSnapshotText) this.pendingSnapshotText.delete(messageId);
-    this.openMessage(messageId, this.current.id ?? this.lastTextMessageId);
-    this.onTextMessageStart(messageId, openToolCallIds);
+    const outgoingId =
+      this.onTextMessageStart(messageId, openToolCallIds) || undefined;
+    this.openMessage(messageId, outgoingId);
     this.restoreReasoning(carried);
   }
 

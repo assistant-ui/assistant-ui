@@ -1780,6 +1780,8 @@ export class AgUiThreadController {
     let settlingRun = false;
     let latestSnapshot: ThreadAssistantMessage | undefined;
     let snapshotToolCallIds = new Set<string>();
+    const snapshotResultIds = new Set<string>();
+    let announcingMove = false;
     const retainedSnapshots = new Map<
       string,
       { message: ThreadAssistantMessage; toolCallIds: ReadonlySet<string> }
@@ -1850,6 +1852,8 @@ export class AgUiThreadController {
       }
       for (const [messageId, openToolCallIds] of heldMessages) {
         const existing = this.session.tryGetMessage(messageId);
+        if (!canWaitForTools && this.isTerminalStatus(existing?.message.status))
+          continue;
         if (existing)
           this.markPendingAssistantHistory(messageId, existing.parentId);
         let requiresToolResult = false;
@@ -2186,7 +2190,7 @@ export class AgUiThreadController {
     // on it is open; held, it settles with the run.
     const applyRetainedUpdate = (
       update: ChatModelRunResult,
-      { messageId, open, openToolCallIds }: RetainedMessageState,
+      { messageId, streaming, openToolCallIds }: RetainedMessageState,
     ) => {
       const item = this.session.tryGetMessage(messageId);
       if (item?.message.role !== "assistant") return;
@@ -2214,18 +2218,41 @@ export class AgUiThreadController {
               snapshot.toolCallIds,
             )
           : update.content;
-      if (open) heldMessages.set(messageId, new Set(openToolCallIds));
+      const unresolved = openToolCallIds.filter(
+        (id) => !snapshotResultIds.has(id),
+      );
+      // A terminal event settles a held message with the run instead.
+      const held =
+        streaming ||
+        unresolved.length > 0 ||
+        (settlingRun && heldMessages.has(messageId));
+      if (held) heldMessages.set(messageId, new Set(unresolved));
       else heldMessages.delete(messageId);
       this.updateAssistantMessage(messageId, {
         ...update,
         ...(content !== undefined ? { content } : {}),
-        status: open
+        status: held
           ? { type: "running" }
           : { type: "complete", reason: "unknown" },
       });
       const current = this.session.tryGetMessage(messageId)?.message;
       if (current?.role === "assistant")
         retainedSnapshots.set(messageId, { ...snapshot, message: current });
+      // The run is still streaming, which the message it streams into shows
+      // as soon as any event arrives after the move.
+      const head =
+        assistantMessageId === undefined
+          ? undefined
+          : this.session.tryGetMessage(assistantMessageId)?.message;
+      if (
+        !settlingRun &&
+        !announcingMove &&
+        head?.role === "assistant" &&
+        head.status?.type !== "running" &&
+        !runStartMessageIds.has(head.id) &&
+        !aggregator.isRetained(head.id)
+      )
+        this.updateAssistantMessage(head.id, { status: { type: "running" } });
     };
 
     const abortController = new AbortController();
@@ -2340,6 +2367,14 @@ export class AgUiThreadController {
         adoptServerMessageId(serverId, false);
       },
       onTextMessageStart: (serverId, openToolCallIds) => {
+        const outgoingId =
+          assistantMessageId !== undefined &&
+          !assistantCollided &&
+          !runStartMessageIds.has(assistantMessageId) &&
+          !replayContexts.has(assistantMessageId) &&
+          this.session.hasMessage(assistantMessageId)
+            ? assistantMessageId
+            : undefined;
         const owners = this.getTrailingAssistantTurn().filter((message) =>
           replayContexts.has(message.id),
         );
@@ -2361,6 +2396,7 @@ export class AgUiThreadController {
         }
         frameOwnerIds.clear();
         adoptServerMessageId(serverId, true, frameOpenIds);
+        return outgoingId;
       },
     });
     const settleRunSubagents = (status: MessageStatus) => {
@@ -2411,6 +2447,17 @@ export class AgUiThreadController {
           accountedResultIds.add(event.toolCallId);
         for (const openToolCallIds of heldMessages.values()) {
           openToolCallIds.delete(event.toolCallId);
+        }
+      }
+      // A result a snapshot delivers answers its call the way a streamed
+      // TOOL_CALL_RESULT does.
+      if (event.type === "MESSAGES_SNAPSHOT") {
+        for (const record of event.messages) {
+          if (record?.role !== "tool" || typeof record.toolCallId !== "string")
+            continue;
+          snapshotResultIds.add(record.toolCallId);
+          for (const openToolCallIds of heldMessages.values())
+            openToolCallIds.delete(record.toolCallId);
         }
       }
       settlingRun =
@@ -2494,7 +2541,12 @@ export class AgUiThreadController {
               toolCallIds: snapshotRecordToolCallIds(record),
             });
           }
-          aggregator.announceRetained();
+          announcingMove = true;
+          try {
+            aggregator.announceRetained();
+          } finally {
+            announcingMove = false;
+          }
         }
         if (event.type === "RUN_ERROR") {
           settleRunSubagents({
