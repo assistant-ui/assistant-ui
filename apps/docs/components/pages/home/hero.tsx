@@ -8,6 +8,7 @@ import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
 import { checkoutEnabled } from "@/lib/checkout/config";
+import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -83,6 +84,18 @@ export function Hero({
               Quick Start
             </Button>
           )}
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={
+              <Link
+                href={CONTACT_SALES_PATH}
+                onClick={() => analytics.cta.clicked("contact_sales", "hero")}
+              />
+            }
+          >
+            Talk to an expert
+          </Button>
         </div>
 
         <div

@@ -152,3 +152,23 @@ it("WebMCP tracking does not throw when posthog is undefined", () => {
     });
   }).not.toThrow();
 });
+
+it("sends the contact sales submit to both trackers before resolving", async () => {
+  const capture = vi.fn();
+  globalObject.window = { posthog: { capture } };
+  mocks.vercelTrack.mockClear();
+  const props = {
+    company_size: "51-200",
+    role: "Engineer",
+    referral: "GitHub",
+    personal_email: false,
+  };
+
+  await analytics.contactSales.submitted(props);
+
+  expect(capture).toHaveBeenCalledWith("contact_sales_submitted", props);
+  expect(mocks.vercelTrack).toHaveBeenCalledWith(
+    "contact_sales_submitted",
+    props,
+  );
+});

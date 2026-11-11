@@ -38,6 +38,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Brand", href: "/brand" },
     { label: "Traction", href: "/traction" },
     { label: "Pricing", href: "/pricing" },
+    { label: "Contact sales", href: "/contact-sales" },
   ],
 };
 
