@@ -19,7 +19,6 @@ import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 import {
   actionBarRefreshRunDisabled,
-  actionBarReloadDisabled,
   actionBarResumeDisabled,
 } from "../../../store/primitive-predicates";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
@@ -302,8 +301,7 @@ describe("cloud run leases", () => {
     const state = {
       thread: getAui().thread.getState(),
       message: { ...stale, isLast: true, runState: getMessageRunState(stale) },
-    } as unknown as Parameters<typeof actionBarReloadDisabled>[0];
-    expect(actionBarReloadDisabled(state)).toBe(false);
+    } as unknown as Parameters<typeof actionBarResumeDisabled>[0];
     expect(actionBarResumeDisabled(state)).toBe(true);
 
     await act(async () => {
@@ -466,7 +464,6 @@ describe("cloud run leases", () => {
       },
     } as unknown as Parameters<typeof actionBarRefreshRunDisabled>[0];
     expect(actionBarRefreshRunDisabled(state)).toBe(false);
-    expect(actionBarReloadDisabled(state)).toBe(true);
     expect(actionBarResumeDisabled(state)).toBe(true);
   });
 

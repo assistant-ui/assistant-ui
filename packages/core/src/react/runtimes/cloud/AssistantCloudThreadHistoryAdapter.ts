@@ -701,18 +701,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     rename: (from, to) => this.getPersistence().rename(from, to),
   };
 
-  /** Deletes a message's stored row, through the format a runtime persists with; nothing when it was never stored. */
-  public async deleteStoredMessage(message: ThreadMessage): Promise<void> {
-    const key = this.getRunWriter()?.keyOf(message) ?? message.id;
-    const threadListItem = this.aui.threadListItem;
-    if (!threadListItem.getState().remoteId) return;
-    const context = this.captureScope(threadListItem);
-    const remoteId = await this.resolveExistingRemoteId(threadListItem);
-    this.assertCurrentScope(context);
-    if (!remoteId) return;
-    await context.persistence.delete(remoteId, [key]);
-  }
-
   async update(item: ExportedMessageRepositoryItem) {
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);

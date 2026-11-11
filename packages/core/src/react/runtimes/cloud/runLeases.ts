@@ -63,16 +63,6 @@ const refreshers = new Map<string, () => Promise<void>>();
 export const refreshCloudRun = (threadItemId: string): Promise<void> =>
   refreshers.get(threadItemId)?.() ?? Promise.resolve();
 
-// Keyed like the refreshers, so a message's Resume button reaches the adapter that stored it.
-const discarders = new Map<string, (message: ThreadMessage) => Promise<void>>();
-
-/** Deletes a message's stored row from Assistant Cloud; nothing for a thread the cloud adapter does not persist. */
-export const discardCloudMessage = (
-  threadItemId: string,
-  message: ThreadMessage,
-): Promise<void> =>
-  discarders.get(threadItemId)?.(message) ?? Promise.resolve();
-
 const findMessage = (
   aui: AssistantClient,
   messageId: string,
@@ -254,17 +244,12 @@ export const useCloudRunLeases = (
     }
     const threadItemId = aui.threadListItem.getState().id;
     refreshers.set(threadItemId, refresh);
-    const discard = (message: ThreadMessage) =>
-      adapter.deleteStoredMessage(message);
-    discarders.set(threadItemId, discard);
     const unsubscribe = thread.subscribe(check);
     check();
     return () => {
       disposed = true;
       if (refreshers.get(threadItemId) === refresh)
         refreshers.delete(threadItemId);
-      if (discarders.get(threadItemId) === discard)
-        discarders.delete(threadItemId);
       if (poll) clearTimeout(poll.timer);
       unsubscribe();
       clearInterval(checkpoint);
