@@ -206,22 +206,6 @@ export const getThreadRuntimeCoreIsRunning = (
   );
 };
 
-/** Whether history offers to run the thread again from its head user message, whose empty interrupted reply it dropped. */
-const canRerun = (runtime: ThreadRuntimeCore): boolean => {
-  const from = runtime.__internal_rerunFrom;
-  if (from === undefined) return false;
-  const head = runtime.messages.at(-1);
-  return (
-    head?.id === from &&
-    head.role === "user" &&
-    !getThreadRuntimeCoreIsRunning(runtime) &&
-    !runtime.isDisabled &&
-    !runtime.isLoading &&
-    runtime.voice === undefined &&
-    runtime.capabilities.reload
-  );
-};
-
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
   threadListItemState: ThreadListItemRuntimeState,
@@ -236,7 +220,7 @@ export const getThreadState = (
     hasEarlier: runtime.hasEarlier ?? false,
     isLoadingEarlier: runtime.isLoadingEarlier ?? false,
     isRunning: getThreadRuntimeCoreIsRunning(runtime),
-    canResume: (runtime.canResume ?? false) || canRerun(runtime),
+    canResume: runtime.canResume ?? false,
     messages: runtime.messages,
     state: runtime.state,
     suggestions: runtime.suggestions,
@@ -482,19 +466,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public resumeRun(config: CreateResumeRunConfig) {
-    const core = this._threadBinding.getState();
-    const resume = toResumeRunConfig(config);
-    // Without a stream to reconnect to, resuming a thread whose empty interrupted reply was dropped runs it again from the user message, in place.
-    if (
-      !resume.stream &&
-      resume.parentId !== null &&
-      resume.parentId === core.__internal_rerunFrom &&
-      canRerun(core)
-    ) {
-      core.__internal_offerRerun?.(undefined);
-      return core.startRun(toStartRunConfig(config));
-    }
-    return core.resumeRun(resume);
+    return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
   }
 
   public exportExternalState() {

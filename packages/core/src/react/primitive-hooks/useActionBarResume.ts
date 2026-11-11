@@ -2,9 +2,6 @@ import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { actionBarResumeDisabled } from "../../store/primitive-predicates";
 
-/**
- * @deprecated An interrupted reply now shows as a regular error with Regenerate; use `useActionBarReload`. An empty interrupted reply is dropped and the composer's Resume runs the thread again.
- */
 export const useActionBarResume = () => {
   const aui = useAui();
   const disabled = useAuiState(actionBarResumeDisabled);

@@ -286,20 +286,6 @@ export type ThreadRuntimeCore = Readonly<{
    */
   isRunning?: boolean | undefined;
   canResume?: boolean | undefined;
-  /**
-   * The user message a dropped interrupted reply answered, while history
-   * offers to run it again; see `__internal_offerRerun`.
-   * @internal
-   */
-  readonly __internal_rerunFrom?: string | undefined;
-  /**
-   * Offers to run the thread again from a user message whose interrupted
-   * reply history dropped because it had no content. While that message is
-   * the head, the thread reads as `canResume` and `resumeRun` without a
-   * stream starts a new run from it. `undefined` withdraws the offer.
-   * @internal
-   */
-  __internal_offerRerun?(parentId: string | undefined): void;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
