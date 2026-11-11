@@ -117,26 +117,6 @@ const runStatusOf = (state: CloudRunState | undefined) =>
 // A run another session drives is the newest message of its branch, so it sits on the first page.
 const RUN_STATE_PAGE_SIZE = 20;
 
-/** Whether a reply has nothing to show: no parts, or only empty text and reasoning. */
-const isEmptyReply = (message: ThreadMessage) =>
-  message.content.every(
-    (part) =>
-      (part.type === "text" || part.type === "reasoning") &&
-      part.text.trim() === "",
-  );
-
-/**
- * An interrupted reply that had no content when its run stopped. The thread
- * loads without it, so it ends on the user message, which can run again in
- * place; the row is deleted once a new run starts in the thread.
- */
-export type DroppedInterruptedReply = {
-  /** The cloud row of the dropped reply. */
-  remoteMessageId: string;
-  /** The user message it answered. */
-  parentId: string;
-};
-
 const endPhaseOf = (message: ThreadMessage): CloudMessageRunPhase => {
   const { status } = message;
   if (status?.type !== "incomplete") return "done";
@@ -646,29 +626,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
   private reloadListeners = new Set<() => Promise<void>>();
 
-  /** The empty interrupted reply the last `aui/v0` load dropped, if any. */
-  public droppedReply: DroppedInterruptedReply | undefined;
-
-  /** Deletes the dropped reply's row, once; a failure leaves it hidden and is retried on no later load. */
-  public async deleteDroppedReply(): Promise<void> {
-    const dropped = this.droppedReply;
-    if (!dropped) return;
-    this.droppedReply = undefined;
-    const threadListItem = this.aui.threadListItem;
-    const context = this.captureScope(threadListItem);
-    const remoteId = await this.resolveExistingRemoteId(threadListItem);
-    this.assertCurrentScope(context);
-    if (!remoteId) return;
-    try {
-      await context.cloud.threads.messages.delete(remoteId, [
-        dropped.remoteMessageId,
-      ]);
-    } catch (error) {
-      if (!(error instanceof CloudAPIError && error.status === 404))
-        throw error;
-    }
-  }
-
   /** Re-reads a formatted thread through the runtime that loaded it; false when none listens. */
   public async reloadFormatted(): Promise<boolean> {
     const listeners = [...this.reloadListeners];
@@ -743,6 +700,18 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),
     rename: (from, to) => this.getPersistence().rename(from, to),
   };
+
+  /** Deletes a message's stored row, through the format a runtime persists with; nothing when it was never stored. */
+  public async deleteStoredMessage(message: ThreadMessage): Promise<void> {
+    const key = this.getRunWriter()?.keyOf(message) ?? message.id;
+    const threadListItem = this.aui.threadListItem;
+    if (!threadListItem.getState().remoteId) return;
+    const context = this.captureScope(threadListItem);
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
+    if (!remoteId) return;
+    await context.persistence.delete(remoteId, [key]);
+  }
 
   async update(item: ExportedMessageRepositoryItem) {
     const threadListItem = this.aui.threadListItem;
@@ -1031,29 +1000,14 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
     const loaded: ExportedMessageRepositoryItem[] = [];
     const loadedIds = new Set<string>();
-    const parentIds = new Set(rows.map((row) => row.parent_id));
-    const userIds = new Set<string>();
     const { settled } = runLedgerOf(context.persistence);
-    let dropped: DroppedInterruptedReply | undefined;
     for (const row of rows) {
       const decoded = auiV0DecodeSafely(row);
       if (!decoded) continue;
-      const runState =
+      const status =
         decoded.message.role === "assistant"
-          ? context.persistence.runStateOf(row.run)
+          ? runStatusOf(context.persistence.runStateOf(row.run))
           : undefined;
-      // An interrupted reply with nothing in it is not shown; its user message can run again instead.
-      if (
-        runState?.status === "stale" &&
-        decoded.parentId &&
-        userIds.has(decoded.parentId) &&
-        !parentIds.has(row.id) &&
-        isEmptyReply(decoded.message)
-      ) {
-        dropped = { remoteMessageId: row.id, parentId: decoded.parentId };
-        continue;
-      }
-      const status = runStatusOf(runState);
       const item = status
         ? {
             ...decoded,
@@ -1062,12 +1016,10 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         : decoded;
       if (item.parentId && !loadedIds.has(item.parentId)) continue;
       loadedIds.add(item.message.id);
-      if (item.message.role === "user") userIds.add(item.message.id);
       if (isSettledMessage(item.message)) settled.add(item.message.id);
       loaded.push(item);
     }
 
-    this.droppedReply = dropped;
     return { messages: loaded };
   }
 

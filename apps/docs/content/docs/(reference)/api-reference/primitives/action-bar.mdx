@@ -125,12 +125,11 @@ const AssistantMessageBar = () => (
 
 ### Resume
 
-<Callout type="warn">
-  <strong>Deprecated.</strong> An interrupted reply now shows as a regular error with
-`ActionBarPrimitive.Reload` (Regenerate). An interrupted reply with no
-content is dropped, and `ComposerPrimitive.Resume` runs the thread again
-from the user message.
-</Callout>
+{ActionBarPrimitiveDocs.Resume?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ActionBarPrimitiveDocs.Resume.deprecated}
+  </Callout>
+)}
 
 {ActionBarPrimitiveDocs.Resume?.description}
 

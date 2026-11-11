@@ -20,10 +20,13 @@ export namespace ActionBarPrimitiveResume {
 
 /**
  * A button that answers again in place of an assistant message whose run
- * stopped before it finished (its tab closed or lost its connection). Like
- * Regenerate, it starts a new branch beside the interrupted reply, which
- * stays as it is. It renders disabled unless the message is the last one on
- * its branch and its run went `staleAfter` without a heartbeat.
+ * stopped before it wrote anything (its tab closed or lost its connection).
+ * It deletes the empty reply and its stored row, then runs again from the
+ * reply's parent, so no branch is left beside it; a runtime that cannot
+ * delete messages starts a new branch instead. It renders disabled unless the
+ * message is the last one on its branch and its run went `staleAfter`
+ * without a heartbeat. A reply that wrote content before its run stopped is a
+ * regular error, answered again with Regenerate.
  *
  * @example
  * ```tsx

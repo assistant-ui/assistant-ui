@@ -19,20 +19,13 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function RunStateThread({
-  messages,
-  canResume = false,
-}: {
-  messages: ThreadMessageLike[];
-  canResume?: boolean;
-}) {
+function RunStateThread({ messages }: { messages: ThreadMessageLike[] }) {
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     messages,
     convertMessage: (message) => message,
     onNew: async () => {},
     onReload: async () => {},
-    canResume,
-    onResume: async () => {},
+    setMessages: () => {},
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -42,11 +35,18 @@ function RunStateThread({
 }
 
 const replyWith = (
+  content: string,
   status: ThreadMessageLike["status"],
 ): ThreadMessageLike[] => [
   { id: "u", role: "user", content: "hello" },
-  { id: "a", role: "assistant", content: "Step one", status },
+  { id: "a", role: "assistant", content, status },
 ];
+
+const stale = {
+  type: "incomplete",
+  reason: "error",
+  error: { code: "run_stale", message: "Interrupted." },
+} as const;
 
 const regenerate = () => {
   const bar = document.querySelector<HTMLElement>(
@@ -57,37 +57,42 @@ const regenerate = () => {
     : null;
 };
 
+const errorBox = (text: string) =>
+  screen.getByText(text).closest<HTMLElement>(".aui-message-error-root")!;
+
 describe("Thread run states", () => {
-  it("shows an interrupted reply with content as an error with Regenerate", () => {
-    render(
-      <RunStateThread
-        messages={replyWith({
-          type: "incomplete",
-          reason: "error",
-          error: { code: "run_stale", message: "Interrupted." },
-        })}
-      />,
-    );
-    const box = screen
-      .getByText("Interrupted.")
-      .closest<HTMLElement>(".aui-message-error-root")!;
+  it("shows an interrupted reply that wrote nothing as a warning with Resume", () => {
+    render(<RunStateThread messages={replyWith("", stale)} />);
+    const box = errorBox("Interrupted.");
     expect(box.dataset.runState).toBe("stale");
     expect(box.getAttribute("role")).toBe("alert");
-    expect(within(box).queryByRole("button", { name: "Resume" })).toBeNull();
+    const resume = within(box).getByRole<HTMLButtonElement>("button", {
+      name: "Resume",
+    });
+    expect(resume.disabled).toBe(false);
+    expect(resume.checkVisibility?.() ?? true).toBe(true);
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(true);
-    expect(regenerate()?.disabled).toBe(false);
-    expect(
-      screen.queryByRole("button", { name: "Resume generating" }),
-    ).toBeNull();
   });
 
-  it("shows a run another tab drives as in progress with Refresh and no Regenerate", () => {
+  it("shows an interrupted reply with content as a regular error with Regenerate", () => {
+    render(<RunStateThread messages={replyWith("Step one", stale)} />);
+    const box = errorBox("Interrupted.");
+    expect(box.dataset.runState).toBeUndefined();
+    expect(box.getAttribute("role")).toBe("alert");
+    expect(
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
+        .disabled,
+    ).toBe(true);
+    expect(regenerate()?.disabled).toBe(false);
+  });
+
+  it("shows a run another tab drives as in progress with Refresh, and no Regenerate or Resume", () => {
     render(
       <RunStateThread
-        messages={replyWith({
+        messages={replyWith("Step one", {
           type: "incomplete",
           reason: "error",
           error: {
@@ -97,67 +102,34 @@ describe("Thread run states", () => {
         })}
       />,
     );
-    const box = screen
-      .getByText("Running in another tab…")
-      .closest<HTMLElement>(".aui-message-error-root")!;
+    const box = errorBox("Running in another tab…");
     expect(box.dataset.runState).toBe("in-progress");
     expect(box.getAttribute("role")).toBe("status");
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(false);
-    expect(document.querySelector(".aui-assistant-action-bar-root")).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Resume generating" }),
-    ).toBeNull();
-  });
-
-  it("shows an interrupted reply that had no content as a warning with Resume", () => {
-    render(
-      <RunStateThread
-        messages={[{ id: "u", role: "user", content: "hello" }]}
-        canResume
-      />,
-    );
-    const box = screen
-      .getByText("This response was interrupted before it finished.")
-      .closest<HTMLElement>(".aui-interrupted-reply-root")!;
-    expect(box.getAttribute("role")).toBe("alert");
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
         .disabled,
-    ).toBe(false);
-    expect(
-      screen.queryByRole("button", { name: "Resume generating" }),
-    ).toBeNull();
-    expect(screen.getByRole("button", { name: "Send message" })).toBeTruthy();
-    expect(document.querySelector(".aui-message-error-root")).toBeNull();
-  });
-
-  it("keeps the composer's Resume for a resumable run that ends on an assistant message", () => {
-    render(<RunStateThread messages={replyWith(undefined)} canResume />);
-    expect(document.querySelector(".aui-interrupted-reply-root")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Resume generating" }),
-    ).toBeTruthy();
+    ).toBe(true);
+    expect(document.querySelector(".aui-assistant-action-bar-root")).toBeNull();
   });
 
   it("keeps other errors in the error box", () => {
     render(
       <RunStateThread
-        messages={replyWith({
+        messages={replyWith("Step one", {
           type: "incomplete",
           reason: "error",
           error: "Boom",
         })}
       />,
     );
-    const box = screen
-      .getByText("Boom")
-      .closest<HTMLElement>(".aui-message-error-root")!;
+    const box = errorBox("Boom");
     expect(box.dataset.runState).toBeUndefined();
     expect(
-      within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
         .disabled,
     ).toBe(true);
     expect(regenerate()?.disabled).toBe(false);

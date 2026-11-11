@@ -4,11 +4,13 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { HttpAgent, type RunAgentInput } from "@ag-ui/client";
 import {
   AssistantRuntimeProvider,
+  MessageByIndexProvider,
+  useActionBarResume,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
-import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
@@ -199,6 +201,20 @@ const renderApp = async (staleAfter?: number) => {
     aui = useAui();
     return null;
   };
+  const resume: { current: ReturnType<typeof useActionBarResume> | undefined } =
+    { current: undefined };
+  const CaptureResume = () => {
+    resume.current = useActionBarResume();
+    return null;
+  };
+  const ReplyResume = () => {
+    const hasReply = useAuiState((s) => s.thread.messages.length >= 2);
+    return hasReply ? (
+      <MessageByIndexProvider index={1}>
+        <CaptureResume />
+      </MessageByIndexProvider>
+    ) : null;
+  };
   const App = () => {
     const adapter = useCloudThreadListAdapter({
       cloud,
@@ -213,6 +229,7 @@ const renderApp = async (staleAfter?: number) => {
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <Capture />
+        <ReplyResume />
       </AssistantRuntimeProvider>
     );
   };
@@ -220,7 +237,12 @@ const renderApp = async (staleAfter?: number) => {
   await act(async () => {
     await aui.threads.getLoadThreadsPromise();
   });
-  return { agent, getAui: () => aui, getRuntime: () => runtime };
+  return {
+    agent,
+    getAui: () => aui,
+    getRuntime: () => runtime,
+    getResume: () => resume.current,
+  };
 };
 
 const assistantRow = (
@@ -312,23 +334,21 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     expect(reply.id).toBe("agent-msg-1");
   });
 
-  it("drops a reloaded empty run quiet for longer than staleAfter; the composer's Resume runs the agent again from the user message with no sibling", async () => {
+  it("shows a reloaded empty run quiet for longer than staleAfter as stale; Resume deletes it and runs the agent again from the user message with no sibling", async () => {
     useServer([userRow, assistantRow(45_000, "running", [])]);
-    const { agent, getAui, getRuntime } = await renderApp();
+    const { agent, getAui, getRuntime, getResume } = await renderApp();
     await act(async () => {
       await getRuntime().threads.switchToThread("remote-1");
     });
     await waitFor(() =>
-      expect(getAui().thread.getState().canResume).toBe(true),
+      expect(getAui().thread.message({ index: 1 }).getState().runState).toBe(
+        "stale",
+      ),
     );
-    expect(
-      getAui()
-        .thread.getState()
-        .messages.map((m) => m.id),
-    ).toEqual(["u1"]);
+    await waitFor(() => expect(getResume()?.disabled).toBe(false));
 
     await act(async () => {
-      getAui().thread().resumeRun({ parentId: "u1" });
+      getResume()!.resume();
     });
     await waitFor(() => expect(agent.runs).toHaveLength(1));
     await waitFor(() =>
@@ -351,10 +371,10 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     expect(server.rows.map((r) => r.id)).toEqual(["u1", "msg_1"]);
     const messages = getAui().thread.getState().messages;
     expect(messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(messages[1]!.id).not.toBe("a1");
     expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
       1,
     );
-    expect(getAui().thread.getState().canResume).toBe(false);
   });
 
   it("shows a reloaded run quiet for longer than staleAfter as interrupted; Regenerate posts a sibling with its own lease and runs the agent again", async () => {
@@ -367,7 +387,12 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
       expect(getAui().thread.getState().messages).toHaveLength(2),
     );
     const stale = getAui().thread.message({ index: 1 });
-    await waitFor(() => expect(stale.getState().runState).toBe("stale"));
+    await waitFor(() =>
+      expect(stale.getState().status).toMatchObject({
+        error: { code: "run_stale" },
+      }),
+    );
+    expect(stale.getState().runState).toBeUndefined();
 
     await act(async () => {
       stale.reload();
@@ -416,8 +441,8 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     });
     await waitFor(() =>
       expect(
-        short.getAui().thread.message({ index: 1 }).getState().runState,
-      ).toBe("stale"),
+        short.getAui().thread.message({ index: 1 }).getState().status,
+      ).toMatchObject({ error: { code: "run_stale" } }),
     );
   });
 

@@ -20,8 +20,11 @@ import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 import {
   actionBarRefreshRunDisabled,
   actionBarReloadDisabled,
-  composerResumeDisabled,
+  actionBarResumeDisabled,
 } from "../../../store/primitive-predicates";
+import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
+import { useActionBarResume } from "../../primitive-hooks/useActionBarResume";
+import { useAuiState } from "@assistant-ui/store";
 import { refreshCloudRun } from "./runLeases";
 import { getMessageRunState } from "../../../store/message-run-state";
 
@@ -92,11 +95,26 @@ const renderRuntime = async (
   options: { staleAfter?: number } = {},
 ) => {
   const runs: ReturnType<typeof deferred<RunResult>>[] = [];
+  const resume: {
+    current: ReturnType<typeof useActionBarResume> | undefined;
+  } = { current: undefined };
   let runtime!: AssistantRuntime;
   let aui!: AssistantClient;
   const Capture = () => {
     aui = useAui();
     return null;
+  };
+  const CaptureResume = () => {
+    resume.current = useActionBarResume();
+    return null;
+  };
+  const ReplyResume = () => {
+    const hasReply = useAuiState((s) => s.thread.messages.length >= 2);
+    return hasReply ? (
+      <MessageByIndexProvider index={1}>
+        <CaptureResume />
+      </MessageByIndexProvider>
+    ) : null;
   };
   const Harness = () => {
     const adapter = useCloudThreadListAdapter({ cloud, ...options });
@@ -115,12 +133,18 @@ const renderRuntime = async (
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <Capture />
+        <ReplyResume />
       </AssistantRuntimeProvider>
     );
   };
   render(<Harness />);
   await actSettled(() => aui.threads.getLoadThreadsPromise());
-  return { runs, getRuntime: () => runtime, getAui: () => aui };
+  return {
+    runs,
+    getRuntime: () => runtime,
+    getAui: () => aui,
+    getResume: () => resume.current,
+  };
 };
 
 const userRow = (at: Date): CloudMessage => ({
@@ -274,15 +298,13 @@ describe("cloud run leases", () => {
         message: "This response was interrupted before it finished.",
       },
     });
-    const thread = getAui().thread.getState();
-    expect(thread.canResume).toBe(false);
+    expect(getMessageRunState(stale)).toBeUndefined();
     const state = {
-      thread,
+      thread: getAui().thread.getState(),
       message: { ...stale, isLast: true, runState: getMessageRunState(stale) },
-      composer: { type: "thread", isEmpty: true },
     } as unknown as Parameters<typeof actionBarReloadDisabled>[0];
     expect(actionBarReloadDisabled(state)).toBe(false);
-    expect(composerResumeDisabled(state)).toBe(true);
+    expect(actionBarResumeDisabled(state)).toBe(true);
 
     await act(async () => {
       getAui().thread.message({ index: 1 }).reload();
@@ -309,37 +331,32 @@ describe("cloud run leases", () => {
     ["no parts", []],
     ["an empty text part", [{ type: "text", text: "" }]],
   ])(
-    "drops an interrupted reply with %s; the composer's Resume runs the user message again in place",
+    "shows an interrupted reply with %s as stale; Resume deletes it and runs its user message again in place",
     async (_label, content) => {
       const at = new Date(0);
       const { cloud, messages } = makeCloud([
         staleReply(at, content),
         userRow(at),
       ]);
-      const { runs, getRuntime, getAui } = await renderRuntime(cloud);
+      const { runs, getRuntime, getAui, getResume } =
+        await renderRuntime(cloud);
       await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
       await waitFor(() =>
-        expect(getAui().thread.getState().canResume).toBe(true),
+        expect(getAui().thread.getState().messages).toHaveLength(2),
       );
-      expect(
-        getAui()
-          .thread.getState()
-          .messages.map((m) => m.id),
-      ).toEqual(["msg_1"]);
-      expect(
-        composerResumeDisabled({
-          thread: getAui().thread.getState(),
-          composer: { type: "thread", isEmpty: true },
-        } as unknown as Parameters<typeof composerResumeDisabled>[0]),
-      ).toBe(false);
+      const stale = getAui().thread.getState().messages[1]!;
+      expect(getMessageRunState(stale)).toBe("stale");
+      await waitFor(() => expect(getResume()?.disabled).toBe(false));
 
       await act(async () => {
-        getAui().thread().resumeRun({ parentId: "msg_1" });
+        getResume()!.resume();
       });
       await waitFor(() => expect(runs).toHaveLength(1));
       await waitFor(() =>
         expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
       );
+      expect(messages.delete).toHaveBeenCalledWith("remote-1", ["msg_2"]);
+      expect(messages.delete).toHaveBeenCalledTimes(1);
       expect(
         createCalls(messages).find((body) => body.open_run)!.parent_id,
       ).toBe("msg_1");
@@ -348,12 +365,9 @@ describe("cloud run leases", () => {
         ["user", undefined],
         ["assistant", "running"],
       ]);
+      expect(branch[1]!.id).not.toBe("msg_2");
       expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
         1,
-      );
-      expect(getAui().thread.getState().canResume).toBe(false);
-      await waitFor(() =>
-        expect(messages.delete).toHaveBeenCalledWith("remote-1", ["msg_2"]),
       );
 
       await act(async () => {
@@ -369,7 +383,7 @@ describe("cloud run leases", () => {
     },
   );
 
-  it("drops an empty reply another tab drives once it goes quiet, and offers Resume then", async () => {
+  it("shows an empty reply another tab drives as in progress, and as stale with Resume once it goes quiet", async () => {
     const at = new Date(0);
     let rows = [
       {
@@ -380,17 +394,15 @@ describe("cloud run leases", () => {
     ];
     const { cloud, messages } = makeCloud(rows);
     messages.list.mockImplementation(async () => ({ messages: rows }));
-    const { getRuntime, getAui } = await renderRuntime(cloud, {
+    const { getRuntime, getAui, getResume } = await renderRuntime(cloud, {
       staleAfter: 3_000,
     });
     await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+    const reply = () => getAui().thread.getState().messages[1];
     await waitFor(() =>
-      expect(getAui().thread.getState().messages).toHaveLength(2),
+      expect(getMessageRunState(reply()!)).toBe("in-progress"),
     );
-    expect(getMessageRunState(getAui().thread.getState().messages[1]!)).toBe(
-      "in-progress",
-    );
-    expect(getAui().thread.getState().canResume).toBe(false);
+    expect(getResume()?.disabled).toBe(true);
 
     rows = [
       {
@@ -400,40 +412,12 @@ describe("cloud run leases", () => {
       },
       userRow(at),
     ];
-    await waitFor(
-      () => expect(getAui().thread.getState().canResume).toBe(true),
-      { timeout: 8_000 },
-    );
-    expect(
-      getAui()
-        .thread.getState()
-        .messages.map((m) => m.id),
-    ).toEqual(["msg_1"]);
+    await waitFor(() => expect(getMessageRunState(reply()!)).toBe("stale"), {
+      timeout: 8_000,
+    });
+    await waitFor(() => expect(getResume()?.disabled).toBe(false));
     expect(messages.delete).not.toHaveBeenCalled();
   }, 15_000);
-
-  it("keeps an empty interrupted reply that has replies under it", async () => {
-    const at = new Date(0);
-    const { cloud } = makeCloud([
-      {
-        id: "msg_3",
-        parent_id: "msg_2",
-        height: 2,
-        created_at: at,
-        updated_at: at,
-        format: "aui/v0",
-        content: { role: "user", content: [{ type: "text", text: "again" }] },
-      },
-      staleReply(at, []),
-      userRow(at),
-    ]);
-    const { getRuntime, getAui } = await renderRuntime(cloud);
-    await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
-    await waitFor(() =>
-      expect(getAui().thread.getState().messages).toHaveLength(3),
-    );
-    expect(getAui().thread.getState().canResume).toBe(false);
-  });
 
   it("reports a run another session still drives as in progress", async () => {
     const at = new Date(0);
@@ -483,7 +467,7 @@ describe("cloud run leases", () => {
     } as unknown as Parameters<typeof actionBarRefreshRunDisabled>[0];
     expect(actionBarRefreshRunDisabled(state)).toBe(false);
     expect(actionBarReloadDisabled(state)).toBe(true);
-    expect(getAui().thread.getState().canResume).toBe(false);
+    expect(actionBarResumeDisabled(state)).toBe(true);
   });
 
   it("follows a run another session drives until it goes quiet, refreshes on request, and flips back on a late beat", async () => {
