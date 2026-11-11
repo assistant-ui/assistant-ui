@@ -338,6 +338,11 @@ it("imports only recorded pages in lite mode and keeps every page listed", async
     'module.pendingPage("docs", "other.mdx")',
   );
   expect(await generated()).toContain('"title":"Other"');
+  expect(
+    readSearchModule(
+      await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+    ),
+  ).toHaveProperty("other.mdx");
 
   await writeFile(
     join(root, ".source/lite-pages.json"),

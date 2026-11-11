@@ -253,7 +253,9 @@ export function watchContentManifest(
       dirname(litePages),
       { persistent: false },
       (_event, file) => {
-        if (file === relative(dirname(litePages), litePages)) regenerate();
+        // Some platforms omit the filename; regenerating is cheap.
+        if (!file || file === relative(dirname(litePages), litePages))
+          regenerate();
       },
     );
     watcher.on("close", () => liteWatcher.close());

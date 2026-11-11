@@ -10,10 +10,18 @@ import { LITE_PAGES_FILE } from "./content-lite-pages";
 // uncached data.
 function recordPage(page: string) {
   const file = resolve(process.cwd(), LITE_PAGES_FILE);
+  let source = "[]";
+  try {
+    source = readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   let pages: string[] = [];
   try {
-    pages = JSON.parse(readFileSync(file, "utf8")) as string[];
-  } catch {}
+    pages = JSON.parse(source) as string[];
+  } catch {
+    // A corrupt list only costs recompiling the pages it named.
+  }
   if (pages.includes(page)) return;
   writeFileSync(file, `${JSON.stringify([...pages, page].sort())}\n`);
 }
