@@ -24,13 +24,19 @@ export const cliSurface: CliSurfaceSnapshot = {
         },
         {
           "flags": "--docs-url <url>",
-          "description": "the docs site that hosts the setup page",
+          "description": "the docs site with the catalog and guides",
           "required": true,
           "hidden": true
         },
         {
           "flags": "--setup-server <url>",
           "description": "the setup server the agent joins",
+          "required": true,
+          "hidden": true
+        },
+        {
+          "flags": "--setup-app-url <url>",
+          "description": "the setup app the browser opens",
           "required": true,
           "hidden": true
         }

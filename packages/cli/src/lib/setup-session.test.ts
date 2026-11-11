@@ -6,6 +6,9 @@ import {
   clipboardCommands,
   copyToClipboard,
   createSetupId,
+  DEFAULT_DOCS_URL,
+  DEFAULT_SETUP_APP_URL,
+  DEFAULT_SETUP_SERVER,
   parseCatalog,
   parseProducts,
   resolveEndpoints,
@@ -107,17 +110,31 @@ describe("resolveEndpoints", () => {
   it("uses production unless a flag or the environment says otherwise", () => {
     expect(resolveEndpoints({}, {})).toEqual({
       docsUrl: "https://www.assistant-ui.com",
-      setupServer: "https://setup.assistant-ui.com",
+      setupServer: "https://checkout.assistant-ui.com",
+      setupAppUrl: "https://setup.assistant-ui.com",
     });
     expect(
       resolveEndpoints(
         { setupServer: "http://localhost:8791/" },
-        { ASSISTANT_UI_DOCS_URL: "http://localhost:3000" },
+        {
+          ASSISTANT_UI_DOCS_URL: "http://localhost:3000",
+          ASSISTANT_UI_SETUP_APP_URL: "http://localhost:3011",
+        },
       ),
     ).toEqual({
       docsUrl: "http://localhost:3000",
       setupServer: "http://localhost:8791",
+      setupAppUrl: "http://localhost:3011",
     });
+  });
+
+  it("opens the browser on the setup app and meets the agent on the setup worker by default", () => {
+    expect(DEFAULT_SETUP_APP_URL).toBe("https://setup.assistant-ui.com");
+    expect(DEFAULT_SETUP_SERVER).toBe("https://checkout.assistant-ui.com");
+    expect(DEFAULT_DOCS_URL).toBe("https://www.assistant-ui.com");
+    expect(setupPageUrl(DEFAULT_SETUP_APP_URL, "abcd1234", "efgh5678")).toBe(
+      "https://setup.assistant-ui.com/#link=abcd1234&setup=efgh5678",
+    );
   });
 
   it("refuses plain http off this machine", () => {
@@ -146,17 +163,18 @@ describe("startSetup", () => {
     const setup = await startSetup({
       endpoints: {
         docsUrl: "https://docs.test",
-        setupServer: "https://setup.test",
+        setupServer: "https://checkout.test",
+        setupAppUrl: "https://setup.test",
       },
       products,
       env: { CLAUDECODE: "1" },
       connect,
     });
     expect(setup.linkId).toMatch(/^[A-Za-z0-9]{12}$/);
-    expect(setup.agentUrl).toBe(`https://setup.test/${setup.linkId}`);
+    expect(setup.agentUrl).toBe(`https://checkout.test/${setup.linkId}`);
     expect(connect).toHaveBeenCalledWith(setup.agentUrl);
     expect(setup.browserUrl).toBe(
-      `https://docs.test/components/setup#link=${setup.linkId}&setup=${setup.setupId}`,
+      `https://setup.test/#link=${setup.linkId}&setup=${setup.setupId}`,
     );
     expect(calls).toEqual([
       ["checkout/create", { id: setup.setupId, products }],
@@ -172,14 +190,14 @@ describe("agentBriefing", () => {
     linkId: "abc",
     setupId: "def",
     agentUrl: "https://setup.test/abc",
-    browserUrl: setupPageUrl("https://docs.test", "abc", "def"),
+    browserUrl: setupPageUrl("https://setup.test", "abc", "def"),
     products: [{ slug: "assistant-ui", name: "assistant-ui" }],
   };
 
   it("gives the page, the playbook without a Begin plan handoff, and the setup", () => {
     const briefing = agentBriefing(setup, true);
     expect(briefing).toMatch(
-      /^The setup opened in the user's browser at\n {2}https:\/\/docs\.test\/components\/setup#link=abc&setup=def\n/,
+      /^The setup opened in the user's browser at\n {2}https:\/\/setup\.test\/#link=abc&setup=def\n/,
     );
     expect(briefing).toContain("npx setup-agent https://setup.test/abc stream");
     expect(briefing).not.toContain("click Begin plan");
@@ -197,13 +215,11 @@ describe("agentBriefing", () => {
 });
 
 describe("the prompt for a person", () => {
-  it("names the command, with products only when they differ from the default", () => {
-    expect(setupPrompt()).toBe(
-      "Set up assistant-ui with `npx assistant-ui@latest setup`",
-    );
+  it("is the bare prompt, naming the command only for products other than the default", () => {
+    expect(setupPrompt()).toBe("set up assistant-ui");
     expect(setupPrompt(["assistant-ui"])).toBe(setupPrompt());
     expect(setupPrompt(["assistant-ui", "cloud"])).toBe(
-      "Set up assistant-ui with `npx assistant-ui@latest setup --products assistant-ui,cloud`",
+      "set up assistant-ui with `npx assistant-ui@latest setup --products assistant-ui,cloud`",
     );
   });
 

@@ -55,6 +55,7 @@ describe("setup", () => {
       "--no-open",
       "--docs-url",
       "--setup-server",
+      "--setup-app-url",
     ]);
   });
 });

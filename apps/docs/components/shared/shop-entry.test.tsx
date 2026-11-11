@@ -27,11 +27,4 @@ describe("shop entry points", () => {
       }),
     ).toBeTruthy();
   });
-
-  it("renders nothing without a checkout worker", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    const { AgentSetup } = await load();
-    const { container } = render(<AgentSetup product="assistant-ui" />);
-    expect(container.innerHTML).toBe("");
-  });
 });

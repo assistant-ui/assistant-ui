@@ -5,7 +5,6 @@ import { GitHubIcon } from "@/components/icons/github";
 import { LegalLinks } from "@/components/shared/legal-links";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { PLATFORM_LINKS } from "@/lib/constants";
 
 type FooterLinkItem = {
@@ -22,7 +21,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   ],
   Platforms: PLATFORM_LINKS,
   Extend: [
-    ...(checkoutEnabled ? [{ label: "Components", href: "/components" }] : []),
+    { label: "Components", href: "/components" },
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
   ],

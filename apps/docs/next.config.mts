@@ -9,6 +9,7 @@ import { withAui } from "@assistant-ui/next";
 import { liteAliases } from "./scripts/lite-packages.mts";
 import { writeLiteDemos } from "./lib/lite-demos.ts";
 import type { NextConfig } from "next";
+import { SETUP_ORIGIN as SETUP_URL } from "./lib/setup-origin.ts";
 import {
   AGENT_DISCOVERY_REWRITES,
   API_CATALOG_LINK_HEADER,
@@ -183,6 +184,17 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     ...DOCS_SITE_REDIRECTS,
+    // The setup wizard moved to its own app; the fragment an agent link carries survives the redirect.
+    {
+      source: "/components/setup/:path*",
+      destination: `${SETUP_URL}/:path*`,
+      permanent: false,
+    },
+    {
+      source: "/components/cart",
+      destination: "/components",
+      permanent: true,
+    },
     {
       source: "/getting-started",
       destination: "/docs/installation",

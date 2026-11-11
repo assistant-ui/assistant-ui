@@ -21,6 +21,7 @@ type SetupOptions = {
   open: boolean;
   docsUrl?: string;
   setupServer?: string;
+  setupAppUrl?: string;
 };
 
 const OTHER = "other";
@@ -142,13 +143,18 @@ export const setup = new Command()
   )
   .option("--no-open", "print the setup link instead of opening the browser")
   .addOption(
-    new Option("--docs-url <url>", "the docs site that hosts the setup page")
+    new Option("--docs-url <url>", "the docs site with the catalog and guides")
       .env("ASSISTANT_UI_DOCS_URL")
       .hideHelp(),
   )
   .addOption(
     new Option("--setup-server <url>", "the setup server the agent joins")
       .env("ASSISTANT_UI_SETUP_SERVER")
+      .hideHelp(),
+  )
+  .addOption(
+    new Option("--setup-app-url <url>", "the setup app the browser opens")
+      .env("ASSISTANT_UI_SETUP_APP_URL")
       .hideHelp(),
   )
   .addHelpText(

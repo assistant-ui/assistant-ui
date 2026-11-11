@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import { DemoCard } from "@/components/pages/elements/demo-card";
@@ -21,7 +20,6 @@ import { ELEMENT_PRODUCTS } from "@/lib/catalog/products/elements";
 import { cloud } from "@/lib/catalog/products/cloud";
 import { agentTools } from "@/lib/catalog/products/agent-tools";
 import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +116,6 @@ const navArrow =
   "size-3.5 transition-[translate] group-hover/navlink:translate-x-0.5 motion-reduce:transition-none";
 
 export default function ShopPage() {
-  if (!checkoutEnabled) notFound();
   return (
     <PageFrame pad="sub">
       <h1 className="sr-only">Components</h1>
