@@ -50,7 +50,11 @@ export const agentPhase = (checkout: CheckoutContextValue): AgentPhase => {
 /** The agent's display name: what the CLI reported, else the one the user picked. */
 export const useAgentName = (checkout: CheckoutContextValue) => {
   const chosen = useShippingMethod();
-  return agentKindName(checkout.state?.agent.kind) ?? agentName(chosen);
+  return (
+    agentKindName(checkout.state?.agent.kind) ??
+    // The agent that started the setup was never picked here.
+    (checkout.session.origin === "agent" ? "your agent" : agentName(chosen))
+  );
 };
 
 const relativeTime = (at: number, now: number) => {

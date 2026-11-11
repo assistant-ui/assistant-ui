@@ -83,12 +83,7 @@ const trackEventBeforeLeaving = (
 export const analytics = {
   cta: {
     clicked: (
-      cta:
-        | "get_started"
-        | "contact_sales"
-        | "why_us"
-        | "start_setup_agent"
-        | "start_setup_manual",
+      cta: "get_started" | "contact_sales" | "why_us" | "start_setup_agent",
       location: string,
     ) => trackEvent("cta_clicked", { cta, location }),
 

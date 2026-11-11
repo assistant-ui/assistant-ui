@@ -188,7 +188,7 @@ describe("checkout session store", () => {
     expect(store.getCheckoutSession()?.introSeen).toBe(true);
   });
 
-  it("restores a stored session and drops a malformed one", async () => {
+  it("restores a stored session and gives one without products the default", async () => {
     const values = setupStorage();
     values.set(
       storageKey,
@@ -202,7 +202,66 @@ describe("checkout session store", () => {
     });
     values.set(storageKey, JSON.stringify({ id: "abc", products: [] }));
     store = await loadStore();
-    expect(store.getCheckoutSession()).toBeNull();
+    expect(store.getCheckoutSession()).toMatchObject({
+      id: "abc",
+      products: ["assistant-ui"],
+    });
+  });
+
+  it("reads the agent's link and setup from the setup page fragment", async () => {
+    setupStorage();
+    const store = await loadStore();
+    expect(
+      store.parseAgentFragment("#link=abcdEFGH1234&setup=zyxw9876ABCD"),
+    ).toEqual({
+      link: "abcdEFGH1234",
+      setup: "zyxw9876ABCD",
+    });
+    expect(store.parseAgentFragment("#link=abcdEFGH1234")).toEqual({
+      link: "abcdEFGH1234",
+    });
+    expect(store.parseAgentFragment("#link=a/b")).toBeNull();
+    expect(store.parseAgentFragment("#intro")).toBeNull();
+    expect(store.parseAgentFragment("")).toBeNull();
+  });
+
+  it("joins the setup an agent started on its link and follows it", async () => {
+    const values = setupStorage();
+    let store = await loadStore();
+    store.startCheckout(["cloud"]);
+    const joined = store.joinAgentLink("abcdEFGH1234", "zyxw9876ABCD");
+    expect(joined).toMatchObject({
+      id: "zyxw9876ABCD",
+      products: ["assistant-ui"],
+      origin: "agent",
+      introSeen: true,
+    });
+    expect(store.getAgentLinkId()).toBe("abcdEFGH1234");
+    expect(values.get("aui-agent-link")).toBe("abcdEFGH1234");
+    store.adoptAgentSetup("zyxw9876ABCD", ["assistant-ui", "cloud"]);
+    store = await loadStore();
+    expect(store.getCheckoutSession()).toMatchObject({
+      id: "zyxw9876ABCD",
+      products: ["assistant-ui", "cloud"],
+      origin: "agent",
+    });
+    // Opening the same link again keeps the running session.
+    expect(store.joinAgentLink("abcdEFGH1234", "zyxw9876ABCD")).toMatchObject({
+      products: ["assistant-ui", "cloud"],
+    });
+    store.adoptAgentSetup("nextSetup123", []);
+    expect(store.getCheckoutSession()).toMatchObject({
+      id: "nextSetup123",
+      products: ["assistant-ui"],
+    });
+  });
+
+  it("leaves a browser-started session alone when adopting", async () => {
+    setupStorage();
+    const store = await loadStore();
+    const session = store.startCheckout(["cloud"]);
+    store.adoptAgentSetup("other", ["assistant-ui"]);
+    expect(store.getCheckoutSession()).toEqual(session);
   });
 
   it("builds the checkout url from the session id", async () => {

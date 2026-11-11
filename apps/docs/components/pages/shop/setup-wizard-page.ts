@@ -41,11 +41,13 @@ export function livePage({
   planPending: boolean;
 }): WizardPage {
   if (phase === "finished" || phase === "stopped") return { id: "closed" };
-  if ((phase === "unconnected" || phase === "waiting") && !session.introSeen)
+  // An agent that ran `assistant-ui setup` started the setup and its plan: no welcome, no prompt to paste and no plan to begin.
+  const agentStarted = session.origin === "agent";
+  const unconnected = phase === "unconnected" || phase === "waiting";
+  if (!agentStarted && unconnected && !session.introSeen)
     return { id: "welcome" };
   if (
-    phase === "unconnected" ||
-    phase === "waiting" ||
+    (!agentStarted && unconnected) ||
     state === undefined ||
     state.status === "waiting"
   )
@@ -89,8 +91,12 @@ const answersIn = (
 export function pageTrail(
   state: Checkout.State | undefined,
   live: WizardPage,
+  { agentStarted = false }: { agentStarted?: boolean } = {},
 ): WizardPage[] {
-  const trail: WizardPage[] = [{ id: "welcome" }, { id: "connect" }];
+  // A setup the agent started opens on its questions; welcome and connect never showed.
+  const trail: WizardPage[] = agentStarted
+    ? []
+    : [{ id: "welcome" }, { id: "connect" }];
   if (state !== undefined) {
     trail.push(...answersIn(state, "planning"));
     if (state.plans.length > 0) trail.push({ id: "plan" });

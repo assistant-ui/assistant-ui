@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { SETUP_PROMPT } from "./setup-prompt";
+import { AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
 
 export function CopyCommandButton({
   command = "npx assistant-ui init",
@@ -31,7 +31,7 @@ export function CopyCommandButton({
   };
 
   const copyPrompt = () => {
-    copyToClipboard(SETUP_PROMPT);
+    copyToClipboard(AGENT_SETUP_PROMPT);
     analytics.cta.promptCopied(analyticsContext);
   };
 

@@ -11,7 +11,7 @@ import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { StartSetupButton } from "@/components/shared/start-setup-button";
 import { typeDeck, typeSection } from "@/components/shared/type";
 import { formatMinutes, getCatalogItem, type CatalogItem } from "@/lib/catalog";
 import { assistantUi } from "@/lib/catalog/products/assistant-ui";
@@ -194,9 +194,9 @@ export default function ShopPage() {
                   {formatMinutes(assistantUi.agentMinutes)}.
                 </p>
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <StartSetupDialog location="shop_featured">
+                  <StartSetupButton location="shop_featured">
                     Start setup
-                  </StartSetupDialog>
+                  </StartSetupButton>
                   <Link href={assistantUi.href} className={navLink}>
                     See what it installs
                     <ArrowRightIcon aria-hidden className={navArrow} />

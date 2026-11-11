@@ -24,6 +24,7 @@ import {
   type Checkout,
 } from "@/lib/checkout/protocol";
 import {
+  adoptAgentSetup,
   agentLinkUrl,
   type CheckoutSession,
   addCheckoutProducts,
@@ -99,9 +100,30 @@ function CheckoutSessionBridge({
     () => resolveProducts(session.products),
     [session.products],
   );
+  const agentStarted = session.origin === "agent";
   useEffect(() => {
-    if (products.length === 0) endCheckout();
-  }, [products]);
+    if (products.length === 0 && !agentStarted) endCheckout();
+  }, [products, agentStarted]);
+
+  // A setup the agent started is the agent's to create and replace; the page follows it.
+  const linkedId = linked?.id ?? null;
+  const linkedProducts = linked?.products
+    .map((product) => product.slug)
+    .filter(isProductSlug)
+    .join(",");
+  useEffect(() => {
+    if (!agentStarted || linkedId === null) return;
+    adoptAgentSetup(linkedId, linkedProducts?.split(",").filter(Boolean) ?? []);
+  }, [agentStarted, linkedId, linkedProducts]);
+  const begun = useRef<string | null>(null);
+  const waiting = state?.status === "waiting";
+  useEffect(() => {
+    if (!agentStarted || !waiting || begun.current === session.id) return;
+    begun.current = session.id;
+    commands["checkout/begin-plan"]().catch(() => {
+      begun.current = null;
+    });
+  }, [agentStarted, waiting, session.id, commands]);
 
   const joined = state?.products
     .filter((product) =>
@@ -120,7 +142,12 @@ function CheckoutSessionBridge({
 
   const connectionStatus = connection.status;
   useEffect(() => {
-    if (linked === undefined || linked.id === session.id || creating.current) {
+    if (
+      agentStarted ||
+      linked === undefined ||
+      linked.id === session.id ||
+      creating.current
+    ) {
       return;
     }
     creating.current = true;
@@ -136,6 +163,7 @@ function CheckoutSessionBridge({
       creating.current = false;
     });
   }, [
+    agentStarted,
     linked,
     connectionStatus,
     products,

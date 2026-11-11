@@ -24,6 +24,16 @@ const AGENT_NAMES: Record<string, string> = {
   ),
   gemini: "Gemini CLI",
   opencode: "OpenCode",
+  copilot: "Copilot CLI",
+  amp: "Amp",
+  qwen: "Qwen Code",
+  augment: "Augment",
+  droid: "Factory Droid",
+  kiro: "Kiro",
+  goose: "Goose",
+  junie: "Junie",
+  cline: "Cline",
+  crush: "Crush",
 };
 
 /** The display name for an agent kind the CLI reported, or `undefined` for one it has no name for. */

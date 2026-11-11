@@ -1,10 +1,13 @@
 import "server-only";
 
+import { AGENT_SETUP_COMMAND } from "@/lib/agent-setup-prompt";
 import { BASE_URL } from "@/lib/constants";
 import { getAgentPrompt } from "./agent-prompts";
 import type { CatalogItem } from "./types";
 
-const preamble = `Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL for raw markdown.
+const preamble = `Not in a setup yet? Run \`${AGENT_SETUP_COMMAND}\` instead of following this guide by hand. It opens a guided setup in the user's browser and walks you through the install, then points you back here. Already connected with setup-agent: keep going.
+
+Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL for raw markdown.
 
 You are in a non-interactive agent shell. Never omit the flags the steps below name, and never invent keys or URLs; ask the user for them.
 

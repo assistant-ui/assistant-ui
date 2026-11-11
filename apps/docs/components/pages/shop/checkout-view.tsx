@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,11 @@ import {
 import { typeDeck, typePage } from "@/components/shared/type";
 import { useCart, useCartEntries } from "@/lib/catalog/cart-store";
 import { abandonCheckout, checkoutCart } from "@/lib/checkout/flow";
-import { useCheckoutSession } from "@/lib/checkout/session-store";
+import {
+  joinAgentLink,
+  parseAgentFragment,
+  useCheckoutSession,
+} from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -94,7 +98,22 @@ function UnreadableState() {
   );
 }
 
+/** Joins the setup a coding agent opened this page on (`#link=…&setup=…`), then drops the fragment so the link does not linger in the address bar or get shared. */
+function useAgentFragment() {
+  useLayoutEffect(() => {
+    const fragment = parseAgentFragment(window.location.hash);
+    if (fragment === null) return;
+    joinAgentLink(fragment.link, fragment.setup);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
+  }, []);
+}
+
 export function CheckoutView() {
+  useAgentFragment();
   const hydrated = useHydrated();
   const slugs = useCart();
   const entries = useCartEntries();

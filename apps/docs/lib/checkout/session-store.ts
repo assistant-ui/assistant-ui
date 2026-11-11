@@ -15,7 +15,12 @@ export type CheckoutSession = {
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
   introSeen?: boolean;
+  /** A coding agent started the setup with `assistant-ui setup` and opened this page on it; the agent creates and replaces the setup, never the browser. */
+  origin?: "agent";
 };
+
+/** The products a session with none sets up. */
+export const DEFAULT_SETUP_PRODUCTS: readonly string[] = ["assistant-ui"];
 
 const storageKey = "aui-checkout-session";
 const linkKey = "aui-agent-link";
@@ -49,15 +54,15 @@ const normalize = (value: unknown): CheckoutSession | null => {
     introSeen,
     cartEntries,
     cartInstructions,
+    origin,
   } = value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
   );
-  if (slugs.length === 0) return null;
   return {
     id,
-    products: slugs,
+    products: slugs.length > 0 ? slugs : DEFAULT_SETUP_PRODUCTS,
     startedAt: typeof startedAt === "number" ? startedAt : Date.now(),
     ...(typeof instructions === "string" &&
       instructions.trim() && { instructions: instructions.trim() }),
@@ -70,6 +75,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
       ),
     }),
     ...(typeof cartInstructions === "string" && { cartInstructions }),
+    ...(origin === "agent" && { origin }),
   };
 };
 
@@ -164,6 +170,71 @@ export const getAgentLinkId = () => {
 };
 
 export const agentLinkUrl = () => checkoutUrl(getAgentLinkId());
+
+const LINK_PATTERN = /^[A-Za-z0-9]{8,64}$/;
+
+/** The link and setup ids `assistant-ui setup` put in the setup page's fragment (`#link=<id>&setup=<id>`), or `null`. */
+export const parseAgentFragment = (
+  hash: string,
+): { link: string; setup?: string } | null => {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const link = params.get("link");
+  if (link === null || !LINK_PATTERN.test(link)) return null;
+  const setup = params.get("setup");
+  return {
+    link,
+    ...(setup !== null && LINK_PATTERN.test(setup) && { setup }),
+  };
+};
+
+/**
+ * Joins the setup a coding agent started: its link becomes this browser's
+ * agent link and the session follows whatever setup the agent runs on it.
+ * Rejoining the same link keeps the running session.
+ */
+export const joinAgentLink = (link: string, setup?: string) => {
+  if (!checkoutEnabled || !LINK_PATTERN.test(link)) return null;
+  load();
+  let previousLink: string | null = linkId;
+  try {
+    previousLink = window.localStorage.getItem(linkKey) ?? previousLink;
+    window.localStorage.setItem(linkKey, link);
+  } catch {
+    // Storage can be blocked; the link then lives for this tab only.
+  }
+  linkId = link;
+  if (
+    session?.origin === "agent" &&
+    previousLink === link &&
+    (setup === undefined || session.id === setup)
+  )
+    return session;
+  session = {
+    id: setup ?? `agent-${link}`,
+    products: DEFAULT_SETUP_PRODUCTS,
+    startedAt: Date.now(),
+    introSeen: true,
+    origin: "agent",
+  };
+  writeStored(session);
+  notify();
+  return session;
+};
+
+/** Follows the setup the agent created on the link: its id and, among catalog slugs the caller resolved, its products. */
+export const adoptAgentSetup = (id: string, products: readonly string[]) => {
+  load();
+  if (session?.origin !== "agent") return;
+  const slugs = products.length > 0 ? products : DEFAULT_SETUP_PRODUCTS;
+  if (
+    session.id === id &&
+    JSON.stringify(session.products) === JSON.stringify(slugs)
+  )
+    return;
+  session = { ...session, id, products: slugs };
+  writeStored(session);
+  notify();
+};
 
 /** Opens a checkout for the given catalog slugs; returns the running one if it exists. The store stays free of the catalog because the root providers import it on every route, so callers pass slugs they already resolved. */
 export const startCheckout = (
