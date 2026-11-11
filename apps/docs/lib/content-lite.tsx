@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import type { TableOfContents } from "fumadocs-core/toc";
 import { LITE_PAGES_FILE } from "./content-lite-pages";
 
-// `pnpm dev:lite` loads this instead of a page's MDX until the page is opened.
+// `next dev` loads this instead of a page's MDX until the page is opened.
 // Opening it records the page in LITE_PAGES_FILE; the dev server's manifest
 // watcher then swaps in the real import and the placeholder refreshes.
 // The file access is synchronous so prerendering does not treat it as
@@ -36,7 +36,7 @@ const BURST_PAGES = 3;
 const recentLoads: number[] = [];
 
 function isBulkLoad() {
-  const now = Date.now();
+  const now = performance.now();
   while (recentLoads.length && now - recentLoads[0]! > BURST_WINDOW_MS)
     recentLoads.shift();
   recentLoads.push(now);
@@ -52,7 +52,7 @@ export function pendingPage(collection: string, path: string) {
       <>
         <meta httpEquiv="refresh" content="2" />
         <p className="text-muted-foreground text-sm">
-          Compiling this page (lite mode). It loads in a few seconds.
+          Compiling this page. It loads in a few seconds.
         </p>
       </>
     ),
