@@ -20,11 +20,11 @@ describe("CustomerLogos", () => {
 
   it("gives the light and dark variants the same accessible name", () => {
     render(<CustomerLogos />);
-    for (const item of screen.getAllByRole("listitem")) {
-      const names = new Set(
-        [...item.querySelectorAll("img")].map((img) => img.alt),
-      );
-      expect(names.size).toBe(1);
-    }
+    const items = screen.getAllByRole("listitem");
+    CUSTOMER_LOGOS.forEach((logo, index) => {
+      const images = [...items[index]!.querySelectorAll("img")];
+      expect(images).toHaveLength(logo.darkSrc ? 2 : 1);
+      for (const image of images) expect(image.alt).toBe(logo.alt);
+    });
   });
 });
