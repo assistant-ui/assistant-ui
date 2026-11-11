@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { TableOfContents } from "fumadocs-core/toc";
-import { LitePendingPage } from "@/components/pages/docs/lite-pending-page";
 import { LITE_PAGES_FILE } from "./content-lite-pages";
 
 // `pnpm dev:lite` loads this instead of a page's MDX until the page is opened.
@@ -22,7 +21,16 @@ function recordPage(page: string) {
 export function pendingPage(collection: string, path: string) {
   recordPage(`${collection}/${path}`);
   return {
-    default: () => <LitePendingPage />,
+    // A full reload, not a client component: the regenerated manifest swaps
+    // modules under the current render, and a client reference can vanish.
+    default: () => (
+      <>
+        <meta httpEquiv="refresh" content="2" />
+        <p className="text-muted-foreground text-sm">
+          Compiling this page (lite mode). It loads in a few seconds.
+        </p>
+      </>
+    ),
     toc: [] as TableOfContents,
   };
 }
