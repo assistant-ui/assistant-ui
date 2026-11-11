@@ -10,7 +10,6 @@ type SubProject = {
     description?: string;
     tier: "major" | "minor";
     npm: string;
-    footerOrder: number;
     placement: "top" | "bottom";
   };
 };
@@ -26,7 +25,6 @@ export const SUB_PROJECT_REGISTRY = {
     oss: {
       tier: "major",
       npm: "tw-shimmer",
-      footerOrder: 0,
       placement: "bottom",
     },
   },
@@ -40,7 +38,6 @@ export const SUB_PROJECT_REGISTRY = {
       description: "Sandboxes for HTML. Built for MCP Apps and Generative UI.",
       tier: "major",
       npm: "safe-content-frame",
-      footerOrder: 2,
       placement: "top",
     },
   },
@@ -55,7 +52,6 @@ export const SUB_PROJECT_REGISTRY = {
         "Stream model-written HTML and SVG widgets into sandboxed frames.",
       tier: "major",
       npm: "generative-frame",
-      footerOrder: 3,
       placement: "top",
     },
   },
@@ -69,7 +65,6 @@ export const SUB_PROJECT_REGISTRY = {
       description: "Seventy chart forms, drawn on the server as SVG.",
       tier: "major",
       npm: "diagrammatic",
-      footerOrder: 6,
       placement: "top",
     },
   },
@@ -84,7 +79,6 @@ export const SUB_PROJECT_REGISTRY = {
         "HTML pages from other origins, rendered as inline components.",
       tier: "major",
       npm: "@assistant-ui/remote-components-host-react",
-      footerOrder: 7,
       placement: "top",
     },
   },
@@ -114,7 +108,6 @@ export const SUB_PROJECT_REGISTRY = {
       name: "heat-graph",
       tier: "minor",
       npm: "heat-graph",
-      footerOrder: 1,
       placement: "bottom",
     },
   },
@@ -127,7 +120,6 @@ export const SUB_PROJECT_REGISTRY = {
     oss: {
       tier: "minor",
       npm: "@assistant-ui/react-o11y",
-      footerOrder: 4,
       placement: "bottom",
     },
   },
@@ -140,7 +132,6 @@ export const SUB_PROJECT_REGISTRY = {
     oss: {
       tier: "minor",
       npm: "@assistant-ui/variants",
-      footerOrder: 5,
       placement: "bottom",
     },
   },

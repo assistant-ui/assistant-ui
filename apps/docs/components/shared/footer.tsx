@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { checkoutEnabled } from "@/lib/checkout/config";
 import { PLATFORM_LINKS } from "@/lib/constants";
-import { SUB_PROJECT_SLUGS, subProject } from "@/lib/docs-sites";
 
 type FooterLinkItem = {
   label: string;
@@ -27,16 +26,6 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
   ],
-  Primitives: SUB_PROJECT_SLUGS.flatMap((slug) => {
-    const project = subProject(slug);
-    if (!project.oss) return [];
-    return [{ slug, order: project.oss.footerOrder, project }];
-  })
-    .sort((a, b) => a.order - b.order)
-    .map(({ slug, project }) => ({
-      label: project.productLabel ?? project.title,
-      href: `/${slug}`,
-    })),
   Resources: [
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
@@ -56,7 +45,7 @@ export function Footer(): React.ReactElement {
   return (
     <footer className="rounded-page py-10 md:py-16">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4">
-        <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 lg:grid-cols-5">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">
               <p className="text-muted-foreground text-xs font-medium">
