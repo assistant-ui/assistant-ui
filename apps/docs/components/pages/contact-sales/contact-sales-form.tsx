@@ -154,7 +154,7 @@ export function ContactSalesForm({
 
   const emailHint =
     !errors.email && isPersonalEmail(values.email)
-      ? "Use your work email if you have one. It tells us which team you are on."
+      ? "Use your work email if you have one. It tells us which team you're on."
       : undefined;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -183,8 +183,8 @@ export function ContactSalesForm({
     <form
       noValidate
       onSubmit={submit}
-      aria-label="Talk to an expert"
-      className="flex flex-col gap-5"
+      aria-label="Contact sales"
+      className="[&_:is(input,textarea,button):focus-visible]:ring-foreground/25 [&_button[type=submit]:focus-visible]:ring-offset-background flex flex-col gap-5 [&_:is(input,textarea,button):focus-visible]:ring-2 [&_button[type=submit]:focus-visible]:ring-offset-2"
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
@@ -289,11 +289,10 @@ export function ContactSalesForm({
           className="w-full"
           disabled={submitting}
         >
-          {submitting ? "Opening the calendar" : "Continue to booking"}
+          {submitting ? "Opening cal.com" : "Contact sales"}
         </Button>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Next you pick a time on cal.com. Your answers are attached to the
-          booking.
+          Next, you'll continue to cal.com with your answers filled in.
         </p>
       </div>
     </form>

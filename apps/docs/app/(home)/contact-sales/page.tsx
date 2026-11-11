@@ -8,9 +8,9 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
-const title = "Talk to an expert";
+const title = "Contact sales";
 const description =
-  "Book a call with the assistant-ui team about your agent UI, Assistant Cloud, or an enterprise agreement.";
+  "Talk to the assistant-ui team about shipping AI chat in production, scaling on Assistant Cloud, and enterprise terms.";
 
 export const metadata: Metadata = {
   title,
@@ -20,19 +20,24 @@ export const metadata: Metadata = {
 
 const TOPICS = [
   {
-    title: "Architecture review",
+    title: "Ship your AI product sooner",
     description:
-      "Walk through your backend, the runtime adapter that fits it, and how threads, tools and streaming map onto your product.",
+      "Streaming, tool calls, attachments and auto-scroll are ready for production. Your engineers build what sets your product apart, on the backend and model stack you already run.",
   },
   {
-    title: "Assistant Cloud",
+    title: "A chat experience users trust",
     description:
-      "Pricing, usage limits, and running the API and dashboard on your own infrastructure.",
+      "Polished, accessible chat from your first release, styled to match your brand.",
   },
   {
-    title: "Enterprise agreements",
+    title: "Scale with Assistant Cloud",
     description:
-      "Dedicated support, a 99.9% uptime SLA, custom terms, and on-premises deployment.",
+      "Hosted thread history, titles and user auth, priced by monthly active users as you grow.",
+  },
+  {
+    title: "Enterprise terms",
+    description:
+      "Dedicated support, a 99.9% uptime SLA, custom pricing, your own backend integration and on-premises deployment.",
   },
 ];
 
@@ -40,27 +45,25 @@ const QUOTE = TESTIMONIALS.find((item) => item.username === "@neondatabase");
 
 export default function ContactSalesPage() {
   return (
-    <PageFrame
-      pad="sub"
-      className="grid gap-x-20 gap-y-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]"
-    >
-      <header className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
-        <h1 className={typePage}>Talk to an expert</h1>
-        <p className={cn(typeDeck, "max-w-[48ch]")}>
-          Tell us what you are building, then pick a time for a 15 minute call
-          with the team that maintains assistant-ui.
-        </p>
-      </header>
+    <PageFrame pad="sub" className="flex flex-col gap-16 pb-16">
+      <div className="grid gap-x-16 gap-y-12 lg:grid-cols-2 lg:grid-rows-[auto_1fr] xl:gap-x-24">
+        <header className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
+          <h1 className={typePage}>Talk to the assistant-ui team</h1>
+          <p className={cn(typeDeck, "max-w-[46ch]")}>
+            See how assistant-ui and Assistant Cloud fit your product, your
+            stack and your requirements. Tell us about your team and we'll get
+            you to the right people.
+          </p>
+        </header>
 
-      <section
-        aria-label="Your details"
-        className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
-      >
-        <ContactSalesForm />
-      </section>
+        <section
+          aria-label="Your details"
+          className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
+        >
+          <ContactSalesForm />
+        </section>
 
-      <aside className="flex flex-col gap-12 lg:col-start-1 lg:row-start-2">
-        <dl className="flex flex-col gap-6">
+        <dl className="flex flex-col gap-6 self-start lg:col-start-1 lg:row-start-2">
           {TOPICS.map((topic) => (
             <div key={topic.title} className="flex flex-col gap-1.5">
               <dt className="text-[15px] font-medium">{topic.title}</dt>
@@ -70,8 +73,13 @@ export default function ContactSalesPage() {
             </div>
           ))}
         </dl>
+      </div>
 
-        <div className="border-foreground/10 flex flex-col gap-6 border-t pt-8">
+      <section
+        aria-label="Customers"
+        className="border-foreground/10 grid gap-x-16 gap-y-10 border-t pt-12 lg:grid-cols-2 xl:gap-x-24"
+      >
+        <div className="flex flex-col gap-6">
           <p className="text-muted-foreground text-xs font-medium">
             Used by teams at
           </p>
@@ -79,30 +87,33 @@ export default function ContactSalesPage() {
         </div>
 
         {QUOTE ? (
-          <figure className="flex max-w-[52ch] flex-col gap-3">
-            <blockquote className="text-[15px] leading-relaxed text-pretty">
-              {QUOTE.message}
+          <figure className="flex flex-col gap-4">
+            <blockquote className="max-w-[56ch] text-[15px] leading-relaxed text-pretty sm:[text-indent:-0.4em]">
+              “{QUOTE.message}”
             </blockquote>
             <figcaption>
               <a
                 href={QUOTE.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-xs font-medium transition-colors"
+                className="group inline-flex items-center gap-2.5 text-xs"
               >
                 <Image
                   src={QUOTE.avatar}
                   alt=""
-                  width={20}
-                  height={20}
-                  className="rounded-capsule size-5"
+                  width={24}
+                  height={24}
+                  className="rounded-capsule ring-foreground/10 size-6 ring-1"
                 />
-                Neon, {QUOTE.username}
+                <span className="font-medium">Neon</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  {QUOTE.username} on X
+                </span>
               </a>
             </figcaption>
           </figure>
         ) : null}
-      </aside>
+      </section>
     </PageFrame>
   );
 }
