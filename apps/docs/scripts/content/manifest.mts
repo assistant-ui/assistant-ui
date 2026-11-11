@@ -10,6 +10,13 @@ import {
   navigationSchema,
 } from "../../content.config.ts";
 import { LITE_PAGES_FILE } from "../../lib/content-lite-pages.ts";
+import {
+  PRECOMPILED_MDX_INDEX,
+  type PrecompiledMdxIndex,
+  hashMdxSource,
+  mdxCompilerDigest,
+  precompiledMdxPath,
+} from "./mdx-options.mts";
 
 async function readContent(root: string) {
   return Promise.all(
@@ -81,6 +88,23 @@ async function createContentProcessor() {
  */
 type LiteOptions = { compiled: ReadonlySet<string> };
 
+/**
+ * Pages `pnpm precompile:mdx` compiled for the current compiler, or null when
+ * there is no index or it was written by a different compiler.
+ */
+async function readPrecompiledPages(
+  root: string,
+): Promise<PrecompiledMdxIndex["pages"] | null> {
+  try {
+    const index: PrecompiledMdxIndex = JSON.parse(
+      await readFile(resolve(root, PRECOMPILED_MDX_INDEX), "utf8"),
+    );
+    return index.compiler === (await mdxCompilerDigest()) ? index.pages : null;
+  } catch {
+    return null;
+  }
+}
+
 async function readLitePages(root: string): Promise<string[]> {
   try {
     const pages: unknown = JSON.parse(
@@ -99,6 +123,7 @@ async function compileContent(
   collections: Awaited<ReturnType<typeof readContent>>,
   cache?: { pages: DocsBuildCache<CompiledPage>; compiler: string },
   lite?: LiteOptions,
+  precompiled?: PrecompiledMdxIndex["pages"] | null,
 ) {
   let compiler: Awaited<ReturnType<typeof createContentProcessor>> | undefined;
   const output = [
@@ -147,10 +172,17 @@ async function compileContent(
         : await compile();
       pages.push({ path, metadata: page.metadata });
       search[path] = page.search;
+      const key = `${collection}/${path}`;
+      // A compiled module stands in for the page only while it matches the
+      // source; otherwise Turbopack compiles the .mdx file itself.
+      const module =
+        precompiled?.[key] === hashMdxSource(source)
+          ? `../${precompiledMdxPath(collection, path)}`
+          : `../${relative(root, absolute)}`;
       modules.push(
-        lite && !lite.compiled.has(`${collection}/${path}`)
+        lite && !lite.compiled.has(key)
           ? `${serializeSourceLiteral(path)}: () => import("../lib/content-lite").then((module) => module.pendingPage(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(path)}))`
-          : `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(`../${relative(root, absolute)}`)})`,
+          : `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(module)})`,
       );
     }
     output.push(
@@ -169,6 +201,8 @@ async function writeIfChanged(destination: string, output: string) {
 export type ContentManifestOptions = {
   /** Compile only the pages listed in LITE_PAGES_FILE; dev only. */
   onDemand?: boolean;
+  /** Import the modules `pnpm precompile:mdx` wrote instead of the MDX. */
+  precompiled?: boolean;
 };
 
 export async function generateContentManifest(
@@ -179,6 +213,13 @@ export async function generateContentManifest(
   const lite = options.onDemand
     ? { compiled: new Set(await readLitePages(root)) }
     : undefined;
+  const precompiled = options.precompiled
+    ? await readPrecompiledPages(root)
+    : null;
+  if (options.precompiled && !precompiled)
+    console.warn(
+      "No precompiled MDX for the current compiler; Turbopack compiles every page. Run `pnpm precompile:mdx` first.",
+    );
   const inputs = await Promise.all([
     readFile(new URL(import.meta.url), "utf8"),
     readFile(new URL("../../content.config.ts", import.meta.url), "utf8"),
@@ -188,7 +229,12 @@ export async function generateContentManifest(
     JSON.stringify([process.version, ...inputs]),
   );
   const fingerprint = docsBuildCacheDigest(
-    JSON.stringify([compiler, collections, lite ? [...lite.compiled] : null]),
+    JSON.stringify([
+      compiler,
+      collections,
+      lite ? [...lite.compiled] : null,
+      precompiled,
+    ]),
   );
   const cache = new DocsBuildCache<Awaited<ReturnType<typeof compileContent>>>(
     resolve(root, ".next/cache/aui-content-manifest.json"),
@@ -203,6 +249,7 @@ export async function generateContentManifest(
       collections,
       { pages, compiler },
       lite,
+      precompiled,
     );
     await pages.flush();
     return compiled;

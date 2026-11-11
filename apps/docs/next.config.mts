@@ -1,10 +1,10 @@
-import { fileURLToPath } from "node:url";
 import { withDocs } from "@farming-labs/next/config";
 import docsConfig from "./docs.config.ts";
 import {
   generateContentManifest,
   watchContentManifest,
 } from "./scripts/content/manifest.mts";
+import { docsMdxOptions } from "./scripts/content/mdx-options.mts";
 import { withAui } from "@assistant-ui/next";
 import { liteAliases } from "./scripts/lite-packages.mts";
 import { writeLiteDemos } from "./lib/lite-demos.ts";
@@ -641,7 +641,11 @@ const config: NextConfig = {
 // docs route. `pnpm dev:full` (DOCS_FULL=1) compiles them all up front, which
 // the .md, MCP and chat routes need to see every page. Builds always do.
 const onDemandPages = isDev && process.env.DOCS_FULL !== "1";
-const contentOptions = { onDemand: onDemandPages };
+// `pnpm build` compiles the MDX pages to JS first (scripts/content/precompile-mdx.mts),
+// so Turbopack bundles finished modules instead of running the MDX loader.
+// `next dev` keeps compiling MDX unless DOCS_PRECOMPILED_MDX=1.
+const precompiledMdx = !isDev || process.env.DOCS_PRECOMPILED_MDX === "1";
+const contentOptions = { onDemand: onDemandPages, precompiled: precompiledMdx };
 
 // `pnpm dev:lite` (DOCS_LITE=1) also uses the built SDK packages instead of
 // their sources, swaps the heaviest demos for a "Load demo" button, and drops
@@ -667,16 +671,7 @@ export default generateContentManifest(process.cwd(), contentOptions).then(
     const compiled = withDocs(
       withAui({ ...config, ...liteConfig() }),
       docsConfig,
-      {
-        mdx: {
-          remarkPlugins: [
-            fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
-          ],
-          codeHighlighter: fileURLToPath(
-            new URL("./lib/rehype-docs-code.mjs", import.meta.url),
-          ),
-        },
-      },
+      { mdx: docsMdxOptions },
     );
     return {
       ...compiled,
