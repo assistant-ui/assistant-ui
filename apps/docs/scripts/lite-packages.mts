@@ -23,18 +23,22 @@ function hasCondition(entry: Exports, condition: string): boolean {
 
 const readJson = (file: string) => JSON.parse(readFileSync(file, "utf8"));
 
-/** Workspace packages the docs site depends on, directly or not; turbo builds these first. */
+/**
+ * Workspace packages the docs site depends on, directly or not; turbo builds
+ * these first. pnpm links a workspace package for a plain semver range too,
+ * so any dependency named like one counts.
+ */
 function workspaceDependencies(root: string, byName: Map<string, unknown>) {
   const seen = new Set<string>();
   const visit = (manifest: Record<string, Record<string, string>>) => {
-    for (const [name, version] of Object.entries({
+    for (const name of Object.keys({
       ...manifest.dependencies,
       ...manifest.devDependencies,
     })) {
-      if (!version.startsWith("workspace:") || seen.has(name)) continue;
-      seen.add(name);
       const dependency = byName.get(name);
-      if (dependency) visit(dependency as typeof manifest);
+      if (!dependency || seen.has(name)) continue;
+      seen.add(name);
+      visit(dependency as typeof manifest);
     }
   };
   visit(readJson(resolve(root, "package.json")));

@@ -54,3 +54,14 @@ it("fails clearly when a docs dependency has no build", () => {
   pkg("other", { name: "@x/other", exports: "./dist/index.js" }, false);
   expect(() => liteAliases(root)).toThrow(/@x\/react has no dist yet/);
 });
+
+it("checks packages linked through a semver range, not only workspace:", () => {
+  const root = setup({ "@x/react": "workspace:*" });
+  pkg("react", {
+    name: "@x/react",
+    exports: "./dist/index.js",
+    dependencies: { "@x/langchain": "^0.0.40" },
+  });
+  pkg("langchain", { name: "@x/langchain", exports: "./dist/index.js" }, false);
+  expect(() => liteAliases(root)).toThrow(/@x\/langchain has no dist yet/);
+});
