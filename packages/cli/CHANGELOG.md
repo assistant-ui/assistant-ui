@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.129
+
+### Patch Changes
+
+- [#10443](https://github.com/assistant-ui/assistant-ui/pull/10443) [`43fb4c8`](https://github.com/assistant-ui/assistant-ui/commit/43fb4c829f8a0be3a10a6661b8cd8fa29b99a682) - fix(cli): `create` projects now pass `npm run lint` out of the box. Templates ship an `.oxfmtrc.json`, and `create` runs the project's `format:fix` script after components are added. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.128
 
 ### Patch Changes

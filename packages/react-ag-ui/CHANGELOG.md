@@ -1,5 +1,13 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.4
+
+### Patch Changes
+
+- [#10444](https://github.com/assistant-ui/assistant-ui/pull/10444) [`2c298df`](https://github.com/assistant-ui/assistant-ui/commit/2c298dfa8392926f6b206cadf1c8cf0791e8030e) - Persist assistant messages that a snapshot adds during a run, including an answer the snapshot moves the run onto or delivers on its own. A run's assistants that were never written are appended first, in branch order, so the stored head ends on the thread's last message. ([@Yonom](https://github.com/Yonom))
+
+- [#10444](https://github.com/assistant-ui/assistant-ui/pull/10444) [`2c298df`](https://github.com/assistant-ui/assistant-ui/commit/2c298dfa8392926f6b206cadf1c8cf0791e8030e) - Settle a sub-agent message that a messages snapshot left waiting on its own tool call when the run ends without RUN_FINISHED. ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.3
 
 ### Patch Changes
