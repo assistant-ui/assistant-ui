@@ -21,7 +21,6 @@ vi.mock("@/components/shared/header-brand-link", () => ({
   HeaderBrandLink: () => null,
 }));
 vi.mock("./search-dialog", () => ({ SearchDialog: () => null }));
-vi.mock("@/components/shared/shop-entry", () => ({ CartButton: () => null }));
 
 afterEach(cleanup);
 

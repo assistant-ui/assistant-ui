@@ -11,12 +11,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { analytics, type SetupSource } from "@/lib/analytics";
-import {
-  getCheckoutSession,
-  startCheckout,
-  useCheckoutSession,
-} from "@/lib/checkout/session-store";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 
 const returnKey = "aui-setup-return-to";
 const hintKey = "aui-setup-resume-hint";
@@ -74,11 +69,8 @@ export function SetupNavigationProvider({ children }: { children: ReactNode }) {
   }, [hintedSession]);
 
   const enterSetup = () => {
-    const fromCart = window.location.pathname === "/components/cart";
-    const href = fromCart
-      ? "/"
-      : `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    origin.current = { href, useHistory: !fromCart };
+    const href = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    origin.current = { href, useHistory: true };
     try {
       sessionStorage.setItem(returnKey, href);
     } catch {}
@@ -123,28 +115,3 @@ export function SetupLink({
     />
   );
 }
-
-/** Opens a setup session for the given products, or returns to the running one, and goes to it. */
-export const useBeginSetup = () => {
-  const router = useRouter();
-  const { enterSetup } = useSetupNavigation();
-  return (
-    slugs: readonly string[],
-    instructions = "",
-    { source, location }: { source: SetupSource; location?: string } = {
-      source: "bundle",
-    },
-  ) => {
-    const running = getCheckoutSession();
-    const session = startCheckout(slugs, instructions);
-    if (running === null && session !== null)
-      analytics.setup.sessionStarted({
-        source,
-        ...(location !== undefined && { location }),
-        products: session.products.join(","),
-        product_count: session.products.length,
-      });
-    enterSetup();
-    router.push("/components/setup");
-  };
-};

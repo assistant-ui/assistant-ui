@@ -3,7 +3,10 @@
 import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
+import {
+  InstallManuallyLink,
+  SetupCommandPrompt,
+} from "@/components/shared/setup-command-prompt";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
@@ -96,15 +99,7 @@ export function Hero({
           >
             Talk to an expert
           </Button>
-          {checkoutEnabled ? (
-            <Link
-              href="/docs/installation"
-              onClick={() => analytics.cta.clicked("get_started", "hero")}
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Manual
-            </Link>
-          ) : null}
+          {checkoutEnabled ? <InstallManuallyLink section="hero" /> : null}
         </div>
 
         <div

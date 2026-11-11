@@ -7,11 +7,13 @@ import {
   ELEMENT_COUNT,
   getElement,
 } from "@/components/pages/elements/registry";
-import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
-import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
-import { StartSetupButton } from "@/components/shared/start-setup-button";
+import {
+  SetupCommandPrompt,
+  SetupPromptTrigger,
+} from "@/components/shared/setup-command-prompt";
+import { Button } from "@/components/ui/button";
 import { typeDeck, typeSection } from "@/components/shared/type";
 import { formatMinutes, getCatalogItem, type CatalogItem } from "@/lib/catalog";
 import { assistantUi } from "@/lib/catalog/products/assistant-ui";
@@ -171,7 +173,6 @@ export default function ShopPage() {
             {section.title}
           </h2>
           <p className={cn("mt-3", typeDeck)}>{section.description}</p>
-          {section.id === "agent-tools" ? <AgentToolPresets /> : null}
           {section.guide ? (
             <Link href={section.guide.href} className={cn("mt-4", navLink)}>
               {section.guide.label}
@@ -194,9 +195,7 @@ export default function ShopPage() {
                   {formatMinutes(assistantUi.agentMinutes)}.
                 </p>
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <StartSetupButton location="shop_featured">
-                    Start setup
-                  </StartSetupButton>
+                  <SetupCommandPrompt page="components" section="featured" />
                   <Link href={assistantUi.href} className={navLink}>
                     See what it installs
                     <ArrowRightIcon aria-hidden className={navArrow} />
@@ -258,11 +257,14 @@ export default function ShopPage() {
                         title={item.name}
                         description={item.tagline}
                         action={
-                          <AddToCartButton
-                            slug={item.slug}
-                            name={item.name}
-                            variant="outline"
-                          />
+                          <SetupPromptTrigger
+                            page="components"
+                            section="catalog"
+                            products={[item.slug]}
+                            trigger={<Button variant="outline" />}
+                          >
+                            Copy setup prompt
+                          </SetupPromptTrigger>
                         }
                       >
                         <element.Component />
@@ -292,11 +294,14 @@ export default function ShopPage() {
                         {item.tagline}
                       </p>
                     </div>
-                    <AddToCartButton
-                      slug={item.slug}
-                      name={item.name}
-                      variant="outline"
-                    />
+                    <SetupPromptTrigger
+                      page="components"
+                      section="catalog"
+                      products={[item.slug]}
+                      trigger={<Button variant="outline" />}
+                    >
+                      Copy setup prompt
+                    </SetupPromptTrigger>
                   </li>
                 ))}
             </ul>

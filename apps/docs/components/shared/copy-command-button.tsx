@@ -2,24 +2,15 @@
 
 import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-import { BotIcon, CheckIcon, CopyIcon, TerminalIcon } from "lucide-react";
-import { Menu } from "@base-ui/react/menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
 
 export function CopyCommandButton({
   command = "npx assistant-ui init",
   analyticsContext,
-  withPromptOption = false,
 }: {
   command?: string;
   analyticsContext?: AnalyticsProperties;
-  withPromptOption?: boolean;
 }) {
   const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
     copiedDuration: 2000,
@@ -28,11 +19,6 @@ export function CopyCommandButton({
   const copyCommand = () => {
     copyToClipboard(command);
     analytics.cta.npmCommandCopied(command, analyticsContext);
-  };
-
-  const copyPrompt = () => {
-    copyToClipboard(AGENT_SETUP_PROMPT);
-    analytics.cta.promptCopied(analyticsContext);
   };
 
   const wrapperClassName =
@@ -57,39 +43,10 @@ export function CopyCommandButton({
     </div>
   );
 
-  if (!withPromptOption) {
-    return (
-      <button type="button" onClick={copyCommand} className={wrapperClassName}>
-        <span>{command}</span>
-        <div className="ml-1">{copyIcon}</div>
-      </button>
-    );
-  }
-
   return (
-    <DropdownMenu modal={false}>
-      <Menu.Trigger
-        aria-label="Copy options"
-        render={
-          <button
-            type="button"
-            className={cn(wrapperClassName, "cursor-pointer")}
-          />
-        }
-      >
-        <span>{command}</span>
-        <div className="ml-1">{copyIcon}</div>
-      </Menu.Trigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={copyCommand}>
-          <TerminalIcon className="size-3.5" />
-          Copy CLI command
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={copyPrompt}>
-          <BotIcon className="size-3.5" />
-          Copy coding agent prompt
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button type="button" onClick={copyCommand} className={wrapperClassName}>
+      <span>{command}</span>
+      <div className="ml-1">{copyIcon}</div>
+    </button>
   );
 }

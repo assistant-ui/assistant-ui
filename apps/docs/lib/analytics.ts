@@ -37,20 +37,6 @@ const getVercelTrack = () => {
 
 export type AnalyticsProperties = Record<string, string | number | boolean>;
 
-/** Where a visitor opened a setup session: the Quick Start dialog, an AgentSetup banner on a docs page, the cart, or an example bundle page. */
-export type SetupSource =
-  | "start_dialog"
-  | "start_button"
-  | "agent_setup"
-  | "cart"
-  | "bundle";
-
-/** The cart surface whose Start setup button moved the cart into a session. */
-export type CartCheckoutLocation =
-  | "cart_page"
-  | "cart_popover"
-  | "checkout_page";
-
 export type SetupErrorReason =
   | "connection_lost"
   | "agent_disconnected"
@@ -88,7 +74,12 @@ const trackEventBeforeLeaving = (
 export const analytics = {
   cta: {
     clicked: (
-      cta: "get_started" | "contact_sales" | "why_us" | "start_setup_agent",
+      cta:
+        | "get_started"
+        | "contact_sales"
+        | "why_us"
+        | "start_setup_agent"
+        | "start_setup_manual",
       location: string,
     ) => trackEvent("cta_clicked", { cta, location }),
 
@@ -121,25 +112,7 @@ export const analytics = {
     signedIn: (location: string) => trackEvent("demo_signed_in", { location }),
   },
 
-  shop: {
-    cartToggled: (product: string, added: boolean) =>
-      trackEvent("shop_cart_toggled", { product, added }),
-
-    checkoutStarted: (props: {
-      cart_size: number;
-      products: string;
-      location: CartCheckoutLocation;
-    }) => trackEvent("shop_checkout_started", props),
-  },
-
   setup: {
-    sessionStarted: (props: {
-      source: SetupSource;
-      location?: string;
-      products: string;
-      product_count: number;
-    }) => trackEvent("setup_session_started", props),
-
     stepViewed: (props: {
       step: WizardPageId;
       step_index: number;

@@ -43,14 +43,14 @@ describe("hero", () => {
       name: "Copy the setup prompt for your coding agent",
     });
     expect(prompt.textContent).toBe(
-      "Set up assistant-ui with npx assistant-ui@latest setup",
+      "Tell your coding agent: set up assistant-ui",
     );
     fireEvent.click(prompt);
-    expect(writeText).toHaveBeenCalledWith(
-      "Set up assistant-ui with `npx assistant-ui@latest setup`",
-    );
+    expect(writeText).toHaveBeenCalledWith("set up assistant-ui");
     expect(
-      screen.getByRole("link", { name: "Manual" }).getAttribute("href"),
+      screen
+        .getByRole("link", { name: "Install manually" })
+        .getAttribute("href"),
     ).toBe("/docs/installation");
     expect(screen.queryByRole("button", { name: "Quick Start" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();

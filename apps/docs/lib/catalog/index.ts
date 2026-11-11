@@ -41,10 +41,6 @@ export const getCatalogItem = (slug: string): CatalogItem | undefined =>
 /** True for anything a setup session can install. */
 export const isProductSlug = (slug: string) => bySlug.has(slug);
 
-/** True for products the cart can hold; "setup" products start on their own. */
-export const isCartSlug = (slug: string) =>
-  bySlug.get(slug)?.purchase === "cart";
-
 /** Keeps catalog order and drops unknown or repeated slugs. */
 export const resolveProducts = (
   slugs: readonly string[],

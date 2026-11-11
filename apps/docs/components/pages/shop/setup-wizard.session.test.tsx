@@ -17,7 +17,6 @@ import {
   getCheckoutSession,
   startCheckout,
 } from "../../../lib/checkout/session-store";
-import { clearCart, getCart } from "../../../lib/catalog/cart-store";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -45,17 +44,13 @@ window.matchMedia = (query) => ({
 afterEach(() => {
   cleanup();
   endCheckout();
-  clearCart();
 });
 
 it.each([false, true])(
   "ends only the cancelled setup (replaced: %s)",
   async (replaced) => {
     endCheckout();
-    clearCart();
-    const oldSession = startCheckout(["elements/thread-list"], "", {
-      fromCart: true,
-    })!;
+    const oldSession = startCheckout(["elements/thread-list"])!;
     let finishCancellation!: () => void;
     const cancellation = new Promise<void>((resolve) => {
       finishCancellation = resolve;
@@ -99,9 +94,7 @@ it.each([false, true])(
       ? (() => {
           view.unmount();
           endCheckout();
-          return startCheckout(["cloud"], "Keep the replacement", {
-            fromCart: true,
-          });
+          return startCheckout(["cloud"], "Keep the replacement");
         })()
       : null;
     if (replaced) expect(replacement).not.toBeNull();
@@ -111,13 +104,10 @@ it.each([false, true])(
       await cancellation;
     });
     expect(getCheckoutSession()).toEqual(replacement);
-    expect(getCart()).toEqual(replaced ? [] : ["elements/thread-list"]);
     if (replaced) {
       expect(onExit).not.toHaveBeenCalled();
-      expect(push).not.toHaveBeenCalled();
     } else {
       expect(onExit).toHaveBeenCalledOnce();
-      expect(push).toHaveBeenCalledWith("/components/cart");
     }
   },
 );

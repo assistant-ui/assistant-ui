@@ -66,28 +66,6 @@ describe("setup navigation", () => {
     expect(navigation.replace).not.toHaveBeenCalled();
   });
 
-  it("returns home from the cart and explains resuming only on the first exit", () => {
-    visit("/components/cart");
-    const { rerender } = render(app());
-    fireEvent.click(screen.getByText("Open setup"));
-    visit("/components/setup");
-    rerender(app());
-    fireEvent.click(screen.getByText("Back"));
-    expect(navigation.replace).toHaveBeenCalledWith("/");
-    expect(navigation.back).not.toHaveBeenCalled();
-    visit("/");
-    rerender(app());
-    expect(screen.getByText("Resume setup anytime")).toBeDefined();
-    fireEvent.click(screen.getByText("Dismiss"));
-    expect(screen.queryByText("Resume setup anytime")).toBeNull();
-    fireEvent.click(screen.getByText("Open setup"));
-    visit("/components/setup");
-    rerender(app());
-    visit("/");
-    rerender(app());
-    expect(screen.queryByText("Resume setup anytime")).toBeNull();
-  });
-
   it("uses the saved return page after reload instead of leaving the site", () => {
     sessionStorage.setItem(
       "aui-setup-return-to",

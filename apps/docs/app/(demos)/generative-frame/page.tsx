@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
-import { StartSetupButton } from "@/components/shared/start-setup-button";
-import { AddToCartButton } from "@/components/shared/shop-entry";
+import { SetupPromptTrigger } from "@/components/shared/setup-command-prompt";
+import { Button } from "@/components/ui/button";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { BridgeDiagram } from "@/components/pages/docs/samples/generative-frame/diagrams";
@@ -113,12 +113,14 @@ export default function GenerativeFramePage() {
             command="npm install generative-frame"
             analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
           />
-          <AddToCartButton
-            slug="generative-frame"
-            name="Generative Frame"
-            size="default"
-            variant="outline"
-          />
+          <SetupPromptTrigger
+            page={ANALYTICS_PAGE}
+            section="hero"
+            products={["generative-frame"]}
+            trigger={<Button variant="outline" />}
+          >
+            Copy setup prompt
+          </SetupPromptTrigger>
           <Link
             href="/generative-frame/docs"
             className="text-muted-foreground hover:text-foreground text-sm transition-colors"
@@ -252,11 +254,12 @@ function FooterPaths() {
       <h2 className={cn(typeSection, "text-center")}>Pick a starting point</h2>
       <div className="divide-foreground/10 border-foreground/10 mt-8 grid border-y md:grid-cols-3 md:divide-x">
         {PATHS.map((path) => (
-          <StartSetupButton
+          <SetupPromptTrigger
             key={path.id}
-            location={`generative_frame_footer_${path.id}`}
+            page={ANALYTICS_PAGE}
+            section={`footer_${path.id}`}
             products={path.products}
-            {...(path.instructions && { instructions: path.instructions })}
+            {...(path.instructions && { notes: path.instructions })}
             trigger={
               <button
                 type="button"
@@ -274,7 +277,7 @@ function FooterPaths() {
               aria-hidden
               className="text-muted-foreground group-hover:text-foreground mt-1 size-4 shrink-0 transition-all group-hover:translate-x-0.5"
             />
-          </StartSetupButton>
+          </SetupPromptTrigger>
         ))}
       </div>
       <p className="text-muted-foreground mt-4 text-center text-sm">

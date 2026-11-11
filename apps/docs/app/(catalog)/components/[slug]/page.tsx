@@ -4,9 +4,7 @@ import { DemoStage } from "@/components/demo/elements/demo-stage";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoCard } from "@/components/pages/elements/demo-card";
 import { getElement } from "@/components/pages/elements/registry";
-import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
-import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
-import { StartSetupButton } from "@/components/shared/start-setup-button";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -61,22 +59,13 @@ export default async function ProductPage({
           time {formatMinutes(product.agentMinutes)}.
         </p>
         <div className="mt-8">
-          {product.purchase === "cart" ? (
-            <AddToCartButton
-              slug={product.slug}
-              name={product.name}
-              size="default"
-            />
-          ) : (
-            <StartSetupButton location="shop_product">
-              Start setup
-            </StartSetupButton>
-          )}
+          <SetupCommandPrompt
+            page="components"
+            section="product"
+            products={[product.slug]}
+          />
         </div>
       </header>
-      {product.slug === "agent-tools" ? (
-        <AgentToolPresets headingLevel={2} />
-      ) : null}
 
       {preview ? (
         <figure className="mt-12">
@@ -213,10 +202,8 @@ export default async function ProductPage({
           How it installs
         </h2>
         <p className="text-muted-foreground mt-3 max-w-[52ch] text-sm leading-relaxed">
-          {product.purchase === "cart"
-            ? "Add it to your setup and start from the cart: your coding agent works through these steps."
-            : "Start setup and your coding agent works through these steps."}{" "}
-          You can also follow them by hand.
+          Give your coding agent the prompt above and it works through these
+          steps. You can also follow them by hand.
         </p>
         <Steps className="mt-6">
           {product.steps.map((step) => (
