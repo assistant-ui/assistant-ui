@@ -697,16 +697,6 @@ const ThreadReplyStatus: FC = () => {
       >
         <Loader2Icon className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
         <span className="min-w-0 flex-1">Generating in another tab…</span>
-        <ThreadPrimitive.RefreshRun asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1.5 disabled:opacity-50"
-          >
-            <RefreshCwIcon className="size-3.5" />
-            Refresh
-          </Button>
-        </ThreadPrimitive.RefreshRun>
       </div>
     );
   }

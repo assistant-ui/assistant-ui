@@ -237,7 +237,7 @@ describe("CloudMessagePersistence run leases", () => {
   });
 
   it("schedules heartbeats from the server's interval, not a client constant", async () => {
-    const { cloud, messages, runs } = createCloud();
+    const { cloud, runs } = createCloud();
     runs.open.mockResolvedValueOnce({
       lease_id: "lease_1",
       heartbeat_interval_ms: 20_000,

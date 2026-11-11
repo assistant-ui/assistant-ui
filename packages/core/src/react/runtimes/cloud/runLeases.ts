@@ -28,10 +28,6 @@ type TrackedRun = {
   parent: ThreadMessage | undefined;
   /** Settles once the run's lease is opened and its writes so far landed. */
   stored: Promise<void>;
-  /** Whether the thread lease was opened; when not, the first running write opens a lease on the row. */
-  leased: boolean;
-  /** Whether a write stored the reply. */
-  written: boolean;
   checkpointed: ThreadMessage["content"];
   settleTimer: ReturnType<typeof setTimeout> | undefined;
 };
@@ -207,14 +203,13 @@ export const useCloudRunLeases = (
         !thread.isRunning &&
         !thread.isLoading
       ) {
-        const key = writer.keyOf(head) ?? head.id;
-        const run = adapter.replyRunOf(head, key);
+        const run = adapter.replyRunOf(head, writer.keyOf(head));
         if (run?.status === "in-progress") {
           state = "in-progress";
           watchThreadRun(head, run.staleInMs);
           // Turns interrupted the moment the run would cross staleAfter, even between polls.
           replyTimer = setTimeout(check, run.staleInMs + POLL_STALE_MARGIN_MS);
-        } else if (run !== undefined && adapter.isStored(key)) {
+        } else if (run !== undefined) {
           state = "interrupted";
         }
       }
@@ -223,10 +218,7 @@ export const useCloudRunLeases = (
 
     const write = (run: TrackedRun, message: ThreadMessage) =>
       run.stored
-        .then(() => {
-          run.written = true;
-          return run.writer.write(message, run.parent);
-        })
+        .then(() => run.writer.write(message, run.parent))
         .catch((error: unknown) => {
           console.warn("[assistant-ui] Cloud run checkpoint failed:", error);
         });
@@ -300,27 +292,19 @@ export const useCloudRunLeases = (
         parent,
         checkpointed: head.content,
         settleTimer: undefined,
-        leased: false,
-        written: false,
-        stored: Promise.resolve(),
+        stored: writer.begin(head, parent).then(
+          () => undefined,
+          (error: unknown) => {
+            console.warn("[assistant-ui] Could not open the run lease:", error);
+          },
+        ),
       };
-      run.stored = writer.begin(head, parent).then(
-        (leased) => {
-          run.leased = leased;
-        },
-        (error: unknown) => {
-          console.warn("[assistant-ui] Could not open the run lease:", error);
-        },
-      );
       tracked = run;
     };
 
     const checkpoint = setInterval(() => {
       const run = tracked;
-      if (!run) return;
-      // Without a thread lease, the first running write opens a lease on the row.
-      const unleased = !run.leased && !run.written;
-      if (!unleased && !run.writer.hasOpenRun(run.key)) return;
+      if (!run || !run.writer.hasOpenRun(run.key)) return;
       const message = findMessage(aui, run.messageId);
       if (!message || message.status?.type !== "running") return;
       if (message.content === run.checkpointed) return;

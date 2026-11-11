@@ -5,7 +5,7 @@ import {
   type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useThreadResume as useThreadResumeBehavior } from "@assistant-ui/core/react";
+import { useThreadResume as useThreadResumeBehavior } from "@assistant-ui/core/internal";
 
 const useThreadResume = () => {
   const { disabled, resume } = useThreadResumeBehavior();

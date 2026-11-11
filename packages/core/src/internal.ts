@@ -122,3 +122,4 @@ export * from "./runtime/internal";
 export * from "./runtimes/internal";
 
 export { resolveToolRender } from "./utils/resolveToolRender";
+export { useThreadResume } from "./react/primitive-hooks/useThreadResume";
