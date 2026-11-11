@@ -1,10 +1,21 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import {
   AssistantRuntimeProvider,
   type ThreadMessageLike,
+  useAui,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { setThreadReplyState } from "@assistant-ui/core/store/internal";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 
 import { Thread } from "./thread.aui";
 
@@ -19,13 +30,25 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function RunStateThread({ messages }: { messages: ThreadMessageLike[] }) {
+function RunStateThread({
+  error,
+  content = "Step one",
+  onReload = async () => {},
+}: {
+  error: ThreadMessageLike["status"];
+  content?: ThreadMessageLike["content"];
+  onReload?: (parentId: string | null) => Promise<void>;
+}) {
+  const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([
+    { id: "u", role: "user", content: "hello" },
+    { id: "a", role: "assistant", content, status: error },
+  ]);
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     messages,
+    setMessages,
     convertMessage: (message) => message,
     onNew: async () => {},
-    onReload: async () => {},
-    setMessages: () => {},
+    onReload,
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -34,104 +57,169 @@ function RunStateThread({ messages }: { messages: ThreadMessageLike[] }) {
   );
 }
 
-const replyWith = (
-  content: string,
-  status: ThreadMessageLike["status"],
-): ThreadMessageLike[] => [
-  { id: "u", role: "user", content: "hello" },
-  { id: "a", role: "assistant", content, status },
-];
-
-const stale = {
-  type: "incomplete",
-  reason: "error",
-  error: { code: "run_stale", message: "Interrupted." },
-} as const;
-
-const regenerate = () => {
-  const bar = document.querySelector<HTMLElement>(
-    ".aui-assistant-action-bar-root",
+function UnansweredThread({
+  onReload,
+  onThreadItemId,
+}: {
+  onReload: (parentId: string | null) => Promise<void>;
+  onThreadItemId: (id: string) => void;
+}) {
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages: [{ id: "u", role: "user", content: "hello" }],
+    convertMessage: (message) => message,
+    onNew: async () => {},
+    onReload,
+  });
+  const ReadId = () => {
+    onThreadItemId(useAui().threadListItem.getState().id);
+    return null;
+  };
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ReadId />
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
   );
-  return bar
-    ? within(bar).queryByRole<HTMLButtonElement>("button", { name: "Refresh" })
-    : null;
-};
-
-const errorBox = (text: string) =>
-  screen.getByText(text).closest<HTMLElement>(".aui-message-error-root")!;
+}
 
 describe("Thread run states", () => {
-  it("shows an interrupted reply that wrote nothing as a warning with Resume", () => {
-    render(<RunStateThread messages={replyWith("", stale)} />);
-    const box = errorBox("Interrupted.");
-    expect(box.dataset.runState).toBe("stale");
+  it("shows a stale reply that stored content as an ordinary error, with Regenerate and no Resume", () => {
+    render(
+      <RunStateThread
+        error={{
+          type: "incomplete",
+          reason: "error",
+          error: { code: "run_stale", message: "Interrupted." },
+        }}
+      />,
+    );
+    const box = screen
+      .getByText("Interrupted.")
+      .closest<HTMLElement>(".aui-message-error-root")!;
+    expect(box.dataset.runState).toBeUndefined();
     expect(box.getAttribute("role")).toBe("alert");
-    const resume = within(box).getByRole<HTMLButtonElement>("button", {
-      name: "Resume",
-    });
-    expect(resume.disabled).toBe(false);
-    expect(resume.checkVisibility?.() ?? true).toBe(true);
+    expect(within(box).queryByRole("button", { name: "Resume" })).toBeNull();
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(true);
-  });
-
-  it("shows an interrupted reply with content as a regular error with Regenerate", () => {
-    render(<RunStateThread messages={replyWith("Step one", stale)} />);
-    const box = errorBox("Interrupted.");
-    expect(box.dataset.runState).toBeUndefined();
-    expect(box.getAttribute("role")).toBe("alert");
     expect(
-      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
-        .disabled,
-    ).toBe(true);
-    expect(regenerate()?.disabled).toBe(false);
+      document.querySelector(".aui-assistant-action-bar-root"),
+    ).not.toBeNull();
   });
 
-  it("shows a run another tab drives as in progress with Refresh, and no Regenerate or Resume", () => {
+  it("resumes an empty stale assistant reply in place", async () => {
+    const onReload = vi.fn(async (_parentId: string | null) => {});
     render(
       <RunStateThread
-        messages={replyWith("Step one", {
+        content=""
+        onReload={onReload}
+        error={{
+          type: "incomplete",
+          reason: "error",
+          error: { code: "run_stale", message: "Interrupted." },
+        }}
+      />,
+    );
+    const box = screen
+      .getByText("Interrupted.")
+      .closest<HTMLElement>(".aui-message-error-root")!;
+    expect(box.dataset.runState).toBe("stale");
+    expect(document.querySelector(".aui-thread-reply-status")).toBeNull();
+    const resume = within(box).getByRole<HTMLButtonElement>("button", {
+      name: "Resume",
+    });
+    expect(resume.disabled).toBe(false);
+    fireEvent.click(resume);
+    await waitFor(() => expect(onReload).toHaveBeenCalledOnce());
+    expect(onReload.mock.calls[0]![0]).toBe("u");
+    expect(screen.queryByText("Interrupted.")).toBeNull();
+  });
+
+  it("shows a stored reply another tab drives as in progress with Refresh", () => {
+    render(
+      <RunStateThread
+        error={{
           type: "incomplete",
           reason: "error",
           error: {
             code: "run_in_progress",
             message: "Running in another tab…",
           },
-        })}
+        }}
       />,
     );
-    const box = errorBox("Running in another tab…");
+    const box = screen
+      .getByText("Running in another tab…")
+      .closest<HTMLElement>(".aui-message-error-root")!;
     expect(box.dataset.runState).toBe("in-progress");
     expect(box.getAttribute("role")).toBe("status");
     expect(
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(false);
-    expect(
-      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
-        .disabled,
-    ).toBe(true);
     expect(document.querySelector(".aui-assistant-action-bar-root")).toBeNull();
   });
 
   it("keeps other errors in the error box", () => {
     render(
       <RunStateThread
-        messages={replyWith("Step one", {
-          type: "incomplete",
-          reason: "error",
-          error: "Boom",
-        })}
+        error={{ type: "incomplete", reason: "error", error: "Boom" }}
       />,
     );
-    const box = errorBox("Boom");
+    const box = screen
+      .getByText("Boom")
+      .closest<HTMLElement>(".aui-message-error-root")!;
     expect(box.dataset.runState).toBeUndefined();
     expect(
-      within(box).getByRole<HTMLButtonElement>("button", { name: "Resume" })
+      within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(true);
-    expect(regenerate()?.disabled).toBe(false);
+  });
+
+  it("shows a thread whose reply another tab is generating, with no Resume", () => {
+    let id = "";
+    render(
+      <UnansweredThread
+        onReload={async () => {}}
+        onThreadItemId={(next) => {
+          id = next;
+        }}
+      />,
+    );
+    expect(document.querySelector(".aui-thread-reply-status")).toBeNull();
+    act(() => setThreadReplyState(id, "in-progress"));
+    const bar = screen
+      .getByText("Generating in another tab…")
+      .closest<HTMLElement>(".aui-thread-reply-status")!;
+    expect(bar.getAttribute("role")).toBe("status");
+    expect(screen.queryByRole("button", { name: "Resume" })).toBeNull();
+    act(() => setThreadReplyState(id, undefined));
+  });
+
+  it("shows an interrupted thread as a warning at its end; Resume runs from the user's message", async () => {
+    let id = "";
+    const onReload = vi.fn(async (_parentId: string | null) => {});
+    render(
+      <UnansweredThread
+        onReload={onReload}
+        onThreadItemId={(next) => {
+          id = next;
+        }}
+      />,
+    );
+    act(() => setThreadReplyState(id, "interrupted"));
+    const bar = screen
+      .getByText("This response was interrupted before it finished.")
+      .closest<HTMLElement>(".aui-thread-reply-status")!;
+    expect(bar.getAttribute("role")).toBe("alert");
+    const resume = within(bar).getByRole<HTMLButtonElement>("button", {
+      name: "Resume",
+    });
+    expect(resume.disabled).toBe(false);
+    fireEvent.click(resume);
+    await waitFor(() => expect(onReload).toHaveBeenCalled());
+    expect(onReload.mock.calls[0]![0]).toBe("u");
+    act(() => setThreadReplyState(id, undefined));
   });
 });
