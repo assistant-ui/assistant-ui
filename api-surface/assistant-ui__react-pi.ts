@@ -343,6 +343,7 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+  run?: CloudThreadRun | null | undefined;
 };
 
 type AssistantCloudThreadMessageUpdateBody = {
@@ -360,9 +361,15 @@ declare class AssistantCloudThreadMessages {
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
+type AssistantCloudThreadRunOpenBody = {
+  parent_id?: string | null | undefined;
+  parent_external_id?: string | undefined;
+};
+
 declare class AssistantCloudThreadRuns {
   #private;
   constructor(cloud: AssistantCloudAPI);
+  open(threadId: string, body?: AssistantCloudThreadRunOpenBody): Promise<CloudRunLease>;
   heartbeat(threadId: string, leaseId: string): Promise<AssistantCloudRunHeartbeatResponse>;
   end(threadId: string, leaseId: string, body?: {
     reason?: CloudRunEndReason;
@@ -734,6 +741,13 @@ type CloudThread = {
   updated_at: Date;
   workspace_id: string;
   is_archived: boolean;
+};
+
+type CloudThreadRun = {
+  status: "running";
+  message_id: string | null;
+  parent_id: string | null;
+  last_heartbeat_ms_ago: number;
 };
 
 type CompleteAttachment = BaseAttachment & {
