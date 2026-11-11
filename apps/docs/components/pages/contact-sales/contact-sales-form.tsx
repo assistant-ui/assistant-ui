@@ -154,7 +154,7 @@ export function ContactSalesForm({
 
   const emailHint =
     !errors.email && isPersonalEmail(values.email)
-      ? "Use your work email if you have one. It tells us which team you are on."
+      ? "Use your work email if you have one. It tells us which team you're on."
       : undefined;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -292,7 +292,7 @@ export function ContactSalesForm({
           {submitting ? "Opening cal.com" : "Contact sales"}
         </Button>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Next you continue to cal.com with your answers filled in.
+          Next, you'll continue to cal.com with your answers filled in.
         </p>
       </div>
     </form>

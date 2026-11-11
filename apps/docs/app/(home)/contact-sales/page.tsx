@@ -22,17 +22,12 @@ const TOPICS = [
   {
     title: "Ship your AI product sooner",
     description:
-      "Start from production chat primitives for streaming, tool calls, attachments and auto-scroll instead of building them from scratch.",
+      "Streaming, tool calls, attachments and auto-scroll are ready for production. Your engineers build what sets your product apart, on the backend and model stack you already run.",
   },
   {
-    title: "Keep your engineers on your product",
+    title: "A chat experience users trust",
     description:
-      "The runtime owns threads, streaming and tool state. Adapters connect it to the backend you already run.",
-  },
-  {
-    title: "Production-ready chat UX",
-    description:
-      "Accessible components your team owns as source code and styles to your brand.",
+      "Polished, accessible chat from your first release, styled to match your brand.",
   },
   {
     title: "Scale with Assistant Cloud",
@@ -50,13 +45,13 @@ const QUOTE = TESTIMONIALS.find((item) => item.username === "@neondatabase");
 
 export default function ContactSalesPage() {
   return (
-    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-24">
+    <PageFrame pad="sub" className="flex flex-col gap-16 pb-16">
       <div className="grid gap-x-16 gap-y-12 lg:grid-cols-2 lg:grid-rows-[auto_1fr] xl:gap-x-24">
         <header className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
           <h1 className={typePage}>Talk to the assistant-ui team</h1>
           <p className={cn(typeDeck, "max-w-[46ch]")}>
             See how assistant-ui and Assistant Cloud fit your product, your
-            stack and your requirements. Tell us about your team and we will get
+            stack and your requirements. Tell us about your team and we'll get
             you to the right people.
           </p>
         </header>
@@ -82,7 +77,7 @@ export default function ContactSalesPage() {
 
       <section
         aria-label="Customers"
-        className="border-foreground/10 grid gap-x-16 gap-y-10 border-t pt-10 lg:grid-cols-2 xl:gap-x-24"
+        className="border-foreground/10 grid gap-x-16 gap-y-10 border-t pt-12 lg:grid-cols-2 xl:gap-x-24"
       >
         <div className="flex flex-col gap-6">
           <p className="text-muted-foreground text-xs font-medium">
