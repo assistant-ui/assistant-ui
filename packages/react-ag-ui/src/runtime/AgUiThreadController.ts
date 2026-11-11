@@ -60,6 +60,7 @@ import {
   isPlainObject,
   RunAggregator,
   tryParseJSON,
+  type RetainedMessageState,
 } from "./adapter/run-aggregator";
 import {
   fromAgUiSnapshotMessages,
@@ -249,6 +250,17 @@ type CoreOptions = {
 };
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
+
+const snapshotRecordToolCallIds = (record: unknown): Set<string> => {
+  const toolCalls = (record as { toolCalls?: unknown } | undefined)?.toolCalls;
+  return new Set(
+    Array.isArray(toolCalls)
+      ? toolCalls
+          .map((call: { id?: unknown } | undefined) => call?.id)
+          .filter((id): id is string => typeof id === "string")
+      : [],
+  );
+};
 
 const textOf = (content: ThreadAssistantMessage["content"]) =>
   content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("");
@@ -1768,6 +1780,10 @@ export class AgUiThreadController {
     let settlingRun = false;
     let latestSnapshot: ThreadAssistantMessage | undefined;
     let snapshotToolCallIds = new Set<string>();
+    const retainedSnapshots = new Map<
+      string,
+      { message: ThreadAssistantMessage; toolCallIds: ReadonlySet<string> }
+    >();
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
       if (cached !== undefined && this.session.tryGetMessage(cached))
@@ -2166,6 +2182,52 @@ export class AgUiThreadController {
       }
     };
 
+    // A message a snapshot moved the head past keeps streaming until nothing
+    // on it is open; held, it settles with the run.
+    const applyRetainedUpdate = (
+      update: ChatModelRunResult,
+      { messageId, open, openToolCallIds }: RetainedMessageState,
+    ) => {
+      const item = this.session.tryGetMessage(messageId);
+      if (item?.message.role !== "assistant") return;
+      this.markPendingAssistantHistory(messageId, item.parentId);
+      let snapshot = retainedSnapshots.get(messageId);
+      if (!snapshot) {
+        snapshot = {
+          message: item.message as ThreadAssistantMessage,
+          toolCallIds: new Set(
+            Array.from(
+              iterateToolCallParts(item.message.content),
+              (part) => part.toolCallId,
+            ),
+          ),
+        };
+        retainedSnapshots.set(messageId, snapshot);
+      }
+      const content =
+        update.content !== undefined
+          ? this.mergeSnapshotAssistantContent(
+              snapshot.message.content,
+              update.content as ThreadAssistantMessage["content"],
+              update.content.some((part) => part.type === "reasoning"),
+              update.content.some(isActivityPart),
+              snapshot.toolCallIds,
+            )
+          : update.content;
+      if (open) heldMessages.set(messageId, new Set(openToolCallIds));
+      else heldMessages.delete(messageId);
+      this.updateAssistantMessage(messageId, {
+        ...update,
+        ...(content !== undefined ? { content } : {}),
+        status: open
+          ? { type: "running" }
+          : { type: "complete", reason: "unknown" },
+      });
+      const current = this.session.tryGetMessage(messageId)?.message;
+      if (current?.role === "assistant")
+        retainedSnapshots.set(messageId, { ...snapshot, message: current });
+    };
+
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
     const aggregator = new RunAggregator({
@@ -2268,6 +2330,12 @@ export class AgUiThreadController {
             ? current
             : undefined;
       },
+      onRetainedMessage: applyRetainedUpdate,
+      canRetainMessage: (messageId) =>
+        messageId !== assistantMessageId &&
+        messageId !== this.session.headId &&
+        !runStartMessageIds.has(messageId) &&
+        this.session.tryGetMessage(messageId)?.message.role === "assistant",
       onServerMessageId: (serverId) => {
         adoptServerMessageId(serverId, false);
       },
@@ -2360,6 +2428,7 @@ export class AgUiThreadController {
           joinStrategy,
           runStartMessageIds,
           hasRunUserBoundary,
+          heldMessages,
           candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
         if (event.type === "MESSAGES_SNAPSHOT") {
@@ -2406,18 +2475,26 @@ export class AgUiThreadController {
           );
           latestSnapshot =
             imported?.role === "assistant" && source ? imported : undefined;
-          snapshotToolCallIds = new Set(
-            Array.isArray(source?.toolCalls)
-              ? source.toolCalls
-                  .map((call: { id?: unknown }) => call.id)
-                  .filter((id: unknown): id is string => typeof id === "string")
-              : [],
-          );
+          snapshotToolCallIds = snapshotRecordToolCallIds(source);
           if (!replayEnded && assistantMessageId === undefined) {
             const tail = this.session.getMessages().at(-1);
             snapshotAssistantId =
               tail?.role === "assistant" ? tail.id : undefined;
           }
+          for (const record of event.messages) {
+            if (
+              record?.role !== "assistant" ||
+              !aggregator.isRetained(record.id)
+            )
+              continue;
+            const message = this.session.tryGetMessage(record.id)?.message;
+            if (message?.role !== "assistant") continue;
+            retainedSnapshots.set(record.id, {
+              message,
+              toolCallIds: snapshotRecordToolCallIds(record),
+            });
+          }
+          aggregator.announceRetained();
         }
         if (event.type === "RUN_ERROR") {
           settleRunSubagents({
@@ -2516,10 +2593,11 @@ export class AgUiThreadController {
       const current = assistantMessageId
         ? this.session.tryGetMessage(assistantMessageId)?.message
         : undefined;
+      const currentRunning =
+        current?.role === "assistant" && current.status?.type === "running";
       if (
         this.abortController === abortController &&
-        current?.role === "assistant" &&
-        current.status?.type === "running"
+        (currentRunning || heldMessages.size > 0)
       ) {
         persistRunAssistants(true);
         // Finalization is transport cleanup, not proof of a terminal event.
@@ -2529,10 +2607,11 @@ export class AgUiThreadController {
           error: "The connection ended before the answer finished.",
         };
         settleHeldMessages(status);
-        applyUpdate({
-          status,
-          content: settleNestedContent(current.content, status),
-        });
+        if (currentRunning)
+          applyUpdate({
+            status,
+            content: settleNestedContent(current.content, status),
+          });
       }
       if (this.abortController === abortController && !runFinished) {
         // The run ended without RUN_FINISHED, so no sub-agent call it left
@@ -3371,6 +3450,7 @@ export class AgUiThreadController {
     joinStrategy: UseAgUiRuntimeOptions["joinStrategy"],
     runStartMessageIds: ReadonlySet<string>,
     hasRunUserBoundary: boolean,
+    heldMessages: ReadonlyMap<string, unknown>,
     reconcileSnapshot?: SnapshotMessageReconciler,
   ): string | undefined {
     if (
@@ -3426,6 +3506,7 @@ export class AgUiThreadController {
           joinStrategy,
           runStartMessageIds,
           hasRunUserBoundary,
+          heldMessages,
           reconcileSnapshot,
         );
         const headId = this.session.headId;
@@ -3444,17 +3525,22 @@ export class AgUiThreadController {
         ) {
           const nextActiveAssistantId =
             head?.role === "assistant" ? (headId ?? undefined) : undefined;
-          if (
-            activeAssistantId !== nextActiveAssistantId &&
-            activeAssistantId
-          ) {
+          const previousActiveId =
+            activeAssistantId !== nextActiveAssistantId
+              ? activeAssistantId
+              : undefined;
+          const retained =
+            nextActiveAssistantId !== undefined &&
+            joinStrategy !== "concat-content" &&
+            aggregator.rebaseMessage(nextActiveAssistantId, previousActiveId);
+          if (previousActiveId && !retained) {
             const previous =
-              this.session.tryGetMessage(activeAssistantId)?.message;
+              this.session.tryGetMessage(previousActiveId)?.message;
             if (
               previous?.role === "assistant" &&
               previous.status?.type === "running"
             ) {
-              this.updateAssistantMessage(activeAssistantId, {
+              this.updateAssistantMessage(previousActiveId, {
                 status: FALLBACK_USER_STATUS,
                 content: settleNestedContent(
                   previous.content,
@@ -3464,9 +3550,6 @@ export class AgUiThreadController {
             }
           }
           activeAssistantId = nextActiveAssistantId;
-          if (activeAssistantId && joinStrategy !== "concat-content") {
-            aggregator.rebaseMessage(activeAssistantId);
-          }
         }
         if (
           hasNewPendingToolCallAnswer &&
@@ -3702,6 +3785,7 @@ export class AgUiThreadController {
     joinStrategy: UseAgUiRuntimeOptions["joinStrategy"],
     runStartMessageIds: ReadonlySet<string>,
     hasRunUserBoundary: boolean,
+    heldMessages: ReadonlyMap<string, unknown>,
     reconcileSnapshot?: SnapshotMessageReconciler,
   ) {
     try {
@@ -3758,7 +3842,8 @@ export class AgUiThreadController {
           const snapshot =
             reconcileSnapshot?.(convertedMessage, previous) ?? convertedMessage;
           const preservesRunningStatus =
-            convertedMessage.id === activeAssistantId &&
+            (convertedMessage.id === activeAssistantId ||
+              heldMessages.has(convertedMessage.id)) &&
             previous?.status?.type === "running" &&
             snapshot.status?.type === "requires-action" &&
             snapshot.status.reason === "tool-calls";

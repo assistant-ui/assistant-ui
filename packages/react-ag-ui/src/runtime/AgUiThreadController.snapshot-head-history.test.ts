@@ -202,6 +202,18 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
     expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
   });
 
+  it("stores the new head when the moved-off answer settles after the move", async () => {
+    const { rows, writes, shown, reloaded } = await run((req) => [
+      start,
+      [moveSnapshot(req)],
+      [{ type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" }],
+      [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
+    ]);
+    expect(shown.slice(1)).toEqual(["answer:complete", "other:complete"]);
+    expect(rows.get("answer")?.status, writes.join(", ")).toBe("complete");
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+  });
+
   it("control: a second snapshot after the head move stores the new head", async () => {
     const { rows, writes, shown, reloaded } = await run((req) => [
       start,
