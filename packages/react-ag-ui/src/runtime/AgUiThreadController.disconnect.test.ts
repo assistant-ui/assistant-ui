@@ -912,20 +912,25 @@ describe("AgUiThreadController HTTP stream closure", () => {
     },
   );
 
-  it.each([
-    {
-      ending: "EOF",
-      runFinished: false,
-      expectedStatus: { type: "incomplete", reason: "error" },
-    },
-    {
-      ending: "RUN_FINISHED",
-      runFinished: true,
-      expectedStatus: { type: "requires-action", reason: "tool-calls" },
-    },
-  ])(
-    "keeps a moved-to assistant running when a later snapshot adds a tool call through $ending",
-    async ({ runFinished, expectedStatus }) => {
+  it.each(
+    [
+      {
+        ending: "EOF",
+        runFinished: false,
+        expectedStatus: { type: "incomplete", reason: "error" },
+      },
+      {
+        ending: "RUN_FINISHED",
+        runFinished: true,
+        expectedStatus: { type: "requires-action", reason: "tool-calls" },
+      },
+    ].flatMap((row) => [
+      { ...row, shape: "with text", otherContent: "Let me check." },
+      { ...row, shape: "with no text", otherContent: "" },
+    ]),
+  )(
+    "keeps a moved-to assistant $shape running when a later snapshot adds a tool call through $ending",
+    async ({ runFinished, expectedStatus, otherContent }) => {
       let releaseStream!: () => void;
       const streamCanClose = new Promise<void>((resolve) => {
         releaseStream = resolve;
@@ -934,7 +939,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
       const other = (withCall: boolean) => ({
         id: "other",
         role: "assistant",
-        content: "Let me check.",
+        content: otherContent,
         ...(withCall && {
           toolCalls: [
             {

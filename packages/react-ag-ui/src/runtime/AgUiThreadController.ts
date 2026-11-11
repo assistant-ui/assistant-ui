@@ -3471,7 +3471,7 @@ export class AgUiThreadController {
         if (
           hasNewPendingToolCallAnswer &&
           head &&
-          (headId !== previousHeadId || hasActiveText)
+          head.id === activeAssistantId
         ) {
           this.updateAssistantMessage(head.id, {
             status: { type: "running" },
