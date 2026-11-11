@@ -50,10 +50,7 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
 export const actionBarRefreshRunDisabled = (s: AssistantState): boolean =>
   s.message.runState !== "in-progress";
 
-/**
- * Resume continues a run that stopped heartbeating, from the stale message onward.
- * @deprecated An interrupted reply now shows as a regular error with Regenerate (`actionBarReloadDisabled`).
- */
+/** Resume answers again in place of a reply whose run stopped before it wrote anything. */
 export const actionBarResumeDisabled = (s: AssistantState): boolean =>
   s.thread.isRunning ||
   s.thread.isDisabled ||
