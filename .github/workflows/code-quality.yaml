@@ -460,6 +460,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/prepare-ci-base.mjs
 
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+
       - name: Detect app build inputs
         id: app_build_inputs
         env:
@@ -473,6 +479,13 @@ jobs:
             git diff --name-only --no-renames -z "$BASE" HEAD > "$RUNNER_TEMP/app-build-changes"
             run=$(node scripts/app-build-inputs.mjs < "$RUNNER_TEMP/app-build-changes")
             bundles=$(node scripts/app-build-inputs.mjs --bundles < "$RUNNER_TEMP/app-build-changes")
+            # These plans use the Build apps commands, so a package-only change installs only when Turbo would build something.
+            if [ "$run" = false ] && [ "$(node scripts/app-build-inputs.mjs --packages < "$RUNNER_TEMP/app-build-changes")" = true ]; then
+              run=$(node scripts/ci-has-tasks.mjs --plan build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*")
+              if [ "$run" = false ]; then
+                run=$(node scripts/ci-has-tasks.mjs --plan build --filter="{./examples/*}[$BASE]")
+              fi
+            fi
           else
             run=true
             bundles=true
@@ -489,13 +502,6 @@ jobs:
 
       - name: Test source-mapped tsconfig paths
         run: node --test scripts/source-mapped-tsconfigs.test.mjs
-
-      - name: Setup pnpm and node.js
-        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
-        with:
-          cache: false
-          install: false
 
       - name: Install dependencies
         if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'

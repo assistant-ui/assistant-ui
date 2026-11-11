@@ -16,6 +16,7 @@ import {
   APP_BUILD_INPUTS,
   hasAppBuildInputs,
   hasExampleBundleInputs,
+  hasPackageInputs,
 } from "./app-build-inputs.mjs";
 
 const repoRoot = path.resolve(
@@ -37,15 +38,6 @@ test("detects app build inputs", () => {
     "apps/registry/src/registry.ts",
     "apps/future-app/src/index.ts",
     "examples/with-ai-sdk-v7/app/page.tsx",
-    "packages/react/src/index.ts",
-    "packages/core/package.json",
-    "packages/core/src/client.spec.ts",
-    "packages/core/src/client.bench.ts",
-    "packages/core/src/testUtils.ts",
-    "packages/core/src/tests/fixture.ts",
-    "packages/core/src/client.test.mts",
-    "packages/core/tests/client.test.ts",
-    "packages/ui/src/components/react/thread.test.tsx",
     "apps/registry/src/registry.test.ts",
     "examples/with-ai-sdk-v7/app/page.test.tsx",
     "templates/minimal/app/page.test.tsx",
@@ -84,19 +76,41 @@ test("ignores changes outside app builds", () => {
     "packages/x-buildutils/src/declarations.test.ts",
   ]) {
     assert.equal(hasAppBuildInputs([file]), false, file);
+    assert.equal(hasPackageInputs([file]), false, file);
   }
   assert.equal(hasAppBuildInputs([]), false);
+  assert.equal(hasPackageInputs([]), false);
+});
+
+test("leaves package changes to Turbo's planner", () => {
+  for (const file of [
+    "packages/react/src/index.ts",
+    "packages/core/package.json",
+    "packages/core/src/client.spec.ts",
+    "packages/core/src/client.bench.ts",
+    "packages/core/src/testUtils.ts",
+    "packages/core/src/tests/fixture.ts",
+    "packages/core/src/client.test.mts",
+    "packages/core/tests/client.test.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
+    "packages/x-changelog/index.mjs",
+  ]) {
+    assert.equal(hasAppBuildInputs([file]), false, file);
+    assert.equal(hasPackageInputs([file]), true, file);
+  }
 });
 
 test("keeps real build inputs in mixed package-test changes", () => {
   const packageTest = "packages/cloud/src/telemetry/index.test.ts";
-  for (const input of [
-    "packages/cloud/src/telemetry/index.ts",
-    "packages/ui/src/components/react/thread.test.tsx",
-    "pnpm-lock.yaml",
+  for (const [detect, input] of [
+    [hasPackageInputs, "packages/cloud/src/telemetry/index.ts"],
+    [hasPackageInputs, "packages/ui/src/components/react/thread.test.tsx"],
+    [hasAppBuildInputs, "pnpm-lock.yaml"],
   ]) {
-    assert.equal(hasAppBuildInputs([packageTest, input]), true, input);
-    assert.equal(hasAppBuildInputs([input, packageTest]), true, input);
+    assert.equal(detect([packageTest, input]), true, input);
+    assert.equal(detect([input, packageTest]), true, input);
   }
 });
 
@@ -116,6 +130,19 @@ test("the CLI reads NUL-separated paths", () => {
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);
   assert.equal(unrelated.stdout, "false\n");
+
+  const packageChange = "README.md\0packages/react-ag-ui/src/index.ts\0";
+  for (const [args, stdout] of [
+    [[], "false\n"],
+    [["--packages"], "true\n"],
+  ]) {
+    const result = spawnSync(process.execPath, [script, ...args], {
+      input: packageChange,
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, stdout, args.join(" "));
+  }
 });
 
 test("standalone bundles skip unrelated adapter changes", () => {
@@ -183,14 +210,7 @@ function bundleFixture(t) {
       typeof value === "string" ? value : JSON.stringify(value),
     );
   };
-  write(
-    "pnpm-workspace.yaml",
-    "packages:\n  - packages/*\n  - examples/*\n  - apps/*\n  - templates/*\n",
-  );
-  write("package.json", {
-    name: "monorepo",
-    devDependencies: { "release-tool": "workspace:*" },
-  });
+  write("pnpm-workspace.yaml", "packages:\n  - packages/*\n  - examples/*\n");
   write("scripts/example-bundles.json", [{ package: "bundle-new" }]);
   write("examples/bundle-new/package.json", {
     name: "bundle-new",
@@ -214,20 +234,6 @@ function bundleFixture(t) {
   write("packages/compiler/package.json", { name: "compiler" });
   write("packages/optional/package.json", { name: "optional" });
   write("packages/unrelated/package.json", { name: "unrelated" });
-  write("packages/release-tool/package.json", { name: "release-tool" });
-  write("templates/starter/package.json", {
-    name: "starter",
-    dependencies: { runtime: "workspace:*" },
-  });
-  write("apps/docs/package.json", {
-    name: "docs",
-    dependencies: { unrelated: "workspace:*" },
-  });
-  write("examples/with-adapter/package.json", {
-    name: "with-adapter",
-    dependencies: { adapter: "workspace:*" },
-  });
-  write("packages/adapter/package.json", { name: "adapter" });
   return { root, write };
 }
 
@@ -244,32 +250,6 @@ test("new bundles follow transitive workspace dependencies, including peers and 
   assert.equal(
     hasExampleBundleInputs(["packages/unrelated/src/index.ts"], root),
     false,
-  );
-});
-
-test("app builds follow the workspace graph of the apps they build", (t) => {
-  const { root } = bundleFixture(t);
-  for (const file of [
-    "packages/runtime/src/index.ts",
-    "packages/bridge/src/index.ts",
-    "packages/compiler/src/index.ts",
-    "packages/optional/src/index.ts",
-    "packages/release-tool/src/index.ts",
-  ]) {
-    assert.equal(hasAppBuildInputs([file], root), true, file);
-  }
-  for (const file of [
-    "packages/unrelated/src/index.ts",
-    "packages/adapter/src/index.ts",
-  ]) {
-    assert.equal(hasAppBuildInputs([file], root), false, file);
-  }
-  assert.equal(
-    hasAppBuildInputs(
-      ["packages/unrelated/src/index.ts", "packages/runtime/src/index.ts"],
-      root,
-    ),
-    true,
   );
 });
 
@@ -308,24 +288,24 @@ test("the workflow gates dependency-backed app build steps", () => {
   assert.match(detector, /git diff --name-only --no-renames -z "\$BASE" HEAD/);
   assert.match(detector, /else\n\s+run=true/);
 
-  for (const name of [
-    "Setup pnpm and node.js",
-    "Install dependencies",
-    "Build apps",
-  ]) {
+  for (const name of ["Install dependencies", "Build apps"]) {
     assert.match(
       step(name),
       /steps\.app_build_inputs\.outputs\.run == 'true'/,
       name,
     );
   }
+  assert.match(
+    step("Install dependencies"),
+    /steps\.app_build_inputs\.outputs\.bundles == 'true'/,
+  );
 
-  for (const name of ["Setup pnpm and node.js", "Install dependencies"]) {
-    assert.match(
-      step(name),
-      /steps\.app_build_inputs\.outputs\.bundles == 'true'/,
-    );
-  }
+  // The planner runs pnpm inside the detection step.
+  assert.doesNotMatch(step("Setup pnpm and node.js"), /\n        if:/);
+  assert.ok(
+    buildAppsJob[0].indexOf("- name: Setup pnpm and node.js") <
+      buildAppsJob[0].indexOf("- name: Detect app build inputs"),
+  );
   assert.match(
     step("Verify standalone example bundle contracts"),
     /if: steps\.app_build_inputs\.outputs\.bundles == 'true'/,
@@ -341,23 +321,24 @@ test("the workflow gates dependency-backed app build steps", () => {
   );
 });
 
-test("the app build filters match the detector's build roots", () => {
-  const build = step("Build apps");
-  assert.match(
-    build,
-    /pnpm turbo build --filter="\.\.\.\[\$BASE\]" --filter="!\.\/packages\/\*" --filter="!\.\/api-surface" --filter="!@assistant-ui\/docs-site" --filter="!\.\/examples\/\*"\n/,
-  );
-  assert.match(
-    build,
-    /pnpm turbo build --filter="\{\.\/examples\/\*\}\[\$BASE\]"\n/,
-  );
+test("the planner asks Turbo with the Build apps commands", () => {
+  const planned = [
+    ...step("Detect app build inputs").matchAll(
+      /node scripts\/ci-has-tasks\.mjs --plan build (.+)\)$/gm,
+    ),
+  ].map(([, filters]) => filters);
+  const built = [
+    ...step("Build apps").matchAll(/pnpm turbo build (.+)$/gm),
+  ].map(([, filters]) => filters);
+  assert.equal(built.length, 2);
+  assert.deepEqual(planned, built);
 });
 
 test("the app build installs without the pnpm store cache", () => {
   assert.match(step("Setup pnpm and node.js"), /cache: false/);
 });
 
-test("the workflow emits independent app and bundle decisions and keeps an unknown base enabled", (t) => {
+test("the workflow asks Turbo only about package changes, decides bundles independently, and keeps an unknown base enabled", (t) => {
   const { root, write } = bundleFixture(t);
   for (const file of ["app-build-inputs.mjs", "prepare-ci-base.mjs", "lib"]) {
     cpSync(
@@ -366,6 +347,15 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
       { recursive: true },
     );
   }
+  const calls = path.join(root, "planner-calls");
+  write(
+    "scripts/ci-has-tasks.mjs",
+    `import { appendFileSync, readFileSync } from "node:fs";
+appendFileSync(process.env.PLANNER_CALLS, JSON.stringify(process.argv.slice(2)) + "\\n");
+const count = readFileSync(process.env.PLANNER_CALLS, "utf8").trim().split("\\n").length;
+console.log(process.env.PLANNER_ANSWERS.split(",")[count - 1]);
+`,
+  );
   const git = (...args) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
   git("init", "--quiet");
@@ -383,8 +373,9 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
     .map((line) => line.replace(/^          /, ""))
     .join("\n");
   const output = path.join(root, "output");
-  const detect = (comparisonBase) => {
+  const detect = (comparisonBase, answers = "") => {
     writeFileSync(output, "");
+    writeFileSync(calls, "");
     execFileSync("bash", ["-c", run], {
       cwd: root,
       env: {
@@ -393,23 +384,61 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
         CI_MERGE_GROUP_BASE: comparisonBase,
         GITHUB_OUTPUT: output,
         RUNNER_TEMP: root,
+        PLANNER_CALLS: calls,
+        PLANNER_ANSWERS: answers,
       },
     });
-    return Object.fromEntries(
-      readFileSync(output, "utf8")
-        .trim()
+    return {
+      outputs: Object.fromEntries(
+        readFileSync(output, "utf8")
+          .trim()
+          .split("\n")
+          .map((line) => line.split("=")),
+      ),
+      calls: readFileSync(calls, "utf8")
         .split("\n")
-        .map((line) => line.split("=")),
-    );
+        .filter(Boolean)
+        .map((line) => JSON.parse(line)),
+    };
   };
-  assert.deepEqual(detect(base), { run: "false", bundles: "false", base });
-  assert.deepEqual(detect("missing"), {
-    run: "true",
-    bundles: "true",
-    base: "missing",
+  const apps = [
+    "--plan",
+    "build",
+    `--filter=...[${base}]`,
+    "--filter=!./packages/*",
+    "--filter=!./api-surface",
+    "--filter=!@assistant-ui/docs-site",
+    "--filter=!./examples/*",
+  ];
+  const examples = ["--plan", "build", `--filter={./examples/*}[${base}]`];
+
+  assert.deepEqual(detect(base, "false,false"), {
+    outputs: { run: "false", bundles: "false", base },
+    calls: [apps, examples],
   });
+  const appsPlanned = detect(base, "true");
+  assert.equal(appsPlanned.outputs.run, "true");
+  assert.deepEqual(appsPlanned.calls, [apps]);
+  assert.equal(detect(base, "false,true").outputs.run, "true");
+  assert.deepEqual(detect("missing"), {
+    outputs: { run: "true", bundles: "true", base: "missing" },
+    calls: [],
+  });
+
   write("packages/runtime/src/index.ts", "export const value = 2;");
   git("add", "packages/runtime/src/index.ts");
   git("commit", "--quiet", "-m", "shared runtime");
-  assert.deepEqual(detect(base), { run: "true", bundles: "true", base });
+  assert.deepEqual(detect(base, "false,false").outputs, {
+    run: "false",
+    bundles: "true",
+    base,
+  });
+
+  write("templates/starter/app/page.tsx", "export default null;");
+  git("add", "templates/starter/app/page.tsx");
+  git("commit", "--quiet", "-m", "template");
+  assert.deepEqual(detect(base), {
+    outputs: { run: "true", bundles: "true", base },
+    calls: [],
+  });
 });
