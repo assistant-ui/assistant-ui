@@ -2,6 +2,7 @@
 
 import {
   Children,
+  cloneElement,
   createContext,
   Fragment,
   isValidElement,
@@ -11,6 +12,7 @@ import {
   useMemo,
   useState,
   type ComponentProps,
+  type KeyboardEvent,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -47,14 +49,30 @@ function useTabContext() {
 
 const escapeValue = (value: string) => value.toLowerCase().replace(/\s/g, "-");
 
+// Children.toArray keys each level from scratch, so a Fragment's children are
+// re-keyed under the Fragment's own key to stay unique among their new siblings.
 const flatten = (children: ReactNode): ReactNode[] =>
   Children.toArray(children).flatMap((child) =>
     isValidElement(child) && child.type === Fragment
       ? flatten(
           (child as ReactElement<{ children?: ReactNode }>).props.children,
+        ).map((nested) =>
+          isValidElement(nested)
+            ? cloneElement(nested, { key: `${child.key}/${nested.key}` })
+            : nested,
         )
       : [child],
   );
+
+const NAVIGATION_KEYS: Record<
+  string,
+  (index: number, count: number) => number
+> = {
+  ArrowRight: (index, count) => (index + 1) % count,
+  ArrowLeft: (index, count) => (index - 1 + count) % count,
+  Home: () => 0,
+  End: (_index, count) => count - 1,
+};
 
 const groups = new Map<string, Set<(value: string) => void>>();
 
@@ -104,7 +122,7 @@ export function Tabs({
 
   let position = -1;
   const panels = flatten(children).map((child) => {
-    if (!isValidElement(child)) return child;
+    if (!isValidElement(child) || child.type !== Tab) return child;
     position += 1;
     return (
       <TabPosition.Provider key={child.key} value={position}>
@@ -116,8 +134,19 @@ export function Tabs({
   return (
     <div {...props} className={cn("aui-docs-tabs", className)} data-tabs="">
       {items && (
-        <div className="aui-docs-tabs-list" role="tablist">
-          {label && <span className="aui-docs-tabs-label">{label}</span>}
+        <div
+          className="aui-docs-tabs-list"
+          role="tablist"
+          aria-label={typeof label === "string" ? label : undefined}
+          aria-labelledby={
+            label && typeof label !== "string" ? `${id}-label` : undefined
+          }
+        >
+          {label && (
+            <span id={`${id}-label`} className="aui-docs-tabs-label">
+              {label}
+            </span>
+          )}
           {items.map((item, index) => {
             const active = escapeValue(item) === value;
             return (
@@ -128,9 +157,18 @@ export function Tabs({
                 role="tab"
                 aria-selected={active}
                 aria-controls={`${id}-panel-${index}`}
+                tabIndex={active ? 0 : -1}
                 data-state={active ? "active" : "inactive"}
                 className="aui-docs-tabs-trigger"
                 onClick={() => select(escapeValue(item))}
+                onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
+                  const move = NAVIGATION_KEYS[event.key];
+                  if (!move) return;
+                  event.preventDefault();
+                  const next = move(index, items.length);
+                  select(escapeValue(items[next]!));
+                  document.getElementById(`${id}-tab-${next}`)?.focus();
+                }}
               >
                 {item}
               </button>

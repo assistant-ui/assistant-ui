@@ -435,9 +435,7 @@ html.dark
   border-radius: 0.5rem !important;
   background: var(--color-fd-muted) !important;
   color: var(--color-fd-foreground);
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family: var(--fd-font-mono);
   font-size: 0.8125rem !important;
   font-weight: 500 !important;
 }
@@ -451,9 +449,7 @@ html.dark
   border-radius: 0.5rem !important;
   background: var(--color-fd-muted) !important;
   color: inherit;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family: var(--fd-font-mono);
   font-size: 0.75rem !important;
   font-weight: 500 !important;
 }

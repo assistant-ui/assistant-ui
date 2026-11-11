@@ -110,12 +110,17 @@ it("selects the first tab when the group shrinks below the active one", () => {
       ))}
     </CodeGroup>
   );
-  act(() => root.render(group(["a.ts", "b.ts"])));
-  act(() => container.querySelectorAll<HTMLElement>("[role=tab]")[1]!.click());
-  act(() => root.render(group(["a.ts"])));
-  const tab = container.querySelector("[role=tab]")!;
-  expect(tab.getAttribute("aria-selected")).toBe("true");
-  expect(tab.getAttribute("tabindex")).toBe("0");
-  act(() => root.unmount());
-  container.remove();
+  try {
+    act(() => root.render(group(["a.ts", "b.ts"])));
+    act(() =>
+      container.querySelectorAll<HTMLElement>("[role=tab]")[1]!.click(),
+    );
+    act(() => root.render(group(["a.ts"])));
+    const tab = container.querySelector("[role=tab]")!;
+    expect(tab.getAttribute("aria-selected")).toBe("true");
+    expect(tab.getAttribute("tabindex")).toBe("0");
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+  }
 });

@@ -82,6 +82,7 @@ tables, `Kbd`, `Code` and `ThemeImage`. `assistantUiCodeBlock` adds line numbers
 and the `catppuccin-latte` and `catppuccin-mocha` Shiki themes:
 
 ```tsx
+import { defineDocs } from "@farming-labs/docs/config";
 import { assistantUi } from "@assistant-ui/docs-theme";
 import {
   assistantUiCodeBlock,

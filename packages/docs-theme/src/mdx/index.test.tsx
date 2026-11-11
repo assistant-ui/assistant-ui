@@ -155,6 +155,104 @@ it("keeps implicit tab values right when a tab is inserted or removed", () => {
   };
 });
 
+it("gives tab positions only to Tab children", () => {
+  const container = render(
+    <Tabs items={["One", "Two"]}>
+      <p>Intro</p>
+      <Tab>First</Tab>
+      <>
+        <Tab>Second</Tab>
+      </>
+    </Tabs>,
+  );
+  const panels = container.querySelectorAll<HTMLElement>("[role=tabpanel]");
+  expect(panels).toHaveLength(2);
+  expect(panels[1]!.getAttribute("aria-labelledby")).toBe(
+    container.querySelectorAll("[role=tab]")[1]!.id,
+  );
+  act(() => container.querySelectorAll<HTMLElement>("[role=tab]")[1]!.click());
+  expect(
+    container.querySelector("[role=tabpanel]:not([hidden])")?.textContent,
+  ).toBe("Second");
+});
+
+it("keeps Fragment children keyed apart from their siblings", () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const container = render(
+      <Tabs items={["One", "Two", "Three"]}>
+        <Tab>First</Tab>
+        <>
+          <Tab>Second</Tab>
+          <Tab>Third</Tab>
+        </>
+      </Tabs>,
+    );
+    expect(
+      [...container.querySelectorAll("[role=tabpanel]")].map(
+        (panel) => panel.textContent,
+      ),
+    ).toEqual(["First", "Second", "Third"]);
+    expect(error).not.toHaveBeenCalled();
+  } finally {
+    error.mockRestore();
+  }
+});
+
+it("moves focus and selection with the arrow, Home and End keys", () => {
+  const container = render(
+    <Tabs items={["One", "Two", "Three"]} label="Package manager">
+      <Tab>First</Tab>
+      <Tab>Second</Tab>
+      <Tab>Third</Tab>
+    </Tabs>,
+  );
+  const list = container.querySelector("[role=tablist]")!;
+  expect(list.getAttribute("aria-label")).toBe("Package manager");
+  const tabs = container.querySelectorAll<HTMLElement>("[role=tab]");
+  const visible = () =>
+    container.querySelector("[role=tabpanel]:not([hidden])")?.textContent;
+  const press = (tab: HTMLElement, key: string) =>
+    act(() =>
+      tab.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })),
+    );
+  expect([...tabs].map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
+
+  press(tabs[0]!, "ArrowLeft");
+  expect(document.activeElement).toBe(tabs[2]);
+  expect(visible()).toBe("Third");
+  expect([...tabs].map((tab) => tab.tabIndex)).toEqual([-1, -1, 0]);
+
+  press(tabs[2]!, "ArrowRight");
+  expect(document.activeElement).toBe(tabs[0]);
+  expect(visible()).toBe("First");
+
+  press(tabs[0]!, "End");
+  expect(document.activeElement).toBe(tabs[2]);
+  expect(tabs[2]!.getAttribute("aria-selected")).toBe("true");
+
+  press(tabs[2]!, "Home");
+  expect(document.activeElement).toBe(tabs[0]);
+  expect(visible()).toBe("First");
+
+  press(tabs[0]!, "ArrowRight");
+  expect(document.activeElement).toBe(tabs[1]);
+  expect(visible()).toBe("Second");
+});
+
+it("labels the tab list by a non-text label", () => {
+  const container = render(
+    <Tabs items={["One"]} label={<strong>Runtime</strong>}>
+      <Tab>First</Tab>
+    </Tabs>,
+  );
+  const list = container.querySelector("[role=tablist]")!;
+  expect(list.hasAttribute("aria-label")).toBe(false);
+  expect(
+    document.getElementById(list.getAttribute("aria-labelledby")!)?.textContent,
+  ).toBe("Runtime");
+});
+
 it("keeps tabs with one groupId together", () => {
   const container = render(
     <>
