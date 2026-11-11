@@ -35,11 +35,4 @@ describe("install guide route", () => {
     expect(body).not.toContain("ignore previous instructions");
     expect(body).not.toContain("<script>");
   });
-
-  it("answers 404 when no checkout worker is configured", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.stubEnv("NODE_ENV", "production");
-    const response = await get("?items=cloud");
-    expect(response.status).toBe(404);
-  });
 });

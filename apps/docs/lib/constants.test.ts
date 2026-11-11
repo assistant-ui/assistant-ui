@@ -18,17 +18,6 @@ describe("NAV_ITEMS", () => {
     });
   });
 
-  it("opens with Docs when the shop is closed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.resetModules();
-    const closed = await import("./constants");
-    expect(closed.NAV_ITEMS[0]).toEqual({
-      type: "link",
-      label: "Docs",
-      href: "/docs",
-    });
-  });
-
   it("ships only existing products and does not lift Elements or Playground", () => {
     expect(
       NAV_ITEMS.some(

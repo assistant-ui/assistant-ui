@@ -10,7 +10,6 @@ import {
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -72,21 +71,7 @@ export function Hero({
           className="hero-rise flex flex-wrap items-center gap-3"
           style={{ animationDelay: "700ms" }}
         >
-          {checkoutEnabled ? (
-            <SetupCommandPrompt page="home" section="hero" />
-          ) : (
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href="/docs/installation"
-                  onClick={() => analytics.cta.clicked("get_started", "hero")}
-                />
-              }
-            >
-              Quick Start
-            </Button>
-          )}
+          <SetupCommandPrompt page="home" section="hero" />
           <Button
             variant="outline"
             nativeButton={false}
@@ -99,7 +84,7 @@ export function Hero({
           >
             Talk to an expert
           </Button>
-          {checkoutEnabled ? <InstallManuallyLink section="hero" /> : null}
+          <InstallManuallyLink section="hero" />
         </div>
 
         <div

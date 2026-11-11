@@ -8,8 +8,12 @@ import {
   parseSetupUrl,
 } from "setup-agent/cli";
 
-const DEFAULT_DOCS_URL = "https://www.assistant-ui.com";
-const DEFAULT_SETUP_SERVER = "https://setup.assistant-ui.com";
+/** The docs site: the catalog and the install guides. */
+export const DEFAULT_DOCS_URL = "https://www.assistant-ui.com";
+/** The setup worker the agent and the browser meet on. */
+export const DEFAULT_SETUP_SERVER = "https://checkout.assistant-ui.com";
+/** The setup app the user follows the setup in. */
+export const DEFAULT_SETUP_APP_URL = "https://setup.assistant-ui.com";
 const DEFAULT_PRODUCTS = ["assistant-ui"] as const;
 
 const ID_ALPHABET =
@@ -95,11 +99,15 @@ export const resolveProducts = async (
   }));
 };
 
-export type SetupEndpoints = { docsUrl: string; setupServer: string };
+export type SetupEndpoints = {
+  docsUrl: string;
+  setupServer: string;
+  setupAppUrl: string;
+};
 
-/** The docs site and setup server, from flags, then the environment, then production. */
+/** The docs site, setup server and setup app, from flags, then the environment, then production. */
 export const resolveEndpoints = (
-  options: { docsUrl?: string; setupServer?: string },
+  options: { docsUrl?: string; setupServer?: string; setupAppUrl?: string },
   env: NodeJS.ProcessEnv = process.env,
 ): SetupEndpoints => ({
   docsUrl: parseSetupUrl(
@@ -110,14 +118,19 @@ export const resolveEndpoints = (
       env.ASSISTANT_UI_SETUP_SERVER ??
       DEFAULT_SETUP_SERVER,
   ),
+  setupAppUrl: parseSetupUrl(
+    options.setupAppUrl ??
+      env.ASSISTANT_UI_SETUP_APP_URL ??
+      DEFAULT_SETUP_APP_URL,
+  ),
 });
 
-/** The setup page that joins the link; the link rides in the fragment, which never reaches a server. */
+/** The setup app page that joins the link; the link rides in the fragment, which never reaches a server. */
 export const setupPageUrl = (
-  docsUrl: string,
+  setupAppUrl: string,
   linkId: string,
   setupId: string,
-) => `${docsUrl}/components/setup#link=${linkId}&setup=${setupId}`;
+) => `${setupAppUrl}/#link=${linkId}&setup=${setupId}`;
 
 export type StartedSetup = {
   linkId: string;
@@ -165,7 +178,7 @@ export const startSetup = async ({
     linkId,
     setupId,
     agentUrl,
-    browserUrl: setupPageUrl(endpoints.docsUrl, linkId, setupId),
+    browserUrl: setupPageUrl(endpoints.setupAppUrl, linkId, setupId),
     products,
   };
 };
@@ -195,7 +208,9 @@ export const setupPrompt = (products?: readonly string[]) => {
     products !== undefined &&
     (products.length !== DEFAULT_PRODUCTS.length ||
       products.some((slug, index) => slug !== DEFAULT_PRODUCTS[index]));
-  return `Set up assistant-ui with \`npx assistant-ui@latest setup${custom ? ` --products ${products.join(",")}` : ""}\``;
+  return custom
+    ? `set up assistant-ui with \`npx assistant-ui@latest setup --products ${products.join(",")}\``
+    : "set up assistant-ui";
 };
 
 /** `text` framed in a box, one line per row, for the terminal. */

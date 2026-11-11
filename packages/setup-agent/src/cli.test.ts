@@ -604,7 +604,7 @@ describe("begin planning", () => {
 describe("agent instructions", () => {
   it("goes straight to planning for a setup the agent started", () => {
     const browserUrl =
-      "https://www.assistant-ui.com/components/setup#link=abc12345&setup=def67890";
+      "https://setup.assistant-ui.com/#link=abc12345&setup=def67890";
     const started = agentInstructions("https://setup.test/abc12345", {
       startedByAgent: { browserUrl },
     });

@@ -57,15 +57,4 @@ describe("hero", () => {
     expect(prompt.parentElement).toBe(ctaRow());
     expectTalkToAnExpert(3);
   });
-
-  it("links the primary call to action to the installation guide without a checkout worker", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.stubEnv("NODE_ENV", "production");
-    const { Hero } = await load();
-    render(<Hero stars={null} downloads={null} />);
-    const link = screen.getByRole("button", { name: "Quick Start" });
-    expect(link.tagName).toBe("A");
-    expect(link.getAttribute("href")).toBe("/docs/installation");
-    expectTalkToAnExpert(2);
-  });
 });
