@@ -15,6 +15,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/careers`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
     {
+      url: `${BASE_URL}/contact-sales`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
       url: `${BASE_URL}/privacy-policy`,
       changeFrequency: "yearly",
       priority: 0.3,

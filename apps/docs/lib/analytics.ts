@@ -83,6 +83,16 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
+  contactSales: {
+    /** The demo form passed validation and is handing off to the cal.com booking. Carries no contact details. */
+    submitted: (props: {
+      company_size: string;
+      role: string;
+      referral: string;
+      personal_email: boolean;
+    }) => trackEvent("contact_sales_submitted", props),
+  },
+
   demo: {
     budgetExhausted: (signedIn: boolean, limit: number) =>
       trackEvent("demo_budget_exhausted", { signed_in: signedIn, limit }),
