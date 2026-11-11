@@ -43,6 +43,7 @@ import {
   type TextMessagePartComponent,
   type ToolCallMessagePartComponent,
   useAuiState,
+  useThreadReplyState,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -263,6 +264,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             <ThreadPrimitive.Messages>
               {() => <ThreadMessage />}
             </ThreadPrimitive.Messages>
+            <ThreadReplyStatus />
           </div>
 
           <ThreadPrimitive.ViewportFooter
@@ -665,20 +667,9 @@ const ComposerAction: FC = () => {
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root group/error border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 data-[run-state=in-progress]:border-border data-[run-state=in-progress]:bg-muted/40 data-[run-state=in-progress]:text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border p-3 text-sm data-[run-state=stale]:border-amber-500/40 data-[run-state=stale]:bg-amber-500/10 data-[run-state=stale]:text-amber-800 dark:text-red-200 dark:data-[run-state=stale]:bg-amber-500/5 dark:data-[run-state=stale]:text-amber-200">
-        <TriangleAlertIcon className="hidden size-4 shrink-0 group-data-[run-state=stale]/error:block" />
+      <ErrorPrimitive.Root className="aui-message-error-root group/error border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 data-[run-state=in-progress]:border-border data-[run-state=in-progress]:bg-muted/40 data-[run-state=in-progress]:text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border p-3 text-sm dark:text-red-200">
         <Loader2Icon className="hidden size-4 shrink-0 animate-spin group-data-[run-state=in-progress]/error:block motion-reduce:animate-none" />
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2 min-w-0 flex-1" />
-        <ActionBarPrimitive.Resume asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1.5 border-amber-500/40 bg-transparent hover:bg-amber-500/15 disabled:hidden dark:border-amber-400/30"
-          >
-            <PlayIcon className="size-3.5" />
-            Resume
-          </Button>
-        </ActionBarPrimitive.Resume>
         <ActionBarPrimitive.RefreshRun asChild>
           <Button
             variant="ghost"
@@ -692,6 +683,58 @@ const MessageError: FC = () => {
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
+};
+
+/** The run answering the last user message, when no reply shows it yet: generating in another tab, or interrupted with Resume. */
+const ThreadReplyStatus: FC = () => {
+  const replyState = useThreadReplyState();
+  if (replyState === "in-progress") {
+    return (
+      <div
+        role="status"
+        data-reply-state="in-progress"
+        className="aui-thread-reply-status border-border bg-muted/40 text-muted-foreground mx-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border p-3 text-sm"
+      >
+        <Loader2Icon className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+        <span className="min-w-0 flex-1">Generating in another tab…</span>
+        <ThreadPrimitive.RefreshRun asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 disabled:opacity-50"
+          >
+            <RefreshCwIcon className="size-3.5" />
+            Refresh
+          </Button>
+        </ThreadPrimitive.RefreshRun>
+      </div>
+    );
+  }
+  if (replyState === "interrupted") {
+    return (
+      <div
+        role="alert"
+        data-reply-state="interrupted"
+        className="aui-thread-reply-status mx-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:bg-amber-500/5 dark:text-amber-200"
+      >
+        <TriangleAlertIcon className="size-4 shrink-0" />
+        <span className="min-w-0 flex-1">
+          This response was interrupted before it finished.
+        </span>
+        <ThreadPrimitive.Resume asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 border-amber-500/40 bg-transparent hover:bg-amber-500/15 disabled:hidden dark:border-amber-400/30"
+          >
+            <PlayIcon className="size-3.5" />
+            Resume
+          </Button>
+        </ThreadPrimitive.Resume>
+      </div>
+    );
+  }
+  return null;
 };
 
 const AssistantMessage: FC = () => {

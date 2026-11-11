@@ -15,3 +15,5 @@ export {
   ThreadPrimitiveSuggestions as Suggestions,
   ThreadPrimitiveSuggestionByIndex as SuggestionByIndex,
 } from "./thread/ThreadSuggestions";
+export { ThreadPrimitiveResume as Resume } from "./thread/ThreadResume";
+export { ThreadPrimitiveRefreshRun as RefreshRun } from "./thread/ThreadRefreshRun";

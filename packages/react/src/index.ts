@@ -356,6 +356,10 @@ export {
   type ThreadRowsOptions,
 } from "@assistant-ui/core/react";
 export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
+export {
+  useThreadReplyState,
+  type ThreadReplyState,
+} from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";
 export { useMessagePartSource } from "./primitives/messagePart/useMessagePartSource";
