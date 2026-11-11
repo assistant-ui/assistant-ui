@@ -29,7 +29,10 @@ import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
-import { INTERNAL } from "@assistant-ui/react";
+import {
+  INTERNAL,
+  unstable_useTriggerPopoverAriaProps,
+} from "@assistant-ui/react";
 import {
   DirectiveNode,
   DirectiveChipProvider,
@@ -278,6 +281,8 @@ export const LexicalComposerInput = forwardRef<
     );
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
+    const { "aria-expanded": _, ...popoverAria } =
+      unstable_useTriggerPopoverAriaProps();
 
     // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
@@ -313,6 +318,7 @@ export const LexicalComposerInput = forwardRef<
                     "aria-placeholder": placeholder,
                   }
                 : {})}
+              {...popoverAria}
             />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />
