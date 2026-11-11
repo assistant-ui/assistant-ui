@@ -464,14 +464,14 @@ importers:
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@farming-labs/docs':
-        specifier: 0.2.137
-        version: 0.2.137(react@19.3.1)(supports-color@10.2.2)
+        specifier: 0.2.141
+        version: 0.2.141(react@19.3.1)(supports-color@10.2.2)
       '@farming-labs/next':
-        specifier: 0.2.137
-        version: 0.2.137(c06280a60e4fc0fa40d60af890964eb5)
+        specifier: 0.2.141
+        version: 0.2.141(c3b5d6cf635c99d49400d3f52169717e)
       '@farming-labs/theme':
-        specifier: 0.2.137
-        version: 0.2.137(@farming-labs/docs@0.2.137(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
+        specifier: 0.2.141
+        version: 0.2.141(@farming-labs/docs@0.2.141(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
       '@hookform/resolvers':
         specifier: ^6.0.0
         version: 6.0.0(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -4327,7 +4327,7 @@ importers:
         specifier: ^1.9.0
         version: 1.9.0(zod@4.6.7)
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
       assistant-stream:
         specifier: ^0.3.57
@@ -4702,11 +4702,11 @@ importers:
         specifier: workspace:*
         version: link:../x-buildutils
       '@farming-labs/docs':
-        specifier: 0.2.137
-        version: 0.2.137(react@19.3.1)(supports-color@10.2.2)
+        specifier: 0.2.141
+        version: 0.2.141(react@19.3.1)(supports-color@10.2.2)
       '@farming-labs/theme':
-        specifier: 0.2.137
-        version: 0.2.137(@farming-labs/docs@0.2.137(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
+        specifier: 0.2.141
+        version: 0.2.141(@farming-labs/docs@0.2.141(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -4719,6 +4719,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^5.0.5
         version: 5.0.5(vitest@5.0.5)
+      fumadocs-core:
+        specifier: 16.17.8
+        version: 16.17.8(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)
       fumadocs-ui:
         specifier: 16.17.8
         version: 16.17.8(2475f354ced75045ad42584c48333622)
@@ -5101,7 +5104,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.23
@@ -5217,7 +5220,7 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
       '@assistant-ui/generative-ui':
         specifier: ^0.0.10
@@ -5585,7 +5588,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.23
@@ -5949,7 +5952,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.23
@@ -6449,7 +6452,7 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.23
@@ -6785,7 +6788,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.34
+        specifier: ^0.3.35
         version: link:../core
     devDependencies:
       '@assistant-ui/store':
@@ -9516,8 +9519,21 @@ packages:
       react:
         optional: true
 
-  '@farming-labs/next@0.2.137':
-    resolution: {integrity: sha512-ln/iFdXpuSGP5VZUacv3tJQItf1GiFr2LY7hgd8ceZn5r3FWorCZegSfwsJVumlg8rBuRmyrFS2k3HtbGvUywA==}
+  '@farming-labs/docs@0.2.141':
+    resolution: {integrity: sha512-eF4Jgu1FhUBiUP9jrbvf+BtheWae8vEDC21r/VzTlCxE1X0pEkkkYHWl2Qp4i9pFecR9BsIZJFx9N6DWrZmnSA==}
+    engines: {node: '>=20'}
+    hasBin: true
+    peerDependencies:
+      '@vercel/sandbox': ^2.0.0
+      react: '>=19.2.0'
+    peerDependenciesMeta:
+      '@vercel/sandbox':
+        optional: true
+      react:
+        optional: true
+
+  '@farming-labs/next@0.2.141':
+    resolution: {integrity: sha512-P3+CppHmO0tE0qU/OybzYfTPaakyZRjDLSgnEl1FnzF6lfymCgjM/8yF40l+0QzTA+E2fuLwYc3amKNtIkpF/Q==}
     peerDependencies:
       '@farming-labs/docs': '>=0.2.121 || ^0.2.133-perf.0'
       '@farming-labs/theme': '>=0.0.1 || ^0.2.133-perf.0'
@@ -9529,6 +9545,21 @@ packages:
     resolution: {integrity: sha512-m9n9oib7aC4NRcMXQIkmrnTI+75uef/R0vbh7gRS2FJDgosv4zLvUslKGB5H9dYDAaGzKRDpZ18bRPIOa1G5aw==}
     peerDependencies:
       '@farming-labs/docs': ^0.2.137
+      next: '>=16.0.0'
+      react: '>=19.2.0'
+      react-dom: '>=19.2.0'
+    peerDependenciesMeta:
+      next:
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
+  '@farming-labs/theme@0.2.141':
+    resolution: {integrity: sha512-4vbG9fLSFhTq/T8PRt8DNErX+y/jssohiFONN1xkhi8PvmAat4gkdHhIaBwkwB7sYmAhWBzklDg0sl/GDPdJdw==}
+    peerDependencies:
+      '@farming-labs/docs': ^0.2.141
       next: '>=16.0.0'
       react: '>=19.2.0'
       react-dom: '>=19.2.0'
@@ -25635,11 +25666,33 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@farming-labs/next@0.2.137(c06280a60e4fc0fa40d60af890964eb5)':
+  '@farming-labs/docs@0.2.141(react@19.3.1)(supports-color@10.2.2)':
+    dependencies:
+      '@clack/prompts': 1.8.1
+      '@modelcontextprotocol/server': 2.3.0
+      '@scalar/core': 0.4.6
+      github-slugger: 2.0.0
+      gray-matter: 4.0.3
+      jiti: 2.7.0
+      jsonpath-rfc9535: 1.3.0
+      parse-entities: 4.0.2
+      picocolors: 1.1.1
+      remark-gfm: 4.0.1(supports-color@10.2.2)
+      remark-mdx: 3.1.1(supports-color@10.2.2)
+      remark-parse: 11.0.0(supports-color@10.2.2)
+      unified: 11.0.5
+      yaml: 2.9.1
+      zod: 4.6.7
+    optionalDependencies:
+      react: 19.3.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@farming-labs/next@0.2.141(c3b5d6cf635c99d49400d3f52169717e)':
     dependencies:
       '@babel/parser': 7.29.7
-      '@farming-labs/docs': 0.2.137(react@19.3.1)(supports-color@10.2.2)
-      '@farming-labs/theme': 0.2.137(@farming-labs/docs@0.2.137(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
+      '@farming-labs/docs': 0.2.141(react@19.3.1)(supports-color@10.2.2)
+      '@farming-labs/theme': 0.2.141(@farming-labs/docs@0.2.141(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
       '@mdx-js/loader': 3.1.1(supports-color@10.2.2)
       '@mdx-js/react': 3.1.1(@types/react@19.3.0)(react@19.3.1)
       '@next/mdx': 16.4.5(@mdx-js/loader@3.1.1(supports-color@10.2.2))(@mdx-js/react@3.1.1(@types/react@19.3.0)(react@19.3.1))
@@ -25720,9 +25773,9 @@ snapshots:
       - takumi-js
       - waku
 
-  '@farming-labs/theme@0.2.137(@farming-labs/docs@0.2.137(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)':
+  '@farming-labs/theme@0.2.141(@farming-labs/docs@0.2.141(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)':
     dependencies:
-      '@farming-labs/docs': 0.2.137(react@19.3.1)(supports-color@10.2.2)
+      '@farming-labs/docs': 0.2.141(react@19.3.1)(supports-color@10.2.2)
       fumadocs-core: 16.17.8(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)
       fumadocs-ui: 16.17.8(2475f354ced75045ad42584c48333622)
       gray-matter: 4.0.3

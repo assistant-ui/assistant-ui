@@ -3,10 +3,8 @@ import type { ThreadMessage } from "../types/message";
 /**
  * Where a stored reply's run stands when another tab or session drove it:
  * `in-progress` while that run still heartbeats, `stale` once it stopped
- * before writing anything (only a client before v0.3.35 stores such a
- * reply). Undefined for every other message, including a reply whose run
- * stopped after it wrote content: that one is an ordinary error with
- * `error.code` `run_stale`, answered again with Regenerate.
+ * before writing anything. Undefined for every other message, including one
+ * whose run stopped after it wrote content: that one reads as a plain error.
  */
 export type MessageRunState = "stale" | "in-progress";
 
@@ -15,6 +13,7 @@ const RUN_STATES: Readonly<Record<string, MessageRunState>> = {
   run_in_progress: "in-progress",
 };
 
+/** Whether a reply has nothing to show: no parts, or only blank text and reasoning. */
 const isEmptyReply = (message: Pick<ThreadMessage, "content">) =>
   message.content.every(
     (part) =>
