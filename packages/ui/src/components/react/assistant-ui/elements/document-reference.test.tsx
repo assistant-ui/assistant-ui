@@ -135,4 +135,57 @@ describe("DocumentReference", () => {
     expect(current).toHaveLength(1);
     expect(current[0]?.textContent).toContain("second");
   });
+
+  it("drops the pick when another document reuses the same passages", () => {
+    const { rerender } = render(
+      <DocumentReference
+        title="doc.pdf"
+        pages={14}
+        anchors={anchors}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /second/ }));
+
+    rerender(
+      <DocumentReference
+        title="other.pdf"
+        pages={14}
+        anchors={anchors}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+
+    const current = document.querySelectorAll('[aria-current="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]?.textContent).toContain("first");
+  });
+
+  it("ignores the pick once the card becomes read-only", () => {
+    const { rerender } = render(
+      <DocumentReference
+        title="doc.pdf"
+        pages={14}
+        anchors={anchors}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /second/ }));
+
+    rerender(
+      <DocumentReference
+        title="doc.pdf"
+        pages={14}
+        anchors={anchors}
+        activePage={4}
+      />,
+    );
+
+    const current = document.querySelectorAll('[aria-current="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]?.textContent).toContain("first");
+  });
 });

@@ -99,7 +99,7 @@ See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
 
 <StandaloneMode>
 
-Standalone, the element is fully controlled: you hold the anchor list and the active page, and it reports jumps back to you.
+Standalone, you hold the anchor list and the active page, and the element reports jumps back to you. Which of several passages on one page the user clicked is the only thing it tracks itself.
 
 <Steps>
   <Step>
@@ -170,7 +170,7 @@ async function openDocument(id: string) {
 </div>
 ```
 
-Exactly one anchor is current, and it carries both the active background and `aria-current`. Clicking a button calls `onJump` with that anchor's `page` and makes that anchor current, so of two anchors citing one page, the one the user picked is the one marked. Otherwise the current anchor is the first one in array order whose `page` equals `activePage`, which is also where the card starts. The pick is dropped when `anchors` no longer holds that passage at that position, and when `activePage` matches no anchor, no button is current. An empty `anchors` array renders only the header, with `0 cited` in the meta line and no placeholder row.
+Exactly one anchor is current, and it carries both the active background and `aria-current`. Clicking a button calls `onJump` with that anchor's `page` and makes that anchor current, so of two anchors citing one page, the one the user picked is the one marked. Otherwise the current anchor is the first one in array order whose `page` equals `activePage`, which is also where the card starts. The pick is dropped when `title` changes or `anchors` no longer holds that passage at that position, and it only applies while `onJump` is set. When `activePage` matches no anchor, no button is current. An empty `anchors` array renders only the header, with `0 cited` in the meta line and no placeholder row.
 
 ## Examples
 
