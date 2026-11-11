@@ -67,12 +67,8 @@ const lostLeaseCode = (error: unknown): string | undefined =>
     ? error.code
     : undefined;
 
-// A server that predates run leases rejects the unknown `open_run` key of its strict create schema.
-const isRunUnsupported = (error: unknown) =>
-  error instanceof CloudAPIError && error.status === 400;
-
 // A server before v0.2.11 has no `POST /threads/:id/runs` route.
-const isThreadRunUnsupported = (error: unknown) =>
+const isThreadRunMissing = (error: unknown) =>
   error instanceof CloudAPIError &&
   (error.status === 404 || error.status === 405);
 
@@ -94,9 +90,8 @@ type FailedAppend = {
  *
  * A run holds the thread's run lease, opened with `beginRun` before its
  * reply is stored: the reply's first write stores the row and binds the
- * lease to it, so a run that never writes leaves no message. Against a
- * server before v0.2.11, a message appended as running opens a lease on its
- * row instead. A lease is renewed by heartbeats on the server's interval
+ * lease to it, so a run that never writes leaves no message. A message
+ * appended as running opens the lease itself. A lease is renewed by heartbeats on the server's interval
  * until a write with an end reason ends it. Heartbeats
  * keep running while the page is in the background. The server never
  * expires a lease; readers show a run as stale once it has gone `staleAfter`
@@ -112,8 +107,6 @@ export class CloudMessagePersistence {
   private runWrites = new Map<string, Promise<unknown>>();
   private runBegins = new Map<string, Promise<boolean>>();
   private threadRuns = new Map<string, CloudThreadRunRead>();
-  /** False once the server answered that it has no thread leases. */
-  private threadLeases = true;
   private getCloud: () => AssistantCloud;
   private staleAfter: number;
 
@@ -152,8 +145,8 @@ export class CloudMessagePersistence {
    * other running lease of the thread: the newest run wins.
    *
    * Resolves false, opening nothing, when the reply is already stored or its
-   * id cannot be an external id, and against a server before v0.2.11; its
-   * first running `append` then opens a lease on its row.
+   * id cannot be an external id. Rejects against a server before v0.2.11,
+   * which has no thread run leases.
    */
   async beginRun(
     threadId: string,
@@ -163,18 +156,12 @@ export class CloudMessagePersistence {
     const pending = this.runBegins.get(messageId);
     if (pending) return pending;
     if (
-      !this.threadLeases ||
       this.runs.has(messageId) ||
       this.idMapping.has(messageId) ||
       !fitsExternalId(messageId)
     )
       return isOpen(this.runs.get(messageId));
     const runs = this.runs;
-    // A cloud client from before thread leases (or a test double) has no `open`.
-    if (typeof this.getCloud().threads.runs?.open !== "function") {
-      this.threadLeases = false;
-      return false;
-    }
     const task = (async () => {
       const resolvedParentId = parentId
         ? await this.resolveParentId(parentId)
@@ -185,9 +172,12 @@ export class CloudMessagePersistence {
           parent_id: resolvedParentId,
         });
       } catch (error) {
-        if (!isThreadRunUnsupported(error)) throw error;
-        this.threadLeases = false;
-        return false;
+        if (!isThreadRunMissing(error)) throw error;
+        throw new Error(
+          "Assistant Cloud has no thread run leases (POST /threads/:id/runs answered " +
+            `${(error as CloudAPIError).status}). This client needs Assistant Cloud v0.2.11 or newer.`,
+          { cause: error },
+        );
       }
       // A reset while the open was in flight drops the lease with the old mapping.
       if (this.runs !== runs || this.idMapping.has(messageId)) return false;
@@ -203,11 +193,7 @@ export class CloudMessagePersistence {
     }
   }
 
-  /**
-   * The thread's running lease as the latest `load` read it; undefined
-   * before a load, and from a server before v0.2.11, which reports runs only
-   * on messages.
-   */
+  /** The thread's running lease as the latest `load` read it; undefined before a load. */
   threadRunOf(threadId: string): CloudThreadRunRead | undefined {
     return this.threadRuns.get(threadId);
   }
@@ -215,10 +201,9 @@ export class CloudMessagePersistence {
   /** Records a thread's running lease read by a message list outside `load`. */
   recordThreadRun(
     threadId: string,
-    run: CloudThreadRun | null | undefined,
+    run: CloudThreadRun | null,
     readAt = Date.now(),
   ): void {
-    if (run === undefined) return;
     this.threadRuns.set(threadId, { run, readAt });
   }
 
@@ -264,6 +249,16 @@ export class CloudMessagePersistence {
       return;
     }
 
+    // A reply appended as running holds the thread's run lease from its first write.
+    if (
+      run === "running" &&
+      existing === undefined &&
+      (await this.beginRun(threadId, messageId, parentId))
+    ) {
+      await this.storeRun(threadId, messageId, parentId, format, content, run);
+      return;
+    }
+
     this.failedAppends.delete(messageId);
     const task = (async () => {
       const resolvedParentId = parentId
@@ -277,23 +272,7 @@ export class CloudMessagePersistence {
         format,
         content,
       };
-      if (run !== "running") {
-        return (await cloud.threads.messages.create(threadId, body)).message_id;
-      }
-      let created: Awaited<ReturnType<typeof cloud.threads.messages.create>>;
-      try {
-        created = await cloud.threads.messages.create(threadId, {
-          ...body,
-          open_run: true,
-        });
-      } catch (error) {
-        if (!isRunUnsupported(error)) throw error;
-        created = await cloud.threads.messages.create(threadId, body);
-      }
-      if (created.run) {
-        this.openRun(threadId, messageId, created.run);
-      }
-      return created.message_id;
+      return (await cloud.threads.messages.create(threadId, body)).message_id;
     })();
 
     this.idMapping.set(messageId, task);
@@ -677,7 +656,7 @@ export class CloudMessagePersistence {
         ...(after ? { after } : undefined),
       });
       if (after === undefined && this.idMapping === idMapping)
-        this.recordThreadRun(threadId, page.run, readAt);
+        this.recordThreadRun(threadId, page.run ?? null, readAt);
       const last = page.messages.at(-1);
       if (!last) break;
 

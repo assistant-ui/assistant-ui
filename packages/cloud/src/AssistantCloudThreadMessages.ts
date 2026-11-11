@@ -57,10 +57,7 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
-  /**
-   * The thread's running lease, or null when it has none. Undefined from a
-   * server before v0.2.11, which reports runs only on messages.
-   */
+  /** The thread's running lease, or null when it has none. */
   run?: CloudThreadRun | null | undefined;
 };
 
@@ -106,7 +103,7 @@ const decodeCloudMessageRun = (
 };
 
 const decodeCloudThreadRun = (value: unknown): CloudThreadRun | null => {
-  if (value === null) return null;
+  if (value === null || value === undefined) return null;
   const run = readCloudRecord(value, "run");
   return {
     status: readCloudEnum(run.status, "run.status", ["running"] as const),
@@ -193,9 +190,7 @@ export class AssistantCloudThreadMessages {
       messages: messages.map((message, index) =>
         decodeCloudMessage(message, `messages[${index}]`),
       ),
-      ...(response.run !== undefined
-        ? { run: decodeCloudThreadRun(response.run) }
-        : undefined),
+      run: decodeCloudThreadRun(response.run),
     };
   }
 

@@ -273,7 +273,7 @@ describe("AssistantCloudThreadMessages run leases", () => {
     makeRequest.mockResolvedValueOnce({ messages: [], run: null });
     expect((await messages.list("t1")).run).toBeNull();
     makeRequest.mockResolvedValueOnce({ messages: [] });
-    expect("run" in (await messages.list("t1"))).toBe(false);
+    expect((await messages.list("t1")).run).toBeNull();
 
     makeRequest.mockResolvedValueOnce({
       messages: [{ ...row, run: { status: "paused" } }],
