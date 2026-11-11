@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import { FileTextIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -29,9 +29,11 @@ export function DocumentReference({
   onJump?: (page: number) => void;
 }) {
   // several anchors can cite one page, and only one of them is the current item
-  const currentIndex = anchors.findIndex(
-    (anchor) => anchor.page === activePage,
-  );
+  const [pickedIndex, setPickedIndex] = useState<number | null>(null);
+  const currentIndex =
+    pickedIndex !== null && anchors[pickedIndex]?.page === activePage
+      ? pickedIndex
+      : anchors.findIndex((anchor) => anchor.page === activePage);
 
   return (
     <div
@@ -60,7 +62,7 @@ export function DocumentReference({
         {anchors.map((anchor, i) => {
           const className = cn(
             "flex flex-col gap-1 rounded-xl px-2.5 py-2 text-start transition-colors",
-            anchor.page === activePage
+            i === currentIndex
               ? field
               : onJump
                 ? "hover:bg-foreground/[0.035]"
@@ -82,7 +84,10 @@ export function DocumentReference({
               key={`${anchor.page}-${i}`}
               type="button"
               aria-current={i === currentIndex || undefined}
-              onClick={() => onJump(anchor.page)}
+              onClick={() => {
+                setPickedIndex(i);
+                onJump(anchor.page);
+              }}
               className={className}
             >
               {content}
