@@ -93,8 +93,14 @@ const csp = (frameAncestors: string) =>
     upgrade-insecure-requests;
 `.replace(/\n/g, "");
 
+// `next build` runs one worker per CPU core to collect page data and
+// prerender, and each holds the whole server bundle. DOCS_BUILD_CPUS caps that
+// on machines with little RAM; it does not change the output.
+const buildCpus = Number(process.env.DOCS_BUILD_CPUS) || undefined;
+
 const config: NextConfig = {
   cacheComponents: true,
+  ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
   // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
   // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
   ...(process.env.NEXT_ALLOWED_DEV_ORIGINS
@@ -606,22 +612,27 @@ const config: NextConfig = {
   }),
 };
 
-export default generateContentManifest(process.cwd()).then(() => {
-  if (process.env.NODE_ENV === "development")
-    watchContentManifest(process.cwd());
-  const compiled = withDocs(withAui(config), docsConfig, {
-    mdx: {
-      remarkPlugins: [
-        fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
-      ],
-      codeHighlighter: fileURLToPath(
-        new URL("./lib/rehype-docs-code.mjs", import.meta.url),
-      ),
-    },
-  });
-  return {
-    ...compiled,
-    rewrites: config.rewrites,
-    redirects: config.redirects,
-  };
-});
+// `pnpm dev:lite` compiles a docs page only once it is opened, for machines
+// with little RAM. Never applies to builds.
+const contentOptions = { lite: isDev && process.env.DOCS_LITE === "1" };
+
+export default generateContentManifest(process.cwd(), contentOptions).then(
+  () => {
+    if (isDev) watchContentManifest(process.cwd(), contentOptions);
+    const compiled = withDocs(withAui(config), docsConfig, {
+      mdx: {
+        remarkPlugins: [
+          fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
+        ],
+        codeHighlighter: fileURLToPath(
+          new URL("./lib/rehype-docs-code.mjs", import.meta.url),
+        ),
+      },
+    });
+    return {
+      ...compiled,
+      rewrites: config.rewrites,
+      redirects: config.redirects,
+    };
+  },
+);
