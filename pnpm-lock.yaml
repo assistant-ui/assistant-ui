@@ -4525,6 +4525,9 @@ importers:
       semver:
         specifier: ^7.8.5
         version: 7.8.5
+      setup-agent:
+        specifier: workspace:^
+        version: link:../setup-agent
       statewire:
         specifier: ^0.22.1
         version: 0.22.1(@types/react@19.3.0)(react@19.3.1)

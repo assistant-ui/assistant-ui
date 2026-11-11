@@ -602,6 +602,28 @@ describe("begin planning", () => {
 });
 
 describe("agent instructions", () => {
+  it("goes straight to planning for a setup the agent started", () => {
+    const browserUrl =
+      "https://www.assistant-ui.com/components/setup#link=abc12345&setup=def67890";
+    const started = agentInstructions("https://setup.test/abc12345", {
+      startedByAgent: { browserUrl },
+    });
+    expect(started).not.toContain("click Begin plan");
+    expect(started).not.toContain("wait start\nKeep the stream running");
+    expect(started).toContain("there is no Begin plan click to wait for");
+    expect(started).toContain(browserUrl);
+    expect(started).toContain("a setup you opened in the user's browser");
+    const opened = agentInstructions("https://setup.test/abc12345");
+    expect(opened).toContain("click Begin plan");
+    expect(opened).toContain("a setup the user opened in their browser");
+  });
+
+  it("asks what to set up when the setup has no products", () => {
+    expect(agentInstructions("https://setup.test/s")).toContain(
+      "If the setup lists no products, first ask the user what to set up",
+    );
+  });
+
   it("prints a setup URL as one quoted shell word", () => {
     const instructions = agentInstructions("https://checkout.test/a'b;c");
     expect(instructions).toContain(

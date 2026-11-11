@@ -1,7 +1,13 @@
+import {
+  CODING_AGENTS,
+  detectAgentKind,
+  isDirectInvocation,
+  runCodingAgent,
+} from "./agents";
+import type { CodingAgent } from "./agents";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
-import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import {
@@ -113,9 +119,41 @@ const shellWord = (value: string) =>
     ? value
     : `'${value.replaceAll("'", `'\\''`)}'`;
 
-export const agentInstructions = (setupUrl: string) => {
+export type AgentInstructionsOptions = {
+  /**
+   * The agent started this setup with `assistant-ui setup`, which already
+   * began planning and opened the setup page in the user's browser; there is
+   * no Begin plan click to wait for.
+   */
+  startedByAgent?: {
+    browserUrl: string;
+    /** False when the browser was not opened for the user; the agent then hands them the link. */
+    opened?: boolean;
+  };
+};
+
+const beginPlanHandoff = (url: string) =>
+  `Before planning, check the current setup status. If it is "waiting", tell the user in your own conversation: "I'm connected. Go back to your browser and click Begin plan. You can watch my progress, answer questions, and steer me there." Then run:
+  npx setup-agent ${url} wait start
+Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. Only the user in the browser should start planning; never invoke the browser's start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+
+const agentStartedHandoff = ({
+  browserUrl,
+  opened = true,
+}: NonNullable<AgentInstructionsOptions["startedByAgent"]>) =>
+  `You started this setup, and it is already planning: there is no Begin plan click to wait for, so go straight to planning. Tell the user in your own conversation, once: ${
+    opened
+      ? `"I opened the assistant-ui setup in your browser. I'll ask my questions there, and you can watch my progress and steer me from that page. If it didn't open, go to ${browserUrl} ."`
+      : `"Open ${browserUrl} to follow the assistant-ui setup. I'll ask my questions there, and you can watch my progress and steer me from that page."`
+  } If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+
+export const agentInstructions = (
+  setupUrl: string,
+  options: AgentInstructionsOptions = {},
+) => {
   const url = shellWord(setupUrl);
-  return `You are the coding agent for a setup the user opened in their browser. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
+  const started = options.startedByAgent;
+  return `You are the coding agent for a setup ${started ? "you opened in the user's browser" : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
 
 First, start a persistent Monitor on
   npx setup-agent ${url} stream
@@ -125,9 +163,7 @@ The user can message you at any time, including while a question is waiting. Rea
 
 "log" is a message to the user, and the user reads every one: send it only to reply to their message, to tell them something no question or step conveys (a blocker, a deviation from the plan, a decision you made for them), or once as a wrap-up when the install is finished. Findings go in the plan, progress in step notes, questions in "ask"; do not narrate.
 
-Before planning, check the current setup status. If it is "waiting", tell the user in your own conversation: "I'm connected. Go back to your browser and click Begin plan. You can watch my progress, answer questions, and steer me there." Then run:
-  npx setup-agent ${url} wait start
-Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. Only the user in the browser should start planning; never invoke the browser's start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.
+${started ? agentStartedHandoff(started) : beginPlanHandoff(url)}
 
 The remaining phases are plan, then install.
 
@@ -136,7 +172,7 @@ The remaining phases are plan, then install.
 Read the project: its app framework and package manager, the agent framework and model provider it already uses, where components live, any existing chat route. Fetch each product's "guide" URL from the setup below; it is the install reference. Ask for what the project does not decide, using the standard questions so the browser can render them well:
   npx setup-agent ${url} ask --preset framework
   npx setup-agent ${url} ask --preset llm-provider
-The setup's products are starting names and guide references. Explore each product's setup instructions, then discover and plan any other relevant products or dependencies the app needs. Read /catalog.md on the guide URL’s origin to find related products and fetch their setup guides. The starting list does not restrict the implementation or require adding another product to the list. Include relevant additions in the plan for approval.
+The setup's products are starting names and guide references. If the setup lists no products, first ask the user what to set up with a choice question whose options are slugs from https://www.assistant-ui.com/catalog.md, then fetch https://www.assistant-ui.com/install.md?items=<slugs> as the guide. Explore each product's setup instructions, then discover and plan any other relevant products or dependencies the app needs. Read /catalog.md on the guide URL’s origin to find related products and fetch their setup guides. The starting list does not restrict the implementation or require adding another product to the list. Include relevant additions in the plan for approval.
 When the setup puts an assistant in the app, ask how users should access it after discovering the actual app and before proposing the plan. Skip this question when no product's guide installs an assistant (a standalone library or service setup, for example). Use an entry-point question with only 1–3 sensible alternatives. Describe the actual app's pages, workflow and component placement, not generic placeholder copy. Recommend one clear fit when there is one; two options may use the same form factor in different places. Each option needs a stable id, label, contextual description and entryPoint {"formFactor":"modal"|"sidebar"|"full-page","placement":"where it appears","trigger":"how users open it or navigate to it","recommended":true?}. Write the JSON array for this app and send it with:
   npx setup-agent ${url} ask "Where should users access the assistant?" --entry-points '<JSON array>' --wait
 Mark a clear fit with "recommended":true rather than --default, so the user makes the pick. When you ask it, do not submit the plan before the user picks an entry point. Respect the selected placement and trigger in the plan and implementation. Do not ask for a new-versus-existing app setting; discover the app from its files and ask only for an install path when needed.
@@ -185,6 +221,8 @@ const parseArgs = (argv: readonly string[]): Parsed => {
   return { positional, flags };
 };
 
+export { detectAgentKind, isDirectInvocation } from "./agents";
+
 const flagText = (flags: Parsed["flags"], name: string) => {
   const value = flags.get(name);
   return typeof value === "string" ? value : undefined;
@@ -199,66 +237,13 @@ const print = (value: unknown) => {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 };
 
-const AGENT_ENV: readonly [kind: string, variable: string][] = [
-  ["claude", "CLAUDECODE"],
-  ["codex", "CODEX_SANDBOX"],
-  ["codex", "CODEX_SANDBOX_NETWORK_DISABLED"],
-  ["cursor", "CURSOR_AGENT"],
-  ["gemini", "GEMINI_CLI"],
-];
-
-/** The coding agent this process runs under, from the variables each one exports to its shell. */
-export const detectAgentKind = (env: NodeJS.ProcessEnv = process.env) =>
-  AGENT_ENV.find(([, variable]) => env[variable])?.[0];
-
-type Launcher = {
-  kind: string;
-  name: string;
-  command: string;
-  args: (prompt: string) => string[];
-  install: string;
-};
-
-const LAUNCHERS: Launcher[] = [
-  {
-    kind: "claude",
-    name: "Claude Code",
-    command: "claude",
-    args: (prompt) => [prompt],
-    install: "npm install -g @anthropic-ai/claude-code",
-  },
-  {
-    kind: "codex",
-    name: "Codex",
-    command: "codex",
-    args: (prompt) => [prompt],
-    install: "npm install -g @openai/codex",
-  },
-  {
-    kind: "cursor",
-    name: "Cursor",
-    command: "agent",
-    args: (prompt) => [prompt],
-    install: "curl https://cursor.com/install -fsS | bash",
-  },
-  {
-    kind: "gemini",
-    name: "Gemini CLI",
-    command: "gemini",
-    args: (prompt) => ["-i", prompt],
-    install: "npm install -g @google/gemini-cli",
-  },
-];
-
-/** True when a person typed the command into a terminal rather than an agent running it from its shell. */
-export const isDirectInvocation = (
-  env: NodeJS.ProcessEnv = process.env,
-  stdin: { isTTY?: boolean | undefined } = process.stdin,
-  stdout: { isTTY?: boolean | undefined } = process.stdout,
-) =>
-  detectAgentKind(env) === undefined &&
-  stdin.isTTY === true &&
-  stdout.isTTY === true;
+/** The agents `setup-agent <url>` can start itself, for a person who ran it in a terminal. */
+const LAUNCHERS = CODING_AGENTS.filter(
+  (
+    agent,
+  ): agent is CodingAgent & { launch: NonNullable<CodingAgent["launch"]> } =>
+    agent.launch !== undefined,
+).slice(0, 4);
 
 const chooseLauncher = async () => {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -293,23 +278,13 @@ const launchAgent = async (url: string) => {
   const launcher = await chooseLauncher();
   const prompt = `Run \`npx setup-agent ${shellWord(url)}\` and follow the instructions it prints.`;
   process.stdout.write(`\nStarting ${launcher.name}...\n\n`);
-  const child = spawn(launcher.command, launcher.args(prompt), {
-    stdio: "inherit",
-  });
-  const code = await new Promise<number>((resolve) => {
-    child.on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code === "ENOENT") {
-        process.stderr.write(
-          `${launcher.name} is not installed. Install it with:\n  ${launcher.install}\nthen run this command again.\n`,
-        );
-      } else {
-        process.stderr.write(`${error.message}\n`);
-      }
-      resolve(1);
-    });
-    child.on("exit", (status) => resolve(status ?? 1));
-  });
-  process.exit(code);
+  const code = await runCodingAgent(launcher, prompt);
+  if (code === undefined) {
+    process.stderr.write(
+      `${launcher.name} is not installed. Install it with:\n  ${launcher.launch.install}\nthen run this command again.\n`,
+    );
+  }
+  process.exit(code ?? 1);
 };
 
 const requireState = (client: CheckoutClient): Checkout.State =>

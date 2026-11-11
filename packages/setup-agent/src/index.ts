@@ -27,3 +27,11 @@ export { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
 export type { PresetId, PresetOverrides } from "./presets";
 export { connectCheckout } from "./client";
 export type { CheckoutClient } from "./client";
+export {
+  CODING_AGENTS,
+  detectAgentKind,
+  findCommand,
+  isDirectInvocation,
+  runCodingAgent,
+} from "./agents";
+export type { CodingAgent } from "./agents";
