@@ -109,4 +109,23 @@ describe("AgentMarks", () => {
       (await screen.findByText("Cursor")).closest("[data-slot]"),
     ).toHaveProperty("dataset.slot", "tooltip-content");
   });
+
+  it("collapses the stack toward the side the row is aligned to", () => {
+    const offsets = () =>
+      screen
+        .getAllByRole("listitem")
+        .map((item) => item.style.getPropertyValue("--agent-offset"));
+    const { unmount } = render(<AgentMarks />);
+    expect(offsets()).toEqual(["5rem", "4rem", "3rem", "2rem", "1rem", "0rem"]);
+    unmount();
+    render(<AgentMarks align="start" />);
+    expect(offsets()).toEqual([
+      "0rem",
+      "-1rem",
+      "-2rem",
+      "-3rem",
+      "-4rem",
+      "-5rem",
+    ]);
+  });
 });

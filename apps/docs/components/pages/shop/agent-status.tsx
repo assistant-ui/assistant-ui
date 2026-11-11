@@ -148,25 +148,30 @@ const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 const AGENT_MARK_COUNT = WORKS_WITH.length + 1;
 const AGENT_MARK_SHIFT_REM = 1;
 
-const agentMarkStyle = (index: number) =>
+type AgentMarksAlign = "start" | "end";
+
+/** At rest the marks collapse toward the side the row is aligned to. */
+const agentMarkStyle = (index: number, align: AgentMarksAlign) =>
   ({
-    "--agent-offset": `${(AGENT_MARK_COUNT - 1 - index) * AGENT_MARK_SHIFT_REM}rem`,
+    "--agent-offset": `${(align === "end" ? AGENT_MARK_COUNT - 1 - index : -index) * AGENT_MARK_SHIFT_REM}rem`,
     zIndex: AGENT_MARK_COUNT - index,
   }) as CSSProperties;
 
 function AgentMark({
   name,
   index,
+  align,
   children,
 }: {
   name: string;
   index: number;
+  align: AgentMarksAlign;
   children: ReactNode;
 }) {
   return (
     <li
       className="relative shrink-0 transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
-      style={agentMarkStyle(index)}
+      style={agentMarkStyle(index, align)}
     >
       <Tooltip>
         <TooltipTrigger
@@ -190,18 +195,33 @@ function AgentMark({
 }
 
 /** The stacked marks of the coding agents a setup can be handed to; each names its agent in a tooltip. */
-export function AgentMarks({ className = "size-4" }: { className?: string }) {
+export function AgentMarks({
+  className = "size-4",
+  align = "end",
+}: {
+  className?: string;
+  align?: AgentMarksAlign;
+}) {
   return (
     <ul
       aria-label="Coding agents"
       className="group/agents text-muted-foreground flex items-center gap-1.5"
     >
       {WORKS_WITH.map((kind, index) => (
-        <AgentMark key={kind} name={agentKindName(kind) ?? kind} index={index}>
+        <AgentMark
+          key={kind}
+          name={agentKindName(kind) ?? kind}
+          index={index}
+          align={align}
+        >
           <AgentKindIcon kind={kind} className={cn("shrink-0", className)} />
         </AgentMark>
       ))}
-      <AgentMark name="And other agents" index={WORKS_WITH.length}>
+      <AgentMark
+        name="And other agents"
+        index={WORKS_WITH.length}
+        align={align}
+      >
         <PlusIcon aria-hidden="true" className={cn("shrink-0", className)} />
       </AgentMark>
     </ul>
@@ -210,18 +230,9 @@ export function AgentMarks({ className = "size-4" }: { className?: string }) {
 
 function WorksWith() {
   return (
-    <div className="group/agents text-muted-foreground flex items-center gap-x-2 text-xs">
-      <span
-        className="transition-transform duration-150 ease-out group-focus-within/agents:translate-x-0 group-hover/agents:translate-x-0 motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:translate-x-(--agent-offset)"
-        style={
-          {
-            "--agent-offset": `${(AGENT_MARK_COUNT - 1) * AGENT_MARK_SHIFT_REM}rem`,
-          } as CSSProperties
-        }
-      >
-        Works with
-      </span>
-      <AgentMarks className="size-3.5" />
+    <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
+      <span>Works with</span>
+      <AgentMarks className="size-3.5" align="start" />
     </div>
   );
 }
