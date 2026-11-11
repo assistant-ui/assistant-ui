@@ -96,7 +96,11 @@ const csp = (frameAncestors: string) =>
 // `next build` runs one worker per CPU core to collect page data and
 // prerender, and each holds the whole server bundle. DOCS_BUILD_CPUS caps that
 // on machines with little RAM; it does not change the output.
-const buildCpus = Number(process.env.DOCS_BUILD_CPUS) || undefined;
+const buildCpus = process.env.DOCS_BUILD_CPUS
+  ? Number(process.env.DOCS_BUILD_CPUS)
+  : undefined;
+if (buildCpus !== undefined && !(Number.isInteger(buildCpus) && buildCpus > 0))
+  throw new Error("DOCS_BUILD_CPUS must be a positive integer");
 
 const config: NextConfig = {
   cacheComponents: true,

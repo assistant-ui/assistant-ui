@@ -18,7 +18,9 @@ function recordPage(page: string) {
   }
   let pages: string[] = [];
   try {
-    pages = JSON.parse(source) as string[];
+    const parsed: unknown = JSON.parse(source);
+    if (Array.isArray(parsed))
+      pages = parsed.filter((entry) => typeof entry === "string");
   } catch {
     // A corrupt list only costs recompiling the pages it named.
   }
