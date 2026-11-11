@@ -911,4 +911,145 @@ describe("AgUiThreadController HTTP stream closure", () => {
       });
     },
   );
+
+  it.each(
+    [
+      {
+        ending: "EOF",
+        runFinished: false,
+        expectedStatus: { type: "incomplete", reason: "error" },
+      },
+      {
+        ending: "RUN_FINISHED",
+        runFinished: true,
+        expectedStatus: { type: "requires-action", reason: "tool-calls" },
+      },
+    ].flatMap((row) => [
+      { ...row, shape: "with text", otherContent: "Let me check." },
+      { ...row, shape: "with no text", otherContent: "" },
+    ]),
+  )(
+    "keeps a moved-to assistant $shape running when a later snapshot adds a tool call through $ending",
+    async ({ runFinished, expectedStatus, otherContent }) => {
+      let releaseStream!: () => void;
+      const streamCanClose = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const answer = { id: "answer", role: "assistant", content: "a1" };
+      const other = (withCall: boolean) => ({
+        id: "other",
+        role: "assistant",
+        content: otherContent,
+        ...(withCall && {
+          toolCalls: [
+            {
+              id: "ocall",
+              type: "function",
+              function: { name: "lookup", arguments: "{}" },
+            },
+          ],
+        }),
+      });
+      const agent = new HttpAgent({
+        url: "https://example.invalid",
+        fetch: async (_url: unknown, init: RequestInit) => {
+          const messages = JSON.parse(init.body as string).messages ?? [];
+          const events = [
+            start,
+            {
+              type: "TEXT_MESSAGE_START",
+              messageId: "answer",
+              role: "assistant",
+            },
+            {
+              type: "TEXT_MESSAGE_CONTENT",
+              messageId: "answer",
+              delta: "a1",
+            },
+            { type: "TEXT_MESSAGE_END", messageId: "answer" },
+            {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [...messages, answer, other(false)],
+            },
+            {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [...messages, answer, other(true)],
+            },
+            {
+              type: "STATE_SNAPSHOT",
+              snapshot: { marker: "snapshots-imported" },
+            },
+          ];
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              async start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    events
+                      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                      .join(""),
+                  ),
+                );
+                await streamCanClose;
+                if (runFinished) {
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `data: ${JSON.stringify({
+                        type: "RUN_FINISHED",
+                        threadId: "thread",
+                        runId: "run",
+                      })}\n\n`,
+                    ),
+                  );
+                }
+                controller.close();
+              },
+            }),
+            { headers: { "Content-Type": "text/event-stream" } },
+          );
+        },
+      });
+      const core = new AgUiThreadController({
+        agent,
+        logger: makeLogger(),
+        showThinking: false,
+      });
+      const snapshotsImported = new Promise<void>((resolve) => {
+        const unsubscribe = core.subscribe(() => {
+          if (
+            JSON.stringify(core.getState()) ===
+            JSON.stringify({ marker: "snapshots-imported" })
+          ) {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+      const run = core.append(userMessage);
+      await snapshotsImported;
+      const otherDuringRun = core
+        .getMessages()
+        .find(({ id }) => id === "other");
+      const statusDuringRun = {
+        isRunning: core.isRunning(),
+        status: otherDuringRun?.status,
+      };
+
+      releaseStream();
+      await run;
+
+      expect(statusDuringRun).toMatchObject({
+        isRunning: true,
+        status: { type: "running" },
+      });
+      expect(core.isRunning()).toBe(false);
+      expect(
+        core.getMessages().find(({ id }) => id === "other")?.status,
+      ).toMatchObject(expectedStatus);
+      expect(core.getPendingToolCalls()).toEqual(
+        runFinished ? { messageId: "other", toolCallIds: ["ocall"] } : null,
+      );
+    },
+  );
 });
