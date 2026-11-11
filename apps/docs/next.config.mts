@@ -191,7 +191,7 @@ const config: NextConfig = {
     {
       source: "/getting-started",
       destination: "/docs/installation",
-      permanent: false,
+      permanent: true,
     },
     {
       source: "/tap",

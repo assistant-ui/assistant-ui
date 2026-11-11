@@ -135,13 +135,13 @@ export type AgentInstructionsOptions = {
 const beginPlanHandoff = (url: string) =>
   `Before planning, check the current setup status. If it is "waiting", tell the user in your own conversation: "I'm connected. Go back to your browser and click Begin plan. You can watch my progress, answer questions, and steer me there." Then run:
   npx setup-agent ${url} wait start
-Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. Only the user in the browser should start planning; never invoke the browser's start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. If it returns {"ok":false,"status":"cancelled"}, the user ended this setup before planning: do not plan, tell the user you are connected and waiting for their next setup, and run "wait start" again. Only the user in the browser should start planning; never invoke the browser's start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
 
 const agentStartedHandoff = ({
   browserUrl,
   opened = true,
 }: NonNullable<AgentInstructionsOptions["startedByAgent"]>) =>
-  `You started this setup, and it is already planning: there is no Begin plan click to wait for, so go straight to planning. Tell the user in your own conversation, once: ${
+  `You started this setup, and it is already planning: there is no Begin plan click to wait for. The browser asks the user to connect to you first; it shows your working directory once your stream is running. Check "status" before planning: if it is "planning" or "installing", go on with that phase. Tell the user in your own conversation, once: ${
     opened
       ? `"I opened the assistant-ui setup in your browser. I'll ask my questions there, and you can watch my progress and steer me from that page. If it didn't open, go to ${browserUrl} ."`
       : `"Open ${browserUrl} to follow the assistant-ui setup. I'll ask my questions there, and you can watch my progress and steer me from that page."`
@@ -221,7 +221,14 @@ const parseArgs = (argv: readonly string[]): Parsed => {
   return { positional, flags };
 };
 
-export { detectAgentKind, isDirectInvocation } from "./agents";
+export {
+  CODING_AGENTS,
+  detectAgentKind,
+  findCommand,
+  isDirectInvocation,
+  runCodingAgent,
+} from "./agents";
+export type { CodingAgent } from "./agents";
 
 const flagText = (flags: Parsed["flags"], name: string) => {
   const value = flags.get(name);
@@ -243,7 +250,7 @@ const LAUNCHERS = CODING_AGENTS.filter(
     agent,
   ): agent is CodingAgent & { launch: NonNullable<CodingAgent["launch"]> } =>
     agent.launch !== undefined,
-).slice(0, 4);
+);
 
 const chooseLauncher = async () => {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -284,7 +291,8 @@ const launchAgent = async (url: string) => {
       `${launcher.name} is not installed. Install it with:\n  ${launcher.launch.install}\nthen run this command again.\n`,
     );
   }
-  process.exit(code ?? 1);
+  // Exit once stdout and stderr have drained.
+  process.exitCode = code ?? 1;
 };
 
 const requireState = (client: CheckoutClient): Checkout.State =>

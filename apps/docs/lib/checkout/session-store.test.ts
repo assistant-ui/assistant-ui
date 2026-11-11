@@ -206,6 +206,15 @@ describe("checkout session store", () => {
       id: "abc",
       products: ["assistant-ui"],
     });
+    for (const malformed of [
+      { id: "abc" },
+      { id: "abc", products: "cloud" },
+      { id: 7, products: ["cloud"] },
+    ]) {
+      values.set(storageKey, JSON.stringify(malformed));
+      store = await loadStore();
+      expect(store.getCheckoutSession()).toBeNull();
+    }
   });
 
   it("reads the agent's link and setup from the setup page fragment", async () => {
@@ -225,28 +234,40 @@ describe("checkout session store", () => {
     expect(store.parseAgentFragment("")).toBeNull();
   });
 
-  it("joins the setup an agent started on its link and follows it", async () => {
+  it("joins the setup an agent started on its own link, leaving the browser's link alone", async () => {
     const values = setupStorage();
     let store = await loadStore();
-    store.startCheckout(["cloud"]);
+    const ownLink = store.getAgentLinkId();
     const joined = store.joinAgentLink("abcdEFGH1234", "zyxw9876ABCD");
     expect(joined).toMatchObject({
       id: "zyxw9876ABCD",
       products: ["assistant-ui"],
       origin: "agent",
       introSeen: true,
+      link: "abcdEFGH1234",
     });
-    expect(store.getAgentLinkId()).toBe("abcdEFGH1234");
-    expect(values.get("aui-agent-link")).toBe("abcdEFGH1234");
+    expect(store.getAgentLinkId()).toBe(ownLink);
+    expect(values.get("aui-agent-link")).toBe(ownLink);
+    expect(store.sessionLinkUrl(joined!)).toBe(
+      "https://checkout.test/abcdEFGH1234",
+    );
+    expect(
+      store.canRestoreCheckoutSession(
+        "zyxw9876ABCD",
+        "https://checkout.test/abcdEFGH1234",
+      ),
+    ).toBe(true);
     store.adoptAgentSetup("zyxw9876ABCD", ["assistant-ui", "cloud"]);
     store = await loadStore();
     expect(store.getCheckoutSession()).toMatchObject({
       id: "zyxw9876ABCD",
       products: ["assistant-ui", "cloud"],
       origin: "agent",
+      link: "abcdEFGH1234",
     });
     // Opening the same link again keeps the running session.
-    expect(store.joinAgentLink("abcdEFGH1234", "zyxw9876ABCD")).toMatchObject({
+    expect(store.joinAgentLink("abcdEFGH1234", "other1234567")).toMatchObject({
+      id: "zyxw9876ABCD",
       products: ["assistant-ui", "cloud"],
     });
     store.adoptAgentSetup("nextSetup123", []);
@@ -254,6 +275,10 @@ describe("checkout session store", () => {
       id: "nextSetup123",
       products: ["assistant-ui"],
     });
+    store.endCheckout();
+    expect(store.sessionLinkUrl(store.startCheckout(["cloud"])!)).toBe(
+      `https://checkout.test/${ownLink}`,
+    );
   });
 
   it("leaves a browser-started session alone when adopting", async () => {

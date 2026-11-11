@@ -37,6 +37,14 @@ describe("detectAgentKind", () => {
     expect(detectAgentKind({ AI_AGENT: "github-copilot" })).toBe("copilot");
     expect(detectAgentKind({ AI_AGENT: "some-new-agent" })).toBe("other");
     expect(detectAgentKind({ AI_AGENT: " " })).toBeUndefined();
+    expect(detectAgentKind({ AI_AGENT: "claudette" })).toBe("other");
+    expect(detectAgentKind({ AI_AGENT: "codex" })).toBe("codex");
+    expect(
+      detectAgentKind({
+        AI_AGENT: "claude-code_2-1-3_agent",
+        CODEX_THREAD_ID: "t",
+      }),
+    ).toBe("claude");
   });
 
   it("reads the variables each agent exports to its shell", () => {
@@ -46,7 +54,8 @@ describe("detectAgentKind", () => {
     expect(detectAgentKind({ AUGMENT_AGENT: "1" })).toBe("augment");
   });
 
-  it("treats a person at a terminal inside an editor as no agent", () => {
+  it("treats a person at a terminal inside an editor, or with Goose configured, as no agent", () => {
+    expect(detectAgentKind({ GOOSE_PROVIDER: "openai" })).toBeUndefined();
     expect(
       detectAgentKind({ CURSOR_TRACE_ID: "x", TERM_PROGRAM: "vscode" }),
     ).toBe(undefined);
@@ -70,6 +79,9 @@ describe("findCommand and runCodingAgent", () => {
       '#!/bin/sh\n[ "$1" = "-i" ] && [ "$2" = "hello" ] && exit 7\nexit 1\n',
     );
     await chmod(script, 0o755);
+    const second = join(directory, "other-agent");
+    await writeFile(second, "#!/bin/sh\nexit 0\n");
+    await chmod(second, 0o755);
     return directory;
   };
 
@@ -83,6 +95,9 @@ describe("findCommand and runCodingAgent", () => {
         process.env.PATH = path;
       });
       expect(findCommand(["missing-agent", "fake-agent"])).toBe("fake-agent");
+      expect(findCommand(["other-agent", "fake-agent"])).toBe("other-agent");
+      expect(findCommand(["fake-agent", "other-agent"])).toBe("fake-agent");
+      expect(findCommand(["fake-agent"], { PATH: "" })).toBeUndefined();
       expect(findCommand(["missing-agent"])).toBeUndefined();
       const code = await runCodingAgent(
         {

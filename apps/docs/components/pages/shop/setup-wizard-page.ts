@@ -47,7 +47,7 @@ export function livePage({
   if (!agentStarted && unconnected && !session.introSeen)
     return { id: "welcome" };
   if (
-    (!agentStarted && unconnected) ||
+    (unconnected && (!agentStarted || openInputs.length === 0)) ||
     state === undefined ||
     state.status === "waiting"
   )

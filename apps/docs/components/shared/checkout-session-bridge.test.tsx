@@ -66,6 +66,8 @@ vi.mock("../../lib/checkout/session-store", async (importOriginal) => ({
     typeof import("../../lib/checkout/session-store")
   >()),
   agentLinkUrl: () => "https://checkout.test/link",
+  sessionLinkUrl: (session: { link?: string }) =>
+    `https://checkout.test/${session.link ?? "link"}`,
   addCheckoutProducts: mocks.addCheckoutProducts,
   adoptAgentSetup: mocks.adoptAgentSetup,
 }));

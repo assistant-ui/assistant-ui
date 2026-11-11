@@ -5,7 +5,9 @@ import { BASE_URL } from "@/lib/constants";
 import { getAgentPrompt } from "./agent-prompts";
 import type { CatalogItem } from "./types";
 
-const preamble = `Not in a setup yet? Run \`${AGENT_SETUP_COMMAND}\` instead of following this guide by hand. It opens a guided setup in the user's browser and walks you through the install, then points you back here. Already connected with setup-agent: keep going.
+const preamble = (
+  setupCommand: string,
+) => `Not in a setup yet? Run \`${setupCommand}\` instead of following this guide by hand. It opens a guided setup in the user's browser and walks you through the install, then points you back here. Already connected with setup-agent: keep going.
 
 Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL for raw markdown.
 
@@ -30,7 +32,11 @@ export function buildInstallPrompt(products: readonly CatalogItem[]): string {
       : `${BASE_URL}${product.docs}.md`;
     return `## ${index + 1}. ${product.name}\n\nDocs: ${docs}\n\n${prompt}`;
   });
-  return [`# Install assistant-ui`, preamble, ...sections, closing].join(
-    "\n\n",
-  );
+  const setupCommand = `${AGENT_SETUP_COMMAND} --products ${products.map((product) => product.slug).join(",")}`;
+  return [
+    `# Install assistant-ui`,
+    preamble(setupCommand),
+    ...sections,
+    closing,
+  ].join("\n\n");
 }

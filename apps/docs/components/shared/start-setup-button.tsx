@@ -21,11 +21,13 @@ export function StartSetupButton({
   trigger?: ReactElement<{ onClick?: () => void; children?: ReactNode }>;
 }) {
   const beginSetup = useBeginSetup();
+  const ownClick = trigger.props.onClick;
   return cloneElement(trigger, {
     onClick: () => {
+      ownClick?.();
       analytics.cta.clicked("start_setup_agent", location);
       beginSetup(products, instructions ?? "", {
-        source: "start_dialog",
+        source: "start_button",
         location,
       });
     },

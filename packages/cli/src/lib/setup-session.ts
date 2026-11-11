@@ -1,8 +1,12 @@
 import { randomInt } from "node:crypto";
 import { spawn } from "node:child_process";
-import { connectCheckout, detectAgentKind } from "setup-agent";
+import { connectCheckout } from "setup-agent";
 import type { Checkout, CheckoutClient } from "setup-agent";
-import { agentInstructions, parseSetupUrl } from "setup-agent/cli";
+import {
+  agentInstructions,
+  detectAgentKind,
+  parseSetupUrl,
+} from "setup-agent/cli";
 
 const DEFAULT_DOCS_URL = "https://www.assistant-ui.com";
 const DEFAULT_SETUP_SERVER = "https://setup.assistant-ui.com";
@@ -18,7 +22,8 @@ export const createSetupId = (length = 12) =>
     () => ID_ALPHABET[randomInt(ID_ALPHABET.length)]!,
   ).join("");
 
-const SLUG = /^[a-z0-9][a-z0-9-]*$/;
+/** A catalog slug: lowercase words joined by `-`, in `/`-separated segments (`guides/latex`). */
+const SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
 
 /** The product slugs a `--products` list names, deduplicated; the default when empty. */
 export const parseProducts = (value: string | undefined): string[] => {
@@ -36,11 +41,20 @@ export const parseProducts = (value: string | undefined): string[] => {
   return slugs.length > 0 ? slugs : [...DEFAULT_PRODUCTS];
 };
 
-/** Product names by slug, read from the catalog's `## Name` / `Slug: slug` sections. */
+/**
+ * Product names by slug, read from the catalog: its products are `## Name`
+ * sections with a `Slug: slug` line, its guides and elements are
+ * `- slug: Name (url, …)` bullets.
+ */
 export const parseCatalog = (markdown: string): Map<string, string> => {
   const names = new Map<string, string>();
-  for (const match of markdown.matchAll(/^## (.+)\n+Slug: ([a-z0-9-]+)$/gm)) {
+  for (const match of markdown.matchAll(/^## (.+)\n+Slug: (\S+)$/gm)) {
     names.set(match[2]!, match[1]!.trim());
+  }
+  for (const match of markdown.matchAll(
+    /^- ([a-z0-9][a-z0-9/-]*): ([^(\n]+?) \(https?:\/\//gm,
+  )) {
+    names.set(match[1]!, match[2]!.trim());
   }
   return names;
 };

@@ -38,7 +38,12 @@ const getVercelTrack = () => {
 export type AnalyticsProperties = Record<string, string | number | boolean>;
 
 /** Where a visitor opened a setup session: the Quick Start dialog, an AgentSetup banner on a docs page, the cart, or an example bundle page. */
-export type SetupSource = "start_dialog" | "agent_setup" | "cart" | "bundle";
+export type SetupSource =
+  | "start_dialog"
+  | "start_button"
+  | "agent_setup"
+  | "cart"
+  | "bundle";
 
 /** The cart surface whose Start setup button moved the cart into a session. */
 export type CartCheckoutLocation =

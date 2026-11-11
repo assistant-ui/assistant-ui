@@ -812,7 +812,10 @@ export function SetupWizard({
       case "connect":
         if (agentStarted)
           return {
-            title: `Connecting to ${name}`,
+            title:
+              phase === "connected"
+                ? `${name} is connected`
+                : `Waiting for ${name}`,
             body: (
               <p
                 role="status"
@@ -822,7 +825,9 @@ export function SetupWizard({
                   aria-hidden="true"
                   className="size-4 shrink-0 motion-safe:animate-spin"
                 />
-                Your agent started this setup. Its first question shows up here.
+                {phase === "connected"
+                  ? "Starting the plan…"
+                  : "Your agent started this setup. Its questions show up here once it is running."}
               </p>
             ),
           };
@@ -1005,7 +1010,7 @@ export function SetupWizard({
               >
                 <span ref={titleText}>{view.title}</span>
               </h1>
-              {view.subtitle === undefined && agentLine ? (
+              {agentLine ? (
                 <p
                   data-testid="agent-connection"
                   className="text-muted-foreground mt-1 truncate text-sm"

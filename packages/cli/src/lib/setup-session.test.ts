@@ -25,8 +25,11 @@ describe("parseProducts", () => {
     ]);
   });
 
-  it("refuses what is not a slug", () => {
+  it("accepts slugs with path segments and refuses what is not a slug", () => {
+    expect(parseProducts("guides/latex")).toEqual(["guides/latex"]);
     expect(() => parseProducts("cloud;rm")).toThrow('"cloud;rm"');
+    expect(() => parseProducts("../etc")).toThrow('"../etc"');
+    expect(() => parseProducts("guides//x")).toThrow('"guides//x"');
   });
 });
 
@@ -41,12 +44,21 @@ Kind: Library
 ## Assistant Cloud
 
 Slug: cloud
+
+- Thread persistence that saves during streaming
+
+## Guides and elements
+
+- react-app: React project (https://docs.test/docs/installation.md, agent time 2–5 min)
+- guides/latex: LaTeX math (https://docs.test/docs/guides/latex.md, agent time 2–5 min)
 `;
 
-  it("reads names from the catalog", () => {
+  it("reads names of products, guides and elements from the catalog", () => {
     expect([...parseCatalog(catalog)]).toEqual([
       ["assistant-ui", "assistant-ui"],
       ["cloud", "Assistant Cloud"],
+      ["react-app", "React project"],
+      ["guides/latex", "LaTeX math"],
     ]);
   });
 
@@ -69,7 +81,9 @@ Slug: cloud
       resolveProducts(["nope"], "https://docs.test", async () =>
         parseCatalog(catalog),
       ),
-    ).rejects.toThrow('unknown product "nope"; pick from assistant-ui, cloud');
+    ).rejects.toThrow(
+      'unknown product "nope"; pick from assistant-ui, cloud, react-app, guides/latex',
+    );
   });
 
   it("falls back to the slug when the catalog is unreachable", async () => {
@@ -114,7 +128,7 @@ describe("resolveEndpoints", () => {
 });
 
 describe("startSetup", () => {
-  it("creates the setup on a new link and begins planning before the browser opens", async () => {
+  it("creates the setup on a new link and begins its plan", async () => {
     const calls: [string, unknown][] = [];
     const dispose = vi.fn();
     const commands = new Proxy(

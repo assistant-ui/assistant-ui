@@ -1,8 +1,8 @@
 import { Command, Option } from "commander";
 import { createInterface } from "node:readline/promises";
 import * as p from "@clack/prompts";
-import { CODING_AGENTS, findCommand, runCodingAgent } from "setup-agent";
-import type { CodingAgent } from "setup-agent";
+import { CODING_AGENTS, findCommand, runCodingAgent } from "setup-agent/cli";
+import type { CodingAgent } from "setup-agent/cli";
 import { openBrowser } from "../lib/cloud-auth";
 import { isRunByAgent } from "../lib/agent-setup-hint";
 import {
@@ -106,7 +106,10 @@ const runForPerson = async (options: SetupOptions) => {
   if (agent?.launch && findCommand(agent.launch.commands) !== undefined) {
     p.outro(`Starting ${agent.name}…`);
     const code = await runCodingAgent(agent, prompt);
-    if (code !== undefined) process.exit(code);
+    if (code !== undefined) {
+      process.exitCode = code;
+      return;
+    }
   }
   if (agent?.launch) {
     p.log.warn(
@@ -115,7 +118,6 @@ const runForPerson = async (options: SetupOptions) => {
   }
   p.outro("Hand the prompt to your agent.");
   await handOffPrompt(prompt, agent?.name);
-  process.exit(0);
 };
 
 const runForAgent = async (options: SetupOptions) => {
@@ -153,8 +155,8 @@ export const setup = new Command()
     "after",
     `
 Run by a coding agent, setup opens a guided setup in the user's browser and
-prints the steps the agent follows. Run in a terminal, it asks which coding
-agent you use and starts it with the setup prompt.`,
+prints the steps the agent follows. Run in an interactive terminal, it asks
+which coding agent you use and starts it with the setup prompt.`,
   )
   .action(async (options: SetupOptions) => {
     if (isRunByAgent()) await runForAgent(options);

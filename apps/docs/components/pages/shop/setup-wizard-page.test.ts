@@ -54,8 +54,12 @@ describe("livePage", () => {
     expect(
       page({ status: "waiting" }, { phase: "unconnected", session: started }),
     ).toEqual({ id: "connect" });
+    // Until the agent runs, the page waits for it rather than claim it is exploring.
     expect(
       page({ status: "planning" }, { phase: "waiting", session: started }),
+    ).toEqual({ id: "connect" });
+    expect(
+      page({ status: "planning" }, { phase: "connected", session: started }),
     ).toEqual({ id: "working" });
     expect(
       page(

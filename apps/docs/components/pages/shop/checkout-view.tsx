@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,16 @@ import {
 } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { useCart, useCartEntries } from "@/lib/catalog/cart-store";
-import { abandonCheckout, checkoutCart } from "@/lib/checkout/flow";
 import {
-  joinAgentLink,
+  abandonCheckout,
+  checkoutCart,
+  connectAgentSetup,
+} from "@/lib/checkout/flow";
+import {
   parseAgentFragment,
   useCheckoutSession,
 } from "@/lib/checkout/session-store";
+import { AgentLinkConfirm } from "@/components/pages/shop/agent-link-confirm";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -98,22 +102,55 @@ function UnreadableState() {
   );
 }
 
-/** Joins the setup a coding agent opened this page on (`#link=…&setup=…`), then drops the fragment so the link does not linger in the address bar or get shared. */
-function useAgentFragment() {
-  useLayoutEffect(() => {
-    const fragment = parseAgentFragment(window.location.hash);
-    if (fragment === null) return;
-    joinAgentLink(fragment.link, fragment.setup);
+type AgentFragment = NonNullable<ReturnType<typeof parseAgentFragment>>;
+const pendingKey = "aui-agent-link-pending";
+
+const readPending = (): AgentFragment | null => {
+  try {
+    return parseAgentFragment(sessionStorage.getItem(pendingKey) ?? "");
+  } catch {
+    return null;
+  }
+};
+
+const writePending = (fragment: string | null) => {
+  try {
+    if (fragment === null) sessionStorage.removeItem(pendingKey);
+    else sessionStorage.setItem(pendingKey, fragment);
+  } catch {
+    // Storage can be blocked; the request then lives until the tab reloads.
+  }
+};
+
+/**
+ * The setup a coding agent opened this page on (`#link=…&setup=…`), waiting
+ * for the user to connect to it. The fragment leaves the address bar at
+ * once; the request is kept for this tab only, never as the browser's link.
+ */
+function usePendingAgentLink() {
+  const [pending, setPending] = useState<AgentFragment | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : (parseAgentFragment(window.location.hash) ?? readPending()),
+  );
+  useEffect(() => {
+    if (parseAgentFragment(window.location.hash) === null) return;
+    writePending(window.location.hash);
     window.history.replaceState(
       window.history.state,
       "",
       `${window.location.pathname}${window.location.search}`,
     );
   }, []);
+  const settle = () => {
+    writePending(null);
+    setPending(null);
+  };
+  return { pending, settle };
 }
 
 export function CheckoutView() {
-  useAgentFragment();
+  const { pending, settle } = usePendingAgentLink();
   const hydrated = useHydrated();
   const slugs = useCart();
   const entries = useCartEntries();
@@ -123,6 +160,17 @@ export function CheckoutView() {
   const [exiting, setExiting] = useState<CheckoutContextValue | null>(null);
 
   if (!hydrated) return null;
+  if (pending !== null && session?.link !== pending.link)
+    return (
+      <AgentLinkConfirm
+        link={pending.link}
+        onConnect={() => {
+          connectAgentSetup(pending.link, pending.setup);
+          settle();
+        }}
+        onCancel={settle}
+      />
+    );
   const shown = checkout ?? (session === null ? exiting : null);
   if (shown !== null)
     return (

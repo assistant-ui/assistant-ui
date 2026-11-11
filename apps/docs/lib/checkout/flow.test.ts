@@ -214,6 +214,23 @@ describe("checkout flow", () => {
     ]);
   });
 
+  it("returns a cart checkout to the cart before connecting to an agent's setup", async () => {
+    setupStorage();
+    const s = await load();
+    s.replaceCart(["cloud"]);
+    s.checkoutCart("cart_page");
+    expect(s.getCart()).toEqual([]);
+    expect(s.connectAgentSetup("abcdEFGH1234", "zyxw9876ABCD")).toMatchObject({
+      id: "zyxw9876ABCD",
+      origin: "agent",
+      link: "abcdEFGH1234",
+    });
+    expect(s.getCart()).toEqual(["cloud"]);
+    // Connecting again to the same link keeps the session.
+    s.connectAgentSetup("abcdEFGH1234");
+    expect(s.getCheckoutSession()?.id).toBe("zyxw9876ABCD");
+  });
+
   it("leaves the cart alone when a finished checkout is closed", async () => {
     setupStorage();
     const s = await load();

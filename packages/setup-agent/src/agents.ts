@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import spawn from "cross-spawn";
 import { accessSync, constants } from "node:fs";
 import { delimiter, join } from "node:path";
 
@@ -137,7 +137,6 @@ const AGENT_ENV: readonly [kind: string, variable: string][] = [
   ["copilot", "COPILOT_CLI"],
   ["opencode", "OPENCODE_CLIENT"],
   ["augment", "AUGMENT_AGENT"],
-  ["goose", "GOOSE_PROVIDER"],
   ["junie", "JUNIE_DATA"],
 ];
 
@@ -170,8 +169,12 @@ export const detectAgentKind = (
 ): string | undefined => {
   const named = env.AI_AGENT?.trim().toLowerCase();
   if (named) {
-    const match = AI_AGENT_PREFIXES.find(([prefix]) =>
-      named.startsWith(prefix),
+    // The name, or the name followed by a separator and a version or role.
+    const match = AI_AGENT_PREFIXES.find(
+      ([prefix]) =>
+        named.startsWith(prefix) &&
+        (named.length === prefix.length ||
+          /[-_ ./0-9]/.test(named[prefix.length]!)),
     );
     return match?.[1] ?? "other";
   }
@@ -193,6 +196,8 @@ export const findCommand = (
   commands: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
 ): string | undefined => {
+  // Empty entries (the working directory) are skipped on purpose: a project
+  // must not be able to plant its own `claude` next to the user.
   const directories = (env.PATH ?? "").split(delimiter).filter(Boolean);
   const extensions =
     process.platform === "win32"

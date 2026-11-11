@@ -214,7 +214,7 @@ describe("SetupWizard", () => {
       />,
     );
     expect(
-      screen.getByRole("heading", { name: "Connecting to your agent" }),
+      screen.getByRole("heading", { name: "Waiting for your agent" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Copy prompt" })).toBeNull();
   });

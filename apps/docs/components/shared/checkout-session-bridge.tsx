@@ -25,7 +25,7 @@ import {
 } from "@/lib/checkout/protocol";
 import {
   adoptAgentSetup,
-  agentLinkUrl,
+  sessionLinkUrl,
   type CheckoutSession,
   addCheckoutProducts,
   endCheckout,
@@ -84,7 +84,7 @@ function CheckoutSessionBridge({
   session: CheckoutSession;
   onChange: (value: CheckoutContextValue | null) => void;
 }) {
-  const [url] = useState(agentLinkUrl);
+  const [url] = useState(() => sessionLinkUrl(session));
   const wire = useStatewire<unknown, Checkout.Commands>({
     transport: StatewireWebsocket({ url }),
   });
@@ -116,14 +116,19 @@ function CheckoutSessionBridge({
     adoptAgentSetup(linkedId, linkedProducts?.split(",").filter(Boolean) ?? []);
   }, [agentStarted, linkedId, linkedProducts]);
   const begun = useRef<string | null>(null);
+  const [beginAttempt, setBeginAttempt] = useState(0);
   const waiting = state?.status === "waiting";
   useEffect(() => {
     if (!agentStarted || !waiting || begun.current === session.id) return;
     begun.current = session.id;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     commands["checkout/begin-plan"]().catch(() => {
+      // Try again shortly; this page has no Begin plan button to fall back on.
       begun.current = null;
+      retry = setTimeout(() => setBeginAttempt((count) => count + 1), 2000);
     });
-  }, [agentStarted, waiting, session.id, commands]);
+    return () => clearTimeout(retry);
+  }, [agentStarted, waiting, session.id, commands, beginAttempt]);
 
   const joined = state?.products
     .filter((product) =>

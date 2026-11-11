@@ -38,8 +38,8 @@ describe("addAgentSetupHint", () => {
     });
     process.env.CLAUDECODE = "1";
     expect(help(command).startsWith(`${AGENT_SETUP_HINT}\n`)).toBe(true);
-    delete process.env.CLAUDECODE;
-    delete process.env.AI_AGENT;
+    // Only PATH survives, so no agent variable from the shell running the tests leaks in.
+    process.env = { PATH: env.PATH };
     const stdin = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
     const stdout = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
     Object.defineProperty(process.stdin, "isTTY", {

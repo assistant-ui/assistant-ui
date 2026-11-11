@@ -23,18 +23,19 @@ describe("start setup button", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start setup" }));
     expect(screen.queryByRole("radio")).toBeNull();
     expect(mocks.beginSetup).toHaveBeenCalledWith(["assistant-ui"], "", {
-      source: "start_dialog",
+      source: "start_button",
       location: "shop_product",
     });
   });
 
-  it("starts the given products with instructions from a custom trigger", () => {
+  it("starts the given products with instructions from a custom trigger, keeping its own click", () => {
+    const ownClick = vi.fn();
     render(
       <StartSetupButton
         location="footer"
         products={["assistant-ui", "generative-frame"]}
         instructions="Use the assistant-ui toolkit."
-        trigger={<button type="button" />}
+        trigger={<button type="button" onClick={ownClick} />}
       >
         With assistant-ui
       </StartSetupButton>,
@@ -43,7 +44,8 @@ describe("start setup button", () => {
     expect(mocks.beginSetup).toHaveBeenCalledWith(
       ["assistant-ui", "generative-frame"],
       "Use the assistant-ui toolkit.",
-      { source: "start_dialog", location: "footer" },
+      { source: "start_button", location: "footer" },
     );
+    expect(ownClick).toHaveBeenCalledOnce();
   });
 });

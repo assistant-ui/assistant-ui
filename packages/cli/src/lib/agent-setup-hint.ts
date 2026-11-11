@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { isDirectInvocation } from "setup-agent";
+import { isDirectInvocation } from "setup-agent/cli";
 
 export const AGENT_SETUP_HINT =
   "Recommended for coding agents: run `npx assistant-ui@latest setup`. It opens a guided setup in the user's browser and walks you through the install.";
