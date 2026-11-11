@@ -18,8 +18,23 @@ function recordPage(page: string) {
   writeFileSync(file, `${JSON.stringify([...pages, page].sort())}\n`);
 }
 
+// Routes such as /llms-full.txt load every page body at once. Recording those
+// would compile the whole site again, so a burst of placeholder loads only
+// gets placeholders. A person opens one page at a time.
+const BURST_WINDOW_MS = 2000;
+const BURST_PAGES = 3;
+const recentLoads: number[] = [];
+
+function isBulkLoad() {
+  const now = Date.now();
+  while (recentLoads.length && now - recentLoads[0]! > BURST_WINDOW_MS)
+    recentLoads.shift();
+  recentLoads.push(now);
+  return recentLoads.length > BURST_PAGES;
+}
+
 export function pendingPage(collection: string, path: string) {
-  recordPage(`${collection}/${path}`);
+  if (!isBulkLoad()) recordPage(`${collection}/${path}`);
   return {
     // A full reload, not a client component: the regenerated manifest swaps
     // modules under the current render, and a client reference can vanish.

@@ -12,7 +12,7 @@ Use lite mode instead:
 pnpm docs:dev:lite
 ```
 
-Lite mode compiles a page only when you open it. The first visit to a page shows a short "Compiling this page" note and then loads the page. Navigation and search still list every page. Pages you have opened are remembered in `.source/lite-pages.json`; delete it to start fresh.
+Lite mode compiles a page only when you open it. The first visit to a page shows a short "Compiling this page" note and then loads the page. Navigation and search still list every page. Pages you have opened are remembered in `.source/lite-pages.json`; delete it to start fresh. Routes that read many page bodies at once, such as `/llms-full.txt`, get the placeholder text for pages you haven't opened. The `.md` routes, MCP and the docs chat tools get it the first time they read a page.
 
 To cap memory during `pnpm build`, limit the prerender workers:
 
