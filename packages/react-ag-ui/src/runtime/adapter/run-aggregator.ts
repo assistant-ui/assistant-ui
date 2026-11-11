@@ -421,6 +421,20 @@ export class RunAggregator {
     );
   }
 
+  private ownerForActivity(event: {
+    messageId?: string;
+    subagentRunId?: string;
+  }): MessageBuffer {
+    if (event.subagentRunId !== undefined)
+      return this.ownerForSubagent(event.subagentRunId);
+    if (event.messageId === undefined) return this.current;
+    const key = `message:${event.messageId}`;
+    return (
+      this.buffers().find((buffer) => buffer.activityParts.has(key)) ??
+      this.current
+    );
+  }
+
   private ownerOf(event: AgUiEvent): MessageBuffer {
     if (this.joinStrategy === "concat-content") return this.current;
     switch (event.type) {
@@ -466,17 +480,9 @@ export class RunAggregator {
         }
         if (event.activityType === A2UI_SURFACE_ACTIVITY_TYPE)
           return this.current;
-        return event.subagentRunId !== undefined
-          ? this.ownerForSubagent(event.subagentRunId)
-          : this.current;
+        return this.ownerForActivity(event);
       case "ACTIVITY_DELTA":
-        if (event.subagentRunId !== undefined)
-          return this.ownerForSubagent(event.subagentRunId);
-        return (
-          this.buffers().find((buffer) =>
-            buffer.activityParts.has(`message:${event.messageId}`),
-          ) ?? this.current
-        );
+        return this.ownerForActivity(event);
       case "REASONING_START":
       case "REASONING_MESSAGE_START":
       case "REASONING_MESSAGE_CONTENT":

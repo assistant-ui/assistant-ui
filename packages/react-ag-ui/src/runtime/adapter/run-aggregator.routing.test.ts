@@ -218,6 +218,30 @@ describe("RunAggregator routing after the current message moves", () => {
     );
   });
 
+  it("replaces an activity snapshot on the message that holds it", () => {
+    const { aggregator, send, lastRetained, current } = setup();
+    aggregator.rebaseMessage("answer", "other");
+    send({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "act",
+      activityType: "progress",
+      content: { step: 1 },
+    } as AgUiEvent);
+    aggregator.rebaseMessage("other", "answer");
+    const emitted = current.length;
+    send({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "act",
+      activityType: "progress",
+      content: { step: 2 },
+    } as AgUiEvent);
+
+    expect(
+      lastRetained()?.update.content?.filter((part) => part.type === "data"),
+    ).toEqual([expect.objectContaining({ data: { step: 2 } })]);
+    expect(current).toHaveLength(emitted);
+  });
+
   it("keeps parsing args a snapshot started", () => {
     const { send, retainedTask } = setup();
     send(
