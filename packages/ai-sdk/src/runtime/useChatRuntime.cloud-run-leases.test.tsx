@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
-import {
-  AssistantRuntimeProvider,
-  useThreadReplyState,
-  useThreadResume,
-} from "@assistant-ui/core/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type { AssistantCloud, CloudMessage } from "assistant-cloud";
 import type { ChatTransport, UIMessage } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -28,17 +24,7 @@ type CreateBody = {
   open_run?: true;
 };
 
-type ThreadRun = {
-  status: "running";
-  message_id: string | null;
-  parent_id: string | null;
-  last_heartbeat_ms_ago: number;
-};
-
-const makeCloud = (
-  getRows: () => CloudMessage[] = () => [],
-  threadRun?: ThreadRun | null,
-) => {
+const makeCloud = (getRows: () => CloudMessage[] = () => []) => {
   let created = 0;
   const create = vi.fn(async (_threadId: string, body: CreateBody) => ({
     message_id: `msg_${++created}`,
@@ -67,10 +53,7 @@ const makeCloud = (
       delete: vi.fn().mockResolvedValue(undefined),
       get: vi.fn(),
       messages: {
-        list: vi.fn(async () => ({
-          messages: getRows(),
-          ...(threadRun !== undefined ? { run: threadRun } : undefined),
-        })),
+        list: vi.fn(async () => ({ messages: getRows() })),
         create,
         update: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
@@ -135,20 +118,10 @@ const textOf = (message: { content: readonly unknown[] }) =>
 const openThread = async (
   cloud: AssistantCloud,
   transport: ChatTransport<UIMessage> = createControlledTransport().transport,
-  length = 2,
 ) => {
   const harness = createStreamHarness();
   render(
-    <CloudApp
-      cloud={cloud}
-      transport={transport}
-      probe={
-        <>
-          <harness.Probe />
-          <ReplyProbe />
-        </>
-      }
-    />,
+    <CloudApp cloud={cloud} transport={transport} probe={<harness.Probe />} />,
   );
   await waitFor(() =>
     expect(harness.client().threadListItem.source).toBeTruthy(),
@@ -160,20 +133,10 @@ const openThread = async (
     await runtimeRef.current!.threads.switchToThread("remote-1");
   });
   await waitFor(() =>
-    expect(harness.client().thread.getState().messages).toHaveLength(length),
+    expect(harness.client().thread.getState().messages).toHaveLength(2),
   );
   const reply = () => harness.client().thread.getState().messages[1]!;
   return { harness, reply };
-};
-
-const replyHooks: {
-  state?: ReturnType<typeof useThreadReplyState>;
-  resume?: ReturnType<typeof useThreadResume>;
-} = {};
-const ReplyProbe = () => {
-  replyHooks.state = useThreadReplyState();
-  replyHooks.resume = useThreadResume();
-  return null;
 };
 
 const CloudApp = ({
@@ -355,51 +318,6 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
     expect(reply().id).not.toBe("a1");
     expect(textOf(reply())).toBe("a fresh answer");
     expect(reply().status?.type).not.toBe("incomplete");
-  }, 15_000);
-
-  it("shows a thread ending with the user's message and a stale lease as interrupted; Resume answers it without a branch", async () => {
-    const rows = [userRow];
-    const { cloud, messages, threadRuns } = makeCloud(() => rows, {
-      status: "running",
-      message_id: null,
-      parent_id: "u1",
-      last_heartbeat_ms_ago: 60_000,
-    });
-    const { transport, emit, close } = createControlledTransport();
-    const { harness } = await openThread(cloud, transport, 1);
-    await waitFor(() => expect(replyHooks.state).toBe("interrupted"));
-    await waitFor(() => expect(replyHooks.resume?.disabled).toBe(false));
-
-    await act(async () => {
-      replyHooks.resume!.resume();
-    });
-    await waitFor(() => expect(harness.isRunning()).toBe(true));
-    await act(async () => {
-      emit(
-        { type: "start", messageId: "reply-2" },
-        { type: "text-start", id: "t3" },
-        { type: "text-delta", id: "t3", delta: "resumed" },
-      );
-    });
-    await waitFor(() =>
-      expect(threadRuns.open).toHaveBeenCalledWith("remote-1", {
-        parent_id: "u1",
-      }),
-    );
-    await act(async () => {
-      emit({ type: "text-end", id: "t3" }, { type: "finish" });
-      close();
-    });
-    await waitFor(() => expect(messages.create).toHaveBeenCalledTimes(1));
-    expect(messages.create.mock.calls[0]![1]).toMatchObject({
-      parent_id: "u1",
-      lease_id: "lease_1",
-    });
-    expect(harness.client().thread.getState().messages).toHaveLength(2);
-    expect(
-      harness.client().thread.message({ index: 1 }).getState().branchCount,
-    ).toBe(1);
-    expect(replyHooks.state).toBeUndefined();
   }, 15_000);
 
   it("loads an ended reply as a plain message", async () => {

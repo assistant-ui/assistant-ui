@@ -269,7 +269,7 @@ The holder writes its reply through [create](#create-a-message) or [update](#upd
 
 [List](#list-messages) reports the thread's running lease as `run`: `{ "status": "running", "message_id": string | null, "parent_id": string | null, "last_heartbeat_ms_ago": number }`, or `null` when the thread has none. `message_id` is null until the run's first write.
 
-Servers before v0.2.11 open a lease only on a message, with `open_run` on create, and answer `POST /runs` with `404`. `open_run` still works and follows the same newest-wins rule.
+`open_run` on create, which clients before thread leases send, opens the thread's lease bound to the stored message, under the same newest-wins rule.
 
 ## Submit message feedback
 

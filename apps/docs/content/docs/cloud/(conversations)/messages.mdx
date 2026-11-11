@@ -62,7 +62,7 @@ What a thread shows depends on whether the run stored a reply yet:
 
 | Thread | Shows |
 |---|---|
-| Ends with the user's message, and a fresh lease answers it | `useThreadReplyState()` is `"in-progress"`: generating in another tab. `ThreadPrimitive.RefreshRun` re-reads the thread; Resume is disabled. |
+| Ends with the user's message, and a fresh lease answers it | `useThreadReplyState()` is `"in-progress"`: generating in another tab. Resume is disabled. |
 | Ends with the user's message, and no lease answers it, or the lease went stale | `useThreadReplyState()` is `"interrupted"`. `ThreadPrimitive.Resume` runs from that message, so its answer is the first reply and no branch is left. |
 | Ends with a stored reply whose lease is fresh | The reply has the error code `run_in_progress` and `message.runState === "in-progress"`. `ActionBarPrimitive.RefreshRun` re-reads it. |
 | Ends with a stored reply whose lease went stale | An ordinary error with the code `run_stale`. Regenerate answers again on a new branch. |
@@ -76,10 +76,7 @@ const ThreadReplyStatus = () => {
   const replyState = useThreadReplyState();
   if (replyState === "in-progress")
     return (
-      <div role="status">
-        Generating in another tab…
-        <ThreadPrimitive.RefreshRun>Refresh</ThreadPrimitive.RefreshRun>
-      </div>
+      <div role="status">Generating in another tab…</div>
     );
   if (replyState === "interrupted")
     return (
@@ -94,7 +91,7 @@ const ThreadReplyStatus = () => {
 
 Render it after `ThreadPrimitive.Messages`. The default `Thread` component does.
 
-Replies that clients before `@assistant-ui/core` 0.3.35 stored as soon as a run started, and that never got content, are left out when a thread loads, so the thread reads as ending with the user's message. `ActionBarPrimitive.Resume` is deprecated: it only answers such an empty reply on a new branch, for runtimes that load through `withFormat`.
+`ActionBarPrimitive.Resume` is deprecated. It only answers an empty stale reply that a client before `@assistant-ui/core` 0.3.35 stored, on a new branch.
 
 ## From your code
 

@@ -138,7 +138,7 @@ describe("Thread run states", () => {
     ).toBe(true);
   });
 
-  it("shows a thread whose reply another tab is generating, with Refresh and no Resume", () => {
+  it("shows a thread whose reply another tab is generating, with no Resume", () => {
     let id = "";
     render(
       <UnansweredThread
@@ -154,10 +154,6 @@ describe("Thread run states", () => {
       .getByText("Generating in another tab…")
       .closest<HTMLElement>(".aui-thread-reply-status")!;
     expect(bar.getAttribute("role")).toBe("status");
-    expect(
-      within(bar).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
-        .disabled,
-    ).toBe(false);
     expect(screen.queryByRole("button", { name: "Resume" })).toBeNull();
     act(() => setThreadReplyState(id, undefined));
   });
