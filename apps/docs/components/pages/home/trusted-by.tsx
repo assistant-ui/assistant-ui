@@ -47,7 +47,7 @@ export const LOGOS: Logo[] = [
   },
   {
     src: "/icons/cust/langchain.svg",
-    alt: "Langchain",
+    alt: "LangChain",
     href: "https://langchain.com?ref=assistant-ui",
   },
   {

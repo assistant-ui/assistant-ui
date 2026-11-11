@@ -11,14 +11,12 @@ import { cn } from "@/lib/utils";
 const LOGO_BOXES = [
   { name: "Google Cloud", box: "h-[18px] w-[111px] sm:h-[22px] sm:w-[136px]" },
   { name: "AWS", box: "h-[25px] w-[42px] sm:h-[30px] sm:w-[50px]" },
-  { name: "Langchain", box: "h-[16px] w-[94px] sm:h-[19px] sm:w-[111px]" },
+  { name: "LangChain", box: "h-[16px] w-[94px] sm:h-[19px] sm:w-[111px]" },
 ] as const;
 
 export const CUSTOMER_LOGOS = LOGO_BOXES.flatMap(({ name, box }) => {
   const logo = LOGOS.find((item) => item.alt === name);
-  return logo
-    ? [{ ...logo, alt: name === "Langchain" ? "LangChain" : name, box }]
-    : [];
+  return logo ? [{ ...logo, box }] : [];
 });
 
 const markClass =

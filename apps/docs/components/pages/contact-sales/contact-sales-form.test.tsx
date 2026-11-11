@@ -105,7 +105,7 @@ describe("ContactSalesForm", () => {
     expect(url.searchParams.get("notes")).toBe(
       "Company: Acme\nCompany size: 51-200\n\nWhat are you building?\nA support agent.",
     );
-    const button = screen.getByRole("button", { name: "Sending" });
+    const button = screen.getByRole("button", { name: "Opening cal.com" });
     expect(button.hasAttribute("disabled")).toBe(true);
     const restored = new Event("pageshow") as PageTransitionEvent;
     Object.defineProperty(restored, "persisted", { value: true });

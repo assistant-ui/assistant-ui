@@ -289,7 +289,7 @@ export function ContactSalesForm({
           className="w-full"
           disabled={submitting}
         >
-          {submitting ? "Sending" : "Contact sales"}
+          {submitting ? "Opening cal.com" : "Contact sales"}
         </Button>
         <p className="text-muted-foreground text-xs leading-relaxed">
           Next you continue to cal.com with your answers filled in.
