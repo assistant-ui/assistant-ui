@@ -1,5 +1,15 @@
 # assistant-ui
 
+## 0.0.130
+
+### Patch Changes
+
+- [#10477](https://github.com/assistant-ui/assistant-ui/pull/10477) [`316fb06`](https://github.com/assistant-ui/assistant-ui/commit/316fb0626ff487fbebc00e84f997dd7982c5240b) - Add `assistant-ui setup`. Run by a coding agent, it starts a guided setup, opens it in the user's browser, and prints the steps the agent follows. Run in a terminal, it asks which coding agent you use and starts it with the setup prompt, or copies the prompt for an agent it cannot start. Help for the CLI, `create` and `init` now opens with a pointer to `setup` when an agent reads it, and `create` and `init` print the same line before they run under an agent. ([@Yonom](https://github.com/Yonom))
+
+- [#10473](https://github.com/assistant-ui/assistant-ui/pull/10473) [`7db1f74`](https://github.com/assistant-ui/assistant-ui/commit/7db1f744a09e6279c1624bb6a0d93b9e4912ae58) - fix(cli): `init` in a fresh Next.js app now renders `<Assistant />` on an untouched starter `app/page.tsx` (or prints where to render it), keeps the project's font when shadcn writes a self-referencing `--font-sans`, explains the `cn` dependency in `lib/utils.ts`, and says that no `TooltipProvider` is needed ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`316fb06`](https://github.com/assistant-ui/assistant-ui/commit/316fb0626ff487fbebc00e84f997dd7982c5240b)]:
+  - setup-agent@0.0.9
+
 ## 0.0.129
 
 ### Patch Changes

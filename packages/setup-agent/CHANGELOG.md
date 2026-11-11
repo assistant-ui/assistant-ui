@@ -1,5 +1,15 @@
 # setup-agent
 
+## 0.0.9
+
+### Patch Changes
+
+- [#10477](https://github.com/assistant-ui/assistant-ui/pull/10477) [`316fb06`](https://github.com/assistant-ui/assistant-ui/commit/316fb0626ff487fbebc00e84f997dd7982c5240b) - Export the coding agents a setup can be handed to, with the commands that start them, and detect more agents from their environment, including `AI_AGENT`. `agentInstructions` takes `startedByAgent` for a setup the agent opened itself, which skips the Begin plan handoff, and tells the agent to ask what to set up when a setup lists no products. ([@Yonom](https://github.com/Yonom))
+  
+  `@assistant-ui/tap` is now an optional peer dependency, needed only by `setup-agent/host`, so the CLI and other clients no longer install it.
+  
+  The agent registry and launcher (`CODING_AGENTS`, `detectAgentKind`, `findCommand`, `isDirectInvocation`, `runCodingAgent`) live on `setup-agent/cli`, so the root entry stays free of Node built-ins. Agents start through `cross-spawn`, so Windows `.cmd` shims work.
+
 ## 0.0.8
 
 ### Patch Changes
