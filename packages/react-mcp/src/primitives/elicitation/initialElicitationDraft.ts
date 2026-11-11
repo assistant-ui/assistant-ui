@@ -1,27 +1,8 @@
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const getOwn = (value: Record<string, unknown>, key: string): unknown =>
-  Object.hasOwn(value, key) ? value[key] : undefined;
-
-const matchesType = (type: unknown, value: unknown): boolean => {
-  switch (type) {
-    case "string":
-      return typeof value === "string";
-    case "number":
-      return typeof value === "number" && Number.isFinite(value);
-    case "integer":
-      return (
-        typeof value === "number" &&
-        Number.isFinite(value) &&
-        Number.isInteger(value)
-      );
-    case "boolean":
-      return typeof value === "boolean";
-    default:
-      return false;
-  }
-};
+import {
+  getOwn,
+  isRecord,
+  matchesType,
+} from "../../resources/validateElicitationContent";
 
 export const initialElicitationDraft = (
   requestedSchema: unknown,
@@ -37,7 +18,9 @@ export const initialElicitationDraft = (
       if (!isRecord(schema) || !Object.hasOwn(schema, "default")) return [];
 
       const value = schema.default;
-      return matchesType(getOwn(schema, "type"), value) ? [[name, value]] : [];
+      return matchesType(getOwn(schema, "type"), value) === true
+        ? [[name, value]]
+        : [];
     }),
   );
 };
