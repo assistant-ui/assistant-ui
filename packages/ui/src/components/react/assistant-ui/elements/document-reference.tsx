@@ -29,10 +29,16 @@ export function DocumentReference({
   onJump?: (page: number) => void;
 }) {
   // several anchors can cite one page, and only one of them is the current item
-  const [pickedIndex, setPickedIndex] = useState<number | null>(null);
+  const [picked, setPicked] = useState<{
+    index: number;
+    quote: string;
+  } | null>(null);
+  const pickedAnchor = picked ? anchors[picked.index] : undefined;
   const currentIndex =
-    pickedIndex !== null && anchors[pickedIndex]?.page === activePage
-      ? pickedIndex
+    picked &&
+    pickedAnchor?.page === activePage &&
+    pickedAnchor.quote === picked.quote
+      ? picked.index
       : anchors.findIndex((anchor) => anchor.page === activePage);
 
   return (
@@ -85,7 +91,7 @@ export function DocumentReference({
               type="button"
               aria-current={i === currentIndex || undefined}
               onClick={() => {
-                setPickedIndex(i);
+                setPicked({ index: i, quote: anchor.quote });
                 onJump(anchor.page);
               }}
               className={className}

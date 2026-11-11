@@ -78,4 +78,61 @@ describe("DocumentReference", () => {
     expect(current).toHaveLength(1);
     expect(current[0]?.textContent).toContain("third");
   });
+
+  it("drops the pick when the anchors are replaced", () => {
+    const { rerender } = render(
+      <DocumentReference
+        title="doc.pdf"
+        pages={14}
+        anchors={anchors}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /second/ }));
+
+    rerender(
+      <DocumentReference
+        title="other.pdf"
+        pages={14}
+        anchors={[
+          { page: 4, quote: "alpha" },
+          { page: 4, quote: "beta" },
+        ]}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+
+    const current = document.querySelectorAll('[aria-current="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]?.textContent).toContain("alpha");
+  });
+
+  it("keeps the pick when the parent re-renders the same anchors", () => {
+    const { rerender } = render(
+      <DocumentReference
+        title="doc.pdf"
+        pages={14}
+        anchors={anchors}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /second/ }));
+
+    rerender(
+      <DocumentReference
+        title="doc.pdf"
+        pages={14}
+        anchors={anchors.map((anchor) => ({ ...anchor }))}
+        activePage={4}
+        onJump={() => {}}
+      />,
+    );
+
+    const current = document.querySelectorAll('[aria-current="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]?.textContent).toContain("second");
+  });
 });

@@ -170,13 +170,13 @@ async function openDocument(id: string) {
 </div>
 ```
 
-`activePage` decides two independent things. Every anchor whose `page` equals `activePage` gets the active background, which can be more than one button when several anchors cite the same page. Only the first anchor in array order at that page gets `aria-current`, since it is found by `anchors.findIndex`. When `activePage` matches no anchor, no button gets either. Clicking a button calls `onJump` with that anchor's `page`, not its array index, so two same-page anchors are indistinguishable to the caller once clicked. An empty `anchors` array renders only the header, with `0 cited` in the meta line and no placeholder row.
+Exactly one anchor is current, and it carries both the active background and `aria-current`. Clicking a button calls `onJump` with that anchor's `page` and makes that anchor current, so of two anchors citing one page, the one the user picked is the one marked. Otherwise the current anchor is the first one in array order whose `page` equals `activePage`, which is also where the card starts. The pick is dropped when `anchors` no longer holds that passage at that position, and when `activePage` matches no anchor, no button is current. An empty `anchors` array renders only the header, with `0 cited` in the meta line and no placeholder row.
 
 ## Examples
 
 ### Multiple citations on the same page
 
-Anchors don't have to be unique per page. Two entries citing page 4 both highlight when `activePage` is 4; only the first one in the array is marked current for assistive tech.
+Anchors don't have to be unique per page. With `activePage` at 4, the first entry is current until the user clicks the second one, which then becomes current instead.
 
 ```tsx
 const anchors = [
