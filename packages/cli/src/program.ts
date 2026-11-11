@@ -9,14 +9,17 @@ import { agent } from "./commands/agent";
 import { info } from "./commands/info";
 import { doctor } from "./commands/doctor";
 import { cloud } from "./commands/cloud";
+import { setup } from "./commands/setup";
+import { addAgentSetupHint } from "./lib/agent-setup-hint";
 
 export function buildProgram() {
-  return new Command()
+  const program = new Command()
     .name("assistant-ui")
     .description("add components and dependencies to your project")
+    .addCommand(setup)
     .addCommand(add)
-    .addCommand(create)
-    .addCommand(init)
+    .addCommand(addAgentSetupHint(create))
+    .addCommand(addAgentSetupHint(init))
     .addCommand(mcp)
     .addCommand(codemodCommand)
     .addCommand(upgradeCommand)
@@ -25,4 +28,5 @@ export function buildProgram() {
     .addCommand(cloud)
     .addCommand(info)
     .addCommand(doctor);
+  return addAgentSetupHint(program, { beforeAction: false });
 }

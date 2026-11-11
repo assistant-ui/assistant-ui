@@ -4525,6 +4525,9 @@ importers:
       semver:
         specifier: ^7.8.5
         version: 7.8.5
+      setup-agent:
+        specifier: workspace:^
+        version: link:../setup-agent
       statewire:
         specifier: ^0.22.1
         version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
@@ -6390,16 +6393,22 @@ importers:
 
   packages/setup-agent:
     dependencies:
-      '@assistant-ui/tap':
-        specifier: ^0.9.25
-        version: link:../tap
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       statewire:
         specifier: ^0.22.1
         version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@types/cross-spawn':
+        specifier: ^6.0.6
+        version: 6.0.6
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5

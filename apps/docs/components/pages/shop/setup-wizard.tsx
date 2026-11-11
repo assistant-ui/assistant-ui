@@ -702,7 +702,8 @@ export function SetupWizard({
       footer.current?.contains(active) === true;
     if (fromFooter) heading.current?.focus();
   }, [shownKey]);
-  const trail = pageTrail(state, live);
+  const agentStarted = checkout.session.origin === "agent";
+  const trail = pageTrail(state, live, { agentStarted });
   const keys = trail.map(pageKey);
   const liveIndex = trail.length - 1;
   const viewingIndex = viewing === undefined ? -1 : keys.indexOf(viewing);
@@ -809,6 +810,27 @@ export function SetupWizard({
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":
+        if (agentStarted)
+          return {
+            title:
+              phase === "connected"
+                ? `${name} is connected`
+                : `Waiting for ${name}`,
+            body: (
+              <p
+                role="status"
+                className="text-muted-foreground flex items-center gap-2 text-sm"
+              >
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 motion-safe:animate-spin"
+                />
+                {phase === "connected"
+                  ? "Starting the plan…"
+                  : "Your agent started this setup. Its questions show up here once it is running."}
+              </p>
+            ),
+          };
         return {
           title:
             phase === "connected"
@@ -920,6 +942,11 @@ export function SetupWizard({
     }
   })();
 
+  const cwd = state?.agent.cwd ?? null;
+  const agentLine =
+    agentStarted && phase === "connected" && cwd
+      ? `Connected to ${name} in ${cwd}`
+      : undefined;
   const proposed = state !== undefined && finishProposed(state);
   const ownsActions =
     !reviewing &&
@@ -983,6 +1010,15 @@ export function SetupWizard({
               >
                 <span ref={titleText}>{view.title}</span>
               </h1>
+              {agentLine ? (
+                <p
+                  data-testid="agent-connection"
+                  className="text-muted-foreground mt-1 truncate text-sm"
+                  title={agentLine}
+                >
+                  {agentLine}
+                </p>
+              ) : null}
               {view.subtitle ? (
                 <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in mt-1 text-sm motion-safe:duration-300">
                   {view.subtitle}

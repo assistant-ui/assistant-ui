@@ -16,6 +16,7 @@ import {
 import {
   endCheckout,
   getCheckoutSession,
+  joinAgentLink,
   startCheckout,
 } from "@/lib/checkout/session-store";
 
@@ -72,3 +73,14 @@ export const abandonCheckout = () => {
 
 /** Ends a finished checkout; its products stay installed, not in the cart. */
 export const finishCheckout = endCheckout;
+
+/**
+ * Connects to the setup a coding agent opened this page on, once the user
+ * confirmed it. A different running setup ends first, its cart products
+ * going back to the cart.
+ */
+export const connectAgentSetup = (link: string, setup?: string) => {
+  const running = getCheckoutSession();
+  if (running !== null && running.link !== link) abandonCheckout();
+  return joinAgentLink(link, setup);
+};

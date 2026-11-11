@@ -177,6 +177,48 @@ const observeRow = () => {
 };
 
 describe("SetupWizard", () => {
+  it("opens a setup the agent started on its work, with where it is connected and no prompt to paste", () => {
+    const started = { origin: "agent" as const, introSeen: true };
+    const state = connected({
+      status: "planning",
+      agent: {
+        ...initialCheckoutState().agent,
+        lastSeenAt: Date.now(),
+        connected: true,
+        kind: "claude",
+        cwd: "/Users/me/app",
+      },
+    });
+    render(<SetupWizard checkout={context(state, true, false, started)} />);
+    expect(screen.getByTestId("agent-connection").textContent).toBe(
+      "Connected to Claude Code in /Users/me/app",
+    );
+    expect(screen.queryByRole("button", { name: "Copy prompt" })).toBeNull();
+    expect(screen.queryByText(/npx setup-agent/)).toBeNull();
+    expect(footer().getByRole("button", { name: "Back" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("waits for the agent that started the setup instead of asking to paste a prompt", () => {
+    const started = { origin: "agent" as const, introSeen: true };
+    render(
+      <SetupWizard
+        checkout={context(
+          { ...initialCheckoutState(), createdAt: 1 },
+          false,
+          false,
+          started,
+        )}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Waiting for your agent" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Copy prompt" })).toBeNull();
+  });
+
   it("offers a Back control that keeps the setup running in the mobile header", () => {
     render(<SetupWizard checkout={context(initialCheckoutState())} />);
     const back = screen.getByRole("button", {

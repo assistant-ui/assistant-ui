@@ -15,9 +15,17 @@ export type CheckoutSession = {
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
   introSeen?: boolean;
+  /** A coding agent started the setup with `assistant-ui setup` and opened this page on it; the agent creates and replaces the setup, never the browser. */
+  origin?: "agent";
+  /** The link of an agent-started setup. It belongs to this session only; the browser's own agent link stays as it was. */
+  link?: string;
 };
 
+/** The products a session with none sets up. */
+export const DEFAULT_SETUP_PRODUCTS: readonly string[] = ["assistant-ui"];
+
 const storageKey = "aui-checkout-session";
+const LINK_PATTERN = /^[A-Za-z0-9]{8,64}$/;
 const linkKey = "aui-agent-link";
 const listeners = new Set<() => void>();
 let session: CheckoutSession | null = null;
@@ -49,15 +57,16 @@ const normalize = (value: unknown): CheckoutSession | null => {
     introSeen,
     cartEntries,
     cartInstructions,
+    origin,
+    link,
   } = value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
   );
-  if (slugs.length === 0) return null;
   return {
     id,
-    products: slugs,
+    products: slugs.length > 0 ? slugs : DEFAULT_SETUP_PRODUCTS,
     startedAt: typeof startedAt === "number" ? startedAt : Date.now(),
     ...(typeof instructions === "string" &&
       instructions.trim() && { instructions: instructions.trim() }),
@@ -70,6 +79,8 @@ const normalize = (value: unknown): CheckoutSession | null => {
       ),
     }),
     ...(typeof cartInstructions === "string" && { cartInstructions }),
+    ...(origin === "agent" && { origin }),
+    ...(typeof link === "string" && LINK_PATTERN.test(link) && { link }),
   };
 };
 
@@ -138,7 +149,9 @@ export const getCheckoutSession = (): CheckoutSession | null => {
 };
 
 export const canRestoreCheckoutSession = (sessionId: string, url: string) => {
-  if (readStored()?.id !== sessionId) return false;
+  const stored = readStored();
+  if (stored?.id !== sessionId) return false;
+  if (stored.link !== undefined) return checkoutUrl(stored.link) === url;
   try {
     const storedLink = window.localStorage.getItem(linkKey);
     return storedLink !== null && checkoutUrl(storedLink) === url;
@@ -164,6 +177,63 @@ export const getAgentLinkId = () => {
 };
 
 export const agentLinkUrl = () => checkoutUrl(getAgentLinkId());
+
+/** The link and setup ids `assistant-ui setup` put in the setup page's fragment (`#link=<id>&setup=<id>`), or `null`. */
+export const parseAgentFragment = (
+  hash: string,
+): { link: string; setup?: string } | null => {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const link = params.get("link");
+  if (link === null || !LINK_PATTERN.test(link)) return null;
+  const setup = params.get("setup");
+  return {
+    link,
+    ...(setup !== null && LINK_PATTERN.test(setup) && { setup }),
+  };
+};
+
+/** The link a session's setup lives on: an agent-started session's own, else the browser's. */
+export const sessionLinkUrl = (current: CheckoutSession) =>
+  current.link !== undefined ? checkoutUrl(current.link) : agentLinkUrl();
+
+/**
+ * Connects this browser to the setup a coding agent started, after the user
+ * confirmed it. The link stays with the new session; the browser's own agent
+ * link is left alone, so a link from a URL never outlives its setup.
+ * Callers end any other running session first.
+ */
+export const joinAgentLink = (link: string, setup?: string) => {
+  if (!checkoutEnabled || !LINK_PATTERN.test(link)) return null;
+  load();
+  if (session?.origin === "agent" && session.link === link) return session;
+  session = {
+    id:
+      setup !== undefined && LINK_PATTERN.test(setup) ? setup : `agent-${link}`,
+    products: DEFAULT_SETUP_PRODUCTS,
+    startedAt: Date.now(),
+    introSeen: true,
+    origin: "agent",
+    link,
+  };
+  writeStored(session);
+  notify();
+  return session;
+};
+
+/** Follows the setup the agent created on the link: its id and, among catalog slugs the caller resolved, its products. */
+export const adoptAgentSetup = (id: string, products: readonly string[]) => {
+  load();
+  if (session?.origin !== "agent") return;
+  const slugs = products.length > 0 ? products : DEFAULT_SETUP_PRODUCTS;
+  if (
+    session.id === id &&
+    JSON.stringify(session.products) === JSON.stringify(slugs)
+  )
+    return;
+  session = { ...session, id, products: slugs };
+  writeStored(session);
+  notify();
+};
 
 /** Opens a checkout for the given catalog slugs; returns the running one if it exists. The store stays free of the catalog because the root providers import it on every route, so callers pass slugs they already resolved. */
 export const startCheckout = (

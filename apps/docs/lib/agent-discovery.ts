@@ -1,3 +1,4 @@
+import { AGENT_SETUP_HINT } from "./agent-setup-prompt";
 import { BASE_URL } from "./constants";
 import { sha256 } from "./sha256";
 import {
@@ -35,6 +36,8 @@ description: ${JSON.stringify(AGENT_SKILL_DESCRIPTION)}
 
 Use this skill when implementing, configuring, migrating, or troubleshooting assistant-ui.
 
+${AGENT_SETUP_HINT}
+
 ## Start here
 
 1. Read the documentation index at ${absoluteUrl("/llms.txt")}.
@@ -70,6 +73,8 @@ export const AGENTS_DOCUMENT = `# Agent instructions for assistant-ui documentat
 Base URL: ${BASE_URL}
 
 Use these instructions when reading assistant-ui documentation or implementing assistant-ui in a project.
+
+${AGENT_SETUP_HINT}
 
 ## Retrieval workflow
 

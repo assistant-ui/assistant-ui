@@ -23,6 +23,33 @@ import type { CheckoutContextValue } from "../../shared/checkout-provider";
 import type { CheckoutSession } from "../../../lib/checkout/session-store";
 import { clearCart, replaceCart } from "../../../lib/catalog/cart-store";
 
+const { connectAgentSetup } = vi.hoisted(() => ({
+  connectAgentSetup: vi.fn(),
+}));
+
+vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/checkout/flow")>()),
+  connectAgentSetup,
+}));
+
+vi.mock("./agent-link-confirm", () => ({
+  AgentLinkConfirm: ({
+    link,
+    onConnect,
+    onCancel,
+  }: {
+    link: string;
+    onConnect: () => void;
+    onCancel: () => void;
+  }) => (
+    <div>
+      <p>Confirm {link}</p>
+      <button onClick={onConnect}>Connect</button>
+      <button onClick={onCancel}>Cancel</button>
+    </div>
+  ),
+}));
+
 const { push, sessions } = vi.hoisted(() => {
   let session: CheckoutSession | null = null;
   const listeners = new Set<() => void>();
@@ -105,9 +132,44 @@ afterEach(() => {
   cleanup();
   clearCart();
   sessions.set(null);
+  connectAgentSetup.mockReset();
+  window.history.replaceState(null, "", "/components/setup");
+  sessionStorage.clear();
 });
 
 describe("CheckoutView", () => {
+  it("asks before joining the setup a link opened, and joins only on Connect", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/components/setup#link=abcdEFGH1234&setup=zyxw9876ABCD",
+    );
+    render(<CheckoutView />);
+    expect(window.location.hash).toBe("");
+    expect(screen.getByText("Confirm abcdEFGH1234")).toBeTruthy();
+    expect(connectAgentSetup).not.toHaveBeenCalled();
+    expect(localStorage.getItem("aui-agent-link")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    expect(connectAgentSetup).toHaveBeenCalledWith(
+      "abcdEFGH1234",
+      "zyxw9876ABCD",
+    );
+    expect(screen.queryByText("Confirm abcdEFGH1234")).toBeNull();
+  });
+
+  it("drops a link the user cancels without joining it", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/components/setup#link=abcdEFGH1234",
+    );
+    render(<CheckoutView />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(connectAgentSetup).not.toHaveBeenCalled();
+    expect(screen.queryByText("Confirm abcdEFGH1234")).toBeNull();
+    expect(sessionStorage.getItem("aui-agent-link-pending")).toBeNull();
+  });
+
   it("offers configuration for a legacy tool selection instead of an inert setup action", () => {
     replaceCart(["agent-tools"]);
     render(<CheckoutView />);

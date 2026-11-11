@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
@@ -70,7 +70,7 @@ export function Hero({
           style={{ animationDelay: "700ms" }}
         >
           {checkoutEnabled ? (
-            <StartSetupDialog location="hero">Quick Start</StartSetupDialog>
+            <SetupCommandPrompt page="home" section="hero" />
           ) : (
             <Button
               nativeButton={false}
@@ -96,6 +96,15 @@ export function Hero({
           >
             Talk to an expert
           </Button>
+          {checkoutEnabled ? (
+            <Link
+              href="/docs/installation"
+              onClick={() => analytics.cta.clicked("get_started", "hero")}
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            >
+              Manual
+            </Link>
+          ) : null}
         </div>
 
         <div

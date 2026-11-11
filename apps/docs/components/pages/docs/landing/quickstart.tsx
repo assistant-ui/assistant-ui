@@ -16,7 +16,7 @@ export function Quickstart() {
     <div className="not-prose flex flex-wrap items-center gap-x-4 gap-y-2">
       <CopyCommandButton
         command={PLATFORM_QUICKSTART_COMMANDS[platform]}
-        withPromptOption
+        withPromptOption={platform === "react"}
       />
       <Link
         href={PLATFORM_ENTRY_PATHS[platform]}

@@ -6,7 +6,7 @@ import { DemoCard } from "@/components/pages/elements/demo-card";
 import { getElement } from "@/components/pages/elements/registry";
 import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { StartSetupButton } from "@/components/shared/start-setup-button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -68,9 +68,9 @@ export default async function ProductPage({
               size="default"
             />
           ) : (
-            <StartSetupDialog location="shop_product">
+            <StartSetupButton location="shop_product">
               Start setup
-            </StartSetupDialog>
+            </StartSetupButton>
           )}
         </div>
       </header>

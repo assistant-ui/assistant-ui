@@ -48,6 +48,34 @@ describe("livePage", () => {
     expect(page({ status: "planning" })).toEqual({ id: "working" });
   });
 
+  it("skips the welcome and the prompt for a setup the agent started", () => {
+    const started = { ...session, origin: "agent" as const };
+    const question = input("q1");
+    expect(
+      page({ status: "waiting" }, { phase: "unconnected", session: started }),
+    ).toEqual({ id: "connect" });
+    // Until the agent runs, the page waits for it rather than claim it is exploring.
+    expect(
+      page({ status: "planning" }, { phase: "waiting", session: started }),
+    ).toEqual({ id: "connect" });
+    expect(
+      page({ status: "planning" }, { phase: "connected", session: started }),
+    ).toEqual({ id: "working" });
+    expect(
+      page(
+        { status: "planning" },
+        { phase: "unconnected", session: started, openInputs: [question] },
+      ),
+    ).toEqual({ id: "question", input: question, total: 1 });
+    expect(
+      pageTrail(
+        undefined,
+        { id: "question", input: question, total: 1 },
+        { agentStarted: true },
+      ).map(pageKey),
+    ).toEqual(["question:q1"]);
+  });
+
   it("shows the agent's first open question before anything else it wants", () => {
     const questions = [input("q1"), input("q2")];
     expect(

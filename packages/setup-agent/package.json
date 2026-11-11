@@ -49,11 +49,21 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.9.25",
+    "cross-spawn": "^7.0.6",
     "statewire": "^0.22.1"
   },
+  "peerDependencies": {
+    "@assistant-ui/tap": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@assistant-ui/tap": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/cross-spawn": "^6.0.6",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "react": "^19.3.1",

@@ -13,6 +13,7 @@ const wire = vi.hoisted(() => ({
   state: undefined as Checkout.State | undefined,
   listeners: new Set<() => void>(),
   create: vi.fn().mockResolvedValue(undefined),
+  beginPlan: vi.fn().mockResolvedValue(undefined),
   addProduct: vi.fn().mockResolvedValue(undefined),
   dismiss: vi.fn().mockResolvedValue(undefined),
 }));
@@ -20,6 +21,7 @@ const wire = vi.hoisted(() => ({
 const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   addCheckoutProducts: vi.fn(),
+  adoptAgentSetup: vi.fn(),
 }));
 
 vi.mock("statewire", async (importOriginal) => ({
@@ -39,6 +41,7 @@ vi.mock("statewire", async (importOriginal) => ({
       connection: { status: "open", degraded: false, attempt: 0 },
       commands: {
         "checkout/create": wire.create,
+        "checkout/begin-plan": wire.beginPlan,
         "checkout/add-product": wire.addProduct,
         "checkout/dismiss": wire.dismiss,
       },
@@ -63,7 +66,10 @@ vi.mock("../../lib/checkout/session-store", async (importOriginal) => ({
     typeof import("../../lib/checkout/session-store")
   >()),
   agentLinkUrl: () => "https://checkout.test/link",
+  sessionLinkUrl: (session: { link?: string }) =>
+    `https://checkout.test/${session.link ?? "link"}`,
   addCheckoutProducts: mocks.addCheckoutProducts,
+  adoptAgentSetup: mocks.adoptAgentSetup,
 }));
 
 import { useEffect, useState } from "react";
@@ -123,6 +129,21 @@ const proposal = (id: string, product: string): Checkout.Input => ({
 });
 
 describe("CheckoutSessionBridge", () => {
+  it("follows a setup the agent started instead of creating one, and begins its plan", () => {
+    wire.create.mockClear();
+    mocks.adoptAgentSetup.mockClear();
+    const onChange = vi.fn<(value: CheckoutContextValue | null) => void>();
+    const started = { ...session, origin: "agent" as const };
+    render(<CheckoutSessionBridge session={started} onChange={onChange} />);
+    setWire({ ...previous(), id: "s2", status: "waiting" });
+    expect(wire.create).not.toHaveBeenCalled();
+    expect(wire.beginPlan).toHaveBeenCalledOnce();
+    expect(mocks.adoptAgentSetup).toHaveBeenLastCalledWith("s2", ["cloud"]);
+    setWire({ ...previous(), id: "s3", status: "planning", products: [] });
+    expect(wire.create).not.toHaveBeenCalled();
+    expect(mocks.adoptAgentSetup).toHaveBeenLastCalledWith("s3", []);
+  });
+
   it("opens this session's checkout on the browser's agent link and reports only that checkout", () => {
     const onChange = vi.fn<(value: CheckoutContextValue | null) => void>();
     render(<CheckoutSessionBridge session={session} onChange={onChange} />);

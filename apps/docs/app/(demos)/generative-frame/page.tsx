@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { StartSetupButton } from "@/components/shared/start-setup-button";
 import { AddToCartButton } from "@/components/shared/shop-entry";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
@@ -252,13 +252,11 @@ function FooterPaths() {
       <h2 className={cn(typeSection, "text-center")}>Pick a starting point</h2>
       <div className="divide-foreground/10 border-foreground/10 mt-8 grid border-y md:grid-cols-3 md:divide-x">
         {PATHS.map((path) => (
-          <StartSetupDialog
+          <StartSetupButton
             key={path.id}
             location={`generative_frame_footer_${path.id}`}
-            name="Generative Frame"
             products={path.products}
             {...(path.instructions && { instructions: path.instructions })}
-            manualHref={path.manualHref}
             trigger={
               <button
                 type="button"
@@ -276,9 +274,23 @@ function FooterPaths() {
               aria-hidden
               className="text-muted-foreground group-hover:text-foreground mt-1 size-4 shrink-0 transition-all group-hover:translate-x-0.5"
             />
-          </StartSetupDialog>
+          </StartSetupButton>
         ))}
       </div>
+      <p className="text-muted-foreground mt-4 text-center text-sm">
+        Or install it by hand:{" "}
+        {PATHS.map((path, index) => (
+          <span key={path.id}>
+            {index > 0 ? " · " : null}
+            <Link
+              href={path.manualHref}
+              className="hover:text-foreground underline-offset-4 transition-colors hover:underline"
+            >
+              {path.title}
+            </Link>
+          </span>
+        ))}
+      </p>
     </footer>
   );
 }
