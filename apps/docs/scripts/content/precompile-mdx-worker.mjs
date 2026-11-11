@@ -32,6 +32,15 @@ const { createFormatAwareProcessors } = await import(
   ).href
 );
 
+// tsc checks .source/content.ts, which imports these modules.
+const DECLARATION = `import type { ComponentType } from "react";
+import type { MDXProps } from "mdx/types";
+import type { TableOfContents } from "fumadocs-core/toc";
+export declare const toc: TableOfContents;
+declare const Content: ComponentType<MDXProps>;
+export default Content;
+`;
+
 /** Points relative imports at the source file's directory again. */
 function recmaRelocateImports() {
   return (tree, file) => {
@@ -71,7 +80,10 @@ parentPort.on("message", async ({ source, destination }) => {
       data: { precompiledFrom: source, precompiledTo: destination },
     });
     await mkdir(dirname(destination), { recursive: true });
-    await writeFile(destination, String(file.value));
+    await Promise.all([
+      writeFile(destination, String(file.value)),
+      writeFile(destination.replace(/\.js$/, ".d.ts"), DECLARATION),
+    ]);
     parentPort.postMessage({ source });
   } catch (error) {
     parentPort.postMessage({
