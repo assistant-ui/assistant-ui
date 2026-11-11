@@ -638,7 +638,7 @@ type CloudMessage = {
 };
 
 type CloudMessageRun = {
-  status: "ended" | "running";
+  status: "running";
   last_heartbeat_ms_ago: number;
 };
 

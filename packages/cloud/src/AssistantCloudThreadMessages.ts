@@ -21,13 +21,13 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
-  /** Present on a message that had a run lease: its running lease, or else its latest ended one. */
+  /** Present only on the message the thread's running lease is bound to. */
   run?: CloudMessageRun | undefined;
 };
 
 export type CloudMessageRun = {
   /** A lease runs until its holder ends it; the server never expires one. */
-  status: "running" | "ended";
+  status: "running";
   /** Time since the lease's last heartbeat, measured by the server when it listed the message. */
   last_heartbeat_ms_ago: number;
 };
@@ -85,7 +85,7 @@ type AssistantCloudThreadMessageUpdateBody = {
   lease_id?: string | undefined;
 };
 
-const RUN_STATUSES = ["running", "ended"] as const;
+const RUN_STATUSES = ["running"] as const;
 
 const decodeCloudMessageRun = (
   value: unknown,

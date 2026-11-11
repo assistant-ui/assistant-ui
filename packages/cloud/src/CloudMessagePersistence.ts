@@ -125,13 +125,13 @@ export class CloudMessagePersistence {
 
   /**
    * Reads a listed message's run against `staleAfter`; `sinceReadMs` is the
-   * time since the list was read. Undefined for no run or an ended one.
+   * time since the list was read. Undefined for a message without one.
    */
   runStateOf(
     run: CloudMessageRun | undefined,
     sinceReadMs = 0,
   ): CloudRunState | undefined {
-    if (run?.status !== "running") return undefined;
+    if (!run) return undefined;
     const quietMs = run.last_heartbeat_ms_ago + sinceReadMs;
     return quietMs >= this.staleAfter
       ? { status: "stale" }

@@ -344,12 +344,6 @@ describe("CloudMessagePersistence run leases", () => {
         25_000,
       ),
     ).toEqual({ status: "stale" });
-    expect(
-      persistence.runStateOf({
-        status: "ended",
-        last_heartbeat_ms_ago: 90_000,
-      }),
-    ).toBeUndefined();
     expect(persistence.runStateOf(undefined)).toBeUndefined();
 
     const patient = new CloudMessagePersistence(cloud, { staleAfter: 120_000 });
