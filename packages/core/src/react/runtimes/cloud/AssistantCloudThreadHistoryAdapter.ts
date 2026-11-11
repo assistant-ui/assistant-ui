@@ -20,6 +20,8 @@ import {
   type AssistantCloudEvent,
   CloudAPIError,
   CloudMessagePersistence,
+  type CloudMessage,
+  type CloudMessageRun,
   type CloudMessageRunPhase,
   type CloudRunState,
   CloudRunReporter,
@@ -117,6 +119,42 @@ const runStatusOf = (state: CloudRunState | undefined) =>
 // A run another session drives is the newest message of its branch, so it sits on the first page.
 const RUN_STATE_PAGE_SIZE = 20;
 
+/** Whether a reply has nothing to show: no parts, or only blank text and reasoning. */
+export const isEmptyReply = (message: Pick<ThreadMessage, "content">) =>
+  message.content.every(
+    (part) =>
+      (part.type === "text" || part.type === "reasoning") &&
+      part.text.trim() === "",
+  );
+
+const isEmptyStoredReply = (row: CloudMessage) => {
+  if (row.format !== "aui/v0") return false;
+  const decoded = auiV0DecodeSafely(row as CloudMessage & { format: "aui/v0" });
+  return !!decoded && isEmptyReply(decoded.message);
+};
+
+/**
+ * An empty reply row a client before thread leases stored as soon as its run
+ * started, left out of the loaded thread so its parent reads as unanswered:
+ * its run then shows on the thread, and Resume answers the parent without a
+ * branch beside the empty row.
+ */
+type LiftedRun = {
+  /** The cloud id of the left-out row. */
+  rowId: string;
+  /** The local id of the message the row answers. */
+  parentId: string;
+  run: CloudMessageRun;
+  readAt: number;
+};
+
+/**
+ * Where the run answering a thread's last message stands: `null` when the
+ * thread has no run for it, undefined when the server cannot say (a server
+ * before v0.2.11 and no row to read it from).
+ */
+export type CloudReplyRun = CloudRunState | null | undefined;
+
 const endPhaseOf = (message: ThreadMessage): CloudMessageRunPhase => {
   const { status } = message;
   if (status?.type !== "incomplete") return "done";
@@ -147,6 +185,15 @@ const runPhaseOf = (
 export type CloudRunWriter = {
   /** The message's persistence key, or undefined when it cannot be stored as one row. */
   keyOf(message: ThreadMessage): string | undefined;
+  /**
+   * Opens the thread's run lease for a reply that is not stored yet; resolves
+   * false when the server has no thread leases, so the first running write
+   * opens a lease on its row.
+   */
+  begin(
+    message: ThreadMessage,
+    parent: ThreadMessage | undefined,
+  ): Promise<boolean>;
   /** Whether the row can be chained under its parent yet; always, when absent. */
   canStore?(parent: ThreadMessage | undefined): boolean;
   /** Stores the message (appending it on first write), with its run phase read from its status. */
@@ -481,6 +528,21 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         if (key === undefined) return false;
         return key === null || !!pinnedPersistence()?.isPersisted(key);
       },
+      async begin(message, parent) {
+        const inner = onlyInner(message);
+        const parentId = innerParentKey(parent);
+        const pinned = resolvePinned();
+        if (inner === undefined || parentId === undefined || !pinned)
+          return false;
+        const context = adapter.captureScope(pinned);
+        const { remoteId } = await pinned.initialize();
+        adapter.assertCurrentScope(context);
+        return context.persistence.beginRun(
+          remoteId,
+          formatAdapter.getId(inner),
+          parentId,
+        );
+      },
       async write(message, parent) {
         const inner = onlyInner(message);
         const parentId = innerParentKey(parent);
@@ -668,10 +730,13 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     if (!remoteThreadId) return undefined;
     const remoteId =
       context.persistence.getResolvedRemoteId(messageId) ?? messageId;
-    const { messages } = await context.cloud.threads.messages.list(
+    const readAt = Date.now();
+    const { messages, run } = await context.cloud.threads.messages.list(
       remoteThreadId,
       { limit: RUN_STATE_PAGE_SIZE },
     );
+    this.assertCurrentScope(context);
+    context.persistence.recordThreadRun(remoteThreadId, run, readAt);
     const row = messages.find((message) => message.id === remoteId);
     return row
       ? {
@@ -680,6 +745,76 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         }
       : undefined;
   }
+
+  /**
+   * Re-reads the thread's run with a short page; resolves whether the run
+   * that answers `head` stored a reply or ended since the last read, which
+   * needs a full reload to show.
+   */
+  public async readThreadRun(head: ThreadMessage): Promise<boolean> {
+    const threadListItem = this.aui.threadListItem;
+    const context = this.captureScope(threadListItem);
+    const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
+    if (!remoteThreadId) return false;
+    const readAt = Date.now();
+    const { messages, run } = await context.cloud.threads.messages.list(
+      remoteThreadId,
+      { limit: RUN_STATE_PAGE_SIZE },
+    );
+    this.assertCurrentScope(context);
+    const lifted = this.liftedRuns
+      .get(context.persistence)
+      ?.get(remoteThreadId);
+    if (lifted?.parentId === head.id) {
+      const row = messages.find((message) => message.id === lifted.rowId);
+      if (!row?.run || !isEmptyStoredReply(row)) return true;
+      lifted.run = row.run;
+      lifted.readAt = readAt;
+    }
+    context.persistence.recordThreadRun(remoteThreadId, run, readAt);
+    if (run === undefined) return false;
+    const headId = context.persistence.getResolvedRemoteId(head.id) ?? head.id;
+    return (
+      run === null ||
+      run.parent_id !== headId ||
+      (run.message_id !== null && run.message_id !== lifted?.rowId)
+    );
+  }
+
+  /**
+   * Where the run answering `head`, the last message of the shown branch,
+   * stands; see `CloudReplyRun`. A run that already stored its reply is read
+   * from that reply instead.
+   */
+  public replyRunOf(head: ThreadMessage, key: string = head.id): CloudReplyRun {
+    const threadListItem = this.aui.threadListItem;
+    if (!threadListItem.source) return undefined;
+    const remoteThreadId = threadListItem.getState().remoteId;
+    if (!remoteThreadId) return undefined;
+    const persistence = this.getPersistence(threadListItem);
+    const now = Date.now();
+    const lifted = this.liftedRuns.get(persistence)?.get(remoteThreadId);
+    if (lifted?.parentId === head.id)
+      return persistence.runStateOf(lifted.run, now - lifted.readAt) ?? null;
+    const read = persistence.threadRunOf(remoteThreadId);
+    if (!read) return undefined;
+    const headId = persistence.getResolvedRemoteId(key) ?? key;
+    if (!read.run || read.run.parent_id !== headId) return null;
+    return persistence.runStateOf(read.run, now - read.readAt) ?? null;
+  }
+
+  /** Whether a message is stored, so a thread that ends with it reads as unanswered rather than as just sent. */
+  public isStored(key: string): boolean {
+    const threadListItem = this.aui.threadListItem;
+    if (!threadListItem.source) return false;
+    return this.getPersistence(threadListItem).isPersisted(key);
+  }
+
+  private liftedRuns = new WeakMap<
+    CloudMessagePersistence,
+    Map<string, LiftedRun>
+  >();
 
   /**
    * The writer the run tracker stores running messages with: the formatted
@@ -695,6 +830,17 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
   private threadMessageRunWriter: CloudRunWriter = {
     keyOf: (message) => message.id,
+    begin: async (message, parent) => {
+      const threadListItem = this.aui.threadListItem;
+      const context = this.captureScope(threadListItem);
+      const { remoteId } = await threadListItem.initialize();
+      this.assertCurrentScope(context);
+      return context.persistence.beginRun(
+        remoteId,
+        message.id,
+        parent?.id ?? null,
+      );
+    },
     write: (message, parent) =>
       this.update({ parentId: parent?.id ?? null, message }),
     hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),
@@ -989,9 +1135,29 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const loaded: ExportedMessageRepositoryItem[] = [];
     const loadedIds = new Set<string>();
     const { settled } = runLedgerOf(context.persistence);
+    const parents = new Set(rows.map((row) => row.parent_id));
+    let lifted: LiftedRun | undefined;
+    const readAt = Date.now();
     for (const row of rows) {
       const decoded = auiV0DecodeSafely(row);
       if (!decoded) continue;
+      // Rows come oldest first, so the newest empty leaf wins.
+      if (
+        row.run &&
+        decoded.parentId &&
+        decoded.message.role === "assistant" &&
+        !parents.has(row.id) &&
+        isEmptyReply(decoded.message)
+      ) {
+        if (loadedIds.has(decoded.parentId))
+          lifted = {
+            rowId: row.id,
+            parentId: decoded.parentId,
+            run: row.run,
+            readAt,
+          };
+        continue;
+      }
       const status =
         decoded.message.role === "assistant"
           ? runStatusOf(context.persistence.runStateOf(row.run))
@@ -1007,6 +1173,14 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       if (isSettledMessage(item.message)) settled.add(item.message.id);
       loaded.push(item);
     }
+
+    let lifts = this.liftedRuns.get(context.persistence);
+    if (!lifts) {
+      lifts = new Map();
+      this.liftedRuns.set(context.persistence, lifts);
+    }
+    if (lifted) lifts.set(remoteId, lifted);
+    else lifts.delete(remoteId);
 
     return { messages: loaded };
   }

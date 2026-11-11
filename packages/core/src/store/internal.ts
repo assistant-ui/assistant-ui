@@ -12,6 +12,7 @@ export {
   actionBarRefreshRunDisabled,
   actionBarReloadDisabled,
   actionBarResumeDisabled,
+  threadResumeDisabled,
   actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,

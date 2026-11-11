@@ -49,7 +49,15 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
 export const actionBarRefreshRunDisabled = (s: AssistantState): boolean =>
   s.message.runState !== "in-progress";
 
-/** Resume continues a run that stopped heartbeating, from the stale message onward. */
+/** Thread-level Resume answers the last user message again; it also needs `useThreadReplyState` to read `interrupted`. */
+export const threadResumeDisabled = (s: AssistantState): boolean =>
+  s.thread.isRunning ||
+  s.thread.isDisabled ||
+  s.thread.voice !== undefined ||
+  !s.thread.capabilities.reload ||
+  s.thread.messages.at(-1)?.role !== "user";
+
+/** Message-level Resume, kept for empty stale replies; a thread whose last message is the user's resumes with `threadResumeDisabled`. */
 export const actionBarResumeDisabled = (s: AssistantState): boolean =>
   s.thread.isRunning ||
   s.thread.isDisabled ||

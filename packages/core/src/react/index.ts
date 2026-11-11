@@ -328,6 +328,9 @@ export { useActionBarEdit } from "./primitive-hooks/useActionBarEdit";
 export { useActionBarReload } from "./primitive-hooks/useActionBarReload";
 export { useActionBarResume } from "./primitive-hooks/useActionBarResume";
 export { useActionBarRefreshRun } from "./primitive-hooks/useActionBarRefreshRun";
+export { useThreadReplyState } from "./primitive-hooks/useThreadReplyState";
+export { useThreadResume } from "./primitive-hooks/useThreadResume";
+export { useThreadRefreshRun } from "./primitive-hooks/useThreadRefreshRun";
 export {
   useActionBarFeedbackPositive,
   useActionBarFeedbackNegative,
