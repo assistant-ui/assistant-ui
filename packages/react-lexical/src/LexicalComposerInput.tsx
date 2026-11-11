@@ -242,6 +242,7 @@ function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
   }, [editor, autoFocus]);
 
   useEffect(() => {
+    if (aui.composer.getState().type !== "thread") return undefined;
     return aui.on("thread.runStart", () => {
       if (shouldFocusOnRunStart(editor.getRootElement())) editor.focus();
     });
@@ -259,7 +260,7 @@ function shouldFocusOnRunStart(rootElement: HTMLElement | null): boolean {
   const doc = rootElement.ownerDocument;
   const active = doc.activeElement;
   if (!active || active === doc.body) return true;
-  if (rootElement.contains(active)) return false;
+  if (active === rootElement) return false;
 
   const composerRoot = rootElement.closest("[data-aui-composer-type]");
   if (composerRoot?.contains(active)) return true;

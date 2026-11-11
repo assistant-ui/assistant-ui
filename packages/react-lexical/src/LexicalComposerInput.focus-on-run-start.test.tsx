@@ -8,6 +8,7 @@ import type { LexicalEditor } from "lexical";
 import { createRoot, type Root } from "react-dom/client";
 import {
   AssistantRuntimeProvider,
+  ComposerPrimitive,
   ThreadPrimitive,
   useLocalRuntime,
 } from "@assistant-ui/react";
@@ -62,9 +63,12 @@ describe("LexicalComposerInput run-start focus", () => {
           <input aria-label="Outside thread" />
           <ThreadPrimitive.Root>
             <button type="button">Inside thread</button>
-            <LexicalComposerInput aria-label="Composer">
-              <CaptureEditor onEditor={onEditor} />
-            </LexicalComposerInput>
+            <ComposerPrimitive.Root>
+              <button type="button">Composer action</button>
+              <LexicalComposerInput aria-label="Composer">
+                <CaptureEditor onEditor={onEditor} />
+              </LexicalComposerInput>
+            </ComposerPrimitive.Root>
             <ThreadPrimitive.Root>
               <button type="button">Nested thread</button>
             </ThreadPrimitive.Root>
@@ -128,5 +132,22 @@ describe("LexicalComposerInput run-start focus", () => {
     await startRun();
 
     expect(editorFocus).toHaveBeenCalled();
+  });
+
+  it("focuses the composer when a control in its composer root is focused", async () => {
+    act(() => byText("Composer action").focus());
+
+    await startRun();
+
+    expect(editorFocus).toHaveBeenCalled();
+  });
+
+  it("leaves focus alone while the editor already has it", async () => {
+    act(() => byLabel("Composer").focus());
+    expect(document.activeElement).toBe(byLabel("Composer"));
+
+    await startRun();
+
+    expect(editorFocus).not.toHaveBeenCalled();
   });
 });
