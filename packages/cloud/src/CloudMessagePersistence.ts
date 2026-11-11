@@ -238,7 +238,8 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
   ): Promise<void> {
-    await this.runBegins.get(messageId)?.catch(() => undefined);
+    const begin = this.runBegins.get(messageId);
+    if (begin) await begin.catch(() => undefined);
     if (this.runs.get(messageId) === "lost") return;
     if (isOpen(this.runs.get(messageId)) && !this.idMapping.has(messageId)) {
       await this.storeRun(threadId, messageId, parentId, format, content, run);
@@ -486,7 +487,8 @@ export class CloudMessagePersistence {
    * runtimes that swap a placeholder's id once the backend names the message.
    */
   async rename(from: string, to: string): Promise<void> {
-    await this.runBegins.get(from)?.catch(() => undefined);
+    const begin = this.runBegins.get(from);
+    if (begin) await begin.catch(() => undefined);
     const entry = this.idMapping.get(from);
     if (entry === undefined) {
       // A run that has not stored its reply yet moves only its lease.

@@ -3,7 +3,7 @@ title: ThreadPrimitive
 description: Thread primitives for rendering chat transcripts, message lists, viewport state, suggestions, and composers in assistant-ui.
 ---
 
-import { ThreadPrimitiveIfProps, ThreadPrimitiveLoadEarlierProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveRowProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
+import { ThreadPrimitiveIfProps, ThreadPrimitiveLoadEarlierProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRefreshRunProps, ThreadPrimitiveResumeProps, ThreadPrimitiveRootProps, ThreadPrimitiveRowProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -312,4 +312,50 @@ return messageIds.map((messageId) => (
 )}
 
 <ParametersTable {...ThreadPrimitiveSuggestionByIndexProps} />
+
+### Resume
+
+{ThreadPrimitiveDocs.Resume?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.Resume.deprecated}
+  </Callout>
+)}
+
+{ThreadPrimitiveDocs.Resume?.description}
+
+{ThreadPrimitiveDocs.Resume?.element && (
+  <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.Resume?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+```tsx
+const InterruptedBar = () =>
+  useThreadReplyState() === "interrupted" ? (
+    <div>
+      This response was interrupted.
+      <ThreadPrimitive.Resume>Resume</ThreadPrimitive.Resume>
+    </div>
+  ) : null;
+```
+
+<ParametersTable {...ThreadPrimitiveResumeProps} />
+
+### RefreshRun
+
+{ThreadPrimitiveDocs.RefreshRun?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.RefreshRun.deprecated}
+  </Callout>
+)}
+
+{ThreadPrimitiveDocs.RefreshRun?.description}
+
+{ThreadPrimitiveDocs.RefreshRun?.element && (
+  <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.RefreshRun?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+```tsx
+<ThreadPrimitive.RefreshRun>Refresh</ThreadPrimitive.RefreshRun>
+```
+
+<ParametersTable {...ThreadPrimitiveRefreshRunProps} />
 {/* api-reference:end */}
