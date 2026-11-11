@@ -37,6 +37,20 @@ const getOwnThread = (aui: AssistantClient) => {
   }
 };
 
+type RerunCore = { __internal_offerRerun?(parentId: string | undefined): void };
+
+// The thread runtime core behind a thread, which takes the offer to run a dropped reply's user message again.
+const getOwnCore = (aui: AssistantClient): RerunCore | undefined => {
+  try {
+    const thread = getOwnThread(aui) as
+      | { __internal_threadBinding?: { getState(): RerunCore } }
+      | undefined;
+    return thread?.__internal_threadBinding?.getState();
+  } catch {
+    return undefined;
+  }
+};
+
 const readBranch = (aui: AssistantClient): readonly ThreadMessage[] => {
   try {
     return getOwnThread(aui)?.getState().messages ?? [];
@@ -73,7 +87,10 @@ const findMessage = (
  * Stores a thread's running assistant message as soon as the run starts, so
  * the cloud holds a run lease the persistence heartbeats, also while the tab
  * is in the background. Other tabs show the reply as in progress, and as
- * interrupted once it went `staleAfter` without a beat. Runtimes keep writing
+ * interrupted once it went `staleAfter` without a beat. An interrupted reply
+ * with no content loads dropped instead, and the thread offers to run its
+ * user message again (composer Resume); the next run deletes its row.
+ * Runtimes keep writing
  * the settled message as they do today; that write lands on the same row and
  * ends the lease. A lease the persistence lost (ended elsewhere or refused)
  * gets no more checkpoints.
@@ -164,6 +181,7 @@ export const useCloudRunLeases = (
     };
 
     const check = () => {
+      getOwnCore(aui)?.__internal_offerRerun?.(adapter.droppedReply?.parentId);
       const writer = adapter.getRunWriter();
       if (!writer) return;
       const branch = readBranch(aui);
@@ -210,6 +228,13 @@ export const useCloudRunLeases = (
       const key = writer.keyOf(head);
       // A formatted row is chained under its parent's row, so the store waits for the runtime to store the prompt.
       if (key === undefined || writer.canStore?.(parent) === false) return;
+      // A new run replaces the empty interrupted reply the thread loaded without.
+      void adapter.deleteDroppedReply().catch((error: unknown) => {
+        console.warn(
+          "[assistant-ui] Could not delete the empty interrupted reply:",
+          error,
+        );
+      });
       const run: TrackedRun = {
         writer,
         messageId: head.id,

@@ -34,6 +34,11 @@ export namespace ActionBarPrimitiveResume {
  *   </ErrorPrimitive.Root>
  * </MessagePrimitive.Error>
  * ```
+ *
+ * @deprecated An interrupted reply now shows as a regular error with
+ * `ActionBarPrimitive.Reload` (Regenerate). An interrupted reply with no
+ * content is dropped, and `ComposerPrimitive.Resume` runs the thread again
+ * from the user message.
  */
 export const ActionBarPrimitiveResume = createActionButton(
   "ActionBarPrimitive.Resume",

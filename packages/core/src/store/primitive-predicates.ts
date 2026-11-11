@@ -43,13 +43,17 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.thread.isDisabled ||
   s.thread.voice !== undefined ||
   s.message.role !== "assistant" ||
+  s.message.runState === "in-progress" ||
   !s.thread.capabilities.reload;
 
 /** Refresh re-reads a message whose run another tab or session is still writing. */
 export const actionBarRefreshRunDisabled = (s: AssistantState): boolean =>
   s.message.runState !== "in-progress";
 
-/** Resume continues a run that stopped heartbeating, from the stale message onward. */
+/**
+ * Resume continues a run that stopped heartbeating, from the stale message onward.
+ * @deprecated An interrupted reply now shows as a regular error with Regenerate (`actionBarReloadDisabled`).
+ */
 export const actionBarResumeDisabled = (s: AssistantState): boolean =>
   s.thread.isRunning ||
   s.thread.isDisabled ||

@@ -119,6 +119,20 @@ export abstract class BaseThreadRuntimeCore
     this._voiceController.voiceMessages = messages;
   }
 
+  private _rerunFrom: string | undefined;
+
+  /** @internal */
+  public get __internal_rerunFrom(): string | undefined {
+    return this._rerunFrom;
+  }
+
+  /** @internal */
+  public __internal_offerRerun(parentId: string | undefined): void {
+    if (this._rerunFrom === parentId) return;
+    this._rerunFrom = parentId;
+    this._notifySubscribers();
+  }
+
   protected get _voiceGeneration(): number {
     return this._voiceController.voiceGeneration;
   }
