@@ -53,7 +53,7 @@
       "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["DOCS_LITE"]
+      "passThroughEnv": ["DOCS_FULL", "DOCS_LITE"]
     },
     "test": {
       "inputs": [

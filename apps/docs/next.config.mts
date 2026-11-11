@@ -6,6 +6,8 @@ import {
   watchContentManifest,
 } from "./scripts/content/manifest.mts";
 import { withAui } from "@assistant-ui/next";
+import { liteAliases } from "./scripts/lite-packages.mts";
+import { writeLiteDemos } from "./lib/lite-demos.ts";
 import type { NextConfig } from "next";
 import {
   AGENT_DISCOVERY_REWRITES,
@@ -616,25 +618,58 @@ const config: NextConfig = {
   }),
 };
 
-// `pnpm dev:lite` compiles a docs page only once it is opened, for machines
-// with little RAM. Never applies to builds.
-const contentOptions = { lite: isDev && process.env.DOCS_LITE === "1" };
+// `next dev` compiles a docs page only once it is opened (lib/content-lite.tsx),
+// because the content index would otherwise pull every MDX page into the
+// docs route. `pnpm dev:full` (DOCS_FULL=1) compiles them all up front, which
+// the .md, MCP and chat routes need to see every page. Builds always do.
+const onDemandPages = isDev && process.env.DOCS_FULL !== "1";
+const contentOptions = { onDemand: onDemandPages };
+
+// `pnpm dev:lite` (DOCS_LITE=1) also uses the built SDK packages instead of
+// their sources, swaps the heaviest demos for a "Load demo" button, and drops
+// Turbopack's source maps and persistent cache, which hold ~1 GB each.
+const lite = onDemandPages && process.env.DOCS_LITE === "1";
+const liteConfig = (): NextConfig => {
+  if (!lite) return {};
+  return {
+    turbopack: {
+      ...config.turbopack,
+      resolveAlias: {
+        ...config.turbopack?.resolveAlias,
+        ...liteAliases(process.cwd()),
+        ...writeLiteDemos(process.cwd()),
+      },
+    },
+  };
+};
 
 export default generateContentManifest(process.cwd(), contentOptions).then(
   () => {
     if (isDev) watchContentManifest(process.cwd(), contentOptions);
-    const compiled = withDocs(withAui(config), docsConfig, {
-      mdx: {
-        remarkPlugins: [
-          fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
-        ],
-        codeHighlighter: fileURLToPath(
-          new URL("./lib/rehype-docs-code.mjs", import.meta.url),
-        ),
+    const compiled = withDocs(
+      withAui({ ...config, ...liteConfig() }),
+      docsConfig,
+      {
+        mdx: {
+          remarkPlugins: [
+            fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
+          ],
+          codeHighlighter: fileURLToPath(
+            new URL("./lib/rehype-docs-code.mjs", import.meta.url),
+          ),
+        },
       },
-    });
+    );
     return {
       ...compiled,
+      ...(lite && {
+        experimental: {
+          ...compiled.experimental,
+          turbopackSourceMaps: false,
+          turbopackInputSourceMaps: false,
+          turbopackFileSystemCacheForDev: false,
+        },
+      }),
       rewrites: config.rewrites,
       redirects: config.redirects,
     };

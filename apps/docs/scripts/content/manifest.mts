@@ -75,7 +75,7 @@ async function createContentProcessor() {
 }
 
 /**
- * Lite mode (`pnpm dev:lite`): pages outside `compiled` load a placeholder
+ * On-demand dev (the `next dev` default): pages outside `compiled` load a placeholder
  * instead of their MDX, so Turbopack compiles only the pages someone opens.
  * See lib/content-lite.tsx.
  */
@@ -168,7 +168,7 @@ async function writeIfChanged(destination: string, output: string) {
 
 export type ContentManifestOptions = {
   /** Compile only the pages listed in LITE_PAGES_FILE; dev only. */
-  lite?: boolean;
+  onDemand?: boolean;
 };
 
 export async function generateContentManifest(
@@ -176,7 +176,7 @@ export async function generateContentManifest(
   options: ContentManifestOptions = {},
 ) {
   const collections = await readContent(root);
-  const lite = options.lite
+  const lite = options.onDemand
     ? { compiled: new Set(await readLitePages(root)) }
     : undefined;
   const inputs = await Promise.all([
@@ -245,7 +245,7 @@ export function watchContentManifest(
     { recursive: true, persistent: false },
     regenerate,
   );
-  if (options.lite) {
+  if (options.onDemand) {
     // A placeholder page records itself in LITE_PAGES_FILE when it renders.
     // Watch the directory, since the file may not exist yet.
     const litePages = resolve(root, LITE_PAGES_FILE);

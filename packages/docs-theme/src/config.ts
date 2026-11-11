@@ -2,6 +2,7 @@ import {
   defineDocs as defineFarmingDocs,
   type DocsConfig,
 } from "@farming-labs/docs/config";
+import { assistantUiDefaults, sidebarDefaults } from "./defaults";
 import { assistantUi } from "./index";
 
 export const withThemeDefaults = (options: DocsConfig): DocsConfig =>
@@ -12,12 +13,17 @@ export const withThemeDefaults = (options: DocsConfig): DocsConfig =>
       options.sidebar === false
         ? false
         : {
-            collapsible: false,
-            flat: true,
-            folderIndexBehavior: "link",
+            ...sidebarDefaults,
             ...(typeof options.sidebar === "object" ? options.sidebar : {}),
           },
-    breadcrumb: options.breadcrumb ?? { enabled: false },
-    lastUpdated: options.lastUpdated ?? false,
-    pageActions: { copyMarkdown: false, openDocs: false },
+    breadcrumb: options.breadcrumb ?? assistantUiDefaults.breadcrumb,
+    lastUpdated: options.lastUpdated ?? assistantUiDefaults.lastUpdated,
+    pageActions: {
+      copyMarkdown: false,
+      openDocs: false,
+      viewMarkdown: false,
+      connectMcp: false,
+      toc: false,
+      pager: false,
+    },
   });
