@@ -2,10 +2,11 @@
 import { spawnSync } from "node:child_process";
 
 const [command, ...args] = process.argv.slice(2);
-const { status, error } = spawnSync(command, args, {
+const { status, signal, error } = spawnSync(command, args, {
   stdio: "inherit",
   shell: process.platform === "win32",
   env: { ...process.env, DOCS_LITE: "1" },
 });
 if (error) throw error;
-process.exit(status ?? 1);
+if (signal) process.kill(process.pid, signal);
+else process.exit(status ?? 1);
