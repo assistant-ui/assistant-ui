@@ -89,21 +89,24 @@ describe("the command explanation on the connect page", () => {
 });
 
 describe("AgentMarks", () => {
-  it("names example agents in visible text and says there are others", () => {
+  it("shows one focusable mark per agent and names each in a tooltip", async () => {
     render(<AgentMarks />);
     const list = screen.getByRole("list", { name: "Coding agents" });
-    expect(
-      within(list)
-        .getAllByRole("listitem")
-        .map((item) => item.textContent),
-    ).toEqual([
+    expect(list.textContent).toBe("");
+    const marks = within(list).getAllByRole("img");
+    expect(marks.map((mark) => mark.getAttribute("aria-label"))).toEqual([
       "Claude Code",
       "Codex",
       "Cursor",
       "Gemini CLI",
       "OpenCode",
-      "and others",
+      "And other agents",
     ]);
-    expect(list.hasAttribute("tabindex")).toBe(false);
+    for (const mark of marks) expect(mark.tabIndex).toBe(0);
+
+    fireEvent.focus(within(list).getByRole("img", { name: "Cursor" }));
+    expect(
+      (await screen.findByText("Cursor")).closest("[data-slot]"),
+    ).toHaveProperty("dataset.slot", "tooltip-content");
   });
 });
