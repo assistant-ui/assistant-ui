@@ -954,9 +954,7 @@ export class AgUiThreadController {
     if (!stored?.length) return null;
     if (
       this.getMessages().at(-1)?.role !== "assistant" &&
-      !this.getAssistantMessagesForInterrupts(stored).some((message) =>
-        this.snapshotHeadMovedAssistantIds.has(message.id),
-      )
+      !this.snapshotHeadMovedAssistantIds.has(assistant.id)
     )
       return null;
     return { messageId: assistant.id, interrupts: stored };

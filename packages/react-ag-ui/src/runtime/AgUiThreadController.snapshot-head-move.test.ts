@@ -297,6 +297,38 @@ describe("AgUiThreadController snapshot head moves", () => {
     expect(core.getPendingInterrupts()).toBeNull();
   });
 
+  it("keeps a moved-off interrupt without a tool call answerable after a snapshot to a user head", async () => {
+    const interrupt = { id: "confirm", reason: "confirmation" };
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      snapshot(wire, { id: "next-user", role: "user", content: "More" }),
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "interrupt", interrupts: [interrupt] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "answer",
+      interrupts: [interrupt],
+    });
+
+    const startRun = vi
+      .spyOn(core as any, "startRun")
+      .mockResolvedValue(undefined);
+    await core.submitInterruptResponses([
+      { interruptId: "confirm", status: "resolved" },
+    ]);
+
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
   it.each([false, true])(
     "preserves moved-off approval gates after a history reload (split batch: %s)",
     async (splitBatch) => {
