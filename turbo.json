@@ -45,11 +45,17 @@
     "lint": {},
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "scripts/vitest-waitfor-interval.mjs"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs"
+      ]
     },
     "test:coverage": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "scripts/vitest-waitfor-interval.mjs"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs"
+      ],
       "outputs": ["coverage/**"]
     },
     "typecheck": {
@@ -57,7 +63,10 @@
     },
     "test:peer-react18": {
       "dependsOn": ["^build", "build"],
-      "inputs": ["$TURBO_DEFAULT$", "scripts/vitest-waitfor-interval.mjs"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs"
+      ]
     },
     "test:types:peer-react18": {
       "dependsOn": ["^build", "build"]
