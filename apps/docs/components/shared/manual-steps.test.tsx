@@ -4,8 +4,13 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ManualSteps, openManualSteps } from "./manual-steps";
 
+let scrolled: Element[] = [];
+
 beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn();
+  scrolled = [];
+  Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+    scrolled.push(this);
+  });
 });
 
 afterEach(() => {
@@ -39,8 +44,14 @@ describe("manual steps", () => {
     expect(opened).toBe(true);
     expect(steps().hasAttribute("hidden")).toBe(false);
     expect(steps().dataset.state).toBe("open");
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(scrolled).toEqual([steps()]);
     expect(screen.getByText("Run the installer")).toBeTruthy();
+
+    // Asking again once open still brings the steps into view.
+    act(() => {
+      openManualSteps();
+    });
+    expect(scrolled).toEqual([steps(), steps()]);
   });
 
   it("reports no steps on a page without them", () => {
@@ -114,6 +125,22 @@ describe("manual steps", () => {
       screen.getByText("Install (table of contents)").click();
     });
     expect(steps().dataset.state).toBe("open");
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(scrolled).toEqual([document.getElementById("install")]);
+  });
+
+  it("ignores a malformed fragment instead of breaking the page", () => {
+    window.history.replaceState(null, "", "/#100%");
+    render(
+      <ManualSteps>
+        <h3 id="install">Install</h3>
+      </ManualSteps>,
+    );
+    expect(steps().dataset.state).toBe("closed");
+    let opened = false;
+    act(() => {
+      opened = openManualSteps();
+    });
+    expect(opened).toBe(true);
+    expect(steps().dataset.state).toBe("open");
   });
 });

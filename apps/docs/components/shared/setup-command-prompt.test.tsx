@@ -149,7 +149,7 @@ describe("setup command prompt", () => {
     );
   });
 
-  it("opens the page's own manual steps in place instead of leaving the page", async () => {
+  it("opens the page's own manual steps in place, as an action rather than a link", async () => {
     Element.prototype.scrollIntoView = vi.fn();
     const clicked = vi.spyOn(analytics.cta, "clicked");
     render(
@@ -166,11 +166,11 @@ describe("setup command prompt", () => {
     const manual = await screen.findByRole("menuitem", {
       name: "Manual installation steps",
     });
-    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    expect(manual.tagName).not.toBe("A");
+    expect(manual.getAttribute("href")).toBeNull();
     act(() => {
-      manual.dispatchEvent(event);
+      fireEvent.click(manual);
     });
-    expect(event.defaultPrevented).toBe(true);
     expect(steps.dataset.state).toBe("open");
     expect(clicked).toHaveBeenCalledWith(
       "start_setup_manual",

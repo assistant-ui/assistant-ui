@@ -13,16 +13,25 @@ export const OPEN_MANUAL_STEPS_EVENT = "aui:open-manual-steps";
 
 const MANUAL_STEPS_SELECTOR = "[data-manual-steps]";
 
+/** True when the current page has manual steps to open in place. */
+export const hasManualSteps = () =>
+  document.querySelector(MANUAL_STEPS_SELECTOR) !== null;
+
 /** Opens the page's manual steps and scrolls to them; false when the page has none. */
 export function openManualSteps(): boolean {
-  const steps = document.querySelector<HTMLElement>(MANUAL_STEPS_SELECTOR);
-  if (!steps) return false;
+  if (!hasManualSteps()) return false;
   window.dispatchEvent(new Event(OPEN_MANUAL_STEPS_EVENT));
   return true;
 }
 
-const hashTarget = () => {
-  const id = decodeURIComponent(window.location.hash.slice(1));
+/** The element a URL fragment names, or null; a malformed escape such as `#100%` names nothing. */
+const fragmentTarget = (hash: string) => {
+  let id: string;
+  try {
+    id = decodeURIComponent(hash.slice(1));
+  } catch {
+    return null;
+  }
   return id ? document.getElementById(id) : null;
 };
 
@@ -35,22 +44,24 @@ const hashTarget = () => {
 export function ManualSteps({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  // Each request bumps the counter, so asking again while already open still
+  // scrolls to the steps.
+  const [scrollRequest, setScrollRequest] = useState(0);
   const scrollTo = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const openOnHash = () => {
-      const target = hashTarget();
-      if (target && el.contains(target)) {
-        scrollTo.current = target;
-        setOpen(true);
-      }
-    };
-    const openFromMenu = () => {
-      scrollTo.current = el;
+    const reveal = (target: HTMLElement) => {
+      scrollTo.current = target;
       setOpen(true);
+      setScrollRequest((count) => count + 1);
     };
+    const openOnHash = () => {
+      const target = fragmentTarget(window.location.hash);
+      if (target && el.contains(target)) reveal(target);
+    };
+    const openFromMenu = () => reveal(el);
     // `hidden="until-found"` reveals the content for find-in-page and text
     // fragments; keep React's state in step with the browser.
     const onBeforeMatch = () => setOpen(true);
@@ -61,11 +72,8 @@ export function ManualSteps({ children }: { children: ReactNode }) {
       const link = (event.target as Element | null)?.closest?.("a[href*='#']");
       if (!(link instanceof HTMLAnchorElement)) return;
       if (link.pathname !== window.location.pathname) return;
-      const id = decodeURIComponent(link.hash.slice(1));
-      const target = id ? document.getElementById(id) : null;
-      if (!target || !el.contains(target)) return;
-      scrollTo.current = target;
-      setOpen(true);
+      const target = fragmentTarget(link.hash);
+      if (target && el.contains(target)) reveal(target);
     };
     openOnHash();
     document.addEventListener("click", onLinkClick, true);
@@ -90,7 +98,7 @@ export function ManualSteps({ children }: { children: ReactNode }) {
     if (!open || !scrollTo.current) return;
     scrollTo.current.scrollIntoView({ block: "start" });
     scrollTo.current = null;
-  }, [open]);
+  }, [open, scrollRequest]);
 
   return (
     <div

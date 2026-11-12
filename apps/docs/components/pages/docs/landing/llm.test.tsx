@@ -33,12 +33,18 @@ describe("landing markdown components", () => {
 
   it("gives agents the setup command before a guide's manual steps", () => {
     const html = renderToStaticMarkup(
-      <AgentSetupLLM product="guides/attachments" />,
+      <AgentSetupLLM product="guides/attachments" section />,
     );
     expect(html).toBe(
       "<p>To set this up, run <code>npx assistant-ui@latest setup --products guides/attachments</code> if available; otherwise follow these steps.</p>",
     );
-    expect(renderToStaticMarkup(<AgentSetupLLM product="nope" />)).toBe("");
+    expect(renderToStaticMarkup(<AgentSetupLLM product="nope" section />)).toBe(
+      "",
+    );
+    // The banner variant has no steps after it, so it tells agents nothing.
+    expect(
+      renderToStaticMarkup(<AgentSetupLLM product="guides/dictation" />),
+    ).toBe("");
   });
 
   it("keeps manual steps in full in the markdown", () => {

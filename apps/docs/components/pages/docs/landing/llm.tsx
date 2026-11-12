@@ -70,8 +70,15 @@ export const AgentSetupPromptLLM = () => (
 );
 
 /** A guide's setup for agents: the setup command for its product, then the manual steps that follow. */
-export const AgentSetupLLM = ({ product }: { product: string }) => {
-  const item = getCatalogItem(product);
+export const AgentSetupLLM = ({
+  product,
+  section = false,
+}: {
+  product: string;
+  section?: boolean;
+}) => {
+  // Only a Setup section has manual steps after it; the banner variant adds nothing for agents.
+  const item = section ? getCatalogItem(product) : undefined;
   return item ? <p>{withInlineCode(pageSetupPreamble([item.slug]))}</p> : null;
 };
 
