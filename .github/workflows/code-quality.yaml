@@ -59,6 +59,8 @@ on:
       - "scripts/vscode-test-bed.test.mjs"
       - ".github/workflows/vscode-test-bed.yaml"
       - "scripts/root-install-selection.test.mjs"
+      - "scripts/setup-git-hooks.mjs"
+      - "scripts/setup-git-hooks.test.mjs"
       - ".github/workflows/perf.yaml"
       - ".github/workflows/perf-nightly.yaml"
       - ".github/workflows/template-metrics.yaml"
@@ -170,6 +172,9 @@ jobs:
 
       - name: Test root install selection
         run: node --test scripts/root-install-selection.test.mjs
+
+      - name: Test git hook setup
+        run: node --test scripts/setup-git-hooks.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs

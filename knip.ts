@@ -97,6 +97,9 @@ const config: KnipConfig = {
         "scripts/lib/turbo-build-cache-fixture.mjs",
         "scripts/package-cloud-harness-template.mjs",
       ],
+      // Git hooks live in .husky (core.hooksPath) without the husky package,
+      // so enable the plugin explicitly to parse them (e.g. lint-staged).
+      husky: true,
     },
     ...packageWorkspaces,
   },
