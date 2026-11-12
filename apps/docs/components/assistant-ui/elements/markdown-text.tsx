@@ -8,16 +8,22 @@ import {
   memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
-import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { type ComponentProps, memo, useRef } from "react";
+import { useAuiState } from "@assistant-ui/react";
+import {
+  type ComponentProps,
+  lazy,
+  memo,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { PluggableList } from "unified";
 import dynamic from "next/dynamic";
 
-import {
-  type HighlighterProps,
-  SyntaxHighlighter as ShikiSyntaxHighlighter,
-} from "@/components/assistant-ui/elements/shiki-highlighter.aui";
+import type { HighlighterProps } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { CodeBlock } from "@/components/ui/code-block";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -40,6 +46,18 @@ const LazyMermaidDiagram = dynamic(
       />
     ),
   },
+);
+
+// Shiki and its grammars load with the first code fence. Until then the fence
+// shows the same plain code the highlighter renders while a part streams, in
+// the same container, so highlighting arrives as a color change only.
+const SHIKI_CONTAINER =
+  "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
+
+const ShikiSyntaxHighlighter = lazy(() =>
+  import("@/components/assistant-ui/elements/shiki-highlighter.aui").then(
+    (mod) => ({ default: mod.SyntaxHighlighter }),
+  ),
 );
 
 // A table is printed matter like a code sheet, so it gets the same figure: a
@@ -132,7 +150,17 @@ const SyntaxHighlighter = (props: HighlighterProps) => (
     copyText={props.code}
     className="my-3"
   >
-    <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
+    <Suspense
+      fallback={
+        <div className={cn(SHIKI_CONTAINER, codeSheetReset)}>
+          <pre>
+            <code>{props.code.trim()}</code>
+          </pre>
+        </div>
+      }
+    >
+      <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
+    </Suspense>
   </CodeBlock>
 );
 
@@ -148,12 +176,49 @@ const MermaidDiagram = (props: ComponentProps<typeof LazyMermaidDiagram>) => (
 const NoCodeHeader = () => null;
 
 const remarkPlugins = [remarkGfm, remarkMath];
-const rehypePlugins = [rehypeKatex];
+
+// KaTeX is about 80 kB gzipped and most replies have no math, so rehype-katex
+// loads the first time a message looks like it contains some. Until then the
+// math renders as remark-math's plain code fallback.
+const NO_REHYPE_PLUGINS: PluggableList = [];
+let katexPlugins: PluggableList | null = null;
+let katexLoad: Promise<PluggableList> | null = null;
+const loadKatexPlugins = () => {
+  katexLoad ??= import("rehype-katex").then((mod) => {
+    katexPlugins = [mod.default];
+    return katexPlugins;
+  });
+  return katexLoad;
+};
+
+const MATH_HINT = /\$|\\\(|\\\[/;
+
+const useRehypePlugins = () => {
+  const hasMath = useAuiState((s) => {
+    if (s.part.type !== "text" && s.part.type !== "reasoning") return false;
+    return MATH_HINT.test(s.part.text);
+  });
+  const [plugins, setPlugins] = useState(katexPlugins);
+
+  useEffect(() => {
+    if (!hasMath || plugins) return;
+    let live = true;
+    void loadKatexPlugins().then((loaded) => {
+      if (live) setPlugins(loaded);
+    });
+    return () => {
+      live = false;
+    };
+  }, [hasMath, plugins]);
+
+  return plugins ?? NO_REHYPE_PLUGINS;
+};
 const componentsByLanguage = {
   mermaid: { SyntaxHighlighter: MermaidDiagram },
 };
 
 const MarkdownTextImpl = () => {
+  const rehypePlugins = useRehypePlugins();
   return (
     <MarkdownTextPrimitive
       remarkPlugins={remarkPlugins}

@@ -20,7 +20,10 @@ vi.mock(
 vi.mock("@/components/shared/header-brand-link", () => ({
   HeaderBrandLink: () => null,
 }));
-vi.mock("./search-dialog", () => ({ SearchDialog: () => null }));
+vi.mock("./lazy-search-dialog", () => ({
+  SearchDialog: () => null,
+  preloadSearchDialog: () => Promise.resolve(),
+}));
 
 afterEach(cleanup);
 

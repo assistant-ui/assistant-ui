@@ -3,7 +3,7 @@ title: Interaction
 description: Tooltips, hover and controlled highlight, clicks, and the mark address every chart stamps.
 ---
 
-import { HighlightSample, TooltipBar } from "@/components/diagrammatic/samples-client";
+import { HighlightSample, TooltipBar } from "@/components/diagrammatic/samples-client.lazy";
 
 Charts stay server components. Interaction lives in `diagrammatic/interactive`, a client entry whose components wrap a chart and read the addresses it stamps on its marks. A tooltip or a click handler receives an address, never the data: you look the row up in the data you already have.
 

@@ -1,10 +1,52 @@
 "use client";
 
+import { lazy, Suspense } from "react";
 import type { GenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import { GenerativeMarkdown } from "./generative-markdown";
 import { GeoMap, type GeoMapPlace } from "./geo-map";
-import { MermaidDiagram } from "./mermaid-diagram";
+
+// The diagram engine (beautiful-mermaid and elkjs) is large, so in the browser
+// it loads only when a Diagram actually renders. The fallback matches the
+// diagram's own rendering skeleton, so nothing shifts when the chunk arrives.
+// On the server the module loads up front and renders synchronously, so
+// server rendering and static generation output the finished diagram, and
+// hydration keeps that HTML until the browser chunk arrives.
+type MermaidDiagramComponent =
+  typeof import("./mermaid-diagram").MermaidDiagram;
+
+const loadMermaidDiagram = () =>
+  import("./mermaid-diagram").then((mod) => mod.MermaidDiagram);
+
+let serverMermaidDiagram: MermaidDiagramComponent | undefined;
+if (typeof window === "undefined") {
+  void loadMermaidDiagram().then((component) => {
+    serverMermaidDiagram = component;
+  });
+}
+
+const LazyMermaidDiagram = lazy(() =>
+  loadMermaidDiagram().then((component) => ({ default: component })),
+);
+
+const MermaidDiagram = (props: { code: string }) => {
+  const Diagram = serverMermaidDiagram ?? LazyMermaidDiagram;
+  return <Diagram {...props} />;
+};
+
+const DiagramSkeleton = () => (
+  <div
+    data-slot="mermaid-skeleton"
+    aria-label="Rendering diagram"
+    className="aui-mermaid-skeleton bg-muted flex h-32 animate-pulse items-center justify-center gap-3 rounded-b-lg p-4"
+  >
+    <div className="bg-muted-foreground/20 h-8 w-20 rounded-md" />
+    <div className="bg-muted-foreground/20 h-px w-10" />
+    <div className="bg-muted-foreground/20 h-8 w-20 rounded-md" />
+    <div className="bg-muted-foreground/20 h-px w-10" />
+    <div className="bg-muted-foreground/20 h-8 w-20 rounded-md" />
+  </div>
+);
 
 const markdownBase = defaultGenerativeUILibrary.Markdown!;
 
@@ -40,7 +82,9 @@ export const styledGenerativeUILibrary: GenerativeUILibrary = {
     ...defaultGenerativeUILibrary.Diagram!,
     render: ({ code, title }) => (
       <figure data-aui="diagram">
-        <MermaidDiagram code={typeof code === "string" ? code : ""} />
+        <Suspense fallback={<DiagramSkeleton />}>
+          <MermaidDiagram code={typeof code === "string" ? code : ""} />
+        </Suspense>
         {typeof title === "string" || typeof title === "number" ? (
           <figcaption data-aui="diagram-title">{title}</figcaption>
         ) : null}
