@@ -1,6 +1,9 @@
 import "server-only";
 
-import { AGENT_SETUP_COMMAND } from "@/lib/agent-setup-prompt";
+import {
+  AGENT_SETUP_COMMAND,
+  agentSetupFallback,
+} from "@/lib/agent-setup-prompt";
 import { BASE_URL } from "@/lib/constants";
 import { getAgentPrompt } from "./agent-prompts";
 import type { CatalogItem } from "./types";
@@ -8,6 +11,8 @@ import type { CatalogItem } from "./types";
 const preamble = (
   setupCommand: string,
 ) => `Not in a setup yet? Run \`${setupCommand}\` instead of following this guide by hand. Run it in the background: it keeps running as the guided setup's stream, opens the user's browser when it needs their input, and points you back here. Already in a setup: keep going.
+
+${agentSetupFallback(setupCommand)}
 
 Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL for raw markdown.
 
