@@ -2,7 +2,7 @@
 import { waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const TESTING_LIBRARY_DEFAULT_POLL_MS = 50;
+const SHARED_POLL_MS = 5;
 
 const firstPollDelay = async (run: () => Promise<unknown>) => {
   const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
@@ -15,10 +15,24 @@ describe("shared waitFor setup", () => {
     vi.restoreAllMocks();
   });
 
-  it("polls faster than Testing Library's default when a test sets no interval", async () => {
+  it("polls at the shared interval when a test sets none", async () => {
     const delay = await firstPollDelay(() => waitFor(() => undefined));
 
-    expect(delay).toBeLessThan(TESTING_LIBRARY_DEFAULT_POLL_MS);
+    expect(delay).toBe(SHARED_POLL_MS);
+  });
+
+  it("polls at the shared interval when a test passes an undefined interval", async () => {
+    // A caller can pass an explicit undefined at runtime; only `exactOptionalPropertyTypes`
+    // refuses to type it, so the case is written through the option type's own signature.
+    const withUndefinedInterval = {
+      interval: undefined,
+    } as unknown as Parameters<typeof waitFor>[1];
+
+    const delay = await firstPollDelay(() =>
+      waitFor(() => undefined, withUndefinedInterval),
+    );
+
+    expect(delay).toBe(SHARED_POLL_MS);
   });
 
   it("keeps an interval a test passes itself", async () => {
