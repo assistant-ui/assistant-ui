@@ -116,6 +116,8 @@ const removeExpiredMarkers = (dir: string, now: number) => {
 
 const readMarker = (file: string): SetupSessionMarker | undefined => {
   try {
+    // Only a regular file setup wrote; a symlink or FIFO could block or point anywhere.
+    if (!fs.lstatSync(file).isFile()) return undefined;
     const marker = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<
       Record<keyof SetupSessionMarker, unknown>
     >;

@@ -193,6 +193,23 @@ describe("the setup session marker", () => {
     expect(active(dir)).toBe(false);
   });
 
+  it.skipIf(process.platform === "win32")(
+    "ignores a marker that is not a regular file",
+    () => {
+      const real = path.join(dir, "real.json");
+      fs.writeFileSync(
+        real,
+        JSON.stringify({
+          setupId: "abc",
+          cwd: fs.realpathSync(project),
+          startedAt: Date.now(),
+        }),
+      );
+      fs.symlinkSync(real, setupSessionMarkerPath(project, "abc", dir));
+      expect(active(project)).toBe(false);
+    },
+  );
+
   it("reports undefined when the marker cannot be written", () => {
     expect(
       markSetupSession(
