@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// The real AssistantCloud SDK and useCloudThreadListRuntime, with one rejected fetch: the run
-// tracker's early create of the running reply fails while the run settles. The settled answer
-// must still reach cloud history, so a reload shows it (#10524). One case each for a completed
-// reply, a model error and Stop.
+// Contract test at the public seam: the real AssistantCloud SDK and useCloudThreadListRuntime, with
+// the run tracker's early create of the running reply rejected while the run settles. The settled
+// answer reaches cloud history and loads back, for a completed reply, a model error and Stop.
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
