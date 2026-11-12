@@ -82,6 +82,10 @@ describe("docs Next config composition", () => {
     expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("3");
   });
 
+  it("collects unreachable tasks before a build writes Turbopack's cache", () => {
+    expect(config.experimental?.turbopackGc).toBe(true);
+  });
+
   it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {
     vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", "8");
     vi.resetModules();

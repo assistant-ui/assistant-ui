@@ -133,7 +133,15 @@ function codeHighlightVersions() {
 
 const config: NextConfig = {
   cacheComponents: true,
-  ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
+  experimental: {
+    ...(buildCpus ? { cpus: buildCpus } : {}),
+    // Vercel restores Turbopack's build cache before each build and saves it
+    // again after, and Turbopack never drops the tasks a new build no longer
+    // reaches, so the cache only grows. A build that misses it gets slower as
+    // it grows, until it is slower than a build with no cache at all. The
+    // collector removes those tasks before the build writes the cache.
+    ...(isDev ? {} : { turbopackGc: true }),
+  },
   // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
   // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
   ...(process.env.NEXT_ALLOWED_DEV_ORIGINS
