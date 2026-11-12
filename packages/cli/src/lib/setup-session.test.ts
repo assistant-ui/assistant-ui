@@ -194,23 +194,31 @@ describe("agentBriefing", () => {
     products: [{ slug: "assistant-ui", name: "assistant-ui" }],
   };
 
-  it("gives the page, the playbook without a Begin plan handoff, and the setup", () => {
-    const briefing = agentBriefing(setup, true);
-    expect(briefing).toMatch(
-      /^The setup opened in the user's browser at\n {2}https:\/\/setup\.test\/#link=abc&setup=def\n/,
+  it("tells the agent to keep setup running in the background as its stream", () => {
+    const briefing = agentBriefing(setup);
+    expect(briefing).toMatch(/^assistant-ui setup is running\./);
+    expect(briefing).toContain("run_in_background");
+    expect(briefing).toContain(
+      "npx assistant-ui@latest setup https://setup.test/abc stream",
     );
-    expect(briefing).toContain("npx setup-agent https://setup.test/abc stream");
+    expect(briefing).toContain(
+      "npx assistant-ui@latest setup https://setup.test/abc <command>",
+    );
+    expect(briefing).toContain('"input.needed"');
+    expect(briefing).toContain("opens the user's browser by itself");
+    expect(briefing).not.toContain("npx setup-agent");
+    expect(briefing).not.toContain("start a persistent Monitor");
     expect(briefing).not.toContain("click Begin plan");
+    expect(briefing).toContain(setup.browserUrl);
     expect(briefing).toContain('"status":"planning"');
   });
 
-  it("asks the agent to share the link when the browser was not opened", () => {
+  it("gives the agent the page to share under --no-open", () => {
     const briefing = agentBriefing(setup, false);
-    expect(briefing).toMatch(
-      /^Ask the user to open the setup in their browser at/,
+    expect(briefing).toContain(
+      `Setup will not open a browser (--no-open). Give the user ${setup.browserUrl} once`,
     );
-    expect(briefing).toContain(`"Open ${setup.browserUrl} to follow`);
-    expect(briefing).not.toContain("I opened the assistant-ui setup");
+    expect(briefing).not.toContain("opens the user's browser by itself");
   });
 });
 

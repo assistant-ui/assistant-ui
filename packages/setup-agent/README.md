@@ -17,6 +17,8 @@ npx setup-agent <url> add-step "Install the packages" --detail "pnpm add ..." --
 npx setup-agent <url> step s1 done --note "installed"
 npx setup-agent <url> env q2 OPENAI_API_KEY --file .env.local   # write the key behind a model answer without seeing it
 npx setup-agent <url> done --summary "installed the thread and a chat route" --preview http://localhost:3000
+npx setup-agent <url> answer q3 pnpm   # the user answered in the agent's own chat; also: answer plan approve, answer finish close
+npx setup-agent <url> stream --setup-app-url https://setup.assistant-ui.com   # also open the setup page when the setup waits on the user
 ```
 
 ## Phases
@@ -40,6 +42,35 @@ Two standard choices and a legacy project choice ship as presets (`setup-agent` 
 - `project` (legacy decoder compatibility): the React projects the agent found, passed as `--choices "apps/web=Next.js,apps/admin"`, ahead of a fixed "New project" option whose second pick is the meta framework. Answers a path, or `new:<next|vite|react-router|tanstack-start|expo>`.
 
 `--only` restricts a preset to some of its options and leaves out `--choices` (a single id locks the choice in) and `--default` preselects one.
+
+## SDK
+
+`setup-agent/sdk` is what a CLI embeds to offer `<tool> setup` to coding agents; `npx assistant-ui@latest setup` is built on it. The `setup-agent` bin is a thin wrapper around the same code.
+
+```ts
+import { runAgentSetup } from "setup-agent/sdk";
+
+const { stream, client } = await runAgentSetup({
+  server: "https://checkout.assistant-ui.com",
+  setupAppUrl: "https://setup.assistant-ui.com",
+  products: [{ slug: "assistant-ui", name: "assistant-ui" }],
+  command: "npx my-tool setup", // how the agent runs `<command> <url> <step>`
+  name: "my-tool setup",
+});
+process.on("SIGINT", () => stream.stop().finally(() => client.dispose()));
+```
+
+`runAgentSetup` starts a session, prints the briefing and keeps running as the stream. Route `<tool> setup <url> ...` to `runSetupCommand(argv, { command, browser: { setupAppUrl } })` for the other steps. The pieces: `startSetupSession`, `followSetup` (events, heartbeats, browser gate), `createBrowserGate`, `pendingNeeds`, `terminalQuestion`, `answerNeed`, `setupBriefing` and `agentInstructions`.
+
+The browser opens only when the setup waits on the user (an open input, a proposed plan, a proposal to close). The joined page sends `browser/heartbeat` every 5s and `browser/bye` on pagehide; it counts as present for 20s after a beat. Setup:
+
+- opens the page for the first need, one tab for everything waiting;
+- opens nothing while a joined page is present;
+- never opens a second tab within 30s of the last, and never reopens a tab that has not joined; it prints `input.needed` (`reason: "recently-opened"`) so the agent can ask in its own chat;
+- prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, and opens it again for the next need;
+- under `--no-open`, prints `input.needed` (`reason: "no-browser"`) for every need.
+
+Each `input.needed` carries the question, its options and the `answer` command. On a worker without browser presence, setup opens once and then leaves the rest to the agent.
 
 ## Workspace
 

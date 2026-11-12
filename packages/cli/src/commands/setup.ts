@@ -1,19 +1,23 @@
 import { Command, Option } from "commander";
 import { createInterface } from "node:readline/promises";
 import * as p from "@clack/prompts";
-import { CODING_AGENTS, findCommand, runCodingAgent } from "setup-agent/cli";
+import {
+  CODING_AGENTS,
+  findCommand,
+  runCodingAgent,
+  runSetupCommand,
+} from "setup-agent/cli";
+import { openUrl, runAgentSetup } from "setup-agent/sdk";
 import type { CodingAgent } from "setup-agent/cli";
-import { openBrowser } from "../lib/cloud-auth";
 import { isRunByAgent } from "../lib/agent-setup-hint";
 import {
-  agentBriefing,
+  SETUP_COMMAND,
   boxed,
   copyToClipboard,
   parseProducts,
   resolveEndpoints,
   resolveProducts,
   setupPrompt,
-  startSetup,
 } from "../lib/setup-session";
 
 type SetupOptions = {
@@ -121,15 +125,45 @@ const runForPerson = async (options: SetupOptions) => {
   await handOffPrompt(prompt, agent?.name);
 };
 
+/** `setup <url> <command> ...`: one setup command, run as `npx setup-agent <url> <command>` would. */
+const runSetupStep = async (args: string[], options: SetupOptions) => {
+  const endpoints = resolveEndpoints(options);
+  await runSetupCommand(args, {
+    command: SETUP_COMMAND,
+    browser: {
+      setupAppUrl: endpoints.setupAppUrl,
+      open: (url) => openUrl(url),
+      canOpen: options.open,
+    },
+  });
+};
+
+/** `setup` for an agent: starts the session and keeps running as its stream. */
 const runForAgent = async (options: SetupOptions) => {
   const endpoints = resolveEndpoints(options);
   const products = await resolveProducts(
     parseProducts(options.products),
     endpoints.docsUrl,
   );
-  const setup = await startSetup({ endpoints, products });
-  if (options.open) openBrowser(setup.browserUrl);
-  process.stdout.write(agentBriefing(setup, options.open));
+  const { stream, client } = await runAgentSetup({
+    server: endpoints.setupServer,
+    setupAppUrl: endpoints.setupAppUrl,
+    products,
+    command: SETUP_COMMAND,
+    name: "assistant-ui setup",
+    canOpen: options.open,
+    open: (url) => openUrl(url),
+  });
+  const stop = () => {
+    void stream.stop().finally(() => {
+      client.dispose();
+      process.exit(0);
+    });
+  };
+  process.on("SIGHUP", stop);
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
+  await new Promise(() => {});
 };
 
 export const setup = new Command()
@@ -141,7 +175,16 @@ export const setup = new Command()
     "--products <slugs>",
     "comma-separated catalog slugs to set up (default: assistant-ui)",
   )
-  .option("--no-open", "print the setup link instead of opening the browser")
+  .argument(
+    "[url-and-command...]",
+    "a setup command for the agent: <url> <command> [args], such as <url> ask, <url> answer or <url> stream",
+  )
+  .allowUnknownOption()
+  .allowExcessArguments()
+  .option(
+    "--no-open",
+    "never open the browser; the agent asks the user in its own conversation",
+  )
   .addOption(
     new Option("--docs-url <url>", "the docs site with the catalog and guides")
       .env("ASSISTANT_UI_DOCS_URL")
@@ -160,11 +203,14 @@ export const setup = new Command()
   .addHelpText(
     "after",
     `
-Run by a coding agent, setup opens a guided setup in the user's browser and
-prints the steps the agent follows. Run in an interactive terminal, it asks
-which coding agent you use and starts it with the setup prompt.`,
+Run by a coding agent, setup starts a guided setup, prints the steps the agent
+follows and keeps running as the setup's stream; run it in the background. It
+opens the user's browser only when the setup needs their input. Run in an
+interactive terminal, it asks which coding agent you use and starts it with
+the setup prompt.`,
   )
-  .action(async (options: SetupOptions) => {
-    if (isRunByAgent()) await runForAgent(options);
+  .action(async (args: string[], options: SetupOptions) => {
+    if (args.length > 0) await runSetupStep(args, options);
+    else if (isRunByAgent()) await runForAgent(options);
     else await runForPerson(options);
   });

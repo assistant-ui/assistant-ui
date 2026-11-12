@@ -9,6 +9,7 @@ import {
   followedUpSinceProposal,
   initialCheckoutState,
   isAgentPresent,
+  isBrowserPresent,
   openInputs,
   parseChoiceAnswer,
   parseModelAnswer,
@@ -57,6 +58,34 @@ const approvedHost = async () => {
 };
 
 describe("CheckoutHost", () => {
+  it("tracks the setup page's presence apart from the agent's", async () => {
+    const host = mount();
+    expect(host.state.browser).toEqual({ lastSeenAt: null, connected: false });
+    await host.commands["checkout/create"](seed);
+    await host.commands["browser/heartbeat"]();
+    expect(isBrowserPresent(host.state)).toBe(true);
+    expect(isAgentPresent(host.state)).toBe(false);
+    await host.commands["browser/bye"]();
+    expect(host.state.browser!.connected).toBe(false);
+    expect(isBrowserPresent(host.state)).toBe(false);
+    await host.commands["browser/heartbeat"]();
+    expect(isBrowserPresent(host.state)).toBe(true);
+    expect(
+      isBrowserPresent(host.state, host.state.browser!.lastSeenAt! + 20_000),
+    ).toBe(false);
+  });
+
+  it("restores a snapshot from before browser presence with the page absent", () => {
+    const { browser: _, ...old } = {
+      ...initialCheckoutState(),
+      id: "c1",
+      createdAt: 1,
+    };
+    const host = mount(old);
+    expect(host.state.browser).toEqual({ lastSeenAt: null, connected: false });
+    expect(host.state.id).toBe("c1");
+  });
+
   it("creates the products once, with no steps or questions", async () => {
     const host = mount();
     await host.commands["checkout/create"](seed);

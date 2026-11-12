@@ -119,6 +119,27 @@ const secretRequest = (
   );
 
 describe("secret lifecycle", () => {
+  it("tracks the setup page's presence and keeps a snapshot from before it working", async () => {
+    // A snapshot an older worker stored has no browser field.
+    const { browser: _, ...old } = modelState();
+    const fixture = createInstance(old as Checkout.State);
+    const client = await connect(fixture);
+    expect(client.state?.browser).toEqual({
+      lastSeenAt: null,
+      connected: false,
+    });
+    await client.commands["browser/heartbeat"]();
+    await vi.waitFor(() => expect(client.state?.browser?.connected).toBe(true));
+    // Commands every released CLI sends keep working beside it.
+    await client.commands["agent/hello"]({ cwd: "/app" });
+    await client.commands["agent/heartbeat"]();
+    await client.commands["browser/bye"]();
+    await vi.waitFor(() =>
+      expect(client.state?.browser?.connected).toBe(false),
+    );
+    expect(client.state?.agent.connected).toBe(true);
+  });
+
   it("does not reuse an unclaimed key after replacing a setup and reusing q1", async () => {
     const fixture = createInstance(modelState());
     const client = await connect(fixture);

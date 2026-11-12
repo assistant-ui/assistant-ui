@@ -4,6 +4,8 @@ export type { Checkout, OptionIcon } from "setup-agent";
 export {
   AGENT_HEARTBEAT_MS,
   AGENT_PRESENCE_MS,
+  BROWSER_HEARTBEAT_MS,
+  BROWSER_PRESENCE_MS,
   OPTION_ICONS,
   classifyChoiceAnswer,
   currentPlan,
@@ -11,6 +13,7 @@ export {
   finishProposed,
   followedUpSinceProposal,
   isAgentPresent,
+  isBrowserPresent,
   isClosed,
   isOptionIcon,
   isValidModelAnswer,

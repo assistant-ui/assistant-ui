@@ -49,6 +49,29 @@ describe("setup", () => {
     expect(out).toContain("Could not reach the clipboard");
   });
 
+  it("takes a setup command after the url and passes its flags through", () => {
+    expect(setup.registeredArguments.map((arg) => arg.name())).toEqual([
+      "url-and-command",
+    ]);
+    const { operands, unknown } = setup.parseOptions([
+      "https://x.test/a",
+      "ask",
+      "Pick",
+      "--choices",
+      "a,b",
+      "--wait",
+    ]);
+    // Commander hands the action operands then unknown options, in order.
+    expect([...operands, ...unknown]).toEqual([
+      "https://x.test/a",
+      "ask",
+      "Pick",
+      "--choices",
+      "a,b",
+      "--wait",
+    ]);
+  });
+
   it("offers products and a no-open flag", () => {
     expect(setup.options.map((option) => option.long)).toEqual([
       "--products",
