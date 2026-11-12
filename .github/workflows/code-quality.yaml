@@ -180,6 +180,9 @@ jobs:
       - name: Verify adapters avoid banned state patterns
         run: node scripts/check-adapter-architecture.mjs
 
+      - name: Test scheduled failure issue reporting
+        run: node --test scripts/scheduled-failure-issue.test.mjs
+
   knip:
     name: Knip
     runs-on: ubuntu-latest
