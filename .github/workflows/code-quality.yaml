@@ -61,6 +61,7 @@ on:
       - "scripts/root-install-selection.test.mjs"
       - "scripts/setup-git-hooks.mjs"
       - "scripts/setup-git-hooks.test.mjs"
+      - ".husky/**"
       - ".github/workflows/perf.yaml"
       - ".github/workflows/perf-nightly.yaml"
       - ".github/workflows/template-metrics.yaml"
