@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +24,11 @@ function fixture(t) {
     HUSKY: "",
   };
   const git = (cwd, ...args) =>
-    execFileSync("git", args, { cwd, encoding: "utf8", env: fixtureEnv }).trim();
+    execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      env: fixtureEnv,
+    }).trim();
   const init = (name) => {
     const root = path.join(base, name);
     git(base, "init", "--quiet", root);
@@ -39,7 +49,10 @@ test("a normal clone sets core.hooksPath to .husky", (t) => {
   const root = init("clone");
 
   assert.equal(run(root).status, 0);
-  assert.equal(git(root, "config", "--local", "--get", "core.hooksPath"), ".husky");
+  assert.equal(
+    git(root, "config", "--local", "--get", "core.hooksPath"),
+    ".husky",
+  );
 });
 
 test("a linked worktree sets core.hooksPath to .husky", (t) => {
@@ -51,7 +64,10 @@ test("a linked worktree sets core.hooksPath to .husky", (t) => {
 
   assert.equal(statSync(path.join(linked, ".git")).isFile(), true);
   assert.equal(run(linked).status, 0);
-  assert.equal(git(linked, "config", "--local", "--get", "core.hooksPath"), ".husky");
+  assert.equal(
+    git(linked, "config", "--local", "--get", "core.hooksPath"),
+    ".husky",
+  );
 });
 
 test("a copy without .git inside another repository leaves outer hooks untouched", (t) => {
@@ -63,7 +79,10 @@ test("a copy without .git inside another repository leaves outer hooks untouched
   writeFileSync(path.join(copy, "package.json"), "{}\n");
 
   assert.equal(run(copy).status, 0);
-  assert.equal(git(outer, "config", "--local", "--get", "core.hooksPath"), ".outer-hooks");
+  assert.equal(
+    git(outer, "config", "--local", "--get", "core.hooksPath"),
+    ".outer-hooks",
+  );
 });
 
 test("HUSKY=0 leaves hooks untouched", (t) => {
@@ -72,7 +91,10 @@ test("HUSKY=0 leaves hooks untouched", (t) => {
   git(root, "config", "--local", "core.hooksPath", ".existing-hooks");
 
   assert.equal(run(root, { HUSKY: "0" }).status, 0);
-  assert.equal(git(root, "config", "--local", "--get", "core.hooksPath"), ".existing-hooks");
+  assert.equal(
+    git(root, "config", "--local", "--get", "core.hooksPath"),
+    ".existing-hooks",
+  );
 });
 
 test("a failed git config exits non-zero and reports the error", (t) => {
