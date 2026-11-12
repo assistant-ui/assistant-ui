@@ -36,7 +36,7 @@ function Landing() {
       <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
         <PromptCopy />
         <a
-          href={`${DOCS_URL}/docs/installation`}
+          href={`${DOCS_URL}/docs/manual-installation`}
           className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition-colors hover:underline"
         >
           Install manually

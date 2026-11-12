@@ -138,10 +138,10 @@ describe("resolveEndpoints", () => {
 
 describe("the prompt for a person", () => {
   it("is the bare prompt, naming the command only for products other than the default", () => {
-    expect(setupPrompt()).toBe("set up assistant-ui");
+    expect(setupPrompt()).toBe("install and set up assistant-ui");
     expect(setupPrompt(["assistant-ui"])).toBe(setupPrompt());
     expect(setupPrompt(["assistant-ui", "cloud"])).toBe(
-      "set up assistant-ui with `npx assistant-ui@latest setup --products assistant-ui,cloud`",
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products assistant-ui,cloud`",
     );
   });
 

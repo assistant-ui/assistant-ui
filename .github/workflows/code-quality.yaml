@@ -73,6 +73,8 @@ on:
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/typecheck.sh"
+      - "scripts/scheduled-failure-issue.test.mjs"
+      - ".github/workflows/scheduled-failure-issue.yaml"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
       - "turbo.json"
@@ -195,6 +197,9 @@ jobs:
 
       - name: Verify adapters avoid banned state patterns
         run: node scripts/check-adapter-architecture.mjs
+
+      - name: Test scheduled failure issue reporting
+        run: node --test scripts/scheduled-failure-issue.test.mjs
 
   knip:
     name: Knip

@@ -76,6 +76,10 @@ export const analytics = {
       location: string,
     ) => trackEvent("cta_clicked", { cta, location }),
 
+    /** The setup prompt's dropdown (copy prompt / manual steps) was opened. */
+    setupMenuOpened: (location: string) =>
+      trackEvent("setup_menu_opened", { location }),
+
     npmCommandCopied: (
       command = "npx assistant-ui init",
       properties?: AnalyticsProperties,

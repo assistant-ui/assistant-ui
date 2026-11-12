@@ -426,6 +426,7 @@ const inputFrom = (
     {
       $type: "Input",
       label: textOf(block["label"]),
+      ...(block["optional"] === true ? { required: false } : {}),
       ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
       ...(multiline ? { multiline: true } : {}),
       ...(typeof element["initial_value"] === "string"

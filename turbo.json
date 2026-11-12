@@ -9,7 +9,8 @@
     "packages/x-buildutils/src/**",
     "!packages/x-buildutils/src/**/*.test.{ts,tsx}",
     "packages/x-buildutils/ts/*.json",
-    "packages/x-buildutils/types/**"
+    "packages/x-buildutils/types/**",
+    "scripts/vitest-waitfor-interval.mjs"
   ],
   "tasks": {
     "build": {
