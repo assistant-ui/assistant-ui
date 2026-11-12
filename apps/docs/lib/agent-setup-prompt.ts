@@ -28,6 +28,10 @@ export const LEGACY_AGENT_SETUP_PROMPTS = ["set up assistant-ui"] as const;
 export const pageSetupPrompt = (path: string) =>
   `set up ${new URL(path, BASE_URL).href}`;
 
+/** What a page's markdown tells an agent where the setup banner sits. */
+export const agentSetupLine = (products: readonly string[]) =>
+  `To set this up with a coding agent, run \`${AGENT_SETUP_COMMAND} --products ${products.join(",")}\`.`;
+
 /** What a page's markdown tells an agent before its manual steps. */
 export const pageSetupPreamble = (products: readonly string[]) =>
   `To set this up, run \`${AGENT_SETUP_COMMAND} --products ${products.join(",")}\` if available; otherwise follow these steps.`;

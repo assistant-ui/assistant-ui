@@ -41,10 +41,12 @@ describe("landing markdown components", () => {
     expect(renderToStaticMarkup(<AgentSetupLLM product="nope" section />)).toBe(
       "",
     );
-    // The banner variant has no steps after it, so it tells agents nothing.
+    // The banner variant names only the command, with no steps to point at.
     expect(
-      renderToStaticMarkup(<AgentSetupLLM product="guides/dictation" />),
-    ).toBe("");
+      renderToStaticMarkup(<AgentSetupLLM product="guides/devtools" />),
+    ).toBe(
+      "<p>To set this up with a coding agent, run <code>npx assistant-ui@latest setup --products guides/devtools</code>.</p>",
+    );
   });
 
   it("keeps manual steps in full in the markdown", () => {

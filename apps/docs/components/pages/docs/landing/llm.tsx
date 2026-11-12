@@ -12,6 +12,7 @@ import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   AGENT_SETUP_HINT,
   AGENT_SETUP_PROMPT,
+  agentSetupLine,
   pageSetupPreamble,
 } from "@/lib/agent-setup-prompt";
 import { getCatalogItem } from "@/lib/catalog";
@@ -77,9 +78,14 @@ export const AgentSetupLLM = ({
   product: string;
   section?: boolean;
 }) => {
-  // Only a Setup section has manual steps after it; the banner variant adds nothing for agents.
-  const item = section ? getCatalogItem(product) : undefined;
-  return item ? <p>{withInlineCode(pageSetupPreamble([item.slug]))}</p> : null;
+  const item = getCatalogItem(product);
+  if (!item) return null;
+  // A Setup section is followed by its manual steps; the banner variant
+  // sits above whatever the page explains, so it names only the command.
+  const text = section
+    ? pageSetupPreamble([item.slug])
+    : agentSetupLine([item.slug]);
+  return <p>{withInlineCode(text)}</p>;
 };
 
 /** The manual steps stay in the markdown in full, never collapsed. */
