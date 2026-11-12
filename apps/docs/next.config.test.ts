@@ -5,6 +5,8 @@ import { compile, evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { prerender } from "react-dom/static";
+import type { ReactElement, ReactNode } from "react";
 import type { TableOfContents } from "fumadocs-core/toc";
 import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
@@ -14,6 +16,11 @@ vi.mock("@assistant-ui/next", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/next")>();
   return { ...actual, withAui: vi.fn(actual.withAui) };
 });
+// Code blocks highlight in a "use cache" server function at render time.
+vi.mock("next/cache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/cache")>()),
+  cacheLife: () => {},
+}));
 vi.stubEnv("TURBOPACK", "1");
 vi.stubEnv("DOCS_BUILD_CPUS", "3");
 vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", undefined);
@@ -50,6 +57,13 @@ async function plugins(values: Plugin[]): Promise<PluggableList> {
       return [plugin.default, settings];
     }),
   );
+}
+
+// Code blocks render through an async server component, which only the
+// streaming renderers can wait for.
+async function renderToHtml(element: ReactElement): Promise<string> {
+  const { prelude } = await prerender(element);
+  return new Response(prelude).text();
 }
 
 describe("docs Next config composition", () => {
@@ -113,12 +127,13 @@ graph LR; A-->B;
         title: renderToStaticMarkup(entry.title),
       })),
     ).toEqual([{ title: "Install", url: "#setup", depth: 2 }]);
-    const html = renderToStaticMarkup(
+    const { withDocsCodeBlock } = await import("./lib/docs-code");
+    const html = await renderToHtml(
       createElement(compiled.default, {
-        components: {
-          MermaidDiagram: ({ children }) =>
+        components: withDocsCodeBlock({
+          MermaidDiagram: ({ children }: { children?: ReactNode }) =>
             createElement("figure", null, children),
-        },
+        }),
       }),
     );
     expect(html).toContain('id="setup"');
@@ -128,6 +143,14 @@ graph LR; A-->B;
     expect(html).toContain("--shiki-dark");
     expect(html).toContain("<figure>graph LR; A--&gt;B;</figure>");
     expect(javascriptHighlighter).not.toHaveBeenCalled();
+    // The page module carries the code as data, not highlighted spans.
+    const module = String(
+      await compile("```tsx\nconst enabled = true;\n```", {
+        rehypePlugins: await plugins(options.rehypePlugins),
+      }),
+    );
+    expect(module).toContain("DocsCodeBlock");
+    expect(module).not.toContain("--shiki");
   });
 
   it("keeps provider code tabs selectable and local images imported for optimization", async () => {
@@ -140,8 +163,11 @@ graph LR; A-->B;
       remarkPlugins,
       rehypePlugins,
     });
-    const html = renderToStaticMarkup(
-      createElement(compiled.default, { components: { Tabs, Tab } }),
+    const { withDocsCodeBlock } = await import("./lib/docs-code");
+    const html = await renderToHtml(
+      createElement(compiled.default, {
+        components: withDocsCodeBlock({ Tabs, Tab }),
+      }),
     );
     expect(html).toContain('role="tab" aria-selected="true"');
     expect(html).toContain('role="tabpanel" data-state="active"');

@@ -40,6 +40,7 @@ import { SurfaceGrid } from "@/components/pages/docs/landing/surface-grid";
 import { Flow } from "@/components/assistant-ui/elements/flow";
 import { MermaidDiagram } from "@/components/pages/docs/mermaid-diagram";
 import { TapTutorialSlideshow } from "@/components/pages/docs/tap/tutorial-slideshow";
+import { withDocsCodeBlock } from "@/lib/docs-code";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
@@ -108,7 +109,7 @@ function MdxImage({
 export function getMDXComponents(
   components: MDXComponents = {},
 ): MDXComponents {
-  return {
+  return withDocsCodeBlock({
     a: MdxLink,
     img: MdxImage,
     ThemeImage,
@@ -179,7 +180,7 @@ export function getMDXComponents(
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
-  };
+  });
 }
 
 export const useMDXComponents = getMDXComponents;

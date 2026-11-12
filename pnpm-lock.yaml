@@ -582,6 +582,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      hast-util-to-jsx-runtime:
+        specifier: ^2.3.6
+        version: 2.3.6(supports-color@10.2.2)
       heat-graph:
         specifier: workspace:*
         version: link:../../packages/heat-graph
@@ -690,6 +693,9 @@ importers:
       safe-content-frame:
         specifier: workspace:*
         version: link:../../packages/safe-content-frame
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       setup-agent:
         specifier: workspace:*
         version: link:../../packages/setup-agent
@@ -751,6 +757,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/hast':
+        specifier: ^3.0.5
+        version: 3.0.5
       '@types/mdx':
         specifier: ^2.0.14
         version: 2.0.14
