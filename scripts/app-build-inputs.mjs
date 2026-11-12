@@ -9,6 +9,8 @@ const SHARED_BUILD_INPUTS = [
   "pnpm-workspace.yaml",
   "scripts/app-build-inputs.mjs",
   "scripts/app-build-inputs.test.mjs",
+  "scripts/ci-has-tasks.mjs",
+  "scripts/ci-has-tasks.test.mjs",
   "turbo.json",
   "scripts/lib",
 ];
@@ -17,7 +19,6 @@ export const APP_BUILD_INPUTS = [
   ...SHARED_BUILD_INPUTS,
   "apps/docs/content",
   "examples",
-  "packages",
   "templates",
 ];
 
@@ -29,9 +30,15 @@ const touchesBuiltApp = (file) =>
 export function hasAppBuildInputs(changedFiles) {
   return changedFiles.some(
     (file) =>
-      !isExcludedPackageTest(file) &&
-      (touchesBuiltApp(file) ||
-        APP_BUILD_INPUTS.some((input) => touches(file, input))),
+      touchesBuiltApp(file) ||
+      APP_BUILD_INPUTS.some((input) => touches(file, input)),
+  );
+}
+
+// Whether a package change reaches a built app depends on Turbo's graph, so the workflow asks Turbo's planner.
+export function hasPackageInputs(changedFiles) {
+  return changedFiles.some(
+    (file) => !isExcludedPackageTest(file) && touches(file, "packages"),
   );
 }
 
@@ -39,5 +46,8 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   const changedFiles = readFileSync(0, "utf8")
     .split("\0")
     .filter((file) => file !== "");
-  process.stdout.write(`${hasAppBuildInputs(changedFiles)}\n`);
+  const detect = process.argv.includes("--packages")
+    ? hasPackageInputs
+    : hasAppBuildInputs;
+  process.stdout.write(`${detect(changedFiles)}\n`);
 }
