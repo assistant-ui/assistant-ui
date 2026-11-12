@@ -44,6 +44,25 @@ describe("guide Setup sections", () => {
     },
   );
 
+  it("collapses only setup steps, leaving behavior and reference sections visible", () => {
+    const outside = (slug: string, heading: string) => {
+      const source = read(slug);
+      const at = source.indexOf(heading);
+      expect(at).toBeGreaterThan(source.indexOf("</ManualSteps>"));
+    };
+    outside("resumable-streams", "## Stop and resume in the composer");
+    outside("resumable-streams", "## Multiple threads");
+    outside("slash-commands", "## `unstable_useSlashCommandAdapter` options");
+    outside("slash-commands", "## Controlling the Chip");
+    outside("slash-commands", "## Custom Dispatch");
+    for (const id of [
+      "1-define-commands-with-unstable_useslashcommandadapter",
+      "2-controlling-the-chip",
+      "3-custom-dispatch",
+    ])
+      expect(read("slash-commands")).toContain(`<AnchorAlias id="${id}" />`);
+  });
+
   it("keeps the renamed anchors working", () => {
     expect(read("attachments")).toContain(
       '<AnchorAlias id="getting-started" />\n\n## Setup',

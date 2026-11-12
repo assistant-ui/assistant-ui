@@ -25,7 +25,9 @@ By default `Action` leaves a directive chip in the composer, which gives the use
 
 <ManualSteps>
 
-### 1. Define Commands with `unstable_useSlashCommandAdapter`
+<AnchorAlias id="1-define-commands-with-unstable_useslashcommandadapter" />
+
+### Define Commands with `unstable_useSlashCommandAdapter`
 
 Declare commands (data + `execute` bundled together, like a toolkit entry). The hook returns `{ adapter, action }`. Wire both into a single `<TriggerPopover>`:
 
@@ -93,7 +95,9 @@ function MyComposer() {
 
 The label defaults to `/${id}`; override via `label` on the command. Icons are strings that your `iconMap` on the picker UI resolves to components (see [ComposerTriggerPopover](/elements/composer-trigger-popover)).
 
-### `unstable_useSlashCommandAdapter` options
+</ManualSteps>
+
+## `unstable_useSlashCommandAdapter` options
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -104,7 +108,9 @@ The label defaults to `/${id}`; override via `label` on the command. Icons are s
 
 The hook returns `{ adapter, action, iconMap?, fallbackIcon? }`, which you can spread into `<ComposerTriggerPopover char="/" {...slash} />`.
 
-### 2. Controlling the Chip
+<AnchorAlias id="2-controlling-the-chip" />
+
+## Controlling the Chip
 
 By default, a selected `/summarize` is converted into a directive chip (`:command[/summarize]{name=summarize}`) in the composer text and the command's `execute` fires.
 
@@ -117,7 +123,9 @@ const slash = unstable_useSlashCommandAdapter({
 });
 ```
 
-### 3. Custom Dispatch
+<AnchorAlias id="3-custom-dispatch" />
+
+## Custom Dispatch
 
 For side effects on top of `execute` (logging, analytics, intercept), wrap the hook's `onExecute`:
 
@@ -129,8 +137,6 @@ For side effects on top of `execute` (logging, analytics, intercept), wrap the h
   }}
 />
 ```
-
-</ManualSteps>
 
 ## Categorized Commands
 
