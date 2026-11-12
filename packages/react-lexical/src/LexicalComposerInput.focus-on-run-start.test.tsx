@@ -184,6 +184,7 @@ describe("LexicalComposerInput run-start focus with a portaled composer", () => 
             <button type="button">Inside thread</button>
             {createPortal(
               <ComposerPrimitive.Root>
+                <button type="button">Composer action</button>
                 <LexicalComposerInput aria-label="Composer">
                   <CaptureEditor onEditor={onEditor} />
                 </LexicalComposerInput>
@@ -222,13 +223,9 @@ describe("LexicalComposerInput run-start focus with a portaled composer", () => 
   });
 
   it("takes focus when a control in its composer root is focused", async () => {
-    const composerRoot = portalHost.querySelector<HTMLElement>(
-      "[data-aui-composer-type]",
+    const action = [...portalHost.querySelectorAll<HTMLElement>("button")].find(
+      (b) => b.textContent === "Composer action",
     )!;
-    const action = document.createElement("button");
-    action.type = "button";
-    action.textContent = "Composer action";
-    composerRoot.appendChild(action);
     act(() => action.focus());
 
     await startRun();
