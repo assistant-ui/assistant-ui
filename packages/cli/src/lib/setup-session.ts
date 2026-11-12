@@ -209,8 +209,8 @@ export const setupPrompt = (products?: readonly string[]) => {
     (products.length !== DEFAULT_PRODUCTS.length ||
       products.some((slug, index) => slug !== DEFAULT_PRODUCTS[index]));
   return custom
-    ? `set up assistant-ui with \`npx assistant-ui@latest setup --products ${products.join(",")}\``
-    : "set up assistant-ui";
+    ? `install and set up assistant-ui with \`npx assistant-ui@latest setup --products ${products.join(",")}\``
+    : "install and set up assistant-ui";
 };
 
 /** `text` framed in a box, one line per row, for the terminal. */

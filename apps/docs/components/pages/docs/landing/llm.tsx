@@ -26,12 +26,12 @@ export const QuickstartLLM = (
     return (
       <>
         <p>
-          Tell your coding agent: <code>{AGENT_SETUP_PROMPT}</code>
+          Ask your coding agent to <code>{AGENT_SETUP_PROMPT}</code>.
         </p>
         <p>{AGENT_SETUP_HINT}</p>
         <p>
           To install by hand, follow the{" "}
-          <a href={PLATFORM_ENTRY_PATHS[platform]}>installation guide</a>.
+          <a href="/docs/manual-installation">manual installation guide</a>.
         </p>
       </>
     );

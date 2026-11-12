@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import {
-  SetupCommandPrompt,
-} from "@/components/shared/setup-command-prompt";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { useSurfaceOrDefault } from "@/components/pages/docs/platform/context";
 import {
   PLATFORM_ENTRY_PATHS,

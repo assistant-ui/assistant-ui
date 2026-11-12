@@ -22,7 +22,7 @@ describe("agent setup banner", () => {
       }),
     );
     expect(writeText).toHaveBeenCalledWith(
-      "set up assistant-ui with `npx assistant-ui@latest setup --products elements/thread-list`",
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/thread-list`",
     );
   });
 
@@ -36,8 +36,12 @@ describe("agent setup banner", () => {
     expect(
       screen.getByText("Install assistant-ui with your coding agent"),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button"));
-    expect(writeText).toHaveBeenCalledWith("set up assistant-ui");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Copy the setup prompt for your coding agent",
+      }),
+    );
+    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
   });
 
   it("renders nothing for an unknown product", () => {

@@ -3,9 +3,7 @@
   "description": "Install assistant-ui in a React app, then the CLI, RTL, component flavors, and DevTools.",
   "icon": "Rocket",
   "root": true,
-  "platforms": [
-    "react"
-  ],
+  "platforms": ["react"],
   "pages": [
     "installation",
     "manual-installation",

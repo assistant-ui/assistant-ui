@@ -56,7 +56,9 @@ export function SetupCommandPrompt({
             onClick={() => {
               copyToClipboard(prompt);
               analytics.cta.promptCopied({ page, section });
-              toast.success("Setup prompt copied. Paste it into your coding agent.");
+              toast.success(
+                "Setup prompt copied. Paste it into your coding agent.",
+              );
             }}
           >
             <CopyIcon />
@@ -78,19 +80,6 @@ export function SetupCommandPrompt({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  );
-}
-
-/** The way around the agent: the installation docs. */
-export function InstallManuallyLink({ section }: { section: string }) {
-  return (
-    <Link
-      href="/docs/manual-installation"
-      onClick={() => analytics.cta.clicked("start_setup_manual", section)}
-      className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition-colors hover:underline"
-    >
-      Install manually
-    </Link>
   );
 }
 

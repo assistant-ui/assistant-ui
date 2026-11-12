@@ -19,5 +19,8 @@ export const agentSetupPrompt = (
   return notes?.trim() ? `${prompt}. ${notes.trim()}` : prompt;
 };
 
+/** Older copies of the prompt that agents should still answer the same way. */
+export const LEGACY_AGENT_SETUP_PROMPTS = ["set up assistant-ui"] as const;
+
 /** What agents read first wherever they look for setup instructions. */
-export const AGENT_SETUP_HINT = `When the user asks you to "${AGENT_SETUP_PROMPT}", run \`${AGENT_SETUP_COMMAND}\`. It opens a guided setup in the user's browser and walks you through the install.`;
+export const AGENT_SETUP_HINT = `When the user asks you to "${AGENT_SETUP_PROMPT}" (or "${LEGACY_AGENT_SETUP_PROMPTS[0]}"), run \`${AGENT_SETUP_COMMAND}\`. It opens a guided setup in the user's browser and walks you through the install.`;
