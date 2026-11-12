@@ -133,13 +133,15 @@ describe("ElementsCart", () => {
     expect(command.match(/@assistant-ui\/elements-composer/g)).toHaveLength(1);
   });
 
-  it("closes when Ask AI opens, and closes and dismisses its toast when the page is left", async () => {
+  it("keeps only the panel that was just opened, and closes and dismisses its toast when the page is left", async () => {
     const { ElementsCart, AssistantPanelProvider, useCartOpen, setCartOpen } =
       await loadCart();
     const { useAssistantPanel } = await import("../../docs/assistant/context");
     let openAssistant = () => {};
+    let assistantOpen = false;
     function Probe() {
-      const { setOpen } = useAssistantPanel();
+      const { open, setOpen } = useAssistantPanel();
+      assistantOpen = open;
       openAssistant = () => setOpen(true);
       return null;
     }
@@ -153,8 +155,10 @@ describe("ElementsCart", () => {
     act(() => setCartOpen(true));
     act(() => openAssistant());
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
+    expect(assistantOpen).toBe(true);
 
     act(() => setCartOpen(true));
+    expect(assistantOpen).toBe(false);
     view.unmount();
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
     expect(toastDismiss).toHaveBeenCalledWith("aui-elements-cart");
