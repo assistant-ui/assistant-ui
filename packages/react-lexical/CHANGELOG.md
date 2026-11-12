@@ -1,5 +1,13 @@
 # @assistant-ui/react-lexical
 
+## 0.2.23
+
+### Patch Changes
+
+- [#10493](https://github.com/assistant-ui/assistant-ui/pull/10493) [`2691e38`](https://github.com/assistant-ui/assistant-ui/commit/2691e38409423e2ab5e51771a16fa05410554f80) - react: expose `unstable_useComposerRunStartFocusGuard`, the decision `ComposerPrimitive.Input` makes on `thread.runStart`, and use it in `LexicalComposerInput` instead of a copy that resolved the thread root from the DOM. The guard reads the thread root from context, so a composer portaled outside `ThreadPrimitive.Root` now takes focus on a run start when focus sits inside its thread, matching `ComposerPrimitive.Input`. ([@egg119](https://github.com/egg119))
+  
+  react-lexical: raise the `@assistant-ui/react` peer floor to `^0.15.36`, the first release that exports the hook. `@assistant-ui/react` is a host-supplied peer and `onlyUpdatePeerDependentsWhenOutOfRange` is set, so the floor has to be raised by hand.
+
 ## 0.2.22
 
 ### Patch Changes

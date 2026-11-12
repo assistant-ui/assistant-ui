@@ -5030,7 +5030,7 @@ importers:
         specifier: ^0.3.34
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.10
+        specifier: ^0.0.11
         version: link:../generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.23
@@ -5076,7 +5076,7 @@ importers:
         specifier: ^0.3.35
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.10
+        specifier: ^0.0.11
         version: link:../generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.23
@@ -5266,7 +5266,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.10
+        specifier: ^0.0.11
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
