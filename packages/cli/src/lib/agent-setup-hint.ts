@@ -1,5 +1,6 @@
 import type { Command } from "commander";
-import { isDirectInvocation } from "setup-agent/cli";
+import { detectAgentKind, isDirectInvocation } from "setup-agent/cli";
+import { typedCommand } from "./agent-gate";
 
 export const AGENT_SETUP_HINT =
   "Recommended for coding agents: run `npx assistant-ui@latest setup`. It opens a guided setup in the user's browser and walks you through the install.";
@@ -31,8 +32,15 @@ export const addAgentSetupHint = (
   if (beforeAction) {
     command.hook("preAction", () => {
       // Other commands run create internally; only the one typed gets the hint.
-      const typed = process.argv.slice(2).find((arg) => !arg.startsWith("-"));
-      if (printed || typed !== command.name() || !isRunByAgent()) return;
+      // A detected agent got here past the agent gate, from a setup session or
+      // with --force, so pointing it at setup again would only send it in circles.
+      if (
+        printed ||
+        typedCommand() !== command.name() ||
+        !isRunByAgent() ||
+        detectAgentKind() !== undefined
+      )
+        return;
       printed = true;
       process.stdout.write(`${AGENT_SETUP_HINT}\n\n`);
     });

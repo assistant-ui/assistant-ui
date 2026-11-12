@@ -24,6 +24,8 @@ Run in an interactive terminal, it asks which coding agent you use and starts it
 
 The browser asks you to confirm the agent and its directory before it connects.
 
+Coding agents use `setup`. Run by a coding agent outside a setup session, `init`, `create` and `add` stop with exit code 2 and point it to `setup`. Inside a setup session they run as usual, so the steps the setup gives the agent keep working. To run them under an agent anyway, pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1`. People in a terminal and CI see no change.
+
 **Options**
 
 ```bash

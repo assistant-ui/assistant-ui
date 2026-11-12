@@ -1,5 +1,23 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { shouldGateAgent } from "../lib/agent-gate";
 import { agentOptions, handOffPrompt, setup } from "./setup";
+
+vi.mock("../lib/setup-session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/setup-session")>()),
+  resolveProducts: vi.fn(async (slugs: string[]) =>
+    slugs.map((slug) => ({ slug, name: slug })),
+  ),
+  startSetup: vi.fn(async ({ products }) => ({
+    linkId: "abc",
+    setupId: "def",
+    agentUrl: "https://setup.test/abc",
+    browserUrl: "https://setup.test/#link=abc&setup=def",
+    products,
+  })),
+}));
 
 describe("setup", () => {
   it("lists every agent, marks what it can start, and ends with Other agent", () => {
@@ -57,5 +75,28 @@ describe("setup", () => {
       "--setup-server",
       "--setup-app-url",
     ]);
+  });
+
+  it("run by an agent, opens a setup session that lets its install steps past the agent gate", async () => {
+    const env = { ...process.env };
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aui-setup-"));
+    vi.spyOn(os, "tmpdir").mockReturnValue(tmp);
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    process.env = { PATH: env.PATH, CLAUDECODE: "1" };
+    try {
+      expect(shouldGateAgent()).toBe(true);
+      await setup.parseAsync(["--no-open"], { from: "user" });
+      expect(String(write.mock.calls[0]?.[0])).toContain(
+        "https://setup.test/#link=abc&setup=def",
+      );
+      // `init`, `create` and `add` run in the agent's later shells, which share the temp directory.
+      expect(shouldGateAgent()).toBe(false);
+    } finally {
+      process.env = env;
+      vi.restoreAllMocks();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });

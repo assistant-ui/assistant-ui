@@ -195,6 +195,8 @@ ${opened ? "If it did not open, give the user that link.\n" : ""}
 ${agentInstructions(setup.agentUrl, {
   startedByAgent: { browserUrl: setup.browserUrl, opened },
 })}
+If an \`npx assistant-ui\` command tells you to run setup instead, you are already in it: run that command again with --force.
+
 Current setup:
 ${JSON.stringify({
   status: "planning",

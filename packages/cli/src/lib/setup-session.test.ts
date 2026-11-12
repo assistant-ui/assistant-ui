@@ -202,6 +202,9 @@ describe("agentBriefing", () => {
     expect(briefing).toContain("npx setup-agent https://setup.test/abc stream");
     expect(briefing).not.toContain("click Begin plan");
     expect(briefing).toContain('"status":"planning"');
+    expect(briefing).toContain(
+      "If an `npx assistant-ui` command tells you to run setup instead, you are already in it: run that command again with --force.",
+    );
   });
 
   it("asks the agent to share the link when the browser was not opened", () => {

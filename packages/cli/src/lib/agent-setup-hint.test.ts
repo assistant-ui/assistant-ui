@@ -19,7 +19,9 @@ describe("isRunByAgent", () => {
 describe("addAgentSetupHint", () => {
   const env = { ...process.env };
   const argv = process.argv;
+  const afterCleanup: (() => void)[] = [];
   afterEach(() => {
+    for (const cleanup of afterCleanup.splice(0)) cleanup();
     process.env = { ...env };
     process.argv = argv;
     vi.restoreAllMocks();
@@ -63,11 +65,21 @@ describe("addAgentSetupHint", () => {
     }
   });
 
-  it("prints the hint once before the command an agent typed", async () => {
+  it("prints the hint once before the command typed without a terminal", async () => {
     const write = vi
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
-    process.env.CLAUDECODE = "1";
+    // No agent markers, so the agent gate lets it through; no terminal, so the hint shows.
+    process.env = { PATH: env.PATH };
+    const stdin = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+    Object.defineProperty(process.stdin, "isTTY", {
+      value: undefined,
+      configurable: true,
+    });
+    afterCleanup.push(() => {
+      if (stdin) Object.defineProperty(process.stdin, "isTTY", stdin);
+      else delete (process.stdin as { isTTY?: boolean }).isTTY;
+    });
     process.argv = ["node", "assistant-ui", "create", "my-app"];
     const action = vi.fn();
     const command = addAgentSetupHint(
@@ -81,5 +93,24 @@ describe("addAgentSetupHint", () => {
         String(chunk).includes(AGENT_SETUP_HINT),
       ),
     ).toHaveLength(1);
+  });
+
+  it("leaves the hint out for an agent past the gate, which is already in setup or forced", async () => {
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    process.env.CLAUDECODE = "1";
+    process.argv = ["node", "assistant-ui", "init", "--yes"];
+    const action = vi.fn();
+    const command = addAgentSetupHint(
+      new Command("init").option("--yes").action(action),
+    );
+    await command.parseAsync(["--yes"], { from: "user" });
+    expect(action).toHaveBeenCalledOnce();
+    expect(
+      write.mock.calls.filter(([chunk]) =>
+        String(chunk).includes(AGENT_SETUP_HINT),
+      ),
+    ).toHaveLength(0);
   });
 });

@@ -38,7 +38,7 @@ npx assistant-ui@latest create my-app --ink
 # add assistant-ui to an existing project
 npx assistant-ui@latest init
 
-# initialize non-interactively for CI or agent flows
+# initialize non-interactively for CI
 npx assistant-ui@latest init --yes
 
 # add a component
@@ -54,7 +54,9 @@ npx assistant-ui@latest upgrade
 npx assistant-ui info
 ```
 
-`init` falls back to `create` when no `package.json` is found, so a single command works for both new and existing projects. Use `init --yes` for CI and agent flows where prompts are not available.
+`init` falls back to `create` when no `package.json` is found, so a single command works for both new and existing projects. Use `init --yes` for CI where prompts are not available.
+
+Coding agents use `npx assistant-ui@latest setup`, which opens a guided setup in the user's browser. Run by a coding agent outside a setup session, `init`, `create` and `add` stop with exit code 2 and point it to `setup`; pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1` to run them anyway.
 
 ## Templates
 

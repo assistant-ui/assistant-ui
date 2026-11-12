@@ -5,6 +5,7 @@ import { CODING_AGENTS, findCommand, runCodingAgent } from "setup-agent/cli";
 import type { CodingAgent } from "setup-agent/cli";
 import { openBrowser } from "../lib/cloud-auth";
 import { isRunByAgent } from "../lib/agent-setup-hint";
+import { markSetupSession } from "../lib/agent-gate";
 import {
   agentBriefing,
   boxed,
@@ -128,6 +129,8 @@ const runForAgent = async (options: SetupOptions) => {
     endpoints.docsUrl,
   );
   const setup = await startSetup({ endpoints, products });
+  // The steps run `init`, `create` and `add` in later shells; this lets them past the agent gate.
+  markSetupSession({ setupId: setup.setupId });
   if (options.open) openBrowser(setup.browserUrl);
   process.stdout.write(agentBriefing(setup, options.open));
 };

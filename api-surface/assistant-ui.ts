@@ -92,6 +92,11 @@ export const cliSurface: CliSurfaceSnapshot = {
         {
           "flags": "--use-bun",
           "description": "explicitly use bun"
+        },
+        {
+          "flags": "--force",
+          "description": "run even when a coding agent is detected outside a setup session",
+          "hidden": true
         }
       ],
       "commands": []
@@ -170,6 +175,11 @@ export const cliSurface: CliSurfaceSnapshot = {
           "description": "copy templates/examples from a local assistant-ui repo root",
           "required": true,
           "hidden": true
+        },
+        {
+          "flags": "--force",
+          "description": "run even when a coding agent is detected outside a setup session",
+          "hidden": true
         }
       ],
       "commands": []
@@ -227,6 +237,11 @@ export const cliSurface: CliSurfaceSnapshot = {
         {
           "flags": "--skip-install",
           "description": "skip installing packages"
+        },
+        {
+          "flags": "--force",
+          "description": "run even when a coding agent is detected outside a setup session",
+          "hidden": true
         }
       ],
       "commands": []
