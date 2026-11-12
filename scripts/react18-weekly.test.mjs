@@ -22,7 +22,9 @@ const suppliedInputs = Object.fromEntries(
 );
 
 test("the React 18 reporter calls the shared workflow with its declared inputs", () => {
-  const declarations = shared.split("    inputs:\n")[1].split("\npermissions:\n")[0];
+  const declarations = shared
+    .split("    inputs:\n")[1]
+    .split("\npermissions:\n")[0];
   const declaredInputs = Object.fromEntries(
     [...declarations.matchAll(/^      (\w+):\n((?:        .*\n)*)/gm)].map(
       ([, name, body]) => [
@@ -42,7 +44,10 @@ test("the React 18 reporter calls the shared workflow with its declared inputs",
     report,
     /^    uses: \.\/\.github\/workflows\/scheduled-failure-issue\.yaml$/m,
   );
-  assert.deepEqual(Object.keys(suppliedInputs).sort(), Object.keys(declaredInputs).sort());
+  assert.deepEqual(
+    Object.keys(suppliedInputs).sort(),
+    Object.keys(declaredInputs).sort(),
+  );
   assert.equal(suppliedInputs.title, "React 18 peer tests are failing");
   assert.equal(report.match(/^    needs: (.+)$/m)?.[1], "react18");
 });
