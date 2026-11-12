@@ -22,8 +22,14 @@ describe("shared waitFor setup", () => {
   });
 
   it("polls at the shared interval when a test passes an undefined interval", async () => {
+    // A caller can pass an explicit undefined at runtime; only `exactOptionalPropertyTypes`
+    // refuses to type it, so the case is written through the option type's own signature.
+    const withUndefinedInterval = {
+      interval: undefined,
+    } as unknown as Parameters<typeof waitFor>[1];
+
     const delay = await firstPollDelay(() =>
-      waitFor(() => undefined, { interval: undefined }),
+      waitFor(() => undefined, withUndefinedInterval),
     );
 
     expect(delay).toBe(SHARED_POLL_MS);
