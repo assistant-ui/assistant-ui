@@ -36,7 +36,7 @@ export function PromptCopyButton({
       }}
       className={
         bare
-          ? "group hover:bg-muted/50 focus-visible:ring-ring inline-flex min-w-0 items-center gap-3 py-2 pr-2.5 pl-3.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          ? "group hover:bg-muted/50 focus-visible:ring-ring inline-flex min-w-0 items-center gap-3 py-2 pr-2.5 pl-3.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
           : "group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 rounded-control focus-visible:ring-ring inline-flex max-w-full items-center gap-3 border py-2 pr-2.5 pl-3.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
       }
     >

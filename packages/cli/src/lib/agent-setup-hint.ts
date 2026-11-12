@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import { isDirectInvocation } from "setup-agent/cli";
 
 export const AGENT_SETUP_HINT =
-  "Recommended for coding agents: run `npx assistant-ui@latest setup`. It opens a guided setup in the user's browser and walks you through the install.";
+  "Recommended for coding agents: run `npx assistant-ui@latest setup`. It opens a guided setup in the user's browser and walks you through the install. If `setup` isn't a known command (an older cached or release-age-gated version), run `npx -y assistant-ui@latest setup` instead.";
 
 /** True when a coding agent, or anything else without a terminal, runs the CLI. */
 export const isRunByAgent = (

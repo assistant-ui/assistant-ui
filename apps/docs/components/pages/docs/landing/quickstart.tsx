@@ -16,7 +16,7 @@ export function Quickstart() {
   // React apps set up through the coding agent; the other surfaces start from a template.
   if (platform === "react")
     return (
-      <div className="not-prose flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="not-prose">
         <SetupCommandPrompt page="docs" section="overview" />
       </div>
     );

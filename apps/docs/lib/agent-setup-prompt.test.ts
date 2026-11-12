@@ -38,6 +38,7 @@ describe("agent setup prompt", () => {
       "utf8",
     );
     expect(cli).toContain(AGENT_SETUP_COMMAND);
+    expect(cli).toContain(AGENT_SETUP_FALLBACK);
     expect(AGENT_SETUP_HINT).toContain(AGENT_SETUP_PROMPT);
     expect(AGENT_SETUP_HINT).toContain(AGENT_SETUP_COMMAND);
   });

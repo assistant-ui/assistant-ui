@@ -1,9 +1,24 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { analytics } from "@/lib/analytics";
 import { SetupCommandPrompt } from "./setup-command-prompt";
+
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: toastSuccess, error: toastError },
+}));
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -13,6 +28,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  toastSuccess.mockClear();
+  toastError.mockClear();
 });
 
 const stubClipboard = () => {
@@ -64,8 +81,32 @@ describe("setup command prompt", () => {
         name: "Copy prompt for coding agents",
       }),
     );
-    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
-    expect(copied).toHaveBeenCalledWith({ page: "docs", section: "overview" });
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui"),
+    );
+    await waitFor(() =>
+      expect(copied).toHaveBeenCalledWith({
+        page: "docs",
+        section: "overview",
+      }),
+    );
+    expect(toastSuccess).toHaveBeenCalled();
+  });
+
+  it("says so instead of claiming a copy when the clipboard write fails", async () => {
+    const writeText = stubClipboard();
+    writeText.mockRejectedValue(new Error("denied"));
+    const copied = vi.spyOn(analytics.cta, "promptCopied");
+    render(<SetupCommandPrompt page="docs" section="overview" />);
+    openMenu();
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Copy prompt for coding agents",
+      }),
+    );
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(copied).not.toHaveBeenCalled();
   });
 
   it("links the manual steps and reports the click with the menu location", async () => {
