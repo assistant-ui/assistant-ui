@@ -43,6 +43,11 @@
       "cache": false,
       "passThroughEnv": ["LINKINATOR_EXTERNAL"]
     },
+    "check:lighthouse": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["CHROME_PATH"]
+    },
     "dev": {
       "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,
