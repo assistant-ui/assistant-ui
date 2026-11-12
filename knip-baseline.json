@@ -307,9 +307,6 @@
     ],
     "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
     "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
-    "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
-      "AgUiSubscriber"
-    ],
     "packages/react-devtools/src/data/types.ts": ["SerializedModelContext"],
     "packages/react-devtools/src/views/activity/index.ts": ["ActivityNode"],
     "packages/react-devtools/src/views/attachments/index.ts": [

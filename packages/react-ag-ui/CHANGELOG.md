@@ -1,5 +1,13 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.9
+
+### Patch Changes
+
+- [#10301](https://github.com/assistant-ui/assistant-ui/pull/10301) [`49ad838`](https://github.com/assistant-ui/assistant-ui/commit/49ad838fe664d854ebff97e43ec5caeef17af216) - Add an opt-in `joinAdjacentAssistantMessages` option to `fromAgUiMessages` and `useAgUiRuntime`. It joins adjacent assistant records into one message, with a user message as the only turn boundary, for backends whose history gives each record of a turn an id of its own. ([@gentil93](https://github.com/gentil93))
+
+- [#10465](https://github.com/assistant-ui/assistant-ui/pull/10465) [`9efb741`](https://github.com/assistant-ui/assistant-ui/commit/9efb741c79a3cc3d4250bad4b3e5572d64409998) - Batch AG-UI streaming delta notifications within a task while keeping lifecycle updates synchronous. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.1.8
 
 ### Patch Changes
