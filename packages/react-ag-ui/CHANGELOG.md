@@ -1,5 +1,11 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.8
+
+### Patch Changes
+
+- [#10422](https://github.com/assistant-ui/assistant-ui/pull/10422) [`75c0162`](https://github.com/assistant-ui/assistant-ui/commit/75c0162c3426fa930a7b70b43c22a7d94796b7b1) - feat: rejoin an in-flight run through `agent.connect()` when a thread loads or is switched to with `unstable_resume` and the history adapter has no `resume()`; leaving such a thread detaches from the run instead of aborting it ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.7
 
 ### Patch Changes
