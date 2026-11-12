@@ -28,7 +28,7 @@ import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
-import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
+import { useComposerRunStartFocusGuard } from "./useComposerRunStartFocusGuard";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -193,7 +193,7 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
-    const threadRootRef = useThreadRootElementRef();
+    const canTakeFocusOnRunStart = useComposerRunStartFocusGuard();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     const compactContext = useComposerCompactContextOptional();
 
@@ -350,24 +350,10 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const focusOnRunStart = useCallback(() => {
       const textarea = textareaRef.current;
-      if (!textarea) return;
-      const doc = textarea.ownerDocument;
-      const active = doc.activeElement;
-      if (active === textarea) return;
-
-      const root = threadRootRef?.current;
-      const composerRoot = textarea.closest("[data-aui-composer-type]");
-      if (
-        active &&
-        active !== doc.body &&
-        !composerRoot?.contains(active) &&
-        (!root?.contains(active) ||
-          active.closest("[data-aui-thread-root]") !== root)
-      )
-        return;
+      if (!textarea || !canTakeFocusOnRunStart(textarea)) return;
 
       focus();
-    }, [focus, threadRootRef]);
+    }, [focus, canTakeFocusOnRunStart]);
 
     useEffect(() => focus(), [focus]);
 

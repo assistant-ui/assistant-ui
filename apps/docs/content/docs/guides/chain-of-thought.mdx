@@ -6,8 +6,6 @@ platforms: ["react"]
 
 LLMs often produce reasoning steps and tool calls in succession. Chain of Thought groups these consecutive parts into a single collapsible "thinking" accordion.
 
-<AgentSetup product="guides/chain-of-thought" />
-
 ## Overview
 
 When a reasoning model responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. Use `MessagePrimitive.GroupedParts` to group those adjacent reasoning and tool-call parts into a single collapsible "thinking" section.
@@ -16,7 +14,13 @@ When a reasoning model responds, it may emit a sequence of reasoning tokens and 
 The older `components.ChainOfThought` prop on `MessagePrimitive.Parts` and `components` prop on `ChainOfThoughtPrimitive.Parts` are legacy APIs. They still work for existing code, but new code should use `MessagePrimitive.GroupedParts`.
 </Callout>
 
-## Quick Start
+<AnchorAlias id="quick-start" />
+
+## Setup
+
+<AgentSetup product="guides/chain-of-thought" section />
+
+<ManualSteps>
 
 <Steps>
   <Step>
@@ -122,6 +126,8 @@ export async function POST(req: Request) {
 
   </Step>
 </Steps>
+
+</ManualSteps>
 
 ## LangGraph
 

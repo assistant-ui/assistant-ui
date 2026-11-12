@@ -7,136 +7,90 @@ const workflow = readFileSync(
   new URL("../.github/workflows/react18-weekly.yaml", import.meta.url),
   "utf8",
 );
-const reporter = workflow.split(
-  "      - name: Report to the tracking issue\n",
-)[1];
-const script = reporter
-  .split("          script: |\n")[1]
-  .split("\n")
-  .map((line) => line.replace(/^            /, ""))
-  .join("\n");
+const shared = readFileSync(
+  new URL("../.github/workflows/scheduled-failure-issue.yaml", import.meta.url),
+  "utf8",
+);
+const [react18, report] = workflow
+  .split("\njobs:\n")[1]
+  .split("  react18:\n")[1]
+  .split("\n  report:\n");
+const suppliedInputs = Object.fromEntries(
+  [...report.split("    with:\n")[1].matchAll(/^      (\w+): (.+)$/gm)].map(
+    ([, name, value]) => [name, value],
+  ),
+);
 
-async function report(types, tests, open = true) {
-  const calls = [];
-  const steps = { types: { outcome: types }, tests: { outcome: tests } };
-  const env = Object.fromEntries(
-    [...reporter.matchAll(/^          (\w+): \$\{\{ (.+) \}\}$/gm)].map(
-      ([, key, expression]) => [
-        key,
-        String(runInNewContext(expression, { steps })),
+test("the React 18 reporter calls the shared workflow with its declared inputs", () => {
+  const declarations = shared
+    .split("    inputs:\n")[1]
+    .split("\npermissions:\n")[0];
+  const declaredInputs = Object.fromEntries(
+    [...declarations.matchAll(/^      (\w+):\n((?:        .*\n)*)/gm)].map(
+      ([, name, body]) => [
+        name,
+        {
+          required: /^        required: true$/m.test(body),
+          type: body.match(/^        type: (\w+)$/m)?.[1],
+        },
       ],
     ),
   );
-  const issues = {
-    listForRepo: async () => ({ data: open ? [{ number: 123 }] : [] }),
-  };
-  for (const method of ["createComment", "create", "update"]) {
-    issues[method] = async (args) => {
-      calls.push({ method, ...args });
-    };
-  }
-  await runInNewContext(`(async () => {\n${script}\n})()`, {
-    github: { rest: { issues } },
-    context: {
-      serverUrl: "https://github.com",
-      repo: { owner: "fixture", repo: "fixture" },
-      runId: 456,
-    },
-    process: { env },
+  assert.deepEqual(declaredInputs, {
+    title: { required: true, type: "string" },
+    failed: { required: true, type: "boolean" },
   });
-  return calls;
-}
-
-const runUrl = "https://github.com/fixture/fixture/actions/runs/456";
-
-test("a skipped check reports failure on the open tracking issue", async () => {
-  for (const outcomes of [
-    ["skipped", "success"],
-    ["success", "skipped"],
-  ]) {
-    assert.deepEqual(await report(...outcomes), [
-      {
-        method: "createComment",
-        owner: "fixture",
-        repo: "fixture",
-        issue_number: 123,
-        body: `The weekly React 18 run failed: ${runUrl}`,
-      },
-    ]);
-  }
+  assert.match(
+    report,
+    /^    uses: \.\/\.github\/workflows\/scheduled-failure-issue\.yaml$/m,
+  );
+  assert.deepEqual(
+    Object.keys(suppliedInputs).sort(),
+    Object.keys(declaredInputs).sort(),
+  );
+  assert.equal(suppliedInputs.title, "React 18 peer tests are failing");
+  assert.equal(report.match(/^    needs: (.+)$/m)?.[1], "react18");
 });
 
-test("a failure in either check keeps the tracking issue open", async () => {
-  for (const outcomes of [
-    ["failure", "success"],
-    ["success", "failure"],
-  ]) {
-    const calls = await report(...outcomes);
-    assert.deepEqual(calls, [
-      {
-        method: "createComment",
-        owner: "fixture",
-        repo: "fixture",
-        issue_number: 123,
-        body: `The weekly React 18 run failed: ${runUrl}`,
-      },
-    ]);
-  }
-});
-
-test("both checks passing reports recovery and closes the tracking issue", async () => {
-  assert.deepEqual(await report("success", "success"), [
-    {
-      method: "createComment",
-      owner: "fixture",
-      repo: "fixture",
-      issue_number: 123,
-      body: `The weekly React 18 run passed again: ${runUrl}`,
-    },
-    {
-      method: "update",
-      owner: "fixture",
-      repo: "fixture",
-      issue_number: 123,
-      state: "closed",
-    },
-  ]);
-});
-
-test("a failed or incomplete run opens a tracking issue when none exists", async () => {
-  for (const outcomes of [
-    ["success", "failure"],
-    ["skipped", "success"],
-    ["success", "skipped"],
-  ]) {
-    const calls = await report(...outcomes, false);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].method, "create");
-    assert.equal(calls[0].title, "React 18 peer tests are failing");
-    assert.equal(
-      calls[0].body,
-      `The weekly React 18 run failed: ${runUrl}\n\nThe next passing weekly run closes this issue.`,
-    );
-    assert.deepEqual(Array.from(calls[0].labels), ["react18-weekly"]);
-  }
-});
-
-test("a passing run without a tracking issue makes no writes", async () => {
-  assert.deepEqual(await report("success", "success", false), []);
-});
-
-test("only uncancelled scheduled runs report to the tracking issue", () => {
-  const condition = reporter.match(/        if: \$\{\{ (.+) \}\}/)[1];
+test("only uncancelled scheduled runs call the reporter", () => {
+  const condition = report.match(/^    if: \$\{\{ (.+) \}\}$/m)?.[1];
+  assert.ok(condition);
   for (const [event, cancelled, expected] of [
     ["schedule", false, true],
     ["schedule", true, false],
     ["workflow_dispatch", false, false],
+    ["pull_request", false, false],
   ]) {
     assert.equal(
       runInNewContext(condition, {
         github: { event_name: event },
         cancelled: () => cancelled,
       }),
+      expected,
+    );
+  }
+});
+
+test("only the reporting job can write issues", () => {
+  const header = workflow.split("\njobs:\n")[0];
+  assert.match(header, /^permissions:\n  contents: read$/m);
+  assert.doesNotMatch(header, /issues: write/);
+  assert.match(react18, /^      - name: Install dependencies$/m);
+  assert.doesNotMatch(react18, /issues: write/);
+  assert.match(report, /^    permissions:\n      issues: write$/m);
+});
+
+test("a failed or incomplete React 18 job reports failure and a successful job reports recovery", () => {
+  const expression = suppliedInputs.failed.match(/^\$\{\{ (.+) \}\}$/)?.[1];
+  assert.ok(expression);
+  for (const [result, expected] of [
+    ["success", false],
+    ["failure", true],
+    ["skipped", true],
+    ["cancelled", true],
+  ]) {
+    assert.equal(
+      runInNewContext(expression, { needs: { react18: { result } } }),
       expected,
     );
   }

@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { accountsOptions, getAccessToken } from "@/lib/accounts-auth";
 import { listCloudProjects, type CloudProject } from "@/lib/cloud-projects";
+import { isSetupAppRequest, setupCorsHeaders } from "@/lib/setup-origin";
 
 export type CloudProjectsPayload = { projects: CloudProject[] };
 
 export async function GET(request: Request) {
-  const headers = { "Cache-Control": "no-store" };
+  const headers = { "Cache-Control": "no-store", ...setupCorsHeaders(request) };
   const fetchSite = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");
   const sameOrigin =
     fetchSite !== null
       ? fetchSite === "same-origin"
       : origin !== null && origin === new URL(request.url).origin;
-  if (!sameOrigin) {
+  if (!sameOrigin && !isSetupAppRequest(request)) {
     return new Response(null, { status: 403, headers });
   }
 

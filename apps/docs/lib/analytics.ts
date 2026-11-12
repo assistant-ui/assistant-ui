@@ -1,4 +1,3 @@
-import type { WizardPageId } from "@/components/pages/shop/setup-wizard-page";
 import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
 import type { WebMcpToolName } from "@/lib/webmcp-tools";
 
@@ -37,21 +36,6 @@ const getVercelTrack = () => {
 
 export type AnalyticsProperties = Record<string, string | number | boolean>;
 
-/** Where a visitor opened a setup session: the Quick Start dialog, an AgentSetup banner on a docs page, the cart, or an example bundle page. */
-export type SetupSource = "start_dialog" | "agent_setup" | "cart" | "bundle";
-
-/** The cart surface whose Start setup button moved the cart into a session. */
-export type CartCheckoutLocation =
-  | "cart_page"
-  | "cart_popover"
-  | "checkout_page";
-
-export type SetupErrorReason =
-  | "connection_lost"
-  | "agent_disconnected"
-  | "session_unreadable"
-  | "answer_failed";
-
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
@@ -60,6 +44,24 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
 
   // Vercel Analytics
   void getVercelTrack().then((track) => track?.(event, properties));
+};
+
+/**
+ * Tracks an event right before the page navigates away. PostHog flushes its
+ * queue on pagehide, but the Vercel tracker loads lazily, so this waits for it
+ * (at most `timeoutMs`) before resolving.
+ */
+const trackEventBeforeLeaving = (
+  event: string,
+  properties: AnalyticsProperties,
+  timeoutMs = 300,
+): Promise<void> => {
+  if (typeof window === "undefined") return Promise.resolve();
+  window.posthog?.capture?.(event, properties);
+  return Promise.race([
+    getVercelTrack().then((track) => track?.(event, properties)),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]).then(() => undefined);
 };
 
 export const analytics = {
@@ -72,7 +74,12 @@ export const analytics = {
         | "start_setup_agent"
         | "start_setup_manual",
       location: string,
-    ) => trackEvent("cta_clicked", { cta, location }),
+      properties?: AnalyticsProperties,
+    ) => trackEvent("cta_clicked", { ...properties, cta, location }),
+
+    /** The setup prompt's dropdown (copy prompt / manual steps) was opened. */
+    setupMenuOpened: (location: string) =>
+      trackEvent("setup_menu_opened", { location }),
 
     npmCommandCopied: (
       command = "npx assistant-ui init",
@@ -83,6 +90,16 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
+  contactSales: {
+    /** The demo form passed validation and is handing off to the cal.com booking. Carries no contact details; resolves once it is safe to navigate. */
+    submitted: (props: {
+      company_size: string;
+      role: string;
+      referral: string;
+      personal_email: boolean;
+    }) => trackEventBeforeLeaving("contact_sales_submitted", props),
+  },
+
   demo: {
     budgetExhausted: (signedIn: boolean, limit: number) =>
       trackEvent("demo_budget_exhausted", { signed_in: signedIn, limit }),
@@ -91,72 +108,6 @@ export const analytics = {
       trackEvent("demo_sign_in_clicked", { location }),
 
     signedIn: (location: string) => trackEvent("demo_signed_in", { location }),
-  },
-
-  shop: {
-    cartToggled: (product: string, added: boolean) =>
-      trackEvent("shop_cart_toggled", { product, added }),
-
-    checkoutStarted: (props: {
-      cart_size: number;
-      products: string;
-      location: CartCheckoutLocation;
-    }) => trackEvent("shop_checkout_started", props),
-  },
-
-  setup: {
-    sessionStarted: (props: {
-      source: SetupSource;
-      location?: string;
-      products: string;
-      product_count: number;
-    }) => trackEvent("setup_session_started", props),
-
-    stepViewed: (props: {
-      step: WizardPageId;
-      step_index: number;
-      ms_on_previous_step?: number;
-    }) => trackEvent("setup_step_viewed", props),
-
-    inputAnswered: (props: {
-      kind: string;
-      skipped: boolean;
-      model_provider?: string;
-    }) => trackEvent("setup_input_answered", props),
-
-    cloudProjectPicked: (props: {
-      choice: "existing" | "another" | "sign_in_clicked";
-      project_count: number;
-      org_count?: number;
-    }) => trackEvent("setup_cloud_project_picked", props),
-
-    /** Associates the visitor's later events with an Assistant Cloud project through PostHog group analytics; a no-op while PostHog is not running. */
-    projectGroup: (projectId: string) => {
-      if (typeof window === "undefined") return;
-      window.posthog?.group?.("project", projectId);
-    },
-
-    productProposed: (product: string) =>
-      trackEvent("setup_product_proposed", { product, by: "agent" }),
-
-    productAccepted: (product: string) =>
-      trackEvent("setup_product_accepted", { product, by: "agent" }),
-
-    productDeclined: (product: string) =>
-      trackEvent("setup_product_declined", {
-        product,
-        by: "agent",
-        reason: "unknown_product",
-      }),
-
-    error: (props: { reason: SetupErrorReason; step?: WizardPageId }) =>
-      trackEvent("setup_error", props),
-
-    agentConnected: () => trackEvent("setup_agent_connected"),
-
-    installFinished: () => trackEvent("setup_install_finished"),
-
-    cancelled: () => trackEvent("setup_cancelled"),
   },
 
   search: {

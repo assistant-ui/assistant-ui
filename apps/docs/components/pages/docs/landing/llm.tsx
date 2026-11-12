@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { GROUPS } from "@/components/pages/docs/landing/quick-links";
 import { RUNTIMES } from "@/components/pages/docs/landing/runtime-grid";
 import { SURFACES } from "@/components/pages/docs/landing/surface-grid";
@@ -8,6 +9,13 @@ import {
   PLATFORM_QUICKSTART_COMMANDS,
 } from "@/lib/docs-platform";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
+import {
+  AGENT_SETUP_HINT,
+  AGENT_SETUP_PROMPT,
+  agentSetupLine,
+  pageSetupPreamble,
+} from "@/lib/agent-setup-prompt";
+import { getCatalogItem } from "@/lib/catalog";
 
 /**
  * Text equivalents for the landing components. The interactive versions render
@@ -15,12 +23,31 @@ import type { LLMRenderContext } from "@/lib/get-llm-text";
  * markdown for `.md`, `llms.txt` and the MCP docs server.
  */
 
+/** `text` with its backtick spans as <code>, so the markdown keeps them as code instead of escaping the backticks. */
+const withInlineCode = (text: string) =>
+  text
+    .split("`")
+    .map((part, i) => (i % 2 === 1 ? <code key={i}>{part}</code> : part));
+
 export const QuickstartLLM = (
   _props: Record<string, never>,
   ctx?: LLMRenderContext,
 ) => {
   const platform =
     ctx?.platform && isSurface(ctx.platform) ? ctx.platform : DEFAULT_PLATFORM;
+  if (platform === "react")
+    return (
+      <>
+        <p>
+          Ask your coding agent to <code>{AGENT_SETUP_PROMPT}</code>.
+        </p>
+        <p>{withInlineCode(AGENT_SETUP_HINT)}</p>
+        <p>
+          To install by hand, follow the{" "}
+          <a href="/docs/manual-installation">manual installation guide</a>.
+        </p>
+      </>
+    );
   return (
     <>
       <pre>{PLATFORM_QUICKSTART_COMMANDS[platform]}</pre>
@@ -34,6 +61,37 @@ export const QuickstartLLM = (
     </>
   );
 };
+
+/** The installation page's prompt, with what the agent runs for it. */
+export const AgentSetupPromptLLM = () => (
+  <>
+    <pre>{AGENT_SETUP_PROMPT}</pre>
+    <p>{withInlineCode(AGENT_SETUP_HINT)}</p>
+  </>
+);
+
+/** A guide's setup for agents: the setup command for its product, then the manual steps that follow. */
+export const AgentSetupLLM = ({
+  product,
+  section = false,
+}: {
+  product: string;
+  section?: boolean;
+}) => {
+  const item = getCatalogItem(product);
+  if (!item) return null;
+  // A Setup section is followed by its manual steps; the banner variant
+  // sits above whatever the page explains, so it names only the command.
+  const text = section
+    ? pageSetupPreamble([item.slug])
+    : agentSetupLine([item.slug]);
+  return <p>{withInlineCode(text)}</p>;
+};
+
+/** The manual steps stay in the markdown in full, never collapsed. */
+export const ManualStepsLLM = ({ children }: { children?: ReactNode }) => (
+  <>{children}</>
+);
 
 export const SurfaceGridLLM = () => (
   <ul>

@@ -1,1 +1,2 @@
+#!/bin/sh
 . "$(dirname "$0")/global-hook"

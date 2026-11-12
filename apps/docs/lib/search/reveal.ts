@@ -62,6 +62,25 @@ function whenScrollSettles(origin: number, run: () => void): () => void {
   );
 }
 
+/**
+ * Content hidden with `hidden="until-found"` (collapsed manual steps) opens
+ * on `beforematch`, which the browser fires for find-in-page but not for a
+ * scripted scroll. Fire it for the match's collapsed ancestors.
+ */
+function revealCollapsedAncestors(element: HTMLElement): void {
+  for (
+    let node = element.parentElement?.closest<HTMLElement>("[hidden]");
+    node;
+    node = node.parentElement?.closest<HTMLElement>("[hidden]")
+  ) {
+    if (node.getAttribute("hidden") === "until-found")
+      node.dispatchEvent(new Event("beforematch"));
+  }
+}
+
+const isCollapsed = (element: HTMLElement) =>
+  element.closest('[hidden="until-found"]') !== null;
+
 export function clearSearchMark(): void {
   clearMark?.();
 }
@@ -83,6 +102,7 @@ export function revealPageMatch(
 ): void {
   cancelPending?.();
   clearSearchMark();
+  revealCollapsedAncestors(element);
 
   /**
    * A dialog holds the page scroll while it closes: the document is clamped to
@@ -90,7 +110,7 @@ export function revealPageMatch(
    * scroll issued before then is discarded.
    */
   cancelPending = waitFor(
-    () => !isPageScrollLocked(),
+    () => !isPageScrollLocked() && !isCollapsed(element),
     UNLOCK_FRAME_BUDGET,
     () => {
       cancelPending = undefined;

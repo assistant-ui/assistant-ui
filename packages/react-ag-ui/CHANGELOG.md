@@ -1,5 +1,26 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.8
+
+### Patch Changes
+
+- [#10422](https://github.com/assistant-ui/assistant-ui/pull/10422) [`75c0162`](https://github.com/assistant-ui/assistant-ui/commit/75c0162c3426fa930a7b70b43c22a7d94796b7b1) - feat: rejoin an in-flight run through `agent.connect()` when a thread loads or is switched to with `unstable_resume` and the history adapter has no `resume()`; leaving such a thread detaches from the run instead of aborting it ([@Yonom](https://github.com/Yonom))
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [[`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2)]:
+  - @assistant-ui/generative-ui@0.0.11
+
+## 0.1.6
+
+### Patch Changes
+
+- [#10461](https://github.com/assistant-ui/assistant-ui/pull/10461) [`437b410`](https://github.com/assistant-ui/assistant-ui/commit/437b410726e283798ff3b61b0f4209129225e2fa) - Route AG-UI events to the assistant message they name after a messages snapshot moves the head, so later text, tool calls, results, and sub-agent output stay on the earlier answer, and an answer cut off by a disconnect settles as incomplete. ([@okisdev](https://github.com/okisdev))
+
+- [#10429](https://github.com/assistant-ui/assistant-ui/pull/10429) [`21f88ce`](https://github.com/assistant-ui/assistant-ui/commit/21f88ceebbe09250ce27160796a92cb0f5f14f47) - Keep an assistant answer running when a later snapshot adds a tool call to the current head. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.1.5
 
 ### Patch Changes

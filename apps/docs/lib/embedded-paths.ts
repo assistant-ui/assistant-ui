@@ -9,5 +9,5 @@ export const EMBEDDED_PATHS: readonly string[] = [
 ];
 
 export function isAssistantHiddenPath(pathname: string): boolean {
-  return pathname === "/components/setup" || EMBEDDED_PATHS.includes(pathname);
+  return EMBEDDED_PATHS.includes(pathname);
 }

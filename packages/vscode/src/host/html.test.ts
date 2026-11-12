@@ -141,6 +141,15 @@ describe("createWebviewCsp", () => {
       createWebviewCsp(webview, { nonce: "n' 'unsafe-inline" }),
     ).toThrow(/nonce/);
   });
+
+  it("rejects a source list passed as one scriptSrc entry", () => {
+    expect(() =>
+      createWebviewCsp(webview, {
+        nonce: "n",
+        scriptSrc: ["'self' https://*.vscode-cdn.net"],
+      }),
+    ).toThrow(/script-src source.*one host or scheme source per entry/);
+  });
 });
 
 describe("createCspNonce", () => {
