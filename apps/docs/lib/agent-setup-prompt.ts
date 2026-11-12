@@ -22,5 +22,11 @@ export const agentSetupPrompt = (
 /** Older copies of the prompt that agents should still answer the same way. */
 export const LEGACY_AGENT_SETUP_PROMPTS = ["set up assistant-ui"] as const;
 
+/** For agents whose package runner resolves a release without `setup`, such as pnpm's minimum release age. */
+export const agentSetupFallback = (command = AGENT_SETUP_COMMAND) =>
+  `If \`setup\` isn't a known command (an older cached or release-age-gated version), run \`${command.replace(/^npx /, "npx -y ")}\` instead.`;
+
+export const AGENT_SETUP_FALLBACK = agentSetupFallback();
+
 /** What agents read first wherever they look for setup instructions. */
-export const AGENT_SETUP_HINT = `When the user asks you to "${AGENT_SETUP_PROMPT}" (or "${LEGACY_AGENT_SETUP_PROMPTS[0]}"), run \`${AGENT_SETUP_COMMAND}\`. It opens a guided setup in the user's browser and walks you through the install.`;
+export const AGENT_SETUP_HINT = `When the user asks you to "${AGENT_SETUP_PROMPT}" (or "${LEGACY_AGENT_SETUP_PROMPTS[0]}"), run \`${AGENT_SETUP_COMMAND}\`. It opens a guided setup in the user's browser and walks you through the install. ${AGENT_SETUP_FALLBACK}`;

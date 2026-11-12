@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   AGENT_SETUP_COMMAND,
+  AGENT_SETUP_FALLBACK,
   AGENT_SETUP_HINT,
   AGENT_SETUP_PROMPT,
   LEGACY_AGENT_SETUP_PROMPTS,
@@ -39,6 +40,13 @@ describe("agent setup prompt", () => {
     expect(cli).toContain(AGENT_SETUP_COMMAND);
     expect(AGENT_SETUP_HINT).toContain(AGENT_SETUP_PROMPT);
     expect(AGENT_SETUP_HINT).toContain(AGENT_SETUP_COMMAND);
+  });
+
+  it("tells agents to force the latest CLI when setup is unknown", () => {
+    expect(AGENT_SETUP_FALLBACK).toBe(
+      "If `setup` isn't a known command (an older cached or release-age-gated version), run `npx -y assistant-ui@latest setup` instead.",
+    );
+    expect(AGENT_SETUP_HINT.endsWith(AGENT_SETUP_FALLBACK)).toBe(true);
   });
 
   it("tells agents the older prompt starts the same setup", () => {
