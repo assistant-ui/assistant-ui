@@ -186,7 +186,7 @@ const remarkPlugins = [remarkGfm, remarkMath];
 const NO_REHYPE_PLUGINS: PluggableList = [];
 let katexPlugins: PluggableList | null = null;
 let katexLoad: Promise<PluggableList> | null = null;
-const loadKatexPlugins = () => {
+export const loadKatexPlugins = () => {
   katexLoad ??= import("rehype-katex").then(
     (mod) => {
       katexPlugins = [mod.default];
