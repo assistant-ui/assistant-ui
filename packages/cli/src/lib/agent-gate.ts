@@ -41,9 +41,13 @@ export const isInsideFolder = (dir: string, root: string) => {
 const hash = (value: string, length: number) =>
   createHash("sha256").update(value).digest("hex").slice(0, length);
 
+/** The start of every marker name this OS user's setups write. */
+const userMarkerPrefix = () =>
+  `assistant-ui-setup-${process.getuid?.() ?? "user"}-`;
+
 /** The start of every marker name for setups in the project folder `project`. */
 const markerPrefix = (project: string) =>
-  `assistant-ui-setup-${process.getuid?.() ?? "user"}-${hash(realPath(project), 16)}-`;
+  `${userMarkerPrefix()}${hash(realPath(project), 16)}-`;
 
 /**
  * Where `setup` notes that the setup session `setupId` is active for the
@@ -82,9 +86,31 @@ export const markSetupSession = (
   };
   try {
     fs.writeFileSync(file, JSON.stringify(marker), { mode: 0o600 });
-    return file;
   } catch {
     return undefined;
+  }
+  removeExpiredMarkers(dir, marker.startedAt);
+  return file;
+};
+
+/**
+ * Deletes this user's markers that are past the TTL, left behind by setups
+ * that were killed before they could remove their own.
+ */
+const removeExpiredMarkers = (dir: string, now: number) => {
+  let names: string[];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return;
+  }
+  const prefix = userMarkerPrefix();
+  for (const name of names) {
+    if (!name.startsWith(prefix) || !name.endsWith(".json")) continue;
+    const file = path.join(dir, name);
+    const marker = readMarker(file);
+    if (marker !== undefined && now - marker.startedAt > SETUP_SESSION_TTL_MS)
+      clearSetupSession(file);
   }
 };
 

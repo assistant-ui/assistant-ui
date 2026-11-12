@@ -127,6 +127,27 @@ describe("the setup session marker", () => {
     expect(active(project, start + SETUP_SESSION_TTL_MS + 1)).toBe(false);
   });
 
+  it("sweeps expired markers left by killed setups when a new setup starts", () => {
+    const start = Date.now();
+    const other = path.join(dir, "other");
+    fs.mkdirSync(other);
+    const stale = markSetupSession(
+      { setupId: "stale", cwd: other, now: start - SETUP_SESSION_TTL_MS - 1 },
+      dir,
+    )!;
+    const live = markSetupSession(
+      { setupId: "live", cwd: other, now: start - 1000 },
+      dir,
+    )!;
+    const unrelated = path.join(dir, "unrelated.json");
+    fs.writeFileSync(unrelated, "{}");
+    expect(fs.existsSync(stale)).toBe(true);
+    markSetupSession({ setupId: "new", cwd: project, now: start }, dir);
+    expect(fs.existsSync(stale)).toBe(false);
+    expect(fs.existsSync(live)).toBe(true);
+    expect(fs.existsSync(unrelated)).toBe(true);
+  });
+
   it("is scoped to the project folder setup ran in and the folders inside it", () => {
     fs.mkdirSync(path.join(project, "my-app"));
     fs.mkdirSync(path.join(project, "..cache"));
