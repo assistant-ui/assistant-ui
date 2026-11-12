@@ -6,6 +6,7 @@ import {
   readCloudInteger,
   readCloudJSONObject,
   readCloudNullableString,
+  readCloudNumber,
   readCloudRecord,
   readCloudString,
   readCloudTimestamp,
@@ -20,6 +21,21 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
+  /** Present on a message that had a run lease: its running lease, or else its latest ended one. */
+  run?: CloudMessageRun | undefined;
+};
+
+export type CloudMessageRun = {
+  /** A lease runs until its holder ends it; the server never expires one. */
+  status: "running" | "ended";
+  /** Time since the lease's last heartbeat, measured by the server when it listed the message. */
+  last_heartbeat_ms_ago: number;
+};
+
+/** A run lease the server granted. */
+export type CloudRunLease = {
+  lease_id: string;
+  heartbeat_interval_ms: number;
 };
 
 type AssistantCloudThreadMessageListQuery = {
@@ -38,15 +54,51 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
+  /** Opens a run lease on the stored message in the same request. */
+  open_run?: true | undefined;
+  /** Writes the message with `external_id` as the holder of this lease. */
+  lease_id?: string | undefined;
 };
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
+  /** Set when `open_run` opened a lease. */
+  run?: CloudRunLease | undefined;
 };
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
+  /** Writes as the holder of this run lease, which renews it. */
+  lease_id?: string | undefined;
 };
+
+const RUN_STATUSES = ["running", "ended"] as const;
+
+const decodeCloudMessageRun = (
+  value: unknown,
+  field: string,
+): CloudMessageRun | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const run = readCloudRecord(value, field);
+  return {
+    status: readCloudEnum(run.status, `${field}.status`, RUN_STATUSES),
+    last_heartbeat_ms_ago: readCloudNumber(
+      run.last_heartbeat_ms_ago,
+      `${field}.last_heartbeat_ms_ago`,
+    ),
+  };
+};
+
+/** Reads the lease fields of a response that granted or renewed one. */
+const decodeCloudRunLease = (
+  response: Record<string, unknown>,
+): CloudRunLease => ({
+  lease_id: readCloudString(response.lease_id, "lease_id"),
+  heartbeat_interval_ms: readCloudNumber(
+    response.heartbeat_interval_ms,
+    "heartbeat_interval_ms",
+  ),
+});
 
 const MESSAGE_FEEDBACK_TYPES = ["positive", "negative"] as const;
 
@@ -78,6 +130,9 @@ export const decodeCloudMessage = (
       message.external_id ?? null,
       `${field}.external_id`,
     ),
+    ...(message.run !== undefined && message.run !== null
+      ? { run: decodeCloudMessageRun(message.run, `${field}.run`) }
+      : undefined),
   };
 };
 
@@ -127,6 +182,10 @@ export class AssistantCloudThreadMessages {
             ...(body.parent_external_id !== undefined
               ? { parent_external_id: body.parent_external_id }
               : undefined),
+            ...(body.open_run ? { open_run: true } : undefined),
+            ...(body.lease_id !== undefined
+              ? { lease_id: body.lease_id }
+              : undefined),
           },
         },
       ),
@@ -135,6 +194,9 @@ export class AssistantCloudThreadMessages {
 
     return {
       message_id: readCloudString(response.message_id, "message_id"),
+      ...(response.lease_id !== undefined
+        ? { run: decodeCloudRunLease(response) }
+        : undefined),
     };
   }
 

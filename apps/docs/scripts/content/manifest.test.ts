@@ -322,3 +322,39 @@ it("escapes source literals while preserving authored metadata and filenames", a
     { heading: "literal-markup", content: "Use `</script><script>` as text." },
   ]);
 });
+
+it("imports only recorded pages in lite mode and keeps every page listed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  const directory = join(root, "content/docs");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "index.mdx"), "---\ntitle: Welcome\n---\nA.");
+  await writeFile(join(directory, "other.mdx"), "---\ntitle: Other\n---\nB.");
+  const generated = () => readFile(join(root, ".source/content.ts"), "utf8");
+
+  await generateContentManifest(root, { onDemand: true });
+  expect(await generated()).not.toContain('import("../content/docs/');
+  expect(await generated()).toContain(
+    'module.pendingPage("docs", "other.mdx")',
+  );
+  expect(await generated()).toContain('"title":"Other"');
+  expect(
+    readSearchModule(
+      await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
+    ),
+  ).toHaveProperty("other.mdx");
+
+  await writeFile(
+    join(root, ".source/lite-pages.json"),
+    JSON.stringify(["docs/other.mdx"]),
+  );
+  await generateContentManifest(root, { onDemand: true });
+  expect(await generated()).toContain('import("../content/docs/other.mdx")');
+  expect(await generated()).toContain(
+    'module.pendingPage("docs", "index.mdx")',
+  );
+
+  await generateContentManifest(root);
+  expect(await generated()).toContain('import("../content/docs/index.mdx")');
+  expect(await generated()).not.toContain("pendingPage");
+});

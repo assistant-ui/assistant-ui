@@ -5,7 +5,6 @@ import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 import {
   highlightElementSource,
@@ -22,6 +21,7 @@ import {
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
+import { ElementStatesPreview } from "@/components/pages/elements/element-states";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
 import { AgentSetup } from "@/components/shared/shop-entry";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -262,11 +262,16 @@ export default async function ElementPage({
             </NativeLane>
           )}
           <ReactLane>
-            <Figure
+            <ElementStatesPreview
+              key={element.slug}
+              slug={element.slug}
               caption={
                 replayable
                   ? "fig. 01 · plays once, replay from the corner"
                   : "fig. 01"
+              }
+              canvasClassName={
+                element.generative ? "min-h-[400px] py-10" : "h-[360px]"
               }
             >
               {element.variants ? (
@@ -283,7 +288,7 @@ export default async function ElementPage({
                   </DemoStage>
                 </div>
               )}
-            </Figure>
+            </ElementStatesPreview>
           </ReactLane>
 
           <article className="docs-prose prose mt-12 max-w-none">
@@ -308,31 +313,27 @@ export default async function ElementPage({
                   </NativeLane>
                 )}
                 <ReactLane>
-                  {checkoutEnabled ? (
-                    <>
-                      <AgentSetup
-                        product={elementProductSlug(element.slug)}
-                        prominent
-                      />
-                      <details className="group/manual">
-                        <summary
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" }),
-                            "not-prose cursor-pointer list-none [&::-webkit-details-marker]:hidden",
-                          )}
-                        >
-                          Install manually
-                          <ChevronDownIcon
-                            aria-hidden
-                            className="transition-[rotate] group-open/manual:rotate-180 motion-reduce:transition-none"
-                          />
-                        </summary>
-                        <div className="mt-6">{manualInstall}</div>
-                      </details>
-                    </>
-                  ) : (
-                    manualInstall
-                  )}
+                  <>
+                    <AgentSetup
+                      product={elementProductSlug(element.slug)}
+                      prominent
+                    />
+                    <details className="group/manual">
+                      <summary
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "not-prose cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                        )}
+                      >
+                        Install manually
+                        <ChevronDownIcon
+                          aria-hidden
+                          className="transition-[rotate] group-open/manual:rotate-180 motion-reduce:transition-none"
+                        />
+                      </summary>
+                      <div className="mt-6">{manualInstall}</div>
+                    </details>
+                  </>
                 </ReactLane>
               </div>
             </section>

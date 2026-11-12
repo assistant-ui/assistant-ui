@@ -357,7 +357,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Edit a sent message",
         description:
-          "Rewrite a turn in place, told up front how many replies the edit throws away.",
+          "Rewrite a turn in place as a new branch, told up front how many replies stay behind on the old one.",
         file: "edit-message.tsx",
         Component: EditMessageDemo,
       },

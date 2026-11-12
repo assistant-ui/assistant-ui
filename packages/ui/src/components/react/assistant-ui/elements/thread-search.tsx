@@ -233,7 +233,9 @@ export function ThreadSearch({
           role="status"
           className="text-muted-foreground px-2 py-4 text-center text-xs"
         >
-          No thread matches “{query}”
+          {threads.length === 0
+            ? "No threads yet"
+            : `No thread matches “${query}”`}
         </span>
       )}
     </div>

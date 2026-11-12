@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useRef, type ComponentProps } from "react";
 import { CopyIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, paper } from "./surfaces";
@@ -31,6 +31,7 @@ export function MessagePair({
   ...props
 }: MessagePairProps) {
   const shown = take(words, visibleWords);
+  const replyRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -49,7 +50,11 @@ export function MessagePair({
       >
         {userMessage}
       </p>
-      <div className="group/message flex flex-col items-start">
+      <div
+        ref={replyRef}
+        tabIndex={-1}
+        className="group/message focus-visible:ring-foreground/20 flex flex-col items-start rounded-lg outline-none focus-visible:ring-1"
+      >
         <p className="min-h-[4.25rem] text-sm leading-relaxed">
           {shown.map((word, index) => {
             const fresh = streaming && shown.length - 1 - index < 2;
@@ -78,8 +83,8 @@ export function MessagePair({
           )}
         </p>
         {(onCopy || onRegenerate) && (
-          <div className="flex items-center gap-1 pt-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none">
-            {onCopy && (
+          <div className="flex min-h-8 items-center gap-1 pt-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none">
+            {!streaming && onCopy && (
               <button
                 type="button"
                 aria-label="Copy response"
@@ -89,11 +94,15 @@ export function MessagePair({
                 <CopyIcon className="size-3.5" />
               </button>
             )}
-            {onRegenerate && (
+            {!streaming && onRegenerate && (
               <button
                 type="button"
                 aria-label="Regenerate response"
-                onClick={onRegenerate}
+                onClick={() => {
+                  // Streaming unmounts this button, so keep focus in the reply.
+                  replyRef.current?.focus();
+                  onRegenerate();
+                }}
                 className={cn(ghostButton, "size-7")}
               >
                 <RefreshCwIcon className="size-3.5" />

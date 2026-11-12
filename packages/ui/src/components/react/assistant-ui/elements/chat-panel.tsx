@@ -27,7 +27,7 @@ export function ChatPanelMessages({
     <div
       data-slot="chat-panel-messages"
       className={cn(
-        "flex flex-1 flex-col justify-end gap-2.5 overflow-y-auto p-4",
+        "flex flex-1 flex-col gap-2.5 overflow-y-auto p-4 *:first:mt-auto",
         className,
       )}
       {...props}

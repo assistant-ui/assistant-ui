@@ -2,6 +2,7 @@
 
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { FrameworkProvider } from "fumadocs-core/framework";
 import { afterEach, expect, it, vi } from "vitest";
 import { DocsPageContent } from "./page-content";
 
@@ -21,10 +22,6 @@ const context = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("next/navigation", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/navigation")>()),
-  usePathname: () => "/guide",
-}));
 vi.mock("fumadocs-ui/contexts/tree", async (importOriginal) => ({
   ...(await importOriginal<typeof import("fumadocs-ui/contexts/tree")>()),
   useTreeContext: () => ({ root: context.tree, full: context.tree }),
@@ -50,15 +47,21 @@ it("keeps localized actions attached when the framework replaces the page header
   try {
     await act(async () => {
       root.render(
-        <DocsPageContent
-          name="Project"
-          github={undefined}
-          editUrl={undefined}
-          mcpUrl={undefined}
-          footer={undefined}
+        <FrameworkProvider
+          usePathname={() => "/guide"}
+          useParams={() => ({})}
+          useRouter={() => ({ push: vi.fn(), refresh: vi.fn() })}
         >
-          <p>Content</p>
-        </DocsPageContent>,
+          <DocsPageContent
+            name="Project"
+            github={undefined}
+            editUrl={undefined}
+            mcpUrl={undefined}
+            footer={undefined}
+          >
+            <p>Content</p>
+          </DocsPageContent>
+        </FrameworkProvider>,
       );
     });
     expect(

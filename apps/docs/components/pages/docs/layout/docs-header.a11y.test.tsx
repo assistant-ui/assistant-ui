@@ -45,7 +45,6 @@ vi.mock("@/components/shared/more-dropdown", () => ({
 vi.mock("@/components/pages/docs/platform/switcher", () => ({
   PlatformSwitcher: () => null,
 }));
-vi.mock("@/components/shared/shop-entry", () => ({ CartButton: () => null }));
 
 const tree = { name: "Docs", children: [] };
 

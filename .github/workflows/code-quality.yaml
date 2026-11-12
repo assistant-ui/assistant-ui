@@ -54,13 +54,14 @@ on:
       - "scripts/checkout-worker-release.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
-      - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/vscode-test-bed.test.mjs"
       - ".github/workflows/vscode-test-bed.yaml"
-      - "scripts/react18-weekly.test.mjs"
-      - ".github/workflows/react18-weekly.yaml"
+      - "scripts/root-install-selection.test.mjs"
+      - ".github/workflows/perf.yaml"
+      - ".github/workflows/perf-nightly.yaml"
+      - ".github/workflows/template-metrics.yaml"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
@@ -70,6 +71,10 @@ on:
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/typecheck.sh"
+      - "scripts/react18-weekly.test.mjs"
+      - ".github/workflows/react18-weekly.yaml"
+      - "scripts/scheduled-failure-issue.test.mjs"
+      - ".github/workflows/scheduled-failure-issue.yaml"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
       - "turbo.json"
@@ -108,7 +113,7 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-buildutils --ignore-scripts
+        run: pnpm install --frozen-lockfile --filter "{.}..." --filter @assistant-ui/x-buildutils --ignore-scripts
 
       - name: Run oxlint + oxfmt
         run: pnpm lint
@@ -163,8 +168,8 @@ jobs:
       - name: Test VS Code workflow input coverage
         run: node --test scripts/vscode-test-bed.test.mjs
 
-      - name: Test React 18 tracking issue reporting
-        run: node --test scripts/react18-weekly.test.mjs
+      - name: Test root install selection
+        run: node --test scripts/root-install-selection.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
@@ -189,6 +194,9 @@ jobs:
 
       - name: Verify adapters avoid banned state patterns
         run: node scripts/check-adapter-architecture.mjs
+
+      - name: Test scheduled failure issue reporting
+        run: node --test scripts/scheduled-failure-issue.test.mjs scripts/react18-weekly.test.mjs
 
   knip:
     name: Knip
@@ -300,7 +308,7 @@ jobs:
             plan=$(node scripts/update-api-surface.mjs --base "$BASE" --print-filters)
             mapfile -t filters < <(jq -r 'if length == 0 then "--filter=./packages/*..." else .[] | "--filter=\(.)..." end' <<< "$plan")
             pnpm install --frozen-lockfile \
-              --filter="." \
+              --filter="{.}..." \
               --filter="@assistant-ui/api-surface" \
               --filter="@assistant-ui/react-devtools..." \
               --filter="@assistant-ui/x-buildutils..." \
@@ -453,6 +461,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/prepare-ci-base.mjs
 
+      - name: Setup pnpm for app build planning
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+
       - name: Detect app build inputs
         id: app_build_inputs
         env:
@@ -465,13 +479,16 @@ jobs:
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
             git diff --name-only --no-renames -z "$BASE" HEAD > "$RUNNER_TEMP/app-build-changes"
             run=$(node scripts/app-build-inputs.mjs < "$RUNNER_TEMP/app-build-changes")
-            bundles=$(node scripts/app-build-inputs.mjs --bundles < "$RUNNER_TEMP/app-build-changes")
+            if [ "$run" = false ] && [ "$(node scripts/app-build-inputs.mjs --packages < "$RUNNER_TEMP/app-build-changes")" = true ]; then
+              run=$(node scripts/ci-has-tasks.mjs --plan build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*") || run=true
+              if [ "$run" = false ]; then
+                run=$(node scripts/ci-has-tasks.mjs --plan build --filter="{./examples/*}[$BASE]") || run=true
+              fi
+            fi
           else
             run=true
-            bundles=true
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
-          echo "bundles=$bundles" >> "$GITHUB_OUTPUT"
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Test app build input detector
@@ -484,15 +501,31 @@ jobs:
         run: node --test scripts/source-mapped-tsconfigs.test.mjs
 
       - name: Setup pnpm and node.js
-        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
+        if: steps.app_build_inputs.outputs.run == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
-        if: steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true'
+        if: steps.app_build_inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Restore main's coverage Turbo cache, shard 0
+        if: github.event_name == 'pull_request' && steps.app_build_inputs.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
+
+      - name: Restore main's coverage Turbo cache, shard 1
+        if: github.event_name == 'pull_request' && steps.app_build_inputs.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
 
       # apps/docs is excluded: its build belongs to the Vercel deployment.
       # Examples are demos, so a package change does not rebuild them; an example is built only
@@ -506,13 +539,6 @@ jobs:
         run: |
           pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*"
           pnpm turbo build --filter="{./examples/*}[$BASE]"
-
-      - name: Verify standalone example bundle contracts
-        if: steps.app_build_inputs.outputs.bundles == 'true'
-        env:
-          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
-          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
-        run: pnpm test:bundles
 
   api-reference-drift:
     name: API Reference Drift
@@ -619,7 +645,7 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$CI_BASE]..." --filter="!@assistant-ui/api-surface"
+            pnpm install --frozen-lockfile --filter "{.}..." --filter="@assistant-ui/react-devtools..." --filter="...[$CI_BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi

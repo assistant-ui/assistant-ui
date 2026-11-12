@@ -46,6 +46,33 @@ An external-store runtime never copies a message without a backend ID. It skips 
 
 The [thread detail view](/docs/cloud/dashboard/threads) renders the conversation and a **Raw** tab from the same stored tree. Its **Turns** tab joins each question to the run that answered it, while the **Activity** tab records end user events such as edits and regenerations. The page can show up to 200 messages, ordered by height and creation time, alongside the thread's run and satisfaction data.
 
+## Interrupted runs
+
+A run lives in the tab that streams it. The cloud adapter stores the assistant message as soon as its run starts and opens a run lease on it. This covers the `aui/v0` history path (the local runtime, AG-UI and external store runtimes) and the AI SDK runtime, as long as each thread message maps to one AI SDK message. While the run streams, the adapter sends heartbeats on the interval the server sets (20 seconds by default), also while the tab is in the background, and checkpoints the message content when it changed. After the runtime's settled write, the adapter ends the run with a `done`, `cancelled` or `error` reason. The endpoints are in the [Messages API reference](/docs/cloud/api/messages#run-leases).
+
+The server never expires a run. Other tabs read how long ago its last heartbeat was. A reply whose run went `staleAfter` without one (30 seconds by default) loads as interrupted, with the error code `run_stale`. That is what a run whose tab closed or lost its connection looks like. What the thread shows depends on what the reply had when it stopped:
+
+- **Without content**, the reply has `message.runState === "stale"`. `ActionBarPrimitive.Resume` deletes the empty reply and its stored row, then runs the agent again from the user message, so no branch is left beside it. A runtime that cannot delete messages starts a new branch instead.
+- **With content**, the reply is a regular error, and `message.runState` is undefined. Regenerate (`ActionBarPrimitive.Reload`) answers again on a new branch.
+
+```tsx
+const adapter = useCloudThreadListAdapter({ cloud, staleAfter: 60_000 });
+```
+
+A reply whose run is still beating loads with the code `run_in_progress` and `message.runState === "in-progress"`. The adapter re-reads it around the moment it would cross `staleAfter`, and at least every 10 seconds while it is in progress, and updates the thread in place, so the message turns into the finished answer, or into the interrupted state, without a reload. `ActionBarPrimitive.RefreshRun` re-reads it on demand, and Regenerate and Resume stay disabled while the run is live. A run that comes back late keeps writing its own message, and its reply shows as in progress again on the next read. The AI SDK runtime shows the same states, and its Refresh and polling re-read the thread through the runtime.
+
+`ErrorPrimitive.Root` exposes the same value as `data-run-state`, and `ActionBarPrimitive.Root` with `hideWhenRunning` hides while another tab writes the reply.
+
+```tsx
+<MessagePrimitive.Error>
+  <ErrorPrimitive.Root className="data-[run-state=stale]:bg-amber-50">
+    <ErrorPrimitive.Message />
+    <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
+    <ActionBarPrimitive.RefreshRun>Refresh</ActionBarPrimitive.RefreshRun>
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```
+
 ## From your code
 
 The client exposes list, create, update and feedback calls under `cloud.threads.messages`. A new root message sends `parent_id: null`; a child sends the remote id of its parent.

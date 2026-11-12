@@ -347,6 +347,7 @@ export function useAgUiRuntime(
           queueController?.clear();
           return core.reload(parentId, config);
         },
+        onDelete: (messageId: string) => core.deleteMessage(messageId),
         onCancel: async () => {
           queueController?.notifyCancelled();
           core.cancel();

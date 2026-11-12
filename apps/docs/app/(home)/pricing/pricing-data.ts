@@ -1,4 +1,5 @@
 import { CLOUD_URL } from "@/lib/constants";
+import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 
 export type PricingPlan = {
   name: string;
@@ -110,7 +111,7 @@ export const pricingPlans = [
       "On-premises deployment",
     ],
     cta: "Contact sales",
-    href: "https://cal.com/simon-farshid/assistant-ui",
+    href: CONTACT_SALES_PATH,
     highlighted: false,
   },
 ] satisfies PricingPlan[];

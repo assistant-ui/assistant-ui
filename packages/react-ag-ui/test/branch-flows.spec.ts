@@ -266,8 +266,8 @@ describe("AgUiThreadController branch flows", () => {
       type: "text",
       text: "snapshotcontinued",
     });
-    expect(update).toHaveBeenCalledTimes(1);
-    expect(update.mock.calls[0]?.[0]).toMatchObject({
+    expect(update).not.toHaveBeenCalled();
+    expect(append.mock.calls.at(-1)?.[0]).toMatchObject({
       parentId: userId,
       message: {
         id: snapshotAssistantId,
@@ -529,17 +529,16 @@ describe("AgUiThreadController branch flows", () => {
 
     const messages = core.getMessages();
     const assistant = messages[1] as ThreadAssistantMessage;
-    expect(update).toHaveBeenCalledTimes(1);
-    expect(update.mock.calls[0]?.[0]).toMatchObject({
+    const writes = append.mock.calls.filter(
+      ([item]) => item.message.id === serverAssistantId,
+    );
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.[0]).toMatchObject({
       parentId: messages[0]!.id,
       message: { id: serverAssistantId, role: "assistant" },
     });
-    expect(update.mock.calls[0]?.[0].message.content).toEqual(
-      assistant.content,
-    );
-    expect(
-      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
-    ).toBe(false);
+    expect(writes[0]?.[0].message.content).toEqual(assistant.content);
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("does not rewrite a previous assistant when regeneration reuses its id", async () => {
@@ -743,15 +742,16 @@ describe("AgUiThreadController branch flows", () => {
     expect(assistantAppends()).toBe(1);
   });
 
-  it("retries a failed update and keeps routing persisted ids to update", async () => {
+  it("retries a failed append and routes the persisted id to update", async () => {
     const serverAssistantId = "assistant-server";
-    let updates = 0;
-    const update = vi.fn().mockImplementation(() => {
-      updates++;
-      if (updates === 1) return Promise.reject(new Error("write failed"));
+    let serverAppends = 0;
+    const append = vi.fn().mockImplementation((item: any) => {
+      if (item.message.id !== serverAssistantId) return Promise.resolve();
+      serverAppends++;
+      if (serverAppends === 1) return Promise.reject(new Error("write failed"));
       return Promise.resolve(undefined);
     });
-    const append = vi.fn().mockResolvedValue(undefined);
+    const update = vi.fn().mockResolvedValue(undefined);
     const agent = {
       runAgent: vi.fn(async (input: any, subscriber: any) => {
         const userId = input.messages.find(
@@ -782,15 +782,23 @@ describe("AgUiThreadController branch flows", () => {
     const core = createCore(agent, { history: historyAdapter });
 
     await core.append(createAppendMessage());
-    await vi.waitFor(() => expect(updates).toBe(1));
+    await vi.waitFor(() => expect(serverAppends).toBe(1));
 
     core.applyExternalMessages([]);
     await core.reload(null);
-    await vi.waitFor(() => expect(updates).toBe(2));
+    await vi.waitFor(() => expect(serverAppends).toBe(2));
+    expect(update).not.toHaveBeenCalled();
 
-    expect(
-      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
-    ).toBe(false);
+    core.applyExternalMessages([]);
+    await core.reload(null);
+    await vi.waitFor(() =>
+      expect(
+        update.mock.calls.some(
+          ([item]) => item.message.id === serverAssistantId,
+        ),
+      ).toBe(true),
+    );
+    expect(serverAppends).toBe(2);
   });
 
   it("keeps a recreated stable assistant after switching branches", async () => {

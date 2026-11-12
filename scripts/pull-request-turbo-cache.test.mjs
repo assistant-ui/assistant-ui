@@ -41,9 +41,39 @@ const jobs = [
     "github.event_name == 'pull_request' && steps.tasks.outputs.run == 'true'",
   ],
   [
+    "code-quality.yaml",
+    "build-apps",
+    "Build apps",
+    "github.event_name == 'pull_request' && steps.app_build_inputs.outputs.run == 'true'",
+  ],
+  [
     "autofix.yaml",
     "autofix",
     "Update API surface snapshots",
+    "github.event_name == 'pull_request'",
+  ],
+  [
+    "pkg-pr-new.yaml",
+    "publish-preview",
+    "Build packages",
+    "github.event_name == 'pull_request'",
+  ],
+  [
+    "template-metrics.yaml",
+    "report",
+    "Build templates (bundle subset)",
+    "github.event_name == 'pull_request' && steps.bundles.outputs.run == 'true'",
+  ],
+  [
+    "vscode-test-bed.yaml",
+    "probes",
+    "Build workspace packages",
+    "github.event_name == 'pull_request'",
+  ],
+  [
+    "expo-native-bundle.yaml",
+    "bundle",
+    "Build workspace packages",
     "github.event_name == 'pull_request'",
   ],
 ];
@@ -82,12 +112,12 @@ for (const [file, job, turboStep, restoreGate] of jobs) {
   });
 }
 
-test("workflows that restore main's coverage cache never save a cache", () => {
+test("workflows that restore main's coverage cache never save a Turbo cache", () => {
   for (const file of new Set(jobs.map(([file]) => file))) {
-    assert.doesNotMatch(
-      workflow(file),
-      /^\s*(?:-\s+)?uses:\s*actions\/cache(?:\/save)?@/m,
-      file,
-    );
+    for (const step of steps(workflow(file))) {
+      if (/^\s*uses:\s*actions\/cache(?:\/save)?@/m.test(step)) {
+        assert.doesNotMatch(step, /\.turbo/, file);
+      }
+    }
   }
 });

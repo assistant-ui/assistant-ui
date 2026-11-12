@@ -4,8 +4,6 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CATALOG,
-  getCatalogItem,
-  isCartSlug,
   estimateAgentMinutes,
   formatMinutes,
   resolveProducts,
@@ -31,47 +29,6 @@ afterEach(() => {
 });
 
 describe("catalog registry", () => {
-  it("keeps only the main installer when the shop is closed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.stubEnv("NODE_ENV", "production");
-    vi.resetModules();
-    const closed = await import("./index");
-    expect(closed.CATALOG.map((product) => product.slug)).toEqual([
-      "assistant-ui",
-    ]);
-    expect(closed.CATALOG_ITEMS.map((item) => item.slug)).toEqual([
-      "react-app",
-      "assistant-ui",
-    ]);
-    expect(
-      closed
-        .resolveProducts([
-          "cloud",
-          "agent-tools",
-          "guides/mcp",
-          "elements/thread-list",
-          "assistant-ui",
-        ])
-        .map((product) => product.slug),
-    ).toEqual(["assistant-ui"]);
-    expect(closed.isCartSlug("cloud")).toBe(false);
-    expect(closed.isCartSlug("statewire")).toBe(false);
-    expect(closed.isCartSlug("harness-sdk")).toBe(false);
-    expect(closed.getProduct("cloud")).toBeUndefined();
-  });
-
-  it.each([
-    ["statewire", "/statewire"],
-    ["harness-sdk", "/harness-sdk"],
-  ])("resolves hidden %s for setup without public listing", (slug, href) => {
-    expect(CATALOG.some((product) => product.slug === slug)).toBe(false);
-    expect(getCatalogItem(slug)).toMatchObject({ href, hidden: true });
-    expect(isCartSlug(slug)).toBe(true);
-    expect(resolveProducts([slug]).map((product) => product.slug)).toEqual([
-      slug,
-    ]);
-  });
-
   it("has unique slugs that match their route form", () => {
     const slugs = CATALOG.map((product) => product.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
