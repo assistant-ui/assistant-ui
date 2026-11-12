@@ -40,7 +40,7 @@ describe("hero", () => {
     const { Hero } = await load();
     render(<Hero stars={null} downloads={null} />);
     const prompt = screen.getByRole("button", {
-      name: "Copy the setup prompt for your coding agent",
+      name: "Copy the setup prompt for your agent",
     });
     expect(prompt.textContent).toBe("install and set up assistant-ui");
     expect(prompt.textContent).not.toContain("Tell your coding agent");

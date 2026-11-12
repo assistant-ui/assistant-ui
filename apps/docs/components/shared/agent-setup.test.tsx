@@ -18,7 +18,7 @@ describe("agent setup banner", () => {
     render(<AgentSetup product="elements/thread-list" />);
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Copy the setup prompt for your coding agent",
+        name: "Copy the setup prompt for your agent",
       }),
     );
     expect(writeText).toHaveBeenCalledWith(
@@ -38,7 +38,7 @@ describe("agent setup banner", () => {
     ).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Copy the setup prompt for your coding agent",
+        name: "Copy the setup prompt for your agent",
       }),
     );
     expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
@@ -55,7 +55,7 @@ describe("agent setup banner", () => {
     expect(screen.queryByText(/You can also use your coding agent/)).toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Copy the setup prompt for your coding agent",
+        name: "Copy the setup prompt for your agent",
       }),
     );
     expect(writeText).toHaveBeenCalledWith(

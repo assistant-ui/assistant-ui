@@ -23,7 +23,7 @@ describe("shop entry points", () => {
     render(<AgentSetup product="assistant-ui" />);
     expect(
       await screen.findByRole("button", {
-        name: "Copy the setup prompt for your coding agent",
+        name: "Copy the setup prompt for your agent",
       }),
     ).toBeTruthy();
   });

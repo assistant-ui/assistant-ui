@@ -53,7 +53,7 @@ describe("setup command prompt", () => {
     const copied = vi.spyOn(analytics.cta, "promptCopied");
     render(<SetupCommandPrompt page="home" section="hero" />);
     const prompt = screen.getByRole("button", {
-      name: "Copy the setup prompt for your coding agent",
+      name: "Copy the setup prompt for your agent",
     });
     expect(prompt.textContent).toBe("install and set up assistant-ui");
     fireEvent.click(prompt);
@@ -71,7 +71,7 @@ describe("setup command prompt", () => {
     expect(opened).toHaveBeenCalledWith("hero");
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent?.trim()),
-    ).toEqual(["Copy prompt for coding agents", "Manual installation steps"]);
+    ).toEqual(["Copy prompt for agents", "Manual installation steps"]);
   });
 
   it("copies the prompt from the menu", async () => {
@@ -81,7 +81,7 @@ describe("setup command prompt", () => {
     openMenu();
     fireEvent.click(
       await screen.findByRole("menuitem", {
-        name: "Copy prompt for coding agents",
+        name: "Copy prompt for agents",
       }),
     );
     await waitFor(() =>
@@ -104,7 +104,7 @@ describe("setup command prompt", () => {
     openMenu();
     fireEvent.click(
       await screen.findByRole("menuitem", {
-        name: "Copy prompt for coding agents",
+        name: "Copy prompt for agents",
       }),
     );
     await waitFor(() => expect(toastError).toHaveBeenCalled());
@@ -138,7 +138,7 @@ describe("setup command prompt", () => {
       />,
     );
     const prompt = screen.getByRole("button", {
-      name: "Copy the setup prompt for your coding agent",
+      name: "Copy the setup prompt for your agent",
     });
     expect(prompt.textContent).toBe(
       "set up https://www.assistant-ui.com/docs/guides/attachments",
