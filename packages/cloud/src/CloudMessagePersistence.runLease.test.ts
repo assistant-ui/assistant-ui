@@ -173,6 +173,34 @@ describe("CloudMessagePersistence run leases", () => {
     expect(await persistence.getRemoteId("local-a")).toBe("msg_2");
   });
 
+  it("drops a final write that waited on an in-flight append across a reset", async () => {
+    const { cloud, messages } = createCloud();
+    let rejectCreate!: (error: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectCreate = reject;
+      }),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    persistence.reset();
+    rejectCreate(new Error("network"));
+    await expect(placeholder).rejects.toThrow("network");
+    await final;
+
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).not.toHaveBeenCalled();
+  });
+
   it("writes the final answer over an in-flight running append that got no lease", async () => {
     const { cloud, messages } = createCloud();
     let resolveCreate!: (value: unknown) => void;

@@ -20,7 +20,10 @@ const flush = async () => {
 };
 const textOf = (message: any) =>
   (message?.content ?? []).map((p: any) => p.text ?? "").join("");
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("cloud history after a failed early store of a running reply", () => {
   it.each(["success", "error", "stop"])(
@@ -95,8 +98,8 @@ describe("cloud history after a failed early store of a running reply", () => {
           throw new Error(`unexpected request ${method} ${path}`);
         }),
       );
-      const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.spyOn(console, "error").mockImplementation(() => {});
       const cloud = new AssistantCloud({
         baseUrl: "https://rtd.invalid",
         authToken: async () =>
@@ -167,9 +170,6 @@ describe("cloud history after a failed early store of a running reply", () => {
       });
       await flush();
       await act(async () => {
-        await new Promise((r) => setTimeout(r, 3100));
-      });
-      await act(async () => {
         aui.thread.append({
           role: "user",
           content: [{ type: "text", text: "and then" }],
@@ -191,8 +191,6 @@ describe("cloud history after a failed early store of a running reply", () => {
         .getState()
         .messages.find((message) => message.role === "assistant");
       fresh.unmount();
-      warnings.mockRestore();
-      errors.mockRestore();
       expect(textOf(loadedReply)).toBe("the answer");
     },
   );

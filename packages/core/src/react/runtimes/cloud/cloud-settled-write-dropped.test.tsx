@@ -4,7 +4,7 @@
 // CloudMessagePersistence.append. If that create fails, the settled write must create the row
 // with the settled content itself, or cloud history keeps only the running placeholder (#10524).
 import { act, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
@@ -91,6 +91,14 @@ const setup = () => {
   return { cloud, creates, ok, finish: () => finish(), aui: () => aui };
 };
 
+afterEach(() => vi.restoreAllMocks());
+
+// The settled write is a plain create with the answer, not another open_run create.
+const settledCreates = (creates: { body: any }[]) =>
+  creates
+    .slice(2)
+    .filter((c) => textOf(c.body) === "the answer" && !c.body.open_run);
+
 const textOf = (body: any) =>
   ((body?.content?.content ?? []) as any[]).map((p) => p.text ?? "").join("");
 
@@ -112,8 +120,7 @@ describe("cloud run tracker: the settled reply after a failed early store", () =
     t.creates[1]!.reject(new Error("network")); // a transient failure
     await flush();
     // the reply must still reach the cloud with what the user saw
-    const stored = t.creates.slice(2).map((c) => textOf(c.body));
-    expect(stored).toContain("the answer");
+    expect(settledCreates(t.creates)).toHaveLength(1);
   });
 
   // Comparable across #10424: one transient failure of the reply's first create, made while the
@@ -181,7 +188,6 @@ describe("cloud run tracker: the settled reply after a failed early store", () =
     await flush();
     await act(async () => t.finish());
     await flush();
-    const stored = t.creates.slice(2).map((c) => textOf(c.body));
-    expect(stored).toContain("the answer");
+    expect(settledCreates(t.creates)).toHaveLength(1);
   });
 });
