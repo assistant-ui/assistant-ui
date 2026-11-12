@@ -125,13 +125,13 @@ export class CloudMessagePersistence {
 
   /**
    * Reads a listed message's run against `staleAfter`; `sinceReadMs` is the
-   * time since the list was read. Undefined for a message without one.
+   * time since the list was read. Undefined for no run or an ended one.
    */
   runStateOf(
     run: CloudMessageRun | undefined,
     sinceReadMs = 0,
   ): CloudRunState | undefined {
-    if (!run) return undefined;
+    if (run?.status !== "running") return undefined;
     const quietMs = run.last_heartbeat_ms_ago + sinceReadMs;
     return quietMs >= this.staleAfter
       ? { status: "stale" }
@@ -463,6 +463,7 @@ export class CloudMessagePersistence {
         return;
       this.runs.delete(from);
       this.runs.set(to, run);
+      if (isOpen(run)) this.scheduleHeartbeat(to);
       return;
     }
     if (this.idMapping.has(to)) return;

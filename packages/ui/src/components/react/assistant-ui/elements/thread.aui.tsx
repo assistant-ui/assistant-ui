@@ -680,12 +680,23 @@ const MessageError: FC = () => {
             Refresh
           </Button>
         </ActionBarPrimitive.RefreshRun>
+        <AuiIf condition={(s) => s.message.runState === "stale"}>
+          <ActionBarPrimitive.Resume asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 disabled:hidden"
+            >
+              <PlayIcon className="size-3.5" />
+              Resume
+            </Button>
+          </ActionBarPrimitive.Resume>
+        </AuiIf>
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
 };
 
-/** The run answering the last user message, when no reply shows it yet: generating in another tab, or interrupted with Resume. */
 const ThreadReplyStatus: FC = () => {
   const replyState = useThreadReplyState();
   if (replyState === "in-progress") {

@@ -72,6 +72,37 @@ describe("CloudMessagePersistence thread leases", () => {
     expect(persistence.hasOpenRun("a1")).toBe(false);
   });
 
+  it("keeps heartbeating after renaming a reply before its first append", async () => {
+    const { cloud, messages, runs } = createCloud();
+    const persistence = new CloudMessagePersistence(cloud);
+
+    await persistence.beginRun("t1", "a1", null);
+    await persistence.rename("a1", "a2");
+
+    expect(persistence.hasOpenRun("a1")).toBe(false);
+    expect(persistence.hasOpenRun("a2")).toBe(true);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(runs.heartbeat).toHaveBeenCalledExactlyOnceWith("t1", "lease_1");
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(runs.heartbeat).toHaveBeenCalledTimes(2);
+    expect(messages.create).not.toHaveBeenCalled();
+  });
+
+  it("ignores ended message runs when reading reply state", () => {
+    const { cloud } = createCloud();
+    const persistence = new CloudMessagePersistence(cloud);
+
+    expect(
+      persistence.runStateOf({ status: "ended", last_heartbeat_ms_ago: 0 }),
+    ).toBeUndefined();
+    expect(
+      persistence.runStateOf(
+        { status: "ended", last_heartbeat_ms_ago: 0 },
+        30_000,
+      ),
+    ).toBeUndefined();
+  });
+
   it("rejects with a clear error on a server without thread leases", async () => {
     const { cloud, runs } = createCloud();
     runs.open.mockRejectedValue(apiError(404));

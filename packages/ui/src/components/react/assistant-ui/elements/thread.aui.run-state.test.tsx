@@ -15,6 +15,7 @@ import {
 } from "@assistant-ui/react";
 import { setThreadReplyState } from "@assistant-ui/core/store/internal";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 
 import { Thread } from "./thread.aui";
 
@@ -29,15 +30,25 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function RunStateThread({ error }: { error: ThreadMessageLike["status"] }) {
+function RunStateThread({
+  error,
+  content = "Step one",
+  onReload = async () => {},
+}: {
+  error: ThreadMessageLike["status"];
+  content?: ThreadMessageLike["content"];
+  onReload?: (parentId: string | null) => Promise<void>;
+}) {
+  const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([
+    { id: "u", role: "user", content: "hello" },
+    { id: "a", role: "assistant", content, status: error },
+  ]);
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
-    messages: [
-      { id: "u", role: "user", content: "hello" },
-      { id: "a", role: "assistant", content: "Step one", status: error },
-    ],
+    messages,
+    setMessages,
     convertMessage: (message) => message,
     onNew: async () => {},
-    onReload: async () => {},
+    onReload,
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -95,6 +106,34 @@ describe("Thread run states", () => {
     expect(
       document.querySelector(".aui-assistant-action-bar-root"),
     ).not.toBeNull();
+  });
+
+  it("resumes an empty stale assistant reply in place", async () => {
+    const onReload = vi.fn(async (_parentId: string | null) => {});
+    render(
+      <RunStateThread
+        content=""
+        onReload={onReload}
+        error={{
+          type: "incomplete",
+          reason: "error",
+          error: { code: "run_stale", message: "Interrupted." },
+        }}
+      />,
+    );
+    const box = screen
+      .getByText("Interrupted.")
+      .closest<HTMLElement>(".aui-message-error-root")!;
+    expect(box.dataset.runState).toBe("stale");
+    expect(document.querySelector(".aui-thread-reply-status")).toBeNull();
+    const resume = within(box).getByRole<HTMLButtonElement>("button", {
+      name: "Resume",
+    });
+    expect(resume.disabled).toBe(false);
+    fireEvent.click(resume);
+    await waitFor(() => expect(onReload).toHaveBeenCalledOnce());
+    expect(onReload.mock.calls[0]![0]).toBe("u");
+    expect(screen.queryByText("Interrupted.")).toBeNull();
   });
 
   it("shows a stored reply another tab drives as in progress with Refresh", () => {

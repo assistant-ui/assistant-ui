@@ -27,7 +27,7 @@ export type CloudMessage = {
 
 export type CloudMessageRun = {
   /** A lease runs until its holder ends it; the server never expires one. */
-  status: "running";
+  status: "running" | "ended";
   /** Time since the lease's last heartbeat, measured by the server when it listed the message. */
   last_heartbeat_ms_ago: number;
 };
@@ -85,7 +85,7 @@ type AssistantCloudThreadMessageUpdateBody = {
   lease_id?: string | undefined;
 };
 
-const RUN_STATUSES = ["running"] as const;
+const RUN_STATUSES = ["running", "ended"] as const;
 
 const decodeCloudMessageRun = (
   value: unknown,

@@ -1,7 +1,6 @@
 ---
 "@assistant-ui/core": patch
 "@assistant-ui/react": patch
-"@assistant-ui/ai-sdk": patch
 "@assistant-ui/react-ag-ui": patch
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-ink": patch

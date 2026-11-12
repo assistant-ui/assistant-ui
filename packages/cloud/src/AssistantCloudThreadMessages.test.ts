@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
-import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
+import {
+  AssistantCloudThreadMessages,
+  type CloudMessageRun,
+} from "./AssistantCloudThreadMessages";
 import { CloudResponseError } from "./cloudResponse";
 
 const createCloudThreadMessages = () => {
@@ -223,6 +226,35 @@ describe("AssistantCloudThreadMessages run leases", () => {
       method: "PUT",
       body: { content: {}, lease_id: "lease_1" },
     });
+  });
+
+  it("decodes listed messages with an ended run", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    const run: CloudMessageRun = {
+      status: "ended",
+      last_heartbeat_ms_ago: 1200,
+    };
+    makeRequest.mockResolvedValueOnce({
+      messages: [
+        {
+          id: "msg_1",
+          parent_id: null,
+          height: 0,
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-01T00:00:00.000Z",
+          format: "aui/v0",
+          content: {},
+          run,
+        },
+      ],
+    });
+
+    const result = await messages.list("t1");
+    expect(result.messages[0]!.run).toEqual({
+      status: "ended",
+      last_heartbeat_ms_ago: 1200,
+    });
+    expect(result.run).toBeNull();
   });
 
   it("decodes the run state of listed messages", async () => {
