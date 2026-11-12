@@ -6733,7 +6733,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace internal_d_exports {
-  export { AssistantRuntimeImpl, BaseAssistantRuntimeCore, CompositeContextProvider, DefaultThreadComposerRuntimeCore, MessageRepository, ThreadListItemRuntimeBinding, ThreadListRuntimeCore, ThreadRuntimeCore, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolExecutionStatus, getAutoStatus, splitLocalRuntimeOptions, useComposerInputPluginRegistryOptional, useComposerRunStartFocusGuard, useSmooth, useSmoothStatus, withSmoothContextProvider };
+  export { AssistantRuntimeImpl, BaseAssistantRuntimeCore, CompositeContextProvider, DefaultThreadComposerRuntimeCore, MessageRepository, ThreadListItemRuntimeBinding, ThreadListRuntimeCore, ThreadRuntimeCore, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolExecutionStatus, getAutoStatus, splitLocalRuntimeOptions, useComposerInputPluginRegistryOptional, useSmooth, useSmoothStatus, withSmoothContextProvider };
 }
 
 declare const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
@@ -6992,8 +6992,6 @@ declare const useComposerDictate: () => (() => void) | null;
 declare const useComposerInputPluginRegistryOptional: () => ComposerInputPluginRegistry | null;
 
 declare const useComposerResume: () => (() => void) | null;
-
-declare const useComposerRunStartFocusGuard: () => ComposerRunStartFocusGuard;
 
 declare const useComposerSend: () => (() => void) | null;
 
