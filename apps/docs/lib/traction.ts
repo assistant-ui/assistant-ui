@@ -64,7 +64,7 @@ export const PACKAGE_CATEGORIES: Record<
   },
   platforms: {
     label: "Platform bindings",
-    description: "Native, terminal, and Vue bindings.",
+    description: "Native, terminal, Vue, and VS Code bindings.",
   },
   ui: {
     label: "UI & rendering",
@@ -238,6 +238,11 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/vue",
     description: "Vue bindings.",
+    category: "platforms",
+  },
+  {
+    name: "@assistant-ui/vscode",
+    description: "VS Code extension webview bridge and theme.",
     category: "platforms",
   },
   {

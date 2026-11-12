@@ -60,7 +60,7 @@ Coding agents use `npx assistant-ui@latest setup`, which opens a guided setup in
 
 ## Templates
 
-`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `cloud-harness`, `langchain`, `mcp`, `eve`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v7`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
+`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `cloud-harness`, `langchain`, `mcp`, `eve`, `vscode`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v7`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
 
 ## Shared cloud chat
 
