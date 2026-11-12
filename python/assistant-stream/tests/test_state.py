@@ -249,6 +249,40 @@ def test_draft_setdefault_preserves_existing_normalized_key() -> None:
     assert ops == [{"type": "set", "path": ["tasks", "7", "1"], "value": "next"}]
 
 
+@pytest.mark.parametrize("key", ["7", 7])
+def test_draft_membership_preserves_existing_normalized_key(key: str | int) -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({"tasks": {"7": ["kept"]}})
+    tasks = state.draft(ops.extend)["tasks"]
+
+    if key not in tasks:
+        tasks[key] = ["replacement"]
+
+    assert tasks[key] == ["kept"]
+    assert ops == []
+    assert 8 not in tasks
+    tasks[8] = []
+    assert 8 in tasks
+    assert "8" in tasks
+    assert ops == [{"type": "set", "path": ["tasks", "8"], "value": []}]
+
+
+def test_draft_membership_keeps_list_values_and_string_substrings() -> None:
+    state = AssistantState({"items": [7, {"done": True}]})
+    items = state.draft(lambda _ops: None)["items"]
+
+    assert 7 in items
+    assert "7" not in items
+    assert 0 not in items
+    assert {"done": True} in items
+
+    text = AssistantState("hello").draft(lambda _ops: None)
+    assert "ell" in text
+    assert "absent" not in text
+    with pytest.raises(TypeError):
+        7 in text
+
+
 def test_draft_mutating_list_methods_raise() -> None:
     state = AssistantState({"items": ["a", "b"]})
     draft = state.draft(lambda _ops: None)

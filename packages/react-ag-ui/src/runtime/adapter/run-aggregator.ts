@@ -31,14 +31,11 @@ import {
   type AgUiEvent,
   type AgUiInterrupt,
   type AgUiOpaqueReasoning,
+  MAX_SUBAGENT_DEPTH,
 } from "../types";
 import type { Logger } from "../logger";
 
 const ROOT_SCOPE = "";
-
-// Defensive guard against a malformed or cyclic parentToolCallId /
-// parentSubagentRunId chain, not a realistic nesting depth.
-const MAX_SUBAGENT_DEPTH = 16;
 
 type SubagentRunState = {
   subagentRunId: string;
@@ -178,20 +175,110 @@ export const isPlainObject = (
 ): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
+// One assistant message worth of parts. A run that moves on to another
+// message keeps the previous buffer, so later events naming it still land.
+type MessageBuffer = {
+  id: string | undefined;
+  textParts: Map<string, { buffer: string }>;
+  openTextFrames: Set<string>;
+  activeTextMessageIdByScope: Map<string, string>;
+  reasoningParts: Map<string, { buffer: string; timing?: MessagePartTiming }>;
+  reasoningSignatures: Map<string, string>;
+  reasoningSignatureIds: Map<string, string>;
+  hiddenSignatures: Map<string, string>;
+  hiddenSignatureAnchors: Map<string, number>;
+  hiddenBlockAnchors: Map<string, number>;
+  hiddenReasoningIds: Set<string>;
+  hiddenActiveReasoningId: string | undefined;
+  hasEmittedOpaqueReasoning: boolean;
+  loggedDroppedOpaqueIds: Set<string>;
+  reasoningMessageIds: Map<string, string>;
+  activeReasoningKeyByScope: Map<string, string>;
+  subagentRuns: Map<string, SubagentRunState>;
+  // The nesting graph only moves when a run is announced or a tool call is
+  // created, which is rare next to emit(), so it is derived once per change
+  // rather than per streamed delta.
+  nestingMemo:
+    | {
+        subagentsByParentToolCallId: Map<string, string[]>;
+        reachable: Set<string>;
+      }
+    | undefined;
+  toolCalls: Map<string, ToolCallState>;
+  a2uiBuckets: Map<string, A2uiState>;
+  a2uiToolCallIds: Set<string>;
+  activityParts: Map<
+    string,
+    { kind: "data"; name: string; value: unknown; subagentRunId?: string }
+  >;
+  lastResolvedToolCallIdByScope: Map<string, string>;
+  partOrder: PartOrderEntry[];
+  lastReasoningBeforeToolCall: PartOrderEntry | undefined;
+  textPartCounter: number;
+  reportedServerMessageId: string | undefined;
+};
+
+const createMessageBuffer = (id?: string): MessageBuffer => ({
+  id,
+  textParts: new Map(),
+  openTextFrames: new Set(),
+  activeTextMessageIdByScope: new Map(),
+  reasoningParts: new Map(),
+  reasoningSignatures: new Map(),
+  reasoningSignatureIds: new Map(),
+  hiddenSignatures: new Map(),
+  hiddenSignatureAnchors: new Map(),
+  hiddenBlockAnchors: new Map(),
+  hiddenReasoningIds: new Set(),
+  hiddenActiveReasoningId: undefined,
+  hasEmittedOpaqueReasoning: false,
+  loggedDroppedOpaqueIds: new Set(),
+  reasoningMessageIds: new Map(),
+  activeReasoningKeyByScope: new Map(),
+  subagentRuns: new Map(),
+  nestingMemo: undefined,
+  toolCalls: new Map(),
+  a2uiBuckets: new Map(),
+  a2uiToolCallIds: new Set(),
+  activityParts: new Map(),
+  lastResolvedToolCallIdByScope: new Map(),
+  partOrder: [],
+  lastReasoningBeforeToolCall: undefined,
+  textPartCounter: 0,
+  reportedServerMessageId: undefined,
+});
+
+export type RetainedMessageState = {
+  messageId: string;
+  /** A root text frame or a sub-agent run is still open. */
+  streaming: boolean;
+  openToolCallIds: string[];
+};
+
 export type RunAggregatorOptions = {
   showThinking: boolean;
   joinStrategy?: JoinStrategy | undefined;
   logger: Logger;
   emit: Emit;
+  onRetainedMessage?: (
+    update: ChatModelRunResult,
+    state: RetainedMessageState,
+  ) => void;
+  canRetainMessage?: (messageId: string) => boolean;
   onServerMessageId?: (messageId: string) => void;
-  onTextMessageStart?: (messageId: string, openToolCallIds: string[]) => void;
+  /** Returns the id the outgoing message lives under, when it may keep receiving events. */
+  onTextMessageStart?: (
+    messageId: string,
+    openToolCallIds: string[],
+  ) => string | void;
 };
 
 /**
  * Collects AG-UI events into assistant-ui run snapshots that can be yielded from a ChatModelAdapter.
  *
- * The aggregator keeps a single assistant message worth of parts. Each incoming event updates the parts and
- * emits a fresh snapshot through the provided `emit` callback. `CUSTOM` events
+ * Each incoming event updates the parts of the assistant message it names and
+ * emits a fresh snapshot: through `emit` for the message the run streams into,
+ * and through `onRetainedMessage` for one it moved on from. `CUSTOM` events
  * become canonical data parts; integration plumbing names such as
  * `on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`,
  * `system:*`, and `MultiAgentHandoff` are forwarded the same way, so apps only
@@ -203,54 +290,21 @@ export class RunAggregator {
   private readonly joinStrategy: JoinStrategy | undefined;
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
-  private readonly onTextMessageStart:
-    | ((messageId: string, openToolCallIds: string[]) => void)
-    | undefined;
+  private readonly onTextMessageStart: RunAggregatorOptions["onTextMessageStart"];
+  private readonly onRetainedMessage: RunAggregatorOptions["onRetainedMessage"];
+  private readonly canRetainMessage: RunAggregatorOptions["canRetainMessage"];
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
   private pendingToolCallIds: string[] | undefined;
-  private readonly textParts = new Map<string, { buffer: string }>();
   private readonly pendingSnapshotText = new Map<string, string>();
-  private readonly activeTextMessageIdByScope = new Map<string, string>();
-  private readonly reasoningParts = new Map<
-    string,
-    { buffer: string; timing?: MessagePartTiming }
-  >();
-  private readonly reasoningSignatures = new Map<string, string>();
-  private readonly reasoningSignatureIds = new Map<string, string>();
-  private readonly hiddenSignatures = new Map<string, string>();
-  private readonly hiddenSignatureAnchors = new Map<string, number>();
-  private readonly hiddenBlockAnchors = new Map<string, number>();
-  private readonly hiddenReasoningIds = new Set<string>();
-  private hiddenActiveReasoningId: string | undefined;
-  private hasEmittedOpaqueReasoning = false;
-  private readonly loggedDroppedOpaqueIds = new Set<string>();
-  private readonly reasoningMessageIds = new Map<string, string>();
-  private readonly activeReasoningKeyByScope = new Map<string, string>();
-  private readonly subagentRuns = new Map<string, SubagentRunState>();
-  // The nesting graph only moves when a run is announced or a tool call is
-  // created, which is rare next to emit(), so it is derived once per change
-  // rather than per streamed delta.
-  private nestingMemo:
-    | {
-        subagentsByParentToolCallId: Map<string, string[]>;
-        reachable: Set<string>;
-      }
-    | undefined;
-  private readonly toolCalls = new Map<string, ToolCallState>();
-  private readonly a2uiBuckets = new Map<string, A2uiState>();
-  private readonly a2uiToolCallIds = new Set<string>();
-  private readonly activityParts = new Map<
-    string,
-    { kind: "data"; name: string; value: unknown; subagentRunId?: string }
-  >();
-  private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
-  private readonly partOrder: PartOrderEntry[] = [];
-  private lastReasoningBeforeToolCall: PartOrderEntry | undefined;
-  private textPartCounter = 0;
+  private current: MessageBuffer = createMessageBuffer();
+  // The buffer the event being handled routes to; equal to `current` except
+  // while an event naming a moved-off message is applied.
+  private buf: MessageBuffer = this.current;
+  private readonly retained = new Map<string, MessageBuffer>();
+  private unannounced: MessageBuffer | undefined;
   private serverMessageIdReported = false;
-  private reportedServerMessageId: string | undefined;
   private lastTextMessageId: string | undefined;
 
   private streamStartTime: number | undefined;
@@ -264,20 +318,229 @@ export class RunAggregator {
     this.logger = options.logger;
     this.onServerMessageId = options.onServerMessageId;
     this.onTextMessageStart = options.onTextMessageStart;
+    this.onRetainedMessage = options.onRetainedMessage;
+    this.canRetainMessage = options.canRetainMessage;
   }
 
   hasToolCall(toolCallId: string): boolean {
-    return this.toolCalls.has(toolCallId);
+    return this.buffers().some((buffer) => buffer.toolCalls.has(toolCallId));
+  }
+
+  isRetained(messageId: string): boolean {
+    return this.retained.has(messageId);
+  }
+
+  /**
+   * Makes `messageId` the message the run streams into. The previous message
+   * keeps its parts under `previousId`, and returns true when it does; call
+   * `announceRetained` to publish its state once the caller can apply it.
+   */
+  rebaseMessage(messageId: string, previousId?: string): boolean {
+    const retained = this.openMessage(messageId, previousId);
+    this.lastTextMessageId = messageId;
+    this.current.reportedServerMessageId = messageId;
+    this.startTextMessage(ROOT_SCOPE, messageId);
+    if (retained) this.unannounced = retained;
+    return retained !== undefined;
+  }
+
+  announceRetained(): void {
+    const buffer = this.unannounced;
+    this.unannounced = undefined;
+    if (buffer && this.retained.get(buffer.id!) === buffer)
+      this.withBuffer(buffer, () => this.emit());
   }
 
   handle(event: AgUiEvent): void {
+    const owner = this.ownerOf(event);
+    if (owner === this.current) this.apply(event);
+    else this.withBuffer(owner, () => this.apply(event));
+  }
+
+  private buffers(): MessageBuffer[] {
+    return [this.current, ...this.retained.values()];
+  }
+
+  private withBuffer(buffer: MessageBuffer, fn: () => void): void {
+    const previous = this.buf;
+    this.buf = buffer;
+    try {
+      fn();
+    } finally {
+      this.buf = previous;
+    }
+  }
+
+  // Starts a fresh current message (or resumes a retained one) and keeps the
+  // outgoing one addressable by id, so events that still name it route back.
+  private openMessage(
+    messageId: string,
+    previousId: string | undefined,
+  ): MessageBuffer | undefined {
+    const outgoing = this.current;
+    const next = this.retained.get(messageId) ?? createMessageBuffer(messageId);
+    this.retained.delete(messageId);
+    let retained: MessageBuffer | undefined;
+    if (previousId !== undefined && previousId !== messageId) {
+      outgoing.id = previousId;
+      this.retained.set(previousId, outgoing);
+      retained = outgoing;
+    }
+    this.current = next;
+    this.buf = next;
+    return retained;
+  }
+
+  private ownerForMessage(messageId: string | undefined): MessageBuffer {
+    if (!messageId || messageId === this.current.id) return this.current;
+    const retained = this.retained.get(messageId);
+    if (retained) return retained;
+    // A snapshot can deliver a message before the events that finish it, as
+    // a reconnect replay does.
+    if (this.canRetainMessage?.(messageId)) {
+      const buffer = createMessageBuffer(messageId);
+      this.retained.set(messageId, buffer);
+      if (this.pendingSnapshotText.has(messageId))
+        this.withBuffer(buffer, () =>
+          this.startTextMessage(ROOT_SCOPE, messageId),
+        );
+      return buffer;
+    }
+    return this.current;
+  }
+
+  private ownerForToolCall(toolCallId: unknown): MessageBuffer | undefined {
+    if (typeof toolCallId !== "string") return undefined;
+    return this.buffers().find((buffer) => buffer.toolCalls.has(toolCallId));
+  }
+
+  private ownerForSubagent(subagentRunId: string): MessageBuffer {
+    return (
+      this.buffers().find((buffer) => buffer.subagentRuns.has(subagentRunId)) ??
+      this.current
+    );
+  }
+
+  private ownerForActivity(event: {
+    messageId?: string;
+    subagentRunId?: string;
+  }): MessageBuffer {
+    if (event.subagentRunId !== undefined)
+      return this.ownerForSubagent(event.subagentRunId);
+    if (event.messageId === undefined) return this.current;
+    const key = `message:${event.messageId}`;
+    return (
+      this.buffers().find((buffer) => buffer.activityParts.has(key)) ??
+      this.current
+    );
+  }
+
+  private ownerOf(event: AgUiEvent): MessageBuffer {
+    if (this.joinStrategy === "concat-content") return this.current;
+    switch (event.type) {
+      case "TEXT_MESSAGE_START":
+      case "TEXT_MESSAGE_CONTENT":
+      case "TEXT_MESSAGE_END":
+        return event.subagentRunId !== undefined
+          ? this.ownerForSubagent(event.subagentRunId)
+          : this.ownerForMessage(event.messageId);
+      case "TOOL_CALL_START":
+        return event.subagentRunId !== undefined
+          ? this.ownerForSubagent(event.subagentRunId)
+          : this.ownerForMessage(event.parentMessageId);
+      case "TOOL_CALL_ARGS":
+      case "TOOL_CALL_END":
+      case "TOOL_CALL_RESULT":
+        return (
+          this.ownerForToolCall(event.toolCallId) ??
+          (event.subagentRunId !== undefined
+            ? this.ownerForSubagent(event.subagentRunId)
+            : this.current)
+        );
+      case "SUBAGENT_STARTED": {
+        const existing = this.buffers().find((buffer) =>
+          buffer.subagentRuns.has(event.subagentRunId),
+        );
+        if (existing) return existing;
+        if (event.parentToolCallId !== undefined) {
+          const owner = this.ownerForToolCall(event.parentToolCallId);
+          if (owner) return owner;
+        }
+        if (event.parentSubagentRunId !== undefined)
+          return this.ownerForSubagent(event.parentSubagentRunId);
+        return this.ownerForMessage(event.parentMessageId);
+      }
+      case "SUBAGENT_FINISHED":
+      case "SUBAGENT_ERROR":
+        return this.ownerForSubagent(event.subagentRunId);
+      case "ACTIVITY_SNAPSHOT":
+        if (event.activityType === MCP_APPS_ACTIVITY_TYPE) {
+          const owner = this.ownerForToolCall(event.content.toolCallId);
+          if (owner) return owner;
+        }
+        if (event.activityType === A2UI_SURFACE_ACTIVITY_TYPE)
+          return this.current;
+        return this.ownerForActivity(event);
+      case "ACTIVITY_DELTA":
+        return this.ownerForActivity(event);
+      case "REASONING_START":
+      case "REASONING_MESSAGE_START":
+      case "REASONING_MESSAGE_CONTENT":
+      case "REASONING_MESSAGE_END":
+      case "REASONING_END":
+      case "REASONING_ENCRYPTED_VALUE": {
+        if (event.subagentRunId !== undefined)
+          return this.ownerForSubagent(event.subagentRunId);
+        const id =
+          event.type === "REASONING_ENCRYPTED_VALUE"
+            ? event.entityId
+            : event.messageId;
+        return (
+          this.buffers().find(
+            (buffer) =>
+              buffer.reasoningParts.has(id) ||
+              buffer.hiddenReasoningIds.has(id),
+          ) ?? this.current
+        );
+      }
+      default:
+        return this.current;
+    }
+  }
+
+  private retainedState(buffer: MessageBuffer): RetainedMessageState {
+    const openToolCallIds = Array.from(buffer.toolCalls.values())
+      .filter(
+        (call) =>
+          call.result === undefined &&
+          !buffer.a2uiToolCallIds.has(call.toolCallId),
+      )
+      .map((call) => call.toolCallId);
+    return {
+      messageId: buffer.id!,
+      openToolCallIds,
+      streaming:
+        buffer.openTextFrames.size > 0 ||
+        Array.from(buffer.subagentRuns.values()).some(
+          (run) => run.status.type === "running",
+        ),
+    };
+  }
+
+  private apply(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
-        this.resetMessageParts();
+        this.retained.clear();
+        this.unannounced = undefined;
+        const { hasEmittedOpaqueReasoning } = this.current;
+        this.current = createMessageBuffer();
+        // A resumed message must still retract what the previous run published.
+        this.current.hasEmittedOpaqueReasoning = hasEmittedOpaqueReasoning;
+        this.buf = this.current;
+        this.pendingSnapshotText.clear();
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
         this.lastTextMessageId = undefined;
-        this.reportedServerMessageId = undefined;
         this.streamStartTime = Date.now();
         this.firstTokenTime = undefined;
         this.totalChunks = 0;
@@ -287,15 +550,33 @@ export class RunAggregator {
       }
       case "MESSAGES_SNAPSHOT": {
         this.pendingSnapshotText.clear();
+        const buffers = this.buffers();
         for (const message of event.messages) {
-          if (
-            message.role !== "assistant" ||
-            typeof message.content !== "string"
-          )
-            continue;
-          const part = this.textParts.get(message.id);
-          if (part) part.buffer = message.content;
-          else this.pendingSnapshotText.set(message.id, message.content);
+          if (message?.role !== "assistant") continue;
+          if (typeof message.content === "string") {
+            const part = buffers
+              .map((buffer) => buffer.textParts.get(message.id))
+              .find((entry) => entry !== undefined);
+            if (part) part.buffer = message.content;
+            else this.pendingSnapshotText.set(message.id, message.content);
+          }
+          // A call the stream opened without args takes the record's, so the
+          // message it stays on matches what a reload would show.
+          for (const call of Array.isArray(message.toolCalls)
+            ? message.toolCalls
+            : []) {
+            const args = call?.function?.arguments;
+            if (typeof args !== "string" || args.length === 0) continue;
+            for (const buffer of buffers) {
+              const entry = buffer.toolCalls.get(call.id);
+              if (entry === undefined || entry.argsText !== "") continue;
+              entry.argsText = args;
+              entry.argsTextScanner = createJSONContainerScanner();
+              scanJSONContainerDelta(entry.argsTextScanner, args);
+              const parsed = tryParseJSON(args);
+              entry.parsedArgs = isPlainObject(parsed) ? parsed : undefined;
+            }
+          }
         }
         break;
       }
@@ -326,10 +607,10 @@ export class RunAggregator {
         const hasUnresolvedToolCalls =
           pendingToolCallIds && pendingToolCallIds.length > 0
             ? pendingToolCallIds.some((id) => {
-                const call = this.toolCalls.get(id);
+                const call = this.buf.toolCalls.get(id);
                 return call !== undefined && call.result === undefined;
               })
-            : Array.from(this.toolCalls.values()).some(
+            : Array.from(this.buf.toolCalls.values()).some(
                 (tc) => tc.result === undefined,
               );
 
@@ -372,11 +653,13 @@ export class RunAggregator {
 
       case "TEXT_MESSAGE_START": {
         const scope = this.scopeOf(event);
-        if (scope === ROOT_SCOPE) {
+        if (scope === ROOT_SCOPE && this.buf === this.current) {
           this.beginDistinctTextMessage(event.messageId);
           this.reportServerMessageId(event.messageId);
           if (event.messageId) this.lastTextMessageId = event.messageId;
         }
+        if (scope === ROOT_SCOPE && event.messageId)
+          this.buf.openTextFrames.add(event.messageId);
         this.startTextMessage(scope, event.messageId);
         this.emit();
         break;
@@ -384,11 +667,13 @@ export class RunAggregator {
       case "TEXT_MESSAGE_CONTENT": {
         const incomingId = event.messageId;
         const scope = this.scopeOf(event);
-        if (scope === ROOT_SCOPE) {
+        if (scope === ROOT_SCOPE && this.buf === this.current) {
           this.beginDistinctTextMessage(incomingId, true);
           this.reportServerMessageId(incomingId);
           if (incomingId) this.lastTextMessageId = incomingId;
         }
+        if (scope === ROOT_SCOPE && incomingId)
+          this.buf.openTextFrames.add(incomingId);
         if (!event.delta) break;
         this.recordFirstToken();
         const id = this.resolveTextMessageId(scope, incomingId);
@@ -399,21 +684,25 @@ export class RunAggregator {
       }
       case "TEXT_MESSAGE_END": {
         const scope = this.scopeOf(event);
-        if (scope === ROOT_SCOPE) this.reportServerMessageId(event.messageId);
+        if (scope === ROOT_SCOPE && event.messageId) {
+          if (this.buf === this.current)
+            this.reportServerMessageId(event.messageId);
+          this.buf.openTextFrames.delete(event.messageId);
+        }
         if (
           event.messageId &&
-          this.activeTextMessageIdByScope.get(scope) ===
+          this.buf.activeTextMessageIdByScope.get(scope) ===
             this.partKey(scope, event.messageId)
         ) {
-          this.activeTextMessageIdByScope.delete(scope);
+          this.buf.activeTextMessageIdByScope.delete(scope);
         }
         this.emit();
         break;
       }
 
       case "CUSTOM": {
-        this.activeTextMessageIdByScope.delete(ROOT_SCOPE);
-        this.partOrder.push({
+        this.buf.activeTextMessageIdByScope.delete(ROOT_SCOPE);
+        this.buf.partOrder.push({
           kind: "data",
           name: event.name,
           value: event.value,
@@ -436,25 +725,25 @@ export class RunAggregator {
           const scope = this.scopeOf(event);
           const entityKey = this.partKey(scope, event.entityId);
           const key =
-            this.showThinking && this.reasoningParts.has(entityKey)
+            this.showThinking && this.buf.reasoningParts.has(entityKey)
               ? entityKey
               : undefined;
           if (key !== undefined) {
-            this.reasoningSignatures.set(key, event.encryptedValue);
-            this.reasoningSignatureIds.set(key, event.entityId);
+            this.buf.reasoningSignatures.set(key, event.encryptedValue);
+            this.buf.reasoningSignatureIds.set(key, event.entityId);
             this.emit();
           } else if (
             !this.showThinking &&
             scope === ROOT_SCOPE &&
             event.entityId.trim().length > 0 &&
             event.encryptedValue.trim().length > 0 &&
-            this.hiddenReasoningIds.has(event.entityId)
+            this.buf.hiddenReasoningIds.has(event.entityId)
           ) {
-            this.hiddenSignatures.set(event.entityId, event.encryptedValue);
-            this.hiddenSignatureAnchors.set(
+            this.buf.hiddenSignatures.set(event.entityId, event.encryptedValue);
+            this.buf.hiddenSignatureAnchors.set(
               event.entityId,
-              this.hiddenBlockAnchors.get(event.entityId) ??
-                this.partOrder.length,
+              this.buf.hiddenBlockAnchors.get(event.entityId) ??
+                this.buf.partOrder.length,
             );
             this.emit();
           }
@@ -477,7 +766,7 @@ export class RunAggregator {
 
       case "TOOL_CALL_START": {
         const scope = this.scopeOf(event);
-        if (scope === ROOT_SCOPE) {
+        if (scope === ROOT_SCOPE && this.buf === this.current) {
           this.reportServerMessageId(event.parentMessageId);
         }
         this.startToolCall(
@@ -528,12 +817,12 @@ export class RunAggregator {
         const activityScope = this.scopeOf(event);
         const toolCallId = event.content.toolCallId;
         const fallbackId =
-          this.lastResolvedToolCallIdByScope.get(activityScope);
+          this.buf.lastResolvedToolCallIdByScope.get(activityScope);
         const entry =
           typeof toolCallId === "string"
-            ? this.toolCalls.get(toolCallId)
+            ? this.buf.toolCalls.get(toolCallId)
             : fallbackId
-              ? this.toolCalls.get(fallbackId)
+              ? this.buf.toolCalls.get(fallbackId)
               : undefined;
         const resourceUri = event.content.resourceUri;
         if (
@@ -581,7 +870,7 @@ export class RunAggregator {
         // a repeat is a continuation: it may refresh the descriptive fields
         // and reopen the status, but re-parenting an established run would
         // move its already-rendered output to a different tool call.
-        const existing = this.subagentRuns.get(event.subagentRunId);
+        const existing = this.buf.subagentRuns.get(event.subagentRunId);
         if (existing) {
           existing.name = event.name;
           if (event.description !== undefined)
@@ -590,8 +879,8 @@ export class RunAggregator {
           this.emit();
           break;
         }
-        this.nestingMemo = undefined;
-        this.subagentRuns.set(event.subagentRunId, {
+        this.buf.nestingMemo = undefined;
+        this.buf.subagentRuns.set(event.subagentRunId, {
           subagentRunId: event.subagentRunId,
           name: event.name,
           ...(event.description !== undefined
@@ -613,7 +902,7 @@ export class RunAggregator {
         break;
       }
       case "SUBAGENT_FINISHED": {
-        const run = this.subagentRuns.get(event.subagentRunId);
+        const run = this.buf.subagentRuns.get(event.subagentRunId);
         if (run) {
           run.status =
             event.outcome?.type === "suspended"
@@ -627,7 +916,7 @@ export class RunAggregator {
         break;
       }
       case "SUBAGENT_ERROR": {
-        const run = this.subagentRuns.get(event.subagentRunId);
+        const run = this.buf.subagentRuns.get(event.subagentRunId);
         if (run) {
           run.status = {
             type: "incomplete",
@@ -655,7 +944,7 @@ export class RunAggregator {
     event: Extract<AgUiEvent, { type: "ACTIVITY_DELTA" }>,
   ): void {
     const scope = this.scopeOf(event);
-    const existing = this.activityParts.get(
+    const existing = this.buf.activityParts.get(
       this.partKey(scope, `message:${event.messageId}`),
     );
     if (!existing) {
@@ -692,14 +981,14 @@ export class RunAggregator {
     if (!Array.isArray(operations)) return;
 
     const messageId = event.messageId ?? "a2ui:anonymous";
-    if (event.replace === false && this.a2uiBuckets.has(messageId)) return;
+    if (event.replace === false && this.buf.a2uiBuckets.has(messageId)) return;
 
     const { state, warnings } = applyA2uiOperations(new Map(), operations);
     for (const warning of warnings) {
       this.logger.debug("[agui] a2ui operation warning", warning);
     }
-    this.a2uiBuckets.delete(messageId);
-    this.a2uiBuckets.set(messageId, state);
+    this.buf.a2uiBuckets.delete(messageId);
+    this.buf.a2uiBuckets.set(messageId, state);
     this.synthesizeA2uiToolCalls();
     this.emit();
   }
@@ -714,7 +1003,7 @@ export class RunAggregator {
         ? `message:${event.messageId}`
         : `type:${event.activityType}`,
     );
-    const existing = this.activityParts.get(key);
+    const existing = this.buf.activityParts.get(key);
     if (existing) {
       if (event.replace === false) return;
       existing.name = `agui-activity/${event.activityType}`;
@@ -733,9 +1022,9 @@ export class RunAggregator {
               value: event.content,
               subagentRunId: scope,
             };
-      this.activityParts.set(key, part);
-      this.partOrder.push(part);
-      this.activeTextMessageIdByScope.delete(scope);
+      this.buf.activityParts.set(key, part);
+      this.buf.partOrder.push(part);
+      this.buf.activeTextMessageIdByScope.delete(scope);
     }
     this.emit();
   }
@@ -743,7 +1032,7 @@ export class RunAggregator {
   private synthesizeA2uiToolCalls(): void {
     const surfaces = new Map<string, A2uiSurfaceState>();
 
-    for (const bucket of this.a2uiBuckets.values()) {
+    for (const bucket of this.buf.a2uiBuckets.values()) {
       for (const [surfaceId, surface] of bucket) {
         surfaces.set(surfaceId, surface);
       }
@@ -774,23 +1063,23 @@ export class RunAggregator {
         artifact: toolCall.artifact,
         snapshotResultApplied: false,
       };
-      if (!this.toolCalls.has(toolCallId)) {
-        this.partOrder.push({ kind: "tool-call", toolCallId });
+      if (!this.buf.toolCalls.has(toolCallId)) {
+        this.buf.partOrder.push({ kind: "tool-call", toolCallId });
       }
-      this.nestingMemo = undefined;
-      this.toolCalls.set(toolCallId, entry);
-      this.a2uiToolCallIds.add(toolCallId);
+      this.buf.nestingMemo = undefined;
+      this.buf.toolCalls.set(toolCallId, entry);
+      this.buf.a2uiToolCallIds.add(toolCallId);
     }
 
-    for (const toolCallId of this.a2uiToolCallIds) {
+    for (const toolCallId of this.buf.a2uiToolCallIds) {
       if (activeToolCallIds.has(toolCallId)) continue;
-      this.nestingMemo = undefined;
-      this.toolCalls.delete(toolCallId);
-      const partIndex = this.partOrder.findIndex(
+      this.buf.nestingMemo = undefined;
+      this.buf.toolCalls.delete(toolCallId);
+      const partIndex = this.buf.partOrder.findIndex(
         (part) => part.kind === "tool-call" && part.toolCallId === toolCallId,
       );
-      if (partIndex !== -1) this.partOrder.splice(partIndex, 1);
-      this.a2uiToolCallIds.delete(toolCallId);
+      if (partIndex !== -1) this.buf.partOrder.splice(partIndex, 1);
+      this.buf.a2uiToolCallIds.delete(toolCallId);
     }
   }
 
@@ -801,47 +1090,24 @@ export class RunAggregator {
     }
     if (this.serverMessageIdReported) return;
     this.serverMessageIdReported = true;
-    this.reportedServerMessageId = messageId;
+    this.buf.reportedServerMessageId = messageId;
     this.onServerMessageId?.(messageId);
-  }
-
-  private clearTextParts(): void {
-    this.textParts.clear();
-  }
-
-  private resetMessageParts(): void {
-    this.clearTextParts();
-    this.pendingSnapshotText.clear();
-    this.reasoningParts.clear();
-    this.reasoningSignatures.clear();
-    this.reasoningSignatureIds.clear();
-    this.reasoningMessageIds.clear();
-    this.hiddenSignatures.clear();
-    this.hiddenSignatureAnchors.clear();
-    this.hiddenBlockAnchors.clear();
-    this.hiddenReasoningIds.clear();
-    this.hiddenActiveReasoningId = undefined;
-    this.loggedDroppedOpaqueIds.clear();
-    this.activeReasoningKeyByScope.clear();
-    this.nestingMemo = undefined;
-    this.subagentRuns.clear();
-    this.toolCalls.clear();
-    this.a2uiBuckets.clear();
-    this.a2uiToolCallIds.clear();
-    this.activityParts.clear();
-    this.lastResolvedToolCallIdByScope.clear();
-    this.partOrder.length = 0;
-    this.lastReasoningBeforeToolCall = undefined;
-    this.textPartCounter = 0;
-    this.activeTextMessageIdByScope.clear();
-    this.reportedServerMessageId = undefined;
   }
 
   // A subagent only ever reports its own terminal, so a run that ends while
   // one is still streaming would leave that nested message spinning forever.
+  // Moved-off messages publish first, so the current emit that follows sees
+  // them settled.
   private closeOpenSubagentRuns(status: MessageStatus): void {
-    for (const run of this.subagentRuns.values()) {
-      if (run.status.type === "running") run.status = status;
+    for (const buffer of this.buffers()) {
+      let closed = false;
+      for (const run of buffer.subagentRuns.values()) {
+        if (run.status.type !== "running") continue;
+        run.status = status;
+        closed = true;
+      }
+      if (closed && buffer !== this.current)
+        this.withBuffer(buffer, () => this.emit());
     }
   }
 
@@ -873,17 +1139,13 @@ export class RunAggregator {
     if (carried.parts.length > 0 || carried.hiddenSignatures.length > 0) {
       this.emit();
     }
-    const openToolCallIds = Array.from(this.toolCalls.values())
+    const openToolCallIds = Array.from(this.buf.toolCalls.values())
       .filter((call) => call.result === undefined)
       .map((call) => call.toolCallId);
-    const snapshotText = preserveSnapshotText
-      ? this.pendingSnapshotText.get(messageId)
-      : undefined;
-    this.resetMessageParts();
-    if (snapshotText !== undefined) {
-      this.pendingSnapshotText.set(messageId, snapshotText);
-    }
-    this.onTextMessageStart(messageId, openToolCallIds);
+    if (!preserveSnapshotText) this.pendingSnapshotText.delete(messageId);
+    const outgoingId =
+      this.onTextMessageStart(messageId, openToolCallIds) || undefined;
+    this.openMessage(messageId, outgoingId);
     this.restoreReasoning(carried);
   }
 
@@ -895,37 +1157,37 @@ export class RunAggregator {
       signatureId: string | undefined;
       reasoningId: string | undefined;
     }[] = [];
-    let last = this.partOrder.at(-1);
+    let last = this.buf.partOrder.at(-1);
     while (
       last?.kind === "reasoning" &&
       last.subagentRunId === undefined &&
-      last !== this.lastReasoningBeforeToolCall
+      last !== this.buf.lastReasoningBeforeToolCall
     ) {
-      this.partOrder.pop();
+      this.buf.partOrder.pop();
       parts.unshift({
         key: last.key,
-        entry: this.reasoningParts.get(last.key) ?? { buffer: "" },
-        signature: this.reasoningSignatures.get(last.key),
-        signatureId: this.reasoningSignatureIds.get(last.key),
-        reasoningId: this.reasoningMessageIds.get(last.key),
+        entry: this.buf.reasoningParts.get(last.key) ?? { buffer: "" },
+        signature: this.buf.reasoningSignatures.get(last.key),
+        signatureId: this.buf.reasoningSignatureIds.get(last.key),
+        reasoningId: this.buf.reasoningMessageIds.get(last.key),
       });
-      last = this.partOrder.at(-1);
+      last = this.buf.partOrder.at(-1);
     }
-    const cut = this.partOrder.length;
-    const hiddenSignatures = Array.from(this.hiddenSignatures).filter(
-      ([id]) => this.hiddenSignatureAnchors.get(id)! >= cut,
+    const cut = this.buf.partOrder.length;
+    const hiddenSignatures = Array.from(this.buf.hiddenSignatures).filter(
+      ([id]) => this.buf.hiddenSignatureAnchors.get(id)! >= cut,
     );
     for (const [id] of hiddenSignatures) {
-      this.hiddenSignatures.delete(id);
-      this.hiddenSignatureAnchors.delete(id);
+      this.buf.hiddenSignatures.delete(id);
+      this.buf.hiddenSignatureAnchors.delete(id);
     }
-    const hiddenBlockIds = Array.from(this.hiddenBlockAnchors)
+    const hiddenBlockIds = Array.from(this.buf.hiddenBlockAnchors)
       .filter(([, anchor]) => anchor >= cut)
       .map(([id]) => id);
-    const hiddenActiveReasoningId = this.hiddenActiveReasoningId;
+    const hiddenActiveReasoningId = this.buf.hiddenActiveReasoningId;
     return {
       parts,
-      activeKey: this.activeReasoningKeyByScope.get(ROOT_SCOPE),
+      activeKey: this.buf.activeReasoningKeyByScope.get(ROOT_SCOPE),
       hiddenSignatures,
       hiddenBlockIds,
       hiddenActiveReasoningId:
@@ -940,35 +1202,35 @@ export class RunAggregator {
     carried: ReturnType<RunAggregator["takeTrailingReasoning"]>,
   ): void {
     for (const part of carried.parts) {
-      this.partOrder.push({ kind: "reasoning", key: part.key });
-      this.reasoningParts.set(part.key, part.entry);
+      this.buf.partOrder.push({ kind: "reasoning", key: part.key });
+      this.buf.reasoningParts.set(part.key, part.entry);
       if (part.signature !== undefined)
-        this.reasoningSignatures.set(part.key, part.signature);
+        this.buf.reasoningSignatures.set(part.key, part.signature);
       if (part.signatureId !== undefined)
-        this.reasoningSignatureIds.set(part.key, part.signatureId);
+        this.buf.reasoningSignatureIds.set(part.key, part.signatureId);
       if (part.reasoningId !== undefined)
-        this.reasoningMessageIds.set(part.key, part.reasoningId);
+        this.buf.reasoningMessageIds.set(part.key, part.reasoningId);
     }
     if (
       carried.activeKey !== undefined &&
-      this.reasoningParts.has(carried.activeKey)
+      this.buf.reasoningParts.has(carried.activeKey)
     ) {
-      this.activeReasoningKeyByScope.set(ROOT_SCOPE, carried.activeKey);
+      this.buf.activeReasoningKeyByScope.set(ROOT_SCOPE, carried.activeKey);
     }
     for (const [id, encryptedValue] of carried.hiddenSignatures) {
-      this.hiddenSignatures.set(id, encryptedValue);
-      this.hiddenSignatureAnchors.set(id, 0);
+      this.buf.hiddenSignatures.set(id, encryptedValue);
+      this.buf.hiddenSignatureAnchors.set(id, 0);
     }
     for (const id of carried.hiddenBlockIds) {
-      this.hiddenReasoningIds.add(id);
-      this.hiddenBlockAnchors.set(id, 0);
+      this.buf.hiddenReasoningIds.add(id);
+      this.buf.hiddenBlockAnchors.set(id, 0);
     }
-    this.hiddenActiveReasoningId = carried.hiddenActiveReasoningId;
+    this.buf.hiddenActiveReasoningId = carried.hiddenActiveReasoningId;
   }
 
   private generateTextKey(): string {
-    this.textPartCounter += 1;
-    return `text-${this.textPartCounter}`;
+    this.buf.textPartCounter += 1;
+    return `text-${this.buf.textPartCounter}`;
   }
 
   private startTextMessage(scope: string, messageId?: string): string {
@@ -976,13 +1238,13 @@ export class RunAggregator {
     const key = this.ensureTextPart(scope, id);
     if (scope === ROOT_SCOPE && messageId) {
       const snapshotText = this.pendingSnapshotText.get(messageId);
-      const part = this.textParts.get(key);
+      const part = this.buf.textParts.get(key);
       if (snapshotText !== undefined && part) {
         part.buffer = snapshotText;
         this.pendingSnapshotText.delete(messageId);
       }
     }
-    this.activeTextMessageIdByScope.set(scope, key);
+    this.buf.activeTextMessageIdByScope.set(scope, key);
     return key;
   }
 
@@ -991,24 +1253,26 @@ export class RunAggregator {
       return this.startTextMessage(scope, messageId);
     }
 
-    const active = this.activeTextMessageIdByScope.get(scope);
+    const active = this.buf.activeTextMessageIdByScope.get(scope);
     if (active) {
       return active;
     }
 
     const key = this.ensureTextPart(scope, this.generateTextKey());
-    this.activeTextMessageIdByScope.set(scope, key);
+    this.buf.activeTextMessageIdByScope.set(scope, key);
     return key;
   }
 
   private ensureTextPart(scope: string, id: string): string {
     const key = this.partKey(scope, id);
-    if (!this.textParts.has(key)) {
-      this.textParts.set(key, { buffer: "" });
+    if (!this.buf.textParts.has(key)) {
+      this.buf.textParts.set(key, { buffer: "" });
       if (
-        !this.partOrder.some((part) => part.kind === "text" && part.key === key)
+        !this.buf.partOrder.some(
+          (part) => part.kind === "text" && part.key === key,
+        )
       ) {
-        this.partOrder.push(
+        this.buf.partOrder.push(
           scope === ROOT_SCOPE
             ? { kind: "text", key }
             : { kind: "text", key, subagentRunId: scope },
@@ -1019,7 +1283,7 @@ export class RunAggregator {
   }
 
   private appendText(id: string, delta: string): void {
-    const entry = this.textParts.get(id);
+    const entry = this.buf.textParts.get(id);
     if (!entry) return;
     entry.buffer += delta;
   }
@@ -1035,15 +1299,15 @@ export class RunAggregator {
     // after it should be a new part, not appended to the pre-tool text —
     // scoped, so a subagent's tool call doesn't break the root run's text
     // and vice versa.
-    this.activeTextMessageIdByScope.delete(scope);
+    this.buf.activeTextMessageIdByScope.delete(scope);
     if (
-      !this.partOrder.some(
+      !this.buf.partOrder.some(
         (part) => part.kind === "tool-call" && part.toolCallId === id,
       )
     ) {
       // Tool insertion can precede existing reasoning in display order.
       if (scope === ROOT_SCOPE) {
-        this.lastReasoningBeforeToolCall = this.partOrder.findLast(
+        this.buf.lastReasoningBeforeToolCall = this.buf.partOrder.findLast(
           (part) =>
             part.kind === "reasoning" && part.subagentRunId === undefined,
         );
@@ -1065,8 +1329,8 @@ export class RunAggregator {
     if (scope !== ROOT_SCOPE) {
       state.subagentRunId = scope;
     }
-    this.nestingMemo = undefined;
-    this.toolCalls.set(id, state);
+    this.buf.nestingMemo = undefined;
+    this.buf.toolCalls.set(id, state);
   }
 
   // The message and tool-call channels are unordered on the wire, so anchor a
@@ -1075,16 +1339,16 @@ export class RunAggregator {
     const entry = { kind: "tool-call", toolCallId: id } as const;
     if (parentMessageId) {
       const parentKey = this.partKey(scope, parentMessageId);
-      const parentIndex = this.partOrder.findIndex(
+      const parentIndex = this.buf.partOrder.findIndex(
         (part) => part.kind === "text" && part.key === parentKey,
       );
       if (parentIndex !== -1) {
         let insertAt = parentIndex + 1;
-        while (insertAt < this.partOrder.length) {
-          const part = this.partOrder[insertAt];
+        while (insertAt < this.buf.partOrder.length) {
+          const part = this.buf.partOrder[insertAt];
           if (
             part?.kind === "tool-call" &&
-            this.toolCalls.get(part.toolCallId)?.parentMessageId ===
+            this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
               parentMessageId
           ) {
             insertAt += 1;
@@ -1092,15 +1356,15 @@ export class RunAggregator {
           }
           break;
         }
-        this.partOrder.splice(insertAt, 0, entry);
+        this.buf.partOrder.splice(insertAt, 0, entry);
         return;
       }
     }
-    this.partOrder.push(entry);
+    this.buf.partOrder.push(entry);
   }
 
   private appendToolArgs(id: string | undefined, delta: string) {
-    const entry = id ? this.toolCalls.get(id) : undefined;
+    const entry = id ? this.buf.toolCalls.get(id) : undefined;
     if (!entry) return;
     if (!entry.argsTextScanner) {
       entry.argsTextScanner = createJSONContainerScanner();
@@ -1136,7 +1400,7 @@ export class RunAggregator {
   ) {
     if (!id) return;
     const modelText = toolContentText(content);
-    let entry = this.toolCalls.get(id);
+    let entry = this.buf.toolCalls.get(id);
     if (!entry) {
       entry = {
         toolCallId: id,
@@ -1148,15 +1412,15 @@ export class RunAggregator {
         snapshotResultApplied: false,
         ...(scope !== ROOT_SCOPE ? { subagentRunId: scope } : {}),
       };
-      this.nestingMemo = undefined;
-      this.toolCalls.set(id, entry);
+      this.buf.nestingMemo = undefined;
+      this.buf.toolCalls.set(id, entry);
     }
     if (
-      !this.partOrder.some(
+      !this.buf.partOrder.some(
         (part) => part.kind === "tool-call" && part.toolCallId === id,
       )
     ) {
-      this.partOrder.push({ kind: "tool-call", toolCallId: id });
+      this.buf.partOrder.push({ kind: "tool-call", toolCallId: id });
     }
     if (mcpResult !== undefined && !entry.snapshotResultApplied) {
       entry.result = mcpResult;
@@ -1187,26 +1451,26 @@ export class RunAggregator {
     if (metadata !== undefined) {
       entry.resultMetadata = { ...entry.resultMetadata, ...metadata };
     }
-    this.lastResolvedToolCallIdByScope.set(scope, id);
+    this.buf.lastResolvedToolCallIdByScope.set(scope, id);
   }
 
   private nesting(): {
     subagentsByParentToolCallId: Map<string, string[]>;
     reachable: Set<string>;
   } {
-    if (!this.nestingMemo) {
+    if (!this.buf.nestingMemo) {
       const subagentsByParentToolCallId = this.subagentsByParentToolCallId();
-      this.nestingMemo = {
+      this.buf.nestingMemo = {
         subagentsByParentToolCallId,
         reachable: this.reachableSubagentRunIds(subagentsByParentToolCallId),
       };
     }
-    return this.nestingMemo;
+    return this.buf.nestingMemo;
   }
 
   private subagentsByParentToolCallId(): Map<string, string[]> {
     const map = new Map<string, string[]>();
-    for (const run of this.subagentRuns.values()) {
+    for (const run of this.buf.subagentRuns.values()) {
       if (!run.parentToolCallId) continue;
       const list = map.get(run.parentToolCallId) ?? [];
       list.push(run.subagentRunId);
@@ -1226,7 +1490,7 @@ export class RunAggregator {
     const reachable = new Set<string>();
     const walk = (scope: string, depth: number): void => {
       if (depth > MAX_SUBAGENT_DEPTH) return;
-      for (const entry of this.toolCalls.values()) {
+      for (const entry of this.buf.toolCalls.values()) {
         if ((entry.subagentRunId ?? ROOT_SCOPE) !== scope) continue;
         for (const id of subagentsByParentToolCallId.get(entry.toolCallId) ??
           []) {
@@ -1249,7 +1513,7 @@ export class RunAggregator {
     depth: number,
     ctx: BuildContext,
   ): ThreadMessage | undefined {
-    const run = this.subagentRuns.get(subagentRunId);
+    const run = this.buf.subagentRuns.get(subagentRunId);
     if (!run || depth > MAX_SUBAGENT_DEPTH) return undefined;
     const content = this.buildParts(subagentRunId, depth + 1, ctx);
     return {
@@ -1299,7 +1563,7 @@ export class RunAggregator {
       };
 
       if (part.kind === "tool-call") {
-        const entry = this.toolCalls.get(part.toolCallId);
+        const entry = this.buf.toolCalls.get(part.toolCallId);
         if (!entry) continue;
         const approval = ctx.approvals.get(entry.toolCallId);
         const nestedMessages = (
@@ -1359,13 +1623,13 @@ export class RunAggregator {
 
       if (part.kind === "reasoning") {
         if (this.showThinking) {
-          const entry = this.reasoningParts.get(part.key);
+          const entry = this.buf.reasoningParts.get(part.key);
           const buffer = entry?.buffer ?? "";
           const isActive =
-            this.activeReasoningKeyByScope.get(rawScope) === part.key;
+            this.buf.activeReasoningKeyByScope.get(rawScope) === part.key;
           if (buffer.length > 0 || isActive) {
-            const encryptedValue = this.reasoningSignatures.get(part.key);
-            const reasoningId = this.reasoningMessageIds.get(part.key);
+            const encryptedValue = this.buf.reasoningSignatures.get(part.key);
+            const reasoningId = this.buf.reasoningMessageIds.get(part.key);
             const meta = {
               ...(reasoningId !== undefined ? { reasoningId } : {}),
               ...(encryptedValue !== undefined ? { encryptedValue } : {}),
@@ -1383,8 +1647,8 @@ export class RunAggregator {
             // A retracted empty block still carries transport state: without
             // a part to live on, its signature rides the message metadata,
             // matching the shape a snapshot reload produces.
-            const encryptedValue = this.reasoningSignatures.get(part.key);
-            const id = this.reasoningSignatureIds.get(part.key);
+            const encryptedValue = this.buf.reasoningSignatures.get(part.key);
+            const id = this.buf.reasoningSignatureIds.get(part.key);
             if (id?.trim() && encryptedValue?.trim()) {
               ctx.root.opaqueCandidates.push({
                 id,
@@ -1398,7 +1662,7 @@ export class RunAggregator {
       }
 
       if (part.kind === "text") {
-        const entry = this.textParts.get(part.key);
+        const entry = this.buf.textParts.get(part.key);
         if (entry && entry.buffer.trim().length > 0) {
           snapshot.push({ type: "text", text: entry.buffer } as const);
           materialized();
@@ -1424,11 +1688,11 @@ export class RunAggregator {
     const { subagentsByParentToolCallId, reachable } = this.nesting();
     const root = {
       opaqueCandidates: Array.from(
-        this.hiddenSignatures,
+        this.buf.hiddenSignatures,
         ([id, encryptedValue]) => ({
           id,
           encryptedValue,
-          anchor: this.hiddenSignatureAnchors.get(id)!,
+          anchor: this.buf.hiddenSignatureAnchors.get(id)!,
         }),
       ) as (AgUiOpaqueReasoning & { anchor: number })[],
       lastMaterializedIndex: -1,
@@ -1444,10 +1708,11 @@ export class RunAggregator {
       string,
       { index: number; part: PartOrderEntry }[]
     >();
-    for (const [index, part] of this.partOrder.entries()) {
+    for (const [index, part] of this.buf.partOrder.entries()) {
       const rawScope =
         part.kind === "tool-call"
-          ? (this.toolCalls.get(part.toolCallId)?.subagentRunId ?? ROOT_SCOPE)
+          ? (this.buf.toolCalls.get(part.toolCallId)?.subagentRunId ??
+            ROOT_SCOPE)
           : "subagentRunId" in part
             ? (part.subagentRunId ?? ROOT_SCOPE)
             : ROOT_SCOPE;
@@ -1464,9 +1729,13 @@ export class RunAggregator {
       reachable,
       partsByScope,
       approvals: projectAgUiToolApprovals(
-        this.status?.type === "requires-action" ? this.interrupts : undefined,
+        this.buf === this.current && this.status?.type === "requires-action"
+          ? this.interrupts
+          : undefined,
         new Set(
-          Array.from(this.toolCalls.values()).map((entry) => entry.toolCallId),
+          Array.from(this.buf.toolCalls.values()).map(
+            (entry) => entry.toolCallId,
+          ),
         ),
       ),
       root,
@@ -1475,18 +1744,18 @@ export class RunAggregator {
     const { opaqueCandidates, lastMaterializedIndex } = root;
 
     const toolMessageIds = new Set<string>();
-    for (const call of this.toolCalls.values()) {
+    for (const call of this.buf.toolCalls.values()) {
       if (call.toolMessageId) toolMessageIds.add(call.toolMessageId);
     }
     opaqueCandidates.sort((a, b) => a.anchor - b.anchor);
     const publishableOpaqueReasoning = opaqueCandidates
       .filter((entry) => {
         const collides =
-          this.textParts.has(entry.id) ||
-          entry.id === this.reportedServerMessageId ||
+          this.buf.textParts.has(entry.id) ||
+          entry.id === this.buf.reportedServerMessageId ||
           toolMessageIds.has(entry.id);
-        if (collides && !this.loggedDroppedOpaqueIds.has(entry.id)) {
-          this.loggedDroppedOpaqueIds.add(entry.id);
+        if (collides && !this.buf.loggedDroppedOpaqueIds.has(entry.id)) {
+          this.buf.loggedDroppedOpaqueIds.add(entry.id);
           this.logger.debug?.(
             "[agui] aggregator dropped opaque reasoning signature: id collides with a message id",
             entry.id,
@@ -1498,10 +1767,30 @@ export class RunAggregator {
         lastMaterializedIndex < anchor ? { ...entry, after: true } : entry,
       );
     if (publishableOpaqueReasoning.length > 0)
-      this.hasEmittedOpaqueReasoning = true;
+      this.buf.hasEmittedOpaqueReasoning = true;
     // Once an opaque entry has been published this run, the key keeps being
     // emitted (empty when withdrawn) so the namespace merge can retract it.
-    const includeOpaque = this.hasEmittedOpaqueReasoning;
+    const includeOpaque = this.buf.hasEmittedOpaqueReasoning;
+    if (this.buf !== this.current) {
+      this.onRetainedMessage?.(
+        {
+          content: snapshot,
+          ...(includeOpaque
+            ? {
+                metadata: {
+                  custom: {
+                    [AG_UI_METADATA_NAMESPACE]: {
+                      opaqueReasoning: publishableOpaqueReasoning,
+                    } satisfies AgUiCustomMetadata,
+                  },
+                },
+              }
+            : {}),
+        },
+        this.retainedState(this.buf),
+      );
+      return;
+    }
     const timing = this.getTiming();
     const metadata = {
       ...(timing ? { timing } : {}),
@@ -1552,7 +1841,7 @@ export class RunAggregator {
     const tokenCount =
       this.totalChunks > 0
         ? Math.ceil(
-            Array.from(this.textParts.values()).reduce(
+            Array.from(this.buf.textParts.values()).reduce(
               (sum, p) => sum + p.buffer.length,
               0,
             ) / 4,
@@ -1572,7 +1861,7 @@ export class RunAggregator {
       ...(tokenCount !== undefined ? { tokenCount } : {}),
       ...(tokensPerSecond !== undefined ? { tokensPerSecond } : {}),
       totalChunks: this.totalChunks,
-      toolCallCount: this.toolCalls.size,
+      toolCallCount: this.buf.toolCalls.size,
     };
   }
 
@@ -1584,28 +1873,28 @@ export class RunAggregator {
   ): void {
     if (!this.showThinking) {
       if (scope !== ROOT_SCOPE) return;
-      const anchor = this.partOrder.length;
-      this.hiddenReasoningIds.add(messageId);
-      this.hiddenBlockAnchors.set(messageId, anchor);
-      this.hiddenActiveReasoningId = messageId;
+      const anchor = this.buf.partOrder.length;
+      this.buf.hiddenReasoningIds.add(messageId);
+      this.buf.hiddenBlockAnchors.set(messageId, anchor);
+      this.buf.hiddenActiveReasoningId = messageId;
       return;
     }
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text — scoped.
-    this.activeTextMessageIdByScope.delete(scope);
+    this.buf.activeTextMessageIdByScope.delete(scope);
     const key = this.partKey(scope, messageId);
     if (isMessageId) {
-      this.reasoningMessageIds.set(key, messageId);
+      this.buf.reasoningMessageIds.set(key, messageId);
     }
-    if (!this.reasoningParts.has(key)) {
-      this.reasoningParts.set(key, { buffer: "" });
-      this.partOrder.push(
+    if (!this.buf.reasoningParts.has(key)) {
+      this.buf.reasoningParts.set(key, { buffer: "" });
+      this.buf.partOrder.push(
         scope === ROOT_SCOPE
           ? { kind: "reasoning", key }
           : { kind: "reasoning", key, subagentRunId: scope },
       );
     }
-    const entry = this.reasoningParts.get(key);
+    const entry = this.buf.reasoningParts.get(key);
     if (entry?.timing) {
       entry.timing = { startedAt: entry.timing.startedAt };
     } else if (
@@ -1615,7 +1904,7 @@ export class RunAggregator {
     ) {
       entry.timing = { startedAt: timestamp };
     }
-    this.activeReasoningKeyByScope.set(scope, key);
+    this.buf.activeReasoningKeyByScope.set(scope, key);
     this.emit();
   }
 
@@ -1630,29 +1919,29 @@ export class RunAggregator {
       // Content without a preceding START still names the block (the visible
       // path opens it lazily); register it so a signature can claim it.
       if (scope !== ROOT_SCOPE) return;
-      if (this.hiddenActiveReasoningId === undefined) {
+      if (this.buf.hiddenActiveReasoningId === undefined) {
         this.handleReasoningStart(scope, messageId, isMessageId);
       }
       return;
     }
-    if (!this.activeReasoningKeyByScope.has(scope)) {
+    if (!this.buf.activeReasoningKeyByScope.has(scope)) {
       // Content arrived without a preceding START — create the slot lazily.
       this.handleReasoningStart(scope, messageId, isMessageId);
     }
-    const key = this.activeReasoningKeyByScope.get(scope);
+    const key = this.buf.activeReasoningKeyByScope.get(scope);
     if (!key) return;
-    const entry = this.reasoningParts.get(key);
+    const entry = this.buf.reasoningParts.get(key);
     if (entry) entry.buffer += delta;
     this.emit();
   }
 
   private handleReasoningEnd(scope: string, timestamp?: number): void {
     if (!this.showThinking) {
-      if (scope === ROOT_SCOPE) this.hiddenActiveReasoningId = undefined;
+      if (scope === ROOT_SCOPE) this.buf.hiddenActiveReasoningId = undefined;
       return;
     }
-    const key = this.activeReasoningKeyByScope.get(scope);
-    const entry = key ? this.reasoningParts.get(key) : undefined;
+    const key = this.buf.activeReasoningKeyByScope.get(scope);
+    const entry = key ? this.buf.reasoningParts.get(key) : undefined;
     if (
       entry?.timing &&
       typeof timestamp === "number" &&
@@ -1660,7 +1949,7 @@ export class RunAggregator {
     ) {
       entry.timing = { ...entry.timing, completedAt: timestamp };
     }
-    this.activeReasoningKeyByScope.delete(scope);
+    this.buf.activeReasoningKeyByScope.delete(scope);
     this.emit();
   }
 }

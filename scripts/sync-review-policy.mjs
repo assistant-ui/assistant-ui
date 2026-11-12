@@ -4,7 +4,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { isExecutedAsMain } from "./lib/main.mjs";
-import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import {
+  loadReviewPolicy,
+  matchesAny,
+  PUBLIC_API_AREA,
+  tierLabel,
+} from "./lib/review-policy.mjs";
 import { hasOption } from "./lib/script-options.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -43,6 +48,14 @@ export function requiredLabels(policy) {
 const anchoredPatterns = (area) =>
   [...area.paths, ...area.contractDocs].map((pattern) => `/${pattern}`);
 
+const delegatedPatterns = (policy, area) =>
+  area.id === PUBLIC_API_AREA
+    ? policy.packageOwners
+        .flatMap(({ paths }) => paths)
+        .filter((pattern) => matchesAny(pattern, area.paths))
+        .map((pattern) => `/${pattern}`)
+    : [];
+
 export function renderCodeowners(policy) {
   const org = policy.repository.split("/")[0];
   const lines = [
@@ -55,6 +68,7 @@ export function renderCodeowners(policy) {
         `${pattern.replace(/\/\*\*$/, "/")} @${org}/${area.ownerTeam}`,
       );
     }
+    lines.push(...delegatedPatterns(policy, area));
   }
   return `${lines.join("\n")}\n`;
 }
@@ -85,7 +99,10 @@ export function buildRulesets(policy, liveRulesets, teamIds) {
   ].map((slug) => ({
     file_patterns: policy.areas
       .filter((area) => area.ownerTeam === slug)
-      .flatMap(anchoredPatterns),
+      .flatMap((area) => [
+        ...anchoredPatterns(area),
+        ...delegatedPatterns(policy, area).map((pattern) => `!${pattern}`),
+      ]),
     minimum_approvals: 1,
     reviewer: { id: requiredTeamId(teamIds, slug), type: "Team" },
   }));

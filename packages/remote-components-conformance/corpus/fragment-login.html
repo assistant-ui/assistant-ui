@@ -1,0 +1,126 @@
+<style>
+  .si-wrap {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    max-width: 380px;
+    margin: 0 auto;
+    padding: 24px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-sizing: border-box;
+  }
+  .si-wrap h2 { margin: 0 0 4px; font-size: 1.3rem; }
+  .si-wrap .si-sub { margin: 0 0 20px; color: var(--color-text-muted); font-size: 0.9rem; }
+  .si-field { margin-bottom: 16px; }
+  .si-field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+  .si-field input {
+    width: 100%; box-sizing: border-box;
+    padding: 10px 12px; font: inherit; font-size: 0.95rem;
+    color: var(--color-text); background: transparent;
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .si-field input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
+  }
+  .si-field input.si-invalid { border-color: #d14343; }
+  .si-err { color: #d14343; font-size: 0.8rem; margin-top: 4px; min-height: 1em; }
+  .si-pw { position: relative; }
+  .si-pw input { padding-right: 60px; }
+  .si-toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--color-accent);
+    font: inherit; font-size: 0.8rem; cursor: pointer; padding: 4px 6px;
+  }
+  .si-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: 0.9rem; }
+  .si-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .si-row input { accent-color: var(--color-accent); width: 16px; height: 16px; margin: 0; }
+  .si-row a { color: var(--color-accent); text-decoration: none; }
+  .si-row a:hover { text-decoration: underline; }
+  .si-submit {
+    width: 100%; padding: 11px; font: inherit; font-weight: 600;
+    color: #fff; background: var(--color-accent);
+    border: none; border-radius: var(--radius-md); cursor: pointer;
+    transition: opacity .15s;
+  }
+  .si-submit:hover { opacity: .9; }
+  .si-submit:disabled { opacity: .6; cursor: default; }
+  .si-msg { margin-top: 14px; text-align: center; font-size: 0.9rem; }
+</style>
+
+<div class="si-wrap">
+  <h2>Sign in</h2>
+  <p class="si-sub">Welcome back! Please enter your details.</p>
+  <form id="si-form" novalidate>
+    <div class="si-field">
+      <label for="si-email">Email</label>
+      <input id="si-email" type="email" placeholder="you@example.com" autocomplete="email">
+      <div class="si-err" id="si-email-err"></div>
+    </div>
+    <div class="si-field">
+      <label for="si-pass">Password</label>
+      <div class="si-pw">
+        <input id="si-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="si-toggle" id="si-toggle">Show</button>
+      </div>
+      <div class="si-err" id="si-pass-err"></div>
+    </div>
+    <div class="si-row">
+      <label><input type="checkbox" id="si-remember"> Remember me</label>
+      <a href="#" onclick="return false;">Forgot password?</a>
+    </div>
+    <button type="submit" class="si-submit" id="si-submit">Sign in</button>
+    <div class="si-msg" id="si-msg"></div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById('si-form');
+  const email = document.getElementById('si-email');
+  const pass = document.getElementById('si-pass');
+  const toggle = document.getElementById('si-toggle');
+  const btn = document.getElementById('si-submit');
+  const msg = document.getElementById('si-msg');
+
+  toggle.addEventListener('click', () => {
+    const show = pass.type === 'password';
+    pass.type = show ? 'text' : 'password';
+    toggle.textContent = show ? 'Hide' : 'Show';
+  });
+
+  function setErr(input, id, text) {
+    document.getElementById(id).textContent = text;
+    input.classList.toggle('si-invalid', !!text);
+  }
+
+  [email, pass].forEach(i => i.addEventListener('input', () => {
+    i.classList.remove('si-invalid');
+    document.getElementById(i.id + '-err').textContent = '';
+  }));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    let ok = true;
+    const ev = email.value.trim();
+    if (!ev) { setErr(email, 'si-email-err', 'Email is required.'); ok = false; }
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ev)) { setErr(email, 'si-email-err', 'Enter a valid email.'); ok = false; }
+    if (!pass.value) { setErr(pass, 'si-pass-err', 'Password is required.'); ok = false; }
+    else if (pass.value.length < 6) { setErr(pass, 'si-pass-err', 'At least 6 characters.'); ok = false; }
+    if (!ok) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+      const rem = document.getElementById('si-remember').checked;
+      msg.style.color = 'var(--color-text-muted)';
+      msg.textContent = `✓ Signed in as ${ev}${rem ? ' (remembered)' : ''}`;
+    }, 900);
+  });
+})();
+</script>

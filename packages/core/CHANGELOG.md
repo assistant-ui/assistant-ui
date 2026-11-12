@@ -1,5 +1,59 @@
 # @assistant-ui/core
 
+## 0.3.35
+
+### Patch Changes
+
+- [#10451](https://github.com/assistant-ui/assistant-ui/pull/10451) [`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5) - an Assistant Cloud reply whose run went stale after it wrote content is now a regular error with Regenerate (`message.runState` is undefined for it), and only a reply that wrote nothing reads as `runState: "stale"`. For that reply, `ActionBarPrimitive.Resume` deletes it and its stored row and runs again from the user message, with no branch; a runtime that cannot delete messages starts a new branch as before. `useAgUiRuntime` now supports deleting a message, which also removes its stored history entry. Regenerate is disabled while another tab still drives the run. ([@Yonom](https://github.com/Yonom))
+
+## 0.3.34
+
+### Patch Changes
+
+- [#10300](https://github.com/assistant-ui/assistant-ui/pull/10300) [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17) - leave the tool calls a paused LangGraph interrupt holds to the graph, and run them once the graph resumes and hands them back. in core, `unstable_isClientToolCall` may return `undefined` for a call an adapter can't classify, and a `false` answer on a settled snapshot now holds the call (no skip, no warning) and asks again on every later settled snapshot instead of skipping it for good. a `false` on a running snapshot still marks the call provider-owned. fixes [#10295](https://github.com/assistant-ui/assistant-ui/issues/10295). ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10390](https://github.com/assistant-ui/assistant-ui/pull/10390) [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4) - Ignore title renames queued for a deleted thread after the same ID is listed again. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10424](https://github.com/assistant-ui/assistant-ui/pull/10424) [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423) - store a running assistant message in Assistant Cloud as soon as its run starts, so its run lease is heartbeated while the tab streams it, also in the background; a reply whose run went `staleAfter` (default 30 seconds, an option on `useCloudThreadListAdapter`) without a heartbeat now loads as an interrupted error instead of disappearing, and the new `ActionBarPrimitive.Resume` starts a new branch beside it, the same way Regenerate does, with its own lease. A reply another tab is still writing shows as in progress and follows the run live until it finishes or goes quiet; the new `ActionBarPrimitive.RefreshRun` re-reads it on demand, and a late run that beats again shows as in progress again. The AI SDK runtime (`withFormat` history) holds run leases too when each thread message maps to one AI SDK message, and shows the same states on load; `MessageFormatItem` gains `unstable_status` and `GenericThreadHistoryAdapter` gains `unstable_onReload` for this. Messages carry `runState` (`"stale"` or `"in-progress"`), `ErrorPrimitive.Root` exposes it as `data-run-state` (with `role="status"` while in progress), and `ActionBarPrimitive.Root` with `hideWhenRunning` also hides while another tab writes the reply. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`f70872a`](https://github.com/assistant-ui/assistant-ui/commit/f70872a43574d311322c0b5071b4581e0a71bdff), [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - assistant-cloud@0.2.11
+
+## 0.3.33
+
+### Patch Changes
+
+- [#10298](https://github.com/assistant-ui/assistant-ui/pull/10298) [`7175a10`](https://github.com/assistant-ui/assistant-ui/commit/7175a10aca4ecd8ce97939747bdfcfe7171ba8df) - Preserve media returned by ADK tools as model content on the tool call, including after a session reload. ([@clean99](https://github.com/clean99))
+
+- [#10165](https://github.com/assistant-ui/assistant-ui/pull/10165) [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9) - Wait for the initialized thread state to commit before resolving `initialize()`. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10219](https://github.com/assistant-ui/assistant-ui/pull/10219) [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e) - A committed thread runtime takes back the tool tracker that a discarded render claimed, so Stop aborts pending frontend tools after switching back to a thread. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10192](https://github.com/assistant-ui/assistant-ui/pull/10192) [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2) - Initialize a thread on the replacement adapter when the thread list adapter changes while its first message is being sent, instead of failing the reply with "Thread list adapter changed while an operation was pending." ([@okisdev](https://github.com/okisdev))
+
+- [#10167](https://github.com/assistant-ui/assistant-ui/pull/10167) [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c) - an approved AI SDK tool call now shows the result the server streams after the approval. `UIMessageStreamDecoder` passes on a `tool-output-available` or `tool-output-error` for a call an earlier response opened, and a `LocalRuntime` resume that yields a tool call the message holds without a result fills in that call instead of appending a second one. ([@bnb](https://github.com/bnb))
+  
+  when a continuation replaces a preliminary result, its model-facing content is replaced too, so later turns use the final result instead of stale progress text.
+
+- [#10199](https://github.com/assistant-ui/assistant-ui/pull/10199) [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9) - Keep remote thread archive and delete updates in mutation order. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10279](https://github.com/assistant-ui/assistant-ui/pull/10279) [`c6388b6`](https://github.com/assistant-ui/assistant-ui/commit/c6388b6cd3ee13d18fbc9f46fcc32ed1c3014497) - send bare base64 images as inline data while preserving URLs and relative image references that are not base64 once whitespace is removed, such as a path with a file extension. a reference made only of base64 characters and whitespace, such as `/uploads/cat`, is sent as inline data. share base64 classification across adapters, including line-wrapped payloads and formats without a known image signature. additionally, LangChain and LangGraph normalize base64 data URLs through the image MIME resolver, correcting omitted or generic media types and decoding percent-escaped base64 bytes. ([@tkr109](https://github.com/tkr109))
+
+- [#10309](https://github.com/assistant-ui/assistant-ui/pull/10309) [`c70a5d9`](https://github.com/assistant-ui/assistant-ui/commit/c70a5d9290a4b75fadb4d8c815586dbdcf94892b) - Accept a line-wrapped base64 payload in `parseDataUrl` instead of dropping the image part. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10207](https://github.com/assistant-ui/assistant-ui/pull/10207) [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481) - Retry unanswered frame load requests when the same document republishes its tools, so a re-registered cross-origin provider can recover without another iframe load. Ignore late load responses after a replacement document takes over. ([@akim136](https://github.com/akim136))
+
+- [#10201](https://github.com/assistant-ui/assistant-ui/pull/10201) [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe) - Restore a successful rename when a newer explicit title generation fails. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10175](https://github.com/assistant-ui/assistant-ui/pull/10175) [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa) - Publish imported external-store messages before notifying thread subscribers. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10156](https://github.com/assistant-ui/assistant-ui/pull/10156) [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b) - Send file parts with `sourceType: "id"` as AG-UI file sources instead of inline bytes, preserving provider handles through snapshot round trips. A file source in a `MESSAGES_SNAPSHOT` user message now also imports as an attachment, so the handle stays visible in the thread. ([@clean99](https://github.com/clean99))
+
+- [#10311](https://github.com/assistant-ui/assistant-ui/pull/10311) [`620389a`](https://github.com/assistant-ui/assistant-ui/commit/620389ad592ce9897b38b801e0e098527af6fcaf) - Reject a remote thread mutation that was cancelled or already run, so it cannot overlap the next queued mutation. ([@lhy-dcf](https://github.com/lhy-dcf))
+- Updated dependencies [[`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12), [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c), [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed), [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4), [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f)]:
+  - assistant-stream@0.3.56
+  - assistant-cloud@0.2.10
+
 ## 0.3.32
 
 ### Patch Changes

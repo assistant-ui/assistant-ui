@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACME Stock Quote</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  .card{width:300px;background:#1e293b;border-radius:16px;padding:20px;color:#e2e8f0;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .top{display:flex;justify-content:space-between;align-items:baseline}
+  .sym{font-weight:700;font-size:20px;letter-spacing:.5px}
+  .name{font-size:12px;color:#94a3b8}
+  .price{font-size:34px;font-weight:700;margin:12px 0 4px;font-variant-numeric:tabular-nums}
+  .chg{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .up{color:#22c55e}.down{color:#ef4444}
+  svg{display:block;margin-top:14px;width:100%;height:60px}
+  .foot{display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:8px}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:5px;animation:p 1.5s infinite}
+  @keyframes p{50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div class="card" role="region" aria-label="ACME stock quote">
+  <div class="top">
+    <div><div class="sym">ACME</div><div class="name">Acme Corporation · NASDAQ</div></div>
+  </div>
+  <div class="price" id="price">$0.00</div>
+  <div class="chg" id="chg"></div>
+  <svg id="spark" viewBox="0 0 260 60" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" id="s1" stop-opacity=".35"/>
+        <stop offset="100%" id="s2" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path id="area" fill="url(#g)"/>
+    <path id="line" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle id="last" r="3"/>
+  </svg>
+  <div class="foot"><span><span class="dot"></span>Live (simulated)</span><span id="time"></span></div>
+</div>
+<script>
+const open = 142.50;
+let pts = [];
+let p = open;
+for (let i = 0; i < 40; i++) { p += (Math.random() - 0.48) * 0.9; pts.push(p); }
+
+function render() {
+  const cur = pts[pts.length - 1];
+  const diff = cur - open, pct = diff / open * 100;
+  const up = diff >= 0, color = up ? '#22c55e' : '#ef4444';
+  document.getElementById('price').textContent = '$' + cur.toFixed(2);
+  const c = document.getElementById('chg');
+  c.className = 'chg ' + (up ? 'up' : 'down');
+  c.textContent = (up ? '▲ +' : '▼ ') + diff.toFixed(2) + ' (' + (up ? '+' : '') + pct.toFixed(2) + '%) today';
+
+  const W = 260, H = 60, pad = 4;
+  const min = Math.min(...pts, open), max = Math.max(...pts, open);
+  const x = i => i / (pts.length - 1) * W;
+  const y = v => pad + (1 - (v - min) / ((max - min) || 1)) * (H - pad * 2);
+  const d = pts.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1)).join('');
+  const line = document.getElementById('line');
+  line.setAttribute('d', d); line.setAttribute('stroke', color);
+  document.getElementById('area').setAttribute('d', d + `L${W},${H}L0,${H}Z`);
+  document.getElementById('s1').setAttribute('stop-color', color);
+  document.getElementById('s2').setAttribute('stop-color', color);
+  const dot = document.getElementById('last');
+  dot.setAttribute('cx', x(pts.length - 1)); dot.setAttribute('cy', y(cur)); dot.setAttribute('fill', color);
+  document.getElementById('time').textContent = new Date().toLocaleTimeString();
+}
+
+render();
+setInterval(() => {
+  pts.push(pts[pts.length - 1] + (Math.random() - 0.49) * 0.8);
+  if (pts.length > 40) pts.shift();
+  render();
+}, 2000);
+</script>
+</body>
+</html>

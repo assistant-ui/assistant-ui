@@ -7,7 +7,6 @@ export const reactApp: CatalogItem = {
   tagline:
     "Point the setup at one of your React apps, or start a new one with the framework you pick.",
   href: "/docs/installation",
-  purchase: "setup",
   glyph: "react",
   docs: "/docs/installation",
   agentMinutes: [2, 5],

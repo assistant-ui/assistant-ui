@@ -1,0 +1,34 @@
+<html><head><style>
+body{margin:0;font-family:var(--font-sans);color:var(--color-text);background:transparent}
+.w{padding:16px}
+.tg{display:flex;justify-content:center;gap:4px;margin-bottom:16px}
+.tg button{border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);padding:6px 14px;border-radius:999px;cursor:pointer;font:inherit;font-size:14px}
+.tg button.on{background:var(--color-accent);color:#fff;border-color:var(--color-accent)}
+.save{font-size:11px;opacity:.85}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.c{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:16px;display:flex;flex-direction:column}
+.c.f{border:2px solid var(--color-accent)}
+.c h3{margin:0 0 4px;font-size:16px}
+.b{font-size:11px;color:var(--color-accent);font-weight:600;height:14px}
+.p{font-size:28px;font-weight:700;margin:8px 0 2px}
+.p small{font-size:13px;font-weight:400;color:var(--color-text-muted)}
+.n{font-size:12px;color:var(--color-text-muted);min-height:16px}
+ul{padding:0;margin:12px 0;list-style:none;font-size:13px;flex:1}
+li{padding:3px 0}li:before{content:"✓ ";color:var(--color-accent)}
+.c>button{border:1px solid var(--color-accent);background:transparent;color:var(--color-accent);padding:8px;border-radius:var(--radius-md);cursor:pointer;font:inherit;font-size:14px}
+.c.f>button{background:var(--color-accent);color:#fff}
+</style></head><body><div class="w">
+<div class="tg" role="group" aria-label="Billing period"><button id="m" class="on" aria-pressed="true">Monthly</button><button id="y" aria-pressed="false">Yearly <span class="save">−20%</span></button></div>
+<div class="g">
+<div class="c"><div class="b"></div><h3>Free</h3><div class="p" data-m="0" data-y="0"></div><div class="n"></div><ul><li>1 project</li><li>Basic analytics</li><li>Community support</li></ul><button>Get started</button></div>
+<div class="c f"><div class="b">MOST POPULAR</div><h3>Pro</h3><div class="p" data-m="12" data-y="9.60"></div><div class="n"></div><ul><li>Unlimited projects</li><li>Advanced analytics</li><li>Email support</li></ul><button>Upgrade to Pro</button></div>
+<div class="c"><div class="b"></div><h3>Team</h3><div class="p" data-m="29" data-y="23.20" data-u></div><div class="n"></div><ul><li>Everything in Pro</li><li>Shared workspaces</li><li>Priority support</li></ul><button>Contact sales</button></div>
+</div></div>
+<script>
+const M=document.getElementById('m'),Y=document.getElementById('y');
+function set(yr){M.classList.toggle('on',!yr);Y.classList.toggle('on',yr);M.setAttribute('aria-pressed',!yr);Y.setAttribute('aria-pressed',yr);
+document.querySelectorAll('.p').forEach(p=>{const v=+p.dataset[yr?'y':'m'],u=p.hasAttribute('data-u')?'/user/mo':'/mo';
+p.innerHTML='$'+(v%1?v.toFixed(2):v)+'<small>'+u+'</small>';
+p.nextElementSibling.textContent=v===0?'Free forever':yr?'$'+(v*12).toFixed(0)+' billed yearly':'Billed monthly';});}
+M.onclick=()=>set(false);Y.onclick=()=>set(true);set(false);
+</script></body></html>

@@ -8,6 +8,7 @@ import {
   PLATFORM_QUICKSTART_COMMANDS,
 } from "@/lib/docs-platform";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
+import { AGENT_SETUP_HINT, AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
 
 /**
  * Text equivalents for the landing components. The interactive versions render
@@ -21,6 +22,19 @@ export const QuickstartLLM = (
 ) => {
   const platform =
     ctx?.platform && isSurface(ctx.platform) ? ctx.platform : DEFAULT_PLATFORM;
+  if (platform === "react")
+    return (
+      <>
+        <p>
+          Tell your coding agent: <code>{AGENT_SETUP_PROMPT}</code>
+        </p>
+        <p>{AGENT_SETUP_HINT}</p>
+        <p>
+          To install by hand, follow the{" "}
+          <a href={PLATFORM_ENTRY_PATHS[platform]}>installation guide</a>.
+        </p>
+      </>
+    );
   return (
     <>
       <pre>{PLATFORM_QUICKSTART_COMMANDS[platform]}</pre>

@@ -37,6 +37,7 @@ describe("OssPage", () => {
     const flagship = page.querySelector('[aria-label="assistant-ui project"]');
     expect(flagship?.querySelectorAll("a")).toHaveLength(1);
     link("Safe Content Frame on website", "/safe-content-frame");
+    link("Remote Components on website", "/remote-components");
     link("@assistant-ui/tap on docs", "/docs/tap");
     link("@assistant-ui/store on docs", "/docs/store/why-store");
     link(

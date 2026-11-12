@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
-import { AddToCartButton } from "@/components/shared/shop-entry";
+import { SetupPromptTrigger } from "@/components/shared/setup-command-prompt";
+import { Button } from "@/components/ui/button";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { subProjectGithubUrl } from "@/lib/docs-sites";
@@ -201,12 +202,14 @@ export default function SandboxPage() {
             command="npm install safe-content-frame"
             analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
           />
-          <AddToCartButton
-            slug="safe-content-frame"
-            name="Safe Content Frame"
-            size="default"
-            variant="outline"
-          />
+          <SetupPromptTrigger
+            page={ANALYTICS_PAGE}
+            section="hero"
+            products={["safe-content-frame"]}
+            trigger={<Button variant="outline" />}
+          >
+            Copy setup prompt
+          </SetupPromptTrigger>
           <Link
             href="/safe-content-frame/docs"
             className="text-muted-foreground hover:text-foreground text-sm transition-colors"

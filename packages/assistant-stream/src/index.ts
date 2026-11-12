@@ -9,6 +9,12 @@ export {
   createInitialMessage as unstable_createInitialMessage,
 } from "./core/accumulators/assistant-message-accumulator";
 export { AssistantStream } from "./core/AssistantStream";
+export {
+  registerJsonParserBackend,
+  type JsonParserBackend,
+  type JsonParserBackendContext,
+  type JsonParserBackendFactory,
+} from "./utils/json/json-parser-backend";
 export type { AssistantStreamController } from "./core/modules/assistant-stream";
 export type { AssistantStreamChunk } from "./core/AssistantStreamChunk";
 export {

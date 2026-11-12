@@ -1,0 +1,51 @@
+<div class="qz">
+  <style>
+    .qz{font-family:var(--font-sans);color:var(--color-text);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px;max-width:560px}
+    .qz h3{margin:0 0 4px;font-size:1.1rem}
+    .qz .meta{color:var(--color-text-muted);font-size:.85rem;margin-bottom:14px}
+    .qz .opt{display:block;width:100%;text-align:left;padding:10px 12px;margin:6px 0;background:transparent;color:var(--color-text);border:1px solid var(--color-border);border-radius:var(--radius-md);font:inherit;cursor:pointer}
+    .qz .opt:hover:not(:disabled){border-color:var(--color-accent)}
+    .qz .opt.correct{border-color:#2e9e5b;background:rgba(46,158,91,.12)}
+    .qz .opt.wrong{border-color:#d0453a;background:rgba(208,69,58,.12)}
+    .qz .opt:disabled{cursor:default}
+    .qz .fb{min-height:1.4em;margin:10px 0;font-size:.9rem;color:var(--color-text-muted)}
+    .qz .btn{padding:8px 16px;background:var(--color-accent);color:#fff;border:none;border-radius:var(--radius-md);font:inherit;cursor:pointer}
+    .qz .btn[hidden]{display:none}
+    .qz .score{font-size:2rem;font-weight:600;margin:8px 0}
+  </style>
+  <div id="qz-body"></div>
+</div>
+<script>
+(function(){
+  const qs=[
+    {q:"Which planet is known as the Red Planet?",o:["Venus","Mars","Jupiter","Saturn"],a:1},
+    {q:"What is the chemical symbol for gold?",o:["Ag","Gd","Au","Go"],a:2},
+    {q:"How many sides does a hexagon have?",o:["5","6","7","8"],a:1}
+  ];
+  const body=document.getElementById("qz-body");
+  let i=0,score=0;
+  function render(){
+    const d=qs[i];
+    body.innerHTML=`<div class="meta">Question ${i+1} of ${qs.length}</div><h3>${d.q}</h3>
+      <div class="opts">${d.o.map((t,k)=>`<button class="opt" data-k="${k}">${t}</button>`).join("")}</div>
+      <div class="fb"></div><button class="btn" hidden>${i<qs.length-1?"Next":"See score"}</button>`;
+    const btns=body.querySelectorAll(".opt"),fb=body.querySelector(".fb"),next=body.querySelector(".btn");
+    btns.forEach(b=>b.onclick=()=>{
+      const k=+b.dataset.k;
+      btns.forEach(x=>x.disabled=true);
+      btns[d.a].classList.add("correct");
+      if(k===d.a){score++;fb.textContent="Correct!";}
+      else{b.classList.add("wrong");fb.textContent="Not quite — the answer is "+d.o[d.a]+".";}
+      next.hidden=false;
+    });
+    next.onclick=()=>{i++;i<qs.length?render():done();};
+  }
+  function done(){
+    const msg=score===3?"Perfect score!":score===2?"Nice work!":score===1?"Good try!":"Better luck next time!";
+    body.innerHTML=`<h3>Quiz complete</h3><div class="score">${score} / ${qs.length}</div>
+      <div class="fb">${msg}</div><button class="btn">Try again</button>`;
+    body.querySelector(".btn").onclick=()=>{i=0;score=0;render();};
+  }
+  render();
+})();
+</script>

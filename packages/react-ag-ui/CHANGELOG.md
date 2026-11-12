@@ -1,5 +1,68 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.6
+
+### Patch Changes
+
+- [#10461](https://github.com/assistant-ui/assistant-ui/pull/10461) [`437b410`](https://github.com/assistant-ui/assistant-ui/commit/437b410726e283798ff3b61b0f4209129225e2fa) - Route AG-UI events to the assistant message they name after a messages snapshot moves the head, so later text, tool calls, results, and sub-agent output stay on the earlier answer, and an answer cut off by a disconnect settles as incomplete. ([@okisdev](https://github.com/okisdev))
+
+- [#10429](https://github.com/assistant-ui/assistant-ui/pull/10429) [`21f88ce`](https://github.com/assistant-ui/assistant-ui/commit/21f88ceebbe09250ce27160796a92cb0f5f14f47) - Keep an assistant answer running when a later snapshot adds a tool call to the current head. ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.1.5
+
+### Patch Changes
+
+- [#10451](https://github.com/assistant-ui/assistant-ui/pull/10451) [`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5) - an Assistant Cloud reply whose run went stale after it wrote content is now a regular error with Regenerate (`message.runState` is undefined for it), and only a reply that wrote nothing reads as `runState: "stale"`. For that reply, `ActionBarPrimitive.Resume` deletes it and its stored row and runs again from the user message, with no branch; a runtime that cannot delete messages starts a new branch as before. `useAgUiRuntime` now supports deleting a message, which also removes its stored history entry. Regenerate is disabled while another tab still drives the run. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5)]:
+  - @assistant-ui/core@0.3.35
+
+## 0.1.4
+
+### Patch Changes
+
+- [#10444](https://github.com/assistant-ui/assistant-ui/pull/10444) [`2c298df`](https://github.com/assistant-ui/assistant-ui/commit/2c298dfa8392926f6b206cadf1c8cf0791e8030e) - Persist assistant messages that a snapshot adds during a run, including an answer the snapshot moves the run onto or delivers on its own. A run's assistants that were never written are appended first, in branch order, so the stored head ends on the thread's last message. ([@Yonom](https://github.com/Yonom))
+
+- [#10444](https://github.com/assistant-ui/assistant-ui/pull/10444) [`2c298df`](https://github.com/assistant-ui/assistant-ui/commit/2c298dfa8392926f6b206cadf1c8cf0791e8030e) - Settle a sub-agent message that a messages snapshot left waiting on its own tool call when the run ends without RUN_FINISHED. ([@Yonom](https://github.com/Yonom))
+
+## 0.1.3
+
+### Patch Changes
+
+- [#10288](https://github.com/assistant-ui/assistant-ui/pull/10288) [`ece6d9e`](https://github.com/assistant-ui/assistant-ui/commit/ece6d9ed29f9d93f71b7750b822ebc27d4a43c71) - send the agent's initialState on a thread's first request, with each thread starting from it even when threads share one agent ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10358](https://github.com/assistant-ui/assistant-ui/pull/10358) [`855e9fa`](https://github.com/assistant-ui/assistant-ui/commit/855e9fafc30d026c6889737c605395746e546336) - Keep moved-off assistant messages settled across repeated snapshots and attach streamed tool results to their originating message. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`47b6556`](https://github.com/assistant-ui/assistant-ui/commit/47b6556da134f3f52447c6f8325523e89b3b1f4f), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - @assistant-ui/generative-ui@0.0.10
+  - @assistant-ui/core@0.3.34
+
+## 0.1.2
+
+### Patch Changes
+
+- [#10326](https://github.com/assistant-ui/assistant-ui/pull/10326) [`afecce7`](https://github.com/assistant-ui/assistant-ui/commit/afecce731c3a6cdaecfc85daf423aa81efd3c9c1) - Render subagent messages that a `MESSAGES_SNAPSHOT` tags with `subagentRunId` once, nested under the tool call that `SUBAGENT_STARTED` announced for the run in the same session, instead of a second time in the parent thread. ([@gialup03](https://github.com/gialup03))
+
+- [#10340](https://github.com/assistant-ui/assistant-ui/pull/10340) [`0cf1211`](https://github.com/assistant-ui/assistant-ui/commit/0cf12115d50d4549e214974290e16b6b8251fb8f) - Keep an answered AG-UI interrupt, and a tool result or MCP app snapshot that arrives later, after a reload. The settled message is now written through the history adapter's `update`, also while its first `append` is still pending. ([@rogiervandergeer](https://github.com/rogiervandergeer))
+
+- [#10303](https://github.com/assistant-ui/assistant-ui/pull/10303) [`fac975b`](https://github.com/assistant-ui/assistant-ui/commit/fac975be228fa24d9ac91a1ea243117fee2d4f87) - Keep streaming a nested subagent transcript after a `MESSAGES_SNAPSHOT` instead of freezing it at its first update. ([@gialup03](https://github.com/gialup03))
+
+- [#10352](https://github.com/assistant-ui/assistant-ui/pull/10352) [`4f8d78b`](https://github.com/assistant-ui/assistant-ui/commit/4f8d78b47a1418ab831faf0216a62ed41708bbf2) - Keep a snapshot-only AG-UI answer running while its stream is active and settle it correctly on stream completion. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10177](https://github.com/assistant-ui/assistant-ui/pull/10177) [`fd46df3`](https://github.com/assistant-ui/assistant-ui/commit/fd46df3a4f29c8b917682d97af075fda3bbafe92) - Send an empty state for AG-UI runs before a snapshot exists. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10156](https://github.com/assistant-ui/assistant-ui/pull/10156) [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b) - Send file parts with `sourceType: "id"` as AG-UI file sources instead of inline bytes, preserving provider handles through snapshot round trips. A file source in a `MESSAGES_SNAPSHOT` user message now also imports as an attachment, so the handle stays visible in the thread. ([@clean99](https://github.com/clean99))
+
+- [#10336](https://github.com/assistant-ui/assistant-ui/pull/10336) [`05ca77f`](https://github.com/assistant-ui/assistant-ui/commit/05ca77fc9c568087421100a705d61151afb8dbdd) - Keep an active answer running when an AG-UI snapshot includes an unresolved tool call, so stream cleanup and snapshot head moves can settle the answer and nested assistants. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10203](https://github.com/assistant-ui/assistant-ui/pull/10203) [`4b47dcf`](https://github.com/assistant-ui/assistant-ui/commit/4b47dcf9c5f3d60f7365572524f49c5d9bf23fc2) - Settle interrupted HTTP streams as incomplete without overwriting snapshot content. Transport finalization no longer synthesizes a successful run completion. ([@stevan-borus](https://github.com/stevan-borus))
+
+- [#10180](https://github.com/assistant-ui/assistant-ui/pull/10180) [`1f60edd`](https://github.com/assistant-ui/assistant-ui/commit/1f60edd97c50e59734001c4a00b157552d19fbe4) - Preserve AG-UI tool result metadata on the matching tool call part during streaming and cross-run completion, and send it back on export. ([@diefergil](https://github.com/diefergil))
+- Updated dependencies [[`7175a10`](https://github.com/assistant-ui/assistant-ui/commit/7175a10aca4ecd8ce97939747bdfcfe7171ba8df), [`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12), [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c), [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35), [`a219b67`](https://github.com/assistant-ui/assistant-ui/commit/a219b67a9f95225f78b96a07d8ca47070ab4328a), [`c6388b6`](https://github.com/assistant-ui/assistant-ui/commit/c6388b6cd3ee13d18fbc9f46fcc32ed1c3014497), [`1642938`](https://github.com/assistant-ui/assistant-ui/commit/164293899db2f63ffd1d58af1c73b66390160e0a), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`38496db`](https://github.com/assistant-ui/assistant-ui/commit/38496dba9535cd676ced498fb8e13c31dc21f1c3), [`c70a5d9`](https://github.com/assistant-ui/assistant-ui/commit/c70a5d9290a4b75fadb4d8c815586dbdcf94892b), [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c), [`5829349`](https://github.com/assistant-ui/assistant-ui/commit/5829349a8cbca2b017c3af7e0b70bf90cd47a44c), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`a96e62f`](https://github.com/assistant-ui/assistant-ui/commit/a96e62f89da310602b716821dd91b9525f94cbb5), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b), [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4), [`620389a`](https://github.com/assistant-ui/assistant-ui/commit/620389ad592ce9897b38b801e0e098527af6fcaf), [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f), [`207d06b`](https://github.com/assistant-ui/assistant-ui/commit/207d06b6be56185f232df9ffac927565f8684619)]:
+  - @assistant-ui/core@0.3.33
+  - assistant-stream@0.3.56
+  - @assistant-ui/generative-ui@0.0.9
+  - @assistant-ui/store@0.3.23
+
 ## 0.1.1
 
 ### Patch Changes

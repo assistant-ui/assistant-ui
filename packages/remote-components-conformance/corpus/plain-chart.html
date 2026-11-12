@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monthly Sales - Last Six Months</title>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f6f9;
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 24px;
+    max-width: 760px;
+    width: 100%;
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .bar { fill: #4a7bd0; transition: fill 0.2s; }
+  .bar:hover { fill: #2c5aa8; }
+  .value { font-size: 13px; fill: #333; text-anchor: middle; }
+  .tick { font-size: 12px; fill: #555; }
+  .grid { stroke: #e3e6ea; stroke-width: 1; }
+  .axis { stroke: #333; stroke-width: 1.5; }
+  .title { font-size: 20px; font-weight: bold; fill: #222; text-anchor: middle; }
+  .label { font-size: 14px; fill: #333; text-anchor: middle; }
+  .note { font-size: 12px; color: #777; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <svg id="chart" viewBox="0 0 700 450" role="img" aria-labelledby="chartTitle">
+    <title id="chartTitle">Monthly sales for the last six months</title>
+  </svg>
+  <p class="note">Sample data for illustration. Months are calculated from today's date.</p>
+</div>
+
+<script>
+  // Sample sales figures (USD), oldest to newest
+  const salesValues = [42500, 38900, 51200, 47800, 55300, 60100];
+
+  // Build labels for the last six full months ending with the previous month
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const now = new Date();
+  const data = salesValues.map((value, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (6 - i), 1);
+    return { label: monthNames[d.getMonth()] + " " + d.getFullYear(), value };
+  });
+
+  const svg = document.getElementById("chart");
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 700, H = 450;
+  const margin = { top: 60, right: 30, bottom: 70, left: 90 };
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+
+  const maxVal = Math.ceil(Math.max(...data.map(d => d.value)) / 10000) * 10000;
+  const ticks = 5;
+
+  function el(name, attrs, text) {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    svg.appendChild(e);
+    return e;
+  }
+
+  const fmt = v => "$" + v.toLocaleString("en-US");
+
+  // Title
+  el("text", { x: W / 2, y: 32, class: "title" }, "Monthly Sales — Last Six Months");
+
+  // Gridlines and y-axis ticks
+  for (let i = 0; i <= ticks; i++) {
+    const v = (maxVal / ticks) * i;
+    const y = margin.top + plotH - (v / maxVal) * plotH;
+    el("line", { x1: margin.left, x2: margin.left + plotW, y1: y, y2: y, class: "grid" });
+    el("text", { x: margin.left - 10, y: y + 4, class: "tick", "text-anchor": "end" }, fmt(v));
+  }
+
+  // Bars
+  const band = plotW / data.length;
+  const barW = band * 0.6;
+  data.forEach((d, i) => {
+    const h = (d.value / maxVal) * plotH;
+    const x = margin.left + i * band + (band - barW) / 2;
+    const y = margin.top + plotH - h;
+    const rect = el("rect", { x, y, width: barW, height: h, class: "bar", rx: 3 });
+    const tip = document.createElementNS(NS, "title");
+    tip.textContent = d.label + ": " + fmt(d.value);
+    rect.appendChild(tip);
+    el("text", { x: x + barW / 2, y: y - 6, class: "value" }, fmt(d.value));
+    el("text", { x: x + barW / 2, y: margin.top + plotH + 20, class: "tick", "text-anchor": "middle" }, d.label);
+  });
+
+  // Axes
+  el("line", { x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + plotH, class: "axis" });
+  el("line", { x1: margin.left, x2: margin.left + plotW, y1: margin.top + plotH, y2: margin.top + plotH, class: "axis" });
+
+  // Axis labels
+  el("text", { x: margin.left + plotW / 2, y: H - 20, class: "label" }, "Month");
+  el("text", {
+    x: -(margin.top + plotH / 2), y: 22, class: "label",
+    transform: "rotate(-90)"
+  }, "Sales (USD)");
+</script>
+</body>
+</html>

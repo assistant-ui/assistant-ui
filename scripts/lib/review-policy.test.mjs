@@ -9,6 +9,7 @@ import {
   isTestPath,
   loadReviewPolicy,
   overrideSignal,
+  packageOwnerOf,
   parseTitleType,
   tierLabel,
   validateReviewPolicy,
@@ -129,4 +130,43 @@ test("labels follow the policy prefixes", () => {
   assert.equal(overrideSignal(policy, "review-tier/override: size"), "size");
   assert.equal(overrideSignal(policy, "review-tier/override: tier"), null);
   assert.equal(overrideSignal(policy, "tier/2"), null);
+});
+
+test("malformed package owners are reported, not thrown", () => {
+  for (const [packageOwners, message] of [
+    [undefined, /packageOwners must be an array/],
+    [[null], /every package owner must be an object/],
+    [[{ id: "a", paths: ["packages/a/**"] }], /package owner a needs owners/],
+    [
+      [{ id: "a", owners: ["alice"], paths: [] }],
+      /package owner a needs paths/,
+    ],
+    [
+      [
+        { id: "a", owners: ["alice"], paths: ["packages/a/**"] },
+        { id: "a", owners: ["alice"], paths: ["packages/a/**"] },
+      ],
+      /package owner id a is repeated/,
+    ],
+  ]) {
+    assert.throws(
+      () => validateReviewPolicy({ ...policy, packageOwners }),
+      message,
+    );
+  }
+});
+
+test("packageOwnerOf matches the owned package and its API surface", () => {
+  assert.equal(
+    packageOwnerOf(policy, "api-surface/assistant-ui__docs-theme.ts")?.id,
+    "docs-theme",
+  );
+  assert.equal(
+    packageOwnerOf(policy, "packages/docs-theme/src/a.ts")?.id,
+    "docs-theme",
+  );
+  assert.equal(
+    packageOwnerOf(policy, "api-surface/assistant-ui__react.ts"),
+    undefined,
+  );
 });

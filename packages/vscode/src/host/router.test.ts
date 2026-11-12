@@ -260,3 +260,144 @@ describe("serveRoutes", () => {
     }
   });
 });
+
+describe("serveRoutes input from the webview", () => {
+  const setup = () => {
+    const bridge = createInMemoryBridge();
+    const onError = vi.fn();
+    const handler = vi.fn(() => new Response("ok"));
+    const server = serveRoutes(
+      bridge.webview,
+      { "/api/test": { GET: handler } },
+      { onError },
+    );
+    const answersFor = (id: string) =>
+      (bridge.hostToWebview as { id: string; kind: string }[]).filter(
+        (message) => message.id === id,
+      );
+    return { bridge, onError, handler, server, answersFor };
+  };
+
+  it.each([
+    "https://169.254.169.254/api/test",
+    "http://localhost:3000/api/test",
+  ])("refuses a request for %s instead of routing it", async (url) => {
+    const { bridge, onError, handler, server, answersFor } = setup();
+    try {
+      bridge.port.postMessage({ ...request("foreign"), url });
+      await waitFor(() => answersFor("foreign").length > 0);
+
+      expect(answersFor("foreign")).toEqual([
+        {
+          channel: VSCODE_BRIDGE_CHANNEL,
+          kind: "fetch:error",
+          id: "foreign",
+          message: `Refused a request for ${new URL(url).origin}`,
+        },
+      ]);
+      expect(handler).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledOnce();
+    } finally {
+      server.dispose();
+    }
+  });
+
+  it.each([
+    "ftp://169.254.169.254/api/test?q=1",
+    "ws://169.254.169.254/api/test?q=1",
+    "vscode-webview://169.254.169.254/api/test?q=1",
+  ])("hands a route the virtual origin for %s", async (url) => {
+    const { bridge, handler, server, answersFor } = setup();
+    try {
+      bridge.port.postMessage({ ...request("scheme"), url });
+      await waitFor(() =>
+        answersFor("scheme").some((message) => message.kind === "fetch:end"),
+      );
+
+      expect(handler).toHaveBeenCalledOnce();
+      const [routed] = handler.mock.calls[0] as unknown as [Request];
+      expect(routed.url).toBe(`${VSCODE_VIRTUAL_ORIGIN}/api/test?q=1`);
+    } finally {
+      server.dispose();
+    }
+  });
+
+  it("keeps a path that starts with two slashes on the virtual origin", async () => {
+    const bridge = createInMemoryBridge();
+    const seen: string[] = [];
+    const server = serveRoutes(bridge.webview, {
+      "//169.254.169.254/api/test": {
+        GET: (req) => {
+          seen.push(req.url);
+          return new Response("ok");
+        },
+      },
+    });
+    try {
+      bridge.port.postMessage({
+        ...request("slashes"),
+        url: "vscode-webview://panel//169.254.169.254/api/test",
+      });
+      await waitFor(() => seen.length > 0);
+
+      expect(seen).toEqual([
+        `${VSCODE_VIRTUAL_ORIGIN}//169.254.169.254/api/test`,
+      ]);
+    } finally {
+      server.dispose();
+    }
+  });
+
+  it.each<[string, Partial<FetchRequestMessage>]>([
+    ["a URL that does not parse", { url: "not a url" }],
+    ["an invalid method", { method: "GET /api/test" }],
+    ["a forbidden method", { method: "CONNECT" }],
+    ["an invalid header name", { headers: [["bad header", "x"]] }],
+  ])("answers fetch:error for %s without routing it", async (_, fields) => {
+    const { bridge, handler, server, answersFor } = setup();
+    try {
+      bridge.port.postMessage({ ...request("bad"), ...fields });
+      await waitFor(() => answersFor("bad").length > 0);
+
+      expect(answersFor("bad")).toEqual([
+        expect.objectContaining({ kind: "fetch:error" }),
+      ]);
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      server.dispose();
+    }
+  });
+
+  it("ignores messages whose fields do not match their kind", async () => {
+    const { bridge, onError, handler, server, answersFor } = setup();
+    const malformed: unknown[] = [
+      null,
+      "fetch:request",
+      { ...request("channel"), channel: "other" },
+      { ...request("id"), id: 1 },
+      { ...request("kind"), kind: "fetch:unknown" },
+      { ...request("inherited-kind"), kind: "toString" },
+      { ...request("url"), url: 42 },
+      { ...request("method"), method: null },
+      { ...request("header-pair"), headers: [["only-a-name"]] },
+      { ...request("header-value"), headers: [["x-a", 1]] },
+      { ...request("headers-object"), headers: { "x-a": "1" } },
+      { ...request("body"), method: "POST", body: "text" },
+    ];
+    try {
+      for (const message of malformed) {
+        bridge.port.postMessage(message as FetchRequestMessage);
+      }
+      bridge.port.postMessage(request("valid"));
+      await waitFor(() =>
+        answersFor("valid").some((message) => message.kind === "fetch:end"),
+      );
+
+      expect(handler).toHaveBeenCalledOnce();
+      expect(onError).not.toHaveBeenCalled();
+      expect(bridge.hostToWebview).toEqual(answersFor("valid"));
+    } finally {
+      server.dispose();
+    }
+  });
+});

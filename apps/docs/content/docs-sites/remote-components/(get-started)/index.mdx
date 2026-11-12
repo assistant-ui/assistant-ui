@@ -1,0 +1,135 @@
+---
+title: Introduction
+description: Show an HTML page from another origin inside your app. It runs in a sandboxed iframe and lays out like an inline element.
+---
+
+import {
+  CounterDemo,
+  RsvpDemo,
+} from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+<Callout>
+  The packages are not on npm yet. In the assistant-ui monorepo, depend on them with `workspace:*`.
+</Callout>
+
+A remote component is an HTML document with one script in it, `rc-runtime.js`. Your app renders it with `<RemoteComponent>`. The page gets its width from your layout and its height from its content. It inherits your fonts and colors, reads your props and calls your functions.
+
+Any HTML works. A page with no doctype, a fragment, a page a model just wrote, a built React app. The page is the component, and its `<html>` element is the box in your layout.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/remote-components-host-react", "@assistant-ui/remote-components-serve"]} />
+
+The host package goes in the app that renders remotes. The serving layer goes on the server that serves them.
+
+## Quickstart
+
+### 1. Write a page
+
+Plain HTML. Props are on `rc.props`, function props call back into your app, and `props-changed` fires when they change. No build step.
+
+<RemoteSource name="rsvp" />
+
+### 2. Serve it
+
+The serving layer adds the doctype, the runtime tag and a Content Security Policy to every page under `root`. It also serves `rc-runtime.js`.
+
+```ts title="server.mjs"
+import http from "node:http";
+import { remoteComponentsMiddleware } from "@assistant-ui/remote-components-serve/node";
+
+const serve = remoteComponentsMiddleware({ root: new URL("./widgets", import.meta.url).pathname });
+
+http
+  .createServer((req, res) => serve(req, res, () => res.writeHead(404).end()))
+  .listen(5173, "127.0.0.1");
+```
+
+Serve remotes from a different site than your app. In development, use `127.0.0.1` for remotes and `localhost` for the app.
+
+### 3. Render it
+
+```tsx title="App.tsx"
+import { useState } from "react";
+import { RemoteComponent } from "@assistant-ui/remote-components-host-react";
+
+export function Lunch() {
+  const [reply, setReply] = useState<string | null>(null);
+  return (
+    <>
+      <RemoteComponent
+        src="http://127.0.0.1:5173/rsvp.html"
+        event="Design sync"
+        when="Thursday, 10:00"
+        onReply={async (answer: string) => setReply(answer)}
+      />
+      <span>onReply({reply})</span>
+    </>
+  );
+}
+```
+
+This site has no second origin to serve pages from, so the examples in these docs pass the same documents with the `html` prop. They run in an opaque sandboxed frame with the runtime inlined.
+
+<RsvpDemo />
+
+Click Going. The page calls `onReply`, which runs in your app.
+
+## With React
+
+The fastest path is the [CLI](/remote-components/docs/cli). It builds one component file into one HTML file, with no config:
+
+```sh title="terminal"
+npx remote-components build rating.tsx
+```
+
+A React app is a page too. Add the runtime tag to its `index.html` and read props with `useProps()` from `@assistant-ui/remote-components-react`. In an existing Vite app, the [Vite plugin](/remote-components/docs/vite) turns each component file into its own page.
+
+```tsx title="remotes/counter.tsx"
+import { useState } from "react";
+import { useProps } from "@assistant-ui/remote-components-react";
+
+export default function Counter() {
+  const { label, onChange } = useProps<{ label: string; onChange?: (n: number) => Promise<void> }>();
+  const [n, setN] = useState(0);
+  return (
+    <button
+      onClick={() => {
+        setN(n + 1);
+        void onChange?.(n + 1);
+      }}
+    >
+      {label}: {n}
+    </button>
+  );
+}
+```
+
+```tsx title="App.tsx"
+<RemoteComponent src="http://127.0.0.1:5173/counter/" label="Clicks" />
+```
+
+The counter below is the same component written as a plain page.
+
+<CounterDemo />
+
+<RemoteSource name="counter" />
+
+## No server
+
+You can skip the server. `<RemoteComponent html={…} />` shows a string of HTML in an opaque frame, with the runtime inlined. See [Generated HTML](/remote-components/docs/html).
+
+## Packages
+
+| Package | |
+| --- | --- |
+| `@assistant-ui/remote-components-runtime` | `rc-runtime.js`, the script inside the page. It exposes `window.rc`. No framework. |
+| `@assistant-ui/remote-components-host-react` | `<RemoteComponent>`, the provider and overlays. |
+| `@assistant-ui/remote-components-serve` | Normalizes any HTML into a remote. Node middleware at `/node`. |
+| `@assistant-ui/remote-components-react` | Optional hooks for React pages. |
+| `@assistant-ui/remote-components-cli` | `remote-components build`: one component to one HTML file. |
+| `@assistant-ui/remote-components-vite` | Optional Vite plugin. |
+| `@assistant-ui/remote-components-protocol` | Messages, value codec, channel and validation. Internal. |
+
+Next: [CLI](/remote-components/docs/cli) builds a React component. [Pages](/remote-components/docs/pages) covers what a page can do. [Layout](/remote-components/docs/layout) covers how it fits.

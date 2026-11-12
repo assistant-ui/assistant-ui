@@ -1,4 +1,7 @@
 {
+  "binaries": {
+    "packages/remote-components-conformance/scf-shim/server.mjs": ["openssl"]
+  },
   "dependencies": {
     "packages/metro/package.json": [
       "@babel/generator",
@@ -35,6 +38,9 @@
     ],
     "packages/react-native/package.json": ["@babel/core", "react-native-web"],
     "packages/react/package.json": ["@types/json-schema"],
+    "packages/remote-components-vite/package.json": [
+      "@assistant-ui/remote-components-react"
+    ],
     "packages/ui/package.json": [
       "@assistant-ui/x-buildutils",
       "@types/markdown-it",
@@ -52,6 +58,9 @@
     "packages/react-ink/src/toolkit.ts": ["humanTool | hitlTool | hitl"],
     "packages/react/src/model-context/makeAssistantVisible.tsx": [
       "makeAssistantVisible | default"
+    ],
+    "packages/remote-components-vite/src/index.ts": [
+      "remoteComponents | default"
     ],
     "packages/setup-agent/src/cli.ts": ["agentInstructions | INSTRUCTIONS"],
     "packages/tap/src/standalone-shim/jsx-runtime.ts": [

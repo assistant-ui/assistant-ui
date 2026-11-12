@@ -607,8 +607,11 @@ export interface PiClient {
     threadId: string,
   ): Promise<{ steering: string[]; followUp: string[] }>;
 
+  /** A live `threadId` lists that session's runtime, including the models its
+   * extensions register. Anything else gets the process-wide catalog. */
   getAvailableModels(input?: {
     workspacePath?: string;
+    threadId?: string;
   }): Promise<PiModelInfo[]>;
   setModel(
     threadId: string,

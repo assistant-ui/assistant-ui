@@ -667,3 +667,47 @@ async function installShadcnRegistry(
     throw new Error(`Failed to install ${label}: ${message}`);
   }
 }
+
+const FORMAT_FIX_SCRIPT = "format:fix";
+
+/**
+ * Returns the command that runs the project's own `format:fix` script, or
+ * undefined when the scaffolded package.json does not define one.
+ */
+export function resolveFormatCommand(
+  projectDir: string,
+  pm: PackageManagerName,
+): [string, string[]] | undefined {
+  try {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(projectDir, "package.json"), "utf-8"),
+    );
+    if (typeof pkg.scripts?.[FORMAT_FIX_SCRIPT] !== "string") return undefined;
+  } catch {
+    return undefined;
+  }
+  return [pm, ["run", FORMAT_FIX_SCRIPT]];
+}
+
+/**
+ * Runs the project's formatter so files written by the CLI and by shadcn
+ * (registry components, tsconfig.json) match the template's formatter config
+ * and `lint` passes on a fresh project. A formatter failure only warns.
+ */
+export async function formatProject(
+  projectDir: string,
+  pm: PackageManagerName,
+): Promise<void> {
+  const command = resolveFormatCommand(projectDir, pm);
+  if (!command) return;
+  const [cmd, args] = command;
+  logger.step("Formatting project files...");
+  try {
+    await runSpawn(cmd, args, projectDir);
+  } catch (error) {
+    if (error instanceof SpawnSignalError) throw error;
+    logger.warn(
+      `Could not format project files. You can run the formatter later with:\n  ${cmd} ${args.join(" ")}`,
+    );
+  }
+}

@@ -3,12 +3,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ beginSetup: vi.fn() }));
-vi.mock("./setup-navigation", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./setup-navigation")>()),
-  useBeginSetup: () => mocks.beginSetup,
-}));
-
 const load = async () => {
   vi.resetModules();
   return import("./shop-entry");
@@ -16,7 +10,6 @@ const load = async () => {
 
 afterEach(() => {
   cleanup();
-  localStorage.clear();
   vi.unstubAllEnvs();
   vi.resetModules();
 });
@@ -29,19 +22,9 @@ describe("shop entry points", () => {
     await import("@/components/shared/agent-setup");
     render(<AgentSetup product="assistant-ui" />);
     expect(
-      await screen.findByRole("button", { name: "Begin setup" }),
+      await screen.findByRole("button", {
+        name: "Copy the setup prompt for your coding agent",
+      }),
     ).toBeTruthy();
-  });
-
-  it("renders nothing without a checkout worker", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    const { AgentSetup, CartButton } = await load();
-    const { container } = render(
-      <>
-        <CartButton />
-        <AgentSetup product="assistant-ui" />
-      </>,
-    );
-    expect(container.innerHTML).toBe("");
   });
 });

@@ -43,8 +43,11 @@ export const PLATFORM_ENTRY_PATHS: Record<Platform, string> = {
   cloud: "/docs/cloud",
 };
 
-export const PLATFORM_QUICKSTART_COMMANDS: Record<Surface, string> = {
-  react: "npx assistant-ui@latest create",
+/** The template command for surfaces without the agent setup; React apps use the setup prompt. */
+export const PLATFORM_QUICKSTART_COMMANDS: Record<
+  Exclude<Surface, "react">,
+  string
+> = {
   rn: "npx assistant-ui@latest create --example with-expo",
   ink: "npx assistant-ui@latest create --ink",
 };

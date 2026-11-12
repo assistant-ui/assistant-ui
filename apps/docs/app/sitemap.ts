@@ -5,7 +5,6 @@ import { ELEMENTS } from "@/components/pages/elements/registry";
 import { DEMOS } from "@/lib/demos";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { CATALOG } from "@/lib/catalog";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -14,6 +13,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/careers`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
+    {
+      url: `${BASE_URL}/contact-sales`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
     {
       url: `${BASE_URL}/privacy-policy`,
       changeFrequency: "yearly",
@@ -65,20 +69,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.4,
   }));
 
-  const catalogPages: MetadataRoute.Sitemap = checkoutEnabled
-    ? [
-        {
-          url: `${BASE_URL}/components`,
-          changeFrequency: "weekly",
-          priority: 0.8,
-        },
-        ...CATALOG.map((product) => ({
-          url: `${BASE_URL}${product.href}`,
-          changeFrequency: "weekly" as const,
-          priority: 0.7,
-        })),
-      ]
-    : [];
+  const catalogPages: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/components`,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    ...CATALOG.map((product) => ({
+      url: `${BASE_URL}${product.href}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
+  ];
 
   const docsPages: MetadataRoute.Sitemap = allDocsPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,

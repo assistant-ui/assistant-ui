@@ -1,0 +1,84 @@
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: var(--font-sans); color: var(--color-text); background: transparent; }
+  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px; }
+  h1 { margin: 0 0 4px; font-size: 1.4em; }
+  .sub { color: var(--color-text-muted); font-size: .9em; margin-bottom: 16px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stepper { display: flex; align-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  .stepper button { background: none; border: none; color: var(--color-accent); font-size: 1.2em; width: 36px; height: 34px; cursor: pointer; }
+  .stepper button:disabled { color: var(--color-text-muted); cursor: default; opacity: .5; }
+  .stepper span { min-width: 90px; text-align: center; font-weight: 600; }
+  h2 { font-size: 1em; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-accent); }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li.ing { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--color-border); }
+  li.ing:last-child { border-bottom: none; }
+  .qty { font-weight: 600; min-width: 80px; }
+  ol { padding-left: 20px; margin: 0; }
+  ol li { margin-bottom: 8px; line-height: 1.45; cursor: pointer; }
+  ol li.done { text-decoration: line-through; color: var(--color-text-muted); }
+  .hint { font-size: .8em; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🥞 Fluffy Pancakes</h1>
+  <div class="sub">Prep 10 min · Cook 15 min</div>
+  <div class="row">
+    <strong>Servings</strong>
+    <div class="stepper">
+      <button id="minus" aria-label="Fewer servings">−</button>
+      <span id="srv"></span>
+      <button id="plus" aria-label="More servings">+</button>
+    </div>
+  </div>
+  <h2>Ingredients</h2>
+  <ul id="ings"></ul>
+  <h2>Steps</h2>
+  <ol id="steps">
+    <li>Whisk flour, sugar, baking powder and salt in a large bowl.</li>
+    <li>In another bowl, whisk milk, egg and melted butter.</li>
+    <li>Pour wet into dry and stir until just combined — lumps are fine.</li>
+    <li>Rest the batter 5 minutes while heating a lightly greased pan over medium heat.</li>
+    <li>Pour ¼ cup batter per pancake. Flip when bubbles form and edges look set, 2–3 min.</li>
+    <li>Cook 1–2 min more until golden. Serve warm with syrup.</li>
+  </ol>
+  <div class="hint">Tap a step to mark it done.</div>
+</div>
+<script>
+const base = 4;
+const ings = [
+  [1.5, "cups", "all-purpose flour"],
+  [2, "tbsp", "sugar"],
+  [2, "tsp", "baking powder"],
+  [0.5, "tsp", "salt"],
+  [1.25, "cups", "milk"],
+  [1, "", "egg", "eggs"],
+  [3, "tbsp", "butter, melted"]
+];
+let s = base;
+function fmt(n){
+  const w = Math.floor(n), f = n - w;
+  const fr = [[0,""],[.125,"⅛"],[.25,"¼"],[.333,"⅓"],[.375,"⅜"],[.5,"½"],[.625,"⅝"],[.667,"⅔"],[.75,"¾"],[.875,"⅞"],[1,""]];
+  let best = fr.reduce((a,b)=>Math.abs(b[0]-f)<Math.abs(a[0]-f)?b:a);
+  let whole = best[0]===1 ? w+1 : w;
+  return (whole ? whole : "") + best[1] || "0";
+}
+function render(){
+  document.getElementById("srv").textContent = s + (s===1?" serving":" servings");
+  document.getElementById("minus").disabled = s<=1;
+  document.getElementById("plus").disabled = s>=16;
+  document.getElementById("ings").innerHTML = ings.map(([q,u,n,pl])=>{
+    const v = q*s/base;
+    const name = pl && v>1 ? pl : n;
+    return `<li class="ing"><span class="qty">${fmt(v)} ${u}</span><span>${name}</span></li>`;
+  }).join("");
+}
+document.getElementById("minus").onclick=()=>{if(s>1){s--;render();}};
+document.getElementById("plus").onclick=()=>{if(s<16){s++;render();}};
+document.querySelectorAll("#steps li").forEach(li=>li.onclick=()=>li.classList.toggle("done"));
+render();
+</script>
+</body>
+</html>

@@ -262,8 +262,13 @@ export class PiThreadSupervisor {
     return record.session.clearQueue();
   }
 
-  async getAvailableModels(): Promise<PiModelInfo[]> {
-    const runtime = await this.getModelRuntime();
+  async getAvailableModels(input?: {
+    threadId?: string;
+  }): Promise<PiModelInfo[]> {
+    const runtime =
+      (input?.threadId
+        ? this.records.get(input.threadId)?.session.modelRuntime
+        : undefined) ?? (await this.getModelRuntime());
     try {
       await runtime.refresh();
     } catch {

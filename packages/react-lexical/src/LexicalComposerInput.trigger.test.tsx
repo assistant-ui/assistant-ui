@@ -168,6 +168,39 @@ describe("LexicalComposerInput directive triggers", () => {
     },
   );
 
+  it("points the textbox at the open popover and clears it when the trigger goes away", async () => {
+    const textbox = () => container.querySelector('[aria-label="Message"]')!;
+    expect(textbox().getAttribute("role")).toBe("textbox");
+    expect(textbox().hasAttribute("aria-controls")).toBe(false);
+
+    await act(async () => {
+      editor.update(() => {
+        const text = $createTextNode("ask @wea");
+        $getRoot().clear().append($createParagraphNode().append(text));
+        text.select();
+      });
+    });
+
+    const listbox = container.querySelector('[role="listbox"]')!;
+    expect(listbox).not.toBeNull();
+    expect(textbox().getAttribute("role")).toBe("textbox");
+    expect(textbox().getAttribute("aria-controls")).toBe(listbox.id);
+    expect(textbox().getAttribute("aria-haspopup")).toBe("listbox");
+    expect(textbox().hasAttribute("aria-expanded")).toBe(false);
+    const activeId = textbox().getAttribute("aria-activedescendant")!;
+    expect(listbox.querySelector(`[id="${activeId}"]`)).not.toBeNull();
+
+    await act(async () => {
+      editor.update(() => {
+        $getRoot().clear().append($createParagraphNode());
+      });
+    });
+
+    expect(textbox().hasAttribute("aria-controls")).toBe(false);
+    expect(textbox().hasAttribute("aria-haspopup")).toBe(false);
+    expect(textbox().hasAttribute("aria-activedescendant")).toBe(false);
+  });
+
   it("reports nothing when the matched text is gone before the directive is inserted", async () => {
     await act(async () => {
       editor.update(() => {

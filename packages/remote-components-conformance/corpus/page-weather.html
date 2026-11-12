@@ -1,0 +1,31 @@
+<html><head><style>
+body{margin:0;font-family:var(--font-sans);color:var(--color-text);background:transparent}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px;margin:8px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.city{font-size:20px;font-weight:600}
+.muted{color:var(--color-text-muted);font-size:13px}
+.temp{font-size:52px;font-weight:300;line-height:1}
+.icon{font-size:44px}
+.days{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:18px;border-top:1px solid var(--color-border);padding-top:14px}
+.d{text-align:center;font-size:13px}
+.d .i{font-size:22px;margin:6px 0}
+.hi{font-weight:600}
+.lo{color:var(--color-text-muted);margin-left:4px}
+.stats{display:flex;gap:16px;margin-top:10px}
+</style></head><body>
+<div class="card">
+<div class="top">
+<div><div class="city">Berlin</div><div class="muted">Today · Partly cloudy</div>
+<div class="stats muted"><span>💧 62%</span><span>💨 14 km/h</span><span>H 21° L 12°</span></div></div>
+<div style="display:flex;align-items:center;gap:8px"><span class="icon" aria-hidden="true">⛅</span><span class="temp">18°</span></div>
+</div>
+<div class="days">
+<div class="d"><div class="muted">Tue</div><div class="i">☀️</div><span class="hi">23°</span><span class="lo">13°</span></div>
+<div class="d"><div class="muted">Wed</div><div class="i">🌤️</div><span class="hi">22°</span><span class="lo">14°</span></div>
+<div class="d"><div class="muted">Thu</div><div class="i">🌧️</div><span class="hi">17°</span><span class="lo">11°</span></div>
+<div class="d"><div class="muted">Fri</div><div class="i">⛈️</div><span class="hi">16°</span><span class="lo">10°</span></div>
+<div class="d"><div class="muted">Sat</div><div class="i">⛅</div><span class="hi">19°</span><span class="lo">11°</span></div>
+</div>
+<div class="muted" style="margin-top:12px;font-size:11px">Sample data for illustration</div>
+</div>
+</body></html>

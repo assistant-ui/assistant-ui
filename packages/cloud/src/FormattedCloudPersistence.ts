@@ -1,4 +1,5 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { CloudMessageRunPhase } from "./CloudMessagePersistence";
 
 /**
  * Format adapter shape — structurally identical to the MessageFormatAdapter
@@ -21,6 +22,11 @@ export type MessageFormatAdapter<TMessage, TStorageFormat> = {
  * Wraps a CloudMessagePersistence with a MessageFormatAdapter's encode and
  * decode. The persistence parameter is typed structurally, so a caller does
  * not need to import the class.
+ *
+ * `append` and `update` take an optional run phase that is passed through to
+ * the persistence: `running` opens (on append) or renews (on update) the
+ * message's run lease, and an end reason makes the write the lease's final
+ * write and ends it, the same as for `aui/v0` messages.
  */
 export const createFormattedPersistence = <TMessage, TStorageFormat>(
   persistence: {
@@ -30,6 +36,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       parentId: string | null,
       format: string,
       content: ReadonlyJSONObject,
+      run?: CloudMessageRunPhase,
     ) => Promise<void>;
     load: (threadId: string, format?: string) => Promise<any[]>;
     isPersisted: (messageId: string) => boolean;
@@ -38,6 +45,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       messageId: string,
       format: string,
       content: ReadonlyJSONObject,
+      run?: CloudMessageRunPhase,
     ) => Promise<void>;
     delete?: (threadId: string, messageIds: string[]) => Promise<void>;
   },
@@ -46,6 +54,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
   append: async (
     threadId: string,
     item: { parentId: string | null; message: TMessage },
+    run?: CloudMessageRunPhase,
   ): Promise<void> => {
     const messageId = adapter.getId(item.message);
     const encoded = adapter.encode(item);
@@ -55,6 +64,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       item.parentId,
       adapter.format,
       encoded as ReadonlyJSONObject,
+      ...(run !== undefined ? [run] : []),
     );
   },
   update: persistence.update
@@ -62,6 +72,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
         threadId: string,
         item: { parentId: string | null; message: TMessage },
         messageId: string,
+        run?: CloudMessageRunPhase,
       ): Promise<void> => {
         const encoded = adapter.encode(item);
         return persistence.update!(
@@ -69,6 +80,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
           messageId,
           adapter.format,
           encoded as ReadonlyJSONObject,
+          ...(run !== undefined ? [run] : []),
         );
       }
     : undefined,

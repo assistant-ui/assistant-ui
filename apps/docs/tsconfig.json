@@ -33,6 +33,21 @@
       "@assistant-ui/generative-ui/*": ["../../packages/generative-ui/src/*"],
       "@assistant-ui/store/client": ["../../packages/store/src/client"],
       "@assistant-ui/store/internal": ["../../packages/store/src/internal"],
+      "@assistant-ui/remote-components-host-react": [
+        "../../packages/remote-components-host-react/dist/index"
+      ],
+      "@assistant-ui/remote-components-protocol": [
+        "../../packages/remote-components-protocol/dist/index"
+      ],
+      "@assistant-ui/remote-components-runtime": [
+        "../../packages/remote-components-runtime/dist/index"
+      ],
+      "@assistant-ui/remote-components-runtime/*": [
+        "../../packages/remote-components-runtime/dist/*"
+      ],
+      "@assistant-ui/remote-components-serve": [
+        "../../packages/remote-components-serve/dist/index"
+      ],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],

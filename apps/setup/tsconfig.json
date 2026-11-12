@@ -1,0 +1,22 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/next",
+  "compilerOptions": {
+    "paths": {
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/react/ui/base/*",
+        "../../packages/ui/src/components/react/ui/radix/*"
+      ],
+      "@/lib/utils": ["../../packages/ui/src/lib/utils"],
+      "@/hooks/use-copy-to-clipboard": [
+        "../../packages/ui/src/hooks/use-copy-to-clipboard"
+      ],
+      "@/hooks/use-mobile": ["../../packages/ui/src/hooks/use-mobile"],
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/react/assistant-ui/*"
+      ],
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "next.config.ts"],
+  "exclude": ["node_modules"]
+}

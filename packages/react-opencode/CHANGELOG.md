@@ -1,5 +1,23 @@
 # @assistant-ui/react-opencode
 
+## 0.2.35
+
+### Patch Changes
+
+- [#10310](https://github.com/assistant-ui/assistant-ui/pull/10310) [`c787a67`](https://github.com/assistant-ui/assistant-ui/commit/c787a672602fd72a733f183894571d3ab74c1850) - Keep the `cancelling`/`reverting` run state when a streamed part arrives, so a failed revert is still reported as a run error. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10265](https://github.com/assistant-ui/assistant-ui/pull/10265) [`fb5c3a5`](https://github.com/assistant-ui/assistant-ui/commit/fb5c3a51af8e61c7eb5bc5709aaf8ff8024d73be) - keep streamed part text when a history refresh returns older content. ([@okisdev](https://github.com/okisdev))
+
+- [#10155](https://github.com/assistant-ui/assistant-ui/pull/10155) [`5753041`](https://github.com/assistant-ui/assistant-ui/commit/5753041e6601f72e56f38cfed721929d9e69a515) - Preserve native part IDs when projecting OpenCode messages so text, reasoning, files, and data parts retain their stable identities. ([@clean99](https://github.com/clean99))
+
+- [#10249](https://github.com/assistant-ui/assistant-ui/pull/10249) [`a166a23`](https://github.com/assistant-ui/assistant-ui/commit/a166a23ded790fa90b82b3baf4be47b6e040193b) - Preserve completed tool attachments in model content alongside the text output. ([@clean99](https://github.com/clean99))
+
+- [#10291](https://github.com/assistant-ui/assistant-ui/pull/10291) [`af5d06f`](https://github.com/assistant-ui/assistant-ui/commit/af5d06f082a8ce7511d7f090da204e4dae97dcc5) - Pass an OpenCode tool's state metadata, such as live shell output and edit diffs, to tool renderers as the tool-call artifact. ([@clean99](https://github.com/clean99))
+- Updated dependencies [[`7175a10`](https://github.com/assistant-ui/assistant-ui/commit/7175a10aca4ecd8ce97939747bdfcfe7171ba8df), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`c6388b6`](https://github.com/assistant-ui/assistant-ui/commit/c6388b6cd3ee13d18fbc9f46fcc32ed1c3014497), [`c70a5d9`](https://github.com/assistant-ui/assistant-ui/commit/c70a5d9290a4b75fadb4d8c815586dbdcf94892b), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`5829349`](https://github.com/assistant-ui/assistant-ui/commit/5829349a8cbca2b017c3af7e0b70bf90cd47a44c), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`a96e62f`](https://github.com/assistant-ui/assistant-ui/commit/a96e62f89da310602b716821dd91b9525f94cbb5), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b), [`620389a`](https://github.com/assistant-ui/assistant-ui/commit/620389ad592ce9897b38b801e0e098527af6fcaf)]:
+  - @assistant-ui/core@0.3.33
+  - assistant-cloud@0.2.10
+  - @assistant-ui/store@0.3.23
+
 ## 0.2.34
 
 ### Patch Changes

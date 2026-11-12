@@ -42,6 +42,7 @@ vi.mock("@/lib/source", () => {
       "safe-content-frame": emptySource,
       "generative-frame": emptySource,
       diagrammatic: emptySource,
+      "remote-components": emptySource,
     },
   };
 });
