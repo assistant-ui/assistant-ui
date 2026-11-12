@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.132
+
+### Patch Changes
+
+- [#10492](https://github.com/assistant-ui/assistant-ui/pull/10492) [`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa) - `assistant-ui setup` now runs the setup's stream itself, so agents run one long-running command in the background instead of a separate `npx setup-agent … stream`. It opens the browser only when the setup needs the user (a question, the plan, the finish), opens it again for the next question if the user closed it, and never opens two tabs within 30 seconds; the agent can then ask in its own chat and answer with `npx assistant-ui@latest setup <url> answer …`. The other setup commands run as `npx assistant-ui@latest setup <url> <command>`. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa)]:
+  - setup-agent@0.1.0
+
 ## 0.0.131
 
 ### Patch Changes
