@@ -81,8 +81,9 @@ export function EditMessage({
         <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
           <AlertTriangleIcon className="size-3.5 shrink-0" />
           <span className={cn(mono, "tabular-nums")}>
-            sending discards {discardedReplies}{" "}
-            {discardedReplies === 1 ? "reply" : "replies"}
+            sending starts a new branch; {discardedReplies}{" "}
+            {discardedReplies === 1 ? "reply stays" : "replies stay"} on the old
+            one
           </span>
         </div>
       )}

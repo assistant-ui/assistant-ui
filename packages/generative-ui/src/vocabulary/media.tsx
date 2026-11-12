@@ -17,6 +17,7 @@ export const mediaVocabulary = {
           data-aui-size={numericSize === undefined ? size : undefined}
           data-aui-sized={numericSize !== undefined || undefined}
           data-aui-round={round || undefined}
+          referrerPolicy="no-referrer"
           src={src}
           alt={alt}
           style={style}

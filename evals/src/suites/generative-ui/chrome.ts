@@ -49,6 +49,22 @@ interface CdpMessage {
   method?: string;
 }
 
+/** Chrome's DevTools port once `portFile` holds a complete first line, or `undefined` once Chrome stops or `deadline` passes. */
+export async function waitForDevToolsPort(
+  portFile: string,
+  stopped: () => boolean,
+  deadline: number,
+): Promise<string | undefined> {
+  while (!stopped() && Date.now() < deadline) {
+    if (existsSync(portFile)) {
+      const port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
+      if (port) return port;
+    }
+    await sleep(100);
+  }
+  return undefined;
+}
+
 /** One page in a headless Chrome this process launched, driven over the DevTools protocol. */
 export interface ChromePage {
   /** Evaluates `expression`, awaits the promise it returns, and returns its JSON value. */
@@ -105,20 +121,15 @@ export async function openChromePage(
   };
 
   try {
-    const portFile = join(profile, "DevToolsActivePort");
     const stopped = () =>
       spawnError !== undefined ||
       child.exitCode !== null ||
       child.signalCode !== null;
-    const deadline = Date.now() + 30_000;
-    let port: string | undefined;
-    while (!stopped() && Date.now() < deadline) {
-      if (existsSync(portFile)) {
-        port = /^(\d+)\r?\n/.exec(readFileSync(portFile, "utf8"))?.[1];
-        if (port) break;
-      }
-      await sleep(100);
-    }
+    const port = await waitForDevToolsPort(
+      join(profile, "DevToolsActivePort"),
+      stopped,
+      Date.now() + 30_000,
+    );
     if (!port) {
       if (stopped()) {
         await withTimeout(closed, 1_000, "Chrome's log").catch(() => {});

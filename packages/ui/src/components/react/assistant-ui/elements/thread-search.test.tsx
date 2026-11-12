@@ -157,4 +157,10 @@ describe("ThreadSearch", () => {
     expect(listbox.contains(status)).toBe(false);
     expect(status.textContent).toBe("No thread matches “missing”");
   });
+
+  it("says there are no threads yet when the list is empty", () => {
+    render(<ThreadSearch threads={[]} query="" activeId="" />);
+
+    expect(screen.getByRole("status").textContent).toBe("No threads yet");
+  });
 });

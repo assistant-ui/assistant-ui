@@ -79,6 +79,57 @@ const hostileSpecies = <T>(
 };
 
 describe("toSlackBlocks", () => {
+  it("maps input constraints and warns for actions that cannot require a value", () => {
+    const { blocks, warnings } = toSlackBlocks([
+      {
+        $type: "Input",
+        name: "name",
+        required: true,
+        minLength: 2,
+        maxLength: 8,
+      },
+      {
+        $type: "Select",
+        required: true,
+        options: [{ label: "A", value: "a" }],
+      },
+      { $type: "Input", inputType: "number", min: 1, max: 5 },
+    ]);
+    expect(blocks[0]).toMatchObject({
+      type: "input",
+      element: { min_length: 2, max_length: 8 },
+    });
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: "Select", code: "dropped" }),
+        expect.objectContaining({ component: "Input", code: "dropped" }),
+      ]),
+    );
+  });
+  it.each([
+    ["minLength", 1.5],
+    ["maxLength", 1.5],
+    ["maxLength", 0],
+  ])("drops and warns for malformed Input %s %j", (key, value) => {
+    const { blocks, warnings } = toSlackBlocks([
+      { $type: "Input", name: "name", [key]: value },
+    ]);
+    expect(
+      (blocks[0] as unknown as { element: Record<string, unknown> }).element,
+    ).not.toHaveProperty(key === "minLength" ? "min_length" : "max_length");
+    expect(warnings).toEqual([
+      expect.objectContaining({ component: "Input", code: "dropped" }),
+    ]);
+  });
+  it("omits length constraints on number inputs, like the web", () => {
+    const { blocks, warnings } = toSlackBlocks([
+      { $type: "Input", name: "qty", inputType: "number", maxLength: 2 },
+    ]);
+    expect(
+      (blocks[0] as unknown as { element: Record<string, unknown> }).element,
+    ).not.toHaveProperty("max_length");
+    expect(warnings).toEqual([]);
+  });
   describe("numeric text props", () => {
     it("stringifies numeric labels and descriptions", () => {
       const { blocks } = toSlackBlocks([

@@ -77,6 +77,28 @@ const dispatch = (target: Element, type: string) =>
   });
 
 describe("toSpecCatalog components", () => {
+  it("does not emit submit for a required empty Input in a Form", async () => {
+    const save = vi.fn();
+    const container = await render(
+      {
+        root: "form",
+        elements: {
+          form: {
+            type: "Form",
+            children: ["name"],
+            on: { submit: { action: "save" } },
+          },
+          name: { type: "Input", props: { name: "name", required: true } },
+        },
+      },
+      { save },
+    );
+    expect(query<HTMLInputElement>(container, "input").required).toBe(true);
+    await act(async () =>
+      query<HTMLFormElement>(container, "form").requestSubmit(),
+    );
+    expect(save).not.toHaveBeenCalled();
+  });
   it("dispatches a custom event with its input payload", async () => {
     const rate = vi.fn();
     const custom = toSpecCatalog(

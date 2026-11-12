@@ -8,8 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "fumadocs-core/framework";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTreeContext } from "fumadocs-ui/contexts/tree";
 import { useTOCItems } from "fumadocs-ui/components/toc";

@@ -1,6 +1,6 @@
 import { itemPointer, type ExpressionContext } from "./expressions";
 import { getAtPointer } from "./pointer";
-import type { SpecElement } from "./types";
+import type { Spec, SpecElement } from "./types";
 
 /** What the children of a `repeat` read about their item. */
 export type RepeatScope = Pick<
@@ -15,6 +15,55 @@ export const childIdsOf = (element: SpecElement, slot: string) =>
 /** A JSON Pointer for a state path written with or without its leading slash. */
 export const safePointer = (path: string) =>
   path.startsWith("/") || path === "" ? path : `/${path}`;
+
+export function exceedsRenderBudget(spec: Spec, state: unknown): boolean {
+  if (!spec?.elements || typeof spec.elements !== "object") return false;
+  const ancestors = new Set<string>();
+  const count = (id: unknown, depth: number): number => {
+    if (typeof id !== "string") return 1;
+    if (depth > 64) return 5001;
+    if (ancestors.has(id) || !Object.hasOwn(spec.elements, id)) return 1;
+    const element = spec.elements[id];
+    if (
+      !element ||
+      typeof element !== "object" ||
+      typeof element.type !== "string"
+    )
+      return 1;
+    ancestors.add(id);
+    let total = 1;
+    const children = childIdsOf(element, "default");
+    if (Array.isArray(children)) {
+      const repeat = element.repeat;
+      const repeating = repeat && typeof repeat.path === "string";
+      const items = repeating
+        ? getAtPointer(state, safePointer(repeat.path))
+        : undefined;
+      const copies = repeating ? (Array.isArray(items) ? items.length : 0) : 1;
+      if (copies) {
+        let perItem = 0;
+        for (const child of children) {
+          perItem += count(child, depth + 1);
+          if (perItem > 5000) break;
+        }
+        total += Math.max(repeating ? 1 : 0, perItem) * copies;
+      }
+    }
+    if (total <= 5000) {
+      for (const [slot, ids] of Object.entries(element.slots ?? {})) {
+        if (slot === "default" || !Array.isArray(ids)) continue;
+        for (const child of ids) {
+          total += count(child, depth + 1);
+          if (total > 5000) break;
+        }
+        if (total > 5000) break;
+      }
+    }
+    ancestors.delete(id);
+    return total;
+  };
+  return count(spec.root, 1) > 5000;
+}
 
 /**
  * The items a `repeat` renders its children for, each with its key (the

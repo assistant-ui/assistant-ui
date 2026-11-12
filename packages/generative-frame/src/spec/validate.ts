@@ -2,6 +2,7 @@ import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
 import { isExpressionKey } from "./expressions";
 import { escapePointerToken } from "./pointer";
+import { exceedsRenderBudget } from "./tree";
 import type { ActionBinding, Spec, SpecElement } from "./types";
 
 export type SpecIssueCode =
@@ -23,6 +24,7 @@ export type SpecIssueCode =
   | "unreachable"
   | "invalid-patch"
   | "invalid-state"
+  | "too-large"
   | "missing-tool-result";
 
 export type SpecIssue = {
@@ -96,6 +98,14 @@ export function validateSpec(
       code: "invalid-state",
       message: "The spec's state is not an object.",
       path: "/state",
+    });
+  }
+  if (exceedsRenderBudget(spec, specState ?? {})) {
+    error({
+      code: "too-large",
+      message:
+        "The rendered spec exceeds 5000 elements or 64 levels. Reduce the number of elements or repeat items.",
+      path: "/elements",
     });
   }
 
@@ -361,34 +371,44 @@ export function validateSpec(
         : [],
     );
 
-  // Depth-first search for cycles and reachability from the root.
   const state = new Map<string, "visiting" | "done">();
   const reported = new Set<string>();
-  const visit = (id: string, trail: string[]) => {
+  const visit = (id: string) => {
     const element = elements[id];
     if (!element || typeof element !== "object") return;
+    const pending = [{ id, children: childIds(element).values() }];
     state.set(id, "visiting");
-    for (const child of childIds(element)) {
+    while (pending.length) {
+      const current = pending.at(-1)!;
+      const next = current.children.next();
+      if (next.done) {
+        state.set(current.id, "done");
+        pending.pop();
+        continue;
+      }
+      const child = next.value;
       if (state.get(child) === "visiting") {
-        const stack = [...trail, id];
+        const stack = pending.map((entry) => entry.id);
         const loop = [...stack.slice(stack.indexOf(child)), child];
         const key = [...loop].sort().join("|");
         if (!reported.has(key)) {
           reported.add(key);
           error({
             code: "cycle",
-            elementId: id,
-            path: elementPath(id),
+            elementId: current.id,
+            path: elementPath(current.id),
             message: `Children form a cycle: ${loop.join(" → ")}.`,
           });
         }
       } else if (!state.has(child)) {
-        visit(child, [...trail, id]);
+        const target = elements[child];
+        if (!target || typeof target !== "object") continue;
+        state.set(child, "visiting");
+        pending.push({ id: child, children: childIds(target).values() });
       }
     }
-    state.set(id, "done");
   };
-  if (spec?.root) visit(spec.root, []);
+  if (spec?.root) visit(spec.root);
   for (const id of Object.keys(elements)) {
     if (state.has(id)) continue;
     if (!options.partial) {
@@ -400,7 +420,7 @@ export function validateSpec(
         message: `"${id}" is not reachable from the root.`,
       });
     }
-    visit(id, []);
+    visit(id);
   }
 
   return { ok: !issues.some((issue) => issue.severity === "error"), issues };

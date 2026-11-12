@@ -94,6 +94,10 @@ const fieldChanges: {
   ],
   cancelledToolApprovalIds: [new Set(["approval-5"]), ["a5"]],
   cancelledStatusMessageIds: [new Set(["a3"]), ["a3"]],
+  runStatuses: [
+    new Map([["a3", { type: "incomplete", reason: "error" } as const]]),
+    ["a3"],
+  ],
   messageTiming: [
     {
       a7: {

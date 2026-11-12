@@ -53,7 +53,7 @@ import {
   MessageRepository,
 } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { AssistantError } from "@assistant-ui/core";
+import type { AssistantError, MessageStatus } from "@assistant-ui/core";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../converters/toCreateMessage";
 import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
@@ -594,6 +594,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolInteractions, setToolInteractions] = useState<
     ReadonlyMap<string, Unstable_ToolInteractionLog>
   >(() => new Map());
+  // Loaded from a history that tracks runs: an interrupted message, or one another session still writes.
+  const [runStatuses, setRunStatuses] = useState<
+    ReadonlyMap<string, MessageStatus>
+  >(() => new Map());
   const toolApprovalResponsesRef = useRef(
     new Map(toApprovalResponses(ownedApprovals)),
   );
@@ -820,6 +824,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
         ...(toolApprovalResponses.size > 0 && { toolApprovalResponses }),
+        ...(runStatuses.size > 0 && { runStatuses }),
       }),
       [
         createdAtCache,
@@ -833,6 +838,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         supersededApprovalProjection,
         toolArtifacts,
         toolInteractions,
+        runStatuses,
       ],
     ),
     getMetadataKey: getConverterMetadataKey,
@@ -892,6 +898,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     restoreToolInteractions,
     toolApprovalResponsesRef.current,
     restoreToolApprovalResponses,
+    setRunStatuses,
   );
 
   const {

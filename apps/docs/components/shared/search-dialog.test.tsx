@@ -381,7 +381,7 @@ it("offers Ask AI only when a query has no results", async () => {
   expect(screen.queryByRole("option", { name: /Ask AI about/ })).toBeNull();
 });
 
-it.each(["/components/setup", "/variants-demo"])(
+it.each(["/variants-demo"])(
   "does not offer Ask AI on %s, where the assistant is not mounted",
   async (pathname) => {
     mocks.pathname = pathname;

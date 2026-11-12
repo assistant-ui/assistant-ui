@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 import { compile, evaluate } from "@mdx-js/mdx";
@@ -14,6 +15,16 @@ vi.mock("@assistant-ui/next", async (importOriginal) => {
   return { ...actual, withAui: vi.fn(actual.withAui) };
 });
 vi.stubEnv("TURBOPACK", "1");
+// A child process fills the manifest cache outside V8 coverage, which slows the MDX compile and measures nothing here because the config is outside the coverage include list.
+execFileSync(
+  process.execPath,
+  [
+    "--input-type=module",
+    "-e",
+    'import { generateContentManifest } from "./scripts/content/manifest.mts"; await generateContentManifest(process.cwd());',
+  ],
+  { cwd: import.meta.dirname, stdio: "pipe" },
+);
 const { default: pending } = await import("./next.config.mts");
 const config = await pending;
 const auiInput = vi.mocked(withAui).mock.calls[0]?.[0];

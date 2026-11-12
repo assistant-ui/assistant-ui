@@ -1,5 +1,6 @@
 import { RadioGroupScope } from "./RadioGroupScope";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
+import * as React from "react";
 import { Fragment, type ReactNode } from "react";
 import { z } from "zod";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
@@ -228,13 +229,44 @@ function renderElement(
   }
 
   return (
-    <GenerativeUIComponentRenderer
-      key={element.type}
-      render={entry.render}
-      props={props}
-    />
+    <ElementBoundary key={element.type}>
+      <GenerativeUIComponentRenderer render={entry.render} props={props} />
+    </ElementBoundary>
   );
 }
+
+type ElementBoundaryProps = { children: ReactNode };
+type ElementBoundaryState = { children: ReactNode; failed: boolean };
+
+const ElementBoundary =
+  typeof React.Component === "function"
+    ? class extends React.Component<
+        ElementBoundaryProps,
+        ElementBoundaryState
+      > {
+        override state: ElementBoundaryState = {
+          children: this.props.children,
+          failed: false,
+        };
+
+        static getDerivedStateFromError() {
+          return { failed: true };
+        }
+
+        static getDerivedStateFromProps(
+          props: ElementBoundaryProps,
+          state: ElementBoundaryState,
+        ): Partial<ElementBoundaryState> | null {
+          return props.children === state.children
+            ? null
+            : { children: props.children, failed: false };
+        }
+
+        override render() {
+          return this.state.failed ? null : this.props.children;
+        }
+      }
+    : ({ children }: ElementBoundaryProps) => children;
 
 const propOwnersByLibrary = new WeakMap<
   GenerativeUILibrary,

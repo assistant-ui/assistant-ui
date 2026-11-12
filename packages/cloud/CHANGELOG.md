@@ -1,5 +1,23 @@
 # assistant-cloud
 
+## 0.2.11
+
+### Patch Changes
+
+- [#10423](https://github.com/assistant-ui/assistant-ui/pull/10423) [`f70872a`](https://github.com/assistant-ui/assistant-ui/commit/f70872a43574d311322c0b5071b4581e0a71bdff) - add run leases to thread messages: `open_run` on message create opens a lease that belongs to that message and runs until its holder ends it, `threads.runs` records heartbeats (`heartbeat`) and ends a run (`end`, with an optional `done`, `cancelled` or `error` reason), `lease_id` on create and update writes as its holder, and listed messages carry their `run` (`running` or `ended`, with the server-measured `last_heartbeat_ms_ago`); `CloudMessagePersistence` opens a run for a message appended as running, heartbeats on the server's interval (also while the page is in the background), ends it after the final write, stops writing a message whose lease was ended elsewhere or refused, and reads a listed run with `runStateOf` as in progress or, after `staleAfter` (default 30 seconds) without a heartbeat, stale; `createFormattedPersistence` passes a run phase through on append and update, so run leases work for any message format ([@Yonom](https://github.com/Yonom))
+
+- [#10407](https://github.com/assistant-ui/assistant-ui/pull/10407) [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+
+## 0.2.10
+
+### Patch Changes
+
+- [#10225](https://github.com/assistant-ui/assistant-ui/pull/10225) [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736) - Create a message's failed parent again before the message, so a reply to a message whose create failed keeps its place in the thread; a reply whose parent still cannot be created is stored as a root. Message creates now send the local message id as `external_id`, so a repeated create cannot store the same message twice. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12), [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c), [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed), [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4), [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f)]:
+  - assistant-stream@0.3.56
+
 ## 0.2.9
 
 ### Patch Changes

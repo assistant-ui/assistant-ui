@@ -119,6 +119,7 @@ export interface TeamsInputChoice {
 export interface TeamsInputChoiceSet {
   readonly type: "Input.ChoiceSet";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly style: "compact" | "expanded";
   readonly isMultiSelect?: true;
   readonly choices: readonly TeamsInputChoice[];
@@ -133,6 +134,7 @@ export interface TeamsInputChoiceSet {
 export interface TeamsInputToggle {
   readonly type: "Input.Toggle";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly title: string;
   readonly value: "true" | "false";
   readonly valueOn: "true";
@@ -145,6 +147,8 @@ export interface TeamsInputToggle {
 export interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly isRequired?: boolean;
+  readonly maxLength?: number;
   readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
@@ -158,6 +162,7 @@ export interface TeamsInputText {
 export interface TeamsInputDate {
   readonly type: "Input.Date";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly label?: string;
   readonly value?: string;
   readonly min?: string;
@@ -169,6 +174,7 @@ export interface TeamsInputDate {
 export interface TeamsInputTime {
   readonly type: "Input.Time";
   readonly id: string;
+  readonly isRequired?: boolean;
   readonly label?: string;
   readonly value?: string;
   readonly min?: string;

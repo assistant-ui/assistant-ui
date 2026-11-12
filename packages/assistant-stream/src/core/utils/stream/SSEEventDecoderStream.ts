@@ -1,4 +1,4 @@
-import { SSEEventDecoder } from "./SSEEventDecoder";
+import { createSSEEventDecoder } from "./SSEEventDecoder";
 import type { SSEEvent, SSEEventDecoderOptions } from "./SSEEventDecoder";
 
 export type PipelineSSEEvent = {
@@ -12,8 +12,15 @@ export class SSEEventDecoderStream extends TransformStream<
   string,
   PipelineSSEEvent
 > {
-  constructor(options: Omit<SSEEventDecoderOptions, "trailing"> = {}) {
-    const decoder = new SSEEventDecoder({ ...options, trailing: "drop" });
+  constructor(
+    options: Omit<SSEEventDecoderOptions, "trailing"> & {
+      stopAfter?: ((event: SSEEvent) => boolean) | undefined;
+    } = {},
+  ) {
+    const decoder = createSSEEventDecoder(
+      { ...options, trailing: "drop" },
+      options.stopAfter,
+    );
     const normalize = (event: SSEEvent): PipelineSSEEvent => ({
       ...event,
       event: event.event || "message",

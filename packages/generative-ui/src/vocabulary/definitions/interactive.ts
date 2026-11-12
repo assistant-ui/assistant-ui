@@ -53,6 +53,10 @@ export const interactiveDefinitions = {
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
       defaultValue: z.string().optional().describe("Initially selected value."),
+      required: z
+        .boolean()
+        .optional()
+        .describe("Require a selection in a form."),
     }),
   },
   Input: {
@@ -76,6 +80,27 @@ export const interactiveDefinitions = {
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
       defaultValue: z.string().optional().describe("Initial text."),
+      required: z.boolean().optional().describe("Require a value in a form."),
+      minLength: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe("Minimum text length."),
+      maxLength: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe("Maximum text length."),
+      min: z
+        .number()
+        .optional()
+        .describe("Minimum numeric value for a number input."),
+      max: z
+        .number()
+        .optional()
+        .describe("Maximum numeric value for a number input."),
     }),
   },
   DatePicker: {
@@ -111,6 +136,10 @@ export const interactiveDefinitions = {
         .optional()
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
+      required: z
+        .boolean()
+        .optional()
+        .describe("Require a date or time in a form."),
     }),
   },
   Checkbox: {
@@ -121,6 +150,10 @@ export const interactiveDefinitions = {
         .union([z.string(), z.number()])
         .describe("Label text or number next to the checkbox."),
       name: z.string().optional().describe("Field name used inside a Form."),
+      required: z
+        .boolean()
+        .optional()
+        .describe("Require the checkbox to be checked."),
       defaultChecked: z
         .boolean()
         .optional()
@@ -155,6 +188,10 @@ export const interactiveDefinitions = {
       name: z.string().optional().describe("Field name used inside a Form."),
       label: z.string().optional().describe("Accessible name for the group."),
       defaultValue: z.string().optional().describe("Initially selected value."),
+      required: z
+        .boolean()
+        .optional()
+        .describe("Require a selected option in a form."),
     }),
   },
   CheckboxGroup: {
@@ -172,6 +209,10 @@ export const interactiveDefinitions = {
         .boolean()
         .optional()
         .describe("Show how many options are checked, with a progress bar."),
+      required: z
+        .boolean()
+        .optional()
+        .describe("Require at least one checked option in a form."),
     }),
   },
 } satisfies Record<string, VocabularyDefinition>;

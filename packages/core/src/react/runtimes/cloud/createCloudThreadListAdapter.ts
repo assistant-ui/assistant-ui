@@ -44,6 +44,12 @@ export type CloudThreadListAdapterOptions = {
   /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
   create?: ((threadId: string) => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  /**
+   * Milliseconds a running reply may go without a heartbeat before it shows
+   * as interrupted with Resume; default 30 000. The server never expires a
+   * run, so a reply whose run beats again shows as in progress again.
+   */
+  staleAfter?: number | undefined;
   /** Creates each cloud thread with `upsert`, so a retried create reuses the thread that already has the external id `create` returned; set it when that id names exactly one conversation. */
   upsert?: boolean | undefined;
 };
@@ -88,10 +94,12 @@ export const createCommittedScopeRef = (
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: CommittedScopeRef,
+  getStaleAfter?: () => number | undefined,
 ): RuntimeAdapters => {
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
     scopeRef,
+    getStaleAfter,
   );
   const [attachments] = useState(() =>
     createScopedCloudFileAttachmentAdapter(
@@ -182,7 +190,11 @@ export const createCloudThreadListAdapter = (
       cloudRef.current = cloud;
       scopeRef.update(scopeId ?? DEFAULT_CLOUD_SCOPE);
     }, [cloud, scopeId, scopeRef]);
-    return useCloudRuntimeAdapters(cloudRef, scopeRef);
+    return useCloudRuntimeAdapters(
+      cloudRef,
+      scopeRef,
+      () => getOptions().staleAfter,
+    );
   };
 
   cloud.registerSdk?.(CORE_SDK);

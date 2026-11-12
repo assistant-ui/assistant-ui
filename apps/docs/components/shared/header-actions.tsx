@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
-import { CartButton } from "./shop-entry";
 import { ThemeToggle } from "./theme-toggle";
 
 interface HeaderActionsProps {
@@ -9,7 +8,7 @@ interface HeaderActionsProps {
   githubLabel: string;
   /** Display classes for the GitHub link. */
   githubClassName?: string;
-  /** Rendered before the cart. */
+  /** Rendered before the GitHub link. */
   children?: ReactNode;
   /** Rendered after the theme toggle, for controls the page owns. */
   actions?: ReactNode;
@@ -25,7 +24,6 @@ export function HeaderActions({
   return (
     <div className="flex items-center gap-1 sm:gap-2">
       {children}
-      <CartButton />
       <a
         href={githubHref}
         target="_blank"

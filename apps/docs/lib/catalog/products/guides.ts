@@ -8,7 +8,6 @@ type Guide = Pick<
 const guide = (entry: Guide): CatalogItem => ({
   ...entry,
   href: entry.docs,
-  purchase: "cart",
   glyph: "examples",
 });
 

@@ -45,7 +45,7 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 </MessagePrimitive.Root>
 ```
 
-`Root` renders a `<div>` with `role="alert"` for screen reader accessibility. `Message` renders a `<span>` that auto-reads the error text from message state, and it returns `null` when there is no error.
+`Root` renders a `<div>` with `role="alert"` for screen reader accessibility. For a reply whose run another tab or session drove (see [Interrupted runs](/docs/cloud/messages#interrupted-runs)), it also carries `data-run-state="stale"` or `data-run-state="in-progress"`, and an in-progress run uses `role="status"`, so one container can style all three states. `Message` renders a `<span>` that auto-reads the error text from message state, and it returns `null` when there is no error.
 
 <Callout type="info">
 ErrorPrimitive must be placed inside a `MessagePrimitive.Root` because it reads the error state from the nearest message context.

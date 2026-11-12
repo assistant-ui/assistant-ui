@@ -70,7 +70,7 @@ for (const author of ["alice", "admin"]) {
       status: "success",
       unmet: [],
       waived: [],
-      approvals: { counted: [], ignored: [] },
+      approvals: { counted: [], ignored: [], carried: [] },
     });
   });
 }
@@ -263,6 +263,7 @@ test("a T2 contract area accepts its sole owner-team approval", () => {
   assert.deepEqual(result.approvals, {
     counted: ["owner-only"],
     ignored: [],
+    carried: [],
   });
 });
 
@@ -377,7 +378,11 @@ for (const state of ["CHANGES_REQUESTED", "DISMISSED"]) {
     for (const ordered of [reviews, reviews.toReversed()]) {
       const result = evaluateRequirements(input({ reviews: ordered }), policy);
       assert.equal(result.status, "pending");
-      assert.deepEqual(result.approvals, { counted: [], ignored: [] });
+      assert.deepEqual(result.approvals, {
+        counted: [],
+        ignored: [],
+        carried: [],
+      });
     }
   });
 }
@@ -400,10 +405,14 @@ for (const state of ["COMMENTED", "PENDING"]) {
       }),
       policy,
     );
-    assert.deepEqual(rejected.approvals, { counted: [], ignored: [] });
+    assert.deepEqual(rejected.approvals, {
+      counted: [],
+      ignored: [],
+      carried: [],
+    });
     assert.deepEqual(
       evaluateRequirements(input({ reviews: [later] }), policy).approvals,
-      { counted: [], ignored: [] },
+      { counted: [], ignored: [], carried: [] },
     );
   });
 }
@@ -423,7 +432,11 @@ test("the latest approval restores a reviewer once and uses its commit SHA", () 
     policy,
   );
   assert.equal(result.status, "success");
-  assert.deepEqual(result.approvals, { counted: ["alice"], ignored: [] });
+  assert.deepEqual(result.approvals, {
+    counted: ["alice"],
+    ignored: [],
+    carried: [],
+  });
   const stale = evaluateRequirements(
     input({
       reviews: [
@@ -460,6 +473,7 @@ for (const { login, isBot, commitSha, reason } of [
     assert.deepEqual(result.approvals, {
       counted: [],
       ignored: [{ login, reason }],
+      carried: [],
     });
   });
 }
@@ -498,6 +512,7 @@ test("an approval before autofix commits is stale", () => {
   assert.deepEqual(result.approvals, {
     counted: [],
     ignored: [{ login: "alice", reason: "stale" }],
+    carried: [],
   });
 });
 
@@ -516,6 +531,7 @@ for (const author of ["contributor", null, "other[bot]"]) {
     assert.deepEqual(result.approvals, {
       counted: [],
       ignored: [{ login: "alice", reason: "stale" }],
+      carried: [],
     });
   });
 }
@@ -548,7 +564,11 @@ for (const commitSha of [null, "missing"]) {
         input({ reviews: [review("alice", { commitSha })] }),
         policy,
       ).approvals,
-      { counted: [], ignored: [{ login: "alice", reason: "stale" }] },
+      {
+        counted: [],
+        ignored: [{ login: "alice", reason: "stale" }],
+        carried: [],
+      },
     );
   });
 }
@@ -596,6 +616,7 @@ test("a commit author and committer are both contributors", () => {
       { login: "alice", reason: "contributor" },
       { login: "bob", reason: "contributor" },
     ],
+    carried: [],
   });
 });
 
@@ -650,6 +671,7 @@ test("web-flow committer excludes nobody else", () => {
   assert.deepEqual(result.approvals, {
     counted: ["alice", "bob"],
     ignored: [],
+    carried: [],
   });
 });
 
@@ -1063,7 +1085,11 @@ test("the merged reactivity PR still needs ownership, a decision and time", () =
   );
   assert.equal(result.status, "pending");
   assert.deepEqual(codes(result), ["decision", "owner:reactivity", "window"]);
-  assert.deepEqual(result.approvals, { counted: ["Kinfe123"], ignored: [] });
+  assert.deepEqual(result.approvals, {
+    counted: ["Kinfe123"],
+    ignored: [],
+    carried: [],
+  });
   assert.deepEqual(result.waived, []);
 });
 
@@ -1274,5 +1300,177 @@ test("a pull request spanning owned packages needs an owner of all of them", () 
   assert.equal(
     evaluateRequirements(request("one-owner"), custom).status,
     "pending",
+  );
+});
+
+const changed = (path, overrides = {}) => ({
+  path,
+  status: "modified",
+  additions: 1,
+  deletions: 1,
+  previousPath: null,
+  patch: "@@ -1 +1 @@\n-old\n+new",
+  ...overrides,
+});
+const pushedAfter = (comparison, overrides = {}) =>
+  input({
+    tier: 1,
+    commits: [
+      { sha: "approved", author: "contributor", committer: "contributor" },
+      { sha: "head", author: "contributor", committer: "contributor" },
+    ],
+    reviews: [review("alice", { commitSha: "approved" })],
+    comparisons: { approved: comparison },
+    ...overrides,
+  });
+const ahead = (files) => ({ ahead: true, complete: true, files });
+
+test("an approval carries over a docs-only push", () => {
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("README.md"), changed("apps/docs/x.mdx")])),
+    policy,
+  );
+  assert.equal(result.status, "success");
+  assert.deepEqual(result.approvals, {
+    counted: ["alice"],
+    ignored: [],
+    carried: [{ login: "alice", sha: "approved" }],
+  });
+});
+
+test("an approval carries over a package source push outside owner areas", () => {
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("packages/react/src/index.ts")])),
+    policy,
+  );
+  assert.deepEqual(result.approvals.counted, ["alice"]);
+});
+
+for (const [name, path] of [
+  ["a CODEOWNERS path", "packages/tap/src/core/scheduler.ts"],
+  ["an api-surface file", "api-surface/assistant-ui__react.ts"],
+  ["the CI policy area", ".github/workflows/ci.yaml"],
+  ["a package manifest", "packages/react/package.json"],
+]) {
+  test(`a push touching ${name} leaves the approval stale`, () => {
+    const result = evaluateRequirements(
+      pushedAfter(ahead([changed("README.md"), changed(path)])),
+      policy,
+    );
+    assert.equal(result.status, "pending");
+    assert.deepEqual(result.approvals, {
+      counted: [],
+      ignored: [{ login: "alice", reason: "stale", paths: [path] }],
+      carried: [],
+    });
+  });
+}
+
+test("a push touching a package with its own owners leaves the approval stale", () => {
+  const path = "packages/docs-theme/src/index.ts";
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("README.md"), changed(path)])),
+    ownedPolicy,
+  );
+  assert.equal(result.status, "pending");
+  assert.deepEqual(result.approvals, {
+    counted: [],
+    ignored: [{ login: "alice", reason: "stale", paths: [path] }],
+    carried: [],
+  });
+  assert.deepEqual(
+    evaluateRequirements(
+      pushedAfter(ahead([changed("packages/react/src/index.ts")])),
+      ownedPolicy,
+    ).approvals.counted,
+    ["alice"],
+  );
+});
+
+for (const [name, comparison, detail] of [
+  [
+    "a force-push",
+    { ahead: false, complete: true, files: [] },
+    "no longer in the branch history",
+  ],
+  ["a failed compare", null, "could not compare it with the head"],
+  [
+    "a truncated compare",
+    { ahead: true, complete: false, files: [changed("README.md")] },
+    "too many later changes to compare",
+  ],
+]) {
+  test(`${name} leaves the approval stale`, () => {
+    const result = evaluateRequirements(pushedAfter(comparison), policy);
+    assert.equal(result.status, "pending");
+    assert.deepEqual(result.approvals, {
+      counted: [],
+      ignored: [{ login: "alice", reason: "stale", detail }],
+      carried: [],
+    });
+  });
+}
+
+test("a carried-over approval still excludes anyone who wrote a later commit", () => {
+  const result = evaluateRequirements(
+    pushedAfter(ahead([changed("README.md")]), {
+      commits: [
+        { sha: "approved", author: "contributor", committer: "contributor" },
+        { sha: "head", author: "alice", committer: "web-flow" },
+      ],
+    }),
+    policy,
+  );
+  assert.deepEqual(result.approvals, {
+    counted: [],
+    ignored: [{ login: "alice", reason: "contributor" }],
+    carried: [],
+  });
+});
+
+test("approvals of the same older commit share one comparison", () => {
+  let reads = 0;
+  const comparison = ahead([changed("README.md")]);
+  const comparisons = {};
+  Object.defineProperty(comparisons, "approved", {
+    enumerable: true,
+    get() {
+      reads++;
+      return comparison;
+    },
+  });
+  const result = evaluateRequirements(
+    pushedAfter(null, {
+      reviews: [
+        review("alice", { commitSha: "approved" }),
+        review("reviewer", { commitSha: "approved" }),
+      ],
+      comparisons,
+    }),
+    policy,
+  );
+  assert.deepEqual(result.approvals.counted, ["alice", "reviewer"]);
+  assert.equal(reads, 1);
+});
+
+test("a T2 owner approval carries over only while the owner area is untouched", () => {
+  const request = (files) =>
+    pushedAfter(ahead(files), {
+      tier: 2,
+      areas: ["reactivity"],
+      reviews: [review("owner-only", { commitSha: "approved" })],
+    });
+  assert.ok(
+    !codes(
+      evaluateRequirements(request([changed("README.md")]), policy),
+    ).includes("owner:reactivity"),
+  );
+  assert.ok(
+    codes(
+      evaluateRequirements(
+        request([changed("packages/store/src/index.ts")]),
+        policy,
+      ),
+    ).includes("owner:reactivity"),
   );
 });

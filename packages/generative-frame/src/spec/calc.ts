@@ -17,7 +17,7 @@ type Token =
 type FormulaFunction = {
   min: number;
   max: number;
-  run: (args: unknown[], step: () => void) => unknown;
+  run: (args: unknown[], step: () => void, locale: string) => unknown;
 };
 
 const isNumber = (value: unknown): value is number =>
@@ -127,15 +127,26 @@ const aggregate = (
 
 const formatters = new Map<string, Intl.NumberFormat>();
 
-const formatNumber = (value: unknown, options: Intl.NumberFormatOptions) => {
+const formatNumber = (
+  value: unknown,
+  options: Intl.NumberFormatOptions,
+  locale: string,
+) => {
   if (!isNumber(value)) return null;
-  const key = JSON.stringify(options);
+  const key = JSON.stringify([locale, options]);
   let formatter = formatters.get(key);
   if (!formatter) {
     try {
-      formatter = new Intl.NumberFormat("en-US", options);
+      formatter = new Intl.NumberFormat(
+        Intl.NumberFormat.supportedLocalesOf(locale)[0] ?? "en-US",
+        options,
+      );
     } catch {
-      return null;
+      try {
+        formatter = new Intl.NumberFormat("en-US", options);
+      } catch {
+        return null;
+      }
     }
     if (formatters.size >= 64) formatters.clear();
     formatters.set(key, formatter);
@@ -143,16 +154,24 @@ const formatNumber = (value: unknown, options: Intl.NumberFormatOptions) => {
   return formatter.format(value);
 };
 
-const decimalFormat = (args: unknown[], style: "decimal" | "percent") => {
+const decimalFormat = (
+  args: unknown[],
+  style: "decimal" | "percent",
+  locale: string,
+) => {
   const [value, digits] = args;
-  if (args.length === 1) return formatNumber(value, { style });
+  if (args.length === 1) return formatNumber(value, { style }, locale);
   if (!isNumber(digits)) return null;
   const precision = fractionDigits(digits);
-  return formatNumber(value, {
-    style,
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  });
+  return formatNumber(
+    value,
+    {
+      style,
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+    },
+    locale,
+  );
 };
 
 const functions = new Map<string, FormulaFunction>([
@@ -183,10 +202,10 @@ const functions = new Map<string, FormulaFunction>([
     {
       min: 1,
       max: Infinity,
-      run: (args, step) =>
+      run: (args, step, locale) =>
         Array.isArray(args[0])
           ? aggregate(name, args, step)
-          : numeric(name === "min" ? Math.min : Math.max)(args, step),
+          : numeric(name === "min" ? Math.min : Math.max)(args, step, locale),
     },
   ]),
   [
@@ -197,6 +216,29 @@ const functions = new Map<string, FormulaFunction>([
       run: ([list]) => (Array.isArray(list) ? list.length : null),
     },
   ],
+  [
+    "without",
+    {
+      min: 2,
+      max: 2,
+      run: ([list, index], step) => {
+        if (!Array.isArray(list)) return null;
+        if (
+          typeof index !== "number" ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= list.length
+        )
+          return list;
+        const result: unknown[] = [];
+        for (let i = 0; i < list.length; i++) {
+          step();
+          if (i !== index) result.push(list[i]);
+        }
+        return result;
+      },
+    },
+  ],
   ...(["sum", "avg"] as const).map((name): [string, FormulaFunction] => [
     name,
     {
@@ -205,21 +247,32 @@ const functions = new Map<string, FormulaFunction>([
       run: (args, step) => aggregate(name, args, step),
     },
   ]),
-  ["number", { min: 1, max: 2, run: (args) => decimalFormat(args, "decimal") }],
+  [
+    "number",
+    {
+      min: 1,
+      max: 2,
+      run: (args, _step, locale) => decimalFormat(args, "decimal", locale),
+    },
+  ],
   [
     "currency",
     {
       min: 2,
       max: 2,
-      run: ([value, code]) =>
+      run: ([value, code], _step, locale) =>
         typeof code === "string"
-          ? formatNumber(value, { style: "currency", currency: code })
+          ? formatNumber(value, { style: "currency", currency: code }, locale)
           : null,
     },
   ],
   [
     "percent",
-    { min: 1, max: 2, run: (args) => decimalFormat(args, "percent") },
+    {
+      min: 1,
+      max: 2,
+      run: (args, _step, locale) => decimalFormat(args, "percent", locale),
+    },
   ],
   [
     "time",
@@ -509,7 +562,9 @@ const evaluate = (
     case "conditional":
       return visit(node.condition) ? visit(node.then) : visit(node.otherwise);
     case "call":
-      return functions.get(node.name)!.run(node.args.map(visit), step);
+      return functions
+        .get(node.name)!
+        .run(node.args.map(visit), step, ctx.locale ?? "en-US");
     case "binary": {
       const left = visit(node.left);
       if (node.operator === "&&")
