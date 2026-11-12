@@ -54,5 +54,8 @@ describe("parseRouteBundleStats", () => {
   it("rejects a malformed file", () => {
     expect(() => parseRouteBundleStats({})).toThrow();
     expect(() => parseRouteBundleStats([{ route: "/" }])).toThrow();
+    expect(() =>
+      parseRouteBundleStats([{ route: "/", firstLoadChunkPaths: [null] }]),
+    ).toThrow();
   });
 });

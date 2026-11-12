@@ -6,33 +6,13 @@ import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import { GenerativeMarkdown } from "./generative-markdown";
 import { GeoMap, type GeoMapPlace } from "./geo-map";
 
-// The diagram engine (beautiful-mermaid and elkjs) is large, so in the browser
-// it loads only when a Diagram actually renders. The fallback matches the
-// diagram's own rendering skeleton, so nothing shifts when the chunk arrives.
-// On the server the module loads up front and renders synchronously, so
-// server rendering and static generation output the finished diagram, and
-// hydration keeps that HTML until the browser chunk arrives.
-type MermaidDiagramComponent =
-  typeof import("./mermaid-diagram").MermaidDiagram;
-
-const loadMermaidDiagram = () =>
-  import("./mermaid-diagram").then((mod) => mod.MermaidDiagram);
-
-let serverMermaidDiagram: MermaidDiagramComponent | undefined;
-if (typeof window === "undefined") {
-  void loadMermaidDiagram().then((component) => {
-    serverMermaidDiagram = component;
-  });
-}
-
-const LazyMermaidDiagram = lazy(() =>
-  loadMermaidDiagram().then((component) => ({ default: component })),
+// The diagram engine (beautiful-mermaid and elkjs) is large, so it loads only
+// when a Diagram actually renders. The fallback matches the diagram's own
+// rendering skeleton, so nothing shifts when the chunk arrives. Server
+// rendering still outputs the finished diagram through the Suspense boundary.
+const MermaidDiagram = lazy(() =>
+  import("./mermaid-diagram").then((mod) => ({ default: mod.MermaidDiagram })),
 );
-
-const MermaidDiagram = (props: { code: string }) => {
-  const Diagram = serverMermaidDiagram ?? LazyMermaidDiagram;
-  return <Diagram {...props} />;
-};
 
 const DiagramSkeleton = () => (
   <div

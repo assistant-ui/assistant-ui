@@ -36,15 +36,13 @@ function SearchButton({
     return () => document.removeEventListener("keydown", down, true);
   }, [onToggle]);
 
-  const preload = () => void preloadSearchDialog();
-
   return (
     <>
       <button
         type="button"
         onClick={() => onToggle("header")}
-        onPointerEnter={preload}
-        onFocus={preload}
+        onPointerEnter={preloadSearchDialog}
+        onFocus={preloadSearchDialog}
         className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
         aria-label="Search"
         aria-keyshortcuts="Meta+K Control+K"
@@ -55,8 +53,8 @@ function SearchButton({
         variant="outline"
         size="sm"
         onClick={() => onToggle("header")}
-        onPointerEnter={preload}
-        onFocus={preload}
+        onPointerEnter={preloadSearchDialog}
+        onFocus={preloadSearchDialog}
         className="hidden md:inline-flex"
         aria-keyshortcuts="Meta+K Control+K"
       >

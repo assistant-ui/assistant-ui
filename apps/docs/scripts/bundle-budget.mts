@@ -37,13 +37,14 @@ export function parseRouteBundleStats(json: unknown): RouteBundleStat[] {
       !("route" in entry) ||
       typeof entry.route !== "string" ||
       !("firstLoadChunkPaths" in entry) ||
-      !Array.isArray(entry.firstLoadChunkPaths)
+      !Array.isArray(entry.firstLoadChunkPaths) ||
+      !entry.firstLoadChunkPaths.every((chunk) => typeof chunk === "string")
     ) {
       throw new Error("route-bundle-stats.json has an unexpected entry");
     }
     return {
       route: entry.route,
-      firstLoadChunkPaths: entry.firstLoadChunkPaths.map(String),
+      firstLoadChunkPaths: entry.firstLoadChunkPaths as string[],
     };
   });
 }

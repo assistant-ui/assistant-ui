@@ -26,4 +26,4 @@ const results = checkBudgets(
 );
 const { ok, report } = formatBudgetReport(results);
 console.log(report);
-if (!ok) process.exit(1);
+if (!ok) process.exitCode = 1;

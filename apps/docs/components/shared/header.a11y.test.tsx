@@ -22,7 +22,7 @@ vi.mock("@/components/shared/header-brand-link", () => ({
 }));
 vi.mock("./lazy-search-dialog", () => ({
   SearchDialog: () => null,
-  preloadSearchDialog: () => Promise.resolve(),
+  preloadSearchDialog: () => {},
 }));
 
 afterEach(cleanup);

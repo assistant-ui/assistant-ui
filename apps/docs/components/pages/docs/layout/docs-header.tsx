@@ -70,8 +70,8 @@ function HeaderSearch() {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      onPointerEnter={() => void preloadSearchDialog()}
-      onFocus={() => void preloadSearchDialog()}
+      onPointerEnter={preloadSearchDialog}
+      onFocus={preloadSearchDialog}
       className="text-muted-foreground hover:text-foreground w-full max-w-96 shrink justify-start gap-2 font-normal max-xl:hidden"
     >
       <Search className="size-3.5 shrink-0" />
@@ -95,8 +95,8 @@ function SearchIconButton({ className }: { className?: string }) {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      onPointerEnter={() => void preloadSearchDialog()}
-      onFocus={() => void preloadSearchDialog()}
+      onPointerEnter={preloadSearchDialog}
+      onFocus={preloadSearchDialog}
       className={cn(
         "text-muted-foreground hover:text-foreground flex cursor-pointer items-center justify-center transition-colors",
         className,

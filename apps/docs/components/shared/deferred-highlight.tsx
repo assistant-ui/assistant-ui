@@ -21,10 +21,17 @@ class HighlightBoundary extends Component<
 }
 
 export function DeferredHighlight(props: ShikiHighlighterProps) {
-  const fallback = (
+  const code = (
     <pre>
       <code>{props.children}</code>
     </pre>
+  );
+  // react-shiki puts `className` on a wrapper div; the fallback keeps that
+  // wrapper so a caller's code-sheet styles apply while Shiki loads.
+  const fallback = props.className ? (
+    <div className={props.className}>{code}</div>
+  ) : (
+    code
   );
   return (
     <HighlightBoundary fallback={fallback}>

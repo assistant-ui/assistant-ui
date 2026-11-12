@@ -18,12 +18,24 @@ type SearchDialogComponent = ComponentType<SearchDialogProps>;
 let loaded: SearchDialogComponent | null = null;
 let pending: Promise<SearchDialogComponent> | null = null;
 
-export function preloadSearchDialog(): Promise<SearchDialogComponent> {
-  pending ??= import("./search-dialog").then((mod) => {
-    loaded = mod.SearchDialog;
-    return loaded;
-  });
+function loadSearchDialog(): Promise<SearchDialogComponent> {
+  pending ??= import("./search-dialog").then(
+    (mod) => {
+      loaded = mod.SearchDialog;
+      return loaded;
+    },
+    (error: unknown) => {
+      // A failed chunk load is retried on the next hover, focus or open.
+      pending = null;
+      throw error;
+    },
+  );
   return pending;
+}
+
+/** Starts loading the dialog; safe to call on every hover or focus. */
+export function preloadSearchDialog(): void {
+  loadSearchDialog().catch(() => {});
 }
 
 const onIdle = (run: () => void) => {
@@ -44,9 +56,12 @@ export function SearchDialog(props: SearchDialogProps) {
     if (Dialog) return;
     let live = true;
     const load = () => {
-      void preloadSearchDialog().then((component) => {
-        if (live) setDialog(() => component);
-      });
+      loadSearchDialog().then(
+        (component) => {
+          if (live) setDialog(() => component);
+        },
+        () => {},
+      );
     };
     if (props.open) {
       load();

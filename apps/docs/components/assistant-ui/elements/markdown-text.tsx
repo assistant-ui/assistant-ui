@@ -184,24 +184,37 @@ const NO_REHYPE_PLUGINS: PluggableList = [];
 let katexPlugins: PluggableList | null = null;
 let katexLoad: Promise<PluggableList> | null = null;
 const loadKatexPlugins = () => {
-  katexLoad ??= import("rehype-katex").then((mod) => {
-    katexPlugins = [mod.default];
-    return katexPlugins;
-  });
+  katexLoad ??= import("rehype-katex").then(
+    (mod) => {
+      katexPlugins = [mod.default];
+      return katexPlugins;
+    },
+    (error: unknown) => {
+      katexLoad = null;
+      throw error;
+    },
+  );
   return katexLoad;
 };
 
-const MATH_HINT = /\$|\\\(|\\\[/;
+// Cheap pre-check for every math syntax preprocessMath understands; only text
+// that passes it is normalized and checked for a real, unescaped `$` span, so
+// currency like `$5` (escaped by preprocessMath) doesn't load KaTeX.
+const MATH_SYNTAX = /\$|\\\(|\\\[|\[\/math\]|\[\/inline\]/;
+const UNESCAPED_DOLLAR = /(?:^|[^\\])\$/;
+export const hasMath = (text: string) =>
+  MATH_SYNTAX.test(text) && UNESCAPED_DOLLAR.test(preprocessMath(text));
 
 const useRehypePlugins = () => {
-  const hasMath = useAuiState((s) => {
+  const needsKatex = useAuiState((s) => {
+    if (katexPlugins) return true;
     if (s.part.type !== "text" && s.part.type !== "reasoning") return false;
-    return MATH_HINT.test(s.part.text);
+    return hasMath(s.part.text);
   });
   const [plugins, setPlugins] = useState(katexPlugins);
 
   useEffect(() => {
-    if (!hasMath || plugins) return;
+    if (!needsKatex || plugins) return;
     let live = true;
     void loadKatexPlugins().then((loaded) => {
       if (live) setPlugins(loaded);
@@ -209,7 +222,7 @@ const useRehypePlugins = () => {
     return () => {
       live = false;
     };
-  }, [hasMath, plugins]);
+  }, [needsKatex, plugins]);
 
   return plugins ?? NO_REHYPE_PLUGINS;
 };
