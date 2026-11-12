@@ -408,6 +408,7 @@ export class AgUiThreadController {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly listeners = new Set<() => void>();
+  private pendingUpdateNotification: ReturnType<typeof setTimeout> | undefined;
   private snapshot:
     | {
         isLoading: boolean;
@@ -498,8 +499,20 @@ export class AgUiThreadController {
     this.state = reduceAgUiThreadState(this.state, action);
   }
 
-  private publishUpdate(): void {
+  private publishUpdate(deferNotification = false): void {
     this.snapshot = undefined;
+    if (deferNotification) {
+      if (this.pendingUpdateNotification !== undefined) return;
+      this.pendingUpdateNotification = setTimeout(() => {
+        this.pendingUpdateNotification = undefined;
+        for (const listener of this.listeners) listener();
+      }, 0);
+      return;
+    }
+    if (this.pendingUpdateNotification !== undefined) {
+      clearTimeout(this.pendingUpdateNotification);
+      this.pendingUpdateNotification = undefined;
+    }
     for (const listener of this.listeners) listener();
   }
 
@@ -1836,6 +1849,7 @@ export class AgUiThreadController {
     let frameOwnerIds = new Set<string>();
     let restrictedPendingToolCallIds: ReadonlySet<string> | undefined;
     let settlingRun = false;
+    let deferUpdateNotifications = false;
     let latestSnapshot: ThreadAssistantMessage | undefined;
     let snapshotToolCallIds = new Set<string>();
     const snapshotResultIds = new Set<string>();
@@ -1871,7 +1885,11 @@ export class AgUiThreadController {
         this.session.hasMessage(assistantParentId)
           ? assistantParentId
           : repositoryHeadId;
-      const created = this.insertAssistantPlaceholder(parentId, cached);
+      const created = this.insertAssistantPlaceholder(
+        parentId,
+        cached,
+        deferUpdateNotifications,
+      );
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, parentId);
       return created;
@@ -2119,6 +2137,7 @@ export class AgUiThreadController {
             },
             replayContexts.get(ownerId),
             interrupt ? new Set<string>() : restrictedPendingToolCallIds,
+            deferUpdateNotifications,
           );
         }
         const { content: _content, ...controlUpdate } = update;
@@ -2136,6 +2155,7 @@ export class AgUiThreadController {
         primaryUpdate,
         replayContexts.get(messageId),
         restrictedPendingToolCallIds,
+        deferUpdateNotifications,
       );
       if (messageId === frameMessageId && resolved !== assistantMessageId) {
         assistantMessageId = resolved;
@@ -2209,7 +2229,11 @@ export class AgUiThreadController {
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
         if (!adoptsReplay && this.session.tryGetMessage(previousId)) {
-          const created = this.insertAssistantPlaceholder(previousId);
+          const created = this.insertAssistantPlaceholder(
+            previousId,
+            undefined,
+            deferUpdateNotifications,
+          );
           assistantMessageId = created;
           this.markPendingAssistantHistory(created, previousId);
         }
@@ -2223,7 +2247,11 @@ export class AgUiThreadController {
       replayEnded = true;
       const placeholder = ensureAssistant(true);
       if (placeholder === serverId) return;
-      const reassigned = this.reassignAssistantId(placeholder, serverId);
+      const reassigned = this.reassignAssistantId(
+        placeholder,
+        serverId,
+        deferUpdateNotifications,
+      );
       // A collision drops the placeholder before revealing the existing
       // server message as the current head. Only messages introduced during
       // this run can replace the placeholder; regeneration must not rewrite
@@ -2296,13 +2324,19 @@ export class AgUiThreadController {
         (settlingRun && heldMessages.has(messageId));
       if (held) heldMessages.set(messageId, new Set(unresolved));
       else heldMessages.delete(messageId);
-      this.updateAssistantMessage(messageId, {
-        ...update,
-        ...(content !== undefined ? { content } : {}),
-        status: held
-          ? { type: "running" }
-          : { type: "complete", reason: "unknown" },
-      });
+      this.updateAssistantMessage(
+        messageId,
+        {
+          ...update,
+          ...(content !== undefined ? { content } : {}),
+          status: held
+            ? { type: "running" }
+            : { type: "complete", reason: "unknown" },
+        },
+        undefined,
+        undefined,
+        deferUpdateNotifications,
+      );
       const current = this.session.tryGetMessage(messageId)?.message;
       if (current?.role === "assistant")
         retainedSnapshots.set(messageId, { ...snapshot, message: current });
@@ -2320,7 +2354,13 @@ export class AgUiThreadController {
         !runStartMessageIds.has(head.id) &&
         !aggregator.isRetained(head.id)
       )
-        this.updateAssistantMessage(head.id, { status: { type: "running" } });
+        this.updateAssistantMessage(
+          head.id,
+          { status: { type: "running" } },
+          undefined,
+          undefined,
+          deferUpdateNotifications,
+        );
     };
 
     const abortController = new AbortController();
@@ -2535,6 +2575,13 @@ export class AgUiThreadController {
       if (settlingRun) persistRunAssistants(true);
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
+      const previousDeferredNotifications = deferUpdateNotifications;
+      deferUpdateNotifications =
+        event.type === "TEXT_MESSAGE_CONTENT" ||
+        event.type === "REASONING_MESSAGE_CONTENT" ||
+        event.type === "TOOL_CALL_ARGS" ||
+        event.type === "ACTIVITY_DELTA" ||
+        event.type === "STATE_DELTA";
       try {
         const nextAssistantMessageId = this.handleEvent(
           aggregator,
@@ -2627,6 +2674,7 @@ export class AgUiThreadController {
         }
         if (settlingRun) persistRunAssistants(false);
       } finally {
+        deferUpdateNotifications = previousDeferredNotifications;
         settlingRun = false;
       }
     };
@@ -3024,6 +3072,7 @@ export class AgUiThreadController {
   private insertAssistantPlaceholder(
     parentId: string | null,
     id: string = generateOptimisticId(),
+    deferNotification = false,
   ): string {
     const assistant: ThreadAssistantMessage = {
       id,
@@ -3042,11 +3091,15 @@ export class AgUiThreadController {
     };
     this.session.addOrUpdateMessage(parentId ?? this.session.headId, assistant);
     this.session.switchToBranch(id);
-    this.publishUpdate();
+    this.publishUpdate(deferNotification);
     return id;
   }
 
-  private reassignAssistantId(oldId: string, newId: string): boolean {
+  private reassignAssistantId(
+    oldId: string,
+    newId: string,
+    deferNotification = false,
+  ): boolean {
     if (oldId === newId) return true;
     const oldItem = this.session.tryGetMessage(oldId);
     if (!oldItem) return false;
@@ -3107,7 +3160,7 @@ export class AgUiThreadController {
       );
     }
 
-    this.publishUpdate();
+    this.publishUpdate(deferNotification);
     return !collidesWithExisting;
   }
 
@@ -3116,6 +3169,7 @@ export class AgUiThreadController {
     update: ChatModelRunResult,
     replay?: ReplayContext,
     pendingToolCallIds?: ReadonlySet<string>,
+    deferNotification = false,
   ): string {
     let latestStatus: MessageStatus | undefined;
     const touched = this.session.updateMessage(messageId, (message) => {
@@ -3239,10 +3293,10 @@ export class AgUiThreadController {
       latestStatus !== undefined && latestStatus.type !== "running";
     if (isSettled && isOptimisticId(messageId)) {
       const stableId = generateId();
-      this.reassignAssistantId(messageId, stableId);
+      this.reassignAssistantId(messageId, stableId, deferNotification);
       resolvedMessageId = stableId;
     } else {
-      this.publishUpdate();
+      this.publishUpdate(deferNotification);
     }
     if (this.isPersistableStatus(latestStatus)) {
       this.persistAssistantHistory(resolvedMessageId);
@@ -3608,7 +3662,7 @@ export class AgUiThreadController {
             type: "stateSnapshot",
             snapshot: result.newDocument as ReadonlyJSONValue,
           });
-          this.updateActiveAssistantState(activeAssistantId);
+          this.updateActiveAssistantState(activeAssistantId, true);
         } catch (error) {
           this.logger.error?.("[agui] failed to apply state delta", error);
         }
@@ -3720,7 +3774,10 @@ export class AgUiThreadController {
     return activeAssistantId;
   }
 
-  private updateActiveAssistantState(messageId: string | undefined): void {
+  private updateActiveAssistantState(
+    messageId: string | undefined,
+    deferNotification = false,
+  ): void {
     const current =
       messageId === undefined
         ? undefined
@@ -3742,7 +3799,7 @@ export class AgUiThreadController {
         };
       });
     }
-    this.publishUpdate();
+    this.publishUpdate(deferNotification);
   }
 
   private applyCrossRunToolResult(
