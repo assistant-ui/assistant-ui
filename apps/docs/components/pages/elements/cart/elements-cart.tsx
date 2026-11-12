@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { ShoppingCartIcon, XIcon } from "lucide-react";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ShadcnInstallTabs } from "@/components/pages/docs/fumadocs/install/package-manager-tabs";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
+  CART_TOAST_ID,
   clearCart,
   removeCartSlug,
   setCartOpen,
@@ -86,7 +88,13 @@ export function ElementsCart({
     if (open) setAssistantOpen(false);
   }, [open, setAssistantOpen]);
 
-  useEffect(() => () => setCartOpen(false), []);
+  useEffect(
+    () => () => {
+      toast.dismiss(CART_TOAST_ID);
+      setCartOpen(false);
+    },
+    [],
+  );
   const count = cart.length;
 
   return (

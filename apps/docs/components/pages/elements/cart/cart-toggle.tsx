@@ -4,7 +4,12 @@ import { CheckIcon, ShoppingCartIcon } from "lucide-react";
 import { toast } from "sonner";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { cn } from "@/lib/utils";
-import { setCartOpen, toggleCartSlug, useCartSlugs } from "./store";
+import {
+  CART_TOAST_ID,
+  setCartOpen,
+  toggleCartSlug,
+  useCartSlugs,
+} from "./store";
 
 export function CartToggle({ slug, title }: { slug: string; title: string }) {
   const inCart = useCartSlugs().includes(slug);
@@ -18,6 +23,7 @@ export function CartToggle({ slug, title }: { slug: string; title: string }) {
       onClick={() => {
         if (!toggleCartSlug(slug)) return;
         toast.success(`${title} added to cart.`, {
+          id: CART_TOAST_ID,
           action: { label: "View cart", onClick: () => setCartOpen(true) },
         });
       }}

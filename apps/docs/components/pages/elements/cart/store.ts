@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 export const CART_STORAGE_KEY = "aui-elements-cart";
+export const CART_TOAST_ID = "aui-elements-cart";
 
 const EMPTY: readonly string[] = [];
 

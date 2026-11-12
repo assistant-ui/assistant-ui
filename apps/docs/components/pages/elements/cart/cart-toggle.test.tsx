@@ -10,13 +10,19 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
+const { toastSuccess, toastDismiss } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastDismiss: vi.fn(),
+}));
 
 vi.mock("sonner", async (importOriginal) => {
   const original = await importOriginal<typeof import("sonner")>();
   return {
     ...original,
-    toast: Object.assign(original.toast, { success: toastSuccess }),
+    toast: Object.assign(original.toast, {
+      success: toastSuccess,
+      dismiss: toastDismiss,
+    }),
   };
 });
 
@@ -55,6 +61,7 @@ describe("CartToggle", () => {
     expect(stored()).toEqual(["loading-state"]);
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
     expect(toastSuccess.mock.calls[0]![0]).toBe("Loader added to cart.");
+    expect(toastSuccess.mock.calls[0]![1].id).toBe("aui-elements-cart");
     act(() => toastSuccess.mock.calls[0]![1].action.onClick());
     expect(renderHook(() => useCartOpen()).result.current).toBe(true);
 
@@ -125,7 +132,7 @@ describe("ElementsCart", () => {
     expect(command.match(/@assistant-ui\/elements-composer/g)).toHaveLength(1);
   });
 
-  it("closes when Ask AI opens and does not reopen after the page is left", async () => {
+  it("closes when Ask AI opens, and closes and dismisses its toast when the page is left", async () => {
     const { ElementsCart, AssistantPanelProvider, useCartOpen, setCartOpen } =
       await loadCart();
     const { useAssistantPanel } = await import("../../docs/assistant/context");
@@ -149,5 +156,6 @@ describe("ElementsCart", () => {
     act(() => setCartOpen(true));
     view.unmount();
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
+    expect(toastDismiss).toHaveBeenCalledWith("aui-elements-cart");
   });
 });
