@@ -23,9 +23,12 @@ export async function readElementSource(file: string): Promise<string> {
   cacheLife("max");
   let cause: unknown;
   for (const root of SOURCE_ROOTS) {
+    // Routes that read these files list them in `outputFileTracingIncludes`.
+    // Tracing this dynamic path would put the whole app in every importer's
+    // trace, including routes that only highlight strings.
     try {
       const source = await fs.readFile(
-        path.join(process.cwd(), ...root, file),
+        path.join(/* turbopackIgnore: true */ process.cwd(), ...root, file),
         "utf8",
       );
       return source.trimEnd();
