@@ -7,6 +7,7 @@ import {
   render,
   renderHook,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -157,5 +158,24 @@ describe("ElementsCart", () => {
     view.unmount();
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
     expect(toastDismiss).toHaveBeenCalledWith("aui-elements-cart");
+  });
+
+  it("returns focus to the launcher when the sheet closes", async () => {
+    const { ElementsCart, AssistantPanelProvider, setCartOpen } =
+      await loadCart();
+    render(
+      <AssistantPanelProvider>
+        <ElementsCart elements={{}} />
+      </AssistantPanelProvider>,
+    );
+    const launcher = screen.getByRole("button", {
+      name: "Open cart, 0 elements",
+    });
+    launcher.focus();
+    fireEvent.click(launcher);
+    await waitFor(() => expect(document.activeElement).not.toBe(launcher));
+
+    act(() => setCartOpen(false));
+    await waitFor(() => expect(document.activeElement).toBe(launcher));
   });
 });

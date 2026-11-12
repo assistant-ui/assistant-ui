@@ -157,8 +157,12 @@ export function ElementsCart({
           <CartBall count={count} open className="absolute right-full me-5" />
         </SheetContent>
       </Sheet>
-      {open || assistantOpen ? null : (
-        <CartBall count={count} open={false} className="fixed right-5 z-50" />
+      {assistantOpen ? null : (
+        <CartBall
+          count={count}
+          open={false}
+          className={cn("fixed right-5 z-50", open && "invisible")}
+        />
       )}
     </>
   );
