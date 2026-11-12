@@ -136,10 +136,10 @@ const config: NextConfig = {
   experimental: {
     ...(buildCpus ? { cpus: buildCpus } : {}),
     // Vercel restores Turbopack's build cache before each build and saves it
-    // again after, and Turbopack never drops the tasks a new build no longer
-    // reaches, so the cache only grows. A build that misses it gets slower as
-    // it grows, until it is slower than a build with no cache at all. The
-    // collector removes those tasks before the build writes the cache.
+    // after. Without the collector the cache keeps every task any earlier
+    // build made, and a build that misses it slows down as it grows. The
+    // collector deletes the tasks a build left without a parent before the
+    // cache is written; root tasks that no build uses age out after 3 days.
     ...(isDev ? {} : { turbopackGc: true }),
   },
   // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 import { compile, evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
@@ -16,6 +16,14 @@ vi.mock("@assistant-ui/next", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/next")>();
   return { ...actual, withAui: vi.fn(actual.withAui) };
 });
+// `next dev` would leave a watcher on content/ running in the test process.
+const { watchContentManifest } = vi.hoisted(() => ({
+  watchContentManifest: vi.fn(),
+}));
+vi.mock("./scripts/content/manifest.mts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./scripts/content/manifest.mts")>()),
+  watchContentManifest,
+}));
 // Code blocks highlight in a "use cache" server function at render time.
 vi.mock("next/cache", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/cache")>()),
@@ -84,6 +92,21 @@ describe("docs Next config composition", () => {
 
   it("collects unreachable tasks before a build writes Turbopack's cache", () => {
     expect(config.experimental?.turbopackGc).toBe(true);
+  });
+
+  it("leaves Turbopack's collector off in next dev", async () => {
+    const { NODE_ENV, DOCS_FULL } = process.env;
+    onTestFinished(() => {
+      vi.stubEnv("NODE_ENV", NODE_ENV);
+      vi.stubEnv("DOCS_FULL", DOCS_FULL);
+    });
+    vi.stubEnv("NODE_ENV", "development");
+    // Without it, dev rewrites the content manifest for on-demand pages.
+    vi.stubEnv("DOCS_FULL", "1");
+    vi.resetModules();
+    const reloaded = await (await import("./next.config.mts")).default;
+    expect(watchContentManifest).toHaveBeenCalled();
+    expect(reloaded.experimental).not.toHaveProperty("turbopackGc");
   });
 
   it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {

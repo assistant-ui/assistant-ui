@@ -35,6 +35,6 @@ DOCS_BUILD_CPUS=4 pnpm build
 
 On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s. With `DOCS_BUILD_CPUS=4` it peaks at about 16 GB and takes about 55 s. The PR that added this (assistant-ui/assistant-ui#10486) has the measurements.
 
-Builds turn on Turbopack's garbage collector (`experimental.turbopackGc`). Vercel restores Turbopack's build cache before each build and saves it after, and without the collector the cache keeps every task an earlier build made, so it only grows. A build that misses the cache gets slower as the cache grows: on Vercel, from about 50 s at 2 GB to about 3.4 min at 3.3–3.7 GB, against 61 s with no cache at all. `next dev` doesn't use the collector.
+Builds turn on Turbopack's garbage collector (`experimental.turbopackGc`). Vercel restores Turbopack's build cache before each build and saves it after. Without the collector the cache keeps every task any earlier build made, and a build that misses it gets slower as it grows. Before the collector, the median miss on Vercel compiled in about 50 s with a 1.5–2.2 GB cache and about 3.4 min with a 3.3–3.7 GB one, against 61 s with no cache at all; assistant-ui/assistant-ui#10536 has the measurements. With the collector, a build deletes the tasks it left unused before it writes the cache, and root tasks that no build uses age out after three days. `next dev` doesn't use the collector.
 
 None of these settings change what a build produces.
