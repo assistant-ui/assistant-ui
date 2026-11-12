@@ -39,6 +39,52 @@ const useThreadListItemClientById = ({
 
 const ThreadListItemClientById = resource(useThreadListItemClientById);
 
+const createThreadListEventEffect =
+  (runtime: ThreadListRuntime, emit: ReturnType<typeof useAssistantEmit>) =>
+  () =>
+    runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
+      if (threadId === runtime.getState().mainThreadId) return;
+      emit(`thread.${type}`, { threadId });
+    });
+
+function createValueAccessor<T>(value: T) {
+  return () => value;
+}
+
+const createSwitchToThread =
+  (runtime: ThreadListRuntime): ClientOutput<"threads">["switchToThread"] =>
+  (threadId, options) =>
+    handleThreadListAction("switch", () =>
+      runtime.switchToThread(threadId, options),
+    );
+
+const createSwitchToNewThread = (runtime: ThreadListRuntime) => () =>
+  handleThreadListAction("create", () => runtime.switchToNewThread());
+
+const createGetLoadThreadsPromise =
+  (
+    runtime: ThreadListRuntime,
+    afterStateCommit: ReturnType<typeof useAfterStateCommit>,
+  ) =>
+  () =>
+    afterStateCommit(runtime.getLoadThreadsPromise());
+
+const createReloadThreads =
+  (
+    runtime: ThreadListRuntime,
+    afterStateCommit: ReturnType<typeof useAfterStateCommit>,
+  ) =>
+  () =>
+    afterStateCommit(runtime.reload());
+
+const createLoadMoreThreads =
+  (
+    runtime: ThreadListRuntime,
+    afterStateCommit: ReturnType<typeof useAfterStateCommit>,
+  ) =>
+  () =>
+    afterStateCommit(runtime.loadMore());
+
 const useThreadListClient = ({
   runtime,
   __internal_assistantRuntime,
@@ -51,14 +97,7 @@ const useThreadListClient = ({
   useThreadSelectionEvents(runtimeState.mainThreadId);
 
   const emit = useAssistantEmit();
-  useEffect(
-    () =>
-      runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
-        if (threadId === runtime.getState().mainThreadId) return;
-        emit(`thread.${type}`, { threadId });
-      }),
-    [runtime, emit],
-  );
+  useEffect(createThreadListEventEffect(runtime, emit), [runtime, emit]);
 
   const main = useClientResource(
     ThreadClient({
@@ -99,7 +138,7 @@ const useThreadListClient = ({
 
   return {
     getState: () => state,
-    thread: () => main.methods,
+    thread: createValueAccessor(main.methods),
     item: (threadIdOrOptions) => {
       if (threadIdOrOptions === "main") {
         return threadItems.get({ key: state.mainThreadId });
@@ -115,18 +154,18 @@ const useThreadListClient = ({
         : state.threadIds[index]!;
       return threadItems.get({ key: id });
     },
-    switchToThread: (threadId, options) =>
-      handleThreadListAction("switch", () =>
-        runtime.switchToThread(threadId, options),
-      ),
-    switchToNewThread: () =>
-      handleThreadListAction("create", () => runtime.switchToNewThread()),
-    getLoadThreadsPromise: () =>
-      afterStateCommit(runtime.getLoadThreadsPromise()),
-    reload: () => afterStateCommit(runtime.reload()),
-    reloadMainThread: () => runtime.reloadMainThread(),
-    loadMore: () => afterStateCommit(runtime.loadMore()),
-    __internal_getAssistantRuntime: () => __internal_assistantRuntime,
+    switchToThread: createSwitchToThread(runtime),
+    switchToNewThread: createSwitchToNewThread(runtime),
+    getLoadThreadsPromise: createGetLoadThreadsPromise(
+      runtime,
+      afterStateCommit,
+    ),
+    reload: createReloadThreads(runtime, afterStateCommit),
+    reloadMainThread: runtime.reloadMainThread,
+    loadMore: createLoadMoreThreads(runtime, afterStateCommit),
+    __internal_getAssistantRuntime: createValueAccessor(
+      __internal_assistantRuntime,
+    ),
   };
 };
 

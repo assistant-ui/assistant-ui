@@ -7,6 +7,20 @@ import { isDevelopment } from "../core/helpers/env";
 
 let didWarnUncachedGetSnapshot = false;
 
+const incrementUpdate = (count: number) => count + 1;
+
+const createSubscriptionEffect =
+  (
+    subscribe: (onStoreChange: () => void) => () => void,
+    checkForUpdates: () => boolean,
+    forceUpdate: () => void,
+  ) =>
+  () => {
+    return subscribe(() => {
+      if (checkForUpdates()) forceUpdate();
+    });
+  };
+
 export const useSyncExternalStore = <T>(
   subscribe: (onStoreChange: () => void) => () => void,
   getSnapshot: () => T,
@@ -28,7 +42,7 @@ export const useSyncExternalStore = <T>(
     }
   }
 
-  const [, forceUpdate] = useReducer((c: number) => c + 1, 0);
+  const [, forceUpdate] = useReducer(incrementUpdate, 0);
 
   const commitCheckDepth = useRef(0);
   const checkForUpdates = useEffectEvent((): boolean => {
@@ -43,11 +57,9 @@ export const useSyncExternalStore = <T>(
     return true;
   });
 
-  useEffect(() => {
-    return subscribe(() => {
-      if (checkForUpdates()) forceUpdate();
-    });
-  }, [subscribe]);
+  useEffect(createSubscriptionEffect(subscribe, checkForUpdates, forceUpdate), [
+    subscribe,
+  ]);
 
   // Covers the tearing window between the render's getSnapshot() read and
   // the commit; only these checks count toward the loop guard.
