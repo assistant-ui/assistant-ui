@@ -9,8 +9,10 @@ first one and follows it to the end.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from dataclasses import replace
 from typing import Any, Generic
 
 from ag_ui.core import Message, RunAgentInput
@@ -32,6 +34,7 @@ from assistant_stream.pydantic_ai.threads import (
 from assistant_stream.resumable import (
     ResumableStreamContext,
     ResumableStreamError,
+    ResumableStreamRole,
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
 )
@@ -157,7 +160,18 @@ class DurableAGUI(Generic[AgentDepsT]):
             else {}
         )
         input_messages = _dump(run_input.messages)
+        token = CancellationToken()
+        ready: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        producer = False
         settled = False
+
+        on_acquire = self.streams._on_acquire
+
+        def acquire(acquired_stream_id: str, role: ResumableStreamRole) -> None:
+            nonlocal producer
+            producer = role == "producer"
+            if on_acquire is not None:
+                on_acquire(acquired_stream_id, role)
 
         async def settle(new_messages: Sequence[ModelMessage]) -> None:
             nonlocal settled
@@ -183,24 +197,8 @@ class DurableAGUI(Generic[AgentDepsT]):
             await settle(cancelled.new_messages())
 
         async def make_stream() -> AsyncIterator[bytes]:
-            token = CancellationToken()
-            self._tokens[stream_id] = token
             try:
-                await self.threads.put(
-                    thread_id,
-                    ThreadRecord(
-                        messages=input_messages,
-                        stream_id=stream_id,
-                        run_id=run_id,
-                        running=True,
-                        owner=owner,
-                    ),
-                )
-                # Supersede the previous run only after this run owns the record, so the
-                # previous run's settle finds it replaced and leaves it alone.
-                if previous is not None and previous.running and previous.stream_id:
-                    self._cancel_local(previous.stream_id)
-
+                await ready
                 events = adapter.run_stream(
                     cancellation_token=token,
                     on_complete=on_complete,
@@ -214,7 +212,29 @@ class DurableAGUI(Generic[AgentDepsT]):
                 if not settled:
                     await settle([])
 
-        body = await self.streams.run(stream_id, make_stream)
+        try:
+            body = await replace(self.streams, _on_acquire=acquire).run(
+                stream_id, make_stream
+            )
+            if producer:
+                self._tokens[stream_id] = token
+                await self.threads.put(
+                    thread_id,
+                    ThreadRecord(
+                        messages=input_messages,
+                        stream_id=stream_id,
+                        run_id=run_id,
+                        running=True,
+                        owner=owner,
+                    ),
+                )
+                if previous is not None and previous.running and previous.stream_id:
+                    self._cancel_local(previous.stream_id)
+                ready.set_result(None)
+        except BaseException as error:
+            if producer:
+                ready.set_exception(error)
+            raise
         return StreamingResponse(body, media_type=SSE)
 
     async def get_thread(

@@ -244,6 +244,45 @@ async def _start_run(durable: DurableAGUI, run_input: dict):
     )
 
 
+def test_start_run_is_visible_and_cancellable_before_producer_runs() -> None:
+    async def scenario() -> None:
+        model = Model()
+        model.gate.set()
+        finished = asyncio.Event()
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+            on_finalize=lambda *_: finished.set(),
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)), streams=streams
+        )
+        question = _user("Hi")
+
+        response = await _start_run(durable, _run_input("thread", [question], "run"))
+
+        assert response.status_code == 200
+        assert await durable.get_thread("thread") == {
+            "id": "thread",
+            "messages": [question],
+            "running": True,
+            "runId": "run",
+        }
+        assert await durable.cancel("thread", "run") is True
+        assert model.calls == 0
+
+        await finished.wait()
+
+        assert model.calls == 0
+        assert await durable.get_thread("thread") == {
+            "id": "thread",
+            "messages": [question],
+            "running": False,
+            "runId": "run",
+        }
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
 def test_get_thread_includes_answer_when_run_finishes_during_status_check(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
