@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import {
   AuiConfig,
@@ -16,6 +16,8 @@ import type { ThreadMessage } from "../types/message";
 import { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
 import { useLocalRuntime } from "./runtimes/useLocalRuntime";
 import { useExternalStoreRuntime } from "./runtimes/useExternalStoreRuntime";
+import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 
 type AnyClient = Record<string, any>;
 
@@ -49,9 +51,49 @@ const makeCounterClient = (log?: string[]) => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 describe("AssistantRuntimeProvider aui composition", () => {
+  it("preserves runtime receivers when thread read actions are not bound", async () => {
+    const runtime = new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({
+        messages: [],
+        onNew: async () => {},
+      }),
+    );
+    const receivers: unknown[] = [];
+    function observeReceiver(this: unknown) {
+      receivers.push(this);
+      return Promise.resolve();
+    }
+    const loadEarlier = vi
+      .spyOn(runtime.thread, "loadEarlier")
+      .mockImplementation(observeReceiver);
+    const reloadMainThread = vi
+      .spyOn(runtime.threads, "reloadMainThread")
+      .mockImplementation(observeReceiver);
+    let aui!: AssistantClient;
+    const Consumer = () => {
+      aui = useAui();
+      return null;
+    };
+    render(
+      <AssistantRuntimeProvider runtime={runtime}>
+        <Consumer />
+      </AssistantRuntimeProvider>,
+    );
+
+    await act(async () => {
+      await aui.thread.loadEarlier();
+      await aui.threads.reloadMainThread();
+    });
+
+    expect(loadEarlier).toHaveBeenCalledOnce();
+    expect(reloadMainThread).toHaveBeenCalledOnce();
+    expect(receivers).toEqual([runtime.thread, runtime.threads]);
+  });
+
   it("isolates from ambient context by default", () => {
     let aui!: AnyClient;
     const Consumer = () => {

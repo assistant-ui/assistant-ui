@@ -39,51 +39,47 @@ const useThreadListItemClientById = ({
 
 const ThreadListItemClientById = resource(useThreadListItemClientById);
 
-const createThreadListEventEffect =
-  (runtime: ThreadListRuntime, emit: ReturnType<typeof useAssistantEmit>) =>
-  () =>
-    runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
-      if (threadId === runtime.getState().mainThreadId) return;
-      emit(`thread.${type}`, { threadId });
-    });
+// Module scope prevents stable methods and subscriptions from sharing the V8 context that holds a render's messages.
+const useThreadListRuntimeBinding = (
+  runtime: ThreadListRuntime,
+  afterStateCommit: ReturnType<typeof useAfterStateCommit>,
+): Pick<
+  ClientOutput<"threads">,
+  | "switchToThread"
+  | "switchToNewThread"
+  | "getLoadThreadsPromise"
+  | "reload"
+  | "reloadMainThread"
+  | "loadMore"
+> => {
+  const emit = useAssistantEmit();
+  useEffect(
+    () =>
+      runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
+        if (threadId === runtime.getState().mainThreadId) return;
+        emit(`thread.${type}`, { threadId });
+      }),
+    [runtime, emit],
+  );
+
+  return {
+    switchToThread: (threadId, options) =>
+      handleThreadListAction("switch", () =>
+        runtime.switchToThread(threadId, options),
+      ),
+    switchToNewThread: () =>
+      handleThreadListAction("create", () => runtime.switchToNewThread()),
+    getLoadThreadsPromise: () =>
+      afterStateCommit(runtime.getLoadThreadsPromise()),
+    reload: () => afterStateCommit(runtime.reload()),
+    reloadMainThread: () => runtime.reloadMainThread(),
+    loadMore: () => afterStateCommit(runtime.loadMore()),
+  };
+};
 
 function createValueAccessor<T>(value: T) {
   return () => value;
 }
-
-const createSwitchToThread =
-  (runtime: ThreadListRuntime): ClientOutput<"threads">["switchToThread"] =>
-  (threadId, options) =>
-    handleThreadListAction("switch", () =>
-      runtime.switchToThread(threadId, options),
-    );
-
-const createSwitchToNewThread = (runtime: ThreadListRuntime) => () =>
-  handleThreadListAction("create", () => runtime.switchToNewThread());
-
-const createGetLoadThreadsPromise =
-  (
-    runtime: ThreadListRuntime,
-    afterStateCommit: ReturnType<typeof useAfterStateCommit>,
-  ) =>
-  () =>
-    afterStateCommit(runtime.getLoadThreadsPromise());
-
-const createReloadThreads =
-  (
-    runtime: ThreadListRuntime,
-    afterStateCommit: ReturnType<typeof useAfterStateCommit>,
-  ) =>
-  () =>
-    afterStateCommit(runtime.reload());
-
-const createLoadMoreThreads =
-  (
-    runtime: ThreadListRuntime,
-    afterStateCommit: ReturnType<typeof useAfterStateCommit>,
-  ) =>
-  () =>
-    afterStateCommit(runtime.loadMore());
 
 const useThreadListClient = ({
   runtime,
@@ -96,8 +92,7 @@ const useThreadListClient = ({
   const afterStateCommit = useAfterStateCommit(runtimeState, runtime.getState);
   useThreadSelectionEvents(runtimeState.mainThreadId);
 
-  const emit = useAssistantEmit();
-  useEffect(createThreadListEventEffect(runtime, emit), [runtime, emit]);
+  const binding = useThreadListRuntimeBinding(runtime, afterStateCommit);
 
   const main = useClientResource(
     ThreadClient({
@@ -154,15 +149,12 @@ const useThreadListClient = ({
         : state.threadIds[index]!;
       return threadItems.get({ key: id });
     },
-    switchToThread: createSwitchToThread(runtime),
-    switchToNewThread: createSwitchToNewThread(runtime),
-    getLoadThreadsPromise: createGetLoadThreadsPromise(
-      runtime,
-      afterStateCommit,
-    ),
-    reload: createReloadThreads(runtime, afterStateCommit),
-    reloadMainThread: runtime.reloadMainThread,
-    loadMore: createLoadMoreThreads(runtime, afterStateCommit),
+    switchToThread: binding.switchToThread,
+    switchToNewThread: binding.switchToNewThread,
+    getLoadThreadsPromise: binding.getLoadThreadsPromise,
+    reload: binding.reload,
+    reloadMainThread: binding.reloadMainThread,
+    loadMore: binding.loadMore,
     __internal_getAssistantRuntime: createValueAccessor(
       __internal_assistantRuntime,
     ),

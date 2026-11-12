@@ -9,17 +9,55 @@ let didWarnUncachedGetSnapshot = false;
 
 const incrementUpdate = (count: number) => count + 1;
 
-const createSubscriptionEffect =
-  (
-    subscribe: (onStoreChange: () => void) => () => void,
-    checkForUpdates: () => boolean,
-    forceUpdate: () => void,
+// Module scope keeps stable subscription closures separate from the V8 context containing replaceable snapshots.
+const createSnapshotCheck =
+  <T>(
+    value: T,
+    getSnapshot: () => T,
+    commitCheckDepth: useRef.RefObject<number>,
   ) =>
-  () => {
+  (): boolean => {
+    try {
+      if (Object.is(value, getSnapshot())) {
+        commitCheckDepth.current = 0;
+        return false;
+      }
+    } catch {
+      // a throwing getSnapshot counts as changed
+    }
+    return true;
+  };
+
+const useSubscription = <T>(
+  subscribe: (onStoreChange: () => void) => () => void,
+  value: T,
+  getSnapshot: () => T,
+  forceUpdate: () => void,
+) => {
+  const commitCheckDepth = useRef(0);
+  const checkForUpdates = useEffectEvent(
+    createSnapshotCheck(value, getSnapshot, commitCheckDepth),
+  );
+
+  useEffect(() => {
     return subscribe(() => {
       if (checkForUpdates()) forceUpdate();
     });
-  };
+  }, [subscribe, forceUpdate]);
+
+  // Covers the tearing window between the render's getSnapshot() read and
+  // the commit; only these checks count toward the loop guard.
+  useEffect(() => {
+    if (!checkForUpdates()) return;
+    if (++commitCheckDepth.current > 50) {
+      commitCheckDepth.current = 0;
+      throw new Error(
+        "Maximum update depth exceeded. The result of getSnapshot should be cached to avoid an infinite loop.",
+      );
+    }
+    forceUpdate();
+  }, [subscribe, value, getSnapshot, forceUpdate]);
+};
 
 export const useSyncExternalStore = <T>(
   subscribe: (onStoreChange: () => void) => () => void,
@@ -44,35 +82,7 @@ export const useSyncExternalStore = <T>(
 
   const [, forceUpdate] = useReducer(incrementUpdate, 0);
 
-  const commitCheckDepth = useRef(0);
-  const checkForUpdates = useEffectEvent((): boolean => {
-    try {
-      if (Object.is(value, getSnapshot())) {
-        commitCheckDepth.current = 0;
-        return false;
-      }
-    } catch {
-      // a throwing getSnapshot counts as changed
-    }
-    return true;
-  });
-
-  useEffect(createSubscriptionEffect(subscribe, checkForUpdates, forceUpdate), [
-    subscribe,
-  ]);
-
-  // Covers the tearing window between the render's getSnapshot() read and
-  // the commit; only these checks count toward the loop guard.
-  useEffect(() => {
-    if (!checkForUpdates()) return;
-    if (++commitCheckDepth.current > 50) {
-      commitCheckDepth.current = 0;
-      throw new Error(
-        "Maximum update depth exceeded. The result of getSnapshot should be cached to avoid an infinite loop.",
-      );
-    }
-    forceUpdate();
-  }, [subscribe, value, getSnapshot]);
+  useSubscription(subscribe, value, getSnapshot, forceUpdate);
 
   return value;
 };

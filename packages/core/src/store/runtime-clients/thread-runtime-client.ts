@@ -4,7 +4,7 @@ import type {
   CreateAppendMessage,
   ThreadRuntime,
 } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, type RefObject } from "react";
+import { useMemo, useEffect, useCallback, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -52,8 +52,14 @@ const useMessageClientById = ({
 
 const MessageClientById = resource(useMessageClientById);
 
-const createThreadEventEffect =
-  (runtime: ThreadRuntime, emit: ReturnType<typeof useAssistantEmit>) => () => {
+// Module scope prevents stable methods and subscriptions from sharing the V8 context that holds a render's messages.
+const useThreadRuntimeBinding = (
+  runtime: ThreadRuntime,
+  isRunning: boolean,
+) => {
+  const emit = useAssistantEmit();
+
+  useEffect(() => {
     const unsubscribers: Unsubscribe[] = [];
 
     const threadEvents: ThreadRuntimeEventType[] = [
@@ -91,67 +97,57 @@ const createThreadEventEffect =
     );
 
     return () => runCleanups(unsubscribers);
-  };
+  }, [runtime, emit]);
 
-const createThreadIdReader = (runtime: ThreadRuntime) => () =>
-  runtime.getState()!.threadId;
-
-const createThreadEventEmitter =
-  (runtime: ThreadRuntime, emit: ReturnType<typeof useAssistantEmit>) =>
-  (event: "thread.cancelRun" | "thread.voiceStarted") => {
+  const threadIdRef = useMemo(
+    () => liveRef(() => runtime.getState()!.threadId),
+    [runtime],
+  );
+  const emitThreadEvent = (
+    event: "thread.cancelRun" | "thread.voiceStarted",
+  ) => {
     emit(event, { threadId: runtime.getState()!.threadId });
   };
+  const isSuggestion = useCallback(
+    (text: string) =>
+      runtime
+        .getState()!
+        .suggestions.some((suggestion) => suggestion.prompt === text),
+    [runtime],
+  );
 
-const createSuggestionPredicate = (runtime: ThreadRuntime) => (text: string) =>
-  runtime
-    .getState()!
-    .suggestions.some((suggestion) => suggestion.prompt === text);
-
-const createThreadAppend =
-  (
-    runtime: ThreadRuntime,
-    emit: ReturnType<typeof useAssistantEmit>,
-    isSuggestion: (text: string) => boolean,
-  ): ClientOutput<"thread">["append"] =>
-  (message) => {
-    const appended: Exclude<CreateAppendMessage, string> =
-      typeof message === "string"
-        ? { content: [{ type: "text", text: message }] }
-        : message;
-    if ((appended.role ?? "user") === "user") {
-      const text = appended.content
-        .map((part) => (part.type === "text" ? part.text : ""))
-        .join("");
-      emit("composer.send", {
-        threadId: runtime.getState()!.threadId,
-        chars: text.length,
-        attachments: appended.attachments?.length ?? 0,
-        ...(isSuggestion(text) ? { suggestion: true } : undefined),
-      });
-    }
-    runtime.append(message);
+  return {
+    threadIdRef,
+    isSuggestion,
+    append: (message: CreateAppendMessage) => {
+      const appended: Exclude<CreateAppendMessage, string> =
+        typeof message === "string"
+          ? { content: [{ type: "text", text: message }] }
+          : message;
+      if ((appended.role ?? "user") === "user") {
+        const text = appended.content
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("");
+        emit("composer.send", {
+          threadId: runtime.getState()!.threadId,
+          chars: text.length,
+          attachments: appended.attachments?.length ?? 0,
+          ...(isSuggestion(text) ? { suggestion: true } : undefined),
+        });
+      }
+      runtime.append(message);
+    },
+    cancelRun: () => {
+      if (isRunning) emitThreadEvent("thread.cancelRun");
+      runtime.cancelRun();
+    },
+    loadEarlier: () => runtime.loadEarlier(),
+    connectVoice: () => {
+      runtime.connectVoice();
+      emitThreadEvent("thread.voiceStarted");
+    },
   };
-
-const createThreadCancel =
-  (
-    runtime: ThreadRuntime,
-    emitThreadEvent: ReturnType<typeof createThreadEventEmitter>,
-    isRunning: boolean,
-  ): ClientOutput<"thread">["cancelRun"] =>
-  () => {
-    if (isRunning) emitThreadEvent("thread.cancelRun");
-    runtime.cancelRun();
-  };
-
-const createThreadVoiceConnection =
-  (
-    runtime: ThreadRuntime,
-    emitThreadEvent: ReturnType<typeof createThreadEventEmitter>,
-  ): ClientOutput<"thread">["connectVoice"] =>
-  () => {
-    runtime.connectVoice();
-    emitThreadEvent("thread.voiceStarted");
-  };
+};
 
 function createValueAccessor<T>(value: T) {
   return () => value;
@@ -188,19 +184,14 @@ const useThreadClient = ({
   runtime: ThreadRuntime;
 }): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
-  const emit = useAssistantEmit();
-
-  useEffect(createThreadEventEffect(runtime, emit), [runtime, emit]);
-
-  const threadIdRef = useMemo(
-    () => liveRef(createThreadIdReader(runtime)),
-    [runtime],
-  );
-  const emitThreadEvent = createThreadEventEmitter(runtime, emit);
-  const isSuggestion = useMemo(
-    () => createSuggestionPredicate(runtime),
-    [runtime],
-  );
+  const {
+    threadIdRef,
+    isSuggestion,
+    append,
+    cancelRun,
+    loadEarlier,
+    connectVoice,
+  } = useThreadRuntimeBinding(runtime, runtimeState.isRunning);
 
   const composer = useClientResource(
     ComposerClient({
@@ -299,23 +290,19 @@ const useThreadClient = ({
     composer: createValueAccessor(composer.methods),
     suggestions: createValueAccessor(suggestions.methods),
     task: createTaskAccessor(tasks, taskClients),
-    append: createThreadAppend(runtime, emit, isSuggestion),
+    append,
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
     importExternalState: runtime.importExternalState,
-    cancelRun: createThreadCancel(
-      runtime,
-      emitThreadEvent,
-      runtimeState.isRunning,
-    ),
-    loadEarlier: runtime.loadEarlier,
+    cancelRun,
+    loadEarlier,
     getModelContext: runtime.getModelContext,
     export: runtime.export,
     import: runtime.import,
     reset: runtime.reset,
     stopSpeaking: runtime.stopSpeaking,
-    connectVoice: createThreadVoiceConnection(runtime, emitThreadEvent),
+    connectVoice,
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,
     subscribeVoiceVolume: runtime.subscribeVoiceVolume,
