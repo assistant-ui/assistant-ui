@@ -162,10 +162,13 @@ class DurableAGUI(Generic[AgentDepsT]):
         input_messages = _dump(run_input.messages)
         token = CancellationToken()
         ready: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        producer_started = asyncio.Event()
+        producer_task: asyncio.Task[None] | None = None
         producer = False
         settled = False
 
         on_acquire = self.streams._on_acquire
+        wait_until = self.streams._wait_until
 
         def acquire(acquired_stream_id: str, role: ResumableStreamRole) -> None:
             nonlocal producer
@@ -173,11 +176,16 @@ class DurableAGUI(Generic[AgentDepsT]):
             if on_acquire is not None:
                 on_acquire(acquired_stream_id, role)
 
+        def track_producer(task: asyncio.Task[None]) -> None:
+            nonlocal producer_task
+            producer_task = task
+            task.add_done_callback(lambda _: producer_started.set())
+            if wait_until is not None:
+                wait_until(task)
+
         async def settle(new_messages: Sequence[ModelMessage]) -> None:
             nonlocal settled
             settled = True
-            # Written only while this run still owns the record; a run that
-            # replaced it keeps its own transcript.
             await self.threads.put_if_current(
                 thread_id,
                 ThreadRecord(
@@ -198,6 +206,7 @@ class DurableAGUI(Generic[AgentDepsT]):
 
         async def make_stream() -> AsyncIterator[bytes]:
             try:
+                producer_started.set()
                 await asyncio.shield(ready)
                 events = adapter.run_stream(
                     cancellation_token=token,
@@ -213,23 +222,34 @@ class DurableAGUI(Generic[AgentDepsT]):
                     await settle([])
 
         try:
-            body = await replace(self.streams, _on_acquire=acquire).run(
-                stream_id, make_stream
-            )
+            body = await replace(
+                self.streams, _on_acquire=acquire, _wait_until=track_producer
+            ).run(stream_id, make_stream)
             if producer:
                 self._tokens[stream_id] = token
-                await self.threads.put(
-                    thread_id,
-                    ThreadRecord(
-                        messages=input_messages,
-                        stream_id=stream_id,
-                        run_id=run_id,
-                        running=True,
-                        owner=owner,
-                    ),
+                record = ThreadRecord(
+                    messages=input_messages,
+                    stream_id=stream_id,
+                    run_id=run_id,
+                    running=True,
+                    owner=owner,
                 )
+                while not await self.threads.put_if_stream(
+                    thread_id,
+                    record,
+                    expected=previous.stream_id if previous is not None else None,
+                ):
+                    previous = await self.threads.get(thread_id)
+                    if previous is not None and previous.owner != owner:
+                        token.cancel()
+                        ready.set_result(None)
+                        return _not_found()
                 if previous is not None and previous.running and previous.stream_id:
                     self._cancel_local(previous.stream_id)
+                await producer_started.wait()
+                if settled or (producer_task is not None and producer_task.done()):
+                    self._tokens.pop(stream_id, None)
+                    await settle([])
                 if not ready.done():
                     ready.set_result(None)
         except BaseException as error:
