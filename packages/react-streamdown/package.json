@@ -30,10 +30,11 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run && pnpm run test:types:peer-code-v1",
-    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary && pnpm run test:types:peer-code-v1",
+    "test": "vitest run && pnpm run test:peer-code-v1 && pnpm run test:types:peer-code-v1",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary && pnpm run test:peer-code-v1 && pnpm run test:types:peer-code-v1",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:peer-code-v1": "vitest run --config vitest.peer-code-v1.config.ts",
     "test:types:peer-react18": "aui-react18-types",
     "test:types:peer-code-v1": "tsc --noEmit --project tsconfig.peer-code-v1.json",
     "test:watch": "vitest",
