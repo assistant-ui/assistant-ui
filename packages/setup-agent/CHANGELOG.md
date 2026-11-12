@@ -1,5 +1,11 @@
 # setup-agent
 
+## 0.1.1
+
+### Patch Changes
+
+- [#10489](https://github.com/assistant-ui/assistant-ui/pull/10489) [`d7bac9e`](https://github.com/assistant-ui/assistant-ui/commit/d7bac9e32c9195dd5a414524fb684b450f90faa7) - `setup` now suggests the prompt "install and set up assistant-ui", the agent hint says to run `npx -y --prefer-online assistant-ui@latest setup` when `setup` is unknown, and the framework help links to the manual installation guide. ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.0
 
 ### Minor Changes
