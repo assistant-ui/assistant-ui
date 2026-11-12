@@ -136,13 +136,15 @@ const runSetupStep = async (args: string[], options: SetupOptions) => {
 };
 
 /**
- * What the briefing tells the agent about the agent gate. When setup could not
- * record its session, the gate would stop every step's `init`, `create` and
- * `add`, so the agent is told up front to pass --force to them.
+ * What the briefing tells the agent about the agent gate. A recorded session
+ * covers the setup folder, so the agent gets no --force advice that would let
+ * it act on other folders. When setup could not record its session, the gate
+ * would stop every step's `init`, `create` and `add`, so the agent is told up
+ * front to pass --force to them.
  */
 export const gateNote = (sessionRecorded: boolean) =>
   sessionRecorded
-    ? "If an `npx assistant-ui` command tells you to run setup instead and it acts on the folder setup runs in or a folder inside it, you are already in setup: run that command again with --force."
+    ? "While setup runs, `npx assistant-ui` init, create and add work in the folder setup runs in and the folders inside it."
     : "assistant-ui could not record this setup session in the temp directory, so the agent gate will not recognize it. Add --force to every `npx assistant-ui` init, create or add command this setup asks you to run.";
 
 /** `setup` for an agent: starts the session and keeps running as its stream. */
@@ -154,7 +156,21 @@ const runForAgent = async (options: SetupOptions) => {
   );
   // The steps run `init`, `create` and `add` in later shells; the marker lets them past the agent gate.
   let marker: { file: string; setupId: string } | undefined;
-  const { stream, client } = await runAgentSetup({
+  let running: Awaited<ReturnType<typeof runAgentSetup>> | undefined;
+  // Installed before the session starts, so a signal during startup also ends it.
+  const stop = () => {
+    if (marker !== undefined) clearSetupSession(marker.file, marker.setupId);
+    if (running === undefined) return process.exit(0);
+    const { stream, client } = running;
+    void stream.stop().finally(() => {
+      client.dispose();
+      process.exit(0);
+    });
+  };
+  process.on("SIGHUP", stop);
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
+  running = await runAgentSetup({
     server: endpoints.setupServer,
     setupAppUrl: endpoints.setupAppUrl,
     products,
@@ -166,22 +182,12 @@ const runForAgent = async (options: SetupOptions) => {
       const file = markSetupSession({ setupId });
       if (file === undefined) return;
       marker = { file, setupId };
-      // Ends the session on any exit, including errors; signals go through stop below.
+      // Ends the session on any exit, including errors; signals go through stop.
       process.once("exit", () => clearSetupSession(file, setupId));
     },
     write: (text) =>
       process.stdout.write(`${text}\n${gateNote(marker !== undefined)}\n`),
   });
-  const stop = () => {
-    if (marker !== undefined) clearSetupSession(marker.file, marker.setupId);
-    void stream.stop().finally(() => {
-      client.dispose();
-      process.exit(0);
-    });
-  };
-  process.on("SIGHUP", stop);
-  process.on("SIGINT", stop);
-  process.on("SIGTERM", stop);
   // The stream's heartbeat keeps the process alive until a signal stops it.
 };
 

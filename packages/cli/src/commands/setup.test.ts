@@ -2,7 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { runAgentSetup } from "setup-agent/sdk";
 import {
+  clearSetupSession,
   markSetupSession,
   setupSessionMarkerPath,
   shouldGateAgent,
@@ -137,6 +139,7 @@ describe("setup", () => {
       const printed = String(write.mock.calls[0]?.[0]);
       expect(printed).toContain("https://setup.test/#link=abc&setup=def");
       expect(printed).toContain(gateNote(true));
+      expect(gateNote(true)).not.toContain("--force");
       // `init`, `create` and `add` run in the agent's later shells, which share the temp directory.
       const marker = setupSessionMarkerPath(process.cwd(), tmp);
       expect(fs.existsSync(marker)).toBe(true);
@@ -165,6 +168,77 @@ describe("setup", () => {
       });
       process.env = env;
       vi.restoreAllMocks();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("ends the session when a signal arrives while setup is still starting", async () => {
+    const env = { ...process.env };
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aui-setup-"));
+    vi.spyOn(os, "tmpdir").mockReturnValue(tmp);
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const exitListeners = process.listeners("exit");
+    const signals = ["SIGHUP", "SIGINT", "SIGTERM"] as const;
+    const signalListeners = signals.map((signal) => process.listeners(signal));
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      // Startup keeps waiting; the test only checks the marker and the exit.
+    }) as typeof process.exit);
+    let finishStartup!: () => void;
+    let sessionStarted!: () => void;
+    const started = new Promise<void>((resolve) => (sessionStarted = resolve));
+    vi.mocked(runAgentSetup).mockImplementationOnce(async (options) => {
+      const session = {
+        linkId: "abc",
+        setupId: "def",
+        agentUrl: "https://setup.test/abc",
+        browserUrl: "https://setup.test/#link=abc&setup=def",
+        products: options.products,
+      };
+      options.onSession?.(session);
+      sessionStarted();
+      // Like followSetup waiting for agent/hello.
+      await new Promise<void>((resolve) => (finishStartup = resolve));
+      return {
+        session,
+        stream: { stop: vi.fn(async () => {}) },
+        client: { dispose: vi.fn() },
+      } as unknown as Awaited<ReturnType<typeof runAgentSetup>>;
+    });
+    process.env = { PATH: env.PATH, CLAUDECODE: "1" };
+    try {
+      const running = setup.parseAsync(["--no-open"], { from: "user" });
+      await started;
+      const marker = setupSessionMarkerPath(process.cwd(), tmp);
+      expect(fs.existsSync(marker)).toBe(true);
+      process.emit("SIGINT", "SIGINT");
+      expect(exit).toHaveBeenCalledWith(0);
+      expect(fs.existsSync(marker)).toBe(false);
+      finishStartup();
+      await running;
+    } finally {
+      for (const listener of process.listeners("exit"))
+        if (!exitListeners.includes(listener))
+          process.off("exit", listener as () => void);
+      signals.forEach((signal, i) => {
+        for (const listener of process.listeners(signal))
+          if (!signalListeners[i]!.includes(listener))
+            process.off(signal, listener as () => void);
+      });
+      process.env = env;
+      vi.restoreAllMocks();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a newer setup's marker when an older setup in the same project exits", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aui-setup-"));
+    try {
+      const older = markSetupSession({ setupId: "old" }, tmp)!;
+      const newer = markSetupSession({ setupId: "new" }, tmp)!;
+      expect(newer).toBe(older);
+      clearSetupSession(older, "old");
+      expect(fs.existsSync(newer)).toBe(true);
+    } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
