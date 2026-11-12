@@ -18,9 +18,13 @@ import { StreamdownSample } from "@/components/pages/docs/samples/streamdown";
   - **react-streamdown**: Shiki, KaTeX, and Mermaid support through plugins
 </Callout>
 
-<AgentSetup product="guides/streamdown" />
+## Setup
 
-## Installation
+<AgentSetup product="guides/streamdown" section />
+
+<ManualSteps>
+
+### Installation
 
 <PackageManagerTabs packages={["@assistant-ui/react-streamdown", "streamdown"]} />
 
@@ -30,7 +34,7 @@ For additional features, install the optional plugins:
 
 `@streamdown/code` 1 and 2 both work. Version 2 uses Shiki 4 and needs Node.js 20 or newer.
 
-## CSS setup
+### CSS setup
 
 Streamdown's controls (code-block copy/download buttons, mermaid fullscreen overlay) and the streaming caret are written as Tailwind utility classes. Tailwind v4 does not scan `node_modules` by default, so add a `@source` directive for Streamdown (and one per installed plugin) to the same global stylesheet that imports Tailwind:
 
@@ -59,6 +63,8 @@ import "streamdown/styles.css";
 ```
 
 The bare `caret` prop does **not** require this import; only the word-level animation does.
+
+</ManualSteps>
 
 ## Basic Usage
 

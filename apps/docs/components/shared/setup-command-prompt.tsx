@@ -1,6 +1,11 @@
 "use client";
 
-import { cloneElement, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ChevronDownIcon, CopyIcon, BookOpenIcon } from "lucide-react";
@@ -14,19 +19,35 @@ import { PromptCopyButton } from "@/components/shared/prompt-copy-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import { agentSetupPrompt } from "@/lib/agent-setup-prompt";
+import {
+  hasManualSteps,
+  openManualSteps,
+} from "@/components/shared/manual-steps";
 
 /** The setup prompt for a coding agent, copied on click, with a menu for the manual steps. */
 export function SetupCommandPrompt({
   page,
   section,
   products,
+  prompt: promptOverride,
 }: {
   page: string;
   section: string;
   /** Catalog slugs the setup starts with; the bare prompt when omitted. */
   products?: readonly string[];
+  /** The exact prompt to show and copy, in place of the catalog prompt. */
+  prompt?: string;
 }) {
-  const prompt = agentSetupPrompt(products);
+  const prompt = promptOverride ?? agentSetupPrompt(products);
+  // Checked when the menu opens: a page with its own manual steps opens them
+  // in place (an action), any other page links to the manual installation guide.
+  const [stepsOnPage, setStepsOnPage] = useState(false);
+  const manualClicked = (inPlace: boolean) =>
+    analytics.cta.clicked("start_setup_manual", `${section}_menu`, {
+      page,
+      path: window.location.pathname,
+      in_place: inPlace,
+    });
   return (
     <div className="border-border/60 bg-muted/30 hover:border-border rounded-control inline-flex max-w-full items-stretch overflow-hidden border transition-colors">
       <PromptCopyButton
@@ -41,7 +62,9 @@ export function SetupCommandPrompt({
       </PromptCopyButton>
       <DropdownMenu
         onOpenChange={(open) => {
-          if (open) analytics.cta.setupMenuOpened(section);
+          if (!open) return;
+          setStepsOnPage(hasManualSteps());
+          analytics.cta.setupMenuOpened(section);
         }}
       >
         <DropdownMenuTrigger
@@ -73,19 +96,29 @@ export function SetupCommandPrompt({
             <CopyIcon />
             Copy prompt for coding agents
           </DropdownMenuItem>
-          <DropdownMenuItem
-            render={
-              <Link
-                href="/docs/manual-installation"
-                onClick={() =>
-                  analytics.cta.clicked("start_setup_manual", `${section}_menu`)
-                }
-              />
-            }
-          >
-            <BookOpenIcon />
-            Manual installation steps
-          </DropdownMenuItem>
+          {stepsOnPage ? (
+            <DropdownMenuItem
+              onClick={() => {
+                openManualSteps();
+                manualClicked(true);
+              }}
+            >
+              <BookOpenIcon />
+              Manual installation steps
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              render={
+                <Link
+                  href="/docs/manual-installation"
+                  onClick={() => manualClicked(false)}
+                />
+              }
+            >
+              <BookOpenIcon />
+              Manual installation steps
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

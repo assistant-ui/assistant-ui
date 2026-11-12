@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -9,6 +10,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { analytics } from "@/lib/analytics";
+import { ManualSteps } from "./manual-steps";
 import { SetupCommandPrompt } from "./setup-command-prompt";
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -119,6 +121,61 @@ describe("setup command prompt", () => {
     });
     expect(manual.getAttribute("href")).toBe("/docs/manual-installation");
     fireEvent.click(manual);
-    expect(clicked).toHaveBeenCalledWith("start_setup_manual", "hero_menu");
+    expect(clicked).toHaveBeenCalledWith("start_setup_manual", "hero_menu", {
+      page: "home",
+      path: window.location.pathname,
+      in_place: false,
+    });
+  });
+
+  it("shows and copies a prompt given in place of the catalog prompt", () => {
+    const writeText = stubClipboard();
+    render(
+      <SetupCommandPrompt
+        page="docs"
+        section="guide_setup"
+        prompt="set up https://www.assistant-ui.com/docs/guides/attachments"
+      />,
+    );
+    const prompt = screen.getByRole("button", {
+      name: "Copy the setup prompt for your coding agent",
+    });
+    expect(prompt.textContent).toBe(
+      "set up https://www.assistant-ui.com/docs/guides/attachments",
+    );
+    fireEvent.click(prompt);
+    expect(writeText).toHaveBeenCalledWith(
+      "set up https://www.assistant-ui.com/docs/guides/attachments",
+    );
+  });
+
+  it("opens the page's own manual steps in place, as an action rather than a link", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const clicked = vi.spyOn(analytics.cta, "clicked");
+    render(
+      <>
+        <SetupCommandPrompt page="docs" section="guide_setup" />
+        <ManualSteps>
+          <p>Install the attachment component</p>
+        </ManualSteps>
+      </>,
+    );
+    const steps = document.querySelector<HTMLElement>("[data-manual-steps]")!;
+    expect(steps.dataset.state).toBe("closed");
+    openMenu();
+    const manual = await screen.findByRole("menuitem", {
+      name: "Manual installation steps",
+    });
+    expect(manual.tagName).not.toBe("A");
+    expect(manual.getAttribute("href")).toBeNull();
+    act(() => {
+      fireEvent.click(manual);
+    });
+    expect(steps.dataset.state).toBe("open");
+    expect(clicked).toHaveBeenCalledWith(
+      "start_setup_manual",
+      "guide_setup_menu",
+      { page: "docs", path: window.location.pathname, in_place: true },
+    );
   });
 });

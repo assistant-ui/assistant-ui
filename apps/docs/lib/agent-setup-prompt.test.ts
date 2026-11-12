@@ -8,6 +8,8 @@ import {
   AGENT_SETUP_PROMPT,
   LEGACY_AGENT_SETUP_PROMPTS,
   agentSetupPrompt,
+  pageSetupPreamble,
+  pageSetupPrompt,
 } from "./agent-setup-prompt";
 
 describe("agent setup prompt", () => {
@@ -64,6 +66,15 @@ describe("agent setup prompt", () => {
     );
     expect(read("packages/cli/src/lib/setup-session.ts")).toContain(
       `"${AGENT_SETUP_PROMPT}"`,
+    );
+  });
+
+  it("names a docs page by its canonical URL", () => {
+    expect(pageSetupPrompt("/docs/guides/attachments")).toBe(
+      "set up https://www.assistant-ui.com/docs/guides/attachments",
+    );
+    expect(pageSetupPreamble(["guides/attachments"])).toBe(
+      "To set this up, run `npx assistant-ui@latest setup --products guides/attachments` if available; otherwise follow these steps.",
     );
   });
 });
