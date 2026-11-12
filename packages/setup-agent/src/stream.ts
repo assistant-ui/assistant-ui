@@ -145,7 +145,7 @@ export const setupPageUrl = (
  * `SETUP_AGENT_BROWSER` names another program to run with the URL instead,
  * such as a test driver.
  */
-export const openUrl = (url: string) => {
+const openUrl = (url: string) => {
   const custom = process.env.SETUP_AGENT_BROWSER?.trim();
   const [command, args] = custom
     ? [custom, [url]]
