@@ -15,6 +15,8 @@ vi.mock("@assistant-ui/next", async (importOriginal) => {
   return { ...actual, withAui: vi.fn(actual.withAui) };
 });
 vi.stubEnv("TURBOPACK", "1");
+vi.stubEnv("DOCS_BUILD_CPUS", "3");
+vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", undefined);
 // A child process fills the manifest cache outside V8 coverage, which slows the MDX compile and measures nothing here because the config is outside the coverage include list.
 execFileSync(
   process.execPath,
@@ -59,6 +61,19 @@ describe("docs Next config composition", () => {
     expect(config.turbopack?.rules).toMatchObject({
       "*.tsx": { loaders: [{ loader: "@assistant-ui/next/loader" }] },
     });
+  });
+
+  it("caps the prerender workers and the Turbopack loader pool with DOCS_BUILD_CPUS", () => {
+    expect(config.experimental?.cpus).toBe(3);
+    expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("3");
+  });
+
+  it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {
+    vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", "8");
+    vi.resetModules();
+    const reloaded = await (await import("./next.config.mts")).default;
+    expect(reloaded.experimental?.cpus).toBe(3);
+    expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("8");
   });
 
   it("compiles navigation anchors, highlighted code, tables and Mermaid through Farming Labs", async () => {

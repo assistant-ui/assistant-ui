@@ -1,5 +1,13 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.6
+
+### Patch Changes
+
+- [#10461](https://github.com/assistant-ui/assistant-ui/pull/10461) [`437b410`](https://github.com/assistant-ui/assistant-ui/commit/437b410726e283798ff3b61b0f4209129225e2fa) - Route AG-UI events to the assistant message they name after a messages snapshot moves the head, so later text, tool calls, results, and sub-agent output stay on the earlier answer, and an answer cut off by a disconnect settles as incomplete. ([@okisdev](https://github.com/okisdev))
+
+- [#10429](https://github.com/assistant-ui/assistant-ui/pull/10429) [`21f88ce`](https://github.com/assistant-ui/assistant-ui/commit/21f88ceebbe09250ce27160796a92cb0f5f14f47) - Keep an assistant answer running when a later snapshot adds a tool call to the current head. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.1.5
 
 ### Patch Changes

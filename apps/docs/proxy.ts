@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isExampleBundlesEnabled } from "./lib/feature-flags";
 
 export const config = {
   matcher: [
-    "/example-bundles/:path*",
     "/umami/api/send",
     { source: "/changelog", has: [{ type: "query", key: "pkg" }] },
     { source: "/changelog", has: [{ type: "query", key: "page" }] },
@@ -27,11 +25,6 @@ function legacyChangelogUrl(request: NextRequest): URL {
 }
 
 export function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/example-bundles")) {
-    return isExampleBundlesEnabled
-      ? NextResponse.next()
-      : new NextResponse("Not found", { status: 404 });
-  }
   if (request.nextUrl.pathname === "/changelog") {
     return NextResponse.redirect(legacyChangelogUrl(request), 308);
   }

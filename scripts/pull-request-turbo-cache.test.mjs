@@ -44,7 +44,7 @@ const jobs = [
     "code-quality.yaml",
     "build-apps",
     "Build apps",
-    "github.event_name == 'pull_request' && (steps.app_build_inputs.outputs.run == 'true' || steps.app_build_inputs.outputs.bundles == 'true')",
+    "github.event_name == 'pull_request' && steps.app_build_inputs.outputs.run == 'true'",
   ],
   [
     "autofix.yaml",

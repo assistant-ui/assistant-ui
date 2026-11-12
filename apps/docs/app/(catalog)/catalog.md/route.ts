@@ -7,7 +7,6 @@ import {
   formatMinutes,
 } from "@/lib/catalog";
 import { installGuideUrl } from "@/lib/catalog/install-guide";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
@@ -70,6 +69,5 @@ async function getMarkdown() {
 }
 
 export async function GET() {
-  if (!checkoutEnabled) return new Response("Not found", { status: 404 });
   return createMarkdownResponse(await getMarkdown());
 }

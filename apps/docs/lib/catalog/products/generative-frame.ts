@@ -5,7 +5,6 @@ export const generativeFrame: CatalogItem = {
   name: "Generative Frame",
   tagline: "Model-written HTML and SVG widgets that stream into a sandbox.",
   href: "/generative-frame",
-  purchase: "cart",
   glyph: "elements",
   docs: "/generative-frame/docs",
   agentMinutes: [5, 12],
