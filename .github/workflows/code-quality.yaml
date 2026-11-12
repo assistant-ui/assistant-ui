@@ -71,6 +71,8 @@ on:
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/typecheck.sh"
+      - "scripts/react18-weekly.test.mjs"
+      - ".github/workflows/react18-weekly.yaml"
       - "scripts/scheduled-failure-issue.test.mjs"
       - ".github/workflows/scheduled-failure-issue.yaml"
       - "scripts/ci-has-tasks.mjs"
@@ -194,7 +196,7 @@ jobs:
         run: node scripts/check-adapter-architecture.mjs
 
       - name: Test scheduled failure issue reporting
-        run: node --test scripts/scheduled-failure-issue.test.mjs
+        run: node --test scripts/scheduled-failure-issue.test.mjs scripts/react18-weekly.test.mjs
 
   knip:
     name: Knip
