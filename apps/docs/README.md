@@ -35,8 +35,6 @@ DOCS_BUILD_CPUS=4 pnpm build
 
 On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s. With `DOCS_BUILD_CPUS=4` it peaks at about 16 GB and takes about 55 s. The PR that added this (assistant-ui/assistant-ui#10486) has the measurements.
 
-`pnpm build` runs `next build` in two steps: `--experimental-build-mode=compile` bundles the app, and `--experimental-build-mode=generate` prerenders the pages in a new process. Turbopack keeps about 8 GB of compile state until its process exits, so prerendering in the same process stacked the prerender workers on top of it. With `DOCS_BUILD_CPUS=4` the two steps peak at about 9 GB and 5 GB, against about 14.5 GB for one `next build`. `scripts/next-build.mjs` runs the steps, and gives a deployment adapter such as Vercel's (`NEXT_ADAPTER_PATH`) only to the `generate` step, because the adapter reads the prerendered output.
-
 Builds turn on Turbopack's garbage collector (`experimental.turbopackGc`). Vercel restores Turbopack's build cache before each build and saves it after, and without the collector the cache keeps every task an earlier build made, so it only grows. A build that misses the cache gets slower as the cache grows: on Vercel, from about 50 s at 2 GB to about 3.4 min at 3.3–3.7 GB, against 61 s with no cache at all. `next dev` doesn't use the collector.
 
 None of these settings change what a build produces.
