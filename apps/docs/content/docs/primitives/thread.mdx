@@ -384,6 +384,20 @@ Loads the page before the first loaded message through `aui.thread.loadEarlier()
 </AuiIf>
 ```
 
+### Resume
+
+Answers the thread's last message, the user's, when its run stopped before it stored a reply: the tab that ran it closed or lost its connection. It runs from that message, so the answer is its first reply and no branch is left beside it. Disabled unless `useThreadReplyState()` reads `"interrupted"`, the thread is idle, and the runtime supports reload. Renders a `<button>` element unless `asChild` is set. Assistant Cloud reports the state; see [Interrupted runs](/docs/cloud/messages#interrupted-runs).
+
+```tsx
+const InterruptedBar = () =>
+  useThreadReplyState() === "interrupted" ? (
+    <div role="alert">
+      This response was interrupted before it finished.
+      <ThreadPrimitive.Resume>Resume</ThreadPrimitive.Resume>
+    </div>
+  ) : null;
+```
+
 ### Suggestions
 
 Renders suggestion prompts via a component.

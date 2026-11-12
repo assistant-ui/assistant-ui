@@ -776,6 +776,7 @@ export class AgUiThreadController {
     const parentId = item.parentId ?? null;
     this.session.deleteMessage(messageId, parentId);
     this.snapshotHistoryIds.delete(messageId);
+    this.persistedHistoryIds.delete(messageId);
     this.publishUpdate();
     await this.history?.delete?.([{ parentId, message: item.message }]);
   }

@@ -4,37 +4,31 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { HttpAgent, type RunAgentInput } from "@ag-ui/client";
 import {
   AssistantRuntimeProvider,
-  MessageByIndexProvider,
-  useActionBarResume,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
+  useThreadReplyState,
 } from "@assistant-ui/core/react";
+import { useThreadResume } from "@assistant-ui/core/react/internal";
 import type { AssistantRuntime } from "@assistant-ui/core";
-import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
+import { useAui, type AssistantClient } from "@assistant-ui/store";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 
-// The real AssistantCloud client runs against this in-memory server.
+// Smoke test of AG-UI on the real AssistantCloud client; the run lease rules are covered in core's runLeases.test.tsx.
 type Row = {
   id: string;
   parent_id: string | null;
   format: string;
   content: unknown;
   external_id: string | null;
-  run?: { status: "running" | "ended"; last_heartbeat_ms_ago: number };
 };
 
 type Call = { method: string; path: string; body: any };
 
-const createServer = (
-  initialRows: Row[] = [],
-  heartbeatIntervalMs = 20_000,
-) => {
-  const rows = [...initialRows];
+const createServer = (rows: Row[], run: unknown = null) => {
   const calls: Call[] = [];
   let created = 0;
-  let leases = 0;
   const at = new Date(0).toISOString();
   const json = (value: unknown, status = 200) =>
     new Response(JSON.stringify(value), {
@@ -48,7 +42,7 @@ const createServer = (
       const path = url.pathname.replace(/^\/v1/, "");
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({ method, path, body });
-      if (method === "GET" && path === "/threads") {
+      if (method === "GET" && path === "/threads")
         return json({
           threads: rows.length
             ? [
@@ -67,20 +61,20 @@ const createServer = (
               ]
             : [],
         });
-      }
       if (method === "POST" && path === "/threads")
         return json({ thread_id: "remote-1" });
-      if (method === "GET" && path === "/threads/remote-1/messages") {
+      if (method === "GET" && path === "/threads/remote-1/messages")
         return json({
           messages: [...rows].reverse().map((row, height) => ({
             ...row,
             height,
             created_at: at,
             updated_at: at,
-            run: row.run ?? null,
           })),
+          run,
         });
-      }
+      if (method === "POST" && path === "/threads/remote-1/runs")
+        return json({ lease_id: "lease_1", heartbeat_interval_ms: 20_000 });
       if (method === "POST" && path === "/threads/remote-1/messages") {
         const id = `msg_${++created}`;
         rows.push({
@@ -89,48 +83,21 @@ const createServer = (
           format: body.format,
           content: body.content,
           external_id: body.external_id ?? null,
-          ...(body.open_run
-            ? { run: { status: "running", last_heartbeat_ms_ago: 0 } }
-            : undefined),
         });
-        return json({
-          message_id: id,
-          ...(body.open_run
-            ? {
-                lease_id: `lease_${++leases}`,
-                heartbeat_interval_ms: heartbeatIntervalMs,
-              }
-            : undefined),
-        });
+        return json({ message_id: id }, 201);
       }
-      const write = path.match(/^\/threads\/remote-1\/messages\/([^/]+)$/);
-      if (method === "PUT" && write) {
-        const row = rows.find((r) => r.id === write[1]);
-        if (row) row.content = body.content;
-        return json({});
-      }
-      if (method === "DELETE" && path === "/threads/remote-1/messages") {
-        for (const id of body.message_ids as string[]) {
-          const index = rows.findIndex((r) => r.id === id);
-          if (index !== -1) rows.splice(index, 1);
-        }
-        return json({});
-      }
-      if (/^\/threads\/remote-1\/runs\/[^/]+\/heartbeat$/.test(path))
-        return json({ heartbeat_interval_ms: heartbeatIntervalMs });
-      if (/^\/threads\/remote-1\/runs\/[^/]+\/end$/.test(path)) return json({});
       return json({});
     },
   );
   return { rows, calls, fetchMock };
 };
 
-const createsWith = (calls: Call[], openRun: boolean) =>
+const replyCreates = (calls: Call[]) =>
   calls.filter(
     (c) =>
       c.method === "POST" &&
       c.path === "/threads/remote-1/messages" &&
-      !!c.body.open_run === openRun,
+      c.body.content.role === "assistant",
   );
 
 type Subscriber = Record<
@@ -186,7 +153,10 @@ class ScriptedAgent extends HttpAgent {
   override abortRun() {}
 }
 
-const renderApp = async (staleAfter?: number) => {
+const renderApp = async (
+  server: ReturnType<typeof createServer>,
+  staleAfter?: number,
+) => {
   const cloud = new AssistantCloud({
     baseUrl: "http://cloud.test",
     apiKey: "key",
@@ -197,23 +167,15 @@ const renderApp = async (staleAfter?: number) => {
   const agent = new ScriptedAgent();
   let aui!: AssistantClient;
   let runtime!: AssistantRuntime;
+  const hooks: {
+    replyState?: ReturnType<typeof useThreadReplyState>;
+    resume?: ReturnType<typeof useThreadResume>;
+  } = {};
   const Capture = () => {
     aui = useAui();
+    hooks.replyState = useThreadReplyState();
+    hooks.resume = useThreadResume();
     return null;
-  };
-  const resume: { current: ReturnType<typeof useActionBarResume> | undefined } =
-    { current: undefined };
-  const CaptureResume = () => {
-    resume.current = useActionBarResume();
-    return null;
-  };
-  const ReplyResume = () => {
-    const hasReply = useAuiState((s) => s.thread.messages.length >= 2);
-    return hasReply ? (
-      <MessageByIndexProvider index={1}>
-        <CaptureResume />
-      </MessageByIndexProvider>
-    ) : null;
   };
   const App = () => {
     const adapter = useCloudThreadListAdapter({
@@ -229,50 +191,30 @@ const renderApp = async (staleAfter?: number) => {
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <Capture />
-        <ReplyResume />
       </AssistantRuntimeProvider>
     );
   };
-  render(<App />);
+  // Each app reaches the server through its own fetch, so two apps act as two tabs.
+  vi.stubGlobal("fetch", server.fetchMock);
+  const view = render(<App />);
   await act(async () => {
     await aui.threads.getLoadThreadsPromise();
   });
   return {
     agent,
+    hooks,
+    unmount: view.unmount,
     getAui: () => aui,
     getRuntime: () => runtime,
-    getResume: () => resume.current,
   };
 };
 
-const assistantRow = (
-  last_heartbeat_ms_ago: number,
-  status: "running" | "ended" = "running",
-  content: readonly unknown[] = [{ type: "text", text: "half an answer" }],
-): Row => ({
-  id: "a1",
-  parent_id: "u1",
-  format: "aui/v0",
-  content: {
-    role: "assistant",
-    content: [...content],
-    status: { type: "incomplete", reason: "cancelled" },
-  },
-  external_id: "a1",
-  run: { status, last_heartbeat_ms_ago },
-});
 const userRow: Row = {
   id: "u1",
   parent_id: null,
   format: "aui/v0",
   content: { role: "user", content: [{ type: "text", text: "hello" }] },
   external_id: "u1",
-};
-
-let server: ReturnType<typeof createServer>;
-const useServer = (rows?: Row[], heartbeatIntervalMs?: number) => {
-  server = createServer(rows, heartbeatIntervalMs);
-  vi.stubGlobal("fetch", server.fetchMock);
 };
 
 beforeEach(() => {
@@ -285,178 +227,65 @@ afterEach(() => {
 });
 
 describe("useAgUiRuntime with Assistant Cloud run leases", () => {
-  it("opens a lease when the run starts, heartbeats on the server's interval, writes as its holder and ends it when the run finishes", async () => {
-    useServer([], 30);
-    const { agent, getAui } = await renderApp();
-
+  it("opens the thread's lease when the run starts and stores the reply under the agent's id when it finishes", async () => {
+    const server = createServer([]);
+    const { agent, getAui } = await renderApp(server);
     await act(async () => {
       getAui().thread.append("hello");
     });
     await waitFor(() => expect(agent.runs).toHaveLength(1));
     await waitFor(() =>
-      expect(createsWith(server.calls, true)).toHaveLength(1),
+      expect(
+        server.calls.some((c) => c.path === "/threads/remote-1/runs"),
+      ).toBe(true),
     );
-    const open = createsWith(server.calls, true)[0]!;
-    expect(open.body).toMatchObject({
-      format: "aui/v0",
+    expect(replyCreates(server.calls)).toHaveLength(0);
+
+    await act(async () => {
+      agent.runs[0]!.finish();
+    });
+    await waitFor(() =>
+      expect(
+        server.calls.some((c) => c.path.endsWith("/runs/lease_1/end")),
+      ).toBe(true),
+    );
+    const [reply] = replyCreates(server.calls);
+    expect(reply!.body).toMatchObject({
       parent_id: "msg_1",
-      content: { role: "assistant" },
+      external_id: "agent-msg-1",
+      lease_id: "lease_1",
     });
-
-    await waitFor(() =>
-      expect(
-        server.calls.filter((c) => c.path.endsWith("/runs/lease_1/heartbeat"))
-          .length,
-      ).toBeGreaterThanOrEqual(2),
-    );
-
-    await act(async () => {
-      agent.runs[0]!.finish();
-    });
-    await waitFor(() =>
-      expect(
-        server.calls.some(
-          (c) => c.method === "POST" && c.path.endsWith("/runs/lease_1/end"),
-        ),
-      ).toBe(true),
-    );
-    const end = server.calls.find((c) => c.path.endsWith("/runs/lease_1/end"))!;
-    expect(end.body).toEqual({ reason: "done" });
-    const final = server.calls.filter(
-      (c) => c.method === "PUT" && c.body.lease_id === "lease_1",
-    );
-    expect(final.length).toBeGreaterThan(0);
-    expect(JSON.stringify(final.at(-1)!.body.content)).toContain(
-      "partial answer",
-    );
-    expect(createsWith(server.calls, true)).toHaveLength(1);
-    const reply = getAui().thread.getState().messages[1]!;
-    expect(reply.id).toBe("agent-msg-1");
+    expect(replyCreates(server.calls)).toHaveLength(1);
   });
 
-  it("shows a reloaded empty run quiet for longer than staleAfter as stale; Resume deletes it and runs the agent again from the user message with no sibling", async () => {
-    useServer([userRow, assistantRow(45_000, "running", [])]);
-    const { agent, getAui, getRuntime, getResume } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
-    await waitFor(() =>
-      expect(getAui().thread.message({ index: 1 }).getState().runState).toBe(
-        "stale",
-      ),
-    );
-    await waitFor(() => expect(getResume()?.disabled).toBe(false));
-
-    await act(async () => {
-      getResume()!.resume();
-    });
-    await waitFor(() => expect(agent.runs).toHaveLength(1));
-    await waitFor(() =>
-      expect(createsWith(server.calls, true)).toHaveLength(1),
-    );
-    expect(createsWith(server.calls, true)[0]!.body).toMatchObject({
+  it("resumes an interrupted thread from the user's message without a branch", async () => {
+    const server = createServer([userRow], {
+      status: "running",
+      message_id: null,
       parent_id: "u1",
-      open_run: true,
+      last_heartbeat_ms_ago: 45_000,
     });
+    const app = await renderApp(server);
     await act(async () => {
-      agent.runs[0]!.finish();
+      await app.getRuntime().threads.switchToThread("remote-1");
     });
-    await waitFor(() =>
-      expect(
-        server.calls.some((c) => c.path.endsWith("/runs/lease_1/end")),
-      ).toBe(true),
-    );
-    const deletes = server.calls.filter((c) => c.method === "DELETE");
-    expect(deletes.map((c) => c.body)).toEqual([{ message_ids: ["a1"] }]);
-    expect(server.rows.map((r) => r.id)).toEqual(["u1", "msg_1"]);
-    const messages = getAui().thread.getState().messages;
-    expect(messages.map((m) => m.role)).toEqual(["user", "assistant"]);
-    expect(messages[1]!.id).not.toBe("a1");
-    expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
-      1,
-    );
-  });
-
-  it("shows a reloaded run quiet for longer than staleAfter as interrupted; Regenerate posts a sibling with its own lease and runs the agent again", async () => {
-    useServer([userRow, assistantRow(45_000)]);
-    const { agent, getAui, getRuntime } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
-    await waitFor(() =>
-      expect(getAui().thread.getState().messages).toHaveLength(2),
-    );
-    const stale = getAui().thread.message({ index: 1 });
-    await waitFor(() =>
-      expect(stale.getState().status).toMatchObject({
-        error: { code: "run_stale" },
-      }),
-    );
-    expect(stale.getState().runState).toBeUndefined();
+    await waitFor(() => expect(app.hooks.replyState).toBe("interrupted"));
+    await waitFor(() => expect(app.hooks.resume?.disabled).toBe(false));
 
     await act(async () => {
-      stale.reload();
+      app.hooks.resume!.resume();
     });
-    await waitFor(() => expect(agent.runs).toHaveLength(1));
-    await waitFor(() =>
-      expect(createsWith(server.calls, true)).toHaveLength(1),
-    );
-    expect(createsWith(server.calls, true)[0]!.body).toMatchObject({
+    await waitFor(() => expect(app.agent.runs).toHaveLength(1));
+    await act(async () => {
+      app.agent.runs[0]!.finish();
+    });
+    await waitFor(() => expect(replyCreates(server.calls)).toHaveLength(1));
+    expect(replyCreates(server.calls)[0]!.body).toMatchObject({
       parent_id: "u1",
-      open_run: true,
+      lease_id: "lease_1",
     });
-    await act(async () => {
-      agent.runs[0]!.finish();
-    });
-    await waitFor(() =>
-      expect(
-        server.calls.some((c) => c.path.endsWith("/runs/lease_1/end")),
-      ).toBe(true),
-    );
     expect(
-      server.calls.some((c) => c.method === "PUT" && c.path.endsWith("/a1")),
-    ).toBe(false);
-    const messages = getAui().thread.getState().messages;
-    expect(messages.map((m) => m.role)).toEqual(["user", "assistant"]);
-    expect(messages[1]!.id).not.toBe("a1");
-  });
-
-  it("shows a reloaded run with a recent beat as in progress, and staleAfter moves the line", async () => {
-    useServer([userRow, assistantRow(5_000)]);
-    const { getAui, getRuntime } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
-    await waitFor(() =>
-      expect(getAui().thread.message({ index: 1 }).getState().runState).toBe(
-        "in-progress",
-      ),
-    );
-    cleanup();
-
-    useServer([userRow, assistantRow(5_000)]);
-    const short = await renderApp(2_000);
-    await act(async () => {
-      await short.getRuntime().threads.switchToThread("remote-1");
-    });
-    await waitFor(() =>
-      expect(
-        short.getAui().thread.message({ index: 1 }).getState().status,
-      ).toMatchObject({ error: { code: "run_stale" } }),
-    );
-  });
-
-  it("loads an ended run as a plain message", async () => {
-    useServer([userRow, assistantRow(90_000, "ended")]);
-    const { getAui, getRuntime } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
-    await waitFor(() =>
-      expect(getAui().thread.getState().messages).toHaveLength(2),
-    );
-    expect(
-      getAui().thread.message({ index: 1 }).getState().runState,
-    ).toBeUndefined();
+      app.getAui().thread.message({ index: 1 }).getState().branchCount,
+    ).toBe(1);
   });
 });

@@ -12,6 +12,7 @@ export {
   actionBarRefreshRunDisabled,
   actionBarReloadDisabled,
   actionBarResumeDisabled,
+  threadResumeDisabled,
   actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,
@@ -27,3 +28,4 @@ export {
 } from "./primitive-predicates";
 export { isDevelopment } from "./env";
 export { useThreadSelectionEvents } from "./clients/thread-selection-events";
+export { setThreadReplyState } from "./thread-reply-state";

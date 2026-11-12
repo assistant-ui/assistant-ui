@@ -21,7 +21,7 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
-  /** Present on a message that had a run lease: its running lease, or else its latest ended one. */
+  /** Present only on the message the thread's running lease is bound to. */
   run?: CloudMessageRun | undefined;
 };
 
@@ -29,6 +29,17 @@ export type CloudMessageRun = {
   /** A lease runs until its holder ends it; the server never expires one. */
   status: "running" | "ended";
   /** Time since the lease's last heartbeat, measured by the server when it listed the message. */
+  last_heartbeat_ms_ago: number;
+};
+
+/** A thread's running lease, as a message list reports it. */
+export type CloudThreadRun = {
+  status: "running";
+  /** The reply the run has stored, or null before its first write. */
+  message_id: string | null;
+  /** The message the run answers. */
+  parent_id: string | null;
+  /** Time since the lease's last heartbeat or write, measured by the server when it listed the thread. */
   last_heartbeat_ms_ago: number;
 };
 
@@ -46,6 +57,8 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+  /** The thread's running lease, or null when it has none. */
+  run?: CloudThreadRun | null | undefined;
 };
 
 type AssistantCloudThreadMessageCreateBody = {
@@ -85,6 +98,23 @@ const decodeCloudMessageRun = (
     last_heartbeat_ms_ago: readCloudNumber(
       run.last_heartbeat_ms_ago,
       `${field}.last_heartbeat_ms_ago`,
+    ),
+  };
+};
+
+const decodeCloudThreadRun = (value: unknown): CloudThreadRun | null => {
+  if (value === null || value === undefined) return null;
+  const run = readCloudRecord(value, "run");
+  return {
+    status: readCloudEnum(run.status, "run.status", ["running"] as const),
+    message_id: readCloudNullableString(
+      run.message_id ?? null,
+      "run.message_id",
+    ),
+    parent_id: readCloudNullableString(run.parent_id ?? null, "run.parent_id"),
+    last_heartbeat_ms_ago: readCloudNumber(
+      run.last_heartbeat_ms_ago,
+      "run.last_heartbeat_ms_ago",
     ),
   };
 };
@@ -160,6 +190,7 @@ export class AssistantCloudThreadMessages {
       messages: messages.map((message, index) =>
         decodeCloudMessage(message, `messages[${index}]`),
       ),
+      run: decodeCloudThreadRun(response.run),
     };
   }
 

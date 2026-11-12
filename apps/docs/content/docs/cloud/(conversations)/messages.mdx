@@ -48,30 +48,50 @@ The [thread detail view](/docs/cloud/dashboard/threads) renders the conversation
 
 ## Interrupted runs
 
-A run lives in the tab that streams it. The cloud adapter stores the assistant message as soon as its run starts and opens a run lease on it. This covers the `aui/v0` history path (the local runtime, AG-UI and external store runtimes) and the AI SDK runtime, as long as each thread message maps to one AI SDK message. While the run streams, the adapter sends heartbeats on the interval the server sets (20 seconds by default), also while the tab is in the background, and checkpoints the message content when it changed. After the runtime's settled write, the adapter ends the run with a `done`, `cancelled` or `error` reason. The endpoints are in the [Messages API reference](/docs/cloud/api/messages#run-leases).
+A run lives in the tab that streams it. When a run starts, the cloud adapter opens the thread's run lease and stores nothing yet. While the run streams, it sends heartbeats on the interval the server sets (20 seconds by default), also while the tab is in the background, and every 20 seconds it checkpoints the reply once the reply has content: the first checkpoint stores the reply, later ones update it. The runtime's settled write stores or updates the reply and ends the run with a `done`, `cancelled` or `error` reason. A run that dies before its first write leaves no message. This covers the `aui/v0` history path (the local runtime, AG-UI and external store runtimes) and the AI SDK runtime, as long as each thread message maps to one AI SDK message. The endpoints are in the [Messages API reference](/docs/cloud/api/messages#run-leases).
 
-The server never expires a run. Other tabs read how long ago its last heartbeat was. A reply whose run went `staleAfter` without one (30 seconds by default) loads as interrupted, with the error code `run_stale`. That is what a run whose tab closed or lost its connection looks like. What the thread shows depends on what the reply had when it stopped:
+A thread has one running lease at a time, and the newest run wins: starting a run ends the thread's other running lease, and the older tab stops writing its reply.
 
-- **Without content**, the reply has `message.runState === "stale"`. `ActionBarPrimitive.Resume` deletes the empty reply and its stored row, then runs the agent again from the user message, so no branch is left beside it. A runtime that cannot delete messages starts a new branch instead.
-- **With content**, the reply is a regular error, and `message.runState` is undefined. Regenerate (`ActionBarPrimitive.Reload`) answers again on a new branch.
+The server never expires a run. Other tabs read how long ago its last heartbeat was, and treat a run that went `staleAfter` without one (30 seconds by default) as interrupted. That is what a run whose tab closed or lost its connection looks like.
 
 ```tsx
 const adapter = useCloudThreadListAdapter({ cloud, staleAfter: 60_000 });
 ```
 
-A reply whose run is still beating loads with the code `run_in_progress` and `message.runState === "in-progress"`. The adapter re-reads it around the moment it would cross `staleAfter`, and at least every 10 seconds while it is in progress, and updates the thread in place, so the message turns into the finished answer, or into the interrupted state, without a reload. `ActionBarPrimitive.RefreshRun` re-reads it on demand, and Regenerate and Resume stay disabled while the run is live. A run that comes back late keeps writing its own message, and its reply shows as in progress again on the next read. The AI SDK runtime shows the same states, and its Refresh and polling re-read the thread through the runtime.
+What a thread shows depends on whether the run stored a reply yet:
 
-`ErrorPrimitive.Root` exposes the same value as `data-run-state`, and `ActionBarPrimitive.Root` with `hideWhenRunning` hides while another tab writes the reply.
+| Thread | Shows |
+|---|---|
+| Ends with the user's message, and a fresh lease answers it | `useThreadReplyState()` is `"in-progress"`: generating in another tab. Resume is disabled. |
+| Ends with the user's message, and no lease answers it, or the lease went stale | `useThreadReplyState()` is `"interrupted"`. `ThreadPrimitive.Resume` runs from that message, so its answer is the first reply and no branch is left. |
+| Ends with a stored reply whose lease is fresh | The reply has the error code `run_in_progress` and `message.runState === "in-progress"`. `ActionBarPrimitive.RefreshRun` re-reads it. |
+| Ends with a stored reply whose lease went stale | An ordinary error with the code `run_stale`. Regenerate answers again on a new branch. |
+
+The adapter re-reads a thread that another tab is answering around the moment it would cross `staleAfter`, and at least every 10 seconds, so it turns into the stored answer, or into the interrupted state, without a reload. A run that comes back late keeps writing its own reply as long as no newer run took the thread. The AI SDK runtime shows the same states, and its Refresh and polling re-read the thread through the runtime.
 
 ```tsx
-<MessagePrimitive.Error>
-  <ErrorPrimitive.Root className="data-[run-state=stale]:bg-amber-50">
-    <ErrorPrimitive.Message />
-    <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
-    <ActionBarPrimitive.RefreshRun>Refresh</ActionBarPrimitive.RefreshRun>
-  </ErrorPrimitive.Root>
-</MessagePrimitive.Error>
+import { ThreadPrimitive, useThreadReplyState } from "@assistant-ui/react";
+
+const ThreadReplyStatus = () => {
+  const replyState = useThreadReplyState();
+  if (replyState === "in-progress")
+    return (
+      <div role="status">Generating in another tab…</div>
+    );
+  if (replyState === "interrupted")
+    return (
+      <div role="alert">
+        This response was interrupted before it finished.
+        <ThreadPrimitive.Resume>Resume</ThreadPrimitive.Resume>
+      </div>
+    );
+  return null;
+};
 ```
+
+Render it after `ThreadPrimitive.Messages`. The default `Thread` component does.
+
+`ActionBarPrimitive.Resume` is deprecated. It only answers an empty stale reply that an earlier client stored: it deletes that reply and runs again from its parent.
 
 ## From your code
 

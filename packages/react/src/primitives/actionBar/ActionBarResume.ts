@@ -19,24 +19,12 @@ export namespace ActionBarPrimitiveResume {
 }
 
 /**
- * A button that answers again in place of an assistant message whose run
- * stopped before it wrote anything (its tab closed or lost its connection).
- * It deletes the empty reply and its stored row, then runs again from the
- * reply's parent, so no branch is left beside it; a runtime that cannot
- * delete messages starts a new branch instead. It renders disabled unless the
- * message is the last one on its branch and its run went `staleAfter`
- * without a heartbeat. A reply that wrote content before its run stopped is a
- * regular error, answered again with Regenerate.
- *
- * @example
- * ```tsx
- * <MessagePrimitive.Error>
- *   <ErrorPrimitive.Root>
- *     <ErrorPrimitive.Message />
- *     <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
- *   </ErrorPrimitive.Root>
- * </MessagePrimitive.Error>
- * ```
+ * @deprecated Use `ThreadPrimitive.Resume`. A run that stops before it
+ * stores a reply now leaves the thread ending with the user's message, which
+ * the thread resumes without a branch; a reply that stored content before
+ * its run stopped is an ordinary error, answered again with Regenerate. This
+ * button stays enabled only for an empty stale reply that an earlier client
+ * stored, and answers it in place.
  */
 export const ActionBarPrimitiveResume = createActionButton(
   "ActionBarPrimitive.Resume",

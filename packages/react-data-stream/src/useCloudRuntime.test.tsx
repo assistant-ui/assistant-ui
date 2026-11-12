@@ -24,6 +24,14 @@ const makeCloud = () => {
         create: vi.fn().mockResolvedValue({ message_id: "message-1" }),
         update: vi.fn().mockResolvedValue(undefined),
       },
+      runs: {
+        open: vi.fn().mockResolvedValue({
+          lease_id: "lease-1",
+          heartbeat_interval_ms: 20_000,
+        }),
+        heartbeat: vi.fn().mockResolvedValue({ heartbeat_interval_ms: 20_000 }),
+        end: vi.fn().mockResolvedValue(undefined),
+      },
     },
     runs: {
       stream: vi.fn().mockResolvedValue(

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
-import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
+import {
+  AssistantCloudThreadMessages,
+  type CloudMessageRun,
+} from "./AssistantCloudThreadMessages";
 import { CloudResponseError } from "./cloudResponse";
 
 const createCloudThreadMessages = () => {
@@ -225,6 +228,35 @@ describe("AssistantCloudThreadMessages run leases", () => {
     });
   });
 
+  it("decodes listed messages with an ended run", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    const run: CloudMessageRun = {
+      status: "ended",
+      last_heartbeat_ms_ago: 1200,
+    };
+    makeRequest.mockResolvedValueOnce({
+      messages: [
+        {
+          id: "msg_1",
+          parent_id: null,
+          height: 0,
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-01T00:00:00.000Z",
+          format: "aui/v0",
+          content: {},
+          run,
+        },
+      ],
+    });
+
+    const result = await messages.list("t1");
+    expect(result.messages[0]!.run).toEqual({
+      status: "ended",
+      last_heartbeat_ms_ago: 1200,
+    });
+    expect(result.run).toBeNull();
+  });
+
   it("decodes the run state of listed messages", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();
     const row = {
@@ -239,11 +271,6 @@ describe("AssistantCloudThreadMessages run leases", () => {
     makeRequest.mockResolvedValueOnce({
       messages: [
         { ...row, run: { status: "running", last_heartbeat_ms_ago: 1200 } },
-        {
-          ...row,
-          id: "msg_2",
-          run: { status: "ended", last_heartbeat_ms_ago: 40_000 },
-        },
         { ...row, id: "msg_3", run: null },
       ],
     });
@@ -251,9 +278,28 @@ describe("AssistantCloudThreadMessages run leases", () => {
     const { messages: listed } = await messages.list("t1");
     expect(listed.map((m) => m.run)).toEqual([
       { status: "running", last_heartbeat_ms_ago: 1200 },
-      { status: "ended", last_heartbeat_ms_ago: 40_000 },
       undefined,
     ]);
+
+    makeRequest.mockResolvedValueOnce({
+      messages: [],
+      run: {
+        status: "running",
+        message_id: null,
+        parent_id: "msg_1",
+        last_heartbeat_ms_ago: 500,
+      },
+    });
+    expect((await messages.list("t1")).run).toEqual({
+      status: "running",
+      message_id: null,
+      parent_id: "msg_1",
+      last_heartbeat_ms_ago: 500,
+    });
+    makeRequest.mockResolvedValueOnce({ messages: [], run: null });
+    expect((await messages.list("t1")).run).toBeNull();
+    makeRequest.mockResolvedValueOnce({ messages: [] });
+    expect((await messages.list("t1")).run).toBeNull();
 
     makeRequest.mockResolvedValueOnce({
       messages: [{ ...row, run: { status: "paused" } }],

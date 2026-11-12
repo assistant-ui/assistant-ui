@@ -1,7 +1,7 @@
 import type { ThreadMessage } from "../types/message";
 
 /**
- * Where a stored message's run stands when another tab or session drove it:
+ * Where a stored reply's run stands when another tab or session drove it:
  * `in-progress` while that run still heartbeats, `stale` once it stopped
  * before writing anything. Undefined for every other message, including one
  * whose run stopped after it wrote content: that one reads as a plain error.

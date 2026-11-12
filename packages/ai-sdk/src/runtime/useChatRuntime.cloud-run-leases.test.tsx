@@ -59,6 +59,7 @@ const makeCloud = (getRows: () => CloudMessage[] = () => []) => {
         delete: vi.fn().mockResolvedValue(undefined),
       },
       runs: {
+        open: vi.fn().mockResolvedValue(lease),
         heartbeat: vi.fn().mockResolvedValue({
           heartbeat_interval_ms: 20_000,
         }),
@@ -188,20 +189,13 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
     });
 
     await waitFor(() =>
-      expect(messages.create.mock.calls.some(([, body]) => body.open_run)).toBe(
-        true,
-      ),
+      expect(threadRuns.open).toHaveBeenCalledWith("remote-1", {
+        parent_id: "msg_1",
+      }),
     );
-    const bodies = messages.create.mock.calls.map(([, body]) => body);
-    const prompt = bodies.find((body) => !body.open_run)!;
-    const running = bodies.find((body) => body.open_run)!;
-    expect(prompt.format).toBe("ai-sdk/v6");
-    expect(running).toMatchObject({
-      format: "ai-sdk/v6",
-      parent_id: "msg_1",
-      external_id: "reply-1",
-      content: { role: "assistant" },
-    });
+    // Nothing stored for the reply before its first write.
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.create.mock.calls[0]![1].format).toBe("ai-sdk/v6");
 
     await act(async () => {
       emit(
@@ -218,18 +212,22 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
         reason: "done",
       }),
     );
-    expect(messages.update).toHaveBeenCalledWith(
-      "remote-1",
-      "msg_2",
-      expect.objectContaining({ lease_id: "lease_1" }),
-    );
-    const final = messages.update.mock.calls.at(-1)![2] as {
+    expect(messages.create).toHaveBeenCalledTimes(2);
+    const stored = messages.create.mock.calls[1]![1] as CreateBody & {
+      lease_id?: string;
       content: { parts: { type: string; text?: string }[] };
     };
+    expect(stored).toMatchObject({
+      format: "ai-sdk/v6",
+      parent_id: "msg_1",
+      external_id: "reply-1",
+      lease_id: "lease_1",
+      content: { role: "assistant" },
+    });
     expect(
-      final.content.parts.some((part) => part.text === "partial answer"),
+      stored.content.parts.some((part) => part.text === "partial answer"),
     ).toBe(true);
-    expect(messages.create).toHaveBeenCalledTimes(2);
+    expect(messages.update).not.toHaveBeenCalled();
   });
 
   it("shows a reply another tab still writes as in progress, follows it and shows the result once it ends", async () => {
@@ -263,7 +261,7 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
     expect(messages.update).not.toHaveBeenCalled();
   }, 15_000);
 
-  it("shows a reply quiet for longer than staleAfter as interrupted; Resume starts a sibling with its own lease", async () => {
+  it("shows a reply quiet for longer than staleAfter as an ordinary error; Regenerate starts a sibling under a new thread lease", async () => {
     const rows = [
       replyRow("partial", { status: "running", last_heartbeat_ms_ago: 60_000 }),
       userRow,
@@ -288,19 +286,11 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
       );
     });
     await waitFor(() =>
-      expect(messages.create.mock.calls.some(([, body]) => body.open_run)).toBe(
-        true,
-      ),
+      expect(threadRuns.open).toHaveBeenCalledWith("remote-1", {
+        parent_id: "u1",
+      }),
     );
-    const sibling = messages.create.mock.calls.find(
-      ([, body]) => body.open_run,
-    )![1];
-    expect(sibling).toMatchObject({
-      parent_id: "u1",
-      format: "ai-sdk/v6",
-      open_run: true,
-    });
-    expect(sibling.external_id).not.toBe("a1");
+    expect(messages.create).not.toHaveBeenCalled();
 
     await act(async () => {
       emit({ type: "text-end", id: "t2" }, { type: "finish" });
@@ -314,13 +304,16 @@ describe("useChatRuntime with Assistant Cloud run leases", () => {
         }),
       { timeout: 5_000 },
     );
-    const final = messages.update.mock.calls.at(-1)!;
-    expect(final[1]).toBe("msg_1");
-    expect(final[2]).toMatchObject({ lease_id: "lease_1" });
-    expect(JSON.stringify(final[2])).not.toContain("run_stale");
-    expect(messages.update.mock.calls.every(([, id]) => id !== "a1")).toBe(
-      true,
-    );
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    const sibling = messages.create.mock.calls[0]![1];
+    expect(sibling).toMatchObject({
+      parent_id: "u1",
+      format: "ai-sdk/v6",
+      lease_id: "lease_1",
+    });
+    expect(sibling.external_id).not.toBe("a1");
+    expect(JSON.stringify(sibling)).not.toContain("run_stale");
+    expect(messages.update).not.toHaveBeenCalled();
     expect(harness.client().thread.getState().messages).toHaveLength(2);
     expect(reply().id).not.toBe("a1");
     expect(textOf(reply())).toBe("a fresh answer");

@@ -194,6 +194,10 @@ export {
   type ThreadRowsOptions,
 } from "@assistant-ui/core/react";
 export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
+export {
+  useThreadReplyState,
+  type ThreadReplyState,
+} from "@assistant-ui/core/react";
 
 // Re-export shared providers from core/react
 export {

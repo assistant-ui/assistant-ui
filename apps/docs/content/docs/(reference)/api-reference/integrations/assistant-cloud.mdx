@@ -55,12 +55,14 @@ Every call returns a promise and throws `CloudAPIError` on a non 2xx response, w
 
 ### AssistantCloudThreadRuns
 
-Run leases on thread messages. A lease is opened with `open_run` when its
-message is created, belongs to that message alone, and runs until its
-holder ends it; the server never expires one. The holder heartbeats on the
-server's `heartbeat_interval_ms`, and listed messages report how long ago
-the last beat was, so readers can tell a run whose tab went away. Writes as
-the holder go through `threads.messages` with the `lease_id`.
+Run leases on threads. A thread holds at most one running lease: opening
+one ends the thread's other running lease, so the newest run wins and the
+older holder's next beat or write answers `409 run_ended`. A lease runs
+until its holder ends it; the server never expires one. The holder
+heartbeats on the server's `heartbeat_interval_ms`, and message lists
+report the thread's running lease with how long ago it last beat, so
+readers can tell a run whose tab went away. The holder's first message
+write with the `lease_id` stores the reply and binds the lease to it.
 
 <ParametersTable {...assistantCloud_AssistantCloudThreadRuns} />
 
@@ -88,7 +90,10 @@ so concurrent appends land under the right parent. A parent whose create
 failed is created again before its child, and a child whose parent still
 cannot be created is stored as a root.
 
-A message appended as running holds a run lease, renewed by heartbeats on
+A run holds the thread's run lease, opened with `beginRun` before its
+reply is stored: the reply's first write stores the row and binds the
+lease to it, so a run that never writes leaves no message. A message
+appended as running opens the lease itself. Heartbeats renew a lease on
 the server's interval until a write with an end reason ends it. Heartbeats
 keep running while the page is in the background. The server never
 expires a lease; readers show a run as stale once it has gone `staleAfter`
