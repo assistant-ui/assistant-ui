@@ -10,17 +10,15 @@ import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import rehypeCode from "@farming-labs/next/mdx-plugins/rehype-code";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerMetaHighlight } from "@shikijs/transformers";
-import fumadocsPackage from "fumadocs-core/package.json";
-import shikiPackage from "shiki/package.json";
 
 const themes = { light: "catppuccin-latte", dark: "catppuccin-mocha" };
 
-// Bump `v` when the options below change; upgrades change the versions.
+// Bump `v` when the options below change. next.config.mts sets the package
+// versions, so an upgrade of the highlighting stack drops cached highlights.
 const CACHE_SALT = JSON.stringify({
   v: 1,
   themes,
-  shiki: shikiPackage.version,
-  fumadocs: fumadocsPackage.version,
+  versions: process.env.DOCS_CODE_VERSIONS,
 });
 
 /** The options the MDX pipeline used when it highlighted at compile time. */

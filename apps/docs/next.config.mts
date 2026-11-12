@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { withDocs } from "@farming-labs/next/config";
 import docsConfig from "./docs.config.ts";
@@ -111,6 +112,25 @@ if (buildCpus !== undefined && !(Number.isInteger(buildCpus) && buildCpus > 0))
 if (buildCpus && !process.env.TURBO_TASKS_AVAILABLE_PARALLELISM)
   process.env.TURBO_TASKS_AVAILABLE_PARALLELISM = String(buildCpus);
 
+// lib/docs-code.tsx keeps highlighted code blocks in .next/cache and keys
+// them on these versions, so an upgrade drops the old highlights.
+function codeHighlightVersions() {
+  return [
+    "@farming-labs/next",
+    "@shikijs/transformers",
+    "fumadocs-core",
+    "shiki",
+  ]
+    .map((name) => {
+      const file = new URL(
+        `./node_modules/${name}/package.json`,
+        import.meta.url,
+      );
+      return `${name}@${JSON.parse(readFileSync(file, "utf8")).version}`;
+    })
+    .join(" ");
+}
+
 const config: NextConfig = {
   cacheComponents: true,
   ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
@@ -120,7 +140,10 @@ const config: NextConfig = {
     ? { allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS.split(",") }
     : {}),
   // A prerender cannot read the clock, so the copyright year is fixed at build time.
-  env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
+  env: {
+    COPYRIGHT_YEAR: String(new Date().getFullYear()),
+    DOCS_CODE_VERSIONS: codeHighlightVersions(),
+  },
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
   agentRules: false,

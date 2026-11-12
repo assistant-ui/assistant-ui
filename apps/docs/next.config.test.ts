@@ -17,7 +17,10 @@ vi.mock("@assistant-ui/next", async (importOriginal) => {
   return { ...actual, withAui: vi.fn(actual.withAui) };
 });
 // Code blocks highlight in a "use cache" server function at render time.
-vi.mock("next/cache", () => ({ cacheLife: () => {} }));
+vi.mock("next/cache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/cache")>()),
+  cacheLife: () => {},
+}));
 vi.stubEnv("TURBOPACK", "1");
 vi.stubEnv("DOCS_BUILD_CPUS", "3");
 vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", undefined);
