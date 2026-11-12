@@ -2,7 +2,7 @@
 
 import { cleanup, render } from "@testing-library/react";
 import { Suspense } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, onTestFinished, vi } from "vitest";
 import { lazyComponent } from "./lazy-component";
 
 afterEach(cleanup);
@@ -31,6 +31,7 @@ it("contains a chunk that fails to load to the component", async () => {
     Promise.reject(new Error("chunk failed")),
   );
   const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  onTestFinished(() => error.mockRestore());
   const { findByText, queryByText } = render(
     <Suspense fallback={null}>
       <p>page</p>
@@ -40,5 +41,4 @@ it("contains a chunk that fails to load to the component", async () => {
   expect(await findByText("page")).not.toBeNull();
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(queryByText("page")).not.toBeNull();
-  error.mockRestore();
 });

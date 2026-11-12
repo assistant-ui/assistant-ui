@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 afterEach(() => {
   cleanup();
@@ -45,6 +45,7 @@ describe("styledGenerativeUILibrary Diagram", () => {
       throw new Error("chunk failed");
     });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => error.mockRestore());
     const { container } = await renderDiagram("graph LR\n  A --> B");
     expect(
       await screen.findByText((text) => text.includes("A --> B")),
@@ -53,6 +54,5 @@ describe("styledGenerativeUILibrary Diagram", () => {
       container.querySelector('[data-slot="mermaid-fallback"]'),
     ).not.toBeNull();
     expect(screen.getByText("Flow")).not.toBeNull();
-    error.mockRestore();
   });
 });

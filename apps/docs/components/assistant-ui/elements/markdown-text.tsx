@@ -201,12 +201,15 @@ const loadKatexPlugins = () => {
 };
 
 // Cheap pre-check for every math syntax preprocessMath understands; only text
-// that passes it is normalized and checked for a real, unescaped `$` span, so
-// currency like `$5` (escaped by preprocessMath) doesn't load KaTeX.
+// that passes it is normalized and checked for a real, unescaped `$` outside
+// code, so currency like `$5` (escaped by preprocessMath) and dollars in code
+// spans or fences don't load KaTeX.
 const MATH_SYNTAX = /\$|\\\(|\\\[|\[\/math\]|\[\/inline\]/;
+const CODE = /(`{3,}|~{3,})[\s\S]*?(?:\1|$)|`[^`\n]*`/g;
 const UNESCAPED_DOLLAR = /(?:^|[^\\])\$/;
 export const hasMath = (text: string) =>
-  MATH_SYNTAX.test(text) && UNESCAPED_DOLLAR.test(preprocessMath(text));
+  MATH_SYNTAX.test(text) &&
+  UNESCAPED_DOLLAR.test(preprocessMath(text).replace(CODE, ""));
 
 const useRehypePlugins = () => {
   const needsKatex = useAuiState((s) => {
@@ -219,9 +222,14 @@ const useRehypePlugins = () => {
   useEffect(() => {
     if (!needsKatex || plugins) return;
     let live = true;
-    void loadKatexPlugins().then((loaded) => {
-      if (live) setPlugins(loaded);
-    });
+    // On failure the math keeps its plain fallback; the next message part
+    // that mounts tries again.
+    loadKatexPlugins().then(
+      (loaded) => {
+        if (live) setPlugins(loaded);
+      },
+      () => {},
+    );
     return () => {
       live = false;
     };

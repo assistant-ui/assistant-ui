@@ -9,10 +9,13 @@ describe("hasMath", () => {
     expect(hasMath("display \\[x^2\\] here")).toBe(true);
     expect(hasMath("[/math]x^2[/math]")).toBe(true);
     expect(hasMath("[/inline]x[/inline]")).toBe(true);
+    expect(hasMath("`code` and $x^2$")).toBe(true);
   });
 
   it("ignores text without math, including currency", () => {
     expect(hasMath("Plain reply with `code`.")).toBe(false);
     expect(hasMath("It costs $5 and the pro plan is $20 a month.")).toBe(false);
+    expect(hasMath("Run `echo $HOME` first.")).toBe(false);
+    expect(hasMath("```sh\nexport PATH=$PATH:/bin\n```")).toBe(false);
   });
 });
