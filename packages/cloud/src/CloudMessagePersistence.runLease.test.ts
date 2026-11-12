@@ -139,6 +139,68 @@ describe("CloudMessagePersistence run leases", () => {
     });
   });
 
+  it("creates the row with the final answer when the in-flight running append fails", async () => {
+    const { cloud, messages } = createCloud();
+    let rejectCreate!: (error: unknown) => void;
+    messages.create
+      .mockReturnValueOnce(
+        new Promise((_, reject) => {
+          rejectCreate = reject;
+        }),
+      )
+      .mockResolvedValueOnce({ message_id: "msg_2" });
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    rejectCreate(new Error("network"));
+    await expect(placeholder).rejects.toThrow("network");
+    await final;
+
+    expect(messages.create).toHaveBeenLastCalledWith("t1", {
+      parent_id: null,
+      external_id: "local-a",
+      format: "aui/v0",
+      content: done,
+    });
+    expect(await persistence.getRemoteId("local-a")).toBe("msg_2");
+  });
+
+  it("writes the final answer over an in-flight running append that got no lease", async () => {
+    const { cloud, messages } = createCloud();
+    let resolveCreate!: (value: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    resolveCreate({ message_id: "msg_1" });
+    await Promise.all([placeholder, final]);
+
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
+      content: done,
+    });
+  });
+
   it("checkpoints renew the lease and serialize behind earlier writes", async () => {
     const { cloud, messages, runs } = createCloud();
     const order: string[] = [];

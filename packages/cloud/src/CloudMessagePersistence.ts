@@ -148,8 +148,11 @@ export class CloudMessagePersistence {
     const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
       await existing.catch(() => undefined);
-      if (this.runs.has(messageId)) {
+      // The in-flight create may hold older content, such as the run tracker's running placeholder: write this content over its row, or create the row with it when that create failed.
+      if (this.idMapping.has(messageId)) {
         await this.update(threadId, messageId, format, content, run);
+      } else {
+        await this.append(threadId, messageId, parentId, format, content, run);
       }
       return;
     }
