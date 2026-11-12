@@ -73,7 +73,7 @@ export function mdxImports(source) {
   return specifiers;
 }
 
-export function referencedPackages(file, source, packages) {
+function referencedPackages(file, source, packages) {
   const dirs = new Set();
   const add = (specifier) => {
     const dir = packages.get(packageName(specifier));
