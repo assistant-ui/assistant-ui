@@ -131,9 +131,22 @@ function codeHighlightVersions() {
     .join(" ");
 }
 
+// About half of Vercel builds restore a Turbopack cache they cannot reuse, and
+// compiling against it takes 3-5 min, against about 1 min with no cache.
+const skipBuildCache = Boolean(process.env.VERCEL);
+
 const config: NextConfig = {
   cacheComponents: true,
-  ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
+  ...(buildCpus || skipBuildCache
+    ? {
+        experimental: {
+          ...(buildCpus ? { cpus: buildCpus } : {}),
+          ...(skipBuildCache
+            ? { turbopackFileSystemCacheForBuild: false }
+            : {}),
+        },
+      }
+    : {}),
   // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
   // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
   ...(process.env.NEXT_ALLOWED_DEV_ORIGINS

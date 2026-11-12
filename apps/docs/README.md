@@ -37,4 +37,6 @@ On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s
 
 `pnpm build` runs `next build` in two steps: `--experimental-build-mode=compile` bundles the app, and `--experimental-build-mode=generate` prerenders the pages in a new process. Turbopack keeps about 8 GB of compile state until its process exits, so prerendering in the same process stacked the prerender workers on top of it. With `DOCS_BUILD_CPUS=4` the two steps peak at about 9 GB and 5 GB, against about 14.5 GB for one `next build`. `scripts/next-build.mjs` runs the steps, and gives a deployment adapter such as Vercel's (`NEXT_ADAPTER_PATH`) only to the `generate` step, because the adapter reads the prerendered output.
 
+On Vercel (`VERCEL` is set), the build turns off Turbopack's persistent cache (`turbopackFileSystemCacheForBuild: false`). Vercel restores the previous deployment's cache, and about half of production builds could not reuse it: their compile step took 2.8–5.0 min, against 11–18 s when the cache was reused and 53 s with no cache at all. Local builds keep the cache.
+
 None of these settings change what a build produces.

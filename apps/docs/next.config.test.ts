@@ -24,6 +24,7 @@ vi.mock("next/cache", async (importOriginal) => ({
 vi.stubEnv("TURBOPACK", "1");
 vi.stubEnv("DOCS_BUILD_CPUS", "3");
 vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", undefined);
+vi.stubEnv("VERCEL", undefined);
 // A child process fills the manifest cache outside V8 coverage, which slows the MDX compile and measures nothing here because the config is outside the coverage include list.
 execFileSync(
   process.execPath,
@@ -88,6 +89,18 @@ describe("docs Next config composition", () => {
     const reloaded = await (await import("./next.config.mts")).default;
     expect(reloaded.experimental?.cpus).toBe(3);
     expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("8");
+  });
+
+  it("keeps Turbopack's build cache outside Vercel and turns it off on Vercel", async () => {
+    expect(config.experimental).not.toHaveProperty(
+      "turbopackFileSystemCacheForBuild",
+    );
+    vi.stubEnv("VERCEL", "1");
+    vi.resetModules();
+    const onVercel = await (await import("./next.config.mts")).default;
+    vi.stubEnv("VERCEL", undefined);
+    expect(onVercel.experimental?.turbopackFileSystemCacheForBuild).toBe(false);
+    expect(onVercel.experimental?.cpus).toBe(3);
   });
 
   it("compiles navigation anchors, highlighted code, tables and Mermaid through Farming Labs", async () => {
