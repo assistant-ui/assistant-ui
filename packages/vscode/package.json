@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/vscode",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Run assistant-ui inside VS Code extension webviews by tunnelling fetch to the extension host",
   "keywords": [
     "vscode",
