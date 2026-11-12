@@ -6,7 +6,7 @@ import {
 } from "../core/helpers/execution-context";
 import { addCommit } from "../core/helpers/root";
 
-// Module scope keeps the stable wrapper out of the render's V8 context and its initial callback's messages.
+// Module scope isolates the stable wrapper from the commit closure's V8 context, which captures the render's callback.
 const createEffectEvent = <T extends (...args: any[]) => any>(
   callbackRef: useRef.RefObject<T>,
 ): T =>
