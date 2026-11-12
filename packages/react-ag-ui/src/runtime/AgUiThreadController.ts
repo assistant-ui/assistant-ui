@@ -262,6 +262,7 @@ type CoreOptions = {
   logger: Logger;
   showThinking: boolean;
   joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"];
+  joinAdjacentAssistantMessages?: boolean | undefined;
   getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
@@ -399,6 +400,7 @@ export class AgUiThreadController {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private joinAdjacentAssistantMessages: boolean;
   private joinStrategy: UseAgUiRuntimeOptions["joinStrategy"];
   private getRunContext: UseAgUiRuntimeOptions["getRunContext"];
   private resumeTranscript: AgUiResumeTranscript;
@@ -467,6 +469,8 @@ export class AgUiThreadController {
     }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.joinAdjacentAssistantMessages =
+      options.joinAdjacentAssistantMessages ?? false;
     this.joinStrategy = options.joinStrategy;
     this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
@@ -514,6 +518,8 @@ export class AgUiThreadController {
     }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.joinAdjacentAssistantMessages =
+      options.joinAdjacentAssistantMessages ?? false;
     this.joinStrategy = options.joinStrategy;
     this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
@@ -3916,7 +3922,10 @@ export class AgUiThreadController {
         activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiSnapshotMessages(
         rawMessages,
-        { showThinking: this.showThinking },
+        {
+          showThinking: this.showThinking,
+          joinAdjacentAssistantMessages: this.joinAdjacentAssistantMessages,
+        },
         this.subagentParentToolCallIds,
       );
       const converted: ThreadMessage[] = [];

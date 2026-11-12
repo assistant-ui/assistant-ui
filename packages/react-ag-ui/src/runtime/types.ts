@@ -95,6 +95,12 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   showThinking?: boolean;
   joinStrategy?: JoinStrategy;
   /**
+   * Join adjacent assistant records of an imported snapshot into one message.
+   * See `FromAgUiMessagesOptions.joinAdjacentAssistantMessages`. Defaults to
+   * `false`.
+   */
+  joinAdjacentAssistantMessages?: boolean;
+  /**
    * Return context entries for each run. `messages` is the exact AG-UI
    * transcript sent in the run input, after transcript selection and message
    * conversion. On resume, it follows `resumeTranscript`: "full" sends the
