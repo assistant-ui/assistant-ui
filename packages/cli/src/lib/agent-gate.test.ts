@@ -8,6 +8,8 @@ import {
   AGENT_GATE_MESSAGE,
   SETUP_SESSION_TTL_MS,
   addAgentGate,
+  clearSetupSession,
+  isInsideFolder,
   isSetupSessionActive,
   markSetupSession,
   setupSessionMarkerPath,
@@ -64,64 +66,177 @@ describe("shouldGateAgent", () => {
 
 describe("the setup session marker", () => {
   let dir: string;
+  let project: string;
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "aui-gate-"));
+    project = path.join(dir, "project");
+    fs.mkdirSync(project);
   });
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const active = (target: string, now?: number) =>
+    isSetupSessionActive({ target, dir, ...(now !== undefined && { now }) });
 
-  it("is active once setup marks it, until the TTL lapses", () => {
-    const file = setupSessionMarkerPath(dir);
-    expect(isSetupSessionActive(file)).toBe(false);
-    expect(markSetupSession({ setupId: "abc", cwd: "/app" }, file)).toBe(true);
-    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toMatchObject({
+  it("is active once setup marks it, until it is cleared", () => {
+    expect(active(project)).toBe(false);
+    const file = markSetupSession({ setupId: "abc", cwd: project }, dir);
+    expect(file).toBe(setupSessionMarkerPath(project, "abc", dir));
+    expect(JSON.parse(fs.readFileSync(file!, "utf8"))).toMatchObject({
       setupId: "abc",
-      cwd: "/app",
+      cwd: fs.realpathSync(project),
     });
-    expect(isSetupSessionActive(file, Date.now(), "/app")).toBe(true);
-    const stale = new Date(Date.now() - SETUP_SESSION_TTL_MS - 1000);
-    fs.utimesSync(file, stale, stale);
-    expect(isSetupSessionActive(file, Date.now(), "/app")).toBe(false);
+    expect(active(project)).toBe(true);
+    clearSetupSession(file!);
+    expect(fs.existsSync(file!)).toBe(false);
+    expect(active(project)).toBe(false);
+    // Clearing twice is harmless.
+    clearSetupSession(file!);
+  });
+
+  it.each([
+    ["older", "newer"],
+    ["newer", "older"],
+  ])(
+    "keeps a project's session while any of its setups runs (the %s one exits first)",
+    (first, second) => {
+      const files = {
+        older: markSetupSession({ setupId: "old", cwd: project }, dir)!,
+        newer: markSetupSession({ setupId: "new", cwd: project }, dir)!,
+      };
+      expect(files.older).not.toBe(files.newer);
+      clearSetupSession(files[first as "older"]);
+      expect(active(project)).toBe(true);
+      clearSetupSession(files[second as "older"]);
+      expect(active(project)).toBe(false);
+    },
+  );
+
+  it("lasts two hours from when setup started it, however often it is used", () => {
+    const start = Date.now();
+    const file = markSetupSession(
+      { setupId: "abc", cwd: project, now: start },
+      dir,
+    )!;
+    const { mtimeMs } = fs.statSync(file);
+    for (let t = start; t <= start + SETUP_SESSION_TTL_MS; t += 10 * 60 * 1000)
+      expect(active(project, t)).toBe(true);
+    expect(fs.statSync(file).mtimeMs).toBe(mtimeMs);
+    expect(active(project, start + SETUP_SESSION_TTL_MS + 1)).toBe(false);
+    // Touching the file does not extend it either.
+    const later = new Date(start + SETUP_SESSION_TTL_MS + 1);
+    fs.utimesSync(file, later, later);
+    expect(active(project, start + SETUP_SESSION_TTL_MS + 1)).toBe(false);
+  });
+
+  it("sweeps expired markers left by killed setups when a new setup starts", () => {
+    const start = Date.now();
+    const other = path.join(dir, "other");
+    fs.mkdirSync(other);
+    const stale = markSetupSession(
+      { setupId: "stale", cwd: other, now: start - SETUP_SESSION_TTL_MS - 1 },
+      dir,
+    )!;
+    const live = markSetupSession(
+      { setupId: "live", cwd: other, now: start - 1000 },
+      dir,
+    )!;
+    const unrelated = path.join(dir, "unrelated.json");
+    fs.writeFileSync(unrelated, "{}");
+    expect(fs.existsSync(stale)).toBe(true);
+    markSetupSession({ setupId: "new", cwd: project, now: start }, dir);
+    expect(fs.existsSync(stale)).toBe(false);
+    expect(fs.existsSync(live)).toBe(true);
+    expect(fs.existsSync(unrelated)).toBe(true);
   });
 
   it("is scoped to the project folder setup ran in and the folders inside it", () => {
-    const file = setupSessionMarkerPath(dir);
-    const project = path.join(dir, "project");
-    fs.mkdirSync(path.join(project, "my-app"), { recursive: true });
+    fs.mkdirSync(path.join(project, "my-app"));
+    fs.mkdirSync(path.join(project, "..cache"));
     fs.mkdirSync(path.join(dir, "project-other"));
-    markSetupSession({ setupId: "abc", cwd: project }, file);
-    expect(isSetupSessionActive(file, Date.now(), project)).toBe(true);
-    expect(
-      isSetupSessionActive(file, Date.now(), path.join(project, "my-app")),
-    ).toBe(true);
-    expect(isSetupSessionActive(file, Date.now(), dir)).toBe(false);
-    expect(
-      isSetupSessionActive(file, Date.now(), path.join(dir, "project-other")),
-    ).toBe(false);
-    expect(isSetupSessionActive(file, Date.now(), os.homedir())).toBe(false);
+    markSetupSession({ setupId: "abc", cwd: project }, dir);
+    expect(active(project)).toBe(true);
+    expect(active(path.join(project, "my-app"))).toBe(true);
+    expect(active(path.join(project, "..cache"))).toBe(true);
+    // A folder `create` has not made yet.
+    expect(active(path.join(project, "new-app", "src"))).toBe(true);
+    expect(active(dir)).toBe(false);
+    expect(active(path.join(dir, "project-other"))).toBe(false);
+    expect(active(path.join(project, "..", "project-other"))).toBe(false);
+    expect(active(os.homedir())).toBe(false);
   });
 
-  it("is inactive for a marker without a project folder", () => {
-    const file = setupSessionMarkerPath(dir);
+  it("keeps markers per project, so concurrent setups do not replace each other", () => {
+    const other = path.join(dir, "other");
+    fs.mkdirSync(other);
+    const a = markSetupSession({ setupId: "a", cwd: project }, dir);
+    const b = markSetupSession({ setupId: "b", cwd: other }, dir);
+    expect(a).not.toBe(b);
+    expect(active(project)).toBe(true);
+    expect(active(other)).toBe(true);
+    clearSetupSession(b!);
+    expect(active(project)).toBe(true);
+    expect(active(other)).toBe(false);
+    expect(setupSessionMarkerPath(path.join(project, "."), "a", dir)).toBe(a);
+  });
+
+  it("is inactive for a marker that is malformed or for another folder", () => {
+    const file = setupSessionMarkerPath(project, "abc", dir);
     fs.writeFileSync(file, JSON.stringify({ setupId: "abc" }));
-    expect(isSetupSessionActive(file, Date.now(), dir)).toBe(false);
+    expect(active(project)).toBe(false);
+    fs.writeFileSync(file, "not json");
+    expect(active(project)).toBe(false);
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ setupId: "abc", cwd: dir, startedAt: Date.now() }),
+    );
+    // Its name says project, but it records the parent, so it covers neither.
+    expect(active(project)).toBe(false);
+    expect(active(dir)).toBe(false);
   });
 
-  it("renews on each use, so a long install keeps passing", () => {
-    const file = setupSessionMarkerPath(dir);
-    markSetupSession({ setupId: "abc" }, file);
-    const start = Date.now();
-    expect(
-      isSetupSessionActive(file, start + SETUP_SESSION_TTL_MS - 1000),
-    ).toBe(true);
-    expect(
-      isSetupSessionActive(file, start + SETUP_SESSION_TTL_MS + 60_000),
-    ).toBe(true);
-  });
+  it.skipIf(process.platform === "win32")(
+    "ignores a marker that is not a regular file",
+    () => {
+      const real = path.join(dir, "real.json");
+      fs.writeFileSync(
+        real,
+        JSON.stringify({
+          setupId: "abc",
+          cwd: fs.realpathSync(project),
+          startedAt: Date.now(),
+        }),
+      );
+      fs.symlinkSync(real, setupSessionMarkerPath(project, "abc", dir));
+      expect(active(project)).toBe(false);
+    },
+  );
 
-  it("reports false when the marker cannot be written", () => {
+  it("reports undefined when the marker cannot be written", () => {
     expect(
-      markSetupSession({ setupId: "abc" }, path.join(dir, "missing", "x.json")),
-    ).toBe(false);
+      markSetupSession(
+        { setupId: "abc", cwd: project },
+        path.join(dir, "missing"),
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe("isInsideFolder", () => {
+  it("treats only a first segment of exactly .. as outside", () => {
+    const root = path.resolve("/srv/app");
+    expect(isInsideFolder(root, root)).toBe(true);
+    expect(isInsideFolder(path.join(root, "..cache"), root)).toBe(true);
+    expect(isInsideFolder(path.join(root, "..", "app-b"), root)).toBe(false);
+    expect(isInsideFolder(path.resolve("/srv"), root)).toBe(false);
+    expect(isInsideFolder(path.resolve("/srv/app-b"), root)).toBe(false);
+    expect(isInsideFolder(path.join(root, "a", "..b", "c"), root)).toBe(true);
+  });
+});
+
+describe("the gate message", () => {
+  it("tells a person with an inherited agent environment how to get past it", () => {
+    expect(AGENT_GATE_MESSAGE).toContain("--force");
+    expect(AGENT_GATE_MESSAGE).toContain("ASSISTANT_UI_ALLOW_AGENT=1");
+    expect(AGENT_GATE_MESSAGE).toContain("npx assistant-ui@latest setup");
   });
 });
 
@@ -165,10 +280,18 @@ describe("addAgentGate", () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 
-  const run = async (name: string, args: string[]) => {
+  const run = async (
+    name: string,
+    args: string[],
+    { projectArgument = false }: { projectArgument?: boolean } = {},
+  ) => {
     const action = vi.fn();
     const command = addAgentGate(
-      new Command(name).argument("[items...]").action(action),
+      new Command(name)
+        .argument("[items...]")
+        .option("-c, --cwd <cwd>")
+        .action(action),
+      { projectArgument },
     );
     process.argv = ["node", "assistant-ui", name, ...args];
     let error: unknown;
@@ -227,7 +350,54 @@ describe("addAgentGate", () => {
       expect(action).not.toHaveBeenCalled();
       expect((error as Error).message).toBe(`exit ${AGENT_GATE_EXIT_CODE}`);
     });
+
+    it.each(["--cwd", "-c"])(
+      "checks the folder %s points at, not the current one",
+      async (flag) => {
+        process.env.CLAUDECODE = "1";
+        const projectA = path.join(tmp, "project-a");
+        const projectB = path.join(tmp, "project-b");
+        fs.mkdirSync(path.join(projectA, "app"), { recursive: true });
+        fs.mkdirSync(projectB);
+        const cwd = vi.spyOn(process, "cwd").mockReturnValue(projectA);
+        markSetupSession({ setupId: "abc", cwd: projectA });
+        // Sitting in project A, where setup runs, does not cover project B.
+        const outside = await run(name, ["thread", flag, "../project-b"]);
+        expect(outside.action).not.toHaveBeenCalled();
+        expect((outside.error as Error).message).toBe(
+          `exit ${AGENT_GATE_EXIT_CODE}`,
+        );
+        expect(
+          (await run(name, ["thread", flag, "app"])).action,
+        ).toHaveBeenCalledOnce();
+        // Setup in project B covers --cwd project-b from anywhere.
+        cwd.mockReturnValue(tmp);
+        markSetupSession({ setupId: "def", cwd: projectB });
+        expect(
+          (await run(name, ["thread", flag, projectB])).action,
+        ).toHaveBeenCalledOnce();
+      },
+    );
   });
+
+  it.each(["init", "create"])(
+    "%s checks the project directory it is given",
+    async (name) => {
+      process.env.CLAUDECODE = "1";
+      const project = path.join(tmp, "project");
+      fs.mkdirSync(project);
+      vi.spyOn(process, "cwd").mockReturnValue(project);
+      markSetupSession({ setupId: "abc", cwd: project });
+      expect(
+        (await run(name, ["my-app"], { projectArgument: true })).action,
+      ).toHaveBeenCalledOnce();
+      const { action, error } = await run(name, ["../other-app"], {
+        projectArgument: true,
+      });
+      expect(action).not.toHaveBeenCalled();
+      expect((error as Error).message).toBe(`exit ${AGENT_GATE_EXIT_CODE}`);
+    },
+  );
 
   it("does not stop a command another command runs internally", async () => {
     process.env.CLAUDECODE = "1";
