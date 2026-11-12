@@ -1818,20 +1818,21 @@ function convertAgUiMessages(
   const folded: CoreThreadMessageLike[] = [];
   for (const message of converted) {
     const previous = folded[folded.length - 1];
+    const foldedId = carriesText(message) ? message.id : previous?.id;
+    const dropsPreservedAssistantId =
+      joinAdjacentAssistantMessages &&
+      [previous?.id, message.id].some(
+        (id) =>
+          id !== undefined && id !== foldedId && preservedAssistantIds?.has(id),
+      );
     if (
       previous !== undefined &&
+      !dropsPreservedAssistantId &&
       (isSyntheticToolCallContainer(message)
         ? opensTurn(previous)
         : (isSyntheticToolCallContainer(previous) &&
             answersToolCallContainer(message)) ||
           (joinAdjacentAssistantMessages &&
-            !(
-              previous.id !== undefined &&
-              preservedAssistantIds?.has(previous.id)
-            ) &&
-            !(
-              message.id !== undefined && preservedAssistantIds?.has(message.id)
-            ) &&
             message.role === "assistant" &&
             opensTurn(previous)))
     ) {
