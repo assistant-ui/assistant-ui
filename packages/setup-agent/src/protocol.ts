@@ -319,13 +319,6 @@ export const isAgentPresent = (state: Checkout.State, now = Date.now()) =>
   state.agent.lastSeenAt !== null &&
   now - state.agent.lastSeenAt < AGENT_PRESENCE_MS;
 
-/** True while a setup page has joined and sent a heartbeat recently; false on hosts that do not track the browser. */
-export const isBrowserPresent = (state: Checkout.State, now = Date.now()) =>
-  state.browser !== undefined &&
-  state.browser.connected &&
-  state.browser.lastSeenAt !== null &&
-  now - state.browser.lastSeenAt < BROWSER_PRESENCE_MS;
-
 export const isClosed = (state: Checkout.State) =>
   state.status === "done" || state.status === "cancelled";
 

@@ -1271,25 +1271,7 @@ describe("answer", () => {
   });
 });
 
-describe("instructions for an embedding CLI", () => {
-  it("names the embedding command and treats the setup command as the stream", () => {
-    const text = agentInstructions("https://example.test/abc", {
-      command: "npx assistant-ui@latest setup",
-      startedByAgent: {
-        browserUrl: "https://setup.test/#link=abc&setup=s",
-        streaming: true,
-      },
-    });
-    expect(text).not.toContain("npx setup-agent");
-    expect(text).not.toContain("start a persistent Monitor");
-    expect(text).toContain(
-      "npx assistant-ui@latest setup https://example.test/abc stream",
-    );
-    expect(text).toContain('"input.needed"');
-    expect(text).toContain('"browser.opened"');
-    expect(text).not.toContain("I opened the assistant-ui setup");
-  });
-
+describe("help", () => {
   it("documents answer in the help", () => {
     expect(HELP).toContain("answer <input-id> <answer>");
     expect(HELP).toContain("--setup-app-url");

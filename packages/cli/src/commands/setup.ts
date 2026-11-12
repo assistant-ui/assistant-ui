@@ -7,7 +7,7 @@ import {
   runCodingAgent,
   runSetupCommand,
 } from "setup-agent/cli";
-import { openUrl, runAgentSetup } from "setup-agent/sdk";
+import { runAgentSetup } from "setup-agent/sdk";
 import type { CodingAgent } from "setup-agent/cli";
 import { isRunByAgent } from "../lib/agent-setup-hint";
 import {
@@ -130,11 +130,7 @@ const runSetupStep = async (args: string[], options: SetupOptions) => {
   const endpoints = resolveEndpoints(options);
   await runSetupCommand(args, {
     command: SETUP_COMMAND,
-    browser: {
-      setupAppUrl: endpoints.setupAppUrl,
-      open: (url) => openUrl(url),
-      canOpen: options.open,
-    },
+    browser: { setupAppUrl: endpoints.setupAppUrl, canOpen: options.open },
   });
 };
 
@@ -152,7 +148,6 @@ const runForAgent = async (options: SetupOptions) => {
     command: SETUP_COMMAND,
     name: "assistant-ui setup",
     canOpen: options.open,
-    open: (url) => openUrl(url),
   });
   const stop = () => {
     void stream.stop().finally(() => {

@@ -92,9 +92,13 @@ describe("followSetup", () => {
     const open = vi.fn();
     const stream = await followSetup(fake.client, {
       print: (events) => lines.push(events),
-      answerCommand: ANSWER,
       agent: { cwd: "/app", kind: "claude" },
-      browser: { url: () => PAGE, open },
+      browser: {
+        setupAppUrl: "https://setup.test",
+        linkId: "abc",
+        answerCommand: ANSWER,
+        open,
+      },
     });
     const events = () => lines.flat();
     return { ...fake, stream, open, events };
@@ -192,7 +196,14 @@ describe("followSetup", () => {
       id: "q1",
       reason: "browser-closed",
       message:
-        "The user closed the setup tab. Ask the user directly in the terminal: Which package manager? Options: pnpm (pnpm), npm (npm). Setup opens the tab again for the next question.",
+        "The user closed the setup tab. Ask the user directly in the terminal: Which package manager? Options: pnpm (pnpm), npm (npm).",
+    });
+    // A question right after: inside the 30s window, and the tab is known to be gone.
+    t.ask("Which registry?");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(t.events().at(-1)).toMatchObject({
+      id: "q2",
+      reason: "browser-closed",
     });
     await t.stream.stop();
   });
@@ -207,7 +218,6 @@ describe("followSetup", () => {
     fake.ask("Which package manager?");
     await vi.advanceTimersByTimeAsync(60_000);
     expect(lines).toEqual([]);
-    expect(stream.gate).toBeUndefined();
     await stream.stop();
   });
 });

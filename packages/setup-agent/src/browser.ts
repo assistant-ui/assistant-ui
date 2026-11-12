@@ -10,37 +10,15 @@ export const BROWSER_CLOSE_GRACE_MS = BROWSER_HEARTBEAT_MS + 1_000;
 
 /**
  * Why the agent should ask the user itself:
- * - recently-opened: a tab was opened moments ago (or opened and never joined), so another would pile up;
- * - browser-closed: the user closed the setup tab while this was waiting;
+ * - recently-opened: a tab was opened moments ago, or opened and never joined;
+ * - browser-closed: the user closed the setup tab (and it may not reopen yet);
  * - no-browser: setup may not open a browser (`--no-open`).
  */
 export type AskReason = "recently-opened" | "browser-closed" | "no-browser";
 
 export type BrowserGateAction =
   | { type: "open"; url: string; need: SetupNeed }
-  | {
-      type: "ask";
-      reason: AskReason;
-      need: SetupNeed;
-      /** How long ago setup last opened a tab, for recently-opened. */
-      openedAgoMs?: number;
-    };
-
-export type BrowserGateOptions = {
-  /** The setup page for the current state; `undefined` when there is none to open. */
-  url: (state: Checkout.State) => string | undefined;
-  /** False for `--no-open`: setup tells the agent to ask instead of opening. */
-  canOpen?: boolean;
-  now?: () => number;
-  guardMs?: number;
-};
-
-export type BrowserGate = {
-  /** Feed every state (and a periodic tick with the last one); returns what to do now. */
-  update: (state: Checkout.State) => BrowserGateAction[];
-  /** When setup last opened a tab, if it did. */
-  readonly openedAt: number | undefined;
-};
+  | { type: "ask"; reason: AskReason; need: SetupNeed; openedAgoMs?: number };
 
 /**
  * Decides when setup opens the user's browser: only once the setup waits on
@@ -53,11 +31,15 @@ export const createBrowserGate = ({
   url,
   canOpen = true,
   now = Date.now,
-  guardMs = BROWSER_REOPEN_GUARD_MS,
-}: BrowserGateOptions): BrowserGate => {
+}: {
+  /** The setup page for a state; `undefined` when there is none to open. */
+  url: (state: Checkout.State) => string | undefined;
+  /** False for `--no-open`: the agent is told to ask instead. */
+  canOpen?: boolean;
+  now?: () => number;
+}) => {
   const handled = new Set<string>();
   let openedAt: number | undefined;
-  /** A page joined since setup last opened one (or before setup opened any). */
   let joinedSinceOpen = false;
   let lastBeat: number | null | undefined;
   let beatArrivedAt: number | undefined;
@@ -65,27 +47,25 @@ export const createBrowserGate = ({
   let absentSince: number | undefined;
   let closedReported = true;
 
-  const trackPresence = (state: Checkout.State) => {
-    const time = now();
-    const browser = state.browser;
+  const trackPresence = (browser: Checkout.State["browser"]) => {
     if (browser === undefined) return;
+    const time = now();
     if (browser.lastSeenAt !== lastBeat) {
-      // The first state carries an old beat; judge it by the server's clock once.
+      // The first state carries an old beat; judge that one by the server's clock.
       beatArrivedAt =
-        lastBeat === undefined && browser.lastSeenAt !== null
-          ? Math.min(time, browser.lastSeenAt)
-          : browser.lastSeenAt === null
-            ? undefined
+        browser.lastSeenAt === null
+          ? undefined
+          : lastBeat === undefined
+            ? Math.min(time, browser.lastSeenAt)
             : time;
       lastBeat = browser.lastSeenAt;
     }
-    const isPresent =
+    if (
       browser.connected &&
       beatArrivedAt !== undefined &&
-      time - beatArrivedAt < BROWSER_PRESENCE_MS;
-    if (isPresent) {
-      present = true;
-      joinedSinceOpen = true;
+      time - beatArrivedAt < BROWSER_PRESENCE_MS
+    ) {
+      present = joinedSinceOpen = true;
       absentSince = undefined;
       closedReported = false;
     } else if (present || absentSince !== undefined) {
@@ -98,60 +78,54 @@ export const createBrowserGate = ({
     }
   };
 
-  /** Present, or gone too briefly to call it closed. */
-  const looksPresent = () =>
-    present ||
-    (absentSince !== undefined && now() - absentSince < BROWSER_CLOSE_GRACE_MS);
-
   return {
-    get openedAt() {
-      return openedAt;
-    },
-    update: (state) => {
-      trackPresence(state);
+    update: (state: Checkout.State): BrowserGateAction[] => {
+      trackPresence(state.browser);
+      const time = now();
       const needs = pendingNeeds(state);
-      const pending = new Set(needs.map(needKey));
-      for (const key of handled) if (!pending.has(key)) handled.delete(key);
+      const keys = new Set(needs.map(needKey));
+      for (const key of handled) if (!keys.has(key)) handled.delete(key);
+      // Present, or gone too briefly to call it closed.
+      const looksPresent =
+        present ||
+        (absentSince !== undefined &&
+          time - absentSince < BROWSER_CLOSE_GRACE_MS);
+      const closed = !looksPresent && absentSince !== undefined;
+      const ask = (need: SetupNeed, reason: AskReason): BrowserGateAction => ({
+        type: "ask",
+        reason,
+        need,
+        ...(reason === "recently-opened" && {
+          openedAgoMs: time - openedAt!,
+        }),
+      });
       const actions: BrowserGateAction[] = [];
-
-      // The tab closed while the user had something to answer there.
-      if (!looksPresent() && absentSince !== undefined && !closedReported) {
+      if (closed && !closedReported) {
+        // The tab closed while the user had something to answer there.
         closedReported = true;
-        for (const need of needs) {
-          if (!handled.has(needKey(need))) continue;
-          actions.push({ type: "ask", reason: "browser-closed", need });
-        }
+        for (const need of needs)
+          if (handled.has(needKey(need)))
+            actions.push(ask(need, "browser-closed"));
       }
 
       const fresh = needs.filter((need) => !handled.has(needKey(need)));
       for (const need of fresh) handled.add(needKey(need));
-      if (fresh.length === 0 || looksPresent()) return actions;
-
+      if (fresh.length === 0 || looksPresent) return actions;
       const target = canOpen ? url(state) : undefined;
-      if (target === undefined) {
-        for (const need of fresh)
-          actions.push({ type: "ask", reason: "no-browser", need });
-        return actions;
-      }
-      const time = now();
-      const mayOpen =
+      if (target === undefined)
+        return [...actions, ...fresh.map((need) => ask(need, "no-browser"))];
+      if (
         openedAt === undefined ||
-        (time - openedAt >= guardMs && joinedSinceOpen);
-      if (mayOpen) {
+        (time - openedAt >= BROWSER_REOPEN_GUARD_MS && joinedSinceOpen)
+      ) {
         openedAt = time;
         joinedSinceOpen = false;
         // One tab shows every waiting question.
-        actions.push({ type: "open", url: target, need: fresh[0]! });
-        return actions;
+        return [...actions, { type: "open", url: target, need: fresh[0]! }];
       }
-      for (const need of fresh)
-        actions.push({
-          type: "ask",
-          reason: "recently-opened",
-          need,
-          openedAgoMs: time - openedAt!,
-        });
-      return actions;
+      const reason =
+        closed && joinedSinceOpen ? "browser-closed" : "recently-opened";
+      return [...actions, ...fresh.map((need) => ask(need, reason))];
     },
   };
 };

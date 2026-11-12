@@ -9,7 +9,6 @@ import {
   followedUpSinceProposal,
   initialCheckoutState,
   isAgentPresent,
-  isBrowserPresent,
   openInputs,
   parseChoiceAnswer,
   parseModelAnswer,
@@ -63,16 +62,13 @@ describe("CheckoutHost", () => {
     expect(host.state.browser).toEqual({ lastSeenAt: null, connected: false });
     await host.commands["checkout/create"](seed);
     await host.commands["browser/heartbeat"]();
-    expect(isBrowserPresent(host.state)).toBe(true);
+    expect(host.state.browser).toEqual({
+      lastSeenAt: expect.any(Number),
+      connected: true,
+    });
     expect(isAgentPresent(host.state)).toBe(false);
     await host.commands["browser/bye"]();
     expect(host.state.browser!.connected).toBe(false);
-    expect(isBrowserPresent(host.state)).toBe(false);
-    await host.commands["browser/heartbeat"]();
-    expect(isBrowserPresent(host.state)).toBe(true);
-    expect(
-      isBrowserPresent(host.state, host.state.browser!.lastSeenAt! + 20_000),
-    ).toBe(false);
   });
 
   it("restores a snapshot from before browser presence with the page absent", () => {

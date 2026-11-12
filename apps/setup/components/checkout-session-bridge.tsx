@@ -89,27 +89,25 @@ export const useBrowserPresence = (
 ) => {
   const latest = useRef(commands);
   latest.current = commands;
-  const last = useRef(0);
-  const send = (name: "browser/heartbeat" | "browser/bye") => {
-    try {
-      latest.current[name]().catch(() => {});
-    } catch {
-      // A host without the command; presence is optional.
-    }
-  };
-  const beat = (force = false) => {
-    const now = Date.now();
-    if (!force && now - last.current < BROWSER_HEARTBEAT_MS - 500) return;
-    last.current = now;
-    send("browser/heartbeat");
-  };
-  const beatRef = useRef(beat);
-  beatRef.current = beat;
+  const beat = useRef<(force?: boolean) => void>(undefined);
   useEffect(() => {
-    beatRef.current(true);
-    const timer = setInterval(() => beatRef.current(), BROWSER_HEARTBEAT_MS);
+    let last = 0;
+    const send = (name: "browser/heartbeat" | "browser/bye") => {
+      try {
+        latest.current[name]().catch(() => {});
+      } catch {
+        // A host without the command; presence is optional.
+      }
+    };
+    beat.current = (force = false) => {
+      if (!force && Date.now() - last < BROWSER_HEARTBEAT_MS - 500) return;
+      last = Date.now();
+      send("browser/heartbeat");
+    };
+    beat.current(true);
+    const timer = setInterval(() => beat.current?.(), BROWSER_HEARTBEAT_MS);
     const onVisible = () => {
-      if (document.visibilityState === "visible") beatRef.current(true);
+      if (document.visibilityState === "visible") beat.current?.(true);
     };
     const bye = () => send("browser/bye");
     document.addEventListener("visibilitychange", onVisible);
@@ -120,11 +118,8 @@ export const useBrowserPresence = (
       window.removeEventListener("pagehide", bye);
       bye();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
   }, []);
-  useEffect(() => {
-    beatRef.current();
-  }, [state]);
+  useEffect(() => beat.current?.(), [state]);
 };
 
 /** Holds the browser's agent link for one session and reports what it knows. The link outlives the session, so the wire may still carry the previous checkout until this session's create lands; only this session's checkout is reported. */

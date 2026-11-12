@@ -1,16 +1,6 @@
 import { spawn } from "node:child_process";
-import { connectCheckout } from "setup-agent";
-import type { Checkout, CheckoutClient } from "setup-agent";
+import type { Checkout } from "setup-agent";
 import { parseSetupUrl } from "setup-agent/cli";
-import {
-  createSetupId,
-  setupBriefing,
-  setupPageUrl,
-  startSetupSession,
-} from "setup-agent/sdk";
-import type { SetupSession } from "setup-agent/sdk";
-
-export { createSetupId, setupPageUrl };
 
 /** How an agent runs setup commands: `<SETUP_COMMAND> <url> <command>`. */
 export const SETUP_COMMAND = "npx assistant-ui@latest setup";
@@ -121,39 +111,6 @@ export const resolveEndpoints = (
       DEFAULT_SETUP_APP_URL,
   ),
 });
-
-export type StartedSetup = SetupSession;
-
-/**
- * Opens a new link on the setup server, creates a setup on it and starts
- * planning. Opens no browser; the stream does once the setup needs the user.
- */
-export const startSetup = ({
-  endpoints,
-  products,
-  env = process.env,
-  connect = connectCheckout,
-}: {
-  endpoints: SetupEndpoints;
-  products: Checkout.ProductSeed[];
-  env?: NodeJS.ProcessEnv;
-  connect?: (url: string) => Promise<CheckoutClient>;
-}): Promise<StartedSetup> =>
-  startSetupSession({
-    server: endpoints.setupServer,
-    setupAppUrl: endpoints.setupAppUrl,
-    products,
-    env,
-    connect,
-  });
-
-/** What the agent reads first in the output of `assistant-ui setup`, which keeps running as the stream. */
-export const agentBriefing = (setup: StartedSetup, canOpen = true) =>
-  setupBriefing(setup, {
-    command: SETUP_COMMAND,
-    name: "assistant-ui setup",
-    canOpen,
-  });
 
 /** The prompt a person pastes into a coding agent, or the one it starts with. */
 export const setupPrompt = (products?: readonly string[]) => {

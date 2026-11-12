@@ -15,58 +15,9 @@ type AgentInstructionsOptions = {
   };
 };
 
-type AnswerOptions = {
-  note?: string;
-  feedback?: string;
-  dismiss?: boolean;
-};
-
-type AnswerResult = {
-  ok: true;
-  id: string;
-  status: "answered" | "dismissed";
-} | {
-  ok: true;
-  id: "plan";
-  decision: "approve" | "revise";
-} | {
-  ok: true;
-  id: "finish";
-  status: "done";
-};
-
 type AskReason = "browser-closed" | "no-browser" | "recently-opened";
 
-declare const BROWSER_CLOSE_GRACE_MS: number;
-
 declare const BROWSER_HEARTBEAT_MS = 5000;
-
-declare const BROWSER_PRESENCE_MS = 20000;
-
-declare const BROWSER_REOPEN_GUARD_MS = 30000;
-
-type BrowserGate = {
-  update: (state: Checkout.State) => BrowserGateAction[];
-  readonly openedAt: number | undefined;
-};
-
-type BrowserGateAction = {
-  type: "open";
-  url: string;
-  need: SetupNeed;
-} | {
-  type: "ask";
-  reason: AskReason;
-  need: SetupNeed;
-  openedAgoMs?: number;
-};
-
-type BrowserGateOptions = {
-  url: (state: Checkout.State) => string | undefined;
-  canOpen?: boolean;
-  now?: () => number;
-  guardMs?: number;
-};
 
 declare const CODING_AGENTS: readonly CodingAgent[];
 
@@ -314,20 +265,18 @@ type CodingAgent = {
 
 type FollowSetupOptions = {
   print?: (events: StreamEvent[]) => void;
-  browser?: {
-    url: (state: Checkout.State) => string | undefined;
-    open: (url: string) => void;
-    canOpen?: boolean;
-    now?: () => number;
-    guardMs?: number;
-  };
-  answerCommand?: string;
   agent?: {
     cwd?: string;
     kind?: string;
   };
-  heartbeatMs?: number;
-  tickMs?: number;
+  browser?: {
+    setupAppUrl: string;
+    linkId: string;
+    answerCommand: string;
+    open?: (url: string) => void;
+    canOpen?: boolean;
+    now?: () => number;
+  };
 };
 
 declare const HELP: string;
@@ -423,40 +372,27 @@ type ResourceElement<V> = {
   readonly deps?: readonly unknown[];
 };
 
-type RunAgentSetupOptions = StartSetupSessionOptions & SetupBriefingOptions & {
+type RunAgentSetupOptions = {
+  server: string;
+  setupAppUrl: string;
+  products: Checkout.ProductSeed[];
+  command: string;
+  name?: string;
+  canOpen?: boolean;
   open?: (url: string) => void;
-  write?: (text: string) => void;
   onSession?: (session: SetupSession) => void;
-  stream?: Omit<FollowSetupOptions, "answerCommand" | "browser">;
+  write?: (text: string) => void;
+  env?: NodeJS.ProcessEnv;
+  connect?: (url: string) => Promise<CheckoutClient>;
+  stream?: Pick<FollowSetupOptions, "agent" | "print">;
 };
 
 type RunSetupCommandOptions = {
   command?: string;
   browser?: {
     setupAppUrl: string;
-    open?: (url: string) => void;
     canOpen?: boolean;
   };
-};
-
-type SetupBriefingOptions = {
-  command: string;
-  name?: string;
-  canOpen?: boolean;
-};
-
-type SetupNeed = {
-  id: string;
-  kind: "input";
-  input: Checkout.Input;
-} | {
-  id: "plan";
-  kind: "plan";
-  plan: Checkout.Plan;
-} | {
-  id: "finish";
-  kind: "finish";
-  completion: Checkout.Completion;
 };
 
 type SetupSession = {
@@ -465,20 +401,6 @@ type SetupSession = {
   agentUrl: string;
   browserUrl: string;
   products: Checkout.ProductSeed[];
-};
-
-type SetupStream = {
-  stop: () => Promise<void>;
-  readonly gate: BrowserGate | undefined;
-};
-
-type StartSetupSessionOptions = {
-  server: string;
-  setupAppUrl: string;
-  products: Checkout.ProductSeed[];
-  instructions?: string;
-  env?: NodeJS.ProcessEnv;
-  connect?: (url: string) => Promise<CheckoutClient>;
 };
 
 type StreamEvent = {
@@ -536,8 +458,6 @@ type TerminalQuestion = {
 
 declare const agentInstructions: (setupUrl: string, options?: AgentInstructionsOptions) => string;
 
-declare const answerNeed: (client: Pick<CheckoutClient, "commands" | "state">, id: string, value: string | undefined, options?: AnswerOptions) => Promise<AnswerResult>;
-
 declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Checkout.InputSeed & {
   stepId?: string;
 };
@@ -545,14 +465,10 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { AgentInstructionsOptions, CODING_AGENTS, CodingAgent, HELP, INSTRUCTIONS, RunSetupCommandOptions, StreamEvent, agentInstructions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { AgentInstructionsOptions, CODING_AGENTS, CodingAgent, HELP, INSTRUCTIONS, RunSetupCommandOptions, agentInstructions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
-
-declare const createBrowserGate: (_param0: BrowserGateOptions) => BrowserGate;
-
-declare const createSetupId: (length?: number) => string;
 
 declare const currentPlan: (state: Checkout.State) => Checkout.Plan | undefined;
 
@@ -564,30 +480,19 @@ declare const findCommand: (commands: readonly string[], env?: NodeJS.ProcessEnv
 
 declare const finishProposed: (state: Checkout.State) => boolean;
 
-declare const followSetup: (client: Pick<CheckoutClient, "commands" | "state" | "subscribe">, options?: FollowSetupOptions) => Promise<SetupStream>;
-
 declare const followedUpSinceProposal: (state: Checkout.State) => boolean;
-
-declare const formatTerminalQuestion: (question: TerminalQuestion) => string;
-
-declare const gateEvent: (action: BrowserGateAction, _param1: {
-  answerCommand: string;
-  pageUrl?: string;
-}) => StreamEvent;
 
 declare namespace entry_host_exports {
   export { Checkout, CheckoutHost };
 }
 
 declare namespace entry_root_exports {
-  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, BROWSER_HEARTBEAT_MS, BROWSER_PRESENCE_MS, Checkout, CheckoutClient, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isBrowserPresent, isClosed, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
+  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, BROWSER_HEARTBEAT_MS, Checkout, CheckoutClient, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
 }
 
 declare const initialCheckoutState: () => Checkout.State;
 
 declare const isAgentPresent: (state: Checkout.State, now?: number) => boolean;
-
-declare const isBrowserPresent: (state: Checkout.State, now?: number) => boolean;
 
 declare const isClosed: (state: Checkout.State) => boolean;
 
@@ -609,11 +514,7 @@ declare const isValidModelAnswer: (input: Checkout.Input, answer: string) => boo
 
 declare const main: (argv: readonly string[]) => Promise<void>;
 
-declare const needKey: (need: SetupNeed) => string;
-
 declare const openInputs: (state: Checkout.State) => Checkout.Input[];
-
-declare const openUrl: (url: string, env?: NodeJS.ProcessEnv) => void;
 
 declare const parseChoiceAnswer: (answer: string) => {
   variant?: string;
@@ -630,8 +531,6 @@ declare const parsePreviewUrl: (value: string | undefined) => URL | undefined;
 
 declare const parseSetupUrl: (value: string) => string;
 
-declare const pendingNeeds: (state: Checkout.State | undefined) => SetupNeed[];
-
 declare const planNeedsReview: (state: Checkout.State) => boolean;
 
 declare const presetInput: (id: PresetId, overrides?: PresetOverrides) => Checkout.InputSeed & {
@@ -640,7 +539,9 @@ declare const presetInput: (id: PresetId, overrides?: PresetOverrides) => Checko
 
 declare const runAgentSetup: (options: RunAgentSetupOptions) => Promise<{
   session: SetupSession;
-  stream: SetupStream;
+  stream: {
+    stop: () => Promise<void>;
+  };
   client: CheckoutClient;
 }>;
 
@@ -649,27 +550,17 @@ declare const runCodingAgent: (agent: CodingAgent, prompt: string) => Promise<nu
 declare const runSetupCommand: (argv: readonly string[], options?: RunSetupCommandOptions) => Promise<void>;
 
 declare namespace entry_sdk_exports {
-  export { AgentInstructionsOptions, AnswerOptions, AnswerResult, AskReason, BROWSER_CLOSE_GRACE_MS, BROWSER_REOPEN_GUARD_MS, BrowserGate, BrowserGateAction, BrowserGateOptions, CheckoutClient, FollowSetupOptions, NeedOption, RunAgentSetupOptions, RunSetupCommandOptions, SetupBriefingOptions, SetupNeed, SetupSession, SetupStream, StartSetupSessionOptions, StreamEvent, TerminalQuestion, agentInstructions, answerNeed, connectCheckout, createBrowserGate, createSetupId, diffEvents, followSetup, formatTerminalQuestion, gateEvent, needKey, openUrl, parseSetupUrl, pendingNeeds, runAgentSetup, runSetupCommand, setupBriefing, setupPageUrl, startSetupSession, terminalQuestion, wireAnswer };
+  export { RunAgentSetupOptions, SetupSession, runAgentSetup };
 }
-
-declare const setupBriefing: (session: SetupSession, _param2: SetupBriefingOptions) => string;
-
-declare const setupPageUrl: (setupAppUrl: string, linkId: string, setupId: string) => string;
-
-declare const startSetupSession: (_param3: StartSetupSessionOptions) => Promise<SetupSession>;
 
 declare const stepProgress: (state: Checkout.State) => {
   total: number;
   done: number;
 };
 
-declare const terminalQuestion: (need: SetupNeed) => TerminalQuestion;
-
 declare const upsertEnvLine: (content: string, key: string, value: string) => string;
 
 declare const waitForStart: (client: Pick<CheckoutClient, "state" | "subscribe">) => Promise<Checkout.Status>;
-
-declare const wireAnswer: (input: Checkout.Input, value: string) => string;
 
 declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>, projectRoot?: string) => Promise<void>;
 

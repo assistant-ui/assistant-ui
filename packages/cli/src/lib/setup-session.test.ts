@@ -1,11 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
-import type { CheckoutClient } from "setup-agent";
+import { describe, expect, it } from "vitest";
 import {
-  agentBriefing,
   boxed,
   clipboardCommands,
   copyToClipboard,
-  createSetupId,
   DEFAULT_DOCS_URL,
   DEFAULT_SETUP_APP_URL,
   DEFAULT_SETUP_SERVER,
@@ -13,9 +10,7 @@ import {
   parseProducts,
   resolveEndpoints,
   resolveProducts,
-  setupPageUrl,
   setupPrompt,
-  startSetup,
 } from "./setup-session";
 
 describe("parseProducts", () => {
@@ -132,93 +127,12 @@ describe("resolveEndpoints", () => {
     expect(DEFAULT_SETUP_APP_URL).toBe("https://setup.assistant-ui.com");
     expect(DEFAULT_SETUP_SERVER).toBe("https://checkout.assistant-ui.com");
     expect(DEFAULT_DOCS_URL).toBe("https://www.assistant-ui.com");
-    expect(setupPageUrl(DEFAULT_SETUP_APP_URL, "abcd1234", "efgh5678")).toBe(
-      "https://setup.assistant-ui.com/#link=abcd1234&setup=efgh5678",
-    );
   });
 
   it("refuses plain http off this machine", () => {
     expect(() => resolveEndpoints({ docsUrl: "http://evil.test" }, {})).toThrow(
       "https",
     );
-  });
-});
-
-describe("startSetup", () => {
-  it("creates the setup on a new link and begins its plan", async () => {
-    const calls: [string, unknown][] = [];
-    const dispose = vi.fn();
-    const commands = new Proxy(
-      {},
-      {
-        get: (_, name: string) => async (params: unknown) => {
-          calls.push([name, params]);
-        },
-      },
-    );
-    const connect = vi.fn(
-      async () => ({ commands, dispose }) as unknown as CheckoutClient,
-    );
-    const products = [{ slug: "assistant-ui", name: "assistant-ui" }];
-    const setup = await startSetup({
-      endpoints: {
-        docsUrl: "https://docs.test",
-        setupServer: "https://checkout.test",
-        setupAppUrl: "https://setup.test",
-      },
-      products,
-      env: { CLAUDECODE: "1" },
-      connect,
-    });
-    expect(setup.linkId).toMatch(/^[A-Za-z0-9]{12}$/);
-    expect(setup.agentUrl).toBe(`https://checkout.test/${setup.linkId}`);
-    expect(connect).toHaveBeenCalledWith(setup.agentUrl);
-    expect(setup.browserUrl).toBe(
-      `https://setup.test/#link=${setup.linkId}&setup=${setup.setupId}`,
-    );
-    expect(calls).toEqual([
-      ["checkout/create", { id: setup.setupId, products }],
-      ["checkout/begin-plan", undefined],
-      ["agent/intro", { kind: "claude" }],
-    ]);
-    expect(dispose).toHaveBeenCalled();
-  });
-});
-
-describe("agentBriefing", () => {
-  const setup = {
-    linkId: "abc",
-    setupId: "def",
-    agentUrl: "https://setup.test/abc",
-    browserUrl: setupPageUrl("https://setup.test", "abc", "def"),
-    products: [{ slug: "assistant-ui", name: "assistant-ui" }],
-  };
-
-  it("tells the agent to keep setup running in the background as its stream", () => {
-    const briefing = agentBriefing(setup);
-    expect(briefing).toMatch(/^assistant-ui setup is running\./);
-    expect(briefing).toContain("run_in_background");
-    expect(briefing).toContain(
-      "npx assistant-ui@latest setup https://setup.test/abc stream",
-    );
-    expect(briefing).toContain(
-      "npx assistant-ui@latest setup https://setup.test/abc <command>",
-    );
-    expect(briefing).toContain('"input.needed"');
-    expect(briefing).toContain("opens the user's browser by itself");
-    expect(briefing).not.toContain("npx setup-agent");
-    expect(briefing).not.toContain("start a persistent Monitor");
-    expect(briefing).not.toContain("click Begin plan");
-    expect(briefing).toContain(setup.browserUrl);
-    expect(briefing).toContain('"status":"planning"');
-  });
-
-  it("gives the agent the page to share under --no-open", () => {
-    const briefing = agentBriefing(setup, false);
-    expect(briefing).toContain(
-      `Setup will not open a browser (--no-open). Give the user ${setup.browserUrl} once`,
-    );
-    expect(briefing).not.toContain("opens the user's browser by itself");
   });
 });
 
@@ -267,11 +181,4 @@ describe("the prompt for a person", () => {
       );
     },
   );
-});
-
-describe("createSetupId", () => {
-  it("uses the browser's alphabet and length", () => {
-    expect(createSetupId()).toMatch(/^[A-Za-z0-9]{12}$/);
-    expect(createSetupId()).not.toBe(createSetupId());
-  });
 });

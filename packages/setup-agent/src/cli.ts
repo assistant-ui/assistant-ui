@@ -35,11 +35,9 @@ import {
 } from "./protocol";
 import type { Checkout } from "./protocol";
 import { answerNeed } from "./needs";
-import { openUrl, setupPageUrl } from "./session";
 import { answerFields, followSetup } from "./stream";
 
 export { diffEvents } from "./stream";
-export type { StreamEvent } from "./stream";
 
 const DEFAULT_COMMAND = "npx setup-agent";
 
@@ -779,16 +777,8 @@ const answered = (input: Checkout.Input) => ({
 export type RunSetupCommandOptions = {
   /** How the agent invokes these commands, before the URL; `npx setup-agent` by default. */
   command?: string;
-  /**
-   * Lets "stream" open the setup page when the setup waits on the user. The
-   * page is `<setupAppUrl>/#link=<link>&setup=<setup>`; `--setup-app-url`
-   * sets it from the command line.
-   */
-  browser?: {
-    setupAppUrl: string;
-    open?: (url: string) => void;
-    canOpen?: boolean;
-  };
+  /** Lets "stream" open the setup page when the setup waits on the user, as `--setup-app-url` does. */
+  browser?: { setupAppUrl: string; canOpen?: boolean };
 };
 
 const runStream = async (
@@ -799,18 +789,14 @@ const runStream = async (
 ) => {
   const setupAppUrl =
     options.browser?.setupAppUrl ?? flagText(flags, "setup-app-url");
-  const command = options.command ?? DEFAULT_COMMAND;
   const linkId = new URL(url).pathname.split("/").filter(Boolean).at(-1);
   const stream = await followSetup(client, {
-    answerCommand: `${command} ${shellWord(url)} answer`,
     ...(setupAppUrl !== undefined &&
       linkId !== undefined && {
         browser: {
-          url: (state: Checkout.State) =>
-            state.id === null
-              ? undefined
-              : setupPageUrl(parseSetupUrl(setupAppUrl), linkId, state.id),
-          open: options.browser?.open ?? openUrl,
+          setupAppUrl: parseSetupUrl(setupAppUrl),
+          linkId,
+          answerCommand: `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} answer`,
           canOpen: (options.browser?.canOpen ?? true) && !flags.has("no-open"),
         },
       }),

@@ -5,34 +5,8 @@ import type { Checkout } from "./protocol";
 import type { CheckoutClient } from "./client";
 
 describe("setup-agent/sdk", () => {
-  it("exports the pieces a CLI embeds setup with", () => {
-    expect(Object.keys(sdk).sort()).toEqual(
-      [
-        "BROWSER_CLOSE_GRACE_MS",
-        "BROWSER_REOPEN_GUARD_MS",
-        "agentInstructions",
-        "answerNeed",
-        "connectCheckout",
-        "createBrowserGate",
-        "createSetupId",
-        "diffEvents",
-        "followSetup",
-        "formatTerminalQuestion",
-        "gateEvent",
-        "needKey",
-        "openUrl",
-        "parseSetupUrl",
-        "pendingNeeds",
-        "runAgentSetup",
-        "runSetupCommand",
-        "setupBriefing",
-        "setupPageUrl",
-        "startSetupSession",
-        "terminalQuestion",
-        "wireAnswer",
-      ].sort(),
-    );
-    expect(sdk.BROWSER_REOPEN_GUARD_MS).toBe(30_000);
+  it("exports only what a CLI embeds setup with", () => {
+    expect(Object.keys(sdk)).toEqual(["runAgentSetup"]);
   });
 
   it("runs a whole agent setup: session, briefing, then a stream that opens the page on the first question", async () => {
@@ -92,6 +66,14 @@ describe("setup-agent/sdk", () => {
       expect(out).toContain(
         `npx my-tool setup https://checkout.test/${session.linkId} stream`,
       );
+      expect(out).toContain("run_in_background");
+      expect(out).toContain('"input.needed"');
+      expect(out).toContain('"browser.opened"');
+      expect(out).not.toContain("start a persistent Monitor");
+      expect(out).toContain("opens the user's browser by itself");
+      expect(out).not.toContain("npx setup-agent");
+      expect(out).not.toContain("click Begin plan");
+      expect(out).toContain(session.browserUrl);
       expect(open).not.toHaveBeenCalled();
       expect(calls.map(([name]) => name)).toEqual([
         "checkout/create",
@@ -99,6 +81,7 @@ describe("setup-agent/sdk", () => {
         "agent/intro",
         "agent/hello",
       ]);
+      expect(connect).toHaveBeenCalledTimes(1);
 
       state = {
         ...state,

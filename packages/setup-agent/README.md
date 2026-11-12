@@ -60,14 +60,14 @@ const { stream, client } = await runAgentSetup({
 process.on("SIGINT", () => stream.stop().finally(() => client.dispose()));
 ```
 
-`runAgentSetup` starts a session, prints the briefing and keeps running as the stream. Route `<tool> setup <url> ...` to `runSetupCommand(argv, { command, browser: { setupAppUrl } })` for the other steps. The pieces: `startSetupSession`, `followSetup` (events, heartbeats, browser gate), `createBrowserGate`, `pendingNeeds`, `terminalQuestion`, `answerNeed`, `setupBriefing` and `agentInstructions`.
+`runAgentSetup` starts a session, prints the briefing and keeps running as the stream. Route `<tool> setup <url> ...` to `runSetupCommand(argv, { command, browser: { setupAppUrl } })` from `setup-agent/cli` for the other steps.
 
 The browser opens only when the setup waits on the user (an open input, a proposed plan, a proposal to close). The joined page sends `browser/heartbeat` every 5s and `browser/bye` on pagehide; it counts as present for 20s after a beat. Setup:
 
 - opens the page for the first need, one tab for everything waiting;
 - opens nothing while a joined page is present;
 - never opens a second tab within 30s of the last, and never reopens a tab that has not joined; it prints `input.needed` (`reason: "recently-opened"`) so the agent can ask in its own chat;
-- prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, and opens it again for the next need;
+- prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, or a need arrives inside the 30s after it left; the next need after that reopens it;
 - under `--no-open`, prints `input.needed` (`reason: "no-browser"`) for every need.
 
 Each `input.needed` carries the question, its options and the `answer` command. On a worker without browser presence, setup opens once and then leaves the rest to the agent.
