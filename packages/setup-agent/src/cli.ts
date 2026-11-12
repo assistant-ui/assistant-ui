@@ -35,7 +35,7 @@ import {
 } from "./protocol";
 import type { Checkout } from "./protocol";
 import { answerNeed } from "./needs";
-import { answerFields, followSetup } from "./stream";
+import { answerFields, followSetup, shellWord } from "./stream";
 
 export { diffEvents } from "./stream";
 
@@ -119,12 +119,6 @@ export const parseSetupUrl = (value: string): string => {
   }
   return href;
 };
-
-/** `value` as one shell word, quoted only when it holds more than plain URL characters. */
-const shellWord = (value: string) =>
-  /^[A-Za-z0-9._~%/:@=+,-]+$/.test(value)
-    ? value
-    : `'${value.replaceAll("'", `'\\''`)}'`;
 
 export type AgentInstructionsOptions = {
   /** How the agent invokes the setup commands, before the URL; `npx setup-agent` by default. */

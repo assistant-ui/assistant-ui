@@ -7,6 +7,7 @@ import {
   isClosed,
   isValidEntryPointAnswer,
   isValidModelAnswer,
+  parseModelAnswer,
   openInputs,
   parseMultipleAnswer,
 } from "./protocol";
@@ -43,7 +44,7 @@ export const needKey = (need: SetupNeed) =>
   need.kind === "input"
     ? `input:${need.input.id}:${need.input.createdAt}`
     : need.kind === "plan"
-      ? `plan:${need.plan.revision}`
+      ? `plan:${need.plan.submittedAt}`
       : `finish:${need.completion.proposedAt}`;
 
 type NeedOption = { id: string; label: string; description?: string };
@@ -164,7 +165,8 @@ const wireAnswer = (input: Checkout.Input, value: string) => {
       throw new Error(
         `a model answer names one of the providers: ${ids(input)}`,
       );
-    return json;
+    // Only the documented fields; anything else (a key, say) never reaches the setup.
+    return JSON.stringify(parseModelAnswer(json));
   }
   if (input.kind === "entry-point") {
     if (!isValidEntryPointAnswer(input, trimmed))

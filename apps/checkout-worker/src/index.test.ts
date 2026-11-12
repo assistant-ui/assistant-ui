@@ -129,7 +129,12 @@ describe("secret lifecycle", () => {
       connected: false,
     });
     await client.commands["browser/heartbeat"]();
-    await vi.waitFor(() => expect(client.state?.browser?.connected).toBe(true));
+    await vi.waitFor(() =>
+      expect(client.state?.browser).toEqual({
+        connected: true,
+        lastSeenAt: expect.any(Number),
+      }),
+    );
     // Commands every released CLI sends keep working beside it.
     await client.commands["agent/hello"]({ cwd: "/app" });
     await client.commands["agent/heartbeat"]();

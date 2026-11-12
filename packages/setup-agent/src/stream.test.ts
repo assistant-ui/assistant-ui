@@ -117,7 +117,7 @@ describe("followSetup", () => {
     expect(t.calls.at(-1)).toBe("agent/bye");
   });
 
-  it("opens the page for the first question, reopens after a close, guards within 30s, and finishes from the agent", async () => {
+  it("opens the page for the first question, reopens after a close, guards within 30s, and takes an answer from the agent", async () => {
     const t = await start();
 
     t.ask("Which package manager?");

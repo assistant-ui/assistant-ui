@@ -110,12 +110,19 @@ export const useBrowserPresence = (
       if (document.visibilityState === "visible") beat.current?.(true);
     };
     const bye = () => send("browser/bye");
+    // A page kept in the back/forward cache has not closed; it beats again when shown.
+    const onHide = (event: PageTransitionEvent) => {
+      if (!event.persisted) bye();
+    };
+    const onShow = () => beat.current?.(true);
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("pagehide", bye);
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", onShow);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("pagehide", bye);
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pageshow", onShow);
       bye();
     };
   }, []);

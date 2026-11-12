@@ -9,7 +9,7 @@ import { agentInstructions } from "./cli";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import type { Checkout } from "./protocol";
-import { followSetup, setupPageUrl } from "./stream";
+import { followSetup, setupPageUrl, shellWord } from "./stream";
 import type { FollowSetupOptions } from "./stream";
 
 /** A random id in the alphabet and length the setup page uses for its own. */
@@ -21,11 +21,6 @@ const createSetupId = () =>
         randomInt(62)
       ]!,
   ).join("");
-
-const shellWord = (value: string) =>
-  /^[A-Za-z0-9._~%/:@=+,-]+$/.test(value)
-    ? value
-    : `'${value.replaceAll("'", `'\\''`)}'`;
 
 export type SetupSession = {
   linkId: string;
@@ -129,6 +124,7 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
     );
     const stream = await followSetup(client, {
       ...options.stream,
+      agent: { ...(kind !== undefined && { kind }), ...options.stream?.agent },
       browser: {
         setupAppUrl: options.setupAppUrl,
         linkId,

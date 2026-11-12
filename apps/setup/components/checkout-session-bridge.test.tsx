@@ -151,7 +151,11 @@ describe("CheckoutSessionBridge", () => {
     // State arriving between ticks does not beat more often than the interval.
     setWire({ ...initialCheckoutState(), id: "s2", createdAt: 1 });
     expect(wire.heartbeat).toHaveBeenCalledTimes(2);
-    window.dispatchEvent(new Event("pagehide"));
+    window.dispatchEvent(
+      new PageTransitionEvent("pagehide", { persisted: true }),
+    );
+    expect(wire.bye).not.toHaveBeenCalled();
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
     expect(wire.bye).toHaveBeenCalledTimes(1);
     view.unmount();
     expect(wire.bye).toHaveBeenCalledTimes(2);

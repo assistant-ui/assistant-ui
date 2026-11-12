@@ -103,7 +103,11 @@ describe("answerNeed", () => {
     );
     await answerNeed(client, "q1", "apps/web", { note: " from chat " });
     await answerNeed(client, "q2", "slack, email");
-    await answerNeed(client, "q3", "anthropic:claude-sonnet-5");
+    await answerNeed(
+      client,
+      "q3",
+      '{"provider":"anthropic","model":"claude-sonnet-5","apiKey":"sk-x"}',
+    );
     await answerNeed(client, "q4", "add");
     await answerNeed(client, "q5", undefined, { dismiss: true });
     await answerNeed(client, "plan", "revise", { feedback: "use pnpm" });

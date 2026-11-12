@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import spawn from "cross-spawn";
 import { detectAgentKind } from "./agents";
 import { createBrowserGate } from "./browser";
 import type { AskReason, BrowserGateAction } from "./browser";
@@ -159,6 +159,12 @@ export const openUrl = (url: string) => {
   child.unref();
 };
 
+/** `value` as one shell word, quoted only when it holds more than plain URL characters. */
+export const shellWord = (value: string) =>
+  /^[A-Za-z0-9._~%/:@=+,-]+$/.test(value)
+    ? value
+    : `'${value.replaceAll("'", `'\\''`)}'`;
+
 const ASK_MESSAGES: Record<
   AskReason,
   (question: string, context: { agoSeconds: number; page: string }) => string
@@ -280,10 +286,17 @@ export const followSetup = async (
       flush();
     }, 1_000);
   const kind = agent?.kind ?? detectAgentKind();
-  await client.commands["agent/hello"]({
-    cwd: agent?.cwd ?? process.cwd(),
-    ...(kind !== undefined && { kind }),
-  });
+  try {
+    await client.commands["agent/hello"]({
+      cwd: agent?.cwd ?? process.cwd(),
+      ...(kind !== undefined && { kind }),
+    });
+  } catch (error) {
+    clearInterval(tick);
+    clearTimeout(timer);
+    unsubscribe();
+    throw error;
+  }
   const heartbeat = setInterval(() => {
     void client.commands["agent/heartbeat"]().catch(() => {});
   }, AGENT_HEARTBEAT_MS);

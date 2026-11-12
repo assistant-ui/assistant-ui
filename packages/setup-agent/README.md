@@ -54,7 +54,7 @@ const { stream, client } = await runAgentSetup({
   server: "https://checkout.assistant-ui.com",
   setupAppUrl: "https://setup.assistant-ui.com",
   products: [{ slug: "assistant-ui", name: "assistant-ui" }],
-  command: "npx my-tool setup", // how the agent runs `<command> <url> <step>`
+  command: "npx my-tool setup", // the agent runs `npx my-tool setup <url> <command>`
   name: "my-tool setup",
 });
 process.on("SIGINT", () => stream.stop().finally(() => client.dispose()));
@@ -68,7 +68,7 @@ The browser opens only when the setup waits on the user (an open input, a propos
 - opens nothing while a joined page is present;
 - never opens a second tab within 30s of the last, and never reopens a tab that has not joined; it prints `input.needed` (`reason: "recently-opened"`) so the agent can ask in its own chat;
 - prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, or a need arrives inside the 30s after it left; the next need after that reopens it;
-- under `--no-open`, prints `input.needed` (`reason: "no-browser"`) for every need.
+- under `--no-open` (with `--setup-app-url` for the bin), prints `input.needed` (`reason: "no-browser"`) for every need.
 
 Each `input.needed` carries the question, its options and the `answer` command. On a worker without browser presence, setup opens once and then leaves the rest to the agent.
 

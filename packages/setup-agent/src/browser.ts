@@ -51,13 +51,8 @@ export const createBrowserGate = ({
     if (browser === undefined) return;
     const time = now();
     if (browser.lastSeenAt !== lastBeat) {
-      // The first state carries an old beat; judge that one by the server's clock.
-      beatArrivedAt =
-        browser.lastSeenAt === null
-          ? undefined
-          : lastBeat === undefined
-            ? Math.min(time, browser.lastSeenAt)
-            : time;
+      // Every beat, the first one included, counts from when it arrived here.
+      beatArrivedAt = browser.lastSeenAt === null ? undefined : time;
       lastBeat = browser.lastSeenAt;
     }
     if (
