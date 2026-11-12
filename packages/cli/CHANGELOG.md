@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.134
+
+### Patch Changes
+
+- [#10506](https://github.com/assistant-ui/assistant-ui/pull/10506) [`637f1e1`](https://github.com/assistant-ui/assistant-ui/commit/637f1e1a1b803047edc9a664ddc871b54596b0e8) - fix(cli): scope the agent gate's setup session to the folder a command acts on (`--cwd` and the project directory), key it per project, end it when setup exits or two hours after it starts, and tell the agent to pass `--force` when setup cannot record it ([@Yonom](https://github.com/Yonom))
+
+- [#10329](https://github.com/assistant-ui/assistant-ui/pull/10329) [`ec8321b`](https://github.com/assistant-ui/assistant-ui/commit/ec8321b0f16aa40d03ee51195bace46e43075a27) - Publish `@assistant-ui/vscode` to npm. It runs assistant-ui in a VS Code extension webview: `vscodeFetch` tunnels `fetch` to route handlers in the extension host, and the package also opens links in the browser, stores threads in a Memento, writes the webview HTML with a nonce-based Content Security Policy, and maps the components' theme tokens to VS Code's. `assistant-ui create -t vscode` scaffolds an extension that uses it. ([@bnb](https://github.com/bnb))
+
 ## 0.0.133
 
 ### Patch Changes
