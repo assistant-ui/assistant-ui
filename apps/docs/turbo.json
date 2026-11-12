@@ -17,6 +17,7 @@
         "!.next/cache/**",
         "!.next/dev/**",
         "generated/**",
+        "public/rc/**",
         ".output/**",
         "build/**"
       ],
