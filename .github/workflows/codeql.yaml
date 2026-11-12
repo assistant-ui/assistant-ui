@@ -37,9 +37,9 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Test language selection
+      - name: Test CodeQL workflow scripts
         if: strategy.job-index == 0
-        run: node --test scripts/codeql-language-selection.test.mjs
+        run: node --test scripts/codeql-language-selection.test.mjs scripts/codeql-overlay-prune.test.mjs
 
       # A pull request only analyzes the languages it touches. Pushes and scheduled runs skip this step and analyze all three.
       - name: Select language
@@ -78,3 +78,32 @@ jobs:
         uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # ratchet:github/codeql-action/analyze@v4.38.3
         with:
           category: /language:${{ matrix.language }}
+
+  # Each analysis on main caches an overlay-base database, and pull requests restore only the newest one for their language and CodeQL version, so the older ones only fill the repository's Actions cache.
+  prune-overlay-databases:
+    name: Prune superseded overlay databases
+    needs: analyze
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Delete all but the newest overlay-base database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pattern='-[0-9a-f]{40}-[0-9]+-[0-9]+$'
+          caches=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?ref=$GITHUB_REF&key=codeql-overlay-base-database-&per_page=100" --jq '.actions_caches[] | {id, key, created_at}')
+          jq -r --arg pattern "$pattern" 'select(.key | test($pattern) | not) | "::warning::Left \(.key) in place because its key does not end in a commit, run and attempt."' <<< "$caches"
+          jq -rs --arg pattern "$pattern" 'map(select(.key | test($pattern))) | group_by(.key | sub($pattern; "")) | map(sort_by(.created_at) | .[:-1][]) | .[] | "\(.id) \(.key)"' <<< "$caches" |
+            while read -r id key; do
+              # A prune running for a newer commit may already have deleted it.
+              if ! output=$(gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" 2>&1) &&
+                ! grep -q '(HTTP 404)' <<< "$output"; then
+                echo "$output" >&2
+                exit 1
+              fi
+              echo "Deleted $key"
+            done
