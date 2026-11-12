@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
-import { SearchDialog } from "./search-dialog";
+import { SearchDialog, preloadSearchDialog } from "./lazy-search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS, CLOUD_URL, megaGroups } from "@/lib/constants";
@@ -41,6 +41,8 @@ function SearchButton({
       <button
         type="button"
         onClick={() => onToggle("header")}
+        onPointerEnter={preloadSearchDialog}
+        onFocus={preloadSearchDialog}
         className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
         aria-label="Search"
         aria-keyshortcuts="Meta+K Control+K"
@@ -51,6 +53,8 @@ function SearchButton({
         variant="outline"
         size="sm"
         onClick={() => onToggle("header")}
+        onPointerEnter={preloadSearchDialog}
+        onFocus={preloadSearchDialog}
         className="hidden md:inline-flex"
         aria-keyshortcuts="Meta+K Control+K"
       >

@@ -4,7 +4,14 @@ description: The default for anything measured over time. One series or several,
 ---
 
 import { Example } from "@/components/diagrammatic/example";
-import Flagship from "@/components/diagrammatic/examples/line/flagship";
+import {
+  LineFlagship as Flagship,
+  LineTooltip as Tooltip,
+  LineHighlight as Highlight,
+  LineSelect as Select,
+  LineLive as Live,
+  LineFit as FitExample,
+} from "@/components/diagrammatic/examples.lazy";
 import Basic from "@/components/diagrammatic/examples/line/basic";
 import Series from "@/components/diagrammatic/examples/line/series";
 import Step from "@/components/diagrammatic/examples/line/step";
@@ -17,11 +24,6 @@ import Censor from "@/components/diagrammatic/examples/line/censor";
 import Signed from "@/components/diagrammatic/examples/line/signed";
 import Forecast from "@/components/diagrammatic/examples/line/forecast";
 import Trend from "@/components/diagrammatic/examples/line/trend";
-import Tooltip from "@/components/diagrammatic/examples/line/tooltip";
-import Highlight from "@/components/diagrammatic/examples/line/highlight";
-import Select from "@/components/diagrammatic/examples/line/select";
-import Live from "@/components/diagrammatic/examples/line/live";
-import FitExample from "@/components/diagrammatic/examples/line/fit";
 import Spec from "@/components/diagrammatic/examples/line/spec";
 
 <Example file="line/flagship"><Flagship /></Example>

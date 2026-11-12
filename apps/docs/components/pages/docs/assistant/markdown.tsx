@@ -19,7 +19,7 @@ import {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import ShikiHighlighter from "react-shiki";
+import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import Link from "next/link";
 import { CodeBlock } from "@/components/ui/code-block";
 import { compactMarkdownComponents } from "./compact-markdown-components";
@@ -119,7 +119,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
         lineNumbers
         className="my-2.5"
       >
-        <ShikiHighlighter
+        <DeferredHighlight
           language={language}
           theme={{ dark: "github-dark-default", light: "github-light-default" }}
           addDefaultStyles={false}
@@ -128,7 +128,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
           className={codeSheetReset}
         >
           {trimmed}
-        </ShikiHighlighter>
+        </DeferredHighlight>
       </CodeBlock>
     </CollapsibleCode>
   );

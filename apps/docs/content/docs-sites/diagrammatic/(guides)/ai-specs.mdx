@@ -3,7 +3,7 @@ title: Charts from a model
 description: Let a model emit a chart as JSON, validate it, and draw it with one component, in an assistant-ui thread or anywhere else.
 ---
 
-import { SpecPlayground } from "@/components/diagrammatic/samples-client";
+import { SpecPlayground } from "@/components/diagrammatic/samples-client.lazy";
 
 `diagrammatic/spec` describes every form in the main entry as a serializable spec: the form's `type` plus its data props. A model can write that JSON, `validateSpec` checks it, and `Chart` draws it.
 
