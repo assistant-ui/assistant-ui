@@ -19,8 +19,12 @@ export function buildProgram() {
     .description("add components and dependencies to your project")
     .addCommand(setup)
     .addCommand(addAgentGate(add))
-    .addCommand(addAgentSetupHint(addAgentGate(create)))
-    .addCommand(addAgentSetupHint(addAgentGate(init)))
+    .addCommand(
+      addAgentSetupHint(addAgentGate(create, { projectArgument: true })),
+    )
+    .addCommand(
+      addAgentSetupHint(addAgentGate(init, { projectArgument: true })),
+    )
     .addCommand(mcp)
     .addCommand(codemodCommand)
     .addCommand(upgradeCommand)

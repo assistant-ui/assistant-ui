@@ -2,8 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { setupSessionMarkerPath, shouldGateAgent } from "../lib/agent-gate";
-import { agentOptions, handOffPrompt, setup } from "./setup";
+import {
+  markSetupSession,
+  setupSessionMarkerPath,
+  shouldGateAgent,
+} from "../lib/agent-gate";
+import { agentOptions, gateNote, handOffPrompt, setup } from "./setup";
 
 vi.mock("../lib/setup-session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/setup-session")>()),
@@ -113,36 +117,88 @@ describe("setup", () => {
     ]);
   });
 
-  it("run by an agent, opens a setup session that lets its install steps past the agent gate", async () => {
+  it("run by an agent, opens a setup session for its folder that lets its install steps past the agent gate, and ends it on exit", async () => {
     const env = { ...process.env };
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aui-setup-"));
     vi.spyOn(os, "tmpdir").mockReturnValue(tmp);
     const write = vi
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
+    const exitListeners = process.listeners("exit");
+    const signals = ["SIGHUP", "SIGINT", "SIGTERM"] as const;
+    const signalListeners = signals.map((signal) => process.listeners(signal));
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      // stop() exits once the stream stops.
+    }) as typeof process.exit);
     process.env = { PATH: env.PATH, CLAUDECODE: "1" };
     try {
       expect(shouldGateAgent()).toBe(true);
-      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
       await setup.parseAsync(["--no-open"], { from: "user" });
       const printed = String(write.mock.calls[0]?.[0]);
       expect(printed).toContain("https://setup.test/#link=abc&setup=def");
-      expect(printed).toContain(
-        "If an `npx assistant-ui` command tells you to run setup instead, you are already in it: run that command again with --force.",
-      );
+      expect(printed).toContain(gateNote(true));
       // `init`, `create` and `add` run in the agent's later shells, which share the temp directory.
+      const marker = setupSessionMarkerPath(process.cwd(), tmp);
+      expect(fs.existsSync(marker)).toBe(true);
       expect(shouldGateAgent()).toBe(false);
-      // Setup keeps streaming, so it renews the marker past the gate's TTL.
-      const marker = setupSessionMarkerPath(tmp);
-      fs.rmSync(marker);
+      // Setup removes its marker when it is stopped.
+      process.emit("SIGTERM", "SIGTERM");
+      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+      expect(fs.existsSync(marker)).toBe(false);
       expect(shouldGateAgent()).toBe(true);
-      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
-      expect(shouldGateAgent()).toBe(false);
+      // And on any other exit.
+      markSetupSession({ setupId: "def" });
+      const added = process
+        .listeners("exit")
+        .filter((listener) => !exitListeners.includes(listener));
+      expect(added).toHaveLength(1);
+      added[0]!(0);
+      expect(fs.existsSync(marker)).toBe(false);
     } finally {
-      vi.useRealTimers();
+      for (const listener of process.listeners("exit"))
+        if (!exitListeners.includes(listener))
+          process.off("exit", listener as () => void);
+      signals.forEach((signal, i) => {
+        for (const listener of process.listeners(signal))
+          if (!signalListeners[i]!.includes(listener))
+            process.off(signal, listener as () => void);
+      });
       process.env = env;
       vi.restoreAllMocks();
       fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("tells the agent to pass --force when it cannot record the session", async () => {
+    const env = { ...process.env };
+    vi.spyOn(os, "tmpdir").mockReturnValue(
+      path.join(os.tmpdir(), "aui-setup-missing", "nested"),
+    );
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    const exitListeners = process.listeners("exit");
+    const signals = ["SIGHUP", "SIGINT", "SIGTERM"] as const;
+    const signalListeners = signals.map((signal) => process.listeners(signal));
+    process.env = { PATH: env.PATH, CLAUDECODE: "1" };
+    try {
+      await setup.parseAsync(["--no-open"], { from: "user" });
+      const printed = String(write.mock.calls[0]?.[0]);
+      expect(printed).toContain(gateNote(false));
+      expect(printed).toContain("Add --force");
+      expect(
+        process
+          .listeners("exit")
+          .filter((listener) => !exitListeners.includes(listener)),
+      ).toHaveLength(0);
+    } finally {
+      signals.forEach((signal, i) => {
+        for (const listener of process.listeners(signal))
+          if (!signalListeners[i]!.includes(listener))
+            process.off(signal, listener as () => void);
+      });
+      process.env = env;
+      vi.restoreAllMocks();
     }
   });
 });

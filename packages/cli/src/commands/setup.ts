@@ -10,7 +10,7 @@ import {
 import { runAgentSetup } from "setup-agent/sdk";
 import type { CodingAgent } from "setup-agent/cli";
 import { isRunByAgent } from "../lib/agent-setup-hint";
-import { markSetupSession } from "../lib/agent-gate";
+import { clearSetupSession, markSetupSession } from "../lib/agent-gate";
 import {
   SETUP_COMMAND,
   boxed,
@@ -135,6 +135,16 @@ const runSetupStep = async (args: string[], options: SetupOptions) => {
   });
 };
 
+/**
+ * What the briefing tells the agent about the agent gate. When setup could not
+ * record its session, the gate would stop every step's `init`, `create` and
+ * `add`, so the agent is told up front to pass --force to them.
+ */
+export const gateNote = (sessionRecorded: boolean) =>
+  sessionRecorded
+    ? "If an `npx assistant-ui` command tells you to run setup instead, you are already in it: run that command again with --force."
+    : "assistant-ui could not record this setup session in the temp directory, so the agent gate will not recognize it. Add --force to every `npx assistant-ui` init, create or add command this setup asks you to run.";
+
 /** `setup` for an agent: starts the session and keeps running as its stream. */
 const runForAgent = async (options: SetupOptions) => {
   const endpoints = resolveEndpoints(options);
@@ -142,28 +152,27 @@ const runForAgent = async (options: SetupOptions) => {
     parseProducts(options.products),
     endpoints.docsUrl,
   );
-  const { session, stream, client } = await runAgentSetup({
+  // The steps run `init`, `create` and `add` in later shells; the marker lets them past the agent gate.
+  let marker: string | undefined;
+  const { stream, client } = await runAgentSetup({
     server: endpoints.setupServer,
     setupAppUrl: endpoints.setupAppUrl,
     products,
     command: SETUP_COMMAND,
     name: "assistant-ui setup",
     canOpen: options.open,
-    // The steps run `init`, `create` and `add` in later shells; this lets them past the agent gate.
-    onSession: (session) => markSetupSession({ setupId: session.setupId }),
+    onSession: (session) => {
+      const file = markSetupSession({ setupId: session.setupId });
+      marker = file;
+      // Ends the session on any exit, including errors; signals go through stop below.
+      if (file !== undefined)
+        process.once("exit", () => clearSetupSession(file));
+    },
     write: (text) =>
-      process.stdout.write(
-        `${text}\nIf an \`npx assistant-ui\` command tells you to run setup instead, you are already in it: run that command again with --force.\n`,
-      ),
+      process.stdout.write(`${text}\n${gateNote(marker !== undefined)}\n`),
   });
-  // Setup runs as long as the session, so keep its marker fresh past the gate's TTL.
-  const renew = setInterval(
-    () => markSetupSession({ setupId: session.setupId }),
-    10 * 60 * 1000,
-  );
-  renew.unref();
   const stop = () => {
-    clearInterval(renew);
+    if (marker !== undefined) clearSetupSession(marker);
     void stream.stop().finally(() => {
       client.dispose();
       process.exit(0);
