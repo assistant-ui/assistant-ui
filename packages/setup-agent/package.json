@@ -1,6 +1,6 @@
 {
   "name": "setup-agent",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "A live setup shared between a browser and the coding agent installing the products in it, on Statewire",
   "license": "MIT",
   "homepage": "https://www.assistant-ui.com/",
@@ -24,6 +24,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk.d.ts",
+      "default": "./dist/sdk.js"
     },
     "./host": {
       "types": "./dist/host.d.ts",

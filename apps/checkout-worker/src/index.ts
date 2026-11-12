@@ -252,6 +252,17 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   }
 }
 
+/**
+ * Compatibility window: people run CLIs that are days or weeks old (pnpm's
+ * 24h minimum release age, team gates of 3–7 days), so this worker and the
+ * setup app keep every route, command and state field that `assistant-ui`
+ * and `setup-agent` versions from the last two weeks use. Changes are
+ * additive only, and this worker deploys before a CLI that relies on them
+ * is published. Routes: `/<link>` (statewire, HTTP and WebSocket) and
+ * `/<link>/secret/<input>` (model key deposits). Browser presence
+ * (`browser/heartbeat`, `browser/bye`, `state.browser`) is additive; CLIs
+ * that predate it ignore it, and newer CLIs fall back when it is missing.
+ */
 export default {
   fetch: async (request: Request, env: Env) => {
     if (request.method === "OPTIONS") {

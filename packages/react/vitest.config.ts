@@ -20,7 +20,10 @@ export default defineConfig({
     pool: "threads",
     fsModuleCache: true,
     globals: true,
-    setupFiles: ["./src/tests/setup.ts"],
+    setupFiles: [
+      "./src/tests/setup.ts",
+      "../../scripts/vitest-waitfor-interval.mjs",
+    ],
     typecheck: {
       enabled: true,
       include: ["src/tests/augmentations.test.ts"],

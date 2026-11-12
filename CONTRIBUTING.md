@@ -35,6 +35,12 @@ cd apps/docs
 pnpm dev
 ```
 
+To build the docs and check them for broken internal links (`LINKINATOR_EXTERNAL=1` adds external links, as the weekly run does):
+
+```sh
+NEXT_PUBLIC_AUI_AI_PLAYGROUND_ENABLED=1 NEXT_PUBLIC_WEBMCP_ENABLED=1 pnpm turbo run check:links --filter=@assistant-ui/docs-site
+```
+
 To build the docs and run Lighthouse against the score thresholds in `apps/docs/lighthouserc.yml` (reports land in `apps/docs/.lighthouseci/reports`; set `CHROME_PATH` if Chrome is not installed in its default location):
 
 ```sh

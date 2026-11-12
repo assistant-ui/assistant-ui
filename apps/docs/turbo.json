@@ -38,6 +38,11 @@
         "generated/primitiveDocs.ts"
       ]
     },
+    "check:links": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["LINKINATOR_EXTERNAL"]
+    },
     "check:lighthouse": {
       "dependsOn": ["build"],
       "cache": false,

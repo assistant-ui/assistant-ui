@@ -31,7 +31,7 @@ const expectTalkToAnExpert = (count: number) => {
 };
 
 describe("hero", () => {
-  it("offers the one-line setup prompt and a small manual link when checkout is configured", async () => {
+  it("offers the one-line setup prompt with a menu and a ghost expert link", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -42,19 +42,23 @@ describe("hero", () => {
     const prompt = screen.getByRole("button", {
       name: "Copy the setup prompt for your coding agent",
     });
-    expect(prompt.textContent).toBe(
-      "Tell your coding agent: set up assistant-ui",
-    );
+    expect(prompt.textContent).toBe("install and set up assistant-ui");
+    expect(prompt.textContent).not.toContain("Tell your coding agent");
     fireEvent.click(prompt);
-    expect(writeText).toHaveBeenCalledWith("set up assistant-ui");
-    expect(
-      screen
-        .getByRole("link", { name: "Install manually" })
-        .getAttribute("href"),
-    ).toBe("/docs/installation");
+    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
+    expect(screen.queryByRole("link", { name: "Install manually" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Quick Start" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(prompt.parentElement).toBe(ctaRow());
-    expectTalkToAnExpert(3);
+    const split = prompt.parentElement!;
+    expect(split.parentElement).toBe(ctaRow());
+    expect(
+      split.contains(
+        screen.getByRole("button", { name: "More ways to install" }),
+      ),
+    ).toBe(true);
+    expectTalkToAnExpert(2);
+    const expert = screen.getByRole("button", { name: "Talk to an expert" });
+    expect(expert.className).toContain("hover:bg-transparent");
+    expect(expert.querySelector("svg[aria-hidden]")).not.toBeNull();
   });
 });
