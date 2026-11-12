@@ -15,22 +15,29 @@ export const isRunByAgent = (
 const hinted = new WeakSet<Command>();
 let printed = false;
 
+/** Ends `command`'s help with the agent setup hint when an agent reads it, so `--help | tail` keeps it. */
+export const addAgentSetupHelp = (command: Command) => {
+  command.addHelpText("after", () =>
+    isRunByAgent() ? `\n${AGENT_SETUP_HINT}` : "",
+  );
+  return command;
+};
+
 /**
- * Opens `command`'s help with the agent setup hint when an agent reads it,
- * and prints the hint once before the command runs for one. People at a
- * terminal see the usual help and output.
+ * Ends `command`'s help with the agent setup hint when an agent reads it,
+ * and prints the hint once after the command finishes for one, where an
+ * agent reading the tail of the output sees it. People at a terminal see the
+ * usual help and output.
  */
 export const addAgentSetupHint = (
   command: Command,
-  { beforeAction = true }: { beforeAction?: boolean } = {},
+  { afterAction = true }: { afterAction?: boolean } = {},
 ) => {
   if (hinted.has(command)) return command;
   hinted.add(command);
-  command.addHelpText("before", () =>
-    isRunByAgent() ? `${AGENT_SETUP_HINT}\n` : "",
-  );
-  if (beforeAction) {
-    command.hook("preAction", () => {
+  addAgentSetupHelp(command);
+  if (afterAction) {
+    command.hook("postAction", () => {
       // Other commands run create internally; only the one typed gets the hint.
       // A detected agent got here past the agent gate, from a setup session or
       // with --force, so pointing it at setup again would only send it in circles.
@@ -42,7 +49,7 @@ export const addAgentSetupHint = (
       )
         return;
       printed = true;
-      process.stdout.write(`${AGENT_SETUP_HINT}\n\n`);
+      process.stdout.write(`\n${AGENT_SETUP_HINT}\n`);
     });
   }
   return command;

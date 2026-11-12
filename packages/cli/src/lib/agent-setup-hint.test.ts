@@ -5,6 +5,7 @@ import {
   addAgentSetupHint,
   isRunByAgent,
 } from "./agent-setup-hint";
+import { buildProgram } from "../program";
 
 const tty = { isTTY: true };
 
@@ -34,12 +35,13 @@ describe("addAgentSetupHint", () => {
     return text;
   };
 
-  it("opens the help with the hint for an agent only", () => {
+  it("ends the help with the hint for an agent only, so `--help | tail` keeps it", () => {
     const command = addAgentSetupHint(new Command("init"), {
-      beforeAction: false,
+      afterAction: false,
     });
     process.env.CLAUDECODE = "1";
-    expect(help(command).startsWith(`${AGENT_SETUP_HINT}\n`)).toBe(true);
+    expect(help(command).endsWith(`${AGENT_SETUP_HINT}\n`)).toBe(true);
+    expect(help(command).startsWith(AGENT_SETUP_HINT)).toBe(false);
     // Only PATH survives, so no agent variable from the shell running the tests leaks in.
     process.env = { PATH: env.PATH };
     const stdin = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
@@ -65,7 +67,18 @@ describe("addAgentSetupHint", () => {
     }
   });
 
-  it("prints the hint once before the command typed without a terminal", async () => {
+  it("ends the root help with the hint for an agent", () => {
+    process.env.CLAUDECODE = "1";
+    const text = help(buildProgram());
+    expect(text.trimEnd().endsWith(AGENT_SETUP_HINT)).toBe(true);
+    expect(text.split(AGENT_SETUP_HINT)).toHaveLength(2);
+    for (const name of ["init", "create"]) {
+      const command = buildProgram().commands.find((c) => c.name() === name)!;
+      expect(help(command).trimEnd().endsWith(AGENT_SETUP_HINT)).toBe(true);
+    }
+  });
+
+  it("prints the hint once after the command typed without a terminal", async () => {
     const write = vi
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
@@ -81,18 +94,23 @@ describe("addAgentSetupHint", () => {
       else delete (process.stdin as { isTTY?: boolean }).isTTY;
     });
     process.argv = ["node", "assistant-ui", "create", "my-app"];
-    const action = vi.fn();
+    const action = vi.fn(() => {
+      process.stdout.write("Next steps: npm run dev\n");
+    });
     const command = addAgentSetupHint(
       new Command("create").argument("[dir]").action(action),
     );
     await command.parseAsync(["my-app"], { from: "user" });
     await command.parseAsync(["my-app"], { from: "user" });
     expect(action).toHaveBeenCalledTimes(2);
-    expect(
-      write.mock.calls.filter(([chunk]) =>
-        String(chunk).includes(AGENT_SETUP_HINT),
-      ),
-    ).toHaveLength(1);
+    const chunks = write.mock.calls.map(([chunk]) => String(chunk));
+    expect(chunks.filter((chunk) => chunk.includes(AGENT_SETUP_HINT))).toEqual([
+      `\n${AGENT_SETUP_HINT}\n`,
+    ]);
+    // After the command's own output, where the tail of it shows.
+    expect(chunks.findIndex((chunk) => chunk.includes(AGENT_SETUP_HINT))).toBe(
+      1,
+    );
   });
 
   it("leaves the hint out for an agent past the gate, which is already in setup or forced", async () => {

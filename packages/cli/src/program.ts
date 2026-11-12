@@ -11,7 +11,7 @@ import { doctor } from "./commands/doctor";
 import { cloud } from "./commands/cloud";
 import { setup } from "./commands/setup";
 import { addAgentGate } from "./lib/agent-gate";
-import { addAgentSetupHint } from "./lib/agent-setup-hint";
+import { addAgentSetupHelp, addAgentSetupHint } from "./lib/agent-setup-hint";
 
 export function buildProgram() {
   const program = new Command()
@@ -29,5 +29,5 @@ export function buildProgram() {
     .addCommand(cloud)
     .addCommand(info)
     .addCommand(doctor);
-  return addAgentSetupHint(program, { beforeAction: false });
+  return addAgentSetupHelp(program);
 }

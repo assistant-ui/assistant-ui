@@ -77,10 +77,33 @@ describe("the setup session marker", () => {
       setupId: "abc",
       cwd: "/app",
     });
-    expect(isSetupSessionActive(file)).toBe(true);
+    expect(isSetupSessionActive(file, Date.now(), "/app")).toBe(true);
     const stale = new Date(Date.now() - SETUP_SESSION_TTL_MS - 1000);
     fs.utimesSync(file, stale, stale);
-    expect(isSetupSessionActive(file)).toBe(false);
+    expect(isSetupSessionActive(file, Date.now(), "/app")).toBe(false);
+  });
+
+  it("is scoped to the project folder setup ran in and the folders inside it", () => {
+    const file = setupSessionMarkerPath(dir);
+    const project = path.join(dir, "project");
+    fs.mkdirSync(path.join(project, "my-app"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "project-other"));
+    markSetupSession({ setupId: "abc", cwd: project }, file);
+    expect(isSetupSessionActive(file, Date.now(), project)).toBe(true);
+    expect(
+      isSetupSessionActive(file, Date.now(), path.join(project, "my-app")),
+    ).toBe(true);
+    expect(isSetupSessionActive(file, Date.now(), dir)).toBe(false);
+    expect(
+      isSetupSessionActive(file, Date.now(), path.join(dir, "project-other")),
+    ).toBe(false);
+    expect(isSetupSessionActive(file, Date.now(), os.homedir())).toBe(false);
+  });
+
+  it("is inactive for a marker without a project folder", () => {
+    const file = setupSessionMarkerPath(dir);
+    fs.writeFileSync(file, JSON.stringify({ setupId: "abc" }));
+    expect(isSetupSessionActive(file, Date.now(), dir)).toBe(false);
   });
 
   it("renews on each use, so a long install keeps passing", () => {
@@ -195,6 +218,14 @@ describe("addAgentGate", () => {
       markSetupSession({ setupId: "abc" });
       expect((await run(name, ["thread"])).action).toHaveBeenCalledOnce();
       expect(stderr).toBe("");
+    });
+
+    it("stops an agent outside the folder of the active setup session", async () => {
+      process.env.CLAUDECODE = "1";
+      markSetupSession({ setupId: "abc", cwd: path.join(tmp, "elsewhere") });
+      const { action, error } = await run(name, ["thread"]);
+      expect(action).not.toHaveBeenCalled();
+      expect((error as Error).message).toBe(`exit ${AGENT_GATE_EXIT_CODE}`);
     });
   });
 

@@ -42,17 +42,42 @@ export const markSetupSession = (
   }
 };
 
+const realPath = (dir: string) => {
+  try {
+    return fs.realpathSync(dir);
+  } catch {
+    return path.resolve(dir);
+  }
+};
+
+/** True when `dir` is the project folder `root` or a folder inside it. */
+export const isInsideFolder = (dir: string, root: string) => {
+  const relative = path.relative(realPath(root), realPath(dir));
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+};
+
 /**
- * True while a setup session is active: its marker was written or used within
- * the TTL. Each use renews it, so a long install keeps passing.
+ * True while a setup session is active for the project folder `cwd` is in:
+ * its marker was written or used within the TTL, from that folder or a parent
+ * of it. Each use renews it, so a long install keeps passing. An agent in any
+ * other folder is still stopped.
  */
 export const isSetupSessionActive = (
   file: string = setupSessionMarkerPath(),
   now: number = Date.now(),
+  cwd: string = process.cwd(),
 ) => {
   try {
     const { mtimeMs } = fs.statSync(file);
     if (now - mtimeMs > SETUP_SESSION_TTL_MS) return false;
+    const marker = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      cwd?: unknown;
+    };
+    if (typeof marker.cwd !== "string" || !isInsideFolder(cwd, marker.cwd))
+      return false;
     const renewed = new Date(now);
     fs.utimesSync(file, renewed, renewed);
     return true;
