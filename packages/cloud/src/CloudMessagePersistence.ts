@@ -91,6 +91,10 @@ export class CloudMessagePersistence {
   /** Every message this persistence opened a lease for; a repeated append of one writes its row instead of storing another. */
   private runs = new Map<string, Run>();
   private runWrites = new Map<string, Promise<unknown>>();
+  /** Writes waiting on an in-flight create, chained so they apply in append order. */
+  private pendingWrites = new Map<string, Promise<void>>();
+  /** The deletes each write waiting on an in-flight create saw start; each resolves to whether it deleted the message. */
+  private waiters = new Map<string, Set<Promise<boolean>[]>>();
   private getCloud: () => AssistantCloud;
   private staleAfter: number;
 
@@ -147,9 +151,40 @@ export class CloudMessagePersistence {
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
-      await existing.catch(() => undefined);
-      if (this.runs.has(messageId)) {
-        await this.update(threadId, messageId, format, content, run);
+      const mapping = this.idMapping;
+      const deletes: Promise<boolean>[] = [];
+      const waiters = this.waiters.get(messageId) ?? new Set();
+      waiters.add(deletes);
+      this.waiters.set(messageId, waiters);
+      const previous = this.pendingWrites.get(messageId) ?? existing;
+      // The in-flight create may hold older content, such as the run tracker's running placeholder: write this content over its row, or create the row with it when that create failed. A reset while waiting, or a delete of the message that started while waiting and succeeded, drops the write; an append made after a delete started is newer than that delete and still lands.
+      const write = previous
+        .catch(() => undefined)
+        .then(async () => {
+          for (let i = 0; i < deletes.length; i++) if (await deletes[i]) return;
+          if (this.idMapping !== mapping) return;
+          if (this.idMapping.has(messageId)) {
+            await this.update(threadId, messageId, format, content, run);
+          } else {
+            await this.append(
+              threadId,
+              messageId,
+              parentId,
+              format,
+              content,
+              run,
+            );
+          }
+        });
+      this.pendingWrites.set(messageId, write);
+      try {
+        await write;
+      } finally {
+        if (this.pendingWrites.get(messageId) === write)
+          this.pendingWrites.delete(messageId);
+        waiters.delete(deletes);
+        if (waiters.size === 0 && this.waiters.get(messageId) === waiters)
+          this.waiters.delete(messageId);
       }
       return;
     }
@@ -398,6 +433,26 @@ export class CloudMessagePersistence {
    * Delete mapped messages from the cloud and clear their local ID mappings.
    */
   async delete(threadId: string, messageIds: string[]): Promise<void> {
+    let settle!: (deleted: boolean) => void;
+    const deleting = new Promise<boolean>((resolve) => {
+      settle = resolve;
+    });
+    for (const localId of messageIds)
+      for (const deletes of this.waiters.get(localId) ?? [])
+        deletes.push(deleting);
+    let deleted = false;
+    try {
+      await this.deleteMessages(threadId, messageIds);
+      deleted = true;
+    } finally {
+      settle(deleted);
+    }
+  }
+
+  private async deleteMessages(
+    threadId: string,
+    messageIds: string[],
+  ): Promise<void> {
     const cloud = this.getCloud();
     const mapping = this.idMapping;
     const resolved: {
@@ -528,6 +583,8 @@ export class CloudMessagePersistence {
   reset() {
     this.idMapping = new Map();
     this.failedAppends = new Map();
+    this.pendingWrites = new Map();
+    this.waiters = new Map();
     for (const run of this.runs.values())
       if (isOpen(run) && run.timer !== undefined) clearTimeout(run.timer);
     this.runs = new Map();

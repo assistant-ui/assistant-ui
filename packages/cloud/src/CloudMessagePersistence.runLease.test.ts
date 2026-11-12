@@ -139,6 +139,204 @@ describe("CloudMessagePersistence run leases", () => {
     });
   });
 
+  it("creates the row with the final answer when the in-flight running append fails", async () => {
+    const { cloud, messages } = createCloud();
+    let rejectCreate!: (error: unknown) => void;
+    messages.create
+      .mockReturnValueOnce(
+        new Promise((_, reject) => {
+          rejectCreate = reject;
+        }),
+      )
+      .mockResolvedValueOnce({ message_id: "msg_2" });
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    rejectCreate(new Error("network"));
+    await expect(placeholder).rejects.toThrow("network");
+    await final;
+
+    expect(messages.create).toHaveBeenLastCalledWith("t1", {
+      parent_id: null,
+      external_id: "local-a",
+      format: "aui/v0",
+      content: done,
+    });
+    expect(await persistence.getRemoteId("local-a")).toBe("msg_2");
+  });
+
+  it("drops a final write that waited on an in-flight append across a reset", async () => {
+    const { cloud, messages } = createCloud();
+    let rejectCreate!: (error: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectCreate = reject;
+      }),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    persistence.reset();
+    rejectCreate(new Error("network"));
+    await expect(placeholder).rejects.toThrow("network");
+    await final;
+
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).not.toHaveBeenCalled();
+  });
+
+  it("drops a final write that waited on an in-flight append the message was deleted during", async () => {
+    const { cloud, messages } = createCloud();
+    let rejectCreate!: (error: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectCreate = reject;
+      }),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    const deleted = persistence.delete("t1", ["local-a"]);
+    rejectCreate(new Error("network"));
+    await expect(placeholder).rejects.toThrow("network");
+    await Promise.all([final, deleted]);
+
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(persistence.isPersisted("local-a")).toBe(false);
+  });
+
+  it("keeps a final write that waited across a delete that failed", async () => {
+    const { cloud, messages } = createCloud();
+    let resolveCreate!: (value: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    messages.delete.mockRejectedValueOnce(new Error("delete failed"));
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    const deleted = persistence.delete("t1", ["local-a"]);
+    resolveCreate({ message_id: "msg_1" });
+    await expect(deleted).rejects.toThrow("delete failed");
+    await Promise.all([placeholder, final]);
+
+    expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
+      content: done,
+    });
+  });
+
+  it("applies writes waiting on one lease-less append in append order", async () => {
+    const { cloud, messages } = createCloud();
+    let resolveCreate!: (value: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    messages.update
+      .mockImplementationOnce(async (_t, _m, body) => {
+        await new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        });
+        order.push(body.content.content[0].text);
+      })
+      .mockImplementationOnce(async (_t, _m, body) => {
+        order.push(body.content.content[0].text);
+      });
+    const persistence = new CloudMessagePersistence(cloud);
+    const checkpoint = {
+      role: "assistant",
+      content: [{ type: "text", text: "partial" }],
+    };
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const first = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      checkpoint,
+    );
+    const second = persistence.append("t1", "local-a", null, "aui/v0", done);
+    resolveCreate({ message_id: "msg_1" });
+    await vi.advanceTimersByTimeAsync(0);
+    releaseFirst();
+    await Promise.all([placeholder, first, second]);
+
+    expect(order).toEqual(["partial", "done"]);
+  });
+
+  it("writes the final answer over an in-flight running append that got no lease", async () => {
+    const { cloud, messages } = createCloud();
+    let resolveCreate!: (value: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    resolveCreate({ message_id: "msg_1" });
+    await Promise.all([placeholder, final]);
+
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
+      content: done,
+    });
+  });
+
   it("checkpoints renew the lease and serialize behind earlier writes", async () => {
     const { cloud, messages, runs } = createCloud();
     const order: string[] = [];
