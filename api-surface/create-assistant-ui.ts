@@ -14,7 +14,7 @@ export const cliSurface: CliSurfaceSnapshot = {
   "options": [
     {
       "flags": "-t, --template <template>",
-      "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve)",
+      "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve, vscode)",
       "required": true
     },
     {
@@ -73,6 +73,11 @@ export const cliSurface: CliSurfaceSnapshot = {
       "flags": "--debug-source-root <path>",
       "description": "copy templates/examples from a local assistant-ui repo root",
       "required": true,
+      "hidden": true
+    },
+    {
+      "flags": "--force",
+      "description": "run even when a coding agent is detected outside a setup session",
       "hidden": true
     }
   ]

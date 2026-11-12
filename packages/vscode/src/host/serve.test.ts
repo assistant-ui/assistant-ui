@@ -15,6 +15,9 @@ afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
 });
 
+/** Runs the promise callbacks already queued, for checks that nothing more is posted. */
+const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
+
 const setup = (options: ServeWebviewHostOptions = {}) => {
   const bridge = createInMemoryBridge();
   const host = serveWebviewHost(bridge.webview, options);
@@ -129,22 +132,23 @@ describe("serveWebviewHost", () => {
 
   it("rejects host calls still in flight when disposed", async () => {
     let finish: (opened: boolean) => void = () => {};
-    const { bridge, host } = setup({
-      openExternal: () =>
+    const openExternal = vi.fn(
+      () =>
         new Promise<boolean>((resolve) => {
           finish = resolve;
         }),
-    });
+    );
+    const { bridge, host } = setup({ openExternal });
 
     const call = callHost(bridge.port, "openExternal", [
       "https://example.com/",
     ]);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(openExternal).toHaveBeenCalledOnce());
     host.dispose();
     finish(true);
 
     await expect(call).rejects.toThrow("Webview host disposed");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
     expect(bridge.hostToWebview).toHaveLength(1);
   });
 
@@ -167,9 +171,9 @@ describe("serveWebviewHost", () => {
 
     bridge.port.postMessage(call);
     bridge.port.postMessage(call);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(openExternal).toHaveBeenCalled());
     finish(true);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(bridge.hostToWebview).toHaveLength(1));
 
     expect(openExternal).toHaveBeenCalledOnce();
     expect(bridge.hostToWebview).toEqual([
@@ -189,7 +193,7 @@ describe("serveWebviewHost", () => {
     host.dispose();
 
     void callHost(bridge.port, "openExternal", ["https://example.com/"]);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flushPromises();
 
     expect(openExternal).not.toHaveBeenCalled();
     expect(bridge.hostToWebview).toHaveLength(0);

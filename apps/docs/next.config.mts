@@ -9,6 +9,7 @@ import { withAui } from "@assistant-ui/next";
 import { liteAliases } from "./scripts/lite-packages.mts";
 import { writeLiteDemos } from "./lib/lite-demos.ts";
 import type { NextConfig } from "next";
+import { SETUP_ORIGIN as SETUP_URL } from "./lib/setup-origin.ts";
 import {
   AGENT_DISCOVERY_REWRITES,
   API_CATALOG_LINK_HEADER,
@@ -96,13 +97,19 @@ const csp = (frameAncestors: string) =>
 `.replace(/\n/g, "");
 
 // `next build` runs one worker per CPU core to collect page data and
-// prerender, and each holds the whole server bundle. DOCS_BUILD_CPUS caps that
-// on machines with little RAM; it does not change the output.
+// prerender, and each holds the whole server bundle. Turbopack also runs one
+// MDX loader process per core (~450 MB each), and they stay alive until the
+// build exits. DOCS_BUILD_CPUS caps both on machines with little RAM; it does
+// not change the output.
 const buildCpus = process.env.DOCS_BUILD_CPUS
   ? Number(process.env.DOCS_BUILD_CPUS)
   : undefined;
 if (buildCpus !== undefined && !(Number.isInteger(buildCpus) && buildCpus > 0))
   throw new Error("DOCS_BUILD_CPUS must be a positive integer");
+// Turbopack sizes its loader pool from this variable when it creates the
+// pool, which happens after the config loads.
+if (buildCpus && !process.env.TURBO_TASKS_AVAILABLE_PARALLELISM)
+  process.env.TURBO_TASKS_AVAILABLE_PARALLELISM = String(buildCpus);
 
 const config: NextConfig = {
   cacheComponents: true,
@@ -183,10 +190,21 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     ...DOCS_SITE_REDIRECTS,
+    // The setup wizard moved to its own app; the fragment an agent link carries survives the redirect.
     {
-      source: "/hack",
-      destination: "/hackathon",
+      source: "/components/setup/:path*",
+      destination: `${SETUP_URL}/:path*`,
       permanent: false,
+    },
+    {
+      source: "/components/cart",
+      destination: "/components",
+      permanent: true,
+    },
+    {
+      source: "/getting-started",
+      destination: "/docs/installation",
+      permanent: true,
     },
     {
       source: "/tap",

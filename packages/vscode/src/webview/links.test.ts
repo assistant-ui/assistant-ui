@@ -46,8 +46,6 @@ const click = (
 const rpcRequests = (messages: unknown[]) =>
   (messages as BridgeMessage[]).filter((m) => m.kind === "rpc:request");
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 describe("installLinkInterceptor", () => {
   it("opens a target=_blank link through the host", async () => {
     const { openExternal } = setup();
@@ -104,7 +102,6 @@ describe("installLinkInterceptor", () => {
     document.body.append(link);
 
     expect(click(link)).toBe(false);
-    await settle();
 
     expect(rpcRequests(bridge.webviewToHost)).toHaveLength(0);
     expect(openExternal).not.toHaveBeenCalled();
@@ -116,7 +113,6 @@ describe("installLinkInterceptor", () => {
     link.addEventListener("click", (event) => event.preventDefault());
 
     click(link);
-    await settle();
 
     expect(rpcRequests(bridge.webviewToHost)).toHaveLength(0);
   });
@@ -161,9 +157,10 @@ describe("installLinkInterceptor", () => {
     first.uninstall();
     second.uninstall();
     window.open("https://example.com/a", "_blank");
-    await settle();
 
     expect(original).toHaveBeenCalledWith("https://example.com/a", "_blank");
+    expect(rpcRequests(first.bridge.webviewToHost)).toHaveLength(0);
+    expect(rpcRequests(second.bridge.webviewToHost)).toHaveLength(0);
     expect(first.openExternal).not.toHaveBeenCalled();
     expect(second.openExternal).not.toHaveBeenCalled();
   });

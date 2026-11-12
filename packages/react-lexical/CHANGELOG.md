@@ -1,5 +1,21 @@
 # @assistant-ui/react-lexical
 
+## 0.2.23
+
+### Patch Changes
+
+- [#10493](https://github.com/assistant-ui/assistant-ui/pull/10493) [`2691e38`](https://github.com/assistant-ui/assistant-ui/commit/2691e38409423e2ab5e51771a16fa05410554f80) - react: expose `unstable_useComposerRunStartFocusGuard`, the decision `ComposerPrimitive.Input` makes on `thread.runStart`, and use it in `LexicalComposerInput` instead of a copy that resolved the thread root from the DOM. The guard reads the thread root from context, so a composer portaled outside `ThreadPrimitive.Root` now takes focus on a run start when focus sits inside its thread, matching `ComposerPrimitive.Input`. ([@egg119](https://github.com/egg119))
+  
+  react-lexical: raise the `@assistant-ui/react` peer floor to `^0.15.36`, the first release that exports the hook. `@assistant-ui/react` is a host-supplied peer and `onlyUpdatePeerDependentsWhenOutOfRange` is set, so the floor has to be raised by hand.
+
+## 0.2.22
+
+### Patch Changes
+
+- [#10439](https://github.com/assistant-ui/assistant-ui/pull/10439) [`3e04e44`](https://github.com/assistant-ui/assistant-ui/commit/3e04e44f33f8313356305f0b01e2321133228632) - fix(react-lexical): point the composer textbox at the open trigger popover with `aria-controls`, `aria-haspopup`, and `aria-activedescendant` ([@chuganzy](https://github.com/chuganzy))
+
+- [#10410](https://github.com/assistant-ui/assistant-ui/pull/10410) [`34c82b6`](https://github.com/assistant-ui/assistant-ui/commit/34c82b6d8c9e7470706500fcae418d5e5a836dcf) - keep focus in a field outside the thread when a run starts, as `ComposerPrimitive.Input` does, instead of moving it to the Lexical composer ([@jcater](https://github.com/jcater))
+
 ## 0.2.21
 
 ### Patch Changes

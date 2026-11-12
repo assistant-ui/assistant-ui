@@ -8,6 +8,49 @@ export const cliSurface: CliSurfaceSnapshot = {
   "options": [],
   "commands": [
     {
+      "name": "setup",
+      "description": "set up assistant-ui with your coding agent, guided in your browser",
+      "usage": "[options] [url-and-command...]",
+      "arguments": [
+        {
+          "syntax": "[url-and-command...]",
+          "description": "a setup command for the agent: <url> <command> [args], such as <url> ask, <url> answer or <url> stream",
+          "required": false,
+          "variadic": true
+        }
+      ],
+      "options": [
+        {
+          "flags": "--products <slugs>",
+          "description": "comma-separated catalog slugs to set up (default: assistant-ui)",
+          "required": true
+        },
+        {
+          "flags": "--no-open",
+          "description": "never open the browser; the agent asks the user in its own conversation"
+        },
+        {
+          "flags": "--docs-url <url>",
+          "description": "the docs site with the catalog and guides",
+          "required": true,
+          "hidden": true
+        },
+        {
+          "flags": "--setup-server <url>",
+          "description": "the setup server the agent joins",
+          "required": true,
+          "hidden": true
+        },
+        {
+          "flags": "--setup-app-url <url>",
+          "description": "the setup app the browser opens",
+          "required": true,
+          "hidden": true
+        }
+      ],
+      "commands": []
+    },
+    {
       "name": "add",
       "description": "add a component to your project",
       "usage": "[options] <components...>",
@@ -56,6 +99,11 @@ export const cliSurface: CliSurfaceSnapshot = {
         {
           "flags": "--use-bun",
           "description": "explicitly use bun"
+        },
+        {
+          "flags": "--force",
+          "description": "run even when a coding agent is detected outside a setup session",
+          "hidden": true
         }
       ],
       "commands": []
@@ -74,7 +122,7 @@ export const cliSurface: CliSurfaceSnapshot = {
       "options": [
         {
           "flags": "-t, --template <template>",
-          "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve)",
+          "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve, vscode)",
           "required": true
         },
         {
@@ -134,6 +182,11 @@ export const cliSurface: CliSurfaceSnapshot = {
           "description": "copy templates/examples from a local assistant-ui repo root",
           "required": true,
           "hidden": true
+        },
+        {
+          "flags": "--force",
+          "description": "run even when a coding agent is detected outside a setup session",
+          "hidden": true
         }
       ],
       "commands": []
@@ -191,6 +244,11 @@ export const cliSurface: CliSurfaceSnapshot = {
         {
           "flags": "--skip-install",
           "description": "skip installing packages"
+        },
+        {
+          "flags": "--force",
+          "description": "run even when a coding agent is detected outside a setup session",
+          "hidden": true
         }
       ],
       "commands": []
