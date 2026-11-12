@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import { DemoCard } from "@/components/pages/elements/demo-card";
-import { getElement } from "@/components/pages/elements/registry";
-import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
-import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
+import {
+  ELEMENT_COUNT,
+  getElement,
+} from "@/components/pages/elements/registry";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import {
+  SetupCommandPrompt,
+  SetupPromptTrigger,
+} from "@/components/shared/setup-command-prompt";
+import { Button } from "@/components/ui/button";
 import { typeDeck, typeSection } from "@/components/shared/type";
 import { formatMinutes, getCatalogItem, type CatalogItem } from "@/lib/catalog";
 import { assistantUi } from "@/lib/catalog/products/assistant-ui";
@@ -16,8 +20,6 @@ import { ELEMENT_PRODUCTS } from "@/lib/catalog/products/elements";
 import { cloud } from "@/lib/catalog/products/cloud";
 import { agentTools } from "@/lib/catalog/products/agent-tools";
 import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
-import { checkoutEnabled } from "@/lib/checkout/config";
-import { isExampleBundlesEnabled } from "@/lib/feature-flags";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
@@ -114,37 +116,9 @@ const navArrow =
   "size-3.5 transition-[translate] group-hover/navlink:translate-x-0.5 motion-reduce:transition-none";
 
 export default function ShopPage() {
-  if (!checkoutEnabled) notFound();
   return (
     <PageFrame pad="sub">
       <h1 className="sr-only">Components</h1>
-
-      {isExampleBundlesEnabled ? (
-        <section
-          aria-labelledby="bundles-banner-heading"
-          className="bg-foreground/[0.025] mb-10 grid items-center gap-6 rounded-(--radius-document) px-6 py-7 sm:px-8 md:grid-cols-[minmax(0,1fr)_auto]"
-        >
-          <div>
-            <h2 id="bundles-banner-heading" className={typeSection}>
-              Just getting started?
-            </h2>
-            <p className="text-muted-foreground mt-2 max-w-[60ch] text-sm leading-relaxed">
-              Start from a complete example. Explore the UI and the components
-              that make it work.
-            </p>
-          </div>
-          <Link
-            href="/components/bundles"
-            className="bg-foreground text-background group inline-flex w-fit items-center gap-3 rounded-(--radius-control) px-4 py-2.5 text-sm font-medium hover:opacity-85"
-          >
-            Explore our pre-made bundles
-            <ArrowRightIcon
-              aria-hidden
-              className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
-            />
-          </Link>
-        </section>
-      ) : null}
 
       <nav
         aria-label="Component sections"
@@ -168,7 +142,6 @@ export default function ShopPage() {
             {section.title}
           </h2>
           <p className={cn("mt-3", typeDeck)}>{section.description}</p>
-          {section.id === "agent-tools" ? <AgentToolPresets /> : null}
           {section.guide ? (
             <Link href={section.guide.href} className={cn("mt-4", navLink)}>
               {section.guide.label}
@@ -191,9 +164,7 @@ export default function ShopPage() {
                   {formatMinutes(assistantUi.agentMinutes)}.
                 </p>
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <StartSetupDialog location="shop_featured">
-                    Start setup
-                  </StartSetupDialog>
+                  <SetupCommandPrompt page="components" section="featured" />
                   <Link href={assistantUi.href} className={navLink}>
                     See what it installs
                     <ArrowRightIcon aria-hidden className={navArrow} />
@@ -255,11 +226,14 @@ export default function ShopPage() {
                         title={item.name}
                         description={item.tagline}
                         action={
-                          <AddToCartButton
-                            slug={item.slug}
-                            name={item.name}
-                            variant="outline"
-                          />
+                          <SetupPromptTrigger
+                            page="components"
+                            section="catalog"
+                            products={[item.slug]}
+                            trigger={<Button variant="outline" />}
+                          >
+                            Copy setup prompt
+                          </SetupPromptTrigger>
                         }
                       >
                         <element.Component />
@@ -289,11 +263,14 @@ export default function ShopPage() {
                         {item.tagline}
                       </p>
                     </div>
-                    <AddToCartButton
-                      slug={item.slug}
-                      name={item.name}
-                      variant="outline"
-                    />
+                    <SetupPromptTrigger
+                      page="components"
+                      section="catalog"
+                      products={[item.slug]}
+                      trigger={<Button variant="outline" />}
+                    >
+                      Copy setup prompt
+                    </SetupPromptTrigger>
                   </li>
                 ))}
             </ul>
@@ -302,7 +279,8 @@ export default function ShopPage() {
       ))}
       <div className="border-foreground/10 border-t pt-8">
         <p className="text-muted-foreground mt-8 max-w-[52ch] text-[0.9375rem] leading-relaxed">
-          {ELEMENT_PRODUCTS.length} elements can be added from their own pages.
+          {ELEMENT_PRODUCTS.length} of the {ELEMENT_COUNT} elements can be added
+          from their own pages.
         </p>
         <Link href="/elements" className={cn("mt-3", navLink)}>
           Browse elements

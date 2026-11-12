@@ -19,5 +19,6 @@ export default defineConfig({
     environment: "node",
     pool: "threads",
     globals: true,
+    setupFiles: ["../../scripts/vitest-waitfor-interval.mjs"],
   },
 });

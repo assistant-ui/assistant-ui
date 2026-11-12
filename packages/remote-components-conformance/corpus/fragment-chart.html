@@ -1,0 +1,90 @@
+<div class="sales-chart">
+  <style>
+    .sales-chart {
+      font-family: var(--font-sans);
+      color: var(--color-text);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 16px 16px 12px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .sales-chart h3 {
+      margin: 0 0 4px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .sales-chart .sub {
+      margin: 0 0 12px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    .sales-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+    .sales-chart .grid line { stroke: var(--color-border); stroke-width: 1; }
+    .sales-chart .tick { fill: var(--color-text-muted); font-size: 11px; }
+    .sales-chart .axis-label { fill: var(--color-text-muted); font-size: 12px; }
+    .sales-chart .bar { fill: var(--color-accent); transition: opacity .15s; }
+    .sales-chart .bar:hover { opacity: .8; }
+    .sales-chart .val { fill: var(--color-text); font-size: 11px; font-weight: 600; }
+  </style>
+
+  <h3>Monthly Sales — Last 6 Months</h3>
+  <p class="sub">Sample data, in thousands of USD</p>
+  <svg id="salesSvg" viewBox="0 0 600 320" role="img" aria-label="Bar chart of monthly sales for the last six months"></svg>
+
+  <script>
+    (function () {
+      const data = [
+        { m: "May", v: 42 },
+        { m: "Jun", v: 51 },
+        { m: "Jul", v: 47 },
+        { m: "Aug", v: 58 },
+        { m: "Sep", v: 63 },
+        { m: "Oct", v: 71 }
+      ];
+      const svg = document.getElementById("salesSvg");
+      const NS = "http://www.w3.org/2000/svg";
+      const W = 600, H = 320, L = 60, R = 16, T = 16, B = 56;
+      const cw = W - L - R, ch = H - T - B;
+      const max = 80, step = 20;
+
+      const el = (tag, attrs, text) => {
+        const e = document.createElementNS(NS, tag);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        if (text != null) e.textContent = text;
+        svg.appendChild(e);
+        return e;
+      };
+
+      const grid = el("g", { class: "grid" });
+      for (let y = 0; y <= max; y += step) {
+        const py = T + ch - (y / max) * ch;
+        const ln = document.createElementNS(NS, "line");
+        ln.setAttribute("x1", L); ln.setAttribute("x2", W - R);
+        ln.setAttribute("y1", py); ln.setAttribute("y2", py);
+        grid.appendChild(ln);
+        el("text", { x: L - 8, y: py + 4, "text-anchor": "end", class: "tick" }, "$" + y + "k");
+      }
+
+      const slot = cw / data.length, bw = slot * 0.6;
+      data.forEach((d, i) => {
+        const h = (d.v / max) * ch;
+        const x = L + i * slot + (slot - bw) / 2;
+        const y = T + ch - h;
+        const r = el("rect", { x, y, width: bw, height: h, rx: 4, class: "bar" });
+        const t = document.createElementNS(NS, "title");
+        t.textContent = d.m + ": $" + d.v + "k";
+        r.appendChild(t);
+        el("text", { x: x + bw / 2, y: y - 6, "text-anchor": "middle", class: "val" }, "$" + d.v + "k");
+        el("text", { x: x + bw / 2, y: T + ch + 18, "text-anchor": "middle", class: "tick" }, d.m);
+      });
+
+      el("text", { x: L + cw / 2, y: H - 8, "text-anchor": "middle", class: "axis-label" }, "Month");
+      el("text", {
+        x: -(T + ch / 2), y: 14, transform: "rotate(-90)",
+        "text-anchor": "middle", class: "axis-label"
+      }, "Sales (USD, thousands)");
+    })();
+  </script>
+</div>

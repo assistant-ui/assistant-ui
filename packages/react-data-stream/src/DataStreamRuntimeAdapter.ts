@@ -1,4 +1,4 @@
-import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
+import { toModelMessages } from "./converters/toModelMessages";
 import { resolveDataStreamProtocol } from "./protocol";
 import type {
   ChatModelAdapter,
@@ -69,7 +69,7 @@ export class DataStreamRuntimeAdapter implements ChatModelAdapter {
     this.serializeMessages =
       serializeMessages ??
       ((messages) =>
-        toLanguageModelMessages(messages, {
+        toModelMessages(messages, {
           unstable_includeId: options.sendExtraMessageFields,
         }));
   }

@@ -1,4 +1,5 @@
 import { CLOUD_URL } from "@/lib/constants";
+import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 
 export type PricingPlan = {
   name: string;
@@ -33,7 +34,7 @@ export const libraryHighlights: Highlight[] = [
       "Pair it with any runtime you already run. Cloud is optional, not a requirement.",
   },
   {
-    title: "React, React Native, and Ink",
+    title: "React, Vue, React Native, and Ink",
     description:
       "One chat model across web, native, and terminal. Keep the same runtime adapters.",
   },
@@ -93,7 +94,7 @@ export const pricingPlans = [
       "Everything in Free",
       "Early access to new features",
     ],
-    cta: "Get started",
+    cta: "Start Pro",
     href: `${CLOUD_URL}/org?plan=pro`,
     highlighted: true,
   },
@@ -106,11 +107,11 @@ export const pricingPlans = [
       "Your own backend integration",
       "Data replication",
       "Dedicated support",
-      "99.99% uptime SLA",
+      "99.9% uptime SLA",
       "On-premises deployment",
     ],
     cta: "Contact sales",
-    href: "https://cal.com/simon-farshid/assistant-ui",
+    href: CONTACT_SALES_PATH,
     highlighted: false,
   },
 ] satisfies PricingPlan[];

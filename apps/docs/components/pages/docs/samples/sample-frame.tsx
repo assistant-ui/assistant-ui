@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckIcon, CodeIcon, CopyIcon, XIcon } from "lucide-react";
-import ShikiHighlighter from "react-shiki";
+import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
@@ -71,14 +71,14 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
 
       {showCode && code && (
         <div className="mt-3 overflow-hidden rounded-xl bg-zinc-950 text-sm [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-4!">
-          <ShikiHighlighter
+          <DeferredHighlight
             language="tsx"
             theme={{ dark: "vitesse-dark", light: "vitesse-dark" }}
             addDefaultStyles={false}
             showLanguage={false}
           >
             {code.trim()}
-          </ShikiHighlighter>
+          </DeferredHighlight>
         </div>
       )}
     </div>

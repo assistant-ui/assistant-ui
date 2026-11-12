@@ -66,7 +66,7 @@ Serializes a generative-UI node to a JSX-like string for display: the "view sour
 
 By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no type yet, `null`, booleans).
 
-Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim.
+Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim. An element whose type is not a valid JSX tag name, and a prop whose key is not a valid JSX attribute name, are left out, and an omitted element takes its children with it.
 
 Pass `{ pretty: true }` to pretty-print nested element trees with two-space indentation, while pure text children stay on one line.
 

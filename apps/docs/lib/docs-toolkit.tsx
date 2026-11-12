@@ -29,7 +29,7 @@ import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
 import { RememberToolUI } from "@/components/shared/memory";
 import { SetThemeToolUI } from "@/components/tool-ui/set-theme-card";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
+import { GenerativeMarkdown } from "@/components/assistant-ui/elements/generative-markdown";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
 
@@ -153,7 +153,7 @@ const generative = new JSONGenerativeUI({
         streamProperties: markdownBase.streamProperties,
         description:
           "A markdown string, rendered with GitHub-flavored markdown.",
-        render: styledGenerativeUILibrary.Markdown!.render,
+        render: GenerativeMarkdown,
       },
       Weather: {
         description:

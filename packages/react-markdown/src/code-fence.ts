@@ -33,4 +33,4 @@ export type ComponentsByLanguage = Record<
 >;
 
 export const parseLanguageClass = (className: string | undefined): string =>
-  /language-([^\s]+)/.exec(className ?? "")?.[1] ?? "";
+  /(?:^|\s)language-([^\s]+)/.exec(className ?? "")?.[1] ?? "";

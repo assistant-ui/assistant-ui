@@ -26,4 +26,10 @@ describe("parseLanguageClass", () => {
     expect(parseLanguageClass("")).toBe("");
     expect(parseLanguageClass("hljs line-numbers")).toBe("");
   });
+
+  it("only matches a standalone language- class token", () => {
+    expect(parseLanguageClass("notlanguage-js")).toBe("");
+    expect(parseLanguageClass("my-language-js")).toBe("");
+    expect(parseLanguageClass("my-language-js language-python")).toBe("python");
+  });
 });

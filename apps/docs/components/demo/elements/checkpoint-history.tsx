@@ -6,7 +6,7 @@ import {
   type Checkpoint,
 } from "@/components/assistant-ui/elements/checkpoint-history";
 
-const CHECKPOINTS: readonly Checkpoint[] = [
+export const CHECKPOINTS: readonly Checkpoint[] = [
   { id: "1", label: "Before the converter change", at: "09:41", files: 0 },
   { id: "2", label: "Converter guarded", at: "09:58", files: 2 },
   { id: "3", label: "Tests added", at: "10:12", files: 4 },

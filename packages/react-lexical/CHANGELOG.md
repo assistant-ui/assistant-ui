@@ -1,5 +1,19 @@
 # @assistant-ui/react-lexical
 
+## 0.2.22
+
+### Patch Changes
+
+- [#10439](https://github.com/assistant-ui/assistant-ui/pull/10439) [`3e04e44`](https://github.com/assistant-ui/assistant-ui/commit/3e04e44f33f8313356305f0b01e2321133228632) - fix(react-lexical): point the composer textbox at the open trigger popover with `aria-controls`, `aria-haspopup`, and `aria-activedescendant` ([@chuganzy](https://github.com/chuganzy))
+
+- [#10410](https://github.com/assistant-ui/assistant-ui/pull/10410) [`34c82b6`](https://github.com/assistant-ui/assistant-ui/commit/34c82b6d8c9e7470706500fcae418d5e5a836dcf) - keep focus in a field outside the thread when a run starts, as `ComposerPrimitive.Input` does, instead of moving it to the Lexical composer ([@jcater](https://github.com/jcater))
+
+## 0.2.21
+
+### Patch Changes
+
+- [#10320](https://github.com/assistant-ui/assistant-ui/pull/10320) [`c359dba`](https://github.com/assistant-ui/assistant-ui/commit/c359dbac04c1d6843cb4ad0cc53d1443fae6dd61) - Keep a space after a selected directive and place the caret after it, matching `ComposerInput`. ([@chuganzy](https://github.com/chuganzy))
+
 ## 0.2.20
 
 ### Patch Changes

@@ -41,7 +41,7 @@ export function XuluxLandingPage({
   };
 
   return (
-    <main className="flex flex-1 scrollbar-thin flex-col items-center overflow-y-auto px-6 pb-24">
+    <div className="flex flex-1 scrollbar-thin flex-col items-center overflow-y-auto px-6 pb-24">
       <div className="flex w-full max-w-3xl flex-col items-center pt-[16vh]">
         <h1 className="mb-6 text-center text-3xl font-medium tracking-tight sm:text-4xl">
           {headline}
@@ -92,6 +92,6 @@ export function XuluxLandingPage({
         onSelect={handleTemplate}
         openSurface="landing_carousel"
       />
-    </main>
+    </div>
   );
 }

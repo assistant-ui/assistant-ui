@@ -1,9 +1,9 @@
+import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
 import Image from "next/image";
 import { Artifacts } from "@/components/pages/examples/artifacts";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
 import { Claude } from "@/components/pages/examples/claude";
 import { Gemini } from "@/components/pages/examples/gemini";
-import { GenUI } from "@/components/pages/examples/genui";
 import { Grok } from "@/components/pages/examples/grok";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
@@ -21,7 +21,10 @@ type PreviewData = {
 
 export function ExamplePreview({ preview }: { preview: PreviewData }) {
   return (
-    <main className="bg-background text-foreground h-screen w-screen overflow-hidden">
+    <main
+      {...MAIN_CONTENT_PROPS}
+      className="bg-background text-foreground h-screen w-screen overflow-hidden"
+    >
       {renderPreview(preview)}
     </main>
   );
@@ -59,8 +62,6 @@ function renderPreview(preview: PreviewData) {
           <Gemini />
         </DocsRuntimeProvider>
       );
-    case "generative-ui":
-      return <GenUI />;
     case "grok":
       return (
         <DocsRuntimeProvider>

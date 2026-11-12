@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
 import pytest
 
@@ -106,6 +106,131 @@ class LegacyFakeRedisLikeClient:
 
     async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool:
         return await self.client.finalize_if_unchanged(options)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("status", ["done", "error"])
+async def test_expired_finalization_releases_only_its_producer_lease(
+    status: Literal["done", "error"],
+) -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    acquisition = await store.acquire_lease("expired")
+    assert acquisition.lease is not None
+    active = await store.acquire_lease("active")
+    assert active.lease is not None
+    await client.delete(["test:{expired}:meta"])
+
+    with pytest.raises(RuntimeError, match="Stream not found: expired"):
+        await store.finalize("expired", status, lease=acquisition.lease)
+
+    assert store._acquired_generations == {"active": active.lease.token}
+    assert await store.status("expired") == "missing"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("outcome", ["superseded", "finalized"])
+async def test_noop_finalization_releases_its_producer_lease(outcome: str) -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    other = RedisResumableStreamStore(client, key_prefix="test")
+    acquisition = await store.acquire_lease("stream")
+    assert acquisition.lease is not None
+    if outcome == "superseded":
+        await client.delete(["test:{stream}:meta"])
+        await other.acquire("stream")
+    else:
+        await other.finalize("stream", "done")
+
+    assert await store.finalize("stream", "done", lease=acquisition.lease) is False
+    assert store._acquired_generations == {}
+    if outcome == "superseded":
+        with pytest.raises(ResumableStreamError, match="superseded"):
+            await store.append("stream", b"stale", acquisition.lease)
+        assert await other.status("stream") == "streaming"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("outcome", ["expired", "superseded", "finalized"])
+async def test_lost_finalization_releases_its_producer_lease(outcome: str) -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    other = RedisResumableStreamStore(client, key_prefix="test")
+    acquisition = await store.acquire_lease("stream")
+    assert acquisition.lease is not None
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    finalizing = asyncio.create_task(
+        store.finalize("stream", "done", lease=acquisition.lease)
+    )
+    await paused.wait()
+    if outcome == "finalized":
+        await other.finalize("stream", "done")
+    else:
+        await client.delete(["test:{stream}:meta"])
+        if outcome == "superseded":
+            await other.acquire("stream")
+    resume.set()
+
+    assert await finalizing is False
+    assert store._acquired_generations == {}
+    if outcome == "superseded":
+        with pytest.raises(ResumableStreamError, match="superseded"):
+            await store.append("stream", b"stale", acquisition.lease)
+        assert await other.status("stream") == "streaming"
+
+
+@pytest.mark.anyio
+async def test_expired_finalizer_preserves_a_newer_local_lease() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    stale = await store.acquire_lease("stream")
+    assert stale.lease is not None
+    await client.delete(["test:{stream}:meta"])
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    finalizing = asyncio.create_task(
+        store.finalize("stream", "done", lease=stale.lease)
+    )
+    await paused.wait()
+    fresh = await store.acquire_lease("stream")
+    assert fresh.lease is not None
+    resume.set()
+    with pytest.raises(RuntimeError, match="Stream not found: stream"):
+        await finalizing
+
+    assert store._acquired_generations == {"stream": fresh.lease.token}
+    await store.append("stream", b"fresh", fresh.lease)
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await store.append("stream", b"stale", stale.lease)
+
+
+@pytest.mark.anyio
+async def test_expired_finalization_preserves_the_lease_less_ownership_fence() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    await store.acquire("stream")
+    await client.delete(["test:{stream}:meta"])
+    with pytest.raises(RuntimeError, match="Stream not found: stream"):
+        await store.finalize("stream", "done")
+    other = RedisResumableStreamStore(client, key_prefix="test")
+    await other.acquire("stream")
+
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await store.append("stream", b"stale")
+    assert await other.status("stream") == "streaming"
 
 
 @pytest.mark.anyio

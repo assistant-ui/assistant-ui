@@ -4,6 +4,7 @@ import type {
 } from "../../../utils/json/json-value";
 import type { GorpStreamOperation } from "../../gorp/types";
 import type { ToolModelContentPart } from "../../tool/tool-types";
+import type { ToolCallApproval } from "../../utils/types";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -49,6 +50,7 @@ export const DataStreamStreamChunkType = {
   AuiReasoningDelta: "aui-reasoning-delta",
   AuiDataPart: "aui-data",
   AuiReasoningPartStart: "aui-reasoning-part-start",
+  AuiToolCallApproval: "aui-tool-call-approval",
 } as const;
 export type DataStreamStreamChunkType =
   (typeof DataStreamStreamChunkType)[keyof typeof DataStreamStreamChunkType];
@@ -102,13 +104,22 @@ type DataStreamStreamChunkValue = {
     messageId: string;
   };
   [DataStreamStreamChunkType.ReasoningDelta]: string;
-  [DataStreamStreamChunkType.Source]: {
-    sourceType: "url";
-    id: string;
-    url: string;
-    title?: string;
-    parentId?: string;
-  };
+  [DataStreamStreamChunkType.Source]:
+    | {
+        sourceType: "url";
+        id: string;
+        url: string;
+        title?: string;
+        parentId?: string;
+      }
+    | {
+        sourceType: "document";
+        id: string;
+        title: string;
+        mediaType: string;
+        filename?: string;
+        parentId?: string;
+      };
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
   [DataStreamStreamChunkType.File]: {
@@ -136,5 +147,9 @@ type DataStreamStreamChunkValue = {
     name: string;
     data: ReadonlyJSONValue;
     parentId?: string;
+  };
+  [DataStreamStreamChunkType.AuiToolCallApproval]: {
+    toolCallId: string;
+    approval: ToolCallApproval;
   };
 };

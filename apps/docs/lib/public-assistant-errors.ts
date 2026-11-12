@@ -21,6 +21,23 @@ export const PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE =
 export const PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE =
   "Daily conversation limit reached";
 
+/**
+ * Streamed as the error part when the model provider behind the demo is out of
+ * quota or rate limited. Provider wording (gateway host, plan names) never
+ * reaches the client.
+ */
+export const MODEL_PROVIDER_LIMIT_MESSAGE =
+  "The demo assistant is temporarily unavailable (usage limit reached). Please try again later.";
+
+/** Streamed when the model provider fails or cannot be reached. */
+export const MODEL_PROVIDER_UNAVAILABLE_MESSAGE =
+  "The demo assistant is temporarily unavailable (the model provider is not responding). Please try again later.";
+
+const MODEL_PROVIDER_MESSAGES = new Set<string>([
+  MODEL_PROVIDER_LIMIT_MESSAGE,
+  MODEL_PROVIDER_UNAVAILABLE_MESSAGE,
+]);
+
 export const publicAssistantLimitMessage = (subject: PublicAssistantLimit) =>
   `${subject} limit exceeded`;
 
@@ -50,6 +67,7 @@ export const describePublicAssistantError = (
   text: string,
 ): string | undefined => {
   const body = unwrapErrorEnvelope(text);
+  if (MODEL_PROVIDER_MESSAGES.has(body)) return body;
   if (body === PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE) {
     return "You have used today's conversations. Sign in to keep going.";
   }

@@ -79,6 +79,7 @@ vi.mock("@/lib/source", () => {
       "safe-content-frame": makeSource(),
       "generative-frame": makeSource(),
       diagrammatic: makeSource(),
+      "remote-components": makeSource(),
     },
     siteTree: () => ({ children: [] }),
   };

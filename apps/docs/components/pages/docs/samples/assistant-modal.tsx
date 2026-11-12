@@ -33,7 +33,14 @@ export function AssistantModalSample() {
 
 type ModalView = "thread" | "list";
 
-export function AssistantModal({ container }: { container?: HTMLElement }) {
+export function AssistantModal({
+  container,
+  autoFocus = true,
+}: {
+  container?: HTMLElement;
+  /** Set false to keep focus where it is when the modal opens on mount. */
+  autoFocus?: boolean;
+}) {
   const [view, setView] = useState<ModalView>("thread");
   const titleId = useId();
 
@@ -56,6 +63,9 @@ export function AssistantModal({ container }: { container?: HTMLElement }) {
         avoidCollisions={false}
         portalProps={{ container }}
         aria-labelledby={titleId}
+        {...(autoFocus
+          ? {}
+          : { onOpenAutoFocus: (event: Event) => event.preventDefault() })}
         className="bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-bottom-2 [&[data-state=open]_.aui-thread-viewport-footer]:animate-in [&[data-state=open]_.aui-thread-viewport-footer]:fade-in-0 [&[data-state=open]_.aui-thread-viewport-footer]:slide-in-from-bottom-2 [&[data-state=open]_.aui-thread-viewport-footer]:fill-mode-backwards [&_.aui-thread-viewport-footer]:bg-popover ring-foreground/10 z-50 flex h-100 max-h-[min(var(--radix-popover-content-available-height),calc(100cqh_-_5.75rem))] w-72 max-w-[calc(100vw-2rem)] origin-(--radix-popover-content-transform-origin) flex-col overflow-clip rounded-xl p-0 antialiased shadow-[0_16px_48px_-24px_rgb(0_0_0/0.25)] ring-1 ease-[cubic-bezier(0.32,0.72,0,1)] outline-none data-[state=closed]:duration-200 data-[state=open]:duration-300 motion-reduce:animate-none md:h-137.5 md:w-105 dark:shadow-[0_16px_48px_-24px_rgb(0_0_0/0.6)] [&_.aui-thread-root]:bg-inherit motion-reduce:[&_.aui-thread-viewport-footer]:animate-none [&_[data-slot=aui\_thread-viewport]]:[scrollbar-gutter:stable_both-edges] [&[data-state=open]_.aui-thread-viewport-footer]:delay-100 [&[data-state=open]_.aui-thread-viewport-footer]:duration-300 [&[data-state=open]_.aui-thread-viewport-footer]:ease-[cubic-bezier(0.32,0.72,0,1)]"
       >
         <AssistantModalHeader
@@ -65,7 +75,7 @@ export function AssistantModal({ container }: { container?: HTMLElement }) {
         />
         <div className="relative min-h-0 flex-1">
           <div className="h-full" inert={view === "list"}>
-            <Thread />
+            <Thread autoFocus={autoFocus} />
           </div>
           {view === "list" && (
             <AssistantModalThreadList onSelect={() => setView("thread")} />

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import "@/test/mock-fumadocs-collections";
+import "@/test/mock-content";
 import { PLATFORMS } from "@/lib/constants";
 
 const { getDocsMarkdown } = vi.hoisted(() => ({

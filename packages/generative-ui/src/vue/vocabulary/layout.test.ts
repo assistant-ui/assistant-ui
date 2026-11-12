@@ -383,3 +383,205 @@ describe("layout vocabulary in Vue", () => {
     expect(vue.state.getState()).toEqual(react.state.getState());
   });
 });
+
+describe("invalid controls in Tabs", () => {
+  const render = (
+    framework: "react" | "vue",
+    surface: "Form" | "Card",
+    visibleRequired: boolean,
+    nested = false,
+  ) => {
+    const save = vi.fn();
+    const input = spec({
+      main:
+        surface === "Form"
+          ? {
+              type: "Form",
+              children: ["tabs", "submit"],
+              on: {
+                submit: {
+                  action: "save",
+                  params: { values: { $event: "" } },
+                },
+              },
+            }
+          : {
+              type: "Card",
+              props: { asForm: true, confirm: { label: "Save" } },
+              children: ["tabs"],
+              on: {
+                confirm: {
+                  action: "save",
+                  params: { values: { $event: "" } },
+                },
+              },
+            },
+      tabs: {
+        type: "Tabs",
+        props: { tabs: ["Overview", "Contact"] },
+        children: ["overview", "contact"],
+      },
+      overview: visibleRequired
+        ? { type: "Input", props: { name: "overview", required: true } }
+        : { type: "Text", props: { value: "Overview" } },
+      contact: nested
+        ? {
+            type: "Tabs",
+            props: { tabs: ["Billing", "Address"] },
+            children: ["billing", "address"],
+          }
+        : { type: "Box", children: ["email", "address"] },
+      billing: { type: "Text", props: { value: "Billing" } },
+      address: { type: "Input", props: { name: "address", required: true } },
+      email: { type: "Input", props: { name: "email", required: true } },
+      submit: { type: "Button", props: { label: "Save", submit: true } },
+    });
+    const rendered = renderEventSpec(input, framework, { save });
+    const form = rendered.container.querySelector("form")!;
+    const panels = [
+      ...rendered.container.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+    ];
+    const tabs = [
+      ...rendered.container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    ];
+    return { form, panels, tabs, save };
+  };
+
+  const submit = async (
+    form: HTMLFormElement,
+    framework: "react" | "vue",
+    surface: "Form" | "Card",
+  ) => {
+    vi.useFakeTimers();
+    try {
+      const button =
+        surface === "Card"
+          ? form.querySelector<HTMLButtonElement>('[data-aui="card-confirm"]')!
+          : form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+      if (framework === "react") {
+        await act(async () => {
+          form.requestSubmit(button);
+          await vi.runAllTimersAsync();
+        });
+      } else {
+        form.requestSubmit(button);
+        await vi.runAllTimersAsync();
+        await nextTick();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+
+  it.each(
+    (["react", "vue"] as const).flatMap((framework) =>
+      (["Form", "Card"] as const).map(
+        (surface) => [framework, surface] as const,
+      ),
+    ),
+  )(
+    "%s %s reveals the hidden required Input and reports validity once per submit",
+    async (framework, surface) => {
+      const { form, panels, tabs, save } = render(framework, surface, false);
+      const email = form.querySelector<HTMLInputElement>(
+        'input[name="email"]',
+      )!;
+      const address = form.querySelector<HTMLInputElement>(
+        'input[name="address"]',
+      )!;
+      const report = vi.spyOn(email, "reportValidity");
+      const secondInvalid = vi.fn();
+      address.addEventListener("invalid", secondInvalid);
+
+      expect(email.required).toBe(true);
+      expect(address.required).toBe(true);
+      expect(panels.map((panel) => panel.hidden)).toEqual([false, true]);
+      await submit(form, framework, surface);
+      expect(save).not.toHaveBeenCalled();
+      expect(secondInvalid).toHaveBeenCalledOnce();
+      expect(panels.map((panel) => panel.hidden)).toEqual([true, false]);
+      expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
+      expect(document.activeElement).toBe(email);
+      expect(report).toHaveBeenCalledOnce();
+
+      if (framework === "react") {
+        await act(async () => tabs[0]!.click());
+      } else {
+        tabs[0]!.click();
+        await nextTick();
+      }
+      await submit(form, framework, surface);
+      expect(panels.map((panel) => panel.hidden)).toEqual([true, false]);
+      expect(document.activeElement).toBe(email);
+      expect(report).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each(
+    (["react", "vue"] as const).flatMap((framework) =>
+      (["Form", "Card"] as const).map(
+        (surface) => [framework, surface] as const,
+      ),
+    ),
+  )(
+    "%s %s leaves the selected tab in place for a visible invalid Input",
+    async (framework, surface) => {
+      const { form, panels, tabs, save } = render(framework, surface, true);
+      const overview = form.querySelector<HTMLInputElement>(
+        'input[name="overview"]',
+      )!;
+      const report = vi.spyOn(overview, "reportValidity");
+      await submit(form, framework, surface);
+      expect(save).not.toHaveBeenCalled();
+      expect(panels.map((panel) => panel.hidden)).toEqual([false, true]);
+      expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
+      expect(report).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(
+    (["react", "vue"] as const).flatMap((framework) =>
+      (["Form", "Card"] as const).map(
+        (surface) => [framework, surface] as const,
+      ),
+    ),
+  )(
+    "%s %s reveals nested hidden Tabs and focuses the required Input",
+    async (framework, surface) => {
+      const { form, save } = render(framework, surface, false, true);
+      const tabGroups = [
+        ...form.querySelectorAll<HTMLElement>('[data-aui="tabs"]'),
+      ];
+      const outerPanels = [...tabGroups[0]!.children].filter(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement &&
+          child.getAttribute("role") === "tabpanel",
+      );
+      const innerPanels = [...tabGroups[1]!.children].filter(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement &&
+          child.getAttribute("role") === "tabpanel",
+      );
+      const address = form.querySelector<HTMLInputElement>(
+        'input[name="address"]',
+      )!;
+      const report = vi.spyOn(address, "reportValidity");
+
+      expect(outerPanels.map((panel) => panel.hidden)).toEqual([false, true]);
+      expect(innerPanels.map((panel) => panel.hidden)).toEqual([false, true]);
+      await submit(form, framework, surface);
+      expect(save).not.toHaveBeenCalled();
+      expect(outerPanels.map((panel) => panel.hidden)).toEqual([true, false]);
+      expect(innerPanels.map((panel) => panel.hidden)).toEqual([true, false]);
+      expect(document.activeElement).toBe(address);
+      expect(report).toHaveBeenCalledOnce();
+
+      address.value = "1 Main St";
+      await submit(form, framework, surface);
+      expect(save).toHaveBeenCalledOnce();
+      expect(save.mock.calls[0]?.[0]).toEqual({
+        values: { address: "1 Main St" },
+      });
+    },
+  );
+});

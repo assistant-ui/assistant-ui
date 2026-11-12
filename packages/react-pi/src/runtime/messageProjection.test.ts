@@ -7,6 +7,8 @@ import {
   type PiProjectionInput,
 } from "./messageProjection";
 import { isCompleteTranscriptMessage } from "../client/validation";
+import { mapSessionEvent } from "../node/mapping";
+import { createPiThreadState, reducePiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
   PiAssistantMessage,
@@ -334,6 +336,180 @@ describe("messageProjection", () => {
     const part = contentParts(out[0]!)[0]!;
     expect(part.result).toBe("done");
     expect(part.isPreliminary).toBeUndefined();
+  });
+
+  it("preserves tool details as artifacts without replacing result text", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("edit", "edit", { path: "note.txt" }),
+            toolCall("search", "search", { query: "notes" }),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "edit",
+            toolName: "edit",
+            content: [{ type: "text", text: "Successfully replaced text." }],
+            details: { diff: "-1 old\n+1 new", firstChangedLine: 1 },
+            isError: false,
+            timestamp: 2,
+          },
+        ],
+        {
+          toolExecutions: {
+            edit: {
+              toolCallId: "edit",
+              status: "running",
+              partialResult: { details: { diff: "stale" } },
+            },
+            search: {
+              toolCallId: "search",
+              status: "running",
+              partialResult: {
+                content: [{ type: "text", text: "Searching..." }],
+                details: { matches: ["note.txt"] },
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    const parts = contentParts(out[0]!);
+    expect(parts[0]).toMatchObject({
+      toolCallId: "edit",
+      result: "Successfully replaced text.",
+      artifact: { diff: "-1 old\n+1 new", firstChangedLine: 1 },
+    });
+    expect(parts[1]).toMatchObject({
+      toolCallId: "search",
+      result: "Searching...",
+      artifact: { matches: ["note.txt"] },
+      isPreliminary: true,
+    });
+    expect(parts[0]!.modelContent).toBeUndefined();
+    expect(parts[1]!.modelContent).toBeUndefined();
+  });
+
+  it("keeps falsy details and lets a finalized result without details win", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("count", "count", {}),
+            toolCall("plain", "plain", {}),
+            toolCall("flag", "flag", {}),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "count",
+            toolName: "count",
+            content: [{ type: "text", text: "0 matches" }],
+            details: 0,
+            isError: false,
+            timestamp: 2,
+          },
+          {
+            role: "toolResult",
+            toolCallId: "plain",
+            toolName: "plain",
+            content: [{ type: "text", text: "done" }],
+            isError: false,
+            timestamp: 3,
+          },
+        ],
+        {
+          toolExecutions: {
+            plain: {
+              toolCallId: "plain",
+              status: "running",
+              partialResult: { details: { stale: true } },
+            },
+            flag: {
+              toolCallId: "flag",
+              status: "running",
+              partialResult: {
+                content: [{ type: "text", text: "checking" }],
+                details: false,
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    const parts = contentParts(out[0]!);
+    expect(parts[0]).toMatchObject({ toolCallId: "count", artifact: 0 });
+    expect(parts[1]).toMatchObject({ toolCallId: "plain", result: "done" });
+    expect(parts[1]).not.toHaveProperty("artifact");
+    expect(parts[2]).toMatchObject({ toolCallId: "flag", artifact: false });
+  });
+
+  it("publishes in-process tool details when nested results are reused", () => {
+    const projector = new PiThreadMessageProjector();
+    const currentResult = { usage: { turns: 1 }, messages: [] as unknown[] };
+    const partialResult = () => ({
+      content: [{ type: "text", text: "(running...)" }],
+      details: { mode: "single", results: [currentResult] },
+    });
+    const initial = {
+      ...createPiThreadState("thread"),
+      messages: [assistant([toolCall("tc1", "subagent", {})])],
+    };
+    const first = reducePiThreadState(initial, {
+      ...mapSessionEvent(
+        {
+          type: "tool_execution_update",
+          toolCallId: "tc1",
+          toolName: "subagent",
+          args: {},
+          partialResult: partialResult(),
+        },
+        { turnIndex: 0 },
+      ),
+      threadId: "thread",
+      seq: 1,
+    });
+    const previous = projector.project(first);
+
+    currentResult.usage.turns = 2;
+    currentResult.messages.push(assistant([], { stopReason: "toolUse" }));
+    const next = reducePiThreadState(first, {
+      ...mapSessionEvent(
+        {
+          type: "tool_execution_update",
+          toolCallId: "tc1",
+          toolName: "subagent",
+          args: {},
+          partialResult: partialResult(),
+        },
+        { turnIndex: 0 },
+      ),
+      threadId: "thread",
+      seq: 2,
+    });
+    const projected = projector.project(next);
+
+    expect(projected).not.toBe(previous);
+    expect(projector.getChangedProjectedIndex()).toBe(0);
+    expect(contentParts(previous[0]!)[0]).toMatchObject({
+      result: "(running...)",
+      artifact: { results: [{ usage: { turns: 1 }, messages: [] }] },
+    });
+    expect(contentParts(projected[0]!)[0]).toMatchObject({
+      result: "(running...)",
+      artifact: {
+        results: [
+          {
+            usage: { turns: 2 },
+            messages: [{ role: "assistant", content: [] }],
+          },
+        ],
+      },
+    });
   });
 
   it("preserves live image tool result content", () => {

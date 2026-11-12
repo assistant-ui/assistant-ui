@@ -144,8 +144,6 @@ describe("projectAdkToolApprovals", () => {
     "gates the confirmation and the call it gates: %s",
     (_name, messages, expected) => {
       const { approvals, key } = projectAdkToolApprovals(messages);
-      // Both calls are in the transcript, so both would otherwise render an
-      // approval control; the gated one carries the answerable synthetic id.
       expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL, GATED_CALL]);
       expect(approvals.get(CONFIRMATION_CALL)).toEqual(expected);
       expect(approvals.get(GATED_CALL)).toEqual(expected);
@@ -229,6 +227,7 @@ describe("projectAdkToolApprovals", () => {
 
   it("skips a null tool_calls entry", () => {
     const { approvals } = projectAdkToolApprovals([
+      aiCall(GATED_CALL, "delete_file"),
       {
         id: "ai-1",
         type: "ai",
@@ -244,6 +243,16 @@ describe("projectAdkToolApprovals", () => {
       } as unknown as AdkMessage,
     ]);
     expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL, GATED_CALL]);
+  });
+
+  it("keeps the synthetic approval when its original call is absent", () => {
+    const { approvals } = projectAdkToolApprovals([
+      aiCall(CONFIRMATION_CALL, "adk_request_confirmation", {
+        originalFunctionCall: { id: GATED_CALL, name: "delete_file" },
+      }),
+    ]);
+
+    expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL]);
   });
 });
 
@@ -327,9 +336,6 @@ describe("toAdkConfirmationReply", () => {
 
 describe("projectAdkToolApprovals gated call", () => {
   it("answers through the gated call with the synthetic id", () => {
-    // ADK yields the gated call before the confirmation request, so it is in
-    // the transcript too; answering from its control must still quote the id
-    // ADK is waiting on.
     const { approvals } = projectAdkToolApprovals(requestedThread());
 
     const gated = approvals.get(GATED_CALL);

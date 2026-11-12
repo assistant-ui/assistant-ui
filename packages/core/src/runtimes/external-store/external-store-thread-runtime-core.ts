@@ -210,6 +210,10 @@ export class ExternalStoreThreadRuntimeCore
     return this._messages;
   }
 
+  protected override _beforeImportNotify(): void {
+    this._syncRepositoryMessages();
+  }
+
   public override get state() {
     return this._store.state ?? super.state;
   }
@@ -489,7 +493,17 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public __internal_setAdapter(store: ExternalStoreAdapter<any>) {
-    if (this._store === store) return;
+    if (this._store === store) {
+      // A runtime constructed by a discarded render claims the retained tracker
+      // in its constructor, so the committed runtime takes it back here.
+      const retained = store.unstable_enableToolInvocations
+        ? retainedToolInvocations.get(this.repository)
+        : undefined;
+      if (retained && retained.host !== this) {
+        this._runTrackerUpdate(() => this._claimToolInvocations(retained));
+      }
+      return;
+    }
 
     this._updateStoreSnapshot(store);
   }
@@ -905,6 +919,21 @@ export class ExternalStoreThreadRuntimeCore
     this._notifySubscribers();
   }
 
+  private _claimToolInvocations(
+    retained: RetainedToolInvocations,
+  ): ToolInvocationTracker {
+    this._toolInvocations = retained.tracker;
+    if (retained.host !== this) {
+      if (retained.host._toolInvocations === retained.tracker)
+        retained.host._toolInvocations = null;
+      retained.host = this;
+      const statuses = retained.tracker.getStatuses();
+      if (statuses.size > 0 || this._toolStatuses.size > 0)
+        this._applyToolStatuses(statuses);
+    }
+    return retained.tracker;
+  }
+
   /**
    * Feed the current message snapshot into the tool-invocations tracker.
    * Opt-in via `adapter.unstable_enableToolInvocations: true`. The tracker
@@ -930,18 +959,10 @@ export class ExternalStoreThreadRuntimeCore
       retained = this._createToolInvocations();
       retainedToolInvocations.set(this.repository, retained);
     }
-    this._toolInvocations = retained.tracker;
-    if (retained.host !== this) {
-      if (retained.host._toolInvocations === retained.tracker)
-        retained.host._toolInvocations = null;
-      retained.host = this;
-      const statuses = retained.tracker.getStatuses();
-      if (statuses.size > 0 || this._toolStatuses.size > 0)
-        this._applyToolStatuses(statuses);
-    }
+    const tracker = this._claimToolInvocations(retained);
 
     const discardedToolCallIds = this._getDiscardedToolCallIds();
-    this._toolInvocations.setState({
+    tracker.setState({
       messages: this._messages,
       isRunning: this._getEffectiveIsRunning(this._store),
       ...(discardedToolCallIds && { discardedToolCallIds }),
@@ -1364,9 +1385,13 @@ export class ExternalStoreThreadRuntimeCore
   // Notifies even when the visible messages are unchanged: deleting an
   // off-branch message still changes the branch counts subscribers read.
   private _publishRepositoryMessages() {
+    this._syncRepositoryMessages();
+    this._notifySubscribers();
+  }
+
+  private _syncRepositoryMessages() {
     const messages = this.repository.getMessages();
     if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
-    this._notifySubscribers();
   }
 
   public getQueueItems() {

@@ -3,7 +3,7 @@ title: assistant-cloud
 description: The assistant-cloud client for threads, messages, runs, events, scores and files, with the reporters, persistence and run report helpers an integration is built from.
 ---
 
-import { assistantCloud_AssistantCloud, assistantCloud_AssistantCloudEvents, assistantCloud_AssistantCloudScores, assistantCloud_CloudAPIError, assistantCloud_CloudEngagementReporter, assistantCloud_CloudMessagePersistence, assistantCloud_CloudResponseError, assistantCloud_CloudRunReporter, assistantCloud_createRunReport, assistantCloud_createRunTelemetryToolCall, assistantCloud_deriveRunOutcome, assistantCloud_describeRunError, assistantCloud_extractRunTelemetryModelId, assistantCloud_generateThreadTitle, assistantCloud_normalizeRunTelemetryUsage, assistantCloud_truncateRunTelemetryText, assistantCloud_wrapSamplingHandler } from "@/generated/integrationTypeDocs";
+import { assistantCloud_AssistantCloud, assistantCloud_AssistantCloudEvents, assistantCloud_AssistantCloudScores, assistantCloud_AssistantCloudThreadRuns, assistantCloud_CloudAPIError, assistantCloud_CloudEngagementReporter, assistantCloud_CloudMessagePersistence, assistantCloud_CloudResponseError, assistantCloud_CloudRunReporter, assistantCloud_createRunReport, assistantCloud_createRunTelemetryToolCall, assistantCloud_deriveRunOutcome, assistantCloud_describeRunError, assistantCloud_extractRunTelemetryModelId, assistantCloud_generateThreadTitle, assistantCloud_normalizeRunTelemetryUsage, assistantCloud_truncateRunTelemetryText, assistantCloud_wrapSamplingHandler } from "@/generated/integrationTypeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -53,6 +53,17 @@ Every call returns a promise and throws `CloudAPIError` on a non 2xx response, w
 
 <ParametersTable {...assistantCloud_AssistantCloudScores} />
 
+### AssistantCloudThreadRuns
+
+Run leases on thread messages. A lease is opened with `open_run` when its
+message is created, belongs to that message alone, and runs until its
+holder ends it; the server never expires one. The holder heartbeats on the
+server's `heartbeat_interval_ms`, and listed messages report how long ago
+the last beat was, so readers can tell a run whose tab went away. Writes as
+the holder go through `threads.messages` with the `lease_id`.
+
+<ParametersTable {...assistantCloud_AssistantCloudThreadRuns} />
+
 ### CloudAPIError
 
 <ParametersTable {...assistantCloud_CloudAPIError} />
@@ -73,7 +84,17 @@ buffer, so a disabled telemetry setting drops everything here as well.
 
 Appends, updates and loads cloud messages while mapping local ids to cloud
 ids and chaining parent_id. A parent that is still being created is awaited,
-so concurrent appends land under the right parent.
+so concurrent appends land under the right parent. A parent whose create
+failed is created again before its child, and a child whose parent still
+cannot be created is stored as a root.
+
+A message appended as running holds a run lease, renewed by heartbeats on
+the server's interval until a write with an end reason ends it. Heartbeats
+keep running while the page is in the background. The server never
+expires a lease; readers show a run as stale once it has gone `staleAfter`
+without a beat, and a late run keeps writing its own message. A lease that
+is lost (ended elsewhere or refused) is final: the message gets no further
+writes from this persistence.
 
 <ParametersTable {...assistantCloud_CloudMessagePersistence} />
 
@@ -97,8 +118,13 @@ Wraps a CloudMessagePersistence with a MessageFormatAdapter's encode and
 decode. The persistence parameter is typed structurally, so a caller does
 not need to import the class.
 
+`append` and `update` take an optional run phase that is passed through to
+the persistence: `running` opens (on append) or renews (on update) the
+message's run lease, and an end reason makes the write the lease's final
+write and ends it, the same as for `aui/v0` messages.
+
 ```ts
-const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject) => Promise<void>; load: (threadId: string, format?: string) => Promise<any[]>; isPersisted: (messageId: string) => boolean; update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>; delete?: (threadId: string, messageIds: string[]) => Promise<void>; }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => { append: (threadId: string, item: { parentId: string | null; message: TMessage; }) => Promise<void>; update: ((threadId: string, item: { parentId: string | null; message: TMessage; }, messageId: string) => Promise<void>) | undefined; delete: ((threadId: string, items: { parentId: string | null; message: TMessage; }[]) => Promise<void>) | undefined; load: (threadId: string) => Promise<{ messages: { parentId: string | null; message: TMessage; }[]; }>; isPersisted: (messageId: string) => boolean; };
+const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase) => Promise<void>; load: (threadId: string, format?: string) => Promise<any[]>; isPersisted: (messageId: string) => boolean; update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase) => Promise<void>; delete?: (threadId: string, messageIds: string[]) => Promise<void>; }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => { append: (threadId: string, item: { parentId: string | null; message: TMessage; }, run?: CloudMessageRunPhase) => Promise<void>; update: ((threadId: string, item: { parentId: string | null; message: TMessage; }, messageId: string, run?: CloudMessageRunPhase) => Promise<void>) | undefined; delete: ((threadId: string, items: { parentId: string | null; message: TMessage; }[]) => Promise<void>) | undefined; load: (threadId: string) => Promise<{ messages: { parentId: string | null; message: TMessage; }[]; }>; isPersisted: (messageId: string) => boolean; };
 ```
 
 ### createRunReport
@@ -127,6 +153,14 @@ const calls = collector.getCalls(); // SamplingCallData[]
 
 ```ts
 function createSamplingCollector(): { collect: (data: SamplingCallData) => number; getCalls: () => SamplingCallData[]; reset: () => void; };
+```
+
+### DEFAULT_RUN_STALE_AFTER_MS
+
+How long a running lease may go without a heartbeat before its message reads as stale.
+
+```ts
+const DEFAULT_RUN_STALE_AFTER_MS: 30000;
 ```
 
 ### deriveRunOutcome

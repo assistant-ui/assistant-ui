@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
   resolveDemoIdentity: vi.fn(),
   claimConversation: vi.fn(),
   streamDocsChat: vi.fn(),
+  getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
 }));
+
+vi.mock("@/lib/accounts-auth", () => ({ getSession: mocks.getSession }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -293,6 +296,59 @@ describe("POST /api/chat generative UI", () => {
       tools: Record<string, unknown>;
     };
 
+  it("passes account session status to model selection", async () => {
+    allowed();
+    streamed();
+    mocks.getSession.mockResolvedValueOnce({ user: { id: "user_1" } });
+
+    await (
+      await send({
+        messages: [message],
+        config: { modelName: "gpt-6-luna" },
+      })
+    ).text();
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: true },
+    );
+  });
+
+  it("selects the model as signed out without an account session", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send({
+        messages: [message],
+        config: { modelName: "gpt-6-luna" },
+      })
+    ).text();
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: false },
+    );
+  });
+
+  it("selects the model as signed out when the account session read fails", async () => {
+    allowed();
+    streamed();
+    mocks.getSession.mockRejectedValueOnce(new Error("accounts unavailable"));
+
+    const response = await send({
+      messages: [message],
+      config: { modelName: "gpt-6-luna" },
+    });
+    await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith(
+      { modelName: "gpt-6-luna" },
+      { signedIn: false },
+    );
+  });
+
   it("gives image search only to a client that renders specs", async () => {
     allowed();
     streamed();
@@ -433,5 +489,39 @@ describe("POST /api/chat generative UI", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Single message too long");
+  });
+});
+
+describe("POST /api/chat model provider failures", () => {
+  it("streams the usage limit notice instead of the provider's error", async () => {
+    const { APICallError, streamText } = await import("ai");
+    const { MockLanguageModelV4 } = await import("ai/test");
+    const { MODEL_PROVIDER_LIMIT_MESSAGE } =
+      await import("@/lib/public-assistant-errors");
+    allowed();
+    mocks.streamDocsChat.mockImplementation(() => ({
+      result: streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            throw new APICallError({
+              message: "Error 429: You have reached your weekly plan limit.",
+              url: "https://gateway.example.test/v1/responses",
+              requestBodyValues: {},
+              statusCode: 429,
+            });
+          },
+        }),
+        prompt: "hello",
+        maxRetries: 0,
+        onError: () => {},
+      }),
+      messageMetadata: () => undefined,
+    }));
+
+    const body = await (await send({ messages: [message] })).text();
+
+    expect(body).toContain(JSON.stringify(MODEL_PROVIDER_LIMIT_MESSAGE));
+    expect(body).not.toMatch(/plan limit|gateway\.example/i);
+    expect(body).not.toContain("An error occurred.");
   });
 });

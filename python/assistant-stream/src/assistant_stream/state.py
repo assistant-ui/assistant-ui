@@ -394,7 +394,10 @@ class StateProxy:
 
     def __contains__(self, item: Any) -> bool:
         """Check if item is in the value."""
-        return item in self._get_value()
+        value = self._get_value()
+        if isinstance(value, dict):
+            item = self._resolve_key(value, item, require_existing=False)
+        return item in value
 
     def __eq__(self, other: Any) -> bool:
         """Compare equality with another value."""
@@ -552,6 +555,7 @@ class StateProxy:
                 f"'setdefault' not supported for type {type(value).__name__}"
             )
 
+        key = self._resolve_key(value, key, require_existing=False)
         if key in value:
             return self[key]
 

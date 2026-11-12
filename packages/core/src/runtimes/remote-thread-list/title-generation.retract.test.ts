@@ -257,6 +257,67 @@ describe("title generation retraction", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
+  it("reasserts a successful rename when an older explicit write lands late", async () => {
+    const h = setup();
+    const generationStarted = deferred();
+    const titleChunk = deferred();
+    const titleChunkHandled = deferred();
+    const finishStream = deferred();
+    const failNewer = deferred();
+    const first = runThreadTitleGeneration({
+      states: h.states,
+      threadId: "t1",
+      readTitle: async () => h.server.title,
+      automatic: false,
+      reconcileExplicitClaimsOnRetraction: true,
+      generate: async (onTitle) => {
+        generationStarted.resolve();
+        await titleChunk.promise;
+        await onTitle("G1ab");
+        titleChunkHandled.resolve();
+        await finishStream.promise;
+      },
+      rename: h.rename,
+      applyTitle: h.applyTitle,
+    });
+    await generationStarted.promise;
+
+    const rename1 = startThreadTitleRename(h.states, "t1", "Rename 1");
+    const rename2 = startThreadTitleRename(h.states, "t1", "Rename 2");
+    h.server.title = "Rename 1";
+    finishThreadTitleRename(h.states, "t1", rename1, true);
+    finishThreadTitleRename(h.states, "t1", rename2, false);
+    h.server.title = "G1ab";
+
+    const second = runThreadTitleGeneration({
+      states: h.states,
+      threadId: "t1",
+      readTitle: async () => h.server.title,
+      automatic: false,
+      reconcileExplicitClaimsOnRetraction: true,
+      generate: async () => {
+        await failNewer.promise;
+        throw new Error("generation failed");
+      },
+      rename: h.rename,
+      applyTitle: h.applyTitle,
+    });
+    const rejected = expect(second).rejects.toThrow("generation failed");
+    titleChunk.resolve();
+    await titleChunkHandled.promise;
+    expect(h.applied).toEqual([]);
+    expect(h.server.title).toBe("G1ab");
+
+    failNewer.resolve();
+    await rejected;
+    finishStream.resolve();
+    await first;
+
+    expect(h.applied).toEqual(["Rename 1"]);
+    expect(h.server.title).toBe("Rename 1");
+    expect(h.rename).toHaveBeenCalledExactlyOnceWith("Rename 1");
+  });
+
   it("reasserts a manual rename completed during the automatic stream", async () => {
     const h = setup();
     const aGate = deferred();

@@ -1,4 +1,4 @@
-import { use, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -35,12 +35,12 @@ function sortedRoles(): CareerPage[] {
   });
 }
 
-export default function CareerRolePage({
+export default async function CareerRolePage({
   params,
 }: {
   params: Promise<Params>;
-}): ReactElement {
-  const { slug } = use(params);
+}): Promise<ReactElement> {
+  const { slug } = await params;
   const page = careers.getPage([slug]) as CareerPage | undefined;
 
   if (!page) {
@@ -48,6 +48,7 @@ export default function CareerRolePage({
   }
 
   const role = page;
+  const { body: Body } = await role.data.load();
   const roles = sortedRoles();
   const fig = roles.findIndex((entry) => entry.slugs[0] === slug) + 1;
   const others = roles.filter((entry) => entry.slugs[0] !== slug);
@@ -89,7 +90,7 @@ export default function CareerRolePage({
       <div className="border-foreground/10 mt-12 border-t pt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-16">
         <div className="min-w-0">
           <article className="docs-prose prose prose-blog w-full max-w-[42rem] min-w-0">
-            <role.data.body components={mdxComponents} />
+            <Body components={mdxComponents} />
           </article>
           <section
             id="apply"
@@ -126,7 +127,10 @@ export default function CareerRolePage({
       </div>
 
       {others.length > 0 ? (
-        <nav className="border-foreground/10 divide-foreground/10 mt-24 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0">
+        <nav
+          aria-label="Other roles"
+          className="border-foreground/10 divide-foreground/10 mt-24 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0"
+        >
           {others.map((other) => (
             <Link
               key={other.url}

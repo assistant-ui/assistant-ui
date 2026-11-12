@@ -58,4 +58,52 @@ export const examples: DemoExample[] = [
     ),
     source: "FrontierBench 1.1 scores. Higher is better.",
   },
+  {
+    title: "Weekly signups with a fitted trend",
+    setup:
+      "A product team reviews eight weeks of new accounts. The dashed line fits the weekly counts, making the direction clear despite week-to-week changes.",
+    read: "Signups rise from 38 in week one to 61 in week eight. Week six dips to 46 before the last two weeks climb to 58 and 61.",
+    chart: (
+      <Column
+        trend
+        title="Weekly signups"
+        items={[
+          { label: "W1", value: 38 },
+          { label: "W2", value: 42 },
+          { label: "W3", value: 39 },
+          { label: "W4", value: 47 },
+          { label: "W5", value: 50 },
+          { label: "W6", value: 46 },
+          { label: "W7", value: 58 },
+          { label: "W8", value: 61 },
+        ]}
+      />
+    ),
+    source: "Illustrative weekly signup counts.",
+  },
+  {
+    title: "Monthly net cash flow as a dot matrix",
+    setup:
+      "A finance lead scans monthly net cash flow. Filled dots move up for surpluses and down for deficits; faint dots show the available range on each side.",
+    read: "Cash flow is negative in January, April, and July. August closes at $36k, the largest surplus in the period.",
+    chart: (
+      <Column
+        mark="dot"
+        values
+        title="Monthly net cash flow, thousands of dollars"
+        items={[
+          { label: "Jan", value: -12 },
+          { label: "Feb", value: 18 },
+          { label: "Mar", value: 25 },
+          { label: "Apr", value: -8 },
+          { label: "May", value: 31 },
+          { label: "Jun", value: 22 },
+          { label: "Jul", value: -5 },
+          { label: "Aug", value: 36 },
+        ]}
+        format={(v) => `${v < 0 ? "-" : ""}$${Math.abs(v)}k`}
+      />
+    ),
+    source: "Illustrative monthly net cash flow.",
+  },
 ];

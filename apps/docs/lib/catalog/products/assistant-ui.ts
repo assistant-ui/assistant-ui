@@ -3,7 +3,6 @@ import type { CatalogProduct } from "../types";
 export const assistantUi: CatalogProduct = {
   slug: "assistant-ui",
   href: "/components/assistant-ui",
-  purchase: "setup",
   name: "assistant-ui",
   tagline: "A streaming chat UI wired to the agent framework you already use.",
   description:

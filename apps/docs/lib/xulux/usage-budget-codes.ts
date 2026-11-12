@@ -27,7 +27,7 @@ export type TokenUsage = {
 };
 
 /** The model every xulux turn runs on; the per-token rates below are its gateway price. */
-export const XULUX_MODEL_ID = "deepseek-v4.1-flash" satisfies KnownModelId;
+export const XULUX_MODEL_ID = "deepseek/deepseek-flash" satisfies KnownModelId;
 
 const DEFAULT_INPUT_MICRO_USD_PER_M = 280_000;
 const DEFAULT_OUTPUT_MICRO_USD_PER_M = 420_000;

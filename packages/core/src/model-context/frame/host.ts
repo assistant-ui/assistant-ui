@@ -104,7 +104,13 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (isLoadResponse) {
       if (message.documentId !== undefined)
         this._previousDocumentIds.delete(message.documentId);
-      this._frameLoadRequestId = undefined;
+    } else if (
+      this._frameLoadRequestId !== undefined &&
+      message.type === "model-context-update" &&
+      message.documentId !== undefined &&
+      message.documentId === this._frameLoadDocumentId
+    ) {
+      this.requestContext(this._frameLoadRequestId);
     }
 
     if (
@@ -114,15 +120,16 @@ export class AssistantFrameHost implements ModelContextProvider {
       return;
 
     if (
-      this._frameLoadTimeout !== undefined &&
-      (isLoadResponse ||
-        (message.documentId !== undefined &&
-          message.documentId !== this._frameLoadDocumentId) ||
-        (message.type === "model-context-update" &&
-          message.documentId === undefined))
+      isLoadResponse ||
+      (message.documentId !== undefined &&
+        message.documentId !== this._frameLoadDocumentId) ||
+      (message.type === "model-context-update" &&
+        message.documentId === undefined)
     ) {
-      clearTimeout(this._frameLoadTimeout);
+      if (this._frameLoadTimeout !== undefined)
+        clearTimeout(this._frameLoadTimeout);
       this._frameLoadTimeout = undefined;
+      this._frameLoadRequestId = undefined;
     }
 
     if (message.documentId !== undefined) {

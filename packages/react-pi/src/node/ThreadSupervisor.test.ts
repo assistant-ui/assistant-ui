@@ -196,8 +196,8 @@ describe("PiThreadSupervisor", () => {
       "@earendil-works/pi-coding-agent",
     );
     const cwd = await mkdtemp(join(tmpdir(), "pi-extension-theme-"));
-    const supervisor = new PiThreadSupervisor({ workspacePath: cwd });
     const initialized = vi.fn();
+    let supervisor: PiThreadSupervisor | undefined;
     try {
       const modelRuntime = await actual.ModelRuntime.create({
         authPath: join(cwd, "auth.json"),
@@ -224,26 +224,146 @@ describe("PiThreadSupervisor", () => {
       });
       await resourceLoader.reload();
       sdk.create.mockReturnValue(actual.SessionManager.inMemory(cwd));
-      sdk.createAgentSession.mockImplementation(
-        (options: PiSdk.CreateAgentSessionOptions) =>
-          actual.createAgentSession({
-            ...options,
-            modelRuntime,
-            settingsManager,
-            tools: [],
-            resourceLoader,
-          }),
-      );
+      sdk.createAgentSession.mockImplementation(actual.createAgentSession);
+      const configureSession = vi.fn(() => ({
+        settingsManager,
+        tools: [],
+        resourceLoader,
+      }));
+      supervisor = new PiThreadSupervisor({
+        workspacePath: cwd,
+        modelRuntime,
+        configureSession,
+      });
 
       const snapshot = await supervisor.createThread();
 
       expect(snapshot.lastError).toBeUndefined();
       expect(snapshot.metadata.status).toBe("idle");
       expect(initialized).toHaveBeenCalledOnce();
+      expect(configureSession).toHaveBeenCalledWith({ cwd, signal: undefined });
+      expect(sdk.modelRuntimeCreate).not.toHaveBeenCalled();
     } finally {
-      await supervisor.dispose();
+      await supervisor?.dispose();
       await rm(cwd, { recursive: true, force: true });
     }
+  });
+
+  it("opens a cold thread with configured options and its own model runtime", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      setThinkingLevel: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const configureSession = vi.fn(() => ({ tools: [] }));
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession,
+    });
+
+    await supervisor.setThinkingLevel("t1", "high");
+
+    expect(configureSession).toHaveBeenCalledWith({
+      cwd: "/ws",
+      signal: expect.any(AbortSignal),
+    });
+    const [options] = sdk.createAgentSession.mock.calls[0]!;
+    expect(options).toMatchObject({ cwd: "/ws", tools: [] });
+    expect(options).not.toHaveProperty("modelRuntime");
+  });
+
+  it("selects a model from the live session's own runtime", async () => {
+    const model = { provider: "extension", id: "proxy" };
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      modelRuntime: { getModel: vi.fn(() => model) },
+      setModel: vi.fn(async () => {}),
+      messages: [],
+      getSteeringMessages: vi.fn(() => []),
+      getFollowUpMessages: vi.fn(() => []),
+      getContextUsage: vi.fn(() => undefined),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await supervisor.setModel("t1", {
+      provider: "extension",
+      modelId: "proxy",
+    });
+
+    expect(session.modelRuntime.getModel).toHaveBeenCalledWith(
+      "extension",
+      "proxy",
+    );
+    expect(session.setModel).toHaveBeenCalledWith(model);
+    expect(sdk.modelRuntimeCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps supervisor-owned fields out of configured session options", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      setThinkingLevel: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession: () =>
+        ({ tools: [], agentDir: "/elsewhere", model: {} }) as never,
+    });
+
+    await supervisor.setThinkingLevel("t1", "high");
+
+    const [options] = sdk.createAgentSession.mock.calls[0]!;
+    expect(options).toMatchObject({ tools: [] });
+    expect(options).not.toHaveProperty("agentDir");
+    expect(options).not.toHaveProperty("model");
+  });
+
+  it("rejects an open when configuring the session throws", async () => {
+    const error = new Error("configure failed");
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession: () => {
+        throw error;
+      },
+    });
+
+    await expect(supervisor.setThinkingLevel("t1", "high")).rejects.toBe(error);
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
+  });
+
+  it("discards an open whose configured options resolve after supervisor disposal", async () => {
+    let resolveOptions!: (value: { tools: string[] }) => void;
+    const supervisor = new PiThreadSupervisor({
+      workspacePath: "/ws",
+      configureSession: () =>
+        new Promise((resolve) => {
+          resolveOptions = resolve;
+        }),
+    });
+
+    const opening = supervisor.setThinkingLevel("t1", "high");
+    const openingResult = expect(opening).rejects.toThrow(
+      "Pi session open was cancelled",
+    );
+    await vi.waitFor(() => expect(resolveOptions).toBeDefined());
+    await supervisor.dispose();
+    resolveOptions({ tools: [] });
+
+    await openingResult;
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
   });
 
   it("cancels a send while its cold session is opening", async () => {
@@ -734,6 +854,74 @@ describe("PiThreadSupervisor", () => {
         supportsThinking: false,
       },
     ]);
+  });
+
+  it("lists each live thread's own runtime models by thread id", async () => {
+    const modelNamed = (
+      provider: string,
+    ): ReturnType<ModelRuntimeStub["getModels"]>[number] => ({
+      provider,
+      id: "proxy",
+      name: `${provider} proxy`,
+      api: "openai-completions",
+      baseUrl: "https://proxy.example",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 128_000,
+      maxTokens: 8_192,
+    });
+    const runtimeListing = (provider: string) => ({
+      refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
+      getAvailableSnapshot: vi.fn(() => [modelNamed(provider)]),
+      getModels: vi.fn(() => [modelNamed(provider)]),
+      getModel: vi.fn(),
+    });
+    const liveSession = (sessionId: string) =>
+      Object.assign(
+        createLiveSession(async () => {}),
+        {
+          sessionId,
+          sessionFile: `/sessions/${sessionId}.jsonl`,
+          modelRuntime: runtimeListing(`${sessionId}-extension`),
+        },
+      );
+    const catalog = (provider: string) => [
+      {
+        provider,
+        modelId: "proxy",
+        name: `${provider} proxy`,
+        supportsThinking: false,
+      },
+    ];
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession
+      .mockResolvedValueOnce({ session: liveSession("t1") })
+      .mockResolvedValueOnce({ session: liveSession("t2") });
+    sdk.modelRuntimeCreate.mockResolvedValueOnce(runtimeListing("process"));
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.createThread();
+    await supervisor.createThread();
+
+    await expect(
+      supervisor.getAvailableModels({ threadId: "t1" }),
+    ).resolves.toEqual(catalog("t1-extension"));
+    await expect(
+      supervisor.getAvailableModels({ threadId: "t2" }),
+    ).resolves.toEqual(catalog("t2-extension"));
+    await expect(
+      supervisor.getAvailableModels({ threadId: "unknown" }),
+    ).resolves.toEqual(catalog("process"));
+  });
+
+  it("lists the process-wide catalog for a thread that is not live", async () => {
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(
+      supervisor.getAvailableModels({ threadId: "t1" }),
+    ).resolves.toEqual([]);
+    expect(sdk.modelRuntimeCreate).toHaveBeenCalledOnce();
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
   });
 
   it("emits an immediate prompt rejection once", async () => {

@@ -69,4 +69,32 @@ export const examples: DemoExample[] = [
       />
     ),
   },
+  {
+    title: "Monthly revenue as radial columns",
+    setup:
+      "A subscription business lays twelve months around a ring. `inner` opens the center so the year reads as columns standing on a circle, and sector area still carries revenue.",
+    read: "Revenue climbs from $18m in January to a $41m peak in November, with a summer dip to $22m in July. The open center keeps the small winter months readable.",
+    source: "Illustrative monthly revenue, millions of dollars.",
+    chart: (
+      <PolarArea
+        aspect={1.15}
+        inner={0.45}
+        title="Monthly revenue"
+        items={[
+          { label: "Jan", value: 18 },
+          { label: "Feb", value: 21 },
+          { label: "Mar", value: 26 },
+          { label: "Apr", value: 29 },
+          { label: "May", value: 31 },
+          { label: "Jun", value: 27 },
+          { label: "Jul", value: 22 },
+          { label: "Aug", value: 25 },
+          { label: "Sep", value: 32 },
+          { label: "Oct", value: 37 },
+          { label: "Nov", value: 41 },
+          { label: "Dec", value: 35 },
+        ]}
+      />
+    ),
+  },
 ];

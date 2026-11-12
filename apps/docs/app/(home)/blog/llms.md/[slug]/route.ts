@@ -7,9 +7,8 @@ import { notFound } from "next/navigation";
 import { remark } from "remark";
 import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
-import { remarkInclude } from "fumadocs-mdx/config";
 
-const processor = remark().use(remarkMdx).use(remarkInclude).use(remarkGfm);
+const processor = remark().use(remarkMdx).use(remarkGfm);
 
 async function getMarkdown(slug: string) {
   "use cache";

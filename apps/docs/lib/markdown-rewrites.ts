@@ -1,4 +1,4 @@
-import { PLATFORMS } from "./constants";
+import { PLATFORMS } from "./constants.ts";
 
 const docsPlatformPattern = `(?<docsPlatform>${PLATFORMS.join("|")})`;
 

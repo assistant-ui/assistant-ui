@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
+  $createTextNode,
   $getSelection,
   $isElementNode,
   $isNodeSelection,
@@ -285,7 +286,14 @@ export function DirectivePlugin({
             }
           }
 
-          directiveNode.selectNext();
+          const next = directiveNode.getNextSibling();
+          if ($isTextNode(next) && next.getTextContent().startsWith(" ")) {
+            next.select(1, 1);
+          } else {
+            const space = $createTextNode(" ");
+            directiveNode.insertAfter(space);
+            space.selectEnd();
+          }
         },
         {
           tag: "history-merge",

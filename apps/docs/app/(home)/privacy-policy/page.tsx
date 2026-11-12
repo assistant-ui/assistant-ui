@@ -144,7 +144,7 @@ const sections = [
   {
     title: "15. How Can You Contact Us About This Notice?",
     body: [
-      "If you have questions or comments about this notice, you may email us at privacy@assistant-ui.com or contact us by post at AgentbaseAI Inc., 340 Fremont Street, Apt 2306, San Francisco, CA 94105, United States.",
+      "If you have questions or comments about this notice, you may email us at privacy@assistant-ui.com or contact us by post at AgentbaseAI Inc., 580 Howard St, Suite 201, San Francisco, CA 94105, United States.",
     ],
   },
   {

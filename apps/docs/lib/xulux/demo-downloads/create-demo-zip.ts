@@ -325,7 +325,7 @@ function tooltipIconButtonShim() {
 }
 
 function docsModelOptionsShim() {
-  return `export function docsModelOptions() {\n  return [\n    { id: "gpt-6-luna", name: "GPT-6 Luna" },\n    { id: "gpt-6-sol", name: "GPT-6 Sol" },\n  ];\n}\n`;
+  return `export function docsModelOptions() {\n  return [\n    { id: "gpt-6-luna", name: "GPT-6 Luna" },\n    { id: "gpt-6-sol", name: "GPT-6 Sol" },\n  ];\n}\n\nexport function useDocsModelOptions() {\n  return docsModelOptions();\n}\n`;
 }
 
 function faviconSvg() {

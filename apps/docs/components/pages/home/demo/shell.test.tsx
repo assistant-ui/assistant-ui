@@ -148,6 +148,12 @@ describe("demo thread controls", () => {
     },
   );
 
+  it("leaves the main landmark to the page around it", () => {
+    create();
+
+    expect(screen.queryByRole("main")).toBeNull();
+  });
+
   it("switches to the adjacent thread from the composer", async () => {
     const { onViewChange } = create();
     fireEvent.keyDown(screen.getByRole("textbox"), {

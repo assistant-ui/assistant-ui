@@ -1,3 +1,4 @@
+import { AGENT_SETUP_HINT } from "./agent-setup-prompt";
 import { BASE_URL } from "./constants";
 import { AGENT_DISCOVERY_ROUTES } from "./agent-discovery-routes";
 import { listSkills } from "./agent-skills";
@@ -36,6 +37,8 @@ export function buildLLMSIndex(
   lines.push("# assistant-ui");
   lines.push("");
   lines.push("> React components for AI chat interfaces");
+  lines.push("");
+  lines.push(AGENT_SETUP_HINT);
   lines.push("");
   lines.push("## LLM Documentation Files");
   lines.push("");

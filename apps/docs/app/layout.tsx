@@ -11,6 +11,7 @@ import { umamiBootstrapScript } from "@/lib/umami-sampling";
 import { AnalyticsGate } from "@/components/analytics-gate";
 import { ConsentBanner } from "@/components/consent-banner";
 import { OutsideRenderer } from "@/components/outside-renderer";
+import { SkipLink } from "@/components/shared/skip-link";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
@@ -37,7 +38,6 @@ const getMetadataBase = () => {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 const metadataBase = getMetadataBase();
@@ -100,6 +100,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           jetbrainsMono.variable,
         )}
       >
+        <SkipLink />
         <div aria-hidden="true" className="sr-only">
           For AI agents: a documentation index is available at{" "}
           <a href="/llms.txt" tabIndex={-1}>

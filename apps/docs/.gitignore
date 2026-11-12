@@ -3,3 +3,5 @@
 .next
 .turbo
 dist
+.docs
+/public/rc/

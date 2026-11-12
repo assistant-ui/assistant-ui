@@ -22,16 +22,16 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
     path: [],
   },
   { type: "text-delta", textDelta: "Let me check the weather.", path: [0] },
-  { type: "part-start", part: { type: "text" }, path: [] },
   { type: "part-finish", path: [0] },
+  { type: "part-start", part: { type: "text" }, path: [] },
   { type: "text-delta", textDelta: "Checking", path: [1] },
   { type: "text-delta", textDelta: " now.", path: [1] },
+  { type: "part-finish", path: [1] },
   {
     type: "part-start",
     part: { type: "tool-call", toolCallId: "call_1", toolName: "get_weather" },
     path: [],
   },
-  { type: "part-finish", path: [1] },
   { type: "text-delta", textDelta: '{"city": ', path: [2] },
   { type: "text-delta", textDelta: '"NYC"}', path: [2] },
   {
@@ -77,12 +77,12 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
   { type: "part-finish", path: [3] },
   { type: "part-start", part: { type: "text" }, path: [] },
   { type: "text-delta", textDelta: "It is sunny.", path: [4] },
+  { type: "part-finish", path: [4] },
   {
     type: "part-start",
     part: { type: "file", data: "aGVsbG8=", mimeType: "image/png" },
     path: [],
   },
-  { type: "part-finish", path: [4] },
   { type: "part-finish", path: [5] },
   {
     type: "part-start",
@@ -94,13 +94,14 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
     path: [],
   },
   { type: "text-delta", textDelta: "nested think", path: [6] },
+  { type: "part-finish", path: [6] },
   {
     type: "part-start",
     part: { type: "text", parentId: "parent_1" },
     path: [],
   },
-  { type: "part-finish", path: [6] },
   { type: "text-delta", textDelta: "child text", path: [7] },
+  { type: "part-finish", path: [7] },
   {
     type: "part-start",
     part: {
@@ -111,7 +112,6 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
     },
     path: [],
   },
-  { type: "part-finish", path: [7] },
   { type: "text-delta", textDelta: "{}", path: [8] },
   { type: "tool-call-args-text-finish", path: [8] },
   {

@@ -122,6 +122,40 @@ describe("projectApi", () => {
     expect(result.logs[0]?.data).toEqual({ foo: 1 });
   });
 
+  it("preserves tool-result array positions in state and event data", () => {
+    const toolResult = { coordinates: [undefined, 42] };
+    const messages = [
+      {
+        id: "message-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "locate",
+            args: {},
+            argsText: "{}",
+            result: toolResult,
+          },
+        ],
+      },
+    ];
+    const thread = scope("root", {}, { getState: () => ({ messages }) });
+
+    const projected = projectApi(1, {
+      api: { thread },
+      logs: [{ time: new Date(0), event: "tool.result", data: toolResult }],
+    } as unknown as Parameters<typeof projectApi>[1]);
+
+    expect(projected.state.thread).toStrictEqual({ messages });
+    expect(projected.logs[0]?.data).toStrictEqual({
+      coordinates: [undefined, 42],
+    });
+    expect(JSON.stringify(projected.logs[0]?.data)).toBe(
+      '{"coordinates":[null,42]}',
+    );
+  });
+
   it("preserves distinct event identities across projections and retention", () => {
     const first = {
       time: new Date(0),

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  finished: vi.fn(),
+  download: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   init: vi.fn(),
   capture: vi.fn(),
   register: vi.fn(),
@@ -62,15 +65,37 @@ const stubBrowser = ({
   return { store, session, target };
 };
 
-const choose = (target: EventTarget, choice: "granted" | "denied") =>
+const choose = async (target: EventTarget, choice: "granted" | "denied") => {
   target.dispatchEvent(
     new CustomEvent("aui-consent-change", { detail: choice }),
   );
+  await vi.dynamicImportSettled();
+  if (
+    choice === "granted" &&
+    !(navigator as { globalPrivacyControl?: boolean }).globalPrivacyControl &&
+    window.location.pathname !== "/renderer"
+  ) {
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
+  }
+};
 
-const boot = () => import("./instrumentation-client");
+const boot = async () => {
+  await import("./instrumentation-client");
+  await vi.dynamicImportSettled();
+};
 
 beforeEach(() => {
   vi.resetModules();
+  mocks.download.mockResolvedValue(undefined);
+  vi.doMock("./lib/posthog-client", async () => {
+    mocks.load();
+    await mocks.download();
+    const actual = await vi.importActual<typeof import("./lib/posthog-client")>(
+      "./lib/posthog-client",
+    );
+    mocks.finished();
+    return actual;
+  });
   mocks.has_opted_out_capturing.mockReturnValue(false);
 });
 
@@ -92,6 +117,7 @@ describe("client analytics bootstrap", () => {
     vi.stubEnv("NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA", "abc123");
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
 
     expect(mocks.init).toHaveBeenCalledWith(
       "phc_test",
@@ -111,6 +137,7 @@ describe("client analytics bootstrap", () => {
     vi.stubEnv("NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA", "");
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
 
     expect(mocks.register).toHaveBeenCalledWith({ app: "docs" });
   });
@@ -124,7 +151,7 @@ describe("client analytics bootstrap", () => {
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
     expect(ready).not.toHaveBeenCalled();
 
-    choose(target, "granted");
+    await choose(target, "granted");
     expect(ready).toHaveBeenCalledOnce();
     window.posthog?.identify?.("user_1");
     expect(mocks.identify).toHaveBeenCalledWith("user_1");
@@ -142,7 +169,7 @@ describe("client analytics bootstrap", () => {
 
     await boot();
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
-    choose(target, "granted");
+    await choose(target, "granted");
 
     expect(mocks.identify).toHaveBeenCalledWith("user_1");
   });
@@ -151,8 +178,9 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
     mocks.has_opted_out_capturing.mockReturnValue(true);
-    choose(target, "denied");
+    await choose(target, "denied");
     window.posthog?.identify?.("user_1");
     window.posthog?.group?.("project", "proj_1");
 
@@ -164,10 +192,11 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
     expect(window.posthog?.capturing?.()).toBe(true);
 
     mocks.has_opted_out_capturing.mockReturnValue(true);
-    choose(target, "denied");
+    await choose(target, "denied");
     expect(window.posthog?.capturing?.()).toBe(false);
   });
 
@@ -176,7 +205,8 @@ describe("client analytics bootstrap", () => {
     session.set("aui-demo-sign-in", "budget");
 
     await boot();
-    choose(target, "denied");
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
+    await choose(target, "denied");
 
     expect(session.has("aui-demo-sign-in")).toBe(false);
   });
@@ -185,6 +215,7 @@ describe("client analytics bootstrap", () => {
     stubBrowser({ consent: "granted" });
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
     mocks.register.mockClear();
     window.posthog?.reset?.();
 
@@ -198,7 +229,8 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
-    choose(target, "denied");
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
+    await choose(target, "denied");
     mocks.opt_out_capturing.mockClear();
     mocks.has_opted_out_capturing.mockReturnValue(true);
     window.posthog?.reset?.();
@@ -217,7 +249,7 @@ describe("client analytics bootstrap", () => {
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
     expect(mocks.init).not.toHaveBeenCalled();
 
-    choose(target, "granted");
+    await choose(target, "granted");
     expect(mocks.init).toHaveBeenCalledOnce();
   });
 
@@ -225,7 +257,7 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ gpc: true, required: false });
 
     await boot();
-    choose(target, "granted");
+    await choose(target, "granted");
 
     expect(mocks.init).not.toHaveBeenCalled();
   });
@@ -237,7 +269,7 @@ describe("client analytics bootstrap", () => {
     });
 
     await boot();
-    choose(target, "granted");
+    await choose(target, "granted");
 
     expect(mocks.init).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
@@ -247,9 +279,10 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
     expect(mocks.init).toHaveBeenCalledOnce();
 
-    choose(target, "denied");
+    await choose(target, "denied");
     expect(mocks.opt_out_capturing).toHaveBeenCalledOnce();
   });
 
@@ -258,9 +291,10 @@ describe("client analytics bootstrap", () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
     mocks.has_opted_out_capturing.mockReturnValue(true);
-    choose(target, "denied");
-    choose(target, "granted");
+    await choose(target, "denied");
+    await choose(target, "granted");
 
     expect(mocks.opt_in_capturing).toHaveBeenCalledOnce();
     expect(mocks.init).toHaveBeenCalledOnce();
@@ -270,10 +304,11 @@ describe("client analytics bootstrap", () => {
     const { target, store } = stubBrowser({ consent: "granted" });
 
     await boot();
-    choose(target, "denied");
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
+    await choose(target, "denied");
     expect(store.get("umami.disabled")).toBe("1");
 
-    choose(target, "granted");
+    await choose(target, "granted");
     expect(store.has("umami.disabled")).toBe(false);
   });
 
@@ -288,6 +323,7 @@ describe("client analytics bootstrap", () => {
       }),
     );
 
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
     expect(mocks.init).toHaveBeenCalledOnce();
   });
 
@@ -298,6 +334,7 @@ describe("client analytics bootstrap", () => {
     mocks.has_opted_out_capturing.mockReturnValue(true);
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
 
     expect(mocks.init).toHaveBeenCalledOnce();
     expect(mocks.opt_in_capturing).toHaveBeenCalledOnce();
@@ -308,7 +345,82 @@ describe("client analytics bootstrap", () => {
     mocks.has_opted_out_capturing.mockReturnValue(false);
 
     await boot();
+    await vi.waitFor(() => expect(window.posthog).toBeDefined());
 
     expect(mocks.opt_in_capturing).not.toHaveBeenCalled();
+  });
+});
+
+describe("deferred analytics loading", () => {
+  it.each([
+    { consent: "denied" as const },
+    { required: true },
+    { gpc: true, consent: "granted" as const },
+    { pathname: "/renderer", consent: "granted" as const },
+  ])(
+    "does not download PostHog when tracking is unavailable: %j",
+    async (options) => {
+      stubBrowser(options);
+      await boot();
+      expect(mocks.load).not.toHaveBeenCalled();
+      expect(mocks.init).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not download PostHog without a configured key", async () => {
+    stubBrowser({ consent: "granted" });
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_API_KEY", "");
+    await boot();
+    expect(mocks.load).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["denied", "granted"] as const)(
+    "uses the latest %s choice while a single download is pending",
+    async (finalChoice) => {
+      const { target } = stubBrowser({ consent: "granted" });
+      const ready = vi.fn();
+      target.addEventListener("aui-analytics-ready", ready);
+      let finish!: () => void;
+      mocks.download.mockReturnValue(
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      try {
+        await import("./instrumentation-client");
+        expect(mocks.init).not.toHaveBeenCalled();
+        await vi.waitFor(() => expect(mocks.load).toHaveBeenCalledOnce());
+        for (const choice of ["granted", "denied", finalChoice]) {
+          target.dispatchEvent(
+            new CustomEvent("aui-consent-change", { detail: choice }),
+          );
+        }
+        finish();
+        await vi.waitFor(() => expect(mocks.finished).toHaveBeenCalledOnce());
+        await vi.dynamicImportSettled();
+        expect(mocks.load).toHaveBeenCalledOnce();
+        expect(mocks.init).toHaveBeenCalledTimes(
+          finalChoice === "granted" ? 1 : 0,
+        );
+        expect(ready).toHaveBeenCalledTimes(finalChoice === "granted" ? 1 : 0);
+      } finally {
+        finish();
+        await vi.dynamicImportSettled();
+      }
+    },
+  );
+
+  it("honors a decline made by a ready listener", async () => {
+    const { target } = stubBrowser({ consent: "granted" });
+    target.addEventListener("aui-analytics-ready", () => {
+      target.dispatchEvent(
+        new CustomEvent("aui-consent-change", { detail: "denied" }),
+      );
+    });
+    await boot();
+    await vi.waitFor(() =>
+      expect(mocks.opt_out_capturing).toHaveBeenCalledOnce(),
+    );
   });
 });

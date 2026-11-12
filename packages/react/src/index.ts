@@ -69,6 +69,10 @@ export {
   OpenAIRealtimeVoiceAdapter,
   type OpenAIRealtimeVoiceAdapterOptions,
 } from "./adapters/OpenAIRealtimeVoiceAdapter";
+export {
+  GeminiLiveVoiceAdapter,
+  type GeminiLiveVoiceAdapterOptions,
+} from "./adapters/GeminiLiveVoiceAdapter";
 export type {
   VoiceSessionControls,
   VoiceSessionHelpers,
@@ -565,6 +569,12 @@ export {
   type Unstable_ComposerInput,
   type Unstable_TriggerPopoverAriaProps,
 } from "./unstable/useComposerInput";
+
+// Unstable - the run-start focus decision shared by composer implementations
+export {
+  unstable_useComposerRunStartFocusGuard,
+  type Unstable_ComposerRunStartFocusGuard,
+} from "./unstable/useComposerRunStartFocusGuard";
 
 export type { Assistant } from "./augmentations";
 

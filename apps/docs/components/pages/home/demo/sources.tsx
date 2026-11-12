@@ -45,7 +45,7 @@ export function Sources(): ReactNode {
 
   return (
     <div className="text-muted-foreground mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-[12px] [font-variant-ligatures:none]">
-      <span className="text-muted-foreground/50">sources</span>
+      <span>sources</span>
       {sources.map((source) => (
         <a
           key={source.url}

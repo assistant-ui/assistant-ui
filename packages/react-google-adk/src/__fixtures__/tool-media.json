@@ -1,0 +1,211 @@
+{
+  "producer": "google-adk==2.13.0",
+  "method": "Runner with recorded model content and a local media-returning FunctionTool",
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "adk-281b4c4b-c4b5-446c-b424-7b7c8c6820a8",
+              "args": {
+                "prompt": "a dog"
+              },
+              "name": "generate_image"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1"
+      },
+      "longRunningToolIds": [],
+      "id": "07302d29-ee81-4e62-9ce8-c788f90c4889",
+      "timestamp": 1793675681.028884
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "parts": [
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8_x8AAwMCAO-jRZkAAAAASUVORK5CYII="
+                  }
+                }
+              ],
+              "id": "adk-281b4c4b-c4b5-446c-b424-7b7c8c6820a8",
+              "name": "generate_image",
+              "response": {
+                "status": "ok"
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1"
+      },
+      "id": "32bc91b4-0585-475e-a223-b91483b9db03",
+      "timestamp": 1793675681.030772
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "OK. I have generated an image of a dog. \n"
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1"
+      },
+      "id": "9e00c568-4cca-46c5-8135-58e3eca0a694",
+      "timestamp": 1793675681.031557
+    }
+  ],
+  "reloaded_events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "a dog"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "user",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": ""
+      },
+      "id": "2c7c4861-8f7d-4ec6-8a4c-2a4a87fefe3c",
+      "timestamp": 1793675680.798483
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "adk-281b4c4b-c4b5-446c-b424-7b7c8c6820a8",
+              "args": {
+                "prompt": "a dog"
+              },
+              "name": "generate_image"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1"
+      },
+      "longRunningToolIds": [],
+      "id": "07302d29-ee81-4e62-9ce8-c788f90c4889",
+      "timestamp": 1793675681.028884
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "parts": [
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8_x8AAwMCAO-jRZkAAAAASUVORK5CYII="
+                  }
+                }
+              ],
+              "id": "adk-281b4c4b-c4b5-446c-b424-7b7c8c6820a8",
+              "name": "generate_image",
+              "response": {
+                "status": "ok"
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1"
+      },
+      "id": "32bc91b4-0585-475e-a223-b91483b9db03",
+      "timestamp": 1793675681.030772
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "OK. I have generated an image of a dog. \n"
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "e-4dce87dd-aeee-4b9d-9ab9-d2af7602b882",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1"
+      },
+      "id": "9e00c568-4cca-46c5-8135-58e3eca0a694",
+      "timestamp": 1793675681.031557
+    }
+  ]
+}

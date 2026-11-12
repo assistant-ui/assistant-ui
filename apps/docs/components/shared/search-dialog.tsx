@@ -11,6 +11,7 @@ import {
   ArrowDown,
   FileText,
   Hash,
+  SparklesIcon,
   Text,
 } from "lucide-react";
 import {
@@ -27,8 +28,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useGlobalAskAI } from "@/components/pages/docs/assistant/context";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
+import { isAssistantHiddenPath } from "@/lib/embedded-paths";
 import { useSearchSuggestions } from "@/hooks/use-search-suggestions";
 import {
   collectPageEntries,
@@ -152,6 +155,8 @@ function SearchContent({
 }: Pick<SearchDialogProps, "onOpenChange">) {
   const router = useRouter();
   const pathname = usePathname();
+  const globalAskAI = useGlobalAskAI();
+  const askAI = isAssistantHiddenPath(pathname) ? null : globalAskAI;
   const [inputValue, setInputValue] = useState("");
   const [scope, setScope] = useState<SearchScope>("All");
   const [selection, setSelection] = useState("");
@@ -268,6 +273,8 @@ function SearchContent({
     : (results[0]?.id ?? "");
   const waiting =
     hasQuery && (indexStatus === "loading" || suggestions.loading);
+  const isEmpty = results.length === 0 && !waiting && indexStatus !== "error";
+  const canAskAI = isEmpty && hasQuery && askAI !== null;
   const resultsReady = hasQuery && !waiting && indexStatus === "ready";
   const [queryTracker] = useState(() =>
     createSettledQueryTracker((settledQuery, resultCount) => {
@@ -415,12 +422,38 @@ function SearchContent({
             <Skeleton className="h-4 w-3/5" />
           </div>
         )}
-        {results.length === 0 && !waiting && indexStatus !== "error" && (
-          <div className="text-muted-foreground px-4 py-10 text-center text-sm">
+        {isEmpty && (
+          <div
+            className={cn(
+              "text-muted-foreground px-4 pt-10 text-center text-sm",
+              canAskAI ? "pb-4" : "pb-10",
+            )}
+          >
             {hasQuery
               ? `No results for “${query}”`
               : "Search titles, headings, or describe what you need."}
           </div>
+        )}
+        {canAskAI && (
+          <CommandItem
+            value="ask-ai"
+            onSelect={() => {
+              queryTracker.flush();
+              analytics.search.askAITriggered(query);
+              onOpenChange(false);
+              askAI(query);
+            }}
+            className="group gap-3 rounded-lg px-3 py-2.5"
+          >
+            <SparklesIcon aria-hidden="true" className="size-4" />
+            <span className="min-w-0 flex-1 truncate text-sm">
+              Ask AI about “{query}”
+            </span>
+            <CornerDownLeft
+              aria-hidden="true"
+              className="text-muted-foreground size-3.5 opacity-0 group-data-[selected=true]:opacity-100"
+            />
+          </CommandItem>
         )}
         {indexStatus === "error" && (
           <div className="text-muted-foreground px-3 py-4 text-sm">

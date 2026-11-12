@@ -10,7 +10,7 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useMemo, useRef } from "react";
+import { type FC, memo, useMemo, useState } from "react";
 import type { TextMessagePartProps } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
@@ -23,20 +23,24 @@ type MarkdownTextProps = Partial<TextMessagePartProps> & {
   componentsByLanguage?: MarkdownTextPrimitiveProps["componentsByLanguage"];
 };
 
+const isShallowEqual = (
+  a: Record<string, unknown> | undefined,
+  b: Record<string, unknown> | undefined,
+) =>
+  a !== undefined &&
+  b !== undefined &&
+  Object.keys(a).length === Object.keys(b).length &&
+  Object.keys(b).every((key) => a[key] === b[key]);
+
 const useShallowStable = <T extends Record<string, unknown> | undefined>(
   value: T,
 ): T => {
-  const ref = useRef(value);
-  if (value !== ref.current) {
-    const prev = ref.current;
-    const stable =
-      value !== undefined &&
-      prev !== undefined &&
-      Object.keys(prev).length === Object.keys(value).length &&
-      Object.keys(value).every((key) => prev[key] === value[key]);
-    if (!stable) ref.current = value;
+  const [stable, setStable] = useState(value);
+  if (value !== stable && !isShallowEqual(stable, value)) {
+    setStable(value);
+    return value;
   }
-  return ref.current;
+  return stable;
 };
 
 const MarkdownTextImpl: FC<MarkdownTextProps> = ({

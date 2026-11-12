@@ -1,0 +1,24 @@
+---
+title: Troubleshooting
+description: Common problems and how to fix them. Error codes come from onError and errorFallback.
+---
+
+| Symptom | Fix |
+| --- | --- |
+| `security` right away | The remote is on your page's origin and the sandbox has `allow-same-origin`. That pair could undo the sandbox. Serve remotes from another site, or drop `allow-same-origin` from `sandbox`. |
+| `load` after about 3 s | The document loaded but the runtime never started. The page has no `rc-runtime.js` tag (serve it through the serving layer), or the script was blocked. Open the `src` URL on its own: a 404 page or a blocked script shows up there. Opaque frames also need `Access-Control-Allow-Origin: *` on the runtime. |
+| `timeout` or a blank frame | Check the console for a `frame-ancestors` violation. Your page's origin must be in the remote's list: the server's `frameAncestors` option or its `Content-Security-Policy` header. |
+| `protocol` | Host and remote share no protocol version. Update the older side. See [Versioning](/remote-components/docs/serving#versioning). |
+| Opaque background behind the remote | The frame and its document disagree on `color-scheme`. Don't set `color-scheme` or a page background in the remote's own CSS. The host sends it. |
+| `height: 100%` has no effect | The slot has no definite height. Give it one, or make it a stretched flex or grid item. See [Filling the slot](/remote-components/docs/layout#filling-the-slot). |
+| Fonts fall back in the remote | Font files need `Access-Control-Allow-Origin`. Use `*` if any remote is opaque. |
+| `fetch` fails with a CSP error | The network policy blocks it: `network="none"`, a list without that origin, or the page's own `Content-Security-Policy` meta tag. Plain `http:` is never public. If the policy allows it, check CORS on the API. See [Network](/remote-components/docs/network). |
+| The frame shows an error page in Chrome once you set `network` | The remote's server must send `Allow-CSP-From: *` so the browser accepts the iframe's `csp` attribute. The serving layer sends it. Add it to static hosts yourself. |
+| The page keeps growing | Something reads the frame's size from script (`innerHeight`, `@media (height)`) and sizes the page by it. Size it with `vh` in CSS, which means the slot. See [The slot is the viewport](/remote-components/docs/layout#the-slot-is-the-viewport). |
+| `localStorage` throws in the page | The frame is opaque: an `html` prop, or a sandbox without `allow-same-origin`. Keep the data on your page and pass it as a prop, or use `isolation="scf"` for a real origin. |
+| `data` in `onError` | A prop or argument can't be cloned: a function inside an argument, a Promise, a DOM node or a symbol. The message names the path. |
+| `stale-function` | The remote called a function prop that you no longer pass. Keep the prop, or check for it before calling. |
+| Overlay rejected with `overlay` | The content `src` is on another origin. Allow it with `overlayOrigins` on the provider. |
+| The remote shows up empty, then grows | It renders its content after the reveal, for example after a `fetch`. The host shows a page after `load` plus two tasks. Render a placeholder of about the right size until the data arrives. See [Ready](/remote-components/docs/loading#ready). |
+| `rc.props` is empty | The host has not connected yet, or the page is open on its own. Read props in a `props-changed` listener, or in React with `useProps()`. |
+| A CSS variable doesn't reach the remote | Only variables in the slot's computed style cross. Set it on the slot or an ancestor. Also check the provider's `theme.vars` filter. |

@@ -7,6 +7,7 @@ import {
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
+import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
@@ -260,6 +261,7 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse({
       messageMetadata,
+      onError: toPublicStreamError,
     });
   } catch (e) {
     console.error("[api/playground-chat]", e);

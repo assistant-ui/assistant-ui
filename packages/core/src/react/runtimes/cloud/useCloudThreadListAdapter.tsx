@@ -31,7 +31,11 @@ export const useCloudThreadListAdapter = (
   const [unstable_useAdapters] = useState(
     () =>
       function useCloudAdapters() {
-        return useCloudRuntimeAdapters(cloudRef, scopeRef);
+        return useCloudRuntimeAdapters(
+          cloudRef,
+          scopeRef,
+          () => adapterRef.current.staleAfter,
+        );
       },
   );
 

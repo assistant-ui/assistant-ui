@@ -78,6 +78,23 @@ export type MessagePartTiming = {
 /** Wall-clock timing of a tool call. */
 export type ToolCallTiming = MessagePartTiming;
 
+/**
+ * Approval gate a server put on a tool call. The fields besides `id`,
+ * `approved`, `reason` and `prompt` belong to the server and are kept verbatim
+ * so they travel back with the decision.
+ */
+export type ToolCallApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly prompt?: string;
+  readonly isAutomatic?: boolean;
+  readonly signature?: string;
+  readonly requestReason?: string;
+  readonly descriptor?: ReadonlyJSONValue;
+  readonly inputSchemaInput?: ReadonlyJSONValue;
+};
+
 type ToolCallPartBase = {
   type: "tool-call";
   status: ToolCallStatus;
@@ -85,6 +102,7 @@ type ToolCallPartBase = {
   toolName: string;
   argsText: string;
   args: ReadonlyJSONObject;
+  approval?: ToolCallApproval;
   timing?: ToolCallTiming;
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
@@ -123,14 +141,25 @@ export type ToolCallPart =
   | ToolCallPartWithPreliminaryResult
   | ToolCallPartWithResult;
 
-export type SourcePart = {
-  type: "source";
-  sourceType: "url";
-  id: string;
-  url: string;
-  title?: string;
-  parentId?: string;
-};
+export type SourcePart =
+  | {
+      type: "source";
+      sourceType: "url";
+      id: string;
+      url: string;
+      title?: string;
+      parentId?: string;
+    }
+  | {
+      type: "source";
+      sourceType: "document";
+      id: string;
+      url?: undefined;
+      title: string;
+      mediaType: string;
+      filename?: string;
+      parentId?: string;
+    };
 
 export type FilePart = {
   type: "file";

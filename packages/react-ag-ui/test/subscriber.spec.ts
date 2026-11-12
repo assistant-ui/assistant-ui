@@ -9,7 +9,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onTextMessageContentEvent?.({
@@ -28,7 +27,6 @@ describe("createAgUiSubscriber", () => {
     const onRunFailed = vi.fn();
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
       onRunFailed,
     });
 
@@ -44,7 +42,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onRunFailed?.({ error: new Error("boom") });
@@ -59,7 +56,6 @@ describe("createAgUiSubscriber", () => {
     const onRunFailed = vi.fn();
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
       onRunFailed,
     });
 
@@ -77,7 +73,6 @@ describe("createAgUiSubscriber", () => {
     const onRunFailed = vi.fn();
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
       onRunFailed,
     });
 
@@ -125,7 +120,6 @@ describe("createAgUiSubscriber", () => {
       const events: AgUiEvent[] = [];
       const subscriber = createAgUiSubscriber({
         dispatch: (evt) => events.push(evt),
-        runId: "run",
       });
 
       subscriber.onRunFailed?.({ error });
@@ -140,7 +134,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
       onRunFailed,
     });
 
@@ -155,7 +148,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onRunFinishedEvent?.({
@@ -181,23 +173,21 @@ describe("createAgUiSubscriber", () => {
     });
   });
 
-  it("falls back to onRunFinalized when no RunFinishedEvent fires", () => {
+  it("does not infer success from transport finalization", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onRunFinalized?.();
 
-    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+    expect(events).toEqual([]);
   });
 
-  it("falls back to onRunFinalized when RunFinishedEvent has no runId", () => {
+  it("does not infer success from an invalid RunFinishedEvent", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onRunFinishedEvent?.({
@@ -205,14 +195,13 @@ describe("createAgUiSubscriber", () => {
     });
     subscriber.onRunFinalized?.();
 
-    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+    expect(events).toEqual([]);
   });
 
   it("ignores onRunFinishedEvent payloads that parse as a different event type", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onRunFinishedEvent?.({
@@ -220,14 +209,13 @@ describe("createAgUiSubscriber", () => {
     });
     subscriber.onRunFinalized?.();
 
-    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+    expect(events).toEqual([]);
   });
 
   it("dispatches activity snapshots without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     const event = {
@@ -254,7 +242,7 @@ describe("createAgUiSubscriber", () => {
 
   it("does not dispatch malformed message snapshots", () => {
     const dispatch = vi.fn();
-    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+    const subscriber = createAgUiSubscriber({ dispatch });
 
     subscriber.onMessagesSnapshotEvent?.({
       event: { type: "MESSAGES_SNAPSHOT", messages: {} },
@@ -265,7 +253,7 @@ describe("createAgUiSubscriber", () => {
 
   it("does not dispatch malformed state snapshots", () => {
     const dispatch = vi.fn();
-    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+    const subscriber = createAgUiSubscriber({ dispatch });
 
     subscriber.onStateSnapshotEvent?.({
       event: { type: "STATE_SNAPSHOT" },
@@ -276,7 +264,7 @@ describe("createAgUiSubscriber", () => {
 
   it("ignores typed callback payloads without a type", () => {
     const dispatch = vi.fn();
-    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+    const subscriber = createAgUiSubscriber({ dispatch });
 
     subscriber.onTextMessageContentEvent?.({ event: { delta: "bad" } });
 
@@ -287,7 +275,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (evt) => events.push(evt),
-      runId: "run",
     });
 
     subscriber.onReasoningMessageContentEvent?.({
@@ -310,7 +297,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (event) => events.push(event),
-      runId: "run-1",
     });
     subscriber.onSubagentStartedEvent?.({
       event: {
@@ -334,7 +320,6 @@ describe("createAgUiSubscriber", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
       dispatch: (event) => events.push(event),
-      runId: "run-1",
     });
     subscriber.onSubagentFinishedEvent?.({
       event: { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },

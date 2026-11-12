@@ -3,6 +3,7 @@ export function withPromiseOrValue<T>(
   thenHandler: (value: T) => PromiseLike<void> | void,
   catchHandler: (error: unknown) => PromiseLike<void> | void,
 ): PromiseLike<void> | void {
+  let value: T;
   try {
     const promiseOrValue = callback();
     if (
@@ -11,10 +12,12 @@ export function withPromiseOrValue<T>(
       "then" in promiseOrValue
     ) {
       return promiseOrValue.then(thenHandler, catchHandler);
-    } else {
-      thenHandler(promiseOrValue);
     }
+    value = promiseOrValue;
   } catch (e) {
     catchHandler(e);
+    return;
   }
+
+  thenHandler(value);
 }

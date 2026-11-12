@@ -1,5 +1,35 @@
 # setup-agent
 
+## 0.1.0
+
+### Minor Changes
+
+- [#10492](https://github.com/assistant-ui/assistant-ui/pull/10492) [`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa) - <!-- caret-break: intended --> ([@Yonom](https://github.com/Yonom))
+  
+  Add `setup-agent/sdk` with `runAgentSetup`, which a CLI embeds to offer `<tool> setup` to coding agents: it starts a session, prints the briefing and keeps running as the stream. Route `<tool> setup <url> <command>` to `runSetupCommand` from `setup-agent/cli`, which the `setup-agent` bin now runs through.
+  
+  The stream opens the setup page only when the setup waits on the user, reopens it for the next question once the user closed it, and never opens a second tab within 30 seconds. When the browser cannot take a question it prints `input.needed` with the question, its options and the command that answers it, and the new `answer` command (`answer <input-id> <answer>`, `answer plan approve`, `answer plan revise --feedback <text>`, `answer finish close`) answers it from the agent's side. `stream --setup-app-url <url>` turns this on for the bin.
+  
+  The setup page reports itself with the new `browser/heartbeat` and `browser/bye` commands (`state.browser`, `isBrowserPresent`). Both are additive: older clients ignore them, and newer clients fall back when a host lacks them.
+
+## 0.0.9
+
+### Patch Changes
+
+- [#10477](https://github.com/assistant-ui/assistant-ui/pull/10477) [`316fb06`](https://github.com/assistant-ui/assistant-ui/commit/316fb0626ff487fbebc00e84f997dd7982c5240b) - Export the coding agents a setup can be handed to, with the commands that start them, and detect more agents from their environment, including `AI_AGENT`. `agentInstructions` takes `startedByAgent` for a setup the agent opened itself, which skips the Begin plan handoff, and tells the agent to ask what to set up when a setup lists no products. ([@Yonom](https://github.com/Yonom))
+  
+  `@assistant-ui/tap` is now an optional peer dependency, needed only by `setup-agent/host`, so the CLI and other clients no longer install it.
+  
+  The agent registry and launcher (`CODING_AGENTS`, `detectAgentKind`, `findCommand`, `isDirectInvocation`, `runCodingAgent`) live on `setup-agent/cli`, so the root entry stays free of Node built-ins. Agents start through `cross-spawn`, so Windows `.cmd` shims work.
+
+## 0.0.8
+
+### Patch Changes
+
+- [#10393](https://github.com/assistant-ui/assistant-ui/pull/10393) [`b7fc2d3`](https://github.com/assistant-ui/assistant-ui/commit/b7fc2d3e1f8399b8ea6f877430ef4611b6279b1a) - fix: refuse a setup URL that is not https (http only on localhost) or holds characters a shell treats as code, quote it in printed commands, and refuse a deposited key that would write extra lines to the env file ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`8328f46`](https://github.com/assistant-ui/assistant-ui/commit/8328f46f6f8f56c74e3cd06fbb6e1c7f552c8e63)]:
+  - @assistant-ui/tap@0.9.25
+
 ## 0.0.7
 
 ### Patch Changes

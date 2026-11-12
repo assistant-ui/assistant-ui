@@ -4,7 +4,6 @@ import { Base } from "@/components/pages/examples/base";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
 import { Claude } from "@/components/pages/examples/claude";
 import { Gemini } from "@/components/pages/examples/gemini";
-import { GenUI } from "@/components/pages/examples/genui";
 import { Grok } from "@/components/pages/examples/grok";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
@@ -29,7 +28,6 @@ export function hasExamplePreview(slug: string): boolean {
     case "mem0":
     case "stockbroker":
     case "artifacts":
-    case "generative-ui":
       return true;
     default:
       return false;
@@ -110,8 +108,6 @@ export function ExamplePreview({ slug }: { slug: string }): ReactNode {
           <Artifacts />
         </ArtifactsRuntimeProvider>
       );
-    case "generative-ui":
-      return <GenUI />;
     default:
       return null;
   }

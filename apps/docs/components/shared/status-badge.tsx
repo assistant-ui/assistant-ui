@@ -6,7 +6,10 @@ import { STATUS_URL } from "@/lib/constants";
 import type { StatusState } from "@/lib/status-state";
 
 const PRESENTATION: Record<StatusState, { label: string; dot: string }> = {
-  operational: { label: "All systems operational", dot: "bg-emerald-500" },
+  operational: {
+    label: "All systems operational",
+    dot: "bg-emerald-500 animate-none",
+  },
   degraded: { label: "Degraded performance", dot: "bg-amber-500" },
   downtime: { label: "Service disruption", dot: "bg-red-500" },
   maintenance: { label: "Under maintenance", dot: "bg-blue-500" },

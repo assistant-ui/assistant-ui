@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.14.26
+
+### Patch Changes
+
+- [#10434](https://github.com/assistant-ui/assistant-ui/pull/10434) [`78f8ddd`](https://github.com/assistant-ui/assistant-ui/commit/78f8dddb72ba71e56aab1bba66845cb907eae75d) - render a one-equation `\[...\]` or `[/math]...[/math]` display whose delimiters sit on lines of their own as display math, in every block context, instead of collapsing it to a one-line `$$...$$` that remark-math parses as inline math; a display whose delimiter shares its line with prose or a code span stays on one span ([@SiKreuz](https://github.com/SiKreuz))
+
+## 0.14.25
+
+### Patch Changes
+
+- [#10317](https://github.com/assistant-ui/assistant-ui/pull/10317) [`b78c1c1`](https://github.com/assistant-ui/assistant-ui/commit/b78c1c146f91adc0cc90c6c1ed97af588fa8f99b) - Only treat a standalone `language-*` class token as the code language, so a class such as `my-language-js` no longer selects the wrong syntax highlighter. ([@lhy-dcf](https://github.com/lhy-dcf))
+
 ## 0.14.24
 
 ### Patch Changes

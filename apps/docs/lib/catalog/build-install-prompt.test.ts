@@ -17,6 +17,18 @@ describe("buildInstallPrompt", () => {
     expect(prompt).not.toContain('className="h-dvh"');
   });
 
+  it("points an agent outside a setup at the guided setup for the same products", () => {
+    const prompt = buildInstallPrompt(
+      resolveProducts(["assistant-ui", "cloud"]),
+    );
+    expect(prompt).toContain(
+      "Not in a setup yet? Run `npx assistant-ui@latest setup --products assistant-ui,cloud`",
+    );
+    expect(prompt).toContain(
+      "If `setup` isn't a known command (a cached or pnpm release-age-gated version), run `npx -y --prefer-online assistant-ui@latest setup --products assistant-ui,cloud` instead.",
+    );
+  });
+
   it("mounts the Expo thread at the selected entry point instead of a web root component", () => {
     const prompt = buildInstallPrompt(resolveProducts(["assistant-ui"]));
     expect(prompt).toContain(

@@ -93,8 +93,65 @@ export class ToolExecutionStream extends PipeableTransformStream<
       ToolCallReaderImpl<ReadonlyJSONObject, ReadonlyJSONValue>
     >();
     const toolCallIdsWithBackendResult = new Set<symbol>();
+    const toolCallIdsWithApproval = new Set<symbol>();
     const executionIdsByPath = new Map<string, symbol>();
+    const pendingExecutions = new Map<symbol, () => void>();
+    const heldPartFinishes = new Map<
+      symbol,
+      AssistantMetaStreamChunk & { type: "part-finish" }
+    >();
+    let isStepOpen = false;
     let nextPartIndex = 0;
+
+    const finishPart = (
+      chunk: AssistantMetaStreamChunk & { type: "part-finish" },
+      executionId: symbol | undefined,
+      controller: TransformStreamDefaultController<AssistantStreamChunk>,
+    ) => {
+      const toolCallPromise = executionId
+        ? toolCallPromises.get(executionId)
+        : undefined;
+      const cleanup = () => {
+        if (!executionId) return;
+        toolCallPromises.delete(executionId);
+        toolCallControllers.delete(executionId);
+        toolCallIdsWithBackendResult.delete(executionId);
+        toolCallIdsWithApproval.delete(executionId);
+        executionIdsByPath.delete(pathKey(chunk.path));
+      };
+      if (toolCallPromise) {
+        toolCallPromise.then(() => {
+          cleanup();
+
+          enqueueIfOpen(controller, chunk);
+        });
+      } else {
+        cleanup();
+        controller.enqueue(chunk);
+      }
+    };
+
+    // A provider can gate a call it streamed until the step that carries it
+    // ends, so execution waits for that boundary and is dropped once the call
+    // has an approval or a backend result.
+    const runPendingExecutions = (
+      controller: TransformStreamDefaultController<AssistantStreamChunk>,
+    ) => {
+      for (const [executionId, execute] of [...pendingExecutions]) {
+        pendingExecutions.delete(executionId);
+        if (
+          !toolCallIdsWithApproval.has(executionId) &&
+          !toolCallIdsWithBackendResult.has(executionId)
+        ) {
+          execute();
+        }
+        const partFinish = heldPartFinishes.get(executionId);
+        if (partFinish) {
+          heldPartFinishes.delete(executionId);
+          finishPart(partFinish, executionId, controller);
+        }
+      }
+    };
 
     super((readable) => {
       const transform = new TransformStream<
@@ -103,6 +160,12 @@ export class ToolExecutionStream extends PipeableTransformStream<
       >({
         async transform(chunk, controller) {
           const executionId = executionIdsByPath.get(pathKey(chunk.path));
+
+          if (chunk.type === "step-start") isStepOpen = true;
+          if (chunk.type === "step-finish" || chunk.type === "message-finish") {
+            isStepOpen = false;
+            runPendingExecutions(controller);
+          }
 
           // forward everything
           if (chunk.type !== "part-finish" || chunk.meta.type !== "tool-call") {
@@ -199,139 +262,135 @@ export class ToolExecutionStream extends PipeableTransformStream<
               // emits this finish chunk, but must not parse stale/incomplete args,
               // execute the frontend tool, or enqueue a second result.
               if (toolCallIdsWithBackendResult.has(executionId!)) break;
+              if (toolCallIdsWithApproval.has(executionId!)) break;
 
-              let isExecuting = false;
-              const promise = withPromiseOrValue(
-                () => {
-                  let args: ReadonlyJSONObject;
-                  try {
-                    args = sjson.parse(
-                      streamController.argsText,
-                    ) as ReadonlyJSONObject;
-                  } catch (e) {
-                    throw new Error(
-                      `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
-                    );
-                  }
+              const execute = () => {
+                let isExecuting = false;
+                const promise = withPromiseOrValue(
+                  () => {
+                    let args: ReadonlyJSONObject;
+                    try {
+                      args = sjson.parse(
+                        streamController.argsText,
+                      ) as ReadonlyJSONObject;
+                    } catch (e) {
+                      throw new Error(
+                        `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,
+                      );
+                    }
 
-                  const executeResult = internalOptions.execute({
-                    toolCallId,
-                    toolName,
-                    args,
-                    executionId: executionId!,
-                  });
-
-                  // Only mark as executing if the tool has frontend execution
-                  if (executeResult !== undefined) {
-                    isExecuting = true;
-                    invokeExecutionCallback(
-                      "onExecutionStart",
-                      internalOptions.onExecutionStart,
+                    const executeResult = internalOptions.execute({
                       toolCallId,
                       toolName,
-                      executionId!,
+                      args,
+                      executionId: executionId!,
+                    });
+
+                    // Only mark as executing if the tool has frontend execution
+                    if (executeResult !== undefined) {
+                      isExecuting = true;
+                      invokeExecutionCallback(
+                        "onExecutionStart",
+                        internalOptions.onExecutionStart,
+                        toolCallId,
+                        toolName,
+                        executionId!,
+                      );
+                    }
+
+                    return executeResult;
+                  },
+                  (c) => {
+                    if (isExecuting) {
+                      invokeExecutionCallback(
+                        "onExecutionEnd",
+                        internalOptions.onExecutionEnd,
+                        toolCallId,
+                        toolName,
+                        executionId!,
+                      );
+                    }
+
+                    if (c === undefined) return;
+
+                    const result = new ToolResponse({
+                      artifact: c.artifact,
+                      result: c.result,
+                      isError: c.isError,
+                      messages: c.messages,
+                      modelContent: c.modelContent,
+                    });
+                    streamController.setResponse(result);
+                    enqueueIfOpen(
+                      controller,
+                      withExecutionId(
+                        {
+                          type: "result",
+                          path: chunk.path,
+                          ...result,
+                        },
+                        executionId!,
+                      ),
                     );
-                  }
+                  },
+                  (e) => {
+                    if (isExecuting) {
+                      invokeExecutionCallback(
+                        "onExecutionEnd",
+                        internalOptions.onExecutionEnd,
+                        toolCallId,
+                        toolName,
+                        executionId!,
+                      );
+                    }
 
-                  return executeResult;
-                },
-                (c) => {
-                  if (isExecuting) {
-                    invokeExecutionCallback(
-                      "onExecutionEnd",
-                      internalOptions.onExecutionEnd,
-                      toolCallId,
-                      toolName,
-                      executionId!,
+                    const result = new ToolResponse({
+                      result: String(e),
+                      isError: true,
+                    });
+
+                    streamController.setResponse(result);
+                    enqueueIfOpen(
+                      controller,
+                      withExecutionId(
+                        {
+                          type: "result",
+                          path: chunk.path,
+                          ...result,
+                        },
+                        executionId!,
+                      ),
                     );
-                  }
+                  },
+                );
+                if (promise) {
+                  toolCallPromises.set(executionId!, promise);
+                }
+              };
+              if (isStepOpen) pendingExecutions.set(executionId!, execute);
+              else execute();
+              break;
+            }
 
-                  if (c === undefined) return;
-
-                  const result = new ToolResponse({
-                    artifact: c.artifact,
-                    result: c.result,
-                    isError: c.isError,
-                    messages: c.messages,
-                    modelContent: c.modelContent,
-                  });
-                  streamController.setResponse(result);
-                  enqueueIfOpen(
-                    controller,
-                    withExecutionId(
-                      {
-                        type: "result",
-                        path: chunk.path,
-                        ...result,
-                      },
-                      executionId!,
-                    ),
-                  );
-                },
-                (e) => {
-                  if (isExecuting) {
-                    invokeExecutionCallback(
-                      "onExecutionEnd",
-                      internalOptions.onExecutionEnd,
-                      toolCallId,
-                      toolName,
-                      executionId!,
-                    );
-                  }
-
-                  const result = new ToolResponse({
-                    result: String(e),
-                    isError: true,
-                  });
-
-                  streamController.setResponse(result);
-                  enqueueIfOpen(
-                    controller,
-                    withExecutionId(
-                      {
-                        type: "result",
-                        path: chunk.path,
-                        ...result,
-                      },
-                      executionId!,
-                    ),
-                  );
-                },
-              );
-              if (promise) {
-                toolCallPromises.set(executionId!, promise);
-              }
+            case "tool-call-approval": {
+              if (chunk.meta.type !== "tool-call" || !executionId) break;
+              toolCallIdsWithApproval.add(executionId);
               break;
             }
 
             case "part-finish": {
               if (chunk.meta.type !== "tool-call") break;
 
-              const executionId = executionIdsByPath.get(pathKey(chunk.path));
-              const toolCallPromise = executionId
-                ? toolCallPromises.get(executionId)
-                : undefined;
-              const cleanup = () => {
-                if (!executionId) return;
-                toolCallPromises.delete(executionId);
-                toolCallControllers.delete(executionId);
-                toolCallIdsWithBackendResult.delete(executionId);
-                executionIdsByPath.delete(pathKey(chunk.path));
-              };
-              if (toolCallPromise) {
-                toolCallPromise.then(() => {
-                  cleanup();
-
-                  enqueueIfOpen(controller, chunk);
-                });
-              } else {
-                cleanup();
-                controller.enqueue(chunk);
+              if (executionId && pendingExecutions.has(executionId)) {
+                heldPartFinishes.set(executionId, chunk);
+                break;
               }
+              finishPart(chunk, executionId, controller);
             }
           }
         },
-        async flush() {
+        async flush(controller) {
+          runPendingExecutions(controller);
           await Promise.all(toolCallPromises.values());
         },
       });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, onTestFinished } from "vitest";
 import {
   AssistantMessageAccumulator,
   createInitialMessage,
@@ -65,6 +65,33 @@ describe("AssistantMessageAccumulator reasoning summaries", () => {
     expect(messages.at(-1)?.parts[0]).toEqual(
       expect.objectContaining({ type: "reasoning", unstable_summary: "" }),
     );
+  });
+});
+
+describe("AssistantMessageAccumulator document sources", () => {
+  it("defaults a missing document source media type", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: {
+          type: "source",
+          sourceType: "document",
+          id: "d1",
+          title: "Q3 report",
+        },
+      } as unknown as AssistantStreamChunk,
+    ]);
+
+    expect(messages.at(-1)?.parts).toEqual([
+      expect.objectContaining({
+        type: "source",
+        sourceType: "document",
+        id: "d1",
+        title: "Q3 report",
+        mediaType: "application/octet-stream",
+      }),
+    ]);
   });
 });
 
@@ -191,6 +218,47 @@ describe("AssistantMessageAccumulator tool argument status", () => {
       status: { type: "running", isArgsComplete: true },
     });
     expect(messages.at(-1)?.parts[0]).not.toHaveProperty("modelContent");
+  });
+
+  it("clears stale artifact and messages when a later result omits them", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "searching",
+        isError: false,
+        isPreliminary: true,
+        artifact: { reportId: 7 },
+        messages: [
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "in progress" }],
+          },
+        ],
+        modelContent: [{ type: "text", text: "Search in progress" }],
+      },
+      {
+        type: "result",
+        path: [0],
+        result: "done",
+        isError: false,
+      },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      status: { type: "complete", reason: "stop" },
+    });
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("modelContent");
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("artifact");
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("messages");
   });
 
   it("ignores a preliminary result after the final one", async () => {
@@ -1135,5 +1203,30 @@ describe("AssistantMessageAccumulator tool arguments", () => {
     const mutableArgs = part.args as Record<string, unknown>;
     mutableArgs.query = "updated";
     expect(mutableArgs.query).toBe("updated");
+  });
+});
+
+describe("AssistantMessageAccumulator tool-call approvals", () => {
+  it("sets an approval on a tool call and drops one aimed at another part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warn.mockRestore());
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "deploy" },
+      },
+      { type: "part-start", path: [], part: { type: "text" } },
+      { type: "tool-call-approval", path: [0], approval: { id: "a1" } },
+      { type: "tool-call-approval", path: [1], approval: { id: "a2" } },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({ type: "tool-call", approval: { id: "a1" } }),
+      expect.not.objectContaining({ approval: expect.anything() }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped tool-call-approval chunk: part is not a tool-call",
+    );
   });
 });

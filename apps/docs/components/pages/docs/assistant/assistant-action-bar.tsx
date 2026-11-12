@@ -204,7 +204,7 @@ export function FeedbackActions({
             : "Good response"
         }
         className={cn(
-          "text-muted-foreground/70 hover:text-foreground p-1 transition-colors",
+          "text-muted-foreground hover:text-foreground p-1 transition-colors",
           "disabled:cursor-not-allowed disabled:opacity-50",
           submittedFeedback === "positive" && "text-foreground",
         )}
@@ -227,7 +227,7 @@ export function FeedbackActions({
               : "Report issue with response"
           }
           className={cn(
-            "text-muted-foreground/70 hover:text-foreground p-1 transition-colors",
+            "text-muted-foreground hover:text-foreground p-1 transition-colors",
             "disabled:cursor-not-allowed disabled:opacity-50",
             submittedFeedback === "negative" && "text-foreground",
           )}
@@ -252,7 +252,7 @@ export function AssistantActionBar(): ReactNode {
     <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1.5">
       <ActionBarPrimitive.Copy
         aria-label="Copy response"
-        className="text-muted-foreground/70 hover:text-foreground p-1 transition-colors"
+        className="text-muted-foreground hover:text-foreground p-1 transition-colors"
       >
         <AuiIf condition={(s) => s.message.isCopied}>
           <CheckIcon className="size-4" />

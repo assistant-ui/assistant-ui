@@ -3,6 +3,7 @@ import {
   AssistantTransportEncoder,
   AssistantTransportDecoder,
 } from "./AssistantTransport";
+import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 
 // Helper function to collect all chunks from a stream
@@ -219,6 +220,37 @@ describe("AssistantTransportDecoder", () => {
       path: [],
     });
   });
+
+  it.each([
+    { suffix: ":" + "x".repeat(100), maxLineLength: 64, maxEventLength: 256 },
+    {
+      suffix: "data: " + "x".repeat(100) + "\n\n",
+      maxLineLength: 256,
+      maxEventLength: 64,
+    },
+  ])(
+    "stops before an oversized suffix after [DONE] ($maxLineLength/$maxEventLength)",
+    async ({ suffix, ...limits }) => {
+      const cancelled = promiseWithResolvers<void>();
+      const input = new ReadableStream<Uint8Array<ArrayBuffer>>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"type":"data","data":[1]}\n\ndata: [DONE]\n\n' + suffix,
+            ),
+          );
+        },
+        cancel() {
+          cancelled.resolve();
+        },
+      });
+      const chunks = await collectChunks(
+        input.pipeThrough(new AssistantTransportDecoder(limits)),
+      );
+      expect(chunks).toEqual([{ type: "data", data: [1], path: [] }]);
+      await cancelled.promise;
+    },
+  );
 
   it("should handle part-start chunks", async () => {
     const originalChunks: AssistantStreamChunk[] = [
@@ -466,6 +498,30 @@ describe("AssistantTransportDecoder", () => {
       { type: "result", path: [0] },
     ]);
     expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("carries a tool-call approval and drops malformed ones", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"tool-call-approval","approval":{"id":"a1","signature":"sig"},"path":[0]}',
+        '{"type":"tool-call-approval","approval":{"signature":"sig"},"path":[0]}',
+        '{"type":"tool-call-approval","approval":{"id":"a2","approved":"false"},"path":[0]}',
+        '{"type":"tool-call-approval","path":[0]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      {
+        type: "tool-call-approval",
+        approval: { id: "a1", signature: "sig" },
+        path: [0],
+      },
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("(invalid-fields:tool-call-approval)"),
+    );
     warn.mockRestore();
   });
 

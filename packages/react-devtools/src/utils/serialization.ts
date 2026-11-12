@@ -91,15 +91,14 @@ export const sanitizeForMessage = (
         );
       }
       if (Array.isArray(value)) {
-        const result: unknown[] = [];
         const length = value.length;
+        const result = new Array<unknown>(length);
         for (let index = 0; index < length; index++) {
           try {
             if (!(index in value)) continue;
-            const item = sanitizeForMessage(value[index], seen);
-            if (item !== undefined) result.push(item);
+            result[index] = sanitizeForMessage(value[index], seen);
           } catch {
-            result.push(UNSERIALIZABLE);
+            result[index] = UNSERIALIZABLE;
           }
         }
         return result;

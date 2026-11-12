@@ -1,4 +1,4 @@
-import type { MessageStatus } from "@assistant-ui/core";
+import type { MessageStatus, ToolModelContentPart } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 // ── ADK Event wire types (lightweight, no @google/adk dependency) ──
@@ -15,6 +15,7 @@ export type AdkEventPart = {
     name: string;
     id?: string;
     response: unknown;
+    parts?: Pick<AdkEventPart, "inlineData" | "fileData">[];
   };
   executableCode?: {
     code: string;
@@ -104,6 +105,7 @@ export type AdkMessage =
       name: string;
       status?: "success" | "error" | undefined;
       artifact?: unknown;
+      modelContent?: readonly ToolModelContentPart[] | undefined;
     };
 
 export type AdkMessageContentPart =

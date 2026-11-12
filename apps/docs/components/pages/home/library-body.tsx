@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyButton } from "@/components/shared/copy-button";
+import { InstallCommands } from "@/components/pages/home/install-commands";
 import {
   LibraryShowcase,
   type SetupTab,
@@ -10,10 +10,9 @@ import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { Button } from "@/components/ui/button";
 import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
 import { analytics } from "@/lib/analytics";
+import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import Image from "next/image";
 import Link from "next/link";
-
-const CONTACT_SALES_URL = "https://cal.com/simon-farshid/assistant-ui";
 
 const HOME_QUOTE_USERNAMES = [
   "@LangChainAI",
@@ -31,7 +30,7 @@ export function LibraryBody({
   reactVersion,
 }: {
   setupTabs: SetupTab[];
-  reactVersion: string | null;
+  reactVersion: string;
 }) {
   return (
     <div className="mt-16 flex flex-col gap-12 md:mt-20 md:gap-16">
@@ -95,16 +94,10 @@ export function LibraryBody({
                 The CLI copies the UI source into your project.
               </span>
             </p>
-            <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-w-0 flex-wrap items-center gap-3 px-4 py-3">
-              <p className="font-mono text-[14px] tracking-[-0.01em] break-all [font-variant-ligatures:none]">
-                npx assistant-ui init
-              </p>
-              <CopyButton text="npx assistant-ui init" />
-            </div>
+            <InstallCommands />
             <p className="text-muted-foreground text-xs">
               <span className="font-mono">
-                @assistant-ui/react
-                {reactVersion && <span>@{reactVersion}</span>}
+                @assistant-ui/react@{reactVersion}
               </span>{" "}
               · MIT License
             </p>
@@ -140,17 +133,19 @@ export function LibraryBody({
               </span>
             </p>
             <div>
-              <a
-                href={CONTACT_SALES_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() =>
-                  analytics.cta.clicked("contact_sales", "home_closer")
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href={CONTACT_SALES_PATH}
+                    onClick={() =>
+                      analytics.cta.clicked("contact_sales", "home_closer")
+                    }
+                  />
                 }
-                className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
               >
-                Contact sales
-              </a>
+                Talk to an expert
+              </Button>
             </div>
           </li>
         </ol>

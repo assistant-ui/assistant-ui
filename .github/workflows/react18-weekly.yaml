@@ -61,7 +61,7 @@ jobs:
         if: ${{ !cancelled() && github.event_name == 'schedule' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         env:
-          FAILED: ${{ steps.types.outcome == 'failure' || steps.tests.outcome == 'failure' }}
+          PASSED: ${{ steps.types.outcome == 'success' && steps.tests.outcome == 'success' }}
         with:
           script: |
             const label = "react18-weekly";
@@ -73,7 +73,7 @@ jobs:
               per_page: 1,
             });
             const issue = open[0];
-            if (process.env.FAILED === "true") {
+            if (process.env.PASSED !== "true") {
               const body = `The weekly React 18 run failed: ${runUrl}`;
               if (issue) {
                 await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body });

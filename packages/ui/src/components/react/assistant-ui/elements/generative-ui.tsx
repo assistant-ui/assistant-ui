@@ -1,9 +1,8 @@
 "use client";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { GenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
+import { GenerativeMarkdown } from "./generative-markdown";
 import { GeoMap, type GeoMapPlace } from "./geo-map";
 import { MermaidDiagram } from "./mermaid-diagram";
 
@@ -35,12 +34,7 @@ export const styledGenerativeUILibrary: GenerativeUILibrary = {
     properties: markdownBase.properties,
     streamProperties: markdownBase.streamProperties,
     description: "A markdown string, rendered with GitHub-flavored markdown.",
-    render: ({ value, children }) => (
-      <div data-aui="markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{value ?? ""}</ReactMarkdown>
-        {children}
-      </div>
-    ),
+    render: GenerativeMarkdown,
   },
   Diagram: {
     ...defaultGenerativeUILibrary.Diagram!,

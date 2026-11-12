@@ -6,16 +6,24 @@
       "dependsOn": ["^build", "build"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/templates/**/api/chat/route.ts",
-        "$TURBO_ROOT$/templates/vscode/src/openai.ts"
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/templates/**/api/**/*.ts",
+        "$TURBO_ROOT$/templates/vscode/src/openai.ts",
+        "$TURBO_ROOT$/apps/docs/components/pages/docs/fumadocs/install/packaged-file-url.ts",
+        "$TURBO_ROOT$/examples/with-expo/**/*.{ts,tsx}",
+        "!$TURBO_ROOT$/examples/with-expo/**/{node_modules,.next,dist,build}/**"
       ]
     },
     "test:coverage": {
       "dependsOn": ["^build", "build"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/templates/**/api/chat/route.ts",
-        "$TURBO_ROOT$/templates/vscode/src/openai.ts"
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/templates/**/api/**/*.ts",
+        "$TURBO_ROOT$/templates/vscode/src/openai.ts",
+        "$TURBO_ROOT$/apps/docs/components/pages/docs/fumadocs/install/packaged-file-url.ts",
+        "$TURBO_ROOT$/examples/with-expo/**/*.{ts,tsx}",
+        "!$TURBO_ROOT$/examples/with-expo/**/{node_modules,.next,dist,build}/**"
       ]
     }
   }

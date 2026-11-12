@@ -3286,6 +3286,7 @@ describe("AgUiThreadController selected-turn replay", () => {
         toolCallId: "x",
         messageId: "result-x",
         content: "server result",
+        metadata: { trace: "cross-run", retry: 0 },
       });
       emit(subscriber, {
         type: "RUN_FINISHED",
@@ -3296,7 +3297,13 @@ describe("AgUiThreadController selected-turn replay", () => {
 
     await resume(core, "u");
     expect(contents(core, "a")).toContainEqual(
-      expect.objectContaining({ toolCallId: "x", result: "server result" }),
+      expect.objectContaining({
+        toolCallId: "x",
+        result: "server result",
+        providerMetadata: {
+          agui: { messageMetadata: { trace: "cross-run", retry: 0 } },
+        },
+      }),
     );
     expect(
       core.getMessages().find((message) => message.id === "a")?.status,
@@ -3362,6 +3369,63 @@ describe("AgUiThreadController selected-turn replay", () => {
     });
     expect(core.getPendingToolCalls()).toBeNull();
     expect(attempts).toBe(1);
+  });
+
+  it("leaves an off-branch answer alone when the first message collides with its ID", async () => {
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("off-branch", [{ type: "text", text: "old off branch" }]),
+        assistant("selected", [{ type: "text", text: "selected branch" }]),
+      ],
+      async (input, subscriber) => {
+        text(subscriber, "off-branch", "answer A");
+        streamToolCall(subscriber, "t", "{}");
+        text(subscriber, "fresh-b", "answer B");
+        emit(subscriber, {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "t",
+          messageId: "result-t",
+          content: "server result",
+        });
+        emit(subscriber, {
+          type: "TEXT_MESSAGE_END",
+          messageId: "off-branch",
+        });
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+      [null, "u", "u"],
+    );
+
+    await core.append({
+      role: "user",
+      content: [{ type: "text", text: "new prompt" }],
+      attachments: [],
+      createdAt: new Date(1),
+      metadata: { custom: {} },
+      parentId: core.getMessageRepository().headId ?? null,
+      sourceId: null,
+      runConfig: {},
+      startRun: true,
+    });
+
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "off-branch")?.message,
+    ).toMatchObject({
+      content: [{ type: "text", text: "old off branch" }],
+      status: { type: "complete" },
+    });
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "fresh-b")?.message,
+    ).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({ toolCallId: "t", result: "server result" }),
+      ]),
+    });
   });
 
   it.each(["frontend", "server"] as const)(

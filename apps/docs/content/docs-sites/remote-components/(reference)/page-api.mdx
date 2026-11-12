@@ -1,0 +1,119 @@
+---
+title: Page API
+description: "What a page can use inside the frame: window.rc and a few React hooks."
+---
+
+## window.rc
+
+Exists as soon as the runtime runs, before the host connects. Also available as the global `rc`.
+
+```ts title="rc.d.ts"
+interface Rc extends EventTarget {
+  readonly props: Readonly<Record<string, unknown>>;  // function props return Promises
+  overlay(options: OverlayOptions): OverlayHandle;
+}
+
+// Events. Plain Event objects with no payload.
+//   "props-changed"  the first props arrived, or a prop changed
+//   "theme-changed"  the host's styles changed and are applied
+```
+
+| Member | | |
+| --- | --- | --- |
+| `props` | | The host's props. The same object until a prop changes. Empty until the first `props-changed`. |
+| `overlay(options)` | `OverlayHandle` | A popover or dialog drawn by the host. |
+| `addEventListener(type, fn, options)` | | From `EventTarget`. `once` and `signal` work as usual. |
+
+### Events
+
+| Event | Fires | |
+| --- | --- | --- |
+| `props-changed` | once at connect, then on every change | Read `rc.props`. |
+| `theme-changed` | once at connect, then when the host's styles change | The runtime has applied the new theme. Re-read computed styles. |
+
+The first events fire after the host connects and the document is parsed. A script anywhere in the page, deferred and module scripts included, can add its listener in time. A page opened on its own, outside a frame, gets no events and keeps empty props.
+
+```js
+render(rc.props);
+rc.addEventListener("props-changed", () => render(rc.props));
+
+// Stop listening with an AbortController.
+const controller = new AbortController();
+rc.addEventListener("theme-changed", redrawChart, { signal: controller.signal });
+controller.abort();
+```
+
+### Function props
+
+A function prop is an async proxy. Calling it returns a Promise of the host function's result. An `AbortSignal` anywhere in the arguments cancels the call. See [Props and callbacks](/remote-components/docs/props).
+
+```js
+const answer = await rc.props.onReply("yes");   // the host function's return value
+```
+
+### Overlays
+
+```js
+const handle = rc.overlay({
+  kind: "popover",          // or "dialog"
+  src: "menu.html",         // relative to this page, same origin by default
+  // html: "<button …>",    // or the document itself
+  props: { onSelect },      // functions call back into this page
+  anchor: button,           // popover anchor element
+  placement: { side: "bottom", align: "start" },
+  offset: 4,
+  matchAnchorWidth: true,
+  label: "Sort",            // accessible label (dialogs)
+  onDismiss: (reason) => {},
+});
+await handle.ready;         // rejects if the host refuses the overlay
+handle.update({ selected });
+handle.close();
+```
+
+Dismiss reasons: `escape`, `outside`, `host`, `error`, `unmount`. `onDismiss` is not called for `close()`. `handle.setOptions({ anchor, placement, offset, label, matchAnchorWidth })` changes those options on an open overlay.
+
+## Modules and types
+
+Bundled code can import the same object:
+
+```ts title="app.ts"
+import { rc } from "@assistant-ui/remote-components-runtime";   // starts the runtime if the page has no tag
+```
+
+A page that uses the global `rc` without an import gets its types from `@assistant-ui/remote-components-runtime/global`:
+
+```ts
+/// <reference types="@assistant-ui/remote-components-runtime/global" />
+
+// or in tsconfig.json
+{ "compilerOptions": { "types": ["@assistant-ui/remote-components-runtime/global"] } }
+```
+
+## React hooks
+
+`@assistant-ui/remote-components-react`. Optional. Each one reads `window.rc`. The package also exports `rc`.
+
+| Hook | Returns | |
+| --- | --- | --- |
+| `useProps<P>()` | `P` | The host's props. Re-renders on `props-changed`. |
+| `useThemeVersion()` | `number` | Goes up on every `theme-changed`. Use it as an effect dependency to re-read computed styles. |
+| `useOverlay(open, onOpenChange, options)` | `OverlayHandle \| null` | A controlled overlay. `anchorRef` instead of `anchor`. |
+
+```tsx title="Chart.tsx"
+import { useEffect, useRef } from "react";
+import { useProps, useThemeVersion } from "@assistant-ui/remote-components-react";
+
+export function Chart() {
+  const { data } = useProps<{ data: number[] }>();
+  const theme = useThemeVersion();
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const color = getComputedStyle(ref.current!).getPropertyValue("--color-accent");
+    draw(ref.current!, data, color);
+  }, [data, theme]);
+  return <canvas ref={ref} />;
+}
+```
+
+CSS follows the host without any of this. [Overlays](/remote-components/docs/overlays) and [Props](/remote-components/docs/props) have examples.

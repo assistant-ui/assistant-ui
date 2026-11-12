@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 let root: string;
@@ -29,10 +30,11 @@ const writeModels = async (directory: string, provider: string) => {
   );
 };
 
-const createSupervisor = (directory?: string) => {
+const createSupervisor = (directory?: string, modelRuntime?: ModelRuntime) => {
   const supervisor = new PiThreadSupervisor({
     workspacePath: root,
     ...(directory ? { agentDir: directory } : {}),
+    ...(modelRuntime ? { modelRuntime } : {}),
   });
   supervisors.push(supervisor);
   return supervisor;
@@ -104,6 +106,33 @@ describe("PiThreadSupervisor model directories", () => {
     const updated = await supervisor.getThread(thread.metadata.id);
     expect(updated.metadata.config).toMatchObject({
       provider: "custom-fixture",
+      modelId: "second",
+    });
+  });
+
+  it("uses a host model runtime for the catalog and the live session", async () => {
+    const hostDirectory = join(root, "host");
+    await writeModels(hostDirectory, "host-fixture");
+    const modelRuntime = await ModelRuntime.create({
+      authPath: join(hostDirectory, "auth.json"),
+      modelsPath: join(hostDirectory, "models.json"),
+      refreshOnCreate: false,
+    });
+    const supervisor = createSupervisor(agentDir, modelRuntime);
+
+    const models = await supervisor.getAvailableModels();
+    expect(new Set(models.map((model) => model.provider))).toEqual(
+      new Set(["host-fixture"]),
+    );
+
+    const thread = await supervisor.createThread();
+    await supervisor.setModel(thread.metadata.id, {
+      provider: "host-fixture",
+      modelId: "second",
+    });
+    const updated = await supervisor.getThread(thread.metadata.id);
+    expect(updated.metadata.config).toMatchObject({
+      provider: "host-fixture",
       modelId: "second",
     });
   });

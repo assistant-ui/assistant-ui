@@ -1,6 +1,6 @@
 ---
 title: Line
-description: The default for anything measured over time. One series or several, on linear or log paper, with regions, bands, annotations, and guides.
+description: The default for anything measured over time. One series or several, on linear or log paper, with regions, bands, forecasts, trends, annotations, and guides.
 ---
 
 import { Example } from "@/components/diagrammatic/example";
@@ -14,6 +14,9 @@ import Guides from "@/components/diagrammatic/examples/line/guides";
 import LogScale from "@/components/diagrammatic/examples/line/log-scale";
 import Xs from "@/components/diagrammatic/examples/line/xs";
 import Censor from "@/components/diagrammatic/examples/line/censor";
+import Signed from "@/components/diagrammatic/examples/line/signed";
+import Forecast from "@/components/diagrammatic/examples/line/forecast";
+import Trend from "@/components/diagrammatic/examples/line/trend";
 import Tooltip from "@/components/diagrammatic/examples/line/tooltip";
 import Highlight from "@/components/diagrammatic/examples/line/highlight";
 import Select from "@/components/diagrammatic/examples/line/select";
@@ -89,6 +92,24 @@ A `step` line with `marks` of `kind: "censor"` is a Kaplan-Meier plot: the ticks
 
 <Example file="line/censor"><Censor /></Example>
 
+### Profit and loss
+
+`signed` strokes one series in the positive color above zero and the negative color below it, splitting the line where it crosses, and draws the zero line.
+
+<Example file="line/signed"><Signed /></Example>
+
+### Forecast
+
+`forecastFrom` dashes every series from that index on, so actuals and projection share one continuous line. Pair it with `bands` for the forecast range.
+
+<Example file="line/forecast"><Forecast /></Example>
+
+### Trend line
+
+`trend` fits a least-squares line to each series and draws it dashed behind the data, for a direction that day-to-day noise hides.
+
+<Example file="line/trend"><Trend /></Example>
+
 ## Interaction
 
 These examples wrap the server-rendered chart in `diagrammatic/interactive`. See [Interaction](/diagrammatic/docs/interaction) for the full API.
@@ -149,6 +170,9 @@ The same chart as JSON, for a model to write. See [Charts from a model](/diagram
     { name: "xTicks", type: "number | { at: number; label: string }[]", description: "A tick count or an explicit ladder on the x axis." },
     { name: "yTicks", type: "number | { at: number; label: string }[]", description: "A tick count or an explicit ladder on the value axis. Unset draws no value axis." },
     { name: "step", type: "boolean", default: "false", description: "Holds each value until the next point." },
+    { name: "signed", type: "boolean", default: "false", description: "Colors one series by sign at zero and draws the zero line. Ignored with several series or on log paper." },
+    { name: "forecastFrom", type: "number", description: "Dashes every series from this index to the end." },
+    { name: "trend", type: "boolean", default: "false", description: "Draws a least-squares line per series. Skipped on log paper." },
     { name: "regions", type: "{ from: number; to: number; label?: string }[]", description: "Shaded spans of the x axis, in index units or `xs` units." },
     { name: "bands", type: "{ lower: number[]; upper: number[] }[]", description: "A range under each series, in series order." },
     { name: "marks", type: "{ at: number; series?: string; label?: string; kind?: \"point\" | \"censor\" }[]", description: "Annotations pinned to points. `kind: \"censor\"` draws a censoring tick." },

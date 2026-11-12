@@ -19,7 +19,7 @@ const SERVERS: readonly McpServer[] = [
     name: "linear",
     transport: "sse",
     status: "needs-auth",
-    tools: ["list_issues", "save_issue"],
+    tools: [],
   },
   {
     id: "fs",
@@ -38,7 +38,11 @@ export function McpServerPanelDemo() {
     <McpServerPanel
       servers={SERVERS.map((server) =>
         authorized && server.id === "linear"
-          ? { ...server, status: "connected" as const }
+          ? {
+              ...server,
+              status: "connected" as const,
+              tools: ["list_issues", "save_issue"],
+            }
           : server,
       )}
       expandedId={expandedId}

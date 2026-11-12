@@ -6,6 +6,45 @@ platforms: ["react"]
 
 Use the `assistant-ui` CLI to set up new projects and add components to existing ones.
 
+## setup
+
+Use the `setup` command to have your coding agent install assistant-ui, with a guided setup in your browser.
+
+```bash
+npx assistant-ui@latest setup
+```
+
+Run by a coding agent, it starts the setup, prints the steps the agent follows, and keeps running as the setup's stream, so agents run it in the background. It opens setup.assistant-ui.com in your browser only when the agent needs your input: a question, the plan to approve, or the finished install. The agent asks its questions there, proposes a plan for you to approve, and shows each install step as it works. Tell any agent this to start:
+
+```text
+install and set up assistant-ui
+```
+
+Run in an interactive terminal, it asks which coding agent you use and starts it in the current directory with that prompt. For an agent it cannot start, it shows the prompt and copies it when you press Enter; without a clipboard tool, copy it from the terminal.
+
+The browser asks you to confirm the agent and its directory before it connects. If you close a connected tab, setup opens it again for a later question. It never opens a second tab within 30 seconds of the last, or while a tab it opened has not connected; the agent then asks you in its own chat, and your answer there works the same as one in the browser.
+
+The agent runs the other setup commands as `npx assistant-ui@latest setup <url> <command>`, for example `ask`, `plan`, `answer` and `done`. `setup <url> stream` resumes the stream if it stopped.
+
+**Options**
+
+```bash
+Usage: assistant-ui setup [options] [url-and-command...]
+
+set up assistant-ui with your coding agent, guided in your browser
+
+Arguments:
+  url-and-command     a setup command for the agent: <url> <command> [args],
+                      such as <url> ask, <url> answer or <url> stream
+
+Options:
+  --products <slugs>  comma-separated catalog slugs to set up (default:
+                      assistant-ui)
+  --no-open           never open the browser; the agent asks the user in its own
+                      conversation
+  -h, --help          display help for command
+```
+
 ## init
 
 Use the `init` command to add assistant-ui to an existing project.
@@ -626,7 +665,7 @@ npx assistant-ui@latest update
 
 ## Component Registry
 
-The CLI pulls components from the public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
+The CLI pulls components from the public registry at `r.assistant-ui.com`.
 
 Configure the style-aware URL in `components.json` so `@assistant-ui/*` installs match your shadcn style:
 

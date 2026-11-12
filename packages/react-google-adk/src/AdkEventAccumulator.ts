@@ -1,6 +1,6 @@
 import { generateId } from "@assistant-ui/core";
 import { isRecord } from "@assistant-ui/core/internal";
-import type { MessageStatus } from "@assistant-ui/core";
+import type { MessageStatus, ToolModelContentPart } from "@assistant-ui/core";
 import type {
   AdkEvent,
   AdkEventPart,
@@ -103,6 +103,15 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
+// Both ADK aggregators close a truncated or filtered stream with the finish
+// reason repeated as its error code; that is the finish, not a failure.
+export const isFinishReasonErrorEvent = (event: AdkEvent) => {
+  if (!event.content?.parts?.length || event.errorCode !== event.finishReason)
+    return false;
+  const status = finishReasonToStatus(event.finishReason);
+  return status.type === "incomplete" && status.reason !== "error";
+};
+
 const mediaToContentPart = ({
   inlineData,
   fileData,
@@ -163,6 +172,37 @@ const toContentPart = (
     };
   }
   return mediaToContentPart(part);
+};
+
+const getToolModelContent = (
+  response: NonNullable<AdkEventPart["functionResponse"]>,
+): ToolModelContentPart[] | undefined => {
+  if (!Array.isArray(response.parts)) return;
+  const files = response.parts.flatMap<ToolModelContentPart>((part) => {
+    if (!isRecord(part)) return [];
+    const { inlineData, fileData } = normalizeAdkPart(part);
+    const media = inlineData ?? fileData;
+    if (!isRecord(media)) return [];
+    const mediaType =
+      media.mimeType ??
+      (media === fileData ? "application/octet-stream" : undefined);
+    if (typeof mediaType !== "string") return [];
+    const data = media.data ?? media.fileUri;
+    if (typeof data !== "string") return [];
+    return [
+      {
+        type: "file",
+        data,
+        mediaType,
+        ...(typeof media.displayName === "string" && {
+          filename: media.displayName,
+        }),
+      },
+    ];
+  });
+  return files.length > 0
+    ? [{ type: "text", text: JSON.stringify(response.response) }, ...files]
+    : undefined;
 };
 
 // ── Snake_case normalization ──
@@ -308,26 +348,19 @@ export class AdkEventAccumulator {
       return this.getMessages();
     }
 
-    // Handle error events
-    if (event.errorCode || event.errorMessage) {
+    const errorText =
+      event.errorCode || event.errorMessage
+        ? (event.errorMessage ?? event.errorCode ?? "Unknown error")
+        : undefined;
+    const parts = event.content?.parts;
+
+    if (errorText !== undefined && !parts?.length) {
       this.finalizeCurrentMessage();
-      const errorMsg = this.getOrCreateAiMessage(event);
-      const errorText =
-        event.errorMessage ?? event.errorCode ?? "Unknown error";
-      const updated: InProgressMessage = {
-        ...errorMsg,
-        content: [
-          ...this.getContentArray(errorMsg),
-          { type: "text", text: errorText },
-        ],
-        status: { type: "incomplete", reason: "error", error: errorText },
-      };
-      this.messagesMap.set(updated.id, updated);
-      this.currentMessageId = null;
+      this.setErrorStatus(this.getOrCreateAiMessage(event), errorText);
+      this.finalizeCurrentMessage();
       return this.getMessages();
     }
 
-    const parts = event.content?.parts;
     if (!parts?.length) {
       // Track metadata even for content-less events (e.g. turnComplete)
       this.trackMessageMetadata(event);
@@ -361,6 +394,7 @@ export class AdkEventAccumulator {
             tool_call_id: part.functionResponse.id,
             name: part.functionResponse.name,
             content: JSON.stringify(part.functionResponse.response),
+            modelContent: getToolModelContent(part.functionResponse),
             status: isAdkFunctionError(part.functionResponse.response)
               ? "error"
               : "success",
@@ -418,12 +452,34 @@ export class AdkEventAccumulator {
         });
       }
     }
+    let lastAiMessageId: string | null = null;
     for (const [index, part] of parts.entries()) {
       this.processPart(part, event, index);
+      if (this.currentMessageId) lastAiMessageId = this.currentMessageId;
     }
 
     // Track per-message metadata (grounding, citation, usage)
     this.trackMessageMetadata(event);
+
+    // An error event that carries content is the final response it cut off, so its parts settle the streamed message like any final response.
+    if (errorText !== undefined) {
+      const target =
+        lastAiMessageId !== null
+          ? this.messagesMap.get(lastAiMessageId)
+          : undefined;
+      const message =
+        target?.type === "ai" ? target : this.getOrCreateAiMessage(event);
+      if (isFinishReasonErrorEvent(event)) {
+        this.setMessageStatus(
+          message,
+          finishReasonToStatus(event.finishReason),
+        );
+      } else {
+        this.setErrorStatus(message, errorText);
+      }
+      this.finalizeCurrentMessage();
+      return this.getMessages();
+    }
 
     // Check isFinalResponse (can be true even for partial events via skipSummarization/longRunningToolIds)
     if (isFinalResponse(event) && this.currentMessageId) {
@@ -500,6 +556,7 @@ export class AdkEventAccumulator {
         tool_call_id: part.functionResponse.id ?? "",
         name: part.functionResponse.name,
         content: JSON.stringify(part.functionResponse.response),
+        modelContent: getToolModelContent(part.functionResponse),
         status: isAdkFunctionError(part.functionResponse.response)
           ? "error"
           : "success",
@@ -580,6 +637,21 @@ export class AdkEventAccumulator {
       content.push(part);
     }
     this.messagesMap.set(msg.id, { ...msg, content });
+  }
+
+  private setErrorStatus(msg: InProgressMessage, error: string): void {
+    this.setMessageStatus(msg, { type: "incomplete", reason: "error", error });
+  }
+
+  private setMessageStatus(
+    msg: InProgressMessage,
+    status: MessageStatus,
+  ): void {
+    this.messagesMap.set(msg.id, {
+      ...msg,
+      content: [...this.getContentArray(msg)],
+      status,
+    });
   }
 
   private finalizeCurrentMessage(): void {

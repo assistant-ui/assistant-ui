@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: var(--font-sans, sans-serif); color: var(--color-text, inherit); }
+  .card {
+    background: var(--color-surface, transparent);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 8px);
+    padding: 16px;
+  }
+  h2 { margin: 0 0 4px; font-size: 1.1rem; }
+  .sub { margin: 0 0 12px; font-size: 0.85rem; color: var(--color-text-muted, #666); }
+  svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .bar { fill: var(--color-accent, #3b82f6); transition: opacity .15s; }
+  .bar:hover { opacity: .75; }
+  .grid { stroke: var(--color-border, #ddd); stroke-width: 1; }
+  .axis { stroke: var(--color-text-muted, #888); stroke-width: 1; }
+  text { fill: var(--color-text-muted, #666); font-size: 12px; font-family: inherit; }
+  .val { fill: var(--color-text, #222); font-size: 11px; font-weight: 600; }
+  .label { fill: var(--color-text, #222); font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Monthly Sales</h2>
+  <p class="sub">Last six months (sample data)</p>
+  <svg id="chart" viewBox="0 0 600 320" role="img" aria-label="Bar chart of monthly sales for the last six months"></svg>
+</div>
+<script>
+  const data = [
+    { m: "Jan", v: 42000 },
+    { m: "Feb", v: 38500 },
+    { m: "Mar", v: 51200 },
+    { m: "Apr", v: 47800 },
+    { m: "May", v: 56300 },
+    { m: "Jun", v: 61900 }
+  ];
+  const svg = document.getElementById("chart");
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 600, H = 320, L = 70, R = 15, T = 15, B = 55;
+  const cw = W - L - R, ch = H - T - B;
+  const max = 70000, step = 10000;
+  const el = (t, a, txt) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; };
+
+  for (let y = 0; y <= max; y += step) {
+    const py = T + ch - (y / max) * ch;
+    el("line", { x1: L, x2: W - R, y1: py, y2: py, class: y ? "grid" : "axis" });
+    el("text", { x: L - 8, y: py + 4, "text-anchor": "end" }, "$" + (y / 1000) + "k");
+  }
+  el("line", { x1: L, x2: L, y1: T, y2: T + ch, class: "axis" });
+
+  const slot = cw / data.length, bw = slot * 0.6;
+  data.forEach((d, i) => {
+    const h = (d.v / max) * ch, x = L + i * slot + (slot - bw) / 2, y = T + ch - h;
+    const r = el("rect", { x, y, width: bw, height: h, rx: 3, class: "bar" });
+    const tt = document.createElementNS(NS, "title"); tt.textContent = `${d.m}: $${d.v.toLocaleString()}`; r.appendChild(tt);
+    el("text", { x: x + bw / 2, y: y - 5, "text-anchor": "middle", class: "val" }, "$" + (d.v / 1000).toFixed(1) + "k");
+    el("text", { x: x + bw / 2, y: T + ch + 18, "text-anchor": "middle" }, d.m);
+  });
+
+  el("text", { x: L + cw / 2, y: H - 8, "text-anchor": "middle", class: "label" }, "Month");
+  el("text", { x: 16, y: T + ch / 2, "text-anchor": "middle", class: "label", transform: `rotate(-90 16 ${T + ch / 2})` }, "Sales (USD)");
+</script>
+</body>
+</html>

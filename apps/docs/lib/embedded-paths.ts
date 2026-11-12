@@ -7,3 +7,7 @@ export const EMBEDDED_PATHS: readonly string[] = [
   RENDERER_PATH,
   VARIANTS_DEMO_PATH,
 ];
+
+export function isAssistantHiddenPath(pathname: string): boolean {
+  return EMBEDDED_PATHS.includes(pathname);
+}

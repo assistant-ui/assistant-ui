@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ShikiHighlighter from "react-shiki";
+import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
 import { useFlavor } from "@/components/pages/docs/contexts/flavor";
@@ -97,14 +97,14 @@ export function PreviewCodeClient({
             )
           }
         >
-          <ShikiHighlighter
+          <DeferredHighlight
             language="tsx"
             theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}
             addDefaultStyles={false}
             showLanguage={false}
           >
             {activeCode.trim()}
-          </ShikiHighlighter>
+          </DeferredHighlight>
         </CodeBlock>
       )}
     </div>

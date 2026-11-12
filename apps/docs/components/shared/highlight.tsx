@@ -1,6 +1,6 @@
 "use client";
 
-import ShikiHighlighter from "react-shiki";
+import { DeferredHighlight } from "./deferred-highlight";
 
 export function Highlight({
   code,
@@ -10,13 +10,13 @@ export function Highlight({
   language: string;
 }) {
   return (
-    <ShikiHighlighter
+    <DeferredHighlight
       language={language}
       theme={{ light: "catppuccin-latte", dark: "catppuccin-mocha" }}
       addDefaultStyles={false}
       showLanguage={false}
     >
       {code}
-    </ShikiHighlighter>
+    </DeferredHighlight>
   );
 }

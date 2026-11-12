@@ -221,17 +221,66 @@ def test_draft_list_append_emits_index_set() -> None:
     assert state.state["items"] == ["a", "b"]
 
 
-def test_draft_setdefault_container_emits_later_writes() -> None:
+@pytest.mark.parametrize("key", ["items", 7])
+def test_draft_setdefault_container_emits_later_writes(key: str | int) -> None:
     ops: list[dict[str, Any]] = []
     state = AssistantState({})
     draft = state.draft(ops.extend)
-    items = draft.setdefault("items", [])
+    items = draft.setdefault(key, [])
     ops.clear()
 
     items.append("x")
 
-    assert ops == [{"type": "set", "path": ["items", "0"], "value": "x"}]
-    assert state.state == {"items": ["x"]}
+    assert ops == [{"type": "set", "path": [str(key), "0"], "value": "x"}]
+    assert state.state == {str(key): ["x"]}
+
+
+def test_draft_setdefault_preserves_existing_normalized_key() -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({"tasks": {"7": ["kept"]}})
+    draft = state.draft(ops.extend)
+
+    items = draft["tasks"].setdefault(7, ["replacement"])
+
+    assert items == ["kept"]
+    assert ops == []
+    items.append("next")
+    assert state.state == {"tasks": {"7": ["kept", "next"]}}
+    assert ops == [{"type": "set", "path": ["tasks", "7", "1"], "value": "next"}]
+
+
+@pytest.mark.parametrize("key", ["7", 7])
+def test_draft_membership_preserves_existing_normalized_key(key: str | int) -> None:
+    ops: list[dict[str, Any]] = []
+    state = AssistantState({"tasks": {"7": ["kept"]}})
+    tasks = state.draft(ops.extend)["tasks"]
+
+    if key not in tasks:
+        tasks[key] = ["replacement"]
+
+    assert tasks[key] == ["kept"]
+    assert ops == []
+    assert 8 not in tasks
+    tasks[8] = []
+    assert 8 in tasks
+    assert "8" in tasks
+    assert ops == [{"type": "set", "path": ["tasks", "8"], "value": []}]
+
+
+def test_draft_membership_keeps_list_values_and_string_substrings() -> None:
+    state = AssistantState({"items": [7, {"done": True}]})
+    items = state.draft(lambda _ops: None)["items"]
+
+    assert 7 in items
+    assert "7" not in items
+    assert 0 not in items
+    assert {"done": True} in items
+
+    text = AssistantState("hello").draft(lambda _ops: None)
+    assert "ell" in text
+    assert "absent" not in text
+    with pytest.raises(TypeError):
+        7 in text
 
 
 def test_draft_mutating_list_methods_raise() -> None:

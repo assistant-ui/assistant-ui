@@ -246,6 +246,7 @@ export const createPiHttpClient = (
       const params = new URLSearchParams();
       if (input?.workspacePath)
         params.set("workspacePath", input.workspacePath);
+      if (input?.threadId) params.set("threadId", input.threadId);
       const query = params.toString();
       return parseModelListResponse(
         await readJson(

@@ -107,8 +107,8 @@ export async function DocsRoutePage({
               {page.data.title}
             </h1>
             <DocsPager
-              {...(footerPrevious && { previous: { url: footerPrevious.url } })}
-              {...(footerNext && { next: { url: footerNext.url } })}
+              {...(footerPrevious && { previous: footerPrevious })}
+              {...(footerNext && { next: footerNext })}
               markdownUrl={markdownUrl}
               title={page.data.title}
               platformAwareMarkdown={platformAware}

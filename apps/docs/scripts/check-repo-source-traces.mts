@@ -10,7 +10,7 @@ import {
 const DOCS_ROOT = process.cwd();
 const SOURCE_ROOT = path.join(DOCS_ROOT, "generated", ".repo-source");
 const SERVER_ROOT = path.join(DOCS_ROOT, ".next", "server");
-// This intentionally duplicates next.config.ts: deriving it from that config
+// This intentionally duplicates next.config.mts: deriving it from that config
 // would also remove the requirement when an include is accidentally deleted.
 const REQUIRED_REPO_SOURCE_ROUTE_TRACES = [
   "app/api/doc/chat/route.js.nft.json",

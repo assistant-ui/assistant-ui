@@ -5,13 +5,24 @@ export class PathAppendEncoder extends TransformStream<
   AssistantStreamChunk,
   AssistantStreamChunk
 > {
-  constructor(idx: number) {
+  constructor(
+    idx: number | { value: number | undefined; promise: Promise<number> },
+  ) {
     super({
       transform(chunk, controller) {
-        controller.enqueue({
-          ...chunk,
-          path: [idx, ...chunk.path],
-        });
+        const append = (partIndex: number) =>
+          controller.enqueue({
+            ...chunk,
+            path: [partIndex, ...chunk.path],
+          });
+
+        if (typeof idx === "number") {
+          return append(idx);
+        } else if (idx.value !== undefined) {
+          return append(idx.value);
+        } else {
+          return idx.promise.then(append);
+        }
       },
     });
   }
@@ -40,32 +51,26 @@ export class PathAppendDecoder extends TransformStream<
   }
 }
 
-export class PathMergeEncoder extends TransformStream<
-  AssistantStreamChunk,
-  AssistantStreamChunk
-> {
-  constructor(counter: Counter) {
-    const innerCounter = new Counter();
-    const mapping = new Map<number, number>();
-    super({
-      transform(chunk, controller) {
-        if (chunk.type === "part-start" && chunk.path.length === 0) {
-          mapping.set(innerCounter.up(), counter.up());
-        }
+export const createPathMergeMapper = (
+  nextPartIndex: () => number,
+): ((chunk: AssistantStreamChunk) => AssistantStreamChunk) => {
+  const innerCounter = new Counter();
+  const mapping = new Map<number, number>();
 
-        const [idx, ...path] = chunk.path;
-        if (idx === undefined) {
-          controller.enqueue(chunk);
-          return;
-        }
-        const mappedIdx = mapping.get(idx);
-        if (mappedIdx === undefined) throw new Error("Path not found");
+  return (chunk) => {
+    if (chunk.type === "part-start" && chunk.path.length === 0) {
+      mapping.set(innerCounter.up(), nextPartIndex());
+    }
 
-        controller.enqueue({
-          ...chunk,
-          path: [mappedIdx, ...path],
-        });
-      },
-    });
-  }
-}
+    const [idx, ...path] = chunk.path;
+    if (idx === undefined) return chunk;
+
+    const mappedIdx = mapping.get(idx);
+    if (mappedIdx === undefined) throw new Error("Path not found");
+
+    return {
+      ...chunk,
+      path: [mappedIdx, ...path],
+    };
+  };
+};

@@ -13,6 +13,70 @@ import {
 afterEach(cleanupSpecs);
 
 describe("form vocabulary in Vue", () => {
+  it("passes constraints to controls and blocks invalid Card confirmation", async () => {
+    const handler = vi.fn();
+    const rendered = renderVueSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Save" } },
+          children: ["name", "amount"],
+          on: { confirm: { action: "save" } },
+        },
+        name: {
+          type: "Input",
+          props: { name: "name", required: true, minLength: 2, maxLength: 8 },
+        },
+        amount: {
+          type: "Input",
+          props: { name: "amount", inputType: "number", min: 1, max: 5 },
+        },
+      }),
+      { save: handler },
+    );
+    const form = rendered.container.querySelector("form")!;
+    const name = form.querySelector<HTMLInputElement>('input[name="name"]')!;
+    const amount = form.querySelector<HTMLInputElement>(
+      'input[name="amount"]',
+    )!;
+    expect([name.required, name.minLength, name.maxLength]).toEqual([
+      true,
+      2,
+      8,
+    ]);
+    expect([amount.min, amount.max]).toEqual(["1", "5"]);
+    form.requestSubmit();
+    await nextTick();
+    expect(handler).not.toHaveBeenCalled();
+    name.value = "ada";
+    amount.value = "9";
+    form.requestSubmit();
+    await nextTick();
+    expect(handler).not.toHaveBeenCalled();
+    amount.value = "3";
+    form.requestSubmit();
+    await nextTick();
+    expect(handler).toHaveBeenCalledOnce();
+  });
+  it("does not emit submit for an invalid form", async () => {
+    const handler = vi.fn();
+    const rendered = renderVueSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["name"],
+          on: { submit: { action: "save" } },
+        },
+        name: { type: "Input", props: { name: "name", required: true } },
+      }),
+      { save: handler },
+    );
+    const form = rendered.container.querySelector("form")!;
+    expect(form.querySelector("input")?.required).toBe(true);
+    form.requestSubmit();
+    await nextTick();
+    expect(handler).not.toHaveBeenCalled();
+  });
   it.each<[string, Spec["elements"]]>([
     ["a bare form", { main: { type: "Form" } }],
     [

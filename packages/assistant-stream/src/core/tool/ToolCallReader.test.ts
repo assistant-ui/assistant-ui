@@ -248,6 +248,41 @@ describe("ToolCallArgsReader.get", () => {
 
 describe("ToolCallArgsReader streams", () => {
   it.each([
+    ["unicode escape", "\\u0061", ["", "a"]],
+    ["newline escape", "\\n", ["", "\n"]],
+    ["plain text", "hi", ["", "h", "i"]],
+    ["empty text", "", [""]],
+  ] as const)(
+    "streams %s without redundant empty deltas and closes with the field",
+    async (_name, encoded, expected) => {
+      const reader = createReader();
+      const deltas = collect(reader.args.streamText("required"));
+
+      await reader.appendArgsTextDelta('{"required":"');
+      for (const character of encoded) {
+        await reader.appendArgsTextDelta(character);
+      }
+      await reader.appendArgsTextDelta('"');
+
+      expect(await deltas).toEqual(expected);
+
+      await reader.appendArgsTextDelta(',"optional":"later"}');
+      await reader.finishArgsText();
+    },
+  );
+
+  it.each(["", "hello"])(
+    "streams a completed field to late subscribers (%j)",
+    async (text) => {
+      const reader = createReader();
+      await reader.appendArgsTextDelta(JSON.stringify({ required: text }));
+      await reader.finishArgsText();
+
+      expect(await collect(reader.args.streamText("required"))).toEqual([text]);
+    },
+  );
+
+  it.each([
     ["streamText", '{"required":"first', ' second"}', " second"],
     ["streamValues", '{"required":"first', ' second"}', "first second"],
     ["forEach", '{"items":["first",', '"second"]}', "second"],

@@ -528,10 +528,13 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.export();
   }
 
+  protected _beforeImportNotify(): void {}
+
   public import(data: ExportedMessageRepository) {
     this.ensureInitialized();
     this.repository.clear();
     this.repository.import(data);
+    this._beforeImportNotify();
     this._notifySubscribers();
   }
 

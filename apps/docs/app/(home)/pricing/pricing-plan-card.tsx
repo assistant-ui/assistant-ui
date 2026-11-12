@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NewTabCue } from "@/components/shared/new-tab-cue";
 import { Button } from "@/components/ui/button";
 import { analytics } from "@/lib/analytics";
 import type { PricingPlan } from "./pricing-data";
@@ -15,6 +17,8 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
       analytics.cta.clicked("get_started", `pricing_${safePlanName}`);
     }
   };
+
+  const internal = plan.href.startsWith("/");
 
   return (
     <div
@@ -55,15 +59,20 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
         variant={plan.highlighted ? "default" : "outline"}
         className="w-full"
         render={
-          <a
-            href={plan.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleClick}
-          />
+          internal ? (
+            <Link href={plan.href} onClick={handleClick} />
+          ) : (
+            <a
+              href={plan.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleClick}
+            />
+          )
         }
       >
         {plan.cta}
+        {internal ? null : <NewTabCue />}
       </Button>
     </div>
   );

@@ -14,17 +14,21 @@ import {
   readToolInteractionLog,
 } from "../../../runtime/utils/tool-interactions";
 import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
+import { getExternalStoreMessages } from "../../../runtime/utils/external-store-message";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
   CloudAPIError,
   CloudMessagePersistence,
+  type CloudMessageRunPhase,
+  type CloudRunState,
   CloudRunReporter,
   createFormattedPersistence,
   type RunMessageTelemetry,
 } from "assistant-cloud";
 import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { useAssistantCloudEngagementEvents } from "./engagementEvents";
+import { useCloudRunLeases } from "./runLeases";
 import {
   type RunMessageInfo,
   type StepTimestamp,
@@ -78,6 +82,82 @@ const runLedgerOf = (persistence: CloudMessagePersistence) => {
     runLedgers.set(persistence, ledger);
   }
   return ledger;
+};
+
+/** The `error.code` of a message whose run went `staleAfter` without a heartbeat before it finished. */
+const RUN_STALE_ERROR_CODE = "run_stale";
+const RUN_STALE_STATUS = {
+  type: "incomplete",
+  reason: "error",
+  error: {
+    code: RUN_STALE_ERROR_CODE,
+    message: "This response was interrupted before it finished.",
+  },
+} as const;
+/** The `error.code` of a message whose run another tab or session is still writing. */
+const RUN_IN_PROGRESS_ERROR_CODE = "run_in_progress";
+const runInProgressStatus = (staleInMs: number) => ({
+  type: "incomplete" as const,
+  reason: "error" as const,
+  error: {
+    code: RUN_IN_PROGRESS_ERROR_CODE,
+    message: "Running in another tab…",
+    stale_in_ms: staleInMs,
+  },
+});
+
+/** The status a listed message shows for its run: none once the run ended. */
+const runStatusOf = (state: CloudRunState | undefined) =>
+  state === undefined
+    ? undefined
+    : state.status === "stale"
+      ? RUN_STALE_STATUS
+      : runInProgressStatus(state.staleInMs);
+
+// A run another session drives is the newest message of its branch, so it sits on the first page.
+const RUN_STATE_PAGE_SIZE = 20;
+
+const endPhaseOf = (message: ThreadMessage): CloudMessageRunPhase => {
+  const { status } = message;
+  if (status?.type !== "incomplete") return "done";
+  return status.reason === "cancelled"
+    ? "cancelled"
+    : status.reason === "error"
+      ? "error"
+      : "done";
+};
+
+const runPhaseOf = (
+  message: ThreadMessage,
+  persistence: CloudMessagePersistence,
+  key: string = message.id,
+): CloudMessageRunPhase | undefined => {
+  if (message.role !== "assistant") return undefined;
+  if (message.status.type === "running") return "running";
+  if (!persistence.hasOpenRun(key)) return undefined;
+  return endPhaseOf(message);
+};
+
+/**
+ * How the run tracker stores a thread's running assistant message: as an
+ * `aui/v0` row, or through the format a runtime registered with `withFormat`.
+ * Keys are the ids the persistence maps, which for a formatted message is the
+ * id of its one format-native message.
+ */
+export type CloudRunWriter = {
+  /** The message's persistence key, or undefined when it cannot be stored as one row. */
+  keyOf(message: ThreadMessage): string | undefined;
+  /** Whether the row can be chained under its parent yet; always, when absent. */
+  canStore?(parent: ThreadMessage | undefined): boolean;
+  /** Stores the message (appending it on first write), with its run phase read from its status. */
+  write(
+    message: ThreadMessage,
+    parent: ThreadMessage | undefined,
+  ): Promise<void>;
+  hasOpenRun(key: string): boolean;
+  rename(from: string, to: string): Promise<void>;
+  /** Records how a settled message ends its run, for a runtime whose own settled write cannot say. */
+  noteSettled?(message: ThreadMessage): void;
 };
 
 const isSettledMessage = (message: ThreadMessage) =>
@@ -144,19 +224,27 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     CloudMessagePersistence,
     Map<string, Promise<CopiedThread>>
   >();
+  /** Set once a runtime reads or writes this thread as `aui/v0` rows. */
+  public servesThreadMessages = false;
+  /** Set once a runtime persists through `withFormat`; the run tracker then writes through it. */
+  private formattedRunWriter: CloudRunWriter | undefined;
   private copyQueues = new WeakMap<
     CloudMessagePersistence,
     Map<string, Promise<void>>
   >();
 
+  private getStaleAfter: () => number | undefined;
+
   constructor(
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
     scopeRef: RefObject<unknown>,
+    getStaleAfter: () => number | undefined = () => undefined,
   ) {
     this.cloudRef = cloudRef;
     this.scopeRef = scopeRef;
     this.getAui = getAui;
+    this.getStaleAfter = getStaleAfter;
   }
 
   private get aui(): AssistantClient {
@@ -218,6 +306,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         scope: snapshot.scope,
         persistence: new CloudMessagePersistence(
           () => cloudRef.current.current,
+          { staleAfter: this.getStaleAfter() },
         ),
       };
       globalPersistence.set(key, entry);
@@ -346,6 +435,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
+    const reloadListeners = adapter.reloadListeners;
     let threadListItem: CloudThreadListItem | undefined;
     const pinCurrent = () => {
       const next = tryGetKeyedThreadListItem(adapter.aui);
@@ -355,6 +445,71 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const resolvePinned = () => threadListItem ?? pinCurrent();
     const getTargetFormatted = (context: CloudScopeContext) =>
       createFormattedPersistence(context.persistence, formatAdapter);
+    // A run's end reason, noted when the tracker sees its message settle, for the runtime's settled write of the same row.
+    const endPhases = new Map<string, CloudMessageRunPhase>();
+    const settledPhase = (
+      persistence: CloudMessagePersistence,
+      key: string,
+    ): CloudMessageRunPhase | undefined => {
+      if (!persistence.hasOpenRun(key)) return undefined;
+      const phase = endPhases.get(key);
+      endPhases.delete(key);
+      return phase;
+    };
+    const onlyInner = (message: ThreadMessage): TMessage | undefined => {
+      const inner = getExternalStoreMessages<TMessage>(message);
+      return inner.length === 1 ? inner[0] : undefined;
+    };
+    const innerParentKey = (
+      parent: ThreadMessage | undefined,
+    ): string | null | undefined => {
+      if (!parent) return null;
+      const last = getExternalStoreMessages<TMessage>(parent).at(-1);
+      return last === undefined ? undefined : formatAdapter.getId(last);
+    };
+    const pinnedPersistence = () => {
+      const pinned = resolvePinned();
+      return pinned ? adapter.getPersistence(pinned) : undefined;
+    };
+    adapter.formattedRunWriter = {
+      keyOf(message) {
+        const inner = onlyInner(message);
+        return inner === undefined ? undefined : formatAdapter.getId(inner);
+      },
+      canStore(parent) {
+        const key = innerParentKey(parent);
+        if (key === undefined) return false;
+        return key === null || !!pinnedPersistence()?.isPersisted(key);
+      },
+      async write(message, parent) {
+        const inner = onlyInner(message);
+        const parentId = innerParentKey(parent);
+        const pinned = resolvePinned();
+        if (inner === undefined || parentId === undefined || !pinned) return;
+        const key = formatAdapter.getId(inner);
+        const context = adapter.captureScope(pinned);
+        const { remoteId } = await pinned.initialize();
+        adapter.assertCurrentScope(context);
+        const { persistence } = context;
+        const formatted = getTargetFormatted(context);
+        const run = runPhaseOf(message, persistence, key);
+        if (run !== "running") endPhases.delete(key);
+        const item = { parentId, message: inner };
+        if (!persistence.isPersisted(key)) {
+          await formatted.append(remoteId, item, run);
+        } else {
+          await formatted.update?.(remoteId, item, key, run);
+        }
+      },
+      hasOpenRun: (key) => !!pinnedPersistence()?.hasOpenRun(key),
+      rename: (from, to) =>
+        pinnedPersistence()?.rename(from, to) ?? Promise.resolve(),
+      noteSettled(message) {
+        const key = this.keyOf(message);
+        if (key !== undefined && this.hasOpenRun(key))
+          endPhases.set(key, endPhaseOf(message));
+      },
+    };
     return {
       pin() {
         pinCurrent();
@@ -369,7 +524,11 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         const context = adapter.captureScope(pinned);
         const { remoteId } = await pinned.initialize();
         adapter.assertCurrentScope(context);
-        await getTargetFormatted(context).append(remoteId, item);
+        await getTargetFormatted(context).append(
+          remoteId,
+          item,
+          settledPhase(context.persistence, formatAdapter.getId(item.message)),
+        );
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
         const pinned = resolvePinned();
@@ -382,6 +541,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           remoteId,
           item,
           localMessageId,
+          settledPhase(context.persistence, localMessageId),
         );
       },
       async delete(items: MessageFormatItem<TMessage>[]) {
@@ -431,18 +591,55 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         const remoteId = await adapter.resolveExistingRemoteId(target);
         adapter.assertCurrentScope(context);
         if (!remoteId) return { messages: [] };
-        const repository = await getTargetFormatted(context).load(remoteId);
+        const rows = await context.persistence.load(
+          remoteId,
+          formatAdapter.format,
+        );
         adapter.assertCurrentScope(context);
-        return repository;
+        // Rows come newest first; a row with a run carries the status it implies, which the runtime shows and never stores.
+        return {
+          messages: rows
+            .filter((row) => row.format === formatAdapter.format)
+            .reverse()
+            .map((row) => {
+              const item = formatAdapter.decode({
+                id: row.id,
+                parent_id: row.parent_id,
+                format: row.format,
+                content: row.content as TStorageFormat,
+              });
+              const status = runStatusOf(
+                context.persistence.runStateOf(row.run),
+              );
+              return status ? { ...item, unstable_status: status } : item;
+            }),
+        };
+      },
+      unstable_onReload(listener) {
+        reloadListeners.add(listener);
+        return () => {
+          reloadListeners.delete(listener);
+        };
       },
     };
   }
 
+  private reloadListeners = new Set<() => Promise<void>>();
+
+  /** Re-reads a formatted thread through the runtime that loaded it; false when none listens. */
+  public async reloadFormatted(): Promise<boolean> {
+    const listeners = [...this.reloadListeners];
+    await Promise.all(listeners.map((listener) => listener()));
+    return listeners.length > 0;
+  }
+
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
+    this.servesThreadMessages = true;
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const { remoteId } = await threadListItem.initialize();
     this.assertCurrentScope(context);
+    const run = runPhaseOf(message, context.persistence);
     await this._writeMessage(context, remoteId, message, (encoded) =>
       context.persistence.append(
         remoteId,
@@ -450,9 +647,59 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         parentId,
         "aui/v0",
         encoded,
+        run,
       ),
     );
   }
+
+  /**
+   * Reads one stored message's run state with a short page instead of the
+   * whole thread; undefined when the row is not on that page.
+   */
+  public async readRunState(
+    messageId: string,
+  ): Promise<
+    { state: CloudRunState | undefined; updatedAt: number } | undefined
+  > {
+    const threadListItem = this.aui.threadListItem;
+    const context = this.captureScope(threadListItem);
+    const remoteThreadId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
+    if (!remoteThreadId) return undefined;
+    const remoteId =
+      context.persistence.getResolvedRemoteId(messageId) ?? messageId;
+    const { messages } = await context.cloud.threads.messages.list(
+      remoteThreadId,
+      { limit: RUN_STATE_PAGE_SIZE },
+    );
+    const row = messages.find((message) => message.id === remoteId);
+    return row
+      ? {
+          state: context.persistence.runStateOf(row.run),
+          updatedAt: row.updated_at.getTime(),
+        }
+      : undefined;
+  }
+
+  /**
+   * The writer the run tracker stores running messages with: the formatted
+   * one once a runtime persists through `withFormat`, the `aui/v0` one once a
+   * runtime reads or writes `aui/v0` rows, otherwise none.
+   */
+  public getRunWriter(): CloudRunWriter | undefined {
+    return (
+      this.formattedRunWriter ??
+      (this.servesThreadMessages ? this.threadMessageRunWriter : undefined)
+    );
+  }
+
+  private threadMessageRunWriter: CloudRunWriter = {
+    keyOf: (message) => message.id,
+    write: (message, parent) =>
+      this.update({ parentId: parent?.id ?? null, message }),
+    hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),
+    rename: (from, to) => this.getPersistence().rename(from, to),
+  };
 
   async update(item: ExportedMessageRepositoryItem) {
     const threadListItem = this.aui.threadListItem;
@@ -464,8 +711,9 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const remoteId = await this.resolveExistingRemoteId(threadListItem);
     this.assertCurrentScope(context);
     if (!remoteId) return;
+    const run = runPhaseOf(message, context.persistence);
     await this._writeMessage(context, remoteId, message, (encoded) =>
-      context.persistence.update(remoteId, message.id, "aui/v0", encoded),
+      context.persistence.update(remoteId, message.id, "aui/v0", encoded, run),
     );
   }
 
@@ -720,6 +968,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   }
 
   async load() {
+    this.servesThreadMessages = true;
     const threadListItem = this.aui.threadListItem;
     const context = this.captureScope(threadListItem);
     const remoteId = await this.resolveExistingRemoteId(threadListItem);
@@ -741,8 +990,18 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const loadedIds = new Set<string>();
     const { settled } = runLedgerOf(context.persistence);
     for (const row of rows) {
-      const item = auiV0DecodeSafely(row);
-      if (!item) continue;
+      const decoded = auiV0DecodeSafely(row);
+      if (!decoded) continue;
+      const status =
+        decoded.message.role === "assistant"
+          ? runStatusOf(context.persistence.runStateOf(row.run))
+          : undefined;
+      const item = status
+        ? {
+            ...decoded,
+            message: { ...decoded.message, status } as ThreadMessage,
+          }
+        : decoded;
       if (item.parentId && !loadedIds.has(item.parentId)) continue;
       loadedIds.add(item.message.id);
       if (isSettledMessage(item.message)) settled.add(item.message.id);
@@ -860,6 +1119,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown>,
+  getStaleAfter?: () => number | undefined,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -873,9 +1133,11 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
         cloudRef,
         () => auiRef.current,
         scopeRef,
+        getStaleAfter,
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);
+  useCloudRunLeases(adapter, aui);
   return adapter;
 }
 

@@ -7,6 +7,7 @@ import {
 } from "@assistant-ui/core";
 import {
   createToolCallCancellationStub,
+  parseBase64,
   parseDataUrl,
   resolveFilePartSource,
   resolveImageMediaType,
@@ -32,11 +33,15 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image": {
         const parsed = parseDataUrl(part.image);
-        if (parsed) {
+        const data = parsed?.data ?? parseBase64(part.image);
+        if (data !== null) {
           return {
             type: "image" as const,
-            mimeType: resolveImageMediaType(part.image, contentType),
-            data: parsed.data,
+            mimeType: resolveImageMediaType(
+              parsed ? part.image : data,
+              contentType,
+            ),
+            data,
             ...(part.filename != null && { filename: part.filename }),
           };
         }

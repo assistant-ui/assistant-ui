@@ -16,6 +16,7 @@ import {
 import {
   createActionDispatcher,
   type ActionDispatcher,
+  type ActionDispatcherOptions,
   type ActionHandler,
   type ActionSource,
 } from "../actions";
@@ -32,8 +33,18 @@ import {
 } from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
-import { createStateStore, type SpecStateStore } from "../state";
-import { childIdsOf, repeatItems, safePointer } from "../tree";
+import {
+  createStateStore,
+  getStateStoreRevision,
+  wasStateStorePathWrittenSince,
+  type SpecStateStore,
+} from "../state";
+import {
+  childIdsOf,
+  exceedsRenderBudget,
+  repeatItems,
+  safePointer,
+} from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
@@ -74,6 +85,7 @@ export type SpecPlaceholderProps = {
     | "pending"
     | "unknown-type"
     | "invalid-props"
+    | "too-large"
     | "cycle"
     | "error";
   message: string;
@@ -87,6 +99,8 @@ export type SpecRendererProps = {
   catalog?: Catalog;
   /** An external store; otherwise one is created and seeded from `spec.state`. */
   state?: SpecStateStore;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string | undefined;
   /** Handlers by action name. */
   handlers?: Record<string, ActionHandler>;
   /** Called for catalog actions without a handler. */
@@ -95,6 +109,8 @@ export type SpecRendererProps = {
     params: Record<string, unknown>,
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
+  /** Decides whether an action marked `confirm: true` in the catalog runs. */
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: { elementId?: string }) => void;
   /** The spec is still streaming: missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec. */
   streaming?: boolean;
@@ -107,6 +123,8 @@ type RenderContext = {
   catalog: Catalog | undefined;
   store: SpecStateStore;
   state: Record<string, unknown>;
+  locale: string | undefined;
+  revision: number | undefined;
   dispatch: ActionDispatcher;
   streaming: boolean;
   placeholder: ComponentType<SpecPlaceholderProps>;
@@ -163,12 +181,17 @@ export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
 type ElementBoundaryProps = {
   id: string;
   element: SpecElement;
+  locale: string | undefined;
   children: ReactNode;
   onError: (error: Error) => void;
   fallback: (error: Error) => ReactNode;
 };
 
-type ElementBoundaryState = { error: Error | null; element: SpecElement };
+type ElementBoundaryState = {
+  error: Error | null;
+  element: SpecElement;
+  locale: string | undefined;
+};
 
 class ElementBoundary extends Component<
   ElementBoundaryProps,
@@ -177,18 +200,19 @@ class ElementBoundary extends Component<
   override state: ElementBoundaryState = {
     error: null,
     element: this.props.element,
+    locale: this.props.locale,
   };
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
-  // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
+  // A streaming element can pass through values its component rejects, such as a state path cut short, and formatting can depend on the locale, so a changed element or locale renders again.
   static getDerivedStateFromProps(
     props: ElementBoundaryProps,
     state: ElementBoundaryState,
   ): Partial<ElementBoundaryState> | null {
-    return props.element === state.element
+    return props.element === state.element && props.locale === state.locale
       ? null
-      : { error: null, element: props.element };
+      : { error: null, element: props.element, locale: props.locale };
   }
   override componentDidCatch(error: Error, _info: ErrorInfo) {
     this.props.onError(error);
@@ -270,7 +294,13 @@ function ElementView({
       />
     );
   }
-  if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
+  if (
+    !evaluateCondition(element.visible, {
+      ...scope,
+      state: ctx.state,
+      locale: ctx.locale,
+    })
+  )
     return null;
 
   const Impl = Object.hasOwn(ctx.components, element.type)
@@ -296,6 +326,7 @@ function ElementView({
     <ElementBoundary
       id={id}
       element={shown}
+      locale={ctx.locale}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
       fallback={(error) =>
         ctx.streaming ? null : (
@@ -336,6 +367,7 @@ function ResolvedElement({
   const resolved = resolveProps(element.props, {
     ...scope,
     state: ctx.state,
+    locale: ctx.locale,
   });
   const rejected = rejectedPropType(
     ctx.catalog?.propsSchema(element.type),
@@ -349,23 +381,37 @@ function ResolvedElement({
     latest.current = { element, scope, ctx, bindings: shown?.bindings };
   });
 
-  const previousWatch = useRef<Map<string, unknown> | null>(null);
+  const previousWatch = useRef<{
+    values: Map<string, unknown>;
+    store: SpecStateStore;
+    revision: number | undefined;
+  } | null>(null);
   useEffect(() => {
     const previous = previousWatch.current;
     const next = new Map<string, unknown>();
+    const store = ctx.store;
+    const revision = ctx.revision;
     for (const path of Object.keys(element.watch ?? {})) {
       const value = getAtPointer(ctx.state, safePointer(path));
       next.set(path, value);
-      if (previous?.has(path) && !Object.is(previous.get(path), value)) {
+      if (
+        previous?.values.has(path) &&
+        !Object.is(previous.values.get(path), value) &&
+        (revision === undefined ||
+          previous.store !== store ||
+          previous.revision === undefined ||
+          wasStateStorePathWrittenSince(store, path, previous.revision))
+      ) {
         void ctx.dispatch(element.watch![path], {
           ...scope,
+          locale: ctx.locale,
           elementId: id,
           trigger: path,
           kind: "watch",
         });
       }
     }
-    previousWatch.current = next;
+    previousWatch.current = { values: next, store, revision };
   });
 
   const api = useMemo(
@@ -380,6 +426,7 @@ function ResolvedElement({
         if (!bound) return;
         void currentCtx.dispatch(bound, {
           ...currentScope,
+          locale: currentCtx.locale,
           elementId: id,
           trigger: event,
           kind: "event",
@@ -415,7 +462,8 @@ function ResolvedElement({
 
   const slots: Record<string, ReactNode> = {};
   for (const [slot, ids] of Object.entries(element.slots ?? {})) {
-    if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
+    if (slot !== "default" && Array.isArray(ids))
+      slots[slot] = renderChildren(ids, scope, ancestors);
   }
 
   if (rejected && !ctx.streaming) {
@@ -461,8 +509,10 @@ export function SpecRenderer({
   components,
   catalog,
   state,
+  locale,
   handlers,
   onAction,
+  confirmAction,
   onError,
   streaming = false,
   placeholder = SpecPlaceholder,
@@ -481,15 +531,27 @@ export function SpecRenderer({
     store.getState,
     store.getState,
   );
+  const tooLarge = useMemo(
+    () => exceedsRenderBudget(spec, snapshot),
+    [spec, snapshot],
+  );
+  const revision = getStateStoreRevision(store);
+  const lastFit = useLastCommitted(
+    tooLarge ? undefined : { spec, snapshot, revision },
+  );
+  const shown = tooLarge && streaming ? lastFit : { spec, snapshot, revision };
 
   const callbacks = useRef({ handlers, onAction, onError });
-  callbacks.current = { handlers, onAction, onError };
+  useInsertionEffect(() => {
+    callbacks.current = { handlers, onAction, onError };
+  });
 
   const dispatch = useMemo(
     () =>
       createActionDispatcher({
         store,
         ...(catalog ? { catalog } : {}),
+        ...(confirmAction ? { confirm: confirmAction } : {}),
         onAction: (name, params, context) => {
           const { handlers: byName, onAction: fallback } = callbacks.current;
           if (byName && Object.hasOwn(byName, name))
@@ -502,7 +564,7 @@ export function SpecRenderer({
           else console.warn("[generative-frame]", error.message);
         },
       }),
-    [store, catalog],
+    [store, catalog, confirmAction],
   );
 
   const invalid = useMemo(() => {
@@ -528,11 +590,13 @@ export function SpecRenderer({
   }, [catalog]);
 
   const ctx: RenderContext = {
-    spec,
+    spec: shown?.spec ?? spec,
     components,
     catalog,
     store,
-    state: snapshot,
+    state: shown?.snapshot ?? snapshot,
+    locale,
+    revision: shown ? shown.revision : revision,
     dispatch,
     streaming,
     placeholder,
@@ -543,8 +607,14 @@ export function SpecRenderer({
   const Placeholder = placeholder;
   return (
     <SpecContext.Provider value={ctx}>
-      {spec.root ? (
-        <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      {tooLarge && !streaming ? (
+        <Placeholder
+          id={spec.root}
+          reason="too-large"
+          message="The spec exceeds 5000 elements or 64 levels"
+        />
+      ) : shown?.spec.root ? (
+        <ElementView id={shown.spec.root} scope={{}} ancestors={[]} />
       ) : null}
       {streaming ? (
         <Placeholder id="" reason="pending" message="The spec is streaming" />

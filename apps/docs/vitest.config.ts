@@ -1,8 +1,22 @@
 import { fileURLToPath } from "node:url";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { defaultExclude } from "vitest/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// The tsconfig paths resolve `@/components/ui/*` to base first and radix second.
+const uiRoot = resolve(__dirname, "../../packages/ui/src/components/react/ui");
+const radixOnlyUi = Object.fromEntries(
+  readdirSync(resolve(uiRoot, "radix"))
+    .map((file) => file.replace(/\.tsx?$/, ""))
+    .filter(
+      (name) =>
+        !existsSync(resolve(uiRoot, "base", `${name}.tsx`)) &&
+        !existsSync(resolve(uiRoot, "base", `${name}.ts`)),
+    )
+    .map((name) => [`@/components/ui/${name}`, resolve(uiRoot, "radix", name)]),
+);
 
 export default {
   // Vite rejects Next's string-valued PostCSS plugins; DOM tests do not assert transformed styles.
@@ -38,9 +52,6 @@ export default {
     fsModuleCache: true,
     globals: true,
     setupFiles: ["./test/setup.ts"],
-    env: {
-      NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test",
-    },
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.
     exclude: [...defaultExclude, "generated/.repo-source/**"],
@@ -65,6 +76,15 @@ export default {
         __dirname,
         "../../packages/ui/src/hooks/use-attachment-src",
       ),
+      "@/components/ui/context-menu": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/ui/radix/context-menu",
+      ),
+      "@/components/ui/hover-card": resolve(
+        __dirname,
+        "../../packages/ui/src/components/react/ui/radix/hover-card",
+      ),
+      ...radixOnlyUi,
       "@/components/ui": resolve(
         __dirname,
         "../../packages/ui/src/components/react/ui/base",

@@ -27,7 +27,7 @@ export function ExampleCard({
         />
       </div>
       <div className="mt-4 flex items-baseline gap-2.5">
-        <span className="text-muted-foreground/60 text-xs tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
         <h3 className="text-sm font-medium">

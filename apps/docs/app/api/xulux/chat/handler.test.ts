@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { XULUX_MODEL_ID } from "@/lib/xulux/usage-budget-codes";
 import type { XuluxAgentDefinition } from "./agents";
 
 const mocks = vi.hoisted(() => ({
@@ -324,12 +323,12 @@ describe("createXuluxChatHandler access boundary", () => {
     });
 
     const response = await createXuluxChatHandler(agent)(
-      request({ modelName: "moonshotai/kimi-k3", reasoningEffort: "medium" }),
+      request({ modelName: "gpt-6-luna", reasoningEffort: "medium" }),
     );
 
     expect(response.status).toBe(200);
     expect(mocks.resolveChatModel).toHaveBeenLastCalledWith({
-      modelName: XULUX_MODEL_ID,
+      modelName: "deepseek/deepseek-flash",
     });
   });
 });

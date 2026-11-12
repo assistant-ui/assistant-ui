@@ -212,7 +212,8 @@ const isPendingToolCall = (
 ): part is Extract<ToolCallPart, { result?: undefined }> =>
   part.type === "tool-call" &&
   part.state !== "result" &&
-  part.result === undefined;
+  part.result === undefined &&
+  part.approval === undefined;
 
 /** @deprecated Experimental since 2025-04-07. Not scheduled for removal; the API may change in any release. */
 export async function unstable_runPendingTools(
@@ -300,8 +301,9 @@ export type ToolResultStreamOptions = {
  *
  * The transform watches streamed tool-call arguments, runs the matching
  * frontend tool once its arguments are complete, and emits a result chunk for
- * the tool call. Backend and human tools pass through according to their tool
- * definition.
+ * the tool call. A call streamed inside a step runs when that step finishes,
+ * and a call that carries an approval is left to the provider. Backend and
+ * human tools pass through according to their tool definition.
  *
  * @param tools Tool registry or function returning the current registry.
  * @param abortSignal Signal, or signal getter, used for the current run.

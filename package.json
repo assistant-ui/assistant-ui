@@ -7,13 +7,15 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "24",
+      "version": "26.13.0",
       "onFail": "ignore"
     }
   },
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs-site",
+    "docs:dev:full": "node apps/docs/scripts/with-env.mjs DOCS_FULL=1 turbo run dev --filter=@assistant-ui/docs-site",
+    "docs:dev:lite": "node apps/docs/scripts/with-env.mjs DOCS_LITE=1 turbo run dev --filter=@assistant-ui/docs-site --concurrency=2",
     "ci:version": "changeset version",
     "build": "turbo build --concurrency=4",
     "api-surface": "node scripts/update-api-surface.mjs",
@@ -64,10 +66,7 @@
     "typecheck": "bash scripts/typecheck.sh",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .husky; pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
-    "deps:update": "bash scripts/update-deps.sh",
-    "build:bundles": "node scripts/run-example-bundles.mjs",
-    "package:bundles": "node scripts/package-example-bundles.mjs",
-    "test:bundles": "pnpm build:bundles && pnpm package:bundles && node --test scripts/example-bundles.test.mjs examples/bundle-shared/transport.test.mjs"
+    "deps:update": "bash scripts/update-deps.sh"
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",

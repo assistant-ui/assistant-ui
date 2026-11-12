@@ -26,6 +26,26 @@ test("every model answers in every format and in one it chooses", () => {
   assert.equal(suite.cases.length, 9);
 });
 
+test("json-render is available only when its candidate label is selected", () => {
+  const previous = process.env.CANDIDATES;
+  try {
+    process.env.CANDIDATES = "json-render:openai/gpt-6-astra";
+    const suite = createGenerativeUISuite({
+      models: ["openai/gpt-6-astra", "google/gemini-3.1-pro-preview"],
+      judge: "anthropic/claude-sonnet-5.5",
+    });
+    assert.deepEqual(
+      suite.candidates
+        .filter((candidate) => candidate.format === "json-render")
+        .map((candidate) => candidate.label),
+      ["json-render:openai/gpt-6-astra"],
+    );
+  } finally {
+    if (previous === undefined) delete process.env.CANDIDATES;
+    else process.env.CANDIDATES = previous;
+  }
+});
+
 test("a trial answers, renders the answer, then a separate judge scores the screenshot", async () => {
   const rendered: [string, string, { before: string; after: string }][] = [];
   const judge = generatingModel(

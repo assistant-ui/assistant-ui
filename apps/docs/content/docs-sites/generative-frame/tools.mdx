@@ -160,7 +160,11 @@ import { buildWidgetInstructions } from "generative-frame/tools";
 const system = `${basePrompt}\n\n${await buildWidgetInstructions(tools)}`;
 ```
 
-`buildWidgetInstructions(tools, { preload })` returns a short section that tells the model when to show a widget, to call `read_me` before its first `show_widget` call, and to change widgets with `edit_widget`. When `render_spec` is among the tools, the section instead tells the model to answer in Markdown when the answer is read once, with `render_spec` for structured content the user scans or acts on, and with `show_widget` for tools that calculate and visuals the components cannot draw, as [Choosing an answer format](/docs/tools/generative-ui-formats) describes, and says that a `render_spec` answer needs none of the built-in widget modules. With `preload: { modules, platform }`, it appends the `read_me` output for those modules and tells the model not to load them again.
+`buildWidgetInstructions(tools, { preload })` returns a section that tells the model when to show a widget, to call `read_me` before its first `show_widget` call, and to change widgets with `edit_widget`. When `render_spec` is among the tools, the section instead tells the model to answer in Markdown when the answer is read once, with `render_spec` for structured content the user scans or acts on, and with `show_widget` for tools that calculate and visuals the components cannot draw, as [Choosing an answer format](/docs/tools/generative-ui-formats) describes, and says that a `render_spec` answer needs none of the built-in widget modules.
+
+When `read_me` offers a `spec` module, its guidance is preloaded by default. This adds the catalog guidance to every request's input tokens, with the cost scaling with the catalog exposed by `read_me`. The [assistant-ui guide](/generative-frame/docs/assistant-ui#set-up-the-toolkit) describes the example app's token cost. If default preloading fails, the instructions tell the model to load the guidance on demand.
+
+Passing `preload: { modules, platform }` replaces the default module list, appends the `read_me` output for those modules, and tells the model not to load them again. `preload: { modules: ["chart"] }` preloads only `chart`, leaving `spec` on demand; use `preload: { modules: ["spec", "chart"] }` to preload both. Pass `preload: { modules: [] }` to inline no guidance and load modules on demand. Explicit `preload: {}` or `preload: { platform: "mobile" }` still inlines the base widget guidance.
 
 ## Guidance
 

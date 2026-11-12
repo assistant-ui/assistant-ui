@@ -60,9 +60,14 @@ import type {
 /** The `model` shape `createAgentSession` accepts (a Pi `Model`), derived from
  * the SDK so the supervisor stays the only file that names it. The host resolves
  * it (e.g. env-seeded via `ModelRuntime.getModel`) and forwards it opaquely. */
-type PiSessionModel = NonNullable<
+type PiCreateSessionOptions = NonNullable<
   Parameters<typeof createAgentSession>[0]
->["model"];
+>;
+type PiSessionModel = PiCreateSessionOptions["model"];
+type PiSessionOptions = Omit<
+  PiCreateSessionOptions,
+  "cwd" | "sessionManager" | "agentDir" | "model" | "modelRuntime"
+>;
 type PiSessionInfo = Awaited<ReturnType<typeof SessionManager.list>>[number];
 
 type CatalogCacheEntry = {
@@ -84,6 +89,18 @@ export interface PiThreadSupervisorOptions {
   /** Explicit model for new sessions. When omitted, Pi resolves from its own
    * settings, else the first available model. */
   model?: PiSessionModel;
+  /** Pi model and auth runtime shared by every session and the model catalog.
+   * Without it, each session gets its own runtime from `agentDir`, so a
+   * provider an extension registers stays inside that session. */
+  modelRuntime?: ModelRuntime;
+  /** Extra Pi SDK options for each session the supervisor opens or reopens,
+   * such as `tools`, `customTools`, `resourceLoader`, or `settingsManager`. The
+   * supervisor keeps the working directory, session storage, agent directory,
+   * model runtime, and model. */
+  configureSession?: (context: {
+    cwd: string;
+    signal: AbortSignal | undefined;
+  }) => PiSessionOptions | Promise<PiSessionOptions>;
 }
 
 type ThreadRecord = {
@@ -124,6 +141,10 @@ export class PiThreadSupervisor {
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
   private readonly model: PiSessionModel | undefined;
+  private readonly hostModelRuntime: ModelRuntime | undefined;
+  private readonly configureSession:
+    | PiThreadSupervisorOptions["configureSession"]
+    | undefined;
   /** Lazily-created Pi model/auth runtime backing the model catalog, picker, and
    *  cold-snapshot context-window lookups. `ModelRuntime.create` is async (it
    *  loads models.json and runs an availability refresh), so the promise is
@@ -140,6 +161,11 @@ export class PiThreadSupervisor {
       ? resolvePiPath(options.agentDir)
       : undefined;
     this.model = options.model;
+    this.configureSession = options.configureSession;
+    this.hostModelRuntime = options.modelRuntime;
+    if (options.modelRuntime) {
+      this.modelRuntimePromise = Promise.resolve(options.modelRuntime);
+    }
   }
 
   // --- Catalog ---------------------------------------------------------------
@@ -236,8 +262,13 @@ export class PiThreadSupervisor {
     return record.session.clearQueue();
   }
 
-  async getAvailableModels(): Promise<PiModelInfo[]> {
-    const runtime = await this.getModelRuntime();
+  async getAvailableModels(input?: {
+    threadId?: string;
+  }): Promise<PiModelInfo[]> {
+    const runtime =
+      (input?.threadId
+        ? this.records.get(input.threadId)?.session.modelRuntime
+        : undefined) ?? (await this.getModelRuntime());
     try {
       await runtime.refresh();
     } catch {
@@ -253,8 +284,10 @@ export class PiThreadSupervisor {
     input: { provider: string; modelId: string },
   ): Promise<void> {
     const record = await this.ensureOpen(threadId);
-    const runtime = await this.getModelRuntime();
-    const model = runtime.getModel(input.provider, input.modelId);
+    const model = record.session.modelRuntime.getModel(
+      input.provider,
+      input.modelId,
+    );
     if (!model) {
       throw new Error(
         `${input.provider}/${input.modelId} is not in Pi's model registry`,
@@ -451,9 +484,23 @@ export class PiThreadSupervisor {
   ): Promise<ThreadRecord> {
     const generation = this.generation;
     this.throwIfOpenCancelled(signal, generation);
+    const {
+      cwd: _cwd,
+      sessionManager: _sessionManager,
+      agentDir: _agentDir,
+      model: _model,
+      modelRuntime: _modelRuntime,
+      ...sessionOptions
+    }: PiCreateSessionOptions = (await this.configureSession?.({
+      cwd,
+      signal,
+    })) ?? {};
+    this.throwIfOpenCancelled(signal, generation);
     const { session } = await createAgentSession({
+      ...sessionOptions,
       cwd,
       sessionManager,
+      ...(this.hostModelRuntime ? { modelRuntime: this.hostModelRuntime } : {}),
       ...(this.agentDir ? { agentDir: this.agentDir } : {}),
       ...(this.model ? { model: this.model } : {}),
     });

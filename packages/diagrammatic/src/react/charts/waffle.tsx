@@ -1,15 +1,20 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
+import { hexPath } from "../../core/geometry";
 import { cat } from "../../core/theme";
 import { ChartSvg, SvgLegend, frame } from "../svg";
 
-export type WaffleProps = BaseProps & { items: Item[] };
+export type WaffleProps = BaseProps & {
+  items: Item[];
+  mark?: "square" | "hex";
+};
 
 export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
   (
     {
       items,
+      mark = "square",
       legend,
       format,
       title,
@@ -61,6 +66,20 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
     const gridHeight = cell * 10 + gap * 9;
     const gridLeft = left + (right - left - gridWidth) / 2;
     const gridTop = top + (bottom - top - gridHeight) / 2;
+    const hexRadius = Math.max(
+      0,
+      Math.min(
+        (right - left - gap * 9.5) / (10.5 * Math.sqrt(3)),
+        (bottom - top - gap * 9) / 15.5,
+      ),
+    );
+    const hexWidth = Math.sqrt(3) * hexRadius;
+    const hexPitchX = hexWidth + gap;
+    const hexPitchY = 1.5 * hexRadius + gap;
+    const hexGridWidth = 10 * hexWidth + 9 * gap + hexPitchX / 2;
+    const hexGridHeight = 2 * hexRadius + 9 * hexPitchY;
+    const hexLeft = left + (right - left - hexGridWidth) / 2;
+    const hexTop = top + (bottom - top - hexGridHeight) / 2;
     return (
       <ChartSvg
         ref={ref}
@@ -69,19 +88,39 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
         title={title}
         className={className}
       >
-        {cells.slice(0, 100).map((series, i) => (
-          <rect
-            key={i}
-            x={gridLeft + (i % 10) * (cell + gap)}
-            y={gridTop + Math.floor(i / 10) * (cell + gap)}
-            width={cell}
-            height={cell}
-            fill={cat(series)}
-            opacity="0.88"
-            data-part="mark"
-            data-series={items[series]?.label}
-          />
-        ))}
+        {cells
+          .slice(0, 100)
+          .map((series, i) =>
+            mark === "hex" ? (
+              <path
+                key={i}
+                d={hexPath(
+                  hexLeft +
+                    hexWidth / 2 +
+                    (i % 10) * hexPitchX +
+                    ((Math.floor(i / 10) % 2) * hexPitchX) / 2,
+                  hexTop + hexRadius + Math.floor(i / 10) * hexPitchY,
+                  hexRadius,
+                )}
+                fill={cat(series)}
+                opacity="0.88"
+                data-part="mark"
+                data-series={items[series]?.label}
+              />
+            ) : (
+              <rect
+                key={i}
+                x={gridLeft + (i % 10) * (cell + gap)}
+                y={gridTop + Math.floor(i / 10) * (cell + gap)}
+                width={cell}
+                height={cell}
+                fill={cat(series)}
+                opacity="0.88"
+                data-part="mark"
+                data-series={items[series]?.label}
+              />
+            ),
+          )}
         {showLegend && (
           <SvgLegend
             frame={F}

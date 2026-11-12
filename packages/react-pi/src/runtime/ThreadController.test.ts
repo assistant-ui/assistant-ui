@@ -291,6 +291,17 @@ describe("PiThreadController", () => {
     ]);
   });
 
+  it("sends a line-folded bare base64 image compact", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    await controller.sendMessage(
+      userMessageWithImage("look", "/9j/4AAQ\r\nSkZJRgAB"),
+    );
+    expect(client.sent[0]!.input.attachments).toEqual([
+      { type: "image", mimeType: "image/jpeg", data: "/9j/4AAQSkZJRgAB" },
+    ]);
+  });
+
   it("maps uppercase-scheme data URLs to Pi image content with a lowercase mime", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);

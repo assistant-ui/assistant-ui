@@ -110,6 +110,7 @@ declare class AssistantCloudFiles {
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
+  run?: CloudRunLease | undefined;
 };
 
 type AssistantCloudProjectThreadMessageListQuery = {
@@ -149,6 +150,10 @@ declare class AssistantCloudProjects {
   readonly threads: AssistantCloudProjectThreads;
   constructor(cloud: AssistantCloudAPI);
 }
+
+type AssistantCloudRunHeartbeatResponse = {
+  heartbeat_interval_ms: number;
+};
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -283,6 +288,8 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
+  open_run?: true | undefined;
+  lease_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -308,6 +315,7 @@ type AssistantCloudThreadMessageListResponse = {
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
+  lease_id?: string | undefined;
 };
 
 declare class AssistantCloudThreadMessages {
@@ -320,9 +328,19 @@ declare class AssistantCloudThreadMessages {
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
+declare class AssistantCloudThreadRuns {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  heartbeat(threadId: string, leaseId: string): Promise<AssistantCloudRunHeartbeatResponse>;
+  end(threadId: string, leaseId: string, body?: {
+    reason?: CloudRunEndReason;
+  }): Promise<void>;
+}
+
 declare class AssistantCloudThreads {
   #private;
   readonly messages: AssistantCloudThreadMessages;
+  readonly runs: AssistantCloudThreadRuns;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -394,6 +412,9 @@ type AssistantStreamChunk = {
   readonly providerMetadata?: PartProviderMetadata;
 } | {
   readonly type: "tool-call-args-text-finish";
+} | {
+  readonly type: "tool-call-approval";
+  readonly approval: ToolCallApproval;
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
@@ -509,14 +530,18 @@ type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
+  run?: CloudMessageRun | undefined;
 };
 
 declare class CloudMessagePersistence {
   #private;
-  constructor(cloud: AssistantCloud);
-  constructor(getCloud: () => AssistantCloud);
-  append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
-  update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
+  constructor(cloud: AssistantCloud, options?: CloudMessagePersistenceOptions);
+  constructor(getCloud: () => AssistantCloud, options?: CloudMessagePersistenceOptions);
+  runStateOf(run: CloudMessageRun | undefined, sinceReadMs?: number): CloudRunState | undefined;
+  append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
+  update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
+  hasOpenRun(messageId: string): boolean;
   delete(threadId: string, messageIds: string[]): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
@@ -526,9 +551,27 @@ declare class CloudMessagePersistence {
   reset(): void;
 }
 
+type CloudMessagePersistenceOptions = {
+  staleAfter?: number | undefined;
+};
+
+type CloudMessageRun = {
+  status: "ended" | "running";
+  last_heartbeat_ms_ago: number;
+};
+
+type CloudMessageRunPhase = "running" | CloudRunEndReason;
+
 declare class CloudResponseError extends Error {
   constructor(message: string);
 }
+
+type CloudRunEndReason = "cancelled" | "done" | "error";
+
+type CloudRunLease = {
+  lease_id: string;
+  heartbeat_interval_ms: number;
+};
 
 type CloudRunReportInit = Omit<RunReportInit, "telemetry">;
 
@@ -537,6 +580,13 @@ declare class CloudRunReporter {
   constructor(cloud: AssistantCloud | (() => AssistantCloud));
   report(init: CloudRunReportInit, key?: string): Promise<void>;
 }
+
+type CloudRunState = {
+  status: "in-progress";
+  staleInMs: number;
+} | {
+  status: "stale";
+};
 
 type CloudThread = {
   title: string;
@@ -550,6 +600,8 @@ type CloudThread = {
   workspace_id: string;
   is_archived: boolean;
 };
+
+declare const DEFAULT_RUN_STALE_AFTER_MS = 30000;
 
 type EngagementEventIds = Pick<AssistantCloudEvent, "message_id" | "run_id" | "thread_id">;
 
@@ -651,6 +703,15 @@ type PartInit = {
   readonly id: string;
   readonly url: string;
   readonly title?: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
   readonly parentId?: string;
 } | {
   readonly type: "file";
@@ -786,6 +847,18 @@ type SdkIdentity = {
   version: string;
 };
 
+type ToolCallApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly prompt?: string;
+  readonly isAutomatic?: boolean;
+  readonly signature?: string;
+  readonly requestReason?: string;
+  readonly descriptor?: ReadonlyJSONValue;
+  readonly inputSchemaInput?: ReadonlyJSONValue;
+};
+
 type ToolModelContentPart = {
   readonly type: "text";
   readonly text: string;
@@ -812,20 +885,20 @@ declare function createAssistantCloudSpanProcessor(exporter: SpanExporter, optio
 declare function createAssistantCloudTraceExporter(options: AssistantCloudTraceExportOptions): SpanExporter;
 
 declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: {
-  append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject) => Promise<void>;
+  append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase) => Promise<void>;
   load: (threadId: string, format?: string) => Promise<any[]>;
   isPersisted: (messageId: string) => boolean;
-  update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>;
+  update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase) => Promise<void>;
   delete?: (threadId: string, messageIds: string[]) => Promise<void>;
 }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => {
   append: (threadId: string, item: {
     parentId: string | null;
     message: TMessage;
-  }) => Promise<void>;
+  }, run?: CloudMessageRunPhase) => Promise<void>;
   update: ((threadId: string, item: {
     parentId: string | null;
     message: TMessage;
-  }, messageId: string) => Promise<void>) | undefined;
+  }, messageId: string, run?: CloudMessageRunPhase) => Promise<void>) | undefined;
   delete: ((threadId: string, items: {
     parentId: string | null;
     message: TMessage;
@@ -885,7 +958,7 @@ declare namespace entry_ai_sdk_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudResponseError, CloudRunReportInit, CloudRunReporter, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunMessageTelemetry, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, SdkIdentity, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudEvent, AssistantCloudEventKind, AssistantCloudEvents, AssistantCloudRunHeartbeatResponse, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudScoreBody, AssistantCloudScoreResponse, AssistantCloudScores, AssistantCloudTelemetryConfig, AssistantCloudThreadMessageFeedbackBody, AssistantCloudThreadMessageFeedbackResponse, AssistantCloudThreadRuns, CloudAPIError, CloudEngagementReporter, CloudMessage, CloudMessagePersistence, CloudMessagePersistenceOptions, CloudMessageRun, CloudMessageRunPhase, CloudResponseError, CloudRunEndReason, CloudRunLease, CloudRunReportInit, CloudRunReporter, CloudRunState, DEFAULT_RUN_STALE_AFTER_MS, EngagementEventIds, EngagementIdResolver, GeneratePresignedDownloadUrlResponse, McpSamplingHandler, MessageFormatAdapter, RunMessageTelemetry, RunReportInit, RunReportOutcome, RunReportStepInit, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, SdkIdentity, createFormattedPersistence, createRunReport, createRunTelemetryToolCall, createSamplingCollector, deriveRunOutcome, describeRunError, extractRunTelemetryModelId, generateThreadTitle, normalizeRunTelemetryUsage, readAnonymousRefreshToken, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare namespace entry_telemetry_exports {

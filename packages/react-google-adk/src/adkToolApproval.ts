@@ -110,14 +110,8 @@ export type AdkToolApprovalProjection = {
 };
 
 /**
- * ADK requests a confirmation by emitting a synthetic `adk_request_confirmation`
- * tool call carrying a fresh id, and resumes only when a reply quotes that id.
- * The gated tool's own id is never answerable, so every approval carries the
- * synthetic id — but ADK yields the gated call to the client first, in its own
- * event, so both calls sit result-less in the transcript and both would render
- * an approval control. The gated call is therefore mapped to the same approval
- * rather than left bare, which would let it answer by writing a tool result the
- * agent never produced.
+ * ADK accepts a confirmation reply only under the synthetic confirmation id.
+ * Mirror its approval onto the original tool call when that call is renderable.
  */
 export const projectAdkToolApprovals = (
   messages: readonly AdkMessage[],
@@ -149,6 +143,19 @@ export const projectAdkToolApprovals = (
     }
   }
 
+  const gatedToolCallIds = new Set<string>();
+  for (const message of messages) {
+    if (message.type !== "ai") continue;
+    for (const call of message.tool_calls ?? []) {
+      if (
+        typeof call?.name === "string" &&
+        call.name.length > 0 &&
+        call.name !== ADK_REQUEST_CONFIRMATION
+      )
+        gatedToolCallIds.add(call.id);
+    }
+  }
+
   const approvals = new Map<string, AdkToolApproval>();
   for (const message of messages) {
     if (message.type !== "ai") continue;
@@ -160,15 +167,14 @@ export const projectAdkToolApprovals = (
         ...(approved !== undefined && { approved }),
       };
       approvals.set(call.id, approval);
-      // ADK yields the gated call in its own event before the confirmation is
-      // requested, so that call is also in the transcript, result-less, and
-      // inherits the message's `requires-action` status. Left ungated it
-      // renders a second approval control with no approval behind it, which
-      // answers by writing a tool result the agent never produced. The same
-      // approval carries the synthetic id, so answering either one replies to
-      // the gate ADK is actually waiting on.
       const gatedId = gatedCallIdOf(call.args);
-      if (gatedId !== undefined) approvals.set(gatedId, approval);
+      // Keep the synthetic request visible when its original call is absent.
+      if (
+        gatedId !== undefined &&
+        gatedId !== call.id &&
+        gatedToolCallIds.has(gatedId)
+      )
+        approvals.set(gatedId, approval);
     }
   }
 

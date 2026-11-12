@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>March 2026 Calendar</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f3f4f8; color: #1f2937;
+    display: flex; justify-content: center;
+  }
+  .calendar {
+    width: 100%; max-width: 900px;
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+  header {
+    padding: 24px 28px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px;
+  }
+  header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; }
+  header span { opacity: .85; font-size: .95rem; }
+  .grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+  }
+  .dow {
+    padding: 12px 8px; text-align: center;
+    font-size: .75rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: #6b7280;
+    background: #fafafa; border-bottom: 1px solid #e5e7eb;
+  }
+  .day {
+    min-height: 110px; padding: 8px;
+    border-right: 1px solid #eef0f3; border-bottom: 1px solid #eef0f3;
+    position: relative;
+  }
+  .day:nth-child(7n) { border-right: none; }
+  .day.empty { background: #fafbfc; }
+  .num { font-size: .9rem; font-weight: 600; color: #374151; }
+  .day.weekend .num { color: #9ca3af; }
+  .day.has-event { background: #f5f3ff; }
+  .event {
+    margin-top: 8px; padding: 6px 8px;
+    border-radius: 8px; font-size: .78rem; line-height: 1.3;
+    color: #fff; font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  }
+  .event small { display: block; font-weight: 400; opacity: .9; }
+  .event.a { background: #ec4899; }
+  .event.b { background: #0ea5e9; }
+  .legend {
+    padding: 18px 28px; display: flex; gap: 24px; flex-wrap: wrap;
+    font-size: .9rem; border-top: 1px solid #e5e7eb;
+  }
+  .legend div { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  @media (max-width: 600px) {
+    .day { min-height: 70px; padding: 4px; }
+    .event { font-size: .65rem; padding: 3px 4px; }
+    .event small { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="calendar">
+  <header>
+    <h1>March 2026</h1>
+    <span>2 events this month</span>
+  </header>
+  <div class="grid" id="grid"></div>
+  <div class="legend">
+    <div><span class="dot" style="background:#ec4899"></span>Mar 12 — Team Offsite, 9:00 AM</div>
+    <div><span class="dot" style="background:#0ea5e9"></span>Mar 24 — Product Launch, 2:00 PM</div>
+  </div>
+</div>
+<script>
+  const grid = document.getElementById('grid');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const events = {
+    12: { title: 'Team Offsite', time: '9:00 AM', cls: 'a' },
+    24: { title: 'Product Launch', time: '2:00 PM', cls: 'b' }
+  };
+  days.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'dow'; el.textContent = d;
+    grid.appendChild(el);
+  });
+  const firstDay = new Date(2026, 2, 1).getDay(); // Sunday = 0
+  const total = 31;
+  const cells = Math.ceil((firstDay + total) / 7) * 7;
+  for (let i = 0; i < cells; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'day';
+    const d = i - firstDay + 1;
+    if (d < 1 || d > total) {
+      cell.classList.add('empty');
+    } else {
+      const col = i % 7;
+      if (col === 0 || col === 6) cell.classList.add('weekend');
+      cell.innerHTML = `<div class="num">${d}</div>`;
+      const ev = events[d];
+      if (ev) {
+        cell.classList.add('has-event');
+        cell.innerHTML += `<div class="event ${ev.cls}">${ev.title}<small>${ev.time}</small></div>`;
+      }
+    }
+    grid.appendChild(cell);
+  }
+</script>
+</body>
+</html>

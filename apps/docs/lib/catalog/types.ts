@@ -6,25 +6,20 @@ export type CatalogInstallStep = {
   command?: string;
 };
 
-/** What the cart and the setup session need from a product. */
+/** What the catalog and the setup session need from a product. */
 export type CatalogItem = {
-  /** The id stored in the cart and sent to the checkout. */
+  /** The id sent to the setup. */
   slug: string;
   name: string;
-  /** One line for cards and the cart. */
+  /** One line for cards. */
   tagline: string;
   /** The page that presents the product. */
   href: string;
-  /**
-   * "setup" products start a setup session directly and never enter the cart;
-   * "cart" products can also be collected and set up together.
-   */
-  purchase: "setup" | "cart";
   glyph: NavGlyphKind;
   docs: string;
   /**
    * Rough wall-clock minutes a coding agent needs to install this product,
-   * as a low and high bound. The cart sums them into a delivery estimate.
+   * as a low and high bound.
    */
   agentMinutes: [number, number];
   /** The /elements slug of the element whose demo shows the product running. */

@@ -9,6 +9,7 @@ import {
   AttachmentPrimitive,
   BranchPickerPrimitive,
   ComposerPrimitive,
+  ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
@@ -335,6 +336,11 @@ const ChatMessage: FC = () => {
             <div className="prose prose-sm dark:prose-invert prose-li:my-1 prose-p:my-2 prose-ul:my-2 wrap-break-word text-[#2c2721] dark:text-[#ece7df]">
               <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
             </div>
+            <MessagePrimitive.Error>
+              <ErrorPrimitive.Root className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                <ErrorPrimitive.Message className="line-clamp-3" />
+              </ErrorPrimitive.Root>
+            </MessagePrimitive.Error>
 
             <div className="mt-2 flex items-center gap-2">
               <BranchPicker />
