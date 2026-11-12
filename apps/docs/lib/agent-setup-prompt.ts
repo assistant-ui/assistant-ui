@@ -29,4 +29,4 @@ export const agentSetupFallback = (command = AGENT_SETUP_COMMAND) =>
 export const AGENT_SETUP_FALLBACK = agentSetupFallback();
 
 /** What agents read first wherever they look for setup instructions. */
-export const AGENT_SETUP_HINT = `When the user asks you to "${AGENT_SETUP_PROMPT}" (or "${LEGACY_AGENT_SETUP_PROMPTS[0]}"), run \`${AGENT_SETUP_COMMAND}\`. It opens a guided setup in the user's browser and walks you through the install. ${AGENT_SETUP_FALLBACK}`;
+export const AGENT_SETUP_HINT = `When the user asks you to "${AGENT_SETUP_PROMPT}" (or "${LEGACY_AGENT_SETUP_PROMPTS[0]}"), run \`${AGENT_SETUP_COMMAND}\`. Run it in the background and read its output: it keeps running as the guided setup's stream and opens the user's browser when it needs their input. ${AGENT_SETUP_FALLBACK}`;

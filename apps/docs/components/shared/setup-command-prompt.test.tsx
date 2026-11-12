@@ -16,7 +16,8 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("sonner", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("sonner")>()),
   toast: { success: toastSuccess, error: toastError },
 }));
 

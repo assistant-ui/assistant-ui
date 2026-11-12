@@ -1,12 +1,9 @@
-import { randomInt } from "node:crypto";
 import { spawn } from "node:child_process";
-import { connectCheckout } from "setup-agent";
-import type { Checkout, CheckoutClient } from "setup-agent";
-import {
-  agentInstructions,
-  detectAgentKind,
-  parseSetupUrl,
-} from "setup-agent/cli";
+import type { Checkout } from "setup-agent";
+import { parseSetupUrl } from "setup-agent/cli";
+
+/** How an agent runs setup commands: `<SETUP_COMMAND> <url> <command>`. */
+export const SETUP_COMMAND = "npx assistant-ui@latest setup";
 
 /** The docs site: the catalog and the install guides. */
 export const DEFAULT_DOCS_URL = "https://www.assistant-ui.com";
@@ -15,16 +12,6 @@ export const DEFAULT_SETUP_SERVER = "https://checkout.assistant-ui.com";
 /** The setup app the user follows the setup in. */
 export const DEFAULT_SETUP_APP_URL = "https://setup.assistant-ui.com";
 const DEFAULT_PRODUCTS = ["assistant-ui"] as const;
-
-const ID_ALPHABET =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-/** A random id in the alphabet and length the browser uses for its own. */
-export const createSetupId = (length = 12) =>
-  Array.from(
-    { length },
-    () => ID_ALPHABET[randomInt(ID_ALPHABET.length)]!,
-  ).join("");
 
 /** A catalog slug: lowercase words joined by `-`, in `/`-separated segments (`guides/latex`). */
 const SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
@@ -124,83 +111,6 @@ export const resolveEndpoints = (
       DEFAULT_SETUP_APP_URL,
   ),
 });
-
-/** The setup app page that joins the link; the link rides in the fragment, which never reaches a server. */
-export const setupPageUrl = (
-  setupAppUrl: string,
-  linkId: string,
-  setupId: string,
-) => `${setupAppUrl}/#link=${linkId}&setup=${setupId}`;
-
-export type StartedSetup = {
-  linkId: string;
-  setupId: string;
-  /** The URL the agent passes to `npx setup-agent`. */
-  agentUrl: string;
-  /** The page the user opens. */
-  browserUrl: string;
-  products: Checkout.ProductSeed[];
-};
-
-/**
- * Opens a new link on the setup server, creates a setup on it and starts
- * planning, so the browser opens on the agent's first question rather than
- * a Begin plan click.
- */
-export const startSetup = async ({
-  endpoints,
-  products,
-  env = process.env,
-  connect = connectCheckout,
-}: {
-  endpoints: SetupEndpoints;
-  products: Checkout.ProductSeed[];
-  env?: NodeJS.ProcessEnv;
-  connect?: (url: string) => Promise<CheckoutClient>;
-}): Promise<StartedSetup> => {
-  const linkId = createSetupId();
-  const setupId = createSetupId();
-  const agentUrl = `${endpoints.setupServer}/${linkId}`;
-  const client = await connect(agentUrl);
-  try {
-    const kind = detectAgentKind(env);
-    await client.commands["checkout/create"]({ id: setupId, products });
-    await client.commands["checkout/begin-plan"]();
-    // The agent shows as connected once its stream says hello with the cwd;
-    // a hello from here would lapse before the agent gets to its stream.
-    await client.commands["agent/intro"]({
-      ...(kind !== undefined && { kind }),
-    });
-  } finally {
-    client.dispose();
-  }
-  return {
-    linkId,
-    setupId,
-    agentUrl,
-    browserUrl: setupPageUrl(endpoints.setupAppUrl, linkId, setupId),
-    products,
-  };
-};
-
-/** What the agent reads after `assistant-ui setup`: where the page is, its playbook and the setup. */
-export const agentBriefing = (setup: StartedSetup, opened: boolean) =>
-  `${
-    opened
-      ? "The setup opened in the user's browser at"
-      : "Ask the user to open the setup in their browser at"
-  }
-  ${setup.browserUrl}
-${opened ? "If it did not open, give the user that link.\n" : ""}
-${agentInstructions(setup.agentUrl, {
-  startedByAgent: { browserUrl: setup.browserUrl, opened },
-})}
-Current setup:
-${JSON.stringify({
-  status: "planning",
-  products: setup.products,
-})}
-`;
 
 /** The prompt a person pastes into a coding agent, or the one it starts with. */
 export const setupPrompt = (products?: readonly string[]) => {

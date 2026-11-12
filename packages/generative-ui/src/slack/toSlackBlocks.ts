@@ -1853,6 +1853,7 @@ const convertElement = (
       return [
         {
           type: "input",
+          ...(props["required"] === false ? { optional: true } : {}),
           ...(blockId !== undefined ? { block_id: blockId } : {}),
           label: plainText(label),
           ...(dispatchAction ? { dispatch_action: true } : {}),
