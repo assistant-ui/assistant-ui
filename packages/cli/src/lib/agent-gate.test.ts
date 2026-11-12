@@ -85,11 +85,24 @@ describe("the setup session marker", () => {
       cwd: fs.realpathSync(project),
     });
     expect(active(project)).toBe(true);
-    clearSetupSession(file!);
+    // Another setup's id leaves it in place.
+    clearSetupSession(file!, "other");
+    expect(active(project)).toBe(true);
+    clearSetupSession(file!, "abc");
     expect(fs.existsSync(file!)).toBe(false);
     expect(active(project)).toBe(false);
     // Clearing twice is harmless.
-    clearSetupSession(file!);
+    clearSetupSession(file!, "abc");
+  });
+
+  it("is not removed by an older setup that a newer one replaced in the same project", () => {
+    const older = markSetupSession({ setupId: "old", cwd: project }, dir)!;
+    const newer = markSetupSession({ setupId: "new", cwd: project }, dir)!;
+    expect(newer).toBe(older);
+    clearSetupSession(older, "old");
+    expect(active(project)).toBe(true);
+    clearSetupSession(newer, "new");
+    expect(active(project)).toBe(false);
   });
 
   it("lasts two hours from when setup started it, however often it is used", () => {
@@ -133,7 +146,7 @@ describe("the setup session marker", () => {
     expect(a).not.toBe(b);
     expect(active(project)).toBe(true);
     expect(active(other)).toBe(true);
-    clearSetupSession(b!);
+    clearSetupSession(b!, "b");
     expect(active(project)).toBe(true);
     expect(active(other)).toBe(false);
     expect(setupSessionMarkerPath(path.join(project, "."), dir)).toBe(a);
@@ -149,7 +162,8 @@ describe("the setup session marker", () => {
       file,
       JSON.stringify({ setupId: "abc", cwd: dir, startedAt: Date.now() }),
     );
-    // Its name says project, but it records the parent: only the parent's own marker covers the parent.
+    // Its name says project, but it records the parent, so it covers neither.
+    expect(active(project)).toBe(false);
     expect(active(dir)).toBe(false);
   });
 

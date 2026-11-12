@@ -89,15 +89,6 @@ export const markSetupSession = (
   }
 };
 
-/** Removes a setup session's marker; setup calls it when it exits. */
-export const clearSetupSession = (file: string) => {
-  try {
-    fs.rmSync(file, { force: true });
-  } catch {
-    // Already gone or not ours to remove; the TTL ends it either way.
-  }
-};
-
 const readMarker = (file: string): SetupSessionMarker | undefined => {
   try {
     const marker = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<
@@ -112,6 +103,19 @@ const readMarker = (file: string): SetupSessionMarker | undefined => {
     return marker as SetupSessionMarker;
   } catch {
     return undefined;
+  }
+};
+
+/**
+ * Removes a setup session's marker when it still belongs to `setupId`; setup
+ * calls it when it exits. A newer setup in the same project keeps its marker.
+ */
+export const clearSetupSession = (file: string, setupId: string) => {
+  if (readMarker(file)?.setupId !== setupId) return;
+  try {
+    fs.rmSync(file, { force: true });
+  } catch {
+    // Already gone or not ours to remove; the TTL ends it either way.
   }
 };
 
@@ -131,6 +135,7 @@ export const isSetupSessionActive = ({
     const marker = readMarker(setupSessionMarkerPath(folder, dir));
     if (
       marker !== undefined &&
+      marker.cwd === folder &&
       now - marker.startedAt >= 0 &&
       now - marker.startedAt <= SETUP_SESSION_TTL_MS &&
       isInsideFolder(target, marker.cwd)

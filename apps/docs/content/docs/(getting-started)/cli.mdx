@@ -26,7 +26,7 @@ The browser asks you to confirm the agent and its directory before it connects. 
 
 The agent runs the other setup commands as `npx assistant-ui@latest setup <url> <command>`, for example `ask`, `plan`, `answer` and `done`. `setup <url> stream` resumes the stream if it stopped.
 
-Coding agents use `setup`. Run by a coding agent outside a setup session, `init`, `create` and `add` stop with exit code 2 and point it to `setup`. Inside a setup session, in the folder `setup` runs in or a folder inside it, they run as usual, so the steps the setup gives the agent keep working. To run them under an agent anyway, pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1`. People in a terminal and CI see no change.
+Coding agents use `setup`. Run by a coding agent outside a setup session, `init`, `create` and `add` stop with exit code 2 and point it to `setup`. Inside a setup session, when the folder they act on (`--cwd`, or the project directory given to `init` or `create`) is the folder `setup` runs in or a folder inside it, they run as usual, so the steps the setup gives the agent keep working. A setup session ends when `setup` exits, or two hours after it starts. To run them under an agent anyway, pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1`. People in a terminal and CI see no change.
 
 **Options**
 

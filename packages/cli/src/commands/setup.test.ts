@@ -171,9 +171,9 @@ describe("setup", () => {
 
   it("tells the agent to pass --force when it cannot record the session", async () => {
     const env = { ...process.env };
-    vi.spyOn(os, "tmpdir").mockReturnValue(
-      path.join(os.tmpdir(), "aui-setup-missing", "nested"),
-    );
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aui-setup-"));
+    // A temp directory that does not exist, so the marker cannot be written.
+    vi.spyOn(os, "tmpdir").mockReturnValue(path.join(tmp, "missing"));
     const write = vi
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
@@ -192,6 +192,9 @@ describe("setup", () => {
           .filter((listener) => !exitListeners.includes(listener)),
       ).toHaveLength(0);
     } finally {
+      for (const listener of process.listeners("exit"))
+        if (!exitListeners.includes(listener))
+          process.off("exit", listener as () => void);
       signals.forEach((signal, i) => {
         for (const listener of process.listeners(signal))
           if (!signalListeners[i]!.includes(listener))
@@ -199,6 +202,7 @@ describe("setup", () => {
       });
       process.env = env;
       vi.restoreAllMocks();
+      fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
 });
