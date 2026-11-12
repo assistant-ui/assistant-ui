@@ -205,7 +205,7 @@ export const loadKatexPlugins = () => {
 // code, so currency like `$5` (escaped by preprocessMath) and dollars in code
 // spans or fences don't load KaTeX.
 const MATH_SYNTAX = /\$|\\\(|\\\[|\[\/math\]|\[\/inline\]/;
-const CODE = /(`{3,}|~{3,})[\s\S]*?(?:\1|$)|`[^`\n]*`/g;
+const CODE = /(`{3,}|~{3,})[\s\S]*?(?:\1|$)|(`+)[^\n]*?(?<!`)\2(?!`)/g;
 const UNESCAPED_DOLLAR = /(?:^|[^\\])\$/;
 export const hasMath = (text: string) =>
   MATH_SYNTAX.test(text) &&

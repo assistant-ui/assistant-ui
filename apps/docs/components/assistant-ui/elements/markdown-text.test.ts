@@ -16,6 +16,8 @@ describe("hasMath", () => {
     expect(hasMath("Plain reply with `code`.")).toBe(false);
     expect(hasMath("It costs $5 and the pro plan is $20 a month.")).toBe(false);
     expect(hasMath("Run `echo $HOME` first.")).toBe(false);
+    expect(hasMath("Run ``echo $HOME`` first.")).toBe(false);
+    expect(hasMath("Use `` ` `` then $x^2$")).toBe(true);
     expect(hasMath("```sh\nexport PATH=$PATH:/bin\n```")).toBe(false);
   });
 });
