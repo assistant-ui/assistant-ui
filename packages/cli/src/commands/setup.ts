@@ -142,7 +142,7 @@ const runSetupStep = async (args: string[], options: SetupOptions) => {
  */
 export const gateNote = (sessionRecorded: boolean) =>
   sessionRecorded
-    ? "If an `npx assistant-ui` command tells you to run setup instead, you are already in it: run that command again with --force."
+    ? "If an `npx assistant-ui` command tells you to run setup instead and it acts on the folder setup runs in or a folder inside it, you are already in setup: run that command again with --force."
     : "assistant-ui could not record this setup session in the temp directory, so the agent gate will not recognize it. Add --force to every `npx assistant-ui` init, create or add command this setup asks you to run.";
 
 /** `setup` for an agent: starts the session and keeps running as its stream. */
