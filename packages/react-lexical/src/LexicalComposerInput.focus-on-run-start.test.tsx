@@ -5,6 +5,7 @@
 import { act, useEffect } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import type { LexicalEditor } from "lexical";
+import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import {
   AssistantRuntimeProvider,
@@ -149,5 +150,101 @@ describe("LexicalComposerInput run-start focus", () => {
     await startRun();
 
     expect(editorFocus).not.toHaveBeenCalled();
+  });
+});
+
+// A composer portaled outside `ThreadPrimitive.Root` has no thread root
+// ancestor in the DOM, so the attribute lookup that the Lexical guard used to
+// do cannot tell that focus sits inside this composer's thread.
+describe("LexicalComposerInput run-start focus with a portaled composer", () => {
+  let container: HTMLDivElement;
+  let portalHost: HTMLDivElement;
+  let root: Root;
+  let runtime: Runtime | null;
+  let editorFocus: MockInstance;
+
+  beforeEach(async () => {
+    container = document.createElement("div");
+    portalHost = document.createElement("div");
+    document.body.append(container, portalHost);
+    root = createRoot(container);
+    runtime = null;
+    let editor: LexicalEditor | null = null;
+    const onEditor = (e: LexicalEditor) => {
+      editor = e;
+    };
+
+    const App = () => {
+      const currentRuntime = useLocalRuntime(adapter);
+      runtime = currentRuntime;
+      return (
+        <AssistantRuntimeProvider runtime={currentRuntime}>
+          <input aria-label="Outside thread" />
+          <ThreadPrimitive.Root>
+            <button type="button">Inside thread</button>
+            {createPortal(
+              <ComposerPrimitive.Root>
+                <LexicalComposerInput aria-label="Composer">
+                  <CaptureEditor onEditor={onEditor} />
+                </LexicalComposerInput>
+              </ComposerPrimitive.Root>,
+              portalHost,
+            )}
+          </ThreadPrimitive.Root>
+        </AssistantRuntimeProvider>
+      );
+    };
+    await act(async () => root.render(<App />));
+    editorFocus = vi.spyOn(editor!, "focus");
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    portalHost.remove();
+  });
+
+  const startRun = async () => {
+    await act(async () => {
+      await runtime!.thread.append("Programmatic message");
+    });
+  };
+
+  it("takes focus when another element in its thread is focused", async () => {
+    const inside = [...container.querySelectorAll<HTMLElement>("button")].find(
+      (b) => b.textContent === "Inside thread",
+    )!;
+    act(() => inside.focus());
+
+    await startRun();
+
+    expect(editorFocus).toHaveBeenCalled();
+  });
+
+  it("takes focus when a control in its composer root is focused", async () => {
+    const composerRoot = portalHost.querySelector<HTMLElement>(
+      "[data-aui-composer-type]",
+    )!;
+    const action = document.createElement("button");
+    action.type = "button";
+    action.textContent = "Composer action";
+    composerRoot.appendChild(action);
+    act(() => action.focus());
+
+    await startRun();
+
+    expect(editorFocus).toHaveBeenCalled();
+  });
+
+  it("leaves focus in an input outside the thread alone", async () => {
+    const outside = container.querySelector<HTMLElement>(
+      '[aria-label="Outside thread"]',
+    )!;
+    act(() => outside.focus());
+
+    await startRun();
+
+    expect(editorFocus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(outside);
   });
 });

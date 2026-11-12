@@ -31,3 +31,6 @@ export {
 
 // ComposerInput plugin registry (used by react-lexical)
 export { useComposerInputPluginRegistryOptional } from "./primitives/composer/ComposerInputPluginContext";
+
+// The run-start focus decision, so react-lexical does not keep its own copy
+export { useComposerRunStartFocusGuard } from "./primitives/composer/useComposerRunStartFocusGuard";
