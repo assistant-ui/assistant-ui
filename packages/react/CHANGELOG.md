@@ -1,5 +1,47 @@
 # @assistant-ui/react
 
+## 0.15.36
+
+### Patch Changes
+
+- [#10493](https://github.com/assistant-ui/assistant-ui/pull/10493) [`2691e38`](https://github.com/assistant-ui/assistant-ui/commit/2691e38409423e2ab5e51771a16fa05410554f80) - react: expose `unstable_useComposerRunStartFocusGuard`, the decision `ComposerPrimitive.Input` makes on `thread.runStart`, and use it in `LexicalComposerInput` instead of a copy that resolved the thread root from the DOM. The guard reads the thread root from context, so a composer portaled outside `ThreadPrimitive.Root` now takes focus on a run start when focus sits inside its thread, matching `ComposerPrimitive.Input`. ([@egg119](https://github.com/egg119))
+  
+  react-lexical: raise the `@assistant-ui/react` peer floor to `^0.15.36`, the first release that exports the hook. `@assistant-ui/react` is a host-supplied peer and `onlyUpdatePeerDependentsWhenOutOfRange` is set, so the floor has to be raised by hand.
+
+## 0.15.35
+
+### Patch Changes
+
+- [#10451](https://github.com/assistant-ui/assistant-ui/pull/10451) [`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5) - an Assistant Cloud reply whose run went stale after it wrote content is now a regular error with Regenerate (`message.runState` is undefined for it), and only a reply that wrote nothing reads as `runState: "stale"`. For that reply, `ActionBarPrimitive.Resume` deletes it and its stored row and runs again from the user message, with no branch; a runtime that cannot delete messages starts a new branch as before. `useAgUiRuntime` now supports deleting a message, which also removes its stored history entry. Regenerate is disabled while another tab still drives the run. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5)]:
+  - @assistant-ui/core@0.3.35
+
+## 0.15.34
+
+### Patch Changes
+
+- [#10424](https://github.com/assistant-ui/assistant-ui/pull/10424) [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423) - store a running assistant message in Assistant Cloud as soon as its run starts, so its run lease is heartbeated while the tab streams it, also in the background; a reply whose run went `staleAfter` (default 30 seconds, an option on `useCloudThreadListAdapter`) without a heartbeat now loads as an interrupted error instead of disappearing, and the new `ActionBarPrimitive.Resume` starts a new branch beside it, the same way Regenerate does, with its own lease. A reply another tab is still writing shows as in progress and follows the run live until it finishes or goes quiet; the new `ActionBarPrimitive.RefreshRun` re-reads it on demand, and a late run that beats again shows as in progress again. The AI SDK runtime (`withFormat` history) holds run leases too when each thread message maps to one AI SDK message, and shows the same states on load; `MessageFormatItem` gains `unstable_status` and `GenericThreadHistoryAdapter` gains `unstable_onReload` for this. Messages carry `runState` (`"stale"` or `"in-progress"`), `ErrorPrimitive.Root` exposes it as `data-run-state` (with `role="status"` while in progress), and `ActionBarPrimitive.Root` with `hideWhenRunning` also hides while another tab writes the reply. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`f70872a`](https://github.com/assistant-ui/assistant-ui/commit/f70872a43574d311322c0b5071b4581e0a71bdff), [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - assistant-cloud@0.2.11
+  - @assistant-ui/core@0.3.34
+
+## 0.15.33
+
+### Patch Changes
+
+- [#10331](https://github.com/assistant-ui/assistant-ui/pull/10331) [`2c89877`](https://github.com/assistant-ui/assistant-ui/commit/2c89877a60be44573c5f18babd1552d08734700d) - Flush a Gemini Live reply that is still deferred when the socket closes, instead of dropping its first transcript. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10247](https://github.com/assistant-ui/assistant-ui/pull/10247) [`e8ec559`](https://github.com/assistant-ui/assistant-ui/commit/e8ec559d8123f814a76733c70d1959e186e987a2) - Add `GeminiLiveVoiceAdapter`, a browser WebSocket voice adapter for the Gemini Live API with transcripts, interruptions, mute, and typed input. ([@Benonii](https://github.com/Benonii))
+
+- [#10282](https://github.com/assistant-ui/assistant-ui/pull/10282) [`8786f11`](https://github.com/assistant-ui/assistant-ui/commit/8786f11a77943a5776b172ce064bd0d05deeba05) - Low-pass Gemini Live microphone audio before downsampling. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`7175a10`](https://github.com/assistant-ui/assistant-ui/commit/7175a10aca4ecd8ce97939747bdfcfe7171ba8df), [`932c1c2`](https://github.com/assistant-ui/assistant-ui/commit/932c1c23995181185b4053bb6fd90b020184df12), [`7129a47`](https://github.com/assistant-ui/assistant-ui/commit/7129a47e00a0177d6dec9a62f16e1a33c2d99c9d), [`becf077`](https://github.com/assistant-ui/assistant-ui/commit/becf0772bbb53f9a1f03b23b7eee15401c6380a9), [`154299c`](https://github.com/assistant-ui/assistant-ui/commit/154299cac40d59ffa2a35f4121e2a584d6f79f5e), [`8a8d32e`](https://github.com/assistant-ui/assistant-ui/commit/8a8d32e544dfed8988fb845b13f71ea099792ae1), [`f8da439`](https://github.com/assistant-ui/assistant-ui/commit/f8da439defda5e2c10453718f4455a9a2d787af2), [`0188f05`](https://github.com/assistant-ui/assistant-ui/commit/0188f0597a0ff7e0d65a63472efc98197dd46736), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`e12509b`](https://github.com/assistant-ui/assistant-ui/commit/e12509bde082f37562a5e575384b085a266a85e9), [`4e5de95`](https://github.com/assistant-ui/assistant-ui/commit/4e5de95d58b17b50ee55dba239c4628e148c2c4c), [`805176a`](https://github.com/assistant-ui/assistant-ui/commit/805176a223f9494fb607522fc9e344f63d78db35), [`c6388b6`](https://github.com/assistant-ui/assistant-ui/commit/c6388b6cd3ee13d18fbc9f46fcc32ed1c3014497), [`d13fa6c`](https://github.com/assistant-ui/assistant-ui/commit/d13fa6cba63829f5290a01d0e12169f66fafdf9e), [`c70a5d9`](https://github.com/assistant-ui/assistant-ui/commit/c70a5d9290a4b75fadb4d8c815586dbdcf94892b), [`aa85f00`](https://github.com/assistant-ui/assistant-ui/commit/aa85f00fae9b1db460bf2329ad188bfe152a58ed), [`ca50ff7`](https://github.com/assistant-ui/assistant-ui/commit/ca50ff7a05f976b76abf3140058f7b9027769dd5), [`73704c0`](https://github.com/assistant-ui/assistant-ui/commit/73704c0cceb31fb744a872660824eab11416b481), [`d389c28`](https://github.com/assistant-ui/assistant-ui/commit/d389c28fc6fab8d5e4d940e925d3973b5811282c), [`5829349`](https://github.com/assistant-ui/assistant-ui/commit/5829349a8cbca2b017c3af7e0b70bf90cd47a44c), [`26cde12`](https://github.com/assistant-ui/assistant-ui/commit/26cde127d6993bac8f10967b2c70f320e02213fe), [`78e2ea8`](https://github.com/assistant-ui/assistant-ui/commit/78e2ea8b02f643d1345b1444728b9484e6a333fa), [`8c1a048`](https://github.com/assistant-ui/assistant-ui/commit/8c1a048d478f2c7944193d05bd777cd83c5a330c), [`8328f46`](https://github.com/assistant-ui/assistant-ui/commit/8328f46f6f8f56c74e3cd06fbb6e1c7f552c8e63), [`a96e62f`](https://github.com/assistant-ui/assistant-ui/commit/a96e62f89da310602b716821dd91b9525f94cbb5), [`2dc77cf`](https://github.com/assistant-ui/assistant-ui/commit/2dc77cf77810d7d512783323989b2f2c345e032b), [`fc2572a`](https://github.com/assistant-ui/assistant-ui/commit/fc2572a90898259c3e3726e3fab1a3d61baeabc4), [`620389a`](https://github.com/assistant-ui/assistant-ui/commit/620389ad592ce9897b38b801e0e098527af6fcaf), [`4cbd354`](https://github.com/assistant-ui/assistant-ui/commit/4cbd354ad8e8eb9166af18c9d7e1cad9ee3c1b3f)]:
+  - @assistant-ui/core@0.3.33
+  - assistant-stream@0.3.56
+  - assistant-cloud@0.2.10
+  - @assistant-ui/store@0.3.23
+  - @assistant-ui/tap@0.9.25
+
 ## 0.15.32
 
 ### Patch Changes

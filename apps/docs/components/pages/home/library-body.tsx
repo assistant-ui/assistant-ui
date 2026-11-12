@@ -10,10 +10,9 @@ import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { Button } from "@/components/ui/button";
 import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
 import { analytics } from "@/lib/analytics";
+import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import Image from "next/image";
 import Link from "next/link";
-
-const CONTACT_SALES_URL = "https://cal.com/simon-farshid/assistant-ui";
 
 const HOME_QUOTE_USERNAMES = [
   "@LangChainAI",
@@ -134,17 +133,19 @@ export function LibraryBody({
               </span>
             </p>
             <div>
-              <a
-                href={CONTACT_SALES_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() =>
-                  analytics.cta.clicked("contact_sales", "home_closer")
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href={CONTACT_SALES_PATH}
+                    onClick={() =>
+                      analytics.cta.clicked("contact_sales", "home_closer")
+                    }
+                  />
                 }
-                className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
               >
-                Contact sales
-              </a>
+                Talk to an expert
+              </Button>
             </div>
           </li>
         </ol>

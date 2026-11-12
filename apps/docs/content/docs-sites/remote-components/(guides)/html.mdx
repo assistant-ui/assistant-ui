@@ -1,0 +1,43 @@
+---
+title: Generated HTML
+description: Show HTML you have as a string, such as a model's output, without a server. Pass it as html.
+---
+
+import { HtmlEditorDemo } from "@/components/pages/docs/samples/remote-components/demos";
+
+The host adds the doctype, the runtime and the CSP, then shows the document in a sandboxed frame. The frame is always opaque: no origin, no cookies, no storage. Props, callbacks, theme and layout work as for any remote. Edit the HTML below.
+
+<HtmlEditorDemo />
+
+```tsx title="host.tsx"
+<RemoteComponent
+  html={modelOutput}
+  network="none"
+  onAsk={async (question: string) => sendToChat(question)}
+/>
+```
+
+## Isolation
+
+By default the document goes into `srcdoc` without `allow-same-origin`. A `srcdoc` document with that token would run on your page's origin, so the host never adds it.
+
+With `isolation="scf"` the document goes into a [Safe Content Frame](/remote-components/docs/serving#safe-content-frames) instead. It gets a real, hashed origin of its own, so it can use storage. Overlays it opens run on the same origin.
+
+```tsx title="host.tsx"
+<RemoteComponent html={modelOutput} isolation="scf" network="none" />
+```
+
+## Network
+
+Model output is code you didn't write. It can read its props and what the user types into it, and with network on it can send that anywhere. Use `network="none"` unless the page needs an API, and then list that origin. The policy is written into the document, so it holds in every browser. See [Network](/remote-components/docs/network).
+
+## What the model can write
+
+Pages written for a browser window work as they are:
+
+- No doctype, no head, or a bare fragment.
+- `min-height: 100vh` and content centered in the window. [The slot is the viewport.](/remote-components/docs/layout#the-slot-is-the-viewport)
+- Theme tokens like `--color-text`, `--color-surface` and `--color-accent` are always defined, so the page can match your app without knowing it.
+- A few lines of script connect buttons and text to your props: read `rc.props`, call `rc.props.onAsk(…)`.
+
+Changing `html` loads a new document. To show a page while the model is still writing it, serve it with [streaming](/remote-components/docs/serving#streaming) instead.

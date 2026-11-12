@@ -22,6 +22,22 @@ type ActionBinding = {
 type ActionDefinition = {
   description: string;
   params?: PropsSchema;
+  confirm?: true;
+};
+
+type ActionDispatcherOptions = {
+  store: SpecStateStore;
+  catalog?: Catalog;
+  handlers?: Record<string, ActionHandler>;
+  confirm?: (request: {
+    action: string;
+    params: Record<string, unknown>;
+    elementId?: string;
+  }) => boolean | Promise<boolean>;
+  onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
+    state: SpecStateStore;
+  }) => unknown;
+  onError?: (error: Error, binding: ActionBinding) => void;
 };
 
 type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
@@ -765,6 +781,7 @@ type ReservedScopeNames = "on" | "optional" | "subscribe";
 
 type ResolveSpecOptions = {
   state?: unknown;
+  locale?: string;
 };
 
 type ResolvedAction = {
@@ -924,7 +941,7 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "missing-tool-result" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "missing-tool-result" | "too-large" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
 declare function SpecPlaceholder(_param0: SpecPlaceholderProps): import("react").JSX.Element;
 
@@ -960,13 +977,13 @@ declare const SpecPlaceholder$1: import("vue").DefineComponent<import("vue").Ext
 
 type SpecPlaceholderProps = {
   id: string;
-  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "unknown-type";
+  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "too-large" | "unknown-type";
   message: string;
 };
 
 type SpecPlaceholderProps$1 = {
   id: string;
-  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "unknown-type";
+  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "too-large" | "unknown-type";
   message: string;
 };
 
@@ -994,8 +1011,10 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
+  locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
+  confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
@@ -1046,8 +1065,10 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
+  locale: StringConstructor;
   handlers: PropType<Record<string, ActionHandler>>;
   onAction: PropType<SpecRendererProps$1["onAction"]>;
+  confirmAction: PropType<SpecRendererProps$1["confirmAction"]>;
   onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
@@ -1095,10 +1116,12 @@ type SpecRendererProps = {
   components: SpecComponents;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string | undefined;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1111,10 +1134,12 @@ type SpecRendererProps$1 = {
   components: SpecComponents$1;
   catalog?: Catalog;
   state?: SpecStateStore;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
     state: SpecStateStore;
   }) => unknown;
+  confirmAction?: ActionDispatcherOptions["confirm"];
   onError?: (error: Error, context: {
     elementId?: string;
   }) => void;
@@ -1167,7 +1192,9 @@ type SpecStreamUpdate = {
 
 type SpecToolkitOptions = {
   components: SpecComponents;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
     trigger?: string;
@@ -1180,7 +1207,9 @@ type SpecToolkitOptions = {
 
 type SpecToolkitOptions$1 = {
   components: SpecComponents$1;
+  locale?: string;
   handlers?: Record<string, ActionHandler>;
+  confirmAction?: SpecRendererProps$1["confirmAction"];
   onAction?: (name: string, params: Record<string, unknown>, context: {
     elementId?: string;
     trigger?: string;

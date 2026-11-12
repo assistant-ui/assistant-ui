@@ -9,7 +9,9 @@ export { baseRuntimeAdapterTransformScopes } from "./clients/runtime-adapter";
 export {
   actionBarCopyDisabled,
   actionBarEditDisabled,
+  actionBarRefreshRunDisabled,
   actionBarReloadDisabled,
+  actionBarResumeDisabled,
   actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,

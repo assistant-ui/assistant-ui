@@ -3,12 +3,13 @@
 import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
-import { checkoutEnabled } from "@/lib/checkout/config";
+import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { cn } from "@/lib/utils";
+import { ArrowRightIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -68,21 +69,24 @@ export function Hero({
           className="hero-rise flex flex-wrap items-center gap-3"
           style={{ animationDelay: "700ms" }}
         >
-          {checkoutEnabled ? (
-            <StartSetupDialog location="hero">Quick Start</StartSetupDialog>
-          ) : (
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href="/docs/installation"
-                  onClick={() => analytics.cta.clicked("get_started", "hero")}
-                />
-              }
-            >
-              Quick Start
-            </Button>
-          )}
+          <SetupCommandPrompt page="home" section="hero" />
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            className="group/expert hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
+            render={
+              <Link
+                href={CONTACT_SALES_PATH}
+                onClick={() => analytics.cta.clicked("contact_sales", "hero")}
+              />
+            }
+          >
+            Talk to an expert
+            <ArrowRightIcon
+              aria-hidden
+              className="transition-transform duration-200 group-hover/expert:translate-x-1"
+            />
+          </Button>
         </div>
 
         <div

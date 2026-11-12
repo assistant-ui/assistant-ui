@@ -1,0 +1,71 @@
+---
+title: CLI
+description: Build one React component into one HTML file. No config.
+---
+
+`remote-components build` turns a file whose default export is a React component into a single HTML document: React, your code, CSS and the runtime, all inlined. Pass that file to `<RemoteComponent html={…} />`, or host it anywhere.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/remote-components-cli"]} />
+
+It brings its own Vite, React plugin and React. If your project has React, your copy is used.
+
+## Build
+
+```tsx title="rating.tsx"
+type Props = {
+  value?: number;
+  onRate: (n: number) => Promise<void>;
+};
+
+export default function Rating({ value = 0, onRate }: Props) {
+  return (
+    <div className="stars">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} onClick={() => onRate(n)}>
+          {n <= value ? "★" : "☆"}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+```sh title="terminal"
+$ npx remote-components build rating.tsx
+dist/rating.html  256.1 kB
+```
+
+The component gets the host's props as React props. With no file, the CLI builds `index.tsx`, `index.ts`, `index.jsx` or `index.js` in the current directory, to `dist/index.html`.
+
+## Render it
+
+```tsx title="App.tsx"
+import { useState } from "react";
+import { RemoteComponent } from "@assistant-ui/remote-components-host-react";
+import rating from "widgets/dist/rating.html?raw";
+
+export function Review() {
+  const [stars, setStars] = useState(3);
+  return <RemoteComponent html={rating} value={stars} onRate={async (n) => setStars(n)} />;
+}
+```
+
+`?raw` is the Vite and webpack syntax for importing a file as a string. You can also fetch the file at runtime, or serve it and pass `src`.
+
+## Options
+
+| | |
+| --- | --- |
+| `[entry]` | Component file. Default: the index file in the current directory. |
+| `-o, --out <file>` | Output file. Default: `dist/<name>.html`. |
+| `-w, --watch` | Rebuild when a file in the current directory changes. |
+
+Imports resolve from the current directory, including `paths` in its `tsconfig.json`. CSS imports and assets are inlined.
+
+There is no dev server yet. Run `--watch` and reload the host.
+
+## In a Vite app
+
+Already have a Vite app, or many components? The [Vite plugin](/remote-components/docs/vite) turns each component file into a page with HMR and writes the same single-file builds.

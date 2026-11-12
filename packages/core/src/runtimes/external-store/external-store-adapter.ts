@@ -290,26 +290,20 @@ type ExternalStoreAdapterBase<T> = {
    */
   unstable_enableToolInvocations?: boolean | undefined;
   /**
-   * Decides whether a tool call's result is produced on the client. Only
-   * consulted when `unstable_enableToolInvocations` is `true`.
+   * Decides whether a tool call's result is produced on the client. Only consulted when `unstable_enableToolInvocations` is `true`.
    *
-   * A provider that runs tools itself answers its own calls, and its result
-   * arrives one or more snapshots after the call's arguments complete. In
-   * that window the call is complete and result-less, so a registered tool
-   * of the same name would otherwise execute locally and produce a result
-   * the provider never asked for. An adapter that can tell the two apart
-   * supplies this predicate; it is read once per tool call, when the call is
-   * first observed live.
+   * A provider that runs tools itself answers its own calls, and its result arrives one or more snapshots after the call's arguments complete. In that window the call is complete and result-less, so a registered tool of the same name would otherwise execute locally and produce a result the provider never asked for. An adapter that can tell the two apart supplies this predicate; it is first read when the call is observed live.
    *
-   * The predicate is also what licenses running a frontend tool while the
-   * provider's run is still open. Without it, ownership is unknown until the
-   * run ends, so a registered tool executes only once the run's outcome is
-   * known and cannot fire on a call the provider was about to answer or gate.
+   * The predicate is also what licenses running a frontend tool while the provider's run is still open. Without it, ownership is unknown until the run ends, so a registered tool executes only once the run's outcome is known and cannot fire on a call the provider was about to answer or gate.
+   *
+   * Return `undefined` for a call the adapter cannot classify. An initial `true` answer marks the call client-owned and is retained. An initial `false` answer on a running snapshot permanently skips client execution. An initial `undefined` defers ownership and is asked again when the run settles, before the call is handed to the executor.
+   *
+   * On a settled snapshot, `false` defers ownership and holds the call without executing, skipping, or warning, whether read when the entry is created or on a later check. The predicate is asked again on every later settled snapshot. An `undefined` answer clears the deferral and allows normal client execution; `true` clears the deferral and marks the call client-owned. A call that already has a result only clears the deferral, without asking the predicate again or executing locally.
    *
    * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_isClientToolCall?:
-    | ((toolCall: ToolCallMessagePart) => boolean)
+    | ((toolCall: ToolCallMessagePart) => boolean | undefined)
     | undefined;
   /**
    * Receives the current per-tool-call execution status map whenever it

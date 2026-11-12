@@ -1,5 +1,10 @@
 import { evaluateCondition, resolveProps, resolveValue } from "./expressions";
-import { childIdsOf, repeatItems, type RepeatScope } from "./tree";
+import {
+  childIdsOf,
+  exceedsRenderBudget,
+  repeatItems,
+  type RepeatScope,
+} from "./tree";
 import type { ActionBinding, Spec } from "./types";
 
 /** An action bound to an element's event, with its params resolved. */
@@ -30,6 +35,8 @@ export type ResolvedElement = {
 export type ResolveSpecOptions = {
   /** The state to resolve against, such as a store's `getState()` after the user's changes. Defaults to `spec.state`. */
   state?: unknown;
+  /** The BCP 47 locale `$calc` text functions format in. Defaults to `en-US`. */
+  locale?: string;
 };
 
 /**
@@ -47,6 +54,7 @@ export function resolveSpec(
 ): ResolvedElement | null {
   const state =
     options.state === undefined ? (spec.state ?? {}) : options.state;
+  if (exceedsRenderBudget(spec, state)) return null;
   const resolve = (
     id: unknown,
     scope: RepeatScope,
@@ -68,7 +76,7 @@ export function resolveSpec(
     ) {
       return null;
     }
-    const ctx = { ...scope, state };
+    const ctx = { ...scope, state, locale: options.locale };
     if (!evaluateCondition(element.visible, ctx)) return null;
     const { props, bindings } = resolveProps(element.props, ctx);
     const on: Record<string, ResolvedAction[]> = {};

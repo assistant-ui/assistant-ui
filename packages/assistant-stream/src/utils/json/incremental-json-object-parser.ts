@@ -1,4 +1,8 @@
 import {
+  createJsonParserBackend,
+  type JsonParserBackend,
+} from "./json-parser-backend";
+import {
   getPartialJsonObjectMeta,
   parsePartialJsonObject,
 } from "./parse-partial-json-object";
@@ -85,6 +89,13 @@ const setValue = (
   key: string | number,
   value: ReadonlyJSONValue,
 ) => {
+  if (
+    key === "__proto__" ||
+    (key === "constructor" &&
+      isContainer(value) &&
+      Object.hasOwn(value, "prototype"))
+  )
+    throw new Error("Unsafe argument key");
   (target as Record<string | number, ReadonlyJSONValue>)[key] = value;
 };
 
@@ -92,7 +103,7 @@ const cloneContainer = (value: MutableJSONContainer): MutableJSONContainer => {
   if (Array.isArray(value)) return [...value];
   const copy: MutableJSONObject = {};
   for (const key of Object.keys(value)) {
-    copy[key] = value[key]!;
+    setValue(copy, key, value[key]!);
   }
   return copy;
 };
@@ -162,6 +173,7 @@ const materializeArgsSnapshot = (
 };
 
 export class IncrementalJsonObjectParser {
+  private backend: JsonParserBackend | undefined;
   private text: TextChunk | undefined;
   private mode: "start" | "parsing" | "complete" | "fallback" = "start";
   private root: MutableJSONObject = {};
@@ -180,6 +192,14 @@ export class IncrementalJsonObjectParser {
     text = "",
     fallback: ReadonlyJSONObject = parsePartialJsonObject("")!,
   ) {
+    return IncrementalJsonObjectParser.create(text, fallback, true);
+  }
+
+  private static create(
+    text: string,
+    fallback: ReadonlyJSONObject,
+    allowBackend: boolean,
+  ) {
     const parser = new IncrementalJsonObjectParser(fallback);
     if (text.length !== 0) {
       parser.text = { length: text.length, previous: undefined, value: text };
@@ -192,6 +212,24 @@ export class IncrementalJsonObjectParser {
       parser.publishedArgs = complete;
       parser.mode = "complete";
       return parser;
+    }
+    if (allowBackend) {
+      try {
+        parser.backend = createJsonParserBackend({
+          text,
+          fallback,
+          createSnapshot: (value, state, partialPath) =>
+            materializeArgsSnapshot(
+              createArgsSnapshot(value, state, [...partialPath]),
+            ),
+        });
+        if (parser.backend) {
+          parser.publishedArgs = parser.backend.currentArgs;
+          return parser;
+        }
+      } catch {
+        parser.backend = undefined;
+      }
     }
     parser.consumeDelta(text, true);
     parser.args = parser.snapshot(fallback);
@@ -211,12 +249,38 @@ export class IncrementalJsonObjectParser {
 
   append(delta: string) {
     if (delta.length === 0) return this;
+    if (this.backend) {
+      let backend: JsonParserBackend | undefined;
+      let args: ReadonlyJSONObject | undefined;
+      try {
+        backend = this.backend.append(delta);
+        args = backend?.currentArgs;
+      } catch {
+        backend = undefined;
+      }
+      if (!backend)
+        return IncrementalJsonObjectParser.create(
+          this.accumulatedText() + delta,
+          this.currentArgs,
+          false,
+        );
+      const parser = new IncrementalJsonObjectParser(this.args);
+      parser.backend = backend;
+      parser.publishedArgs = args;
+      parser.text = {
+        length: this.currentTextLength + delta.length,
+        previous: this.text,
+        value: delta,
+      };
+      return parser;
+    }
     if (this.currentTextLength === 0)
-      return IncrementalJsonObjectParser.from(delta, this.args);
+      return IncrementalJsonObjectParser.create(delta, this.args, false);
     if (this.mode === "complete") {
-      const parser = IncrementalJsonObjectParser.from(
+      const parser = IncrementalJsonObjectParser.create(
         this.accumulatedText() + delta,
         this.args,
+        false,
       );
       if (parser.args === this.args) parser.publishedArgs = this.currentArgs;
       return parser;

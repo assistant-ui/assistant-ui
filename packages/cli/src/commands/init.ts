@@ -12,6 +12,11 @@ import {
   getComponentsJsonStyle,
   resolveQuickStartRegistryUrl,
 } from "../lib/utils/registry";
+import {
+  describeInitFinish,
+  finishExistingProjectInit,
+  snapshotProjectFonts,
+} from "../lib/init-finish";
 import { create } from "./create";
 
 interface ExistingProjectInitPlan {
@@ -124,14 +129,18 @@ export const init = new Command()
         overwrite: opts.overwrite,
       });
 
+      const fontSnapshots = snapshotProjectFonts(targetDir);
       await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
       const registryUrl = resolveQuickStartRegistryUrl(
         getComponentsJsonStyle(targetDir),
       );
       await runSpawn(dlxCmd, [...dlxArgs, ...addArgs, registryUrl], targetDir);
 
+      const finish = finishExistingProjectInit(targetDir, fontSnapshots);
+
       logger.break();
       logger.success("Project initialized successfully!");
+      for (const line of describeInitFinish(finish)) logger.info(line);
       logger.info("You can now add more components with 'assistant-ui add'");
     } catch (error) {
       if (error instanceof SpawnSignalError) throw error;

@@ -1,0 +1,59 @@
+{
+  "name": "@assistant-ui/remote-components-serve",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Serving layer for remote components: normalizes any HTML into a remote component (doctype, runtime tag, CSP)",
+  "keywords": [
+    "remote-components",
+    "iframe",
+    "sandbox",
+    "assistant-ui"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
+    "typecheck": "tsc --noEmit",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@assistant-ui/remote-components-runtime": "workspace:^"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.6.5",
+    "vitest": "^5.0.5"
+  },
+  "homepage": "https://www.assistant-ui.com/remote-components",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/remote-components-serve"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

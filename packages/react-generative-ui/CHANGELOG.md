@@ -1,5 +1,26 @@
 # @assistant-ui/react-generative-ui
 
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies [[`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2)]:
+  - @assistant-ui/generative-ui@0.0.11
+
+## 0.1.9
+
+### Patch Changes
+
+- Updated dependencies [[`47b6556`](https://github.com/assistant-ui/assistant-ui/commit/47b6556da134f3f52447c6f8325523e89b3b1f4f)]:
+  - @assistant-ui/generative-ui@0.0.10
+
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [[`a219b67`](https://github.com/assistant-ui/assistant-ui/commit/a219b67a9f95225f78b96a07d8ca47070ab4328a), [`1642938`](https://github.com/assistant-ui/assistant-ui/commit/164293899db2f63ffd1d58af1c73b66390160e0a), [`38496db`](https://github.com/assistant-ui/assistant-ui/commit/38496dba9535cd676ced498fb8e13c31dc21f1c3), [`207d06b`](https://github.com/assistant-ui/assistant-ui/commit/207d06b6be56185f232df9ffac927565f8684619)]:
+  - @assistant-ui/generative-ui@0.0.9
+
 ## 0.1.7
 
 ### Patch Changes

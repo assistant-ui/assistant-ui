@@ -11,6 +11,7 @@ import { useSubscribable } from "./useSubscribable";
 import { liveRef } from "./liveRef";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
+import { getMessageRunState } from "../message-run-state";
 import type { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
@@ -126,6 +127,7 @@ const useMessageClient = ({
     return {
       ...(runtimeState as MessageState),
       ...(isLast === false ? { isLast } : {}),
+      runState: getMessageRunState(runtimeState as MessageState),
 
       parts: parts.state,
       composer: composer.state,

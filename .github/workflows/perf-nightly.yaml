@@ -12,7 +12,7 @@ jobs:
   measure:
     permissions:
       contents: read
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout code repository
@@ -28,7 +28,7 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
+        run: pnpm install --frozen-lockfile --filter "{.}..." --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
 
       - name: Build measured packages
         env:
@@ -50,7 +50,7 @@ jobs:
     needs: measure
     permissions:
       contents: write
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout code repository

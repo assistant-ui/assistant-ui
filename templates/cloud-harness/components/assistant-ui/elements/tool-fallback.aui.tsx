@@ -141,15 +141,19 @@ function ToolFallbackDuration({
 function ToolFallbackTrigger({
   toolName,
   status,
+  isError,
   responseDeliveryStatus,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   toolName: string;
   status?: ToolCallMessagePartStatus;
+  isError?: ToolCallMessagePart["isError"];
   responseDeliveryStatus?: ToolCallMessagePart["responseDeliveryStatus"];
 }) {
-  const statusType = status?.type ?? "complete";
+  const reportedType = status?.type ?? "complete";
+  const statusType =
+    reportedType === "complete" && isError ? "incomplete" : reportedType;
   const isRunning = statusType === "running";
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
@@ -1198,6 +1202,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
   result,
+  isError,
   status,
   responseDeliveryStatus,
   addResult,
@@ -1251,6 +1256,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
       <ToolFallbackTrigger
         toolName={toolName}
         status={status}
+        isError={isError}
         responseDeliveryStatus={responseDeliveryStatus}
       />
       <ToolFallbackContent>

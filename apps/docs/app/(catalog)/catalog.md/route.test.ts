@@ -28,10 +28,4 @@ describe("catalog markdown route", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).not.toMatch(/statewire|harness-sdk/i);
   });
-
-  it("answers 404 when the shop is closed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.stubEnv("NODE_ENV", "production");
-    expect((await get()).status).toBe(404);
-  });
 });

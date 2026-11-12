@@ -7,17 +7,8 @@
       "inputs": [
         "$TURBO_EXTENDS$",
         ".env*",
-        "$TURBO_ROOT$/scripts/package-example-bundles.mjs",
-        "$TURBO_ROOT$/scripts/example-bundles.json",
-        "$TURBO_ROOT$/scripts/prepare-example-bundles.mjs",
-        "$TURBO_ROOT$/scripts/run-example-bundles.mjs",
-        "$TURBO_ROOT$/scripts/build-example-bundle.mjs",
-        "$TURBO_ROOT$/examples/bundle-*/**",
-        "!$TURBO_ROOT$/examples/bundle-*/dist/**",
-        "!$TURBO_ROOT$/examples/bundle-*/node_modules/**",
         "$TURBO_ROOT$/packages/ui/src/**",
         "$TURBO_ROOT$/scripts/lib/script-options.mjs",
-        "!$TURBO_ROOT$/examples/bundle-*/build/**",
         "$TURBO_ROOT$/packages/*/vitest.peer-*.config.ts"
       ],
       "outputs": [
@@ -27,10 +18,9 @@
         "!.next/dev/**",
         "generated/**",
         ".output/**",
-        "build/**",
-        "public/example-bundles/**"
+        "build/**"
       ],
-      "env": ["$TURBO_EXTENDS$", "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED"]
+      "passThroughEnv": ["DOCS_BUILD_CPUS"]
     },
     "generate:type-docs": {
       "dependsOn": ["^build"],
@@ -48,10 +38,21 @@
         "generated/primitiveDocs.ts"
       ]
     },
+    "check:links": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["LINKINATOR_EXTERNAL"]
+    },
+    "check:lighthouse": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["CHROME_PATH"]
+    },
     "dev": {
       "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["DOCS_FULL", "DOCS_LITE"]
     },
     "test": {
       "inputs": [
@@ -64,8 +65,7 @@
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
         "$TURBO_ROOT$/README.md",
-        "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs",
-        "$TURBO_ROOT$/scripts/example-bundles.json"
+        "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
       "env": ["REDIS_*"]
     },
@@ -80,8 +80,7 @@
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
         "$TURBO_ROOT$/README.md",
-        "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs",
-        "$TURBO_ROOT$/scripts/example-bundles.json"
+        "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
       "env": ["REDIS_*"]
     }

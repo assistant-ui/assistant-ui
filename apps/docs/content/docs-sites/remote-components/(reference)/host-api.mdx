@@ -1,0 +1,72 @@
+---
+title: Host API
+description: "@assistant-ui/remote-components-host-react: RemoteComponent, RemoteHostProvider and RemoteComponentError."
+---
+
+## `<RemoteComponent>`
+
+Host props are listed below. Every other prop goes to the remote. To pass a prop whose name collides with a host prop, use `remoteProps`.
+
+| Prop | Default | |
+| --- | --- | --- |
+| `src` | | Remote URL: any page on the widget origin. |
+| `html` | | Or the document itself. Shown opaque through `srcdoc`, or in a Safe Content Frame. Wins over `src`. |
+| `fallback` | `null` | Shown in the layout until the remote is ready. |
+| `errorFallback` | `null` | A node, or `(error, retry) => node`. |
+| `onError` | | `(error, { fatal })` for every error. |
+| `onReady` | | Called once the remote is ready. |
+| `timeout` | `10000` | Milliseconds until ready. |
+| `loading` | `"eager"` | `"lazy"` loads near the viewport. |
+| `instanceId` | | Stable identity of this placement. Only used with `isolation="scf"` and `scf.salt: "instance"`: the instance keeps its hashed origin, and its storage, across loads. |
+| `className`, `style` | | The slot: the box in your layout. |
+| `frameTitle` | `"Remote component"` | The iframe `title`. |
+| `isolation` | `"url"` | `"scf"` shows the page in a Safe Content Frame, on a hashed origin. |
+| `network` | `"public"` | `"none"` or a list of origins. See [Network](/remote-components/docs/network). |
+| `sandbox` | from provider | Without `allow-same-origin` the frame is opaque. |
+| `allow` | `""` | Permissions policy. |
+| `remoteProps` | | Props forwarded even if their names are host props. |
+| `ref` | | `RemoteComponentHandle`, below. |
+
+```ts title="handle"
+interface RemoteComponentHandle {
+  // Loads the remote again. The fallback shows until it is ready.
+  reload(): void;
+  // Moves focus to the first or last tab stop in the remote.
+  // focusVisible: true shows the focus ring, false hides it.
+  focus(target?: "first" | "last", options?: { focusVisible?: boolean }): void;
+  readonly iframe: HTMLIFrameElement | null;
+  readonly status: "idle" | "loading" | "ready" | "error";
+}
+```
+
+The slot has `data-rc-slot`, `data-rc-status` (`idle`, `loading`, `ready`, `error`) and `data-rc-revealed`, for styling and tests.
+
+## `<RemoteHostProvider>`
+
+Configures every remote below it. Optional. Providers nest and merge.
+
+| Option | Default | |
+| --- | --- | --- |
+| `theme` | | What crosses into the frame. See below. |
+| `timeout` | `10000` | Default timeout. |
+| `sandbox` | `allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox` | Default sandbox tokens. |
+| `allow` | `""` | Default permissions policy. |
+| `overlayOrigins` | `"same-origin"` | `"any"`, a list, or `[]` for no overlays. |
+| `overlayZIndex` | `2147483000` | z-index of the overlay layer. |
+| `network` | `"public"` | Default network policy. |
+| `isolation` | `"url"` | Default isolation. |
+| `scf` | | `product`, `shimDomain`, `salt` (`"publisher"` or `"instance"`), `loadHtml`. |
+| `dangerouslyAllowSameOrigin` | `false` | Allow a remote on your own origin with allow-same-origin. Tests only. |
+
+### theme
+
+| Option | Default | |
+| --- | --- | --- |
+| `vars` | all | Custom properties to send. Names, prefixes like `"--brand-*"`, or a predicate. |
+| `extraVars` | | Custom properties added on top. |
+| `tokens` | `true` | Add canonical tokens (`--color-text`, …) that you don't define. |
+| `fonts` | `"auto"` | `"auto"` sends every readable `@font-face`. `"none"`, or your own list. |
+
+## RemoteComponentError
+
+An `Error` with a `code`: `timeout`, `protocol`, `runtime`, `data`, `closed`, `cancelled`, `stale-function`, `overlay`, `unsupported`, `load` or `security`. `onError` marks `timeout`, `load`, `protocol` and `security` as fatal. See [Loading and errors](/remote-components/docs/loading#error-codes).

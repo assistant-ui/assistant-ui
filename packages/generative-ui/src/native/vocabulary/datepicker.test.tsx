@@ -35,6 +35,38 @@ const webType = async (input: HTMLInputElement, text: string) => {
 };
 
 describe("native DatePicker", () => {
+  it("blocks a required empty date and marks the picker invalid", async () => {
+    const capture = vi.fn();
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Form",
+          children: ["when", "send"],
+          on: {
+            submit: { action: "capture", params: { values: { $event: "" } } },
+          },
+        },
+        when: {
+          type: "DatePicker",
+          props: { name: "when", label: "When", required: true },
+        },
+        send: { type: "Button", props: { label: "Send", submit: true } },
+      }),
+      { capture },
+      actions,
+    );
+    await press(byRole(container, "button", "Send"));
+    expect(capture).not.toHaveBeenCalled();
+    expect(field(container).getAttribute("aria-invalid")).toBe("true");
+    expect(field(container).style.borderTopColor).toBe("rgb(231, 0, 11)");
+    await typeText(field(container), "2026-07-20");
+    await press(byRole(container, "button", "Send"));
+    expect(capture).toHaveBeenCalledOnce();
+    expect(capture.mock.calls[0]![0]).toEqual({
+      values: { when: "2026-07-20" },
+    });
+    expect(field(container).hasAttribute("aria-invalid")).toBe(false);
+  });
   it("does not change an optional empty value without an edit", async () => {
     const capture = vi.fn();
     const { container } = renderNativeSpec(

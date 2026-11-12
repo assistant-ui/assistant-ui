@@ -126,7 +126,7 @@ Options and result are on [Repair loop and screenshots](/generative-frame/docs/r
 | `createWidgetTools({ registry?, guidance?, preview?, modules?, extraTools? })` | `{ read_me, show_widget, edit_widget, preview_widget }`, plus `extraTools`. See [Tools and prompts](/generative-frame/docs/tools). |
 | `toAISDKTools(tools, { jsonSchema })` | The tools in the Vercel AI SDK shape. |
 | `getToolDeclarations(tools)` | `{ description, inputSchema }` per tool, without `execute`. |
-| `buildWidgetInstructions(tools, { preload? }): Promise<string>` | A system prompt section for the tools. |
+| `buildWidgetInstructions(tools, { preload? }): Promise<string>` | A system prompt section for the tools. When `read_me` offers a `spec` module, its guidance is preloaded by default. An explicit `preload` replaces that default: `{}` and `{ platform: "mobile" }` leave `spec` on demand, and `{ modules: ["spec", "chart"] }` preloads both. |
 | `createWidgetRegistry(initial?)` | The latest code per title. |
 | `applyWidgetEdits(code, edits)` | `{ ok: true, code }` or `{ ok: false, error, index }`. |
 
@@ -205,7 +205,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | `parseSpecStream(source, options?)` | The same for a complete string. |
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
 | `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
-| `resolveSpec(spec, { state? })` | The element tree the renderer draws for one state, each `ResolvedElement` with `id`, `type`, `props`, `bindings`, `on`, `children`, `slots`, and, inside a `repeat`, its `itemPath`, with the item's `key` on a direct child of the `repeat`; `null` when the root does not resolve. |
+| `resolveSpec(spec, { state?, locale? })` | The element tree the renderer draws for one state, each `ResolvedElement` with `id`, `type`, `props`, `bindings`, `on`, `children`, `slots`, and, inside a `repeat`, its `itemPath`, with the item's `key` on a direct child of the `repeat`; `null` when the root does not resolve. `locale` sets the BCP 47 locale for `number`, `currency`, and `percent`; omitted, invalid, or unsupported tags use `en-US`. |
 | `formatSpecIssues(issues)` | Issues as model-readable text. |
 | `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `set(path, value, mode?)` inserts at array indices by default and replaces an existing item with `"replace"`. `writes()` lists the writes `seed` re-applies as `[path, value]`, `[path, value, "replace"]`, or, for a write through an array, `[path, value, mode, arrayParents]`, oldest first, a replacing write dropping earlier ones at and below its path that no insert at an index on that path has since moved; `writes` applies saved ones over `initial`. |
 | `emptySpec()` | An empty spec. |
@@ -226,7 +226,9 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
     { name: "components", type: "SpecComponents", required: true, description: "Implementations by component type." },
     { name: "catalog", type: "Catalog", description: "Validates props before rendering; invalid elements render a placeholder." },
     { name: "state", type: "SpecStateStore", description: "An external store. Otherwise one is created and seeded from `spec.state`." },
+    { name: "locale", type: "string", default: "en-US", description: "The BCP 47 locale for `$calc` functions `number`, `currency`, and `percent`. Invalid or unsupported tags fall back to `en-US`." },
     { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
+    { name: "confirmAction", type: "(request: { action, params, elementId? }) => boolean | Promise<boolean>", description: "Called before an action whose catalog definition has `confirm: true` runs. Return `true` to run it or `false` to stop the action list. Without it, a `confirm: true` action fails, and a `watch` that dispatches one is rejected." },
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
     { name: "onError", type: "(error, { elementId? }) => void", description: "A component threw or an action failed." },
     { name: "streaming", type: "boolean", default: "false", description: "Missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec." },
@@ -266,8 +268,10 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
   type="SpecToolkitOptions"
   parameters={[
     { name: "components", type: "SpecComponents", required: true, description: "Implementations for the catalog's components." },
+    { name: "locale", type: "string", default: "en-US", description: "The BCP 47 locale for `$calc` functions `number`, `currency`, and `percent`. Invalid or unsupported tags fall back to `en-US`." },
     { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
+    { name: "confirmAction", type: "(request: { action, params, elementId? }) => boolean | Promise<boolean>", description: "Called before an action whose catalog definition has `confirm: true` runs. Return `true` to run it or `false` to stop the action list. Without it, a `confirm: true` action fails, and a `watch` that dispatches one is rejected." },
     { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for elements that cannot render." },
     { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`); `customRules` also go into `render_spec`'s description." },
     { name: "toolResults", type: "boolean", description: "Mounts earlier tool results under `/tools` in backend execution too, as frontend execution always does. Pair it with `SPEC_TOOL_RESULTS_RULE` in the server's `render_spec` and spec guidance, which tells the model the results are there." },

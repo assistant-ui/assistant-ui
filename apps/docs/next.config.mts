@@ -6,7 +6,10 @@ import {
   watchContentManifest,
 } from "./scripts/content/manifest.mts";
 import { withAui } from "@assistant-ui/next";
+import { liteAliases } from "./scripts/lite-packages.mts";
+import { writeLiteDemos } from "./lib/lite-demos.ts";
 import type { NextConfig } from "next";
+import { SETUP_ORIGIN as SETUP_URL } from "./lib/setup-origin.ts";
 import {
   AGENT_DISCOVERY_REWRITES,
   API_CATALOG_LINK_HEADER,
@@ -93,8 +96,29 @@ const csp = (frameAncestors: string) =>
     upgrade-insecure-requests;
 `.replace(/\n/g, "");
 
+// `next build` runs one worker per CPU core to collect page data and
+// prerender, and each holds the whole server bundle. Turbopack also runs one
+// MDX loader process per core (~450 MB each), and they stay alive until the
+// build exits. DOCS_BUILD_CPUS caps both on machines with little RAM; it does
+// not change the output.
+const buildCpus = process.env.DOCS_BUILD_CPUS
+  ? Number(process.env.DOCS_BUILD_CPUS)
+  : undefined;
+if (buildCpus !== undefined && !(Number.isInteger(buildCpus) && buildCpus > 0))
+  throw new Error("DOCS_BUILD_CPUS must be a positive integer");
+// Turbopack sizes its loader pool from this variable when it creates the
+// pool, which happens after the config loads.
+if (buildCpus && !process.env.TURBO_TASKS_AVAILABLE_PARALLELISM)
+  process.env.TURBO_TASKS_AVAILABLE_PARALLELISM = String(buildCpus);
+
 const config: NextConfig = {
   cacheComponents: true,
+  ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
+  // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
+  // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
+  ...(process.env.NEXT_ALLOWED_DEV_ORIGINS
+    ? { allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS.split(",") }
+    : {}),
   // A prerender cannot read the clock, so the copyright year is fixed at build time.
   env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
   // This app keeps a hand-written AGENTS.md, and the root one already points
@@ -166,10 +190,21 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     ...DOCS_SITE_REDIRECTS,
+    // The setup wizard moved to its own app; the fragment an agent link carries survives the redirect.
     {
-      source: "/hack",
-      destination: "/hackathon",
+      source: "/components/setup/:path*",
+      destination: `${SETUP_URL}/:path*`,
       permanent: false,
+    },
+    {
+      source: "/components/cart",
+      destination: "/components",
+      permanent: true,
+    },
+    {
+      source: "/getting-started",
+      destination: "/docs/installation",
+      permanent: true,
     },
     {
       source: "/tap",
@@ -601,22 +636,60 @@ const config: NextConfig = {
   }),
 };
 
-export default generateContentManifest(process.cwd()).then(() => {
-  if (process.env.NODE_ENV === "development")
-    watchContentManifest(process.cwd());
-  const compiled = withDocs(withAui(config), docsConfig, {
-    mdx: {
-      remarkPlugins: [
-        fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
-      ],
-      codeHighlighter: fileURLToPath(
-        new URL("./lib/rehype-docs-code.mjs", import.meta.url),
-      ),
-    },
-  });
+// `next dev` compiles a docs page only once it is opened (lib/content-lite.tsx),
+// because the content index would otherwise pull every MDX page into the
+// docs route. `pnpm dev:full` (DOCS_FULL=1) compiles them all up front, which
+// the .md, MCP and chat routes need to see every page. Builds always do.
+const onDemandPages = isDev && process.env.DOCS_FULL !== "1";
+const contentOptions = { onDemand: onDemandPages };
+
+// `pnpm dev:lite` (DOCS_LITE=1) also uses the built SDK packages instead of
+// their sources, swaps the heaviest demos for a "Load demo" button, and drops
+// Turbopack's source maps and persistent cache, which hold ~1 GB each.
+const lite = onDemandPages && process.env.DOCS_LITE === "1";
+const liteConfig = (): NextConfig => {
+  if (!lite) return {};
   return {
-    ...compiled,
-    rewrites: config.rewrites,
-    redirects: config.redirects,
+    turbopack: {
+      ...config.turbopack,
+      resolveAlias: {
+        ...config.turbopack?.resolveAlias,
+        ...liteAliases(process.cwd()),
+        ...writeLiteDemos(process.cwd()),
+      },
+    },
   };
-});
+};
+
+export default generateContentManifest(process.cwd(), contentOptions).then(
+  () => {
+    if (isDev) watchContentManifest(process.cwd(), contentOptions);
+    const compiled = withDocs(
+      withAui({ ...config, ...liteConfig() }),
+      docsConfig,
+      {
+        mdx: {
+          remarkPlugins: [
+            fileURLToPath(new URL("./lib/remark-docs.mjs", import.meta.url)),
+          ],
+          codeHighlighter: fileURLToPath(
+            new URL("./lib/rehype-docs-code.mjs", import.meta.url),
+          ),
+        },
+      },
+    );
+    return {
+      ...compiled,
+      ...(lite && {
+        experimental: {
+          ...compiled.experimental,
+          turbopackSourceMaps: false,
+          turbopackInputSourceMaps: false,
+          turbopackFileSystemCacheForDev: false,
+        },
+      }),
+      rewrites: config.rewrites,
+      redirects: config.redirects,
+    };
+  },
+);

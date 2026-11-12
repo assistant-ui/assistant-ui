@@ -3,7 +3,6 @@ import type { CatalogProduct } from "../types";
 export const agentTools: CatalogProduct = {
   slug: "agent-tools",
   href: "/components/agent-tools",
-  purchase: "cart",
   name: "Agent Tool",
   tagline: "An action the model can call, with its own UI in the thread.",
   description:

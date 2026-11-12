@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import { getMessageRunState } from "../message-run-state";
 import type { MessageState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
@@ -127,6 +128,7 @@ const useThreadMessageClient = ({
       isCopied: isCopiedState,
       isHovering: isHoveringState,
       submission,
+      runState: getMessageRunState(message),
     };
   }, [
     message,

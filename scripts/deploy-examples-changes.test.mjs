@@ -419,6 +419,6 @@ test("the Expo native bundle installs only its workspace graph", () => {
   assert.match(setup?.[0] ?? "", /cache: false/);
   assert.match(
     install?.[0] ?? "",
-    /pnpm install --frozen-lockfile --filter \. --filter="@assistant-ui\/react-devtools\.\.\." --filter="with-expo\.\.\."/,
+    /pnpm install --frozen-lockfile --filter="\{\.\}\.\.\." --filter="@assistant-ui\/react-devtools\.\.\." --filter="with-expo\.\.\."/,
   );
 });

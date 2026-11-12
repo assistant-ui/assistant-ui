@@ -1,0 +1,59 @@
+March 2026 starts on Sunday, so the 1st sits in the first column of a Sunday-first grid.
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text, inherit); }
+  .cal {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 10px);
+    padding: 16px;
+  }
+  .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .head h2 { margin: 0; font-size: 1.15rem; }
+  .head span { color: var(--color-text-muted, #777); font-size: .85rem; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .dow { font-size: .75rem; color: var(--color-text-muted, #777); text-align: center; padding: 4px 0; font-weight: 600; }
+  .day {
+    min-height: 58px; border: 1px solid var(--color-border, #e5e5e5);
+    border-radius: 6px; padding: 4px; font-size: .8rem; box-sizing: border-box;
+  }
+  .day.empty { border: none; }
+  .day.event { border-color: var(--color-accent, #3b82f6); background: color-mix(in srgb, var(--color-accent, #3b82f6) 12%, transparent); }
+  .num { font-weight: 600; }
+  .tag {
+    display: block; margin-top: 4px; font-size: .68rem; line-height: 1.2;
+    background: var(--color-accent, #3b82f6); color: #fff; border-radius: 4px; padding: 2px 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .legend { margin-top: 12px; font-size: .82rem; display: grid; gap: 4px; }
+  .legend div::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent, #3b82f6); margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="cal">
+  <div class="head"><h2>March 2026</h2><span>2 events</span></div>
+  <div class="grid" id="g"></div>
+  <div class="legend">
+    <div><b>Mar 12</b> · Team Offsite</div>
+    <div><b>Mar 27</b> · Product Launch</div>
+  </div>
+</div>
+<script>
+  const g = document.getElementById('g');
+  const events = { 12: 'Team Offsite', 27: 'Product Launch' };
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => g.insertAdjacentHTML('beforeend', `<div class="dow">${d}</div>`));
+  const start = new Date(2026, 2, 1).getDay();
+  for (let i = 0; i < start; i++) g.insertAdjacentHTML('beforeend', '<div class="day empty"></div>');
+  for (let d = 1; d <= 31; d++) {
+    const e = events[d];
+    g.insertAdjacentHTML('beforeend',
+      `<div class="day${e ? ' event' : ''}"><span class="num">${d}</span>${e ? `<span class="tag" title="${e}">${e}</span>` : ''}</div>`);
+  }
+</script>
+</body>
+</html>

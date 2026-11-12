@@ -1,0 +1,68 @@
+<style>
+  .sq {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .sq-sym { font-weight: 700; font-size: 1.1rem; letter-spacing: .02em; }
+  .sq-name { color: var(--color-text-muted); font-size: .85rem; }
+  .sq-price { font-size: 1.8rem; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .sq-chg { font-size: .95rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .up { color: #16a34a; }
+  .down { color: #dc2626; }
+  .sq-spark { flex: 1 1 180px; max-width: 260px; }
+  .sq-spark svg { width: 100%; height: 60px; display: block; }
+  .sq-foot { color: var(--color-text-muted); font-size: .75rem; margin-top: 4px; text-align: right; }
+</style>
+
+<div class="sq" role="group" aria-label="ACME stock quote">
+  <div>
+    <div class="sq-sym">ACME</div>
+    <div class="sq-name">Acme Corporation · NASDAQ</div>
+    <div class="sq-price" id="sqPrice">—</div>
+    <div class="sq-chg" id="sqChg">—</div>
+  </div>
+  <div class="sq-spark">
+    <svg id="sqSvg" viewBox="0 0 200 60" preserveAspectRatio="none" aria-label="Intraday price sparkline"></svg>
+    <div class="sq-foot">Intraday · sample data</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const prevClose = 142.30;
+  const pts = [142.3,142.8,142.1,143.0,143.6,143.2,144.1,144.5,143.9,144.8,145.2,144.9,145.7,146.1,145.6,146.4];
+  const last = pts[pts.length - 1];
+  const diff = last - prevClose, pct = diff / prevClose * 100;
+  const up = diff >= 0;
+
+  document.getElementById('sqPrice').textContent = '$' + last.toFixed(2);
+  const chg = document.getElementById('sqChg');
+  chg.textContent = (up ? '▲ +' : '▼ ') + diff.toFixed(2) + ' (' + (up ? '+' : '') + pct.toFixed(2) + '%)';
+  chg.className = 'sq-chg ' + (up ? 'up' : 'down');
+
+  const W = 200, H = 60, pad = 4;
+  const min = Math.min(...pts, prevClose), max = Math.max(...pts, prevClose);
+  const x = i => i / (pts.length - 1) * W;
+  const y = v => pad + (1 - (v - min) / (max - min || 1)) * (H - 2 * pad);
+  const line = pts.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const color = up ? '#16a34a' : '#dc2626';
+
+  document.getElementById('sqSvg').innerHTML =
+    `<defs><linearGradient id="sqG" x1="0" y1="0" x2="0" y2="1">
+       <stop offset="0" stop-color="${color}" stop-opacity=".25"/>
+       <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+     </linearGradient></defs>
+     <line x1="0" x2="${W}" y1="${y(prevClose)}" y2="${y(prevClose)}" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>
+     <path d="${line} L${W} ${H} L0 ${H} Z" fill="url(#sqG)"/>
+     <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+})();
+</script>

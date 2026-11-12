@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Safe Content Frame shim (test-compatible)</title>
+    <script>
+      // A minimal shim compatible with safe-content-frame 0.0.34's client.
+      // Hostname: <hash>-h184756.<domain>; path: /<product>/shim.html?origin=<host origin>.
+      // Accepts content only from ?origin, checks that sha256(product, salt,
+      // origin) matches the hostname, then shows the content from a Blob URL
+      // on this (hashed) origin.
+      (async () => {
+        const params = new URLSearchParams(location.search);
+        const parentOrigin = params.get("origin");
+        const product = location.pathname.split("/")[1];
+        const hash = location.hostname.split(".")[0].split("-")[0];
+        async function originHash(salt) {
+          const enc = new TextEncoder();
+          const sep = enc.encode("$@#|");
+          const parts = [enc.encode(product), sep, new Uint8Array(salt), sep, enc.encode(parentOrigin)];
+          const all = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+          let o = 0;
+          for (const p of parts) { all.set(p, o); o += p.length; }
+          const h = new Uint8Array(await crypto.subtle.digest("SHA-256", all));
+          const big = h.reduce((acc, b) => 256n * acc + BigInt(b), 0n);
+          return big.toString(36).padStart(50, "0").slice(0, 50);
+        }
+        if (!parentOrigin || window.parent === window) return;
+        window.addEventListener("message", async (e) => {
+          if (e.source !== window.parent || e.origin !== parentOrigin) return;
+          const { body, mimeType, salt } = e.data || {};
+          const port = e.ports[0];
+          if (!(body instanceof ArrayBuffer) || typeof mimeType !== "string" || !(salt instanceof ArrayBuffer)) return;
+          if ((await originHash(salt)) !== hash) {
+            port && port.postMessage({ type: "error", message: "origin hash mismatch" });
+            return;
+          }
+          const url = URL.createObjectURL(new Blob([body], { type: mimeType }));
+          port && port.postMessage({ type: "msg" });
+          location.replace(url);
+        });
+        window.parent.postMessage({ type: "ready" }, parentOrigin);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

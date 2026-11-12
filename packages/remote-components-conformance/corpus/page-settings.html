@@ -1,0 +1,77 @@
+<code>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text, inherit); }
+  .panel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #ddd); border-radius: var(--radius-md, 10px); padding: 18px 20px; box-sizing: border-box; }
+  h2 { margin: 0 0 4px; font-size: 1.1rem; }
+  .sub { margin: 0 0 14px; font-size: .85rem; color: var(--color-text-muted, #777); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--color-border, #eee); }
+  .row:first-of-type { border-top: none; }
+  .label strong { display: block; font-size: .95rem; font-weight: 600; }
+  .label span { font-size: .8rem; color: var(--color-text-muted, #777); }
+  .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .track { position: absolute; inset: 0; border-radius: 12px; background: var(--color-border, #ccc); transition: background .2s; }
+  .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s; }
+  .switch input:checked + .track { background: var(--color-accent, #3b82f6); }
+  .switch input:checked + .track::after { transform: translateX(18px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--color-accent, #3b82f6); outline-offset: 2px; }
+  select { font: inherit; color: inherit; background: transparent; border: 1px solid var(--color-border, #ccc); border-radius: 6px; padding: 6px 8px; min-width: 130px; }
+  .footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
+  .status { font-size: .85rem; color: var(--color-text-muted, #777); }
+  button { font: inherit; font-weight: 600; border: none; border-radius: 6px; padding: 8px 18px; background: var(--color-accent, #3b82f6); color: #fff; cursor: pointer; }
+  button:hover { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h2>Settings</h2>
+  <p class="sub">Manage your preferences.</p>
+
+  <div class="row">
+    <div class="label"><strong>Notifications</strong><span>Receive alerts about activity</span></div>
+    <label class="switch"><input type="checkbox" id="notif" checked aria-label="Notifications"><span class="track"></span></label>
+  </div>
+  <div class="row">
+    <div class="label"><strong>Dark mode</strong><span>Use a darker colour scheme</span></div>
+    <label class="switch"><input type="checkbox" id="dark" aria-label="Dark mode"><span class="track"></span></label>
+  </div>
+  <div class="row">
+    <div class="label"><strong>Auto-save</strong><span>Save changes automatically</span></div>
+    <label class="switch"><input type="checkbox" id="autosave" checked aria-label="Auto-save"><span class="track"></span></label>
+  </div>
+  <div class="row">
+    <div class="label"><strong>Language</strong><span>Interface language</span></div>
+    <select id="lang" aria-label="Language">
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+
+  <div class="footer">
+    <span class="status" id="status"></span>
+    <button id="save">Save</button>
+  </div>
+</div>
+<script>
+  const status = document.getElementById('status');
+  document.querySelectorAll('input, select').forEach(el =>
+    el.addEventListener('change', () => status.textContent = 'Unsaved changes'));
+  document.getElementById('save').addEventListener('click', () => {
+    const s = {
+      notifications: notif.checked, darkMode: dark.checked,
+      autoSave: autosave.checked, language: lang.value
+    };
+    status.textContent = '✓ Saved (' + lang.options[lang.selectedIndex].text + ')';
+    console.log('Saved settings', s);
+  });
+</script>
+</body>
+</html>
+</code>

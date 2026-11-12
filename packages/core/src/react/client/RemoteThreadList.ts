@@ -1842,6 +1842,7 @@ const useRemoteThreadList = (
           "generate a title",
         );
       }
+      const threadLifetime = lifetimes.signalFor(data.id, ownerDestroySignal);
       const { remoteId } = await data.initializeTask;
       requireAdapterGeneration(adapterGeneration);
       if (
@@ -1852,6 +1853,7 @@ const useRemoteThreadList = (
       }
       if (!messages) return;
       const isRemoved = () =>
+        threadLifetime.aborted ||
         getThreadData(store.baseValue, data.id) === undefined;
       await runThreadTitleGeneration({
         states: session.titleStates,
@@ -1881,6 +1883,7 @@ const useRemoteThreadList = (
           return title;
         },
         applyTitle: async (title) => {
+          if (isRemoved()) return;
           await store.optimisticUpdate({
             execute: async () => {},
             optimistic: (state) => {
@@ -1912,6 +1915,7 @@ const useRemoteThreadList = (
     },
     [
       backgroundThreads,
+      lifetimes,
       ownerDestroySignal,
       requireAdapterGeneration,
       session,

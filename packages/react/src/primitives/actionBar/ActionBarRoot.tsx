@@ -21,7 +21,8 @@ export namespace ActionBarPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = PrimitiveDivProps & {
     /**
-     * Whether to hide the action bar when the thread is running.
+     * Whether to hide the action bar when the thread is running, or while
+     * another tab or session is still writing this message.
      * @default false
      */
     hideWhenRunning?: boolean | undefined;

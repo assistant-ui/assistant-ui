@@ -23,4 +23,27 @@ describe("ToolError", () => {
     expect(label.classList.contains("wrap-anywhere")).toBe(true);
     expect(label.classList.contains("shrink-0")).toBe(false);
   });
+
+  it.each([
+    [2, false],
+    [3, true],
+    [4, true],
+  ])("at attempt %i of 3, disables Retry: %s", (attempt, disabled) => {
+    render(
+      <ToolError
+        name="fetch"
+        target="api"
+        message="The tool failed"
+        attempt={attempt}
+        maxAttempts={3}
+        retrying={false}
+        onRetry={() => {}}
+      />,
+    );
+
+    const retry = screen.getByRole("button", {
+      name: "Retry",
+    }) as HTMLButtonElement;
+    expect(retry.disabled).toBe(disabled);
+  });
 });
