@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -105,4 +107,108 @@ test("a failed git config exits non-zero and reports the error", (t) => {
   const result = run(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /could not lock config file/i);
+});
+
+const trackedHusky = fileURLToPath(new URL("../.husky/", import.meta.url));
+
+const shellPath = (file) => file.replaceAll("\\", "/");
+
+const lines = (file) => {
+  try {
+    return readFileSync(file, "utf8").split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * This repository's tracked `.husky` hooks in a throwaway repository, with a fake `pnpm` on
+ * PATH (so `lint-staged` is never really run) and a global hook of its own that reports each call.
+ */
+function hookFixture(t) {
+  const harness = fixture(t);
+  const { base, git, init } = harness;
+  const root = init("hook");
+  const husky = path.join(root, ".husky");
+  mkdirSync(husky);
+  for (const name of ["global-hook", "pre-commit"]) {
+    writeFileSync(
+      path.join(husky, name),
+      readFileSync(path.join(trackedHusky, name)),
+    );
+  }
+  chmodSync(path.join(husky, "pre-commit"), 0o755);
+
+  const recorded = path.join(base, "recorded");
+  const packaged = path.join(base, "packaged");
+  const bin = path.join(base, "bin");
+  mkdirSync(bin);
+  writeFileSync(
+    path.join(bin, "pnpm"),
+    `#!/bin/sh\nprintf '%s|CI=%s\\n' "$*" "\${CI-}" >> "${shellPath(packaged)}"\n`,
+  );
+  chmodSync(path.join(bin, "pnpm"), 0o755);
+
+  const globalHooks = path.join(base, "global-hooks");
+  mkdirSync(globalHooks);
+  writeFileSync(
+    path.join(globalHooks, "pre-commit"),
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${shellPath(recorded)}"\n`,
+  );
+  chmodSync(path.join(globalHooks, "pre-commit"), 0o755);
+
+  const env = {
+    ...process.env,
+    GIT_CONFIG_GLOBAL: path.join(base, "global.gitconfig"),
+    GIT_CONFIG_NOSYSTEM: "1",
+    HUSKY: "",
+    PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+  };
+  git(base, "config", "--global", "core.hooksPath", shellPath(globalHooks));
+  const runHook = (args = [], overrides = {}) =>
+    spawnSync("sh", [path.join(husky, "pre-commit"), ...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...env, ...overrides },
+    });
+  return { base, root, husky, git, runHook, recorded, packaged };
+}
+
+test("a tracked hook runs the user's global hook, then lint-staged", (t) => {
+  const { runHook, recorded, packaged } = hookFixture(t);
+
+  const result = runHook(["--from-a-test"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(lines(recorded), ["--from-a-test"]);
+  assert.deepEqual(lines(packaged), ["exec lint-staged|CI=true"]);
+});
+
+test("HUSKY=0 skips the global hook and lint-staged alike", (t) => {
+  const { runHook, recorded, packaged } = hookFixture(t);
+
+  const result = runHook([], { HUSKY: "0" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(lines(recorded), []);
+  assert.deepEqual(lines(packaged), []);
+});
+
+test("a failing global hook stops the commit before lint-staged", (t) => {
+  const { base, runHook, packaged } = hookFixture(t);
+  const hook = path.join(base, "global-hooks", "pre-commit");
+  writeFileSync(hook, "#!/bin/sh\nexit 7\n");
+  chmodSync(hook, 0o755);
+
+  const result = runHook();
+  assert.equal(result.status, 7);
+  assert.deepEqual(lines(packaged), []);
+});
+
+test("a global hook that is this repository's own .husky is not called", (t) => {
+  const { root, husky, git, runHook, recorded, packaged } = hookFixture(t);
+  git(root, "config", "--global", "core.hooksPath", shellPath(husky));
+
+  const result = runHook();
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(lines(recorded), []);
+  assert.deepEqual(lines(packaged), ["exec lint-staged|CI=true"]);
 });
