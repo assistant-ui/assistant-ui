@@ -93,8 +93,10 @@ test("a failure with no tracking issue opens one", () => {
     "--body",
   ]);
   const body = create[9];
-  assert.match(body, /^### Problem\n\nThe scheduled run failed: (\S+)\n/);
-  assert.ok(body.includes(runUrl));
+  assert.equal(
+    body.match(/^### Problem\n\nThe scheduled run failed: (\S+)\n/)?.[1],
+    runUrl,
+  );
   assert.ok(body.includes("`.github/workflows/linkinator.yaml`"));
 });
 
