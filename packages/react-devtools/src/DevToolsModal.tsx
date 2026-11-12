@@ -21,10 +21,7 @@ const DevToolsModalImpl = lazy(() => import("./DevToolsModalImpl"));
  * production bundle (the dynamic import is also code-split).
  */
 export const DevToolsModal = (props: DevToolsModalProps = {}) => {
-  if (
-    typeof process !== "undefined" &&
-    process.env?.NODE_ENV === "production"
-  ) {
+  if (process.env.NODE_ENV === "production") {
     return null;
   }
 
