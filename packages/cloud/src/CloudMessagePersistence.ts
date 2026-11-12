@@ -157,7 +157,7 @@ export class CloudMessagePersistence {
       waiters.add(deletes);
       this.waiters.set(messageId, waiters);
       const previous = this.pendingWrites.get(messageId) ?? existing;
-      // The in-flight create may hold older content, such as the run tracker's running placeholder: write this content over its row, or create the row with it when that create failed. A reset or delete while waiting drops the write.
+      // The in-flight create may hold older content, such as the run tracker's running placeholder: write this content over its row, or create the row with it when that create failed. A reset while waiting, or a delete of the message that started while waiting and succeeded, drops the write; an append made after a delete started is newer than that delete and still lands.
       const write = previous
         .catch(() => undefined)
         .then(async () => {
