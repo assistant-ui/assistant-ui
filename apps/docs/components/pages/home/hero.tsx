@@ -3,15 +3,13 @@
 import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import {
-  InstallManuallyLink,
-  SetupCommandPrompt,
-} from "@/components/shared/setup-command-prompt";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { cn } from "@/lib/utils";
+import { ArrowRightIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -73,8 +71,9 @@ export function Hero({
         >
           <SetupCommandPrompt page="home" section="hero" />
           <Button
-            variant="outline"
+            variant="ghost"
             nativeButton={false}
+            className="group/expert hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
             render={
               <Link
                 href={CONTACT_SALES_PATH}
@@ -83,8 +82,11 @@ export function Hero({
             }
           >
             Talk to an expert
+            <ArrowRightIcon
+              aria-hidden
+              className="transition-transform duration-200 group-hover/expert:translate-x-1"
+            />
           </Button>
-          <InstallManuallyLink section="hero" />
         </div>
 
         <div

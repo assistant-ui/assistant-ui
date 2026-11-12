@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import {
-  InstallManuallyLink,
   SetupCommandPrompt,
 } from "@/components/shared/setup-command-prompt";
 import { useSurfaceOrDefault } from "@/components/pages/docs/platform/context";
@@ -21,7 +20,6 @@ export function Quickstart() {
     return (
       <div className="not-prose flex flex-wrap items-center gap-x-4 gap-y-2">
         <SetupCommandPrompt page="docs" section="overview" />
-        <InstallManuallyLink section="docs_overview" />
       </div>
     );
 

@@ -2,7 +2,7 @@
 // runs the setup command, which opens the guided setup in the browser and
 // prints the steps it follows.
 
-export const AGENT_SETUP_PROMPT = "set up assistant-ui";
+export const AGENT_SETUP_PROMPT = "install and set up assistant-ui";
 
 export const AGENT_SETUP_COMMAND = "npx assistant-ui@latest setup";
 
