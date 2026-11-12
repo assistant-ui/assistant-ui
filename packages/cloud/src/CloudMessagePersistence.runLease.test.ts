@@ -229,6 +229,36 @@ describe("CloudMessagePersistence run leases", () => {
     expect(persistence.isPersisted("local-a")).toBe(false);
   });
 
+  it("keeps a final write that waited across a delete that failed", async () => {
+    const { cloud, messages } = createCloud();
+    let resolveCreate!: (value: unknown) => void;
+    messages.create.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    messages.delete.mockRejectedValueOnce(new Error("delete failed"));
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const placeholder = persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    const deleted = persistence.delete("t1", ["local-a"]);
+    resolveCreate({ message_id: "msg_1" });
+    await expect(deleted).rejects.toThrow("delete failed");
+    await Promise.all([placeholder, final]);
+
+    expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
+      content: done,
+    });
+  });
+
   it("applies writes waiting on one lease-less append in append order", async () => {
     const { cloud, messages } = createCloud();
     let resolveCreate!: (value: unknown) => void;
