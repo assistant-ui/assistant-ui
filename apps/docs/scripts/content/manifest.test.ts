@@ -7,6 +7,11 @@ import { loader } from "fumadocs-core/source";
 import { remark } from "remark";
 import { createContentManifest, generateContentManifest } from "./manifest.mts";
 import { createContentSource } from "../../lib/content-source";
+import {
+  PRECOMPILED_MDX_INDEX,
+  hashMdxSource,
+  mdxCompilerDigest,
+} from "./mdx-options.mts";
 
 vi.mock("remark", async (importOriginal) => {
   const original = await importOriginal<typeof import("remark")>();
@@ -357,4 +362,41 @@ it("imports only recorded pages in lite mode and keeps every page listed", async
   await generateContentManifest(root);
   expect(await generated()).toContain('import("../content/docs/index.mdx")');
   expect(await generated()).not.toContain("pendingPage");
+});
+
+it("imports precompiled modules only while they match the page and the compiler", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aui-docs-content-"));
+  roots.push(root);
+  const directory = join(root, "content/docs");
+  await mkdir(join(root, ".source/mdx"), { recursive: true });
+  await mkdir(directory, { recursive: true });
+  const current = "---\ntitle: Current\n---\nCurrent.";
+  await writeFile(join(directory, "current.mdx"), current);
+  await writeFile(join(directory, "stale.mdx"), "---\ntitle: Stale\n---\nNew.");
+  const writeIndex = async (compiler: string) =>
+    writeFile(
+      join(root, PRECOMPILED_MDX_INDEX),
+      JSON.stringify({
+        compiler,
+        pages: {
+          "docs/current.mdx": hashMdxSource(current),
+          "docs/stale.mdx": hashMdxSource("---\ntitle: Stale\n---\nOld."),
+        },
+      }),
+    );
+  const generated = () => readFile(join(root, ".source/content.ts"), "utf8");
+
+  await writeIndex(await mdxCompilerDigest());
+  await generateContentManifest(root, { precompiled: true });
+  expect(await generated()).toContain(
+    'import("../.source/mdx/docs/current.js")',
+  );
+  expect(await generated()).toContain('import("../content/docs/stale.mdx")');
+
+  await generateContentManifest(root);
+  expect(await generated()).toContain('import("../content/docs/current.mdx")');
+
+  await writeIndex("another compiler");
+  await generateContentManifest(root, { precompiled: true });
+  expect(await generated()).toContain('import("../content/docs/current.mdx")');
 });
