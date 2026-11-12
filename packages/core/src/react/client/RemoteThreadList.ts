@@ -83,9 +83,17 @@ const RESOLVED_PROMISE = Promise.resolve();
 
 const EMPTY_LIST = createEmptyRemoteThreadState();
 
+const adapterStoreIdentity = (adapter: RemoteThreadListAdapter) =>
+  adapter.storeKey ?? adapter;
+
+const isSameBackingStore = (
+  left: RemoteThreadListAdapter,
+  right: RemoteThreadListAdapter,
+) => Object.is(adapterStoreIdentity(left), adapterStoreIdentity(right));
+
 export type RemoteThreadListProps = {
   /**
-   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op. `reload()` after a different adapter instance resets selection and cached records before loading.
+   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. Adapters with the same `storeKey` share optimistic state and in-flight mutations; without `storeKey`, a new object is a different store. `reload()` after a different store identity resets selection and cached records before loading.
    */
   adapter: RemoteThreadListAdapter;
   /**
@@ -815,7 +823,7 @@ const useRemoteThreadList = (
   }, [assignMainThreadId, lifetimes, notifyRemoteId, session, store]);
 
   const reload = useCallback(() => {
-    const adapterChanged = adapter !== session.adapterAtLoad;
+    const adapterChanged = !isSameBackingStore(adapter, session.adapterAtLoad);
     session.loadGeneration++;
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;

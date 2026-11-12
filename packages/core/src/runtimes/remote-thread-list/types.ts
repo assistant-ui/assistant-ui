@@ -86,6 +86,18 @@ export type RemoteThreadListAdapter = {
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
   /**
+   * Identity of the backing store this adapter talks to. Two adapter objects
+   * with the same `storeKey` share in-flight mutations and optimistic list
+   * state. When omitted, the adapter object itself is the identity, so a new
+   * object is treated as a different store.
+   *
+   * A matching thread id never implies a shared store. Set this when the app
+   * recreates the adapter for the same backend (for example a `useMemo` whose
+   * deps change).
+   */
+  storeKey?: string | undefined;
+
+  /**
    * Optional React component wrapped around each active thread, an older face of `unstable_useAdapters` for injecting per-thread adapters such as history or attachments. A component that only wraps `children` in `RuntimeAdapterProvider` migrates by returning those adapters from `unstable_useAdapters`.
    *
    * `useRemoteThreadListRuntime` renders this component only when the adapter it mounts with has one, and that runtime then runs on the deprecated `RemoteThreadListThreadListRuntimeCore` instead of the `RemoteThreadList` client; it renders each later adapter's provider and synthesizes a `RuntimeAdapterProvider` from `unstable_useAdapters` for a later adapter without one. A hook that mounts with an adapter without this component calls `unstable_useAdapters` for every later adapter and ignores this component. The `RemoteThreadList` store entry ignores it.
@@ -123,7 +135,7 @@ export type RemoteThreadListOptions = {
   runtimeHook: () => AssistantRuntime;
 
   /**
-   * The adapter reference should remain stable across renders. Replacing it reloads the list and drops cached threads that are not in the replacement page. In-flight mutations from the previous adapter are cancelled.
+   * The adapter reference should remain stable across renders. Replacing it with a different backing store reloads the list and drops cached threads that are not in the replacement page. On the RemoteThreadList client, adapters with the same `storeKey` keep in-flight mutations; without `storeKey`, a new object is a different store and in-flight mutations are cancelled.
    */
   adapter: RemoteThreadListAdapter;
 
