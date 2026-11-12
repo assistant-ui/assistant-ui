@@ -32,21 +32,35 @@ const olderCli =
 function run(t, caches, { missing = [], failing = [] } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "aui-codeql-prune-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  writeFileSync(
-    path.join(root, "page.json"),
-    JSON.stringify({ total_count: caches.length, actions_caches: caches }),
-  );
+  for (let offset = 0; offset < caches.length; offset += 100) {
+    writeFileSync(
+      path.join(root, `page-${offset / 100 + 1}.json`),
+      JSON.stringify({
+        total_count: caches.length,
+        actions_caches: caches.slice(offset, offset + 100),
+      }),
+    );
+  }
   writeFileSync(path.join(root, "deleted"), "");
   writeFileSync(path.join(root, "requests"), "");
+  writeFileSync(path.join(root, "calls"), "");
   const gh = path.join(root, "gh");
   writeFileSync(
     gh,
     `#!/usr/bin/env bash
 set -euo pipefail
 dir=$(dirname "$0")
+echo "$*" >> "$dir/calls"
 if [ "$1 $2" = "api --paginate" ]; then
   echo "$3" >> "$dir/requests"
-  jq -c "$5" "$dir/page.json"
+  page=1
+  while [ -f "$dir/page-$page.json" ]; do
+    jq -c "$5" "$dir/page-$page.json"
+    page=$((page + 1))
+  done
+elif [ "$1" = "api" ] && [ "\${3-}" = "--jq" ]; then
+  echo "$2" >> "$dir/requests"
+  jq -c "$4" "$dir/page-1.json"
 elif [ "$1 $2 $3" = "api --method DELETE" ]; then
   id=\${4##*/}
   case " ${missing.join(" ")} " in *" $id "*) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;; esac
@@ -74,7 +88,24 @@ fi
     ...result,
     deleted: lines("deleted").map(Number),
     requests: lines("requests"),
+    calls: lines("calls"),
   };
+}
+
+function assertCalls(result, deletedIds) {
+  assert.equal(
+    result.calls[0],
+    "api --paginate repos/assistant-ui/assistant-ui/actions/caches?ref=refs/heads/main&key=codeql-overlay-base-database-&per_page=100 --jq .actions_caches[] | {id, key, created_at}",
+  );
+  assert.deepEqual(
+    result.calls.slice(1).sort(),
+    deletedIds
+      .map(
+        (id) =>
+          `api --method DELETE repos/assistant-ui/assistant-ui/actions/caches/${id}`,
+      )
+      .sort(),
+  );
 }
 
 const entry = (id, prefix, digit, createdAt) => ({
@@ -98,6 +129,29 @@ test("keeps only the newest overlay-base database per language and CodeQL versio
   assert.deepEqual(result.requests, [
     "repos/assistant-ui/assistant-ui/actions/caches?ref=refs/heads/main&key=codeql-overlay-base-database-&per_page=100",
   ]);
+  assertCalls(result, [1, 3, 4]);
+});
+
+test("prunes superseded databases beyond the first cache page", (t) => {
+  const fillers = Array.from({ length: 198 }, (_, index) =>
+    entry(
+      1000 + index,
+      `codeql-overlay-base-database-1-4310f50b27b109c8-filler${index}-2.27.4-`,
+      "f",
+      "2026-11-11T08:00:00Z",
+    ),
+  );
+  const result = run(t, [
+    entry(1, javascript, "a", "2026-11-11T11:00:00Z"),
+    ...fillers.slice(0, 99),
+    entry(2, javascript, "b", "2026-11-11T08:00:00Z"),
+    ...fillers.slice(99),
+    entry(3, python, "a", "2026-11-11T08:00:00Z"),
+    entry(4, python, "b", "2026-11-11T11:00:00Z"),
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.deleted.sort(), [2, 3]);
+  assertCalls(result, [2, 3]);
 });
 
 test("deletes nothing when each group holds one database", (t) => {
@@ -107,6 +161,7 @@ test("deletes nothing when each group holds one database", (t) => {
   ]);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.deleted, []);
+  assertCalls(result, []);
 });
 
 test("leaves keys in an unknown format in place and warns", (t) => {
@@ -124,6 +179,7 @@ test("leaves keys in an unknown format in place and warns", (t) => {
   ]);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.deleted, []);
+  assertCalls(result, []);
   assert.match(
     result.stdout,
     /::warning::Left codeql-overlay-base-database-1-4310f50b27b109c8-javascript-2\.27\.4-unexpected in place/,
@@ -142,6 +198,7 @@ test("treats a database another prune already deleted as done", (t) => {
   );
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.deleted, [2]);
+  assertCalls(result, [1, 2]);
 });
 
 test("fails on any other deletion error", (t) => {
@@ -155,6 +212,7 @@ test("fails on any other deletion error", (t) => {
   );
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /HTTP 500/);
+  assertCalls(result, [1]);
 });
 
 test("the prune runs after every analysis outside pull requests with only cache access", () => {
