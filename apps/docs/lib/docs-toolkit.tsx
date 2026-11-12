@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { lazy, Suspense } from "react";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
 import type {
   TemperatureUnit,
   WeatherWidgetPayload,
@@ -335,9 +336,11 @@ const WeatherCard = ({
 
   return (
     <div className="mt-2 mb-2 flex max-w-sm flex-col">
-      <Suspense fallback={<WeatherWidgetPlaceholder />}>
-        <WeatherWidget {...widget} />
-      </Suspense>
+      <FallbackBoundary fallback={null}>
+        <Suspense fallback={<WeatherWidgetPlaceholder />}>
+          <WeatherWidget {...widget} />
+        </Suspense>
+      </FallbackBoundary>
       <p className="text-muted-foreground/70 mt-1.5 text-center font-mono text-xs">
         present({generativeUIToJSX(generativeNode)})
       </p>

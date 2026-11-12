@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense } from "react";
+import { Component, lazy, Suspense, type ReactNode } from "react";
 import type { GenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import { GenerativeMarkdown } from "./generative-markdown";
@@ -18,6 +18,7 @@ const DiagramSkeleton = () => (
   <div
     data-slot="mermaid-skeleton"
     aria-label="Rendering diagram"
+    aria-busy="true"
     className="aui-mermaid-skeleton bg-muted flex h-32 animate-pulse items-center justify-center gap-3 rounded-b-lg p-4"
   >
     <div className="bg-muted-foreground/20 h-8 w-20 rounded-md" />
@@ -49,6 +50,32 @@ const pinsOf = (places: unknown): GeoMapPlace[] =>
       : [];
   });
 
+// If the diagram chunk fails to load, show the source instead of throwing.
+class DiagramBoundary extends Component<
+  { code: string; children: ReactNode },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div
+        data-slot="mermaid-fallback"
+        className="aui-mermaid-fallback bg-muted/75 rounded-b-lg"
+      >
+        <pre className="overflow-x-auto p-4 text-sm">
+          {this.props.code.trim()}
+        </pre>
+      </div>
+    );
+  }
+}
+
 /** `MarkdownTextPrimitive` cannot be reused here: it reads from message-part context, not a prop string. */
 export const styledGenerativeUILibrary: GenerativeUILibrary = {
   ...defaultGenerativeUILibrary,
@@ -62,9 +89,11 @@ export const styledGenerativeUILibrary: GenerativeUILibrary = {
     ...defaultGenerativeUILibrary.Diagram!,
     render: ({ code, title }) => (
       <figure data-aui="diagram">
-        <Suspense fallback={<DiagramSkeleton />}>
-          <MermaidDiagram code={typeof code === "string" ? code : ""} />
-        </Suspense>
+        <DiagramBoundary code={typeof code === "string" ? code : ""}>
+          <Suspense fallback={<DiagramSkeleton />}>
+            <MermaidDiagram code={typeof code === "string" ? code : ""} />
+          </Suspense>
+        </DiagramBoundary>
         {typeof title === "string" || typeof title === "number" ? (
           <figcaption data-aui="diagram-title">{title}</figcaption>
         ) : null}

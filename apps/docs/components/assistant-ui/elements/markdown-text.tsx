@@ -29,6 +29,7 @@ import { CodeBlock } from "@/components/ui/code-block";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { preprocessMath } from "@/lib/markdown-math";
 import { cn } from "@/lib/utils";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
 
 // The diagram engine only loads once a mermaid fence arrives, so every other
 // route that renders markdown keeps it out of its initial chunk.
@@ -144,23 +145,25 @@ function MarkdownTable({
 const codeSheetReset =
   "[&_pre]:rounded-none [&_pre]:border-0 [&_pre]:bg-transparent! [&_pre]:px-3.5 [&_pre]:py-0 [&_pre]:text-[12.5px] [&_pre]:overflow-visible";
 
+const PlainCodeSheet = ({ code }: { code: string }) => (
+  <div className={cn(SHIKI_CONTAINER, codeSheetReset)}>
+    <pre>
+      <code>{code.trim()}</code>
+    </pre>
+  </div>
+);
+
 const SyntaxHighlighter = (props: HighlighterProps) => (
   <CodeBlock
     title={props.language || undefined}
     copyText={props.code}
     className="my-3"
   >
-    <Suspense
-      fallback={
-        <div className={cn(SHIKI_CONTAINER, codeSheetReset)}>
-          <pre>
-            <code>{props.code.trim()}</code>
-          </pre>
-        </div>
-      }
-    >
-      <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
-    </Suspense>
+    <FallbackBoundary fallback={<PlainCodeSheet code={props.code} />}>
+      <Suspense fallback={<PlainCodeSheet code={props.code} />}>
+        <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
+      </Suspense>
+    </FallbackBoundary>
   </CodeBlock>
 );
 

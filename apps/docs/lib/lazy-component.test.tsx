@@ -2,7 +2,7 @@
 
 import { cleanup, render } from "@testing-library/react";
 import { Suspense } from "react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { lazyComponent } from "./lazy-component";
 
 afterEach(cleanup);
@@ -24,4 +24,21 @@ it("exports a function component rather than a lazy object", () => {
   // a lazy that resolves to another lazy.
   const Component = lazyComponent(async () => () => null);
   expect(typeof Component).toBe("function");
+});
+
+it("contains a chunk that fails to load to the component", async () => {
+  const Broken = lazyComponent<object>(() =>
+    Promise.reject(new Error("chunk failed")),
+  );
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  const { findByText, queryByText } = render(
+    <Suspense fallback={null}>
+      <p>page</p>
+      <Broken />
+    </Suspense>,
+  );
+  expect(await findByText("page")).not.toBeNull();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(queryByText("page")).not.toBeNull();
+  error.mockRestore();
 });
