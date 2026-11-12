@@ -1,6 +1,7 @@
 import { connection, NextResponse, type NextRequest } from "next/server";
 import { accounts } from "@/lib/accounts-auth";
 import { analyticsIdFor } from "@/lib/analytics-id";
+import { setupCorsHeaders } from "@/lib/setup-origin";
 
 export type SessionPayload = {
   /** False until the deployment carries its accounts configuration. */
@@ -40,7 +41,10 @@ export async function GET(request: NextRequest) {
       : null,
   };
 
-  const headers = new Headers({ "Cache-Control": "no-store" });
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    ...setupCorsHeaders(request),
+  });
   for (const cookie of resolved?.cookies ?? []) {
     headers.append("set-cookie", cookie);
   }

@@ -239,6 +239,23 @@ describe("ToolFallback", () => {
     expect(screen.getByRole("button", { name: label })).toBeTruthy();
   });
 
+  it.each([
+    ["thrown", { result: "Error: connect ECONNREFUSED" }],
+    [
+      "denied",
+      {
+        approval: { id: "approval-1", approved: false },
+        result: { error: "Tool approval denied" },
+      },
+    ],
+  ] as const)("names a %s call as failed", (_, props) => {
+    renderTool({ status: { type: "complete" }, isError: true, ...props });
+
+    expect(
+      screen.getByRole("button", { name: "Failed tool: test-tool" }),
+    ).toBeTruthy();
+  });
+
   it("does not offer a fabricated result for an unprojected interrupt", () => {
     renderTool({ addResult: vi.fn() });
 

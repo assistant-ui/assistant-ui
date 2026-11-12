@@ -1,9 +1,9 @@
 ---
 title: "Edit a sent message"
-description: "Rewrite a turn in place, told up front how many replies the edit throws away."
+description: "Rewrite a turn in place as a new branch, told up front how many replies stay behind on the old one."
 ---
 
-The sent bubble becomes a small composer in place: rewrite it, and a warning names how many replies sending the edit will throw away. With a runtime, editing opens the same message in its own composer and forks a new branch on send; standalone you hold the value, the editing flag, and the warning count yourself.
+The sent bubble becomes a small composer in place: rewrite it, and a notice says sending starts a new branch and how many replies stay on the old one. With a runtime, editing opens the same message in its own composer and forks a new branch on send; standalone you hold the value, the editing flag, and the reply count yourself.
 
 ## Getting started
 
@@ -71,7 +71,7 @@ function EditComposer() {
 }
 ```
 
-`Thread` already ships this exact swap for user and assistant messages, without the discard warning covered below; install `@assistant-ui/thread` for the full composition.
+`Thread` already ships this exact swap for user and assistant messages, without the branch notice covered below; install `@assistant-ui/thread` for the full composition.
 
   </Step>
 </Steps>
@@ -139,7 +139,7 @@ While editing, the same slot renders a different shape instead:
 ```tsx
 <div data-slot="edit-message">
   <textarea />
-  <div>{/* "sending discards N replies", only when discardedReplies > 0 */}</div>
+  <div>{/* "sending starts a new branch; N replies stay on the old one", only when discardedReplies > 0 */}</div>
   <div>
     <button>Cancel</button>
     <button>Send</button>
@@ -147,11 +147,11 @@ While editing, the same slot renders a different shape instead:
 </div>
 ```
 
-Standalone, `discardedReplies` is a plain number you supply and can define however your app models deletion. At runtime, editing does not delete anything: sending calls the message's edit composer's `send()`, which appends the rewrite as a new sibling of the original under the same parent, exactly like reloading an assistant message. The original message and everything under it stay in the thread's history, reachable again through the branch picker's `n / m` stepper, so nothing is discarded; those messages are only off the displayed branch. If you want the same up-front warning, compute the count that would drop out of view: the assistant replies after this message on the branch currently displayed.
+Standalone, `discardedReplies` is a plain number you supply: the replies that leave the displayed conversation when the edit sends. At runtime, editing does not delete anything: sending calls the message's edit composer's `send()`, which appends the rewrite as a new sibling of the original under the same parent, exactly like reloading an assistant message. The original message and everything under it stay in the thread's history, reachable again through the branch picker's `n / m` stepper, so nothing is discarded; those messages are only off the displayed branch. An external-store runtime's branch picker can switch to the old branch only when the store implements `setMessages`. To show the notice, compute the count that would drop out of view: the assistant replies after this message on the branch currently displayed.
 
 ## Examples
 
-### Compute the warning count
+### Compute the reply count
 
 <RuntimeMode>
 
@@ -167,7 +167,7 @@ const discardedReplies = useAuiState(
 
 <StandaloneMode>
 
-There is no transcript to derive from. Pass the count that matches how your app handles a resend; if your app deletes the later replies, the count is literal.
+There is no transcript to derive from. Pass the number of replies after this message that the resend moves off the displayed conversation.
 
 </StandaloneMode>
 
@@ -224,7 +224,7 @@ Both lanes take `className` on the root. The bubble and the textarea read the `f
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `value` | `string` | required | The text in the edit textarea. |
-| `discardedReplies` | `number` | required | Shown in the warning row when greater than `0`. |
+| `discardedReplies` | `number` | required | Shown in the branch notice when greater than `0`. |
 | `editing` | `boolean` | required | Switches between the bubble and the composer. |
 | `onValueChange` | `(value: string) => void` | | Called as the textarea changes. |
 | `onSave` | `() => void` | | Called when Send is pressed. |

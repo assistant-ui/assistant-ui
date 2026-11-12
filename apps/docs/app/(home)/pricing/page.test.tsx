@@ -32,6 +32,9 @@ it("labels each primary action by where it goes", () => {
       .getAllByText("Read the docs")
       .map((label) => label.closest("a")?.getAttribute("href")),
   ).toEqual(["/docs", "/docs"]);
+  const contact = screen.getByText("Contact sales").closest("a")!;
+  expect(contact.getAttribute("href")).toBe("/contact-sales");
+  expect(contact.getAttribute("target")).toBeNull();
 });
 
 it("announces every action that opens a new tab", () => {
@@ -41,7 +44,6 @@ it("announces every action that opens a new tab", () => {
     (action) => action.getAttribute("target") === "_blank",
   );
   expect(newTabActions.map((action) => action.textContent).sort()).toEqual([
-    `Contact sales${NEW_TAB}`,
     `GitHub${NEW_TAB}`,
     `Open Cloud${NEW_TAB}`,
     `Start Pro${NEW_TAB}`,

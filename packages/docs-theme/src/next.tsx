@@ -21,7 +21,21 @@ export const createDocsLayout = (
     {
       ...normalized,
       // Farming Labs 0.2 uses the base preset name to label Introduction folders.
-      theme: { ...normalized.theme, name: "shadcn" },
+      theme: {
+        ...normalized.theme,
+        name: "shadcn",
+        ui: {
+          ...normalized.theme?.ui,
+          layout: {
+            ...normalized.theme?.ui?.layout,
+            header: {
+              ...normalized.theme?.ui?.layout?.header,
+              placement: "sidebar",
+            },
+            skipLink: false,
+          },
+        },
+      },
     },
     options.locale ? { locale: options.locale } : undefined,
   );

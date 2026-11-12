@@ -25,15 +25,16 @@ import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 export default defineToolkit({
   web_search: {
     execute: externalTool(),
-    render: ({ args, result, status }) => (
-      <WebSearch
-        query={args.query ?? ""}
-        results={result?.results ?? []}
-        visibleResults={result?.results.length ?? 0}
-        searching={status.type === "running"}
-        cycle={0}
-      />
-    ),
+    render: ({ args, result, isError, status }) =>
+      isError || status.type === "incomplete" ? null : (
+        <WebSearch
+          query={args.query ?? ""}
+          results={result?.results ?? []}
+          visibleResults={result?.results.length ?? 0}
+          searching={status.type === "running" || status.type === "requires-action"}
+          cycle={0}
+        />
+      ),
   },
 });
 ```
@@ -139,12 +140,12 @@ useEffect(() => {
 ```tsx
 <div data-slot="web-search">
   <span>{/* query, in a rounded field with a search icon */}</span>
-  <div>{/* "Searching" (shimmer) while searching, else fixed "Read 3 sources" text */}</div>
+  <div>{/* "Searching" (shimmer) while searching, else "Read N sources" from `results.length`, or "No sources found" */}</div>
   <div>{/* the first `visibleResults` results: domain-initial avatar, title, domain */}</div>
 </div>
 ```
 
-`visibleResults` clamps to `0…results.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The "Read 3 sources" line is literal text in the source, not derived from `results.length`; edit it directly if the count should track what you pass in. `cycle` is mixed into each visible result's key, so bumping it re-triggers the entrance animation even when `results` and `visibleResults` are unchanged, useful for a search that runs again with the same shape of answer. An empty `results` array renders the status line with no rows beneath it; the results region keeps its reserved height either way.
+`visibleResults` clamps to `0…results.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The finished line counts `results`, not `visibleResults`, and reads "No sources found" when `results` is empty. `cycle` is mixed into each visible result's key, so bumping it re-triggers the entrance animation even when `results` and `visibleResults` are unchanged, useful for a search that runs again with the same shape of answer. The results region keeps its reserved height either way.
 
 ## Examples
 
@@ -167,16 +168,19 @@ type SearchResult = { results: WebSearchResult[] };
 function SearchToolUI({
   args,
   result,
+  isError,
   status,
 }: ToolCallMessagePartProps<SearchArgs, SearchResult>) {
   const { propStatus } = useToolArgsStatus<SearchArgs>();
+
+  if (isError || status.type === "incomplete") return null;
 
   return (
     <WebSearch
       query={propStatus.query === "streaming" ? "Searching…" : (args.query ?? "")}
       results={result?.results ?? []}
       visibleResults={result?.results.length ?? 0}
-      searching={status.type === "running"}
+      searching={status.type === "running" || status.type === "requires-action"}
       cycle={0}
     />
   );
@@ -203,7 +207,8 @@ Both lanes take `className` on the root. The query pill uses the shared `field` 
 |------|------|-------------|
 | `args` | `{ query?: string }` | Model-supplied arguments. Partial while streaming; use `useToolArgsStatus` to tell a finished field from one still arriving. |
 | `result` | `{ results: WebSearchResult[] } \| undefined` | Set once the tool call resolves. |
-| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` is the only state that should show the searching shimmer. |
+| `isError` | `boolean \| undefined` | Set when the tool threw; `result` then holds the error, not results. |
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` and `"requires-action"` show the searching shimmer. A thrown call (`isError`) and an `"incomplete"` call (cancelled or failed) have no results, so the examples render nothing for them rather than "No sources found"; render a failure element such as Tool failure there if the user should see it. |
 
 `WebSearchResult` is `{ title: string; domain: string }`. See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
 

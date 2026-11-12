@@ -5,6 +5,7 @@ import type {
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
+  MessageStatus,
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
@@ -117,6 +118,24 @@ const isTerminalMessage = (message: ThreadMessage) =>
   message.status.type === "complete" ||
   message.status.type === "incomplete";
 
+// The statuses a history assigned on load, keyed by message id; a message without one shows its own.
+const runStatusesOf = <TMessage>(
+  repo: MessageFormatRepository<TMessage> | undefined,
+  storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
+) =>
+  new Map(
+    (repo?.messages ?? []).flatMap((item) =>
+      item.unstable_status
+        ? [
+            [
+              storageFormatAdapter.getId(item.message),
+              item.unstable_status,
+            ] as const,
+          ]
+        : [],
+    ),
+  );
+
 const encodeContent = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   item: MessageFormatItem<TMessage>,
@@ -136,6 +155,7 @@ export const useExternalHistory = <TMessage>(
   ) => void,
   toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>,
   onToolApprovalResponsesRestored?: () => void,
+  onRunStatusesLoaded?: (statuses: ReadonlyMap<string, MessageStatus>) => void,
 ) => {
   const loadedRef = useRef(false);
 
@@ -175,8 +195,10 @@ export const useExternalHistory = <TMessage>(
   );
 
   const onSetMessagesRef = useRef(onSetMessages);
+  const onRunStatusesLoadedRef = useRef(onRunStatusesLoaded);
   useEffect(() => {
     onSetMessagesRef.current = onSetMessages;
+    onRunStatusesLoadedRef.current = onRunStatusesLoaded;
   });
 
   const formatAdapter = useMemo(() => {
@@ -190,6 +212,71 @@ export const useExternalHistory = <TMessage>(
   }, [historyAdapter, storageFormatAdapter]);
 
   const isLoading = formatAdapter != null && !hasLoaded;
+
+  // A history that follows a run another session drives re-reads the thread when that run changes; the reload replaces the idle thread.
+  useEffect(() => {
+    if (!formatAdapter?.unstable_onReload) return undefined;
+    return formatAdapter.unstable_onReload(async () => {
+      if (!historyReadyRef.current) return;
+      const repo = await formatAdapter.load();
+      if (runtimeRef.current.thread.getState().isRunning) return;
+      const restoredArtifacts = new Map<string, unknown>();
+      const restoredInteractions = new Map<
+        string,
+        Unstable_ToolInteractionLog
+      >();
+      toolApprovalResponses?.clear();
+      const restoredRepo = {
+        ...repo,
+        messages: repo.messages.map((item) => ({
+          ...item,
+          message: restoreToolData(
+            item.message,
+            restoredArtifacts,
+            restoredInteractions,
+            toolApprovalResponses,
+          ),
+        })),
+      };
+      onToolArtifactsRestored?.(restoredArtifacts);
+      onToolInteractionsRestored?.(restoredInteractions);
+      onToolApprovalResponsesRestored?.();
+      persistedInnerMessages.current.clear();
+      historyIds.current = new Set();
+      for (const [index, m] of repo.messages.entries()) {
+        persistedInnerMessages.current.set(
+          storageFormatAdapter.getId(m.message),
+          {
+            source: restoredRepo.messages[index]!.message,
+            content: encodeContent(storageFormatAdapter, m),
+          },
+        );
+      }
+      const converted = toExportedMessageRepository(
+        toThreadMessages,
+        restoredRepo,
+      );
+      for (const m of converted.messages) historyIds.current.add(m.message.id);
+      onRunStatusesLoadedRef.current?.(
+        runStatusesOf(repo, storageFormatAdapter),
+      );
+      runtimeRef.current.thread.import(converted);
+      const tempRepo = new MessageRepository();
+      tempRepo.import(converted);
+      onSetMessagesRef.current(
+        tempRepo.getMessages().flatMap(getExternalStoreMessages<TMessage>),
+      );
+    });
+  }, [
+    formatAdapter,
+    runtimeRef,
+    storageFormatAdapter,
+    toThreadMessages,
+    toolApprovalResponses,
+    onToolArtifactsRestored,
+    onToolInteractionsRestored,
+    onToolApprovalResponsesRestored,
+  ]);
 
   useEffect(() => {
     if (!formatAdapter || loadedRef.current) return undefined;
@@ -224,6 +311,9 @@ export const useExternalHistory = <TMessage>(
         onToolArtifactsRestored?.(restoredArtifacts);
         onToolInteractionsRestored?.(restoredInteractions);
         onToolApprovalResponsesRestored?.();
+        onRunStatusesLoadedRef.current?.(
+          runStatusesOf(repo, storageFormatAdapter),
+        );
         if (repo && restoredMessages.length > 0) {
           const restoredRepo = { ...repo, messages: restoredMessages };
           for (const [index, m] of repo.messages.entries()) {

@@ -212,7 +212,7 @@ export function AudioPlayer({
       />
       {hasError ? (
         <span role="alert" className="text-muted-foreground text-xs">
-          Can't play this audio
+          Can&apos;t play this audio
         </span>
       ) : null}
     </div>

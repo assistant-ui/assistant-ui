@@ -205,6 +205,7 @@ declare class AssistantCloudFiles {
 
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
+  run?: CloudRunLease | undefined;
 };
 
 type AssistantCloudProjectThreadMessageListQuery = {
@@ -244,6 +245,10 @@ declare class AssistantCloudProjects {
   readonly threads: AssistantCloudProjectThreads;
   constructor(cloud: AssistantCloudAPI);
 }
+
+type AssistantCloudRunHeartbeatResponse = {
+  heartbeat_interval_ms: number;
+};
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -374,6 +379,8 @@ type AssistantCloudThreadMessageCreateBody = {
   content: ReadonlyJSONObject;
   external_id?: string | undefined;
   parent_external_id?: string | undefined;
+  open_run?: true | undefined;
+  lease_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -399,6 +406,7 @@ type AssistantCloudThreadMessageListResponse = {
 
 type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
+  lease_id?: string | undefined;
 };
 
 declare class AssistantCloudThreadMessages {
@@ -411,9 +419,19 @@ declare class AssistantCloudThreadMessages {
   feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
+declare class AssistantCloudThreadRuns {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  heartbeat(threadId: string, leaseId: string): Promise<AssistantCloudRunHeartbeatResponse>;
+  end(threadId: string, leaseId: string, body?: {
+    reason?: CloudRunEndReason;
+  }): Promise<void>;
+}
+
 declare class AssistantCloudThreads {
   #private;
   readonly messages: AssistantCloudThreadMessages;
+  readonly runs: AssistantCloudThreadRuns;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -1121,6 +1139,19 @@ type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
+  run?: CloudMessageRun | undefined;
+};
+
+type CloudMessageRun = {
+  status: "ended" | "running";
+  last_heartbeat_ms_ago: number;
+};
+
+type CloudRunEndReason = "cancelled" | "done" | "error";
+
+type CloudRunLease = {
+  lease_id: string;
+  heartbeat_interval_ms: number;
 };
 
 type CloudThread = {
@@ -1150,6 +1181,7 @@ type CloudThreadListAdapterOptions = {
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  staleAfter?: number | undefined;
   upsert?: boolean | undefined;
 };
 
@@ -1991,6 +2023,7 @@ type GenerativeUISpec = {
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   pin?(): void;
+  unstable_onReload?(listener: () => Promise<void>): () => void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -2297,6 +2330,7 @@ interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, u
 interface MessageFormatItem<TMessage> {
   parentId: string | null;
   message: TMessage;
+  unstable_status?: MessageStatus | undefined;
 }
 
 interface MessageFormatRepository<TMessage> {
@@ -2596,6 +2630,8 @@ type MessageRootProps = ViewProps & {
   children: ReactNode;
 };
 
+type MessageRunState = "in-progress" | "stale";
+
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
@@ -2685,6 +2721,7 @@ type MessageState = ThreadMessage & {
   readonly isHovering: boolean;
   readonly index: number;
   readonly submission?: ComposerSubmission | undefined;
+  readonly runState?: MessageRunState | undefined;
 };
 
 type MessageStateBinding = SubscribableWithState<ThreadMessage & {
