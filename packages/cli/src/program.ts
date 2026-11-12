@@ -10,6 +10,7 @@ import { info } from "./commands/info";
 import { doctor } from "./commands/doctor";
 import { cloud } from "./commands/cloud";
 import { setup } from "./commands/setup";
+import { addAgentGate } from "./lib/agent-gate";
 import { addAgentSetupHint } from "./lib/agent-setup-hint";
 
 export function buildProgram() {
@@ -17,9 +18,9 @@ export function buildProgram() {
     .name("assistant-ui")
     .description("add components and dependencies to your project")
     .addCommand(setup)
-    .addCommand(add)
-    .addCommand(addAgentSetupHint(create))
-    .addCommand(addAgentSetupHint(init))
+    .addCommand(addAgentGate(add))
+    .addCommand(addAgentSetupHint(addAgentGate(create)))
+    .addCommand(addAgentSetupHint(addAgentGate(init)))
     .addCommand(mcp)
     .addCommand(codemodCommand)
     .addCommand(upgradeCommand)

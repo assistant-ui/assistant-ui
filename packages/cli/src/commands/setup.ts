@@ -10,6 +10,7 @@ import {
 import { runAgentSetup } from "setup-agent/sdk";
 import type { CodingAgent } from "setup-agent/cli";
 import { isRunByAgent } from "../lib/agent-setup-hint";
+import { markSetupSession } from "../lib/agent-gate";
 import {
   SETUP_COMMAND,
   boxed,
@@ -141,15 +142,28 @@ const runForAgent = async (options: SetupOptions) => {
     parseProducts(options.products),
     endpoints.docsUrl,
   );
-  const { stream, client } = await runAgentSetup({
+  const { session, stream, client } = await runAgentSetup({
     server: endpoints.setupServer,
     setupAppUrl: endpoints.setupAppUrl,
     products,
     command: SETUP_COMMAND,
     name: "assistant-ui setup",
     canOpen: options.open,
+    // The steps run `init`, `create` and `add` in later shells; this lets them past the agent gate.
+    onSession: (session) => markSetupSession({ setupId: session.setupId }),
+    write: (text) =>
+      process.stdout.write(
+        `${text}\nIf an \`npx assistant-ui\` command tells you to run setup instead, you are already in it: run that command again with --force.\n`,
+      ),
   });
+  // Setup runs as long as the session, so keep its marker fresh past the gate's TTL.
+  const renew = setInterval(
+    () => markSetupSession({ setupId: session.setupId }),
+    10 * 60 * 1000,
+  );
+  renew.unref();
   const stop = () => {
+    clearInterval(renew);
     void stream.stop().finally(() => {
       client.dispose();
       process.exit(0);
@@ -158,7 +172,7 @@ const runForAgent = async (options: SetupOptions) => {
   process.on("SIGHUP", stop);
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
-  await new Promise(() => {});
+  // The stream's heartbeat keeps the process alive until a signal stops it.
 };
 
 export const setup = new Command()
