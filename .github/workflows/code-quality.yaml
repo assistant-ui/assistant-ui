@@ -64,8 +64,6 @@ on:
       - ".github/workflows/perf.yaml"
       - ".github/workflows/perf-nightly.yaml"
       - ".github/workflows/template-metrics.yaml"
-      - "scripts/react18-weekly.test.mjs"
-      - ".github/workflows/react18-weekly.yaml"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
@@ -75,6 +73,8 @@ on:
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/typecheck.sh"
+      - "scripts/react18-weekly.test.mjs"
+      - ".github/workflows/react18-weekly.yaml"
       - "scripts/scheduled-failure-issue.test.mjs"
       - ".github/workflows/scheduled-failure-issue.yaml"
       - "scripts/ci-has-tasks.mjs"
@@ -176,9 +176,6 @@ jobs:
       - name: Test git hook setup
         run: node --test scripts/setup-git-hooks.test.mjs
 
-      - name: Test React 18 tracking issue reporting
-        run: node --test scripts/react18-weekly.test.mjs
-
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
 
@@ -204,7 +201,7 @@ jobs:
         run: node scripts/check-adapter-architecture.mjs
 
       - name: Test scheduled failure issue reporting
-        run: node --test scripts/scheduled-failure-issue.test.mjs
+        run: node --test scripts/scheduled-failure-issue.test.mjs scripts/react18-weekly.test.mjs
 
   knip:
     name: Knip
@@ -469,6 +466,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/prepare-ci-base.mjs
 
+      - name: Setup pnpm for app build planning
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+
       - name: Detect app build inputs
         id: app_build_inputs
         env:
@@ -481,6 +484,12 @@ jobs:
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
             git diff --name-only --no-renames -z "$BASE" HEAD > "$RUNNER_TEMP/app-build-changes"
             run=$(node scripts/app-build-inputs.mjs < "$RUNNER_TEMP/app-build-changes")
+            if [ "$run" = false ] && [ "$(node scripts/app-build-inputs.mjs --packages < "$RUNNER_TEMP/app-build-changes")" = true ]; then
+              run=$(node scripts/ci-has-tasks.mjs --plan build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*") || run=true
+              if [ "$run" = false ]; then
+                run=$(node scripts/ci-has-tasks.mjs --plan build --filter="{./examples/*}[$BASE]") || run=true
+              fi
+            fi
           else
             run=true
           fi
