@@ -11,14 +11,18 @@ describe("landing markdown components", () => {
     const html = decode(renderToStaticMarkup(<AgentSetupPromptLLM />));
     expect(html).toContain(`<pre>${AGENT_SETUP_PROMPT}</pre>`);
     expect(html).toContain("<code>npx assistant-ui@latest setup</code>");
-    expect(html).toContain("<code>npx -y assistant-ui@latest setup</code>");
+    expect(html).toContain(
+      "<code>npx -y --prefer-online assistant-ui@latest setup</code>",
+    );
     expect(html).not.toContain("`");
   });
 
   it("points the React quickstart at the manual installation page", () => {
     const html = decode(renderToStaticMarkup(QuickstartLLM({})));
     expect(html).toContain(AGENT_SETUP_PROMPT);
-    expect(html).toContain("<code>npx -y assistant-ui@latest setup</code>");
+    expect(html).toContain(
+      "<code>npx -y --prefer-online assistant-ui@latest setup</code>",
+    );
     expect(html).toContain('href="/docs/manual-installation"');
   });
 });

@@ -24,7 +24,7 @@ export const LEGACY_AGENT_SETUP_PROMPTS = ["set up assistant-ui"] as const;
 
 /** For agents whose package runner resolves a release without `setup`, such as pnpm's minimum release age. */
 export const agentSetupFallback = (command = AGENT_SETUP_COMMAND) =>
-  `If \`setup\` isn't a known command (an older cached or release-age-gated version), run \`${command.replace(/^npx /, "npx -y ")}\` instead.`;
+  `If \`setup\` isn't a known command (a cached or pnpm release-age-gated version), run \`${command.replace(/^npx /, "npx -y --prefer-online ")}\` instead.`;
 
 export const AGENT_SETUP_FALLBACK = agentSetupFallback();
 

@@ -25,7 +25,7 @@ describe("buildInstallPrompt", () => {
       "Not in a setup yet? Run `npx assistant-ui@latest setup --products assistant-ui,cloud`",
     );
     expect(prompt).toContain(
-      "If `setup` isn't a known command (an older cached or release-age-gated version), run `npx -y assistant-ui@latest setup --products assistant-ui,cloud` instead.",
+      "If `setup` isn't a known command (a cached or pnpm release-age-gated version), run `npx -y --prefer-online assistant-ui@latest setup --products assistant-ui,cloud` instead.",
     );
   });
 

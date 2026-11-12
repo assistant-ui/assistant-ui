@@ -45,7 +45,7 @@ describe("agent setup prompt", () => {
 
   it("tells agents to force the latest CLI when setup is unknown", () => {
     expect(AGENT_SETUP_FALLBACK).toBe(
-      "If `setup` isn't a known command (an older cached or release-age-gated version), run `npx -y assistant-ui@latest setup` instead.",
+      "If `setup` isn't a known command (a cached or pnpm release-age-gated version), run `npx -y --prefer-online assistant-ui@latest setup` instead.",
     );
     expect(AGENT_SETUP_HINT.endsWith(AGENT_SETUP_FALLBACK)).toBe(true);
   });
