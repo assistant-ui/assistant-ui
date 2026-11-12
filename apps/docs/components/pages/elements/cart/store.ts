@@ -2,36 +2,28 @@
 
 import { useSyncExternalStore } from "react";
 
-export interface CartItem {
-  slug: string;
-  title: string;
-  registryName: string;
-}
-
 export const CART_STORAGE_KEY = "aui-elements-cart";
 
-const EMPTY: readonly CartItem[] = [];
+const EMPTY: readonly string[] = [];
 
-let items: readonly CartItem[] = EMPTY;
+let slugs: readonly string[] = EMPTY;
 let loaded = false;
 const listeners = new Set<() => void>();
 
-const isCartItem = (value: unknown): value is CartItem => {
-  if (typeof value !== "object" || value === null) return false;
-  const item = value as Record<string, unknown>;
-  return (
-    typeof item["slug"] === "string" &&
-    typeof item["title"] === "string" &&
-    typeof item["registryName"] === "string"
-  );
-};
-
-const readStored = (): readonly CartItem[] => {
+const readStored = (): readonly string[] => {
   try {
     const parsed: unknown = JSON.parse(
       localStorage.getItem(CART_STORAGE_KEY) ?? "[]",
     );
-    return Array.isArray(parsed) ? parsed.filter(isCartItem) : EMPTY;
+    return Array.isArray(parsed)
+      ? [
+          ...new Set(
+            parsed.filter(
+              (value): value is string => typeof value === "string",
+            ),
+          ),
+        ]
+      : EMPTY;
   } catch {
     return EMPTY;
   }
@@ -41,8 +33,8 @@ const emit = () => {
   for (const listener of listeners) listener();
 };
 
-const commit = (next: readonly CartItem[]) => {
-  items = next;
+const commit = (next: readonly string[]) => {
+  slugs = next;
   loaded = true;
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(next));
@@ -52,12 +44,15 @@ const commit = (next: readonly CartItem[]) => {
 
 const onStorage = (event: StorageEvent) => {
   if (event.key !== null && event.key !== CART_STORAGE_KEY) return;
-  items = readStored();
+  slugs = readStored();
   emit();
 };
 
 const subscribe = (listener: () => void) => {
-  if (listeners.size === 0) window.addEventListener("storage", onStorage);
+  if (listeners.size === 0) {
+    window.addEventListener("storage", onStorage);
+    loaded = false;
+  }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -67,10 +62,16 @@ const subscribe = (listener: () => void) => {
 
 const getSnapshot = () => {
   if (!loaded) {
-    items = readStored();
+    const stored = readStored();
+    if (
+      stored.length !== slugs.length ||
+      stored.some((slug, index) => slug !== slugs[index])
+    ) {
+      slugs = stored;
+    }
     loaded = true;
   }
-  return items;
+  return slugs;
 };
 
 const getServerSnapshot = () => EMPTY;
@@ -86,30 +87,24 @@ export const setCartOpen = (next: boolean) => {
 const getOpenSnapshot = () => open;
 const getServerOpenSnapshot = () => false;
 
-export const toggleCartItem = (item: CartItem): boolean => {
+export const toggleCartSlug = (slug: string): boolean => {
   const current = getSnapshot();
-  const inCart = current.some((entry) => entry.slug === item.slug);
+  const inCart = current.includes(slug);
   commit(
-    inCart
-      ? current.filter((entry) => entry.slug !== item.slug)
-      : [...current, item],
+    inCart ? current.filter((entry) => entry !== slug) : [...current, slug],
   );
   return !inCart;
 };
 
-export const removeCartItem = (slug: string) => {
-  commit(getSnapshot().filter((entry) => entry.slug !== slug));
+export const removeCartSlug = (slug: string) => {
+  commit(getSnapshot().filter((entry) => entry !== slug));
 };
 
 export const clearCart = () => {
   commit(EMPTY);
 };
 
-export const cartRegistryNames = (cart: readonly CartItem[]): string[] => [
-  ...new Set(cart.map((item) => item.registryName)),
-];
-
-export function useCart(): readonly CartItem[] {
+export function useCartSlugs(): readonly string[] {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 

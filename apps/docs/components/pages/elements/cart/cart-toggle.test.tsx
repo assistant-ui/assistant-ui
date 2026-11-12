@@ -20,20 +20,21 @@ vi.mock("sonner", async (importOriginal) => {
   };
 });
 
-const loader = {
-  slug: "loading-state",
-  title: "Loader",
-  registryName: "elements-loading-state",
-};
+const STORAGE_KEY = "aui-elements-cart";
 
 const loadCart = async () => {
   vi.resetModules();
-  const [{ CartToggle }, store] = await Promise.all([
-    import("./cart-toggle"),
-    import("./store"),
-  ]);
-  return { CartToggle, ...store };
+  const [{ CartToggle }, { ElementsCart }, { AssistantPanelProvider }, store] =
+    await Promise.all([
+      import("./cart-toggle"),
+      import("./elements-cart"),
+      import("../../docs/assistant/context"),
+      import("./store"),
+    ]);
+  return { CartToggle, ElementsCart, AssistantPanelProvider, ...store };
 };
+
+const stored = () => JSON.parse(localStorage.getItem(STORAGE_KEY)!);
 
 beforeEach(() => {
   localStorage.clear();
@@ -45,66 +46,108 @@ afterEach(() => {
 
 describe("CartToggle", () => {
   it("adds with a toast whose action opens the cart, and removes on the second press", async () => {
-    const { CartToggle, CART_STORAGE_KEY, useCartOpen, setCartOpen } =
-      await loadCart();
-    render(<CartToggle item={loader} />);
+    const { CartToggle, useCartOpen, setCartOpen } = await loadCart();
+    render(<CartToggle slug="loading-state" title="Loader" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add Loader to cart" }));
-    const pressed = screen.getByRole("button", {
-      name: "Remove Loader from cart",
-    });
-    expect(pressed.getAttribute("aria-pressed")).toBe("true");
+    const toggle = screen.getByRole("button", { name: "Add Loader to cart" });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(stored()).toEqual(["loading-state"]);
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
     expect(toastSuccess.mock.calls[0]![0]).toBe("Loader added to cart.");
     act(() => toastSuccess.mock.calls[0]![1].action.onClick());
     expect(renderHook(() => useCartOpen()).result.current).toBe(true);
-    expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!)).toEqual([
-      loader,
-    ]);
 
     act(() => setCartOpen(false));
-    fireEvent.click(pressed);
-    expect(
-      screen
-        .getByRole("button", { name: "Add Loader to cart" })
-        .getAttribute("aria-pressed"),
-    ).toBe("false");
-    expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!)).toEqual([]);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(stored()).toEqual([]);
     expect(renderHook(() => useCartOpen()).result.current).toBe(false);
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
+});
 
-  it("restores a stored cart and drops entries it cannot read", async () => {
+describe("cart store", () => {
+  it("restores stored slugs and drops entries it cannot read", async () => {
     localStorage.setItem(
-      "aui-elements-cart",
-      JSON.stringify([loader, { slug: "broken" }, "nope"]),
+      STORAGE_KEY,
+      JSON.stringify(["loading-state", { slug: "broken" }, 5, "loading-state"]),
     );
-    const { CartToggle } = await loadCart();
-    render(<CartToggle item={loader} />);
+    const { useCartSlugs } = await loadCart();
 
-    expect(
-      screen.getByRole("button", { name: "Remove Loader from cart" }),
-    ).toBeDefined();
+    expect(renderHook(() => useCartSlugs()).result.current).toEqual([
+      "loading-state",
+    ]);
+  });
+
+  it("reads storage again when a consumer subscribes after the last one left", async () => {
+    const { useCartSlugs } = await loadCart();
+    const first = renderHook(() => useCartSlugs());
+    expect(first.result.current).toEqual([]);
+    first.unmount();
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(["tool-call"]));
+
+    expect(renderHook(() => useCartSlugs()).result.current).toEqual([
+      "tool-call",
+    ]);
   });
 });
 
-describe("cartRegistryNames", () => {
-  it("lists a registry item once when several elements install it", async () => {
-    const { cartRegistryNames } = await loadCart();
-    expect(
-      cartRegistryNames([
-        {
-          slug: "composer",
-          title: "Composer",
-          registryName: "elements-composer",
-        },
-        {
-          slug: "composer-slash",
-          title: "Slash",
-          registryName: "elements-composer",
-        },
-        loader,
-      ]),
-    ).toEqual(["elements-composer", "elements-loading-state"]);
+describe("ElementsCart", () => {
+  it("lists only elements the registry still has and installs a shared registry item once", async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(["composer", "removed-element", "composer-slash"]),
+    );
+    const { ElementsCart, AssistantPanelProvider } = await loadCart();
+    render(
+      <AssistantPanelProvider>
+        <ElementsCart
+          elements={{
+            composer: { title: "Composer", registryName: "elements-composer" },
+            "composer-slash": {
+              title: "Slash commands",
+              registryName: "elements-composer",
+            },
+          }}
+        />
+      </AssistantPanelProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open cart, 2 elements" }),
+    );
+
+    expect(screen.getByRole("link", { name: /^Composer/ })).toBeDefined();
+    expect(screen.queryByText(/removed-element/)).toBeNull();
+    const command = document.querySelector("figure pre")!.textContent!;
+    expect(command.match(/@assistant-ui\/elements-composer/g)).toHaveLength(1);
+  });
+
+  it("closes when Ask AI opens and does not reopen after the page is left", async () => {
+    const { ElementsCart, AssistantPanelProvider, useCartOpen, setCartOpen } =
+      await loadCart();
+    const { useAssistantPanel } = await import("../../docs/assistant/context");
+    let openAssistant = () => {};
+    function Probe() {
+      const { setOpen } = useAssistantPanel();
+      openAssistant = () => setOpen(true);
+      return null;
+    }
+    const view = render(
+      <AssistantPanelProvider>
+        <Probe />
+        <ElementsCart elements={{}} />
+      </AssistantPanelProvider>,
+    );
+
+    act(() => setCartOpen(true));
+    act(() => openAssistant());
+    expect(renderHook(() => useCartOpen()).result.current).toBe(false);
+
+    act(() => setCartOpen(true));
+    view.unmount();
+    expect(renderHook(() => useCartOpen()).result.current).toBe(false);
   });
 });

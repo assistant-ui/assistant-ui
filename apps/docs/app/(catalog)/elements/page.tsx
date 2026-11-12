@@ -10,6 +10,7 @@ import {
 import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
+  ELEMENTS,
   elementRegistryName,
 } from "@/components/pages/elements/registry";
 import { CartToggle } from "@/components/pages/elements/cart/cart-toggle";
@@ -19,6 +20,13 @@ import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const sectionId = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
+
+const CART_ELEMENTS = Object.fromEntries(
+  ELEMENTS.filter((element) => !element.generative).map((element) => [
+    element.slug,
+    { title: element.title, registryName: elementRegistryName(element) },
+  ]),
+);
 
 const title = "Elements";
 const description = `${ELEMENT_COUNT} interface pieces for AI products: reasoning, tool calls, approvals, artifacts, and the composer itself. Every demo is live, every element ships its source.`;
@@ -82,11 +90,8 @@ export default function ElementsPage() {
                       : {
                           captionAction: (
                             <CartToggle
-                              item={{
-                                slug: element.slug,
-                                title: element.title,
-                                registryName: elementRegistryName(element),
-                              }}
+                              slug={element.slug}
+                              title={element.title}
                             />
                           ),
                         })}
@@ -119,7 +124,7 @@ export default function ElementsPage() {
           </Link>
         </div>
       </footer>
-      <ElementsCart />
+      <ElementsCart elements={CART_ELEMENTS} />
     </PageFrame>
   );
 }

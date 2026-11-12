@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { ShoppingCartIcon, XIcon } from "lucide-react";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
@@ -15,21 +16,77 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
-  cartRegistryNames,
   clearCart,
-  removeCartItem,
+  removeCartSlug,
   setCartOpen,
-  useCart,
   useCartOpen,
+  useCartSlugs,
 } from "./store";
 
 const countLabel = (count: number) =>
   `${count} ${count === 1 ? "element" : "elements"}`;
 
-export function ElementsCart() {
-  const cart = useCart();
+function CartBall({
+  count,
+  open,
+  className,
+}: {
+  count: number;
+  open: boolean;
+  className: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-label={open ? "Close cart" : `Open cart, ${countLabel(count)}`}
+      onClick={() => setCartOpen(!open)}
+      className={cn(
+        "border-border/60 bg-background hover:border-border rounded-capsule bottom-5 grid size-12 place-items-center border transition-colors [body:has([data-ask-ai-ball])_&]:bottom-20",
+        className,
+      )}
+    >
+      <ShoppingCartIcon aria-hidden className="text-foreground/80 size-5" />
+      {count > 0 ? (
+        <span
+          aria-hidden
+          className="bg-foreground text-background rounded-capsule absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center px-1 text-xs font-medium tabular-nums"
+        >
+          {count}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+export interface CartElement {
+  title: string;
+  registryName: string;
+}
+
+export function ElementsCart({
+  elements,
+}: {
+  elements: Record<string, CartElement>;
+}) {
+  const cart = useCartSlugs().flatMap((slug) => {
+    const element = elements[slug];
+    return element ? [{ slug, ...element }] : [];
+  });
+  const registryNames = [...new Set(cart.map((item) => item.registryName))];
   const open = useCartOpen();
-  const { open: assistantOpen } = useAssistantPanel();
+  const { open: assistantOpen, setOpen: setAssistantOpen } =
+    useAssistantPanel();
+
+  useEffect(() => {
+    if (assistantOpen) setCartOpen(false);
+  }, [assistantOpen]);
+
+  useEffect(() => {
+    if (open) setAssistantOpen(false);
+  }, [open, setAssistantOpen]);
+
+  useEffect(() => () => setCartOpen(false), []);
   const count = cart.length;
 
   return (
@@ -67,7 +124,7 @@ export function ElementsCart() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label={`Remove ${item.title} from cart`}
-                      onClick={() => removeCartItem(item.slug)}
+                      onClick={() => removeCartSlug(item.slug)}
                     >
                       <XIcon />
                     </Button>
@@ -76,9 +133,7 @@ export function ElementsCart() {
               </ul>
               <SheetFooter className="gap-0 pt-0">
                 <ShadcnInstallTabs
-                  urls={cartRegistryNames(cart).map(
-                    (name) => `"@assistant-ui/${name}"`,
-                  )}
+                  urls={registryNames.map((name) => `"@assistant-ui/${name}"`)}
                 />
                 <Button
                   variant="ghost"
@@ -91,29 +146,11 @@ export function ElementsCart() {
               </SheetFooter>
             </>
           ) : null}
+          <CartBall count={count} open className="absolute right-full me-5" />
         </SheetContent>
       </Sheet>
-      {assistantOpen ? null : (
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-label={open ? "Close cart" : `Open cart, ${countLabel(count)}`}
-          onClick={() => setCartOpen(!open)}
-          className={cn(
-            "border-border/60 bg-background hover:border-border rounded-capsule fixed bottom-5 z-[60] grid size-12 place-items-center border transition-[right,border-color] duration-200 ease-in-out motion-reduce:transition-none [body:has([data-ask-ai-ball])_&]:bottom-20",
-            open ? "right-[calc(min(75vw,24rem)+1.25rem)]" : "right-5",
-          )}
-        >
-          <ShoppingCartIcon aria-hidden className="text-foreground/80 size-5" />
-          {count > 0 ? (
-            <span
-              aria-hidden
-              className="bg-foreground text-background rounded-capsule absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center px-1 text-xs font-medium tabular-nums"
-            >
-              {count}
-            </span>
-          ) : null}
-        </button>
+      {open || assistantOpen ? null : (
+        <CartBall count={count} open={false} className="fixed right-5 z-50" />
       )}
     </>
   );
