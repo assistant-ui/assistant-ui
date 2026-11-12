@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-Write the answer a snapshot moved the run onto to history when the stream ends without a terminal event.
+Persist the answer selected by a snapshot to history when the stream ends without a terminal event.
