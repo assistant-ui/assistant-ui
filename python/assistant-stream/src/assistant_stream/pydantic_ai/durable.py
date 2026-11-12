@@ -198,7 +198,7 @@ class DurableAGUI(Generic[AgentDepsT]):
 
         async def make_stream() -> AsyncIterator[bytes]:
             try:
-                await ready
+                await asyncio.shield(ready)
                 events = adapter.run_stream(
                     cancellation_token=token,
                     on_complete=on_complete,
@@ -230,9 +230,10 @@ class DurableAGUI(Generic[AgentDepsT]):
                 )
                 if previous is not None and previous.running and previous.stream_id:
                     self._cancel_local(previous.stream_id)
-                ready.set_result(None)
+                if not ready.done():
+                    ready.set_result(None)
         except BaseException as error:
-            if producer:
+            if producer and not ready.done():
                 ready.set_exception(error)
             raise
         return StreamingResponse(body, media_type=SSE)
