@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fluffy Pancakes – Recipe Card</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #fde7c8, #f8c99a);
+    font-family: Georgia, "Times New Roman", serif; color: #3b2a1a; padding: 24px;
+  }
+  .card {
+    background: #fffaf2; max-width: 560px; width: 100%; border-radius: 18px;
+    box-shadow: 0 12px 32px rgba(120,70,20,.25); overflow: hidden;
+  }
+  header {
+    background: #c9772f; color: #fff; padding: 24px 28px; position: relative;
+  }
+  header h1 { margin: 0; font-size: 2rem; }
+  header p { margin: 6px 0 0; opacity: .9; font-style: italic; }
+  .emoji { position: absolute; right: 24px; top: 18px; font-size: 3rem; }
+  .meta {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    padding: 16px 28px; border-bottom: 2px dashed #e8cfae; font-family: system-ui, sans-serif; font-size: .95rem;
+  }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 34px; height: 34px; border-radius: 50%; border: none; background: #c9772f; color: #fff;
+    font-size: 1.2rem; cursor: pointer; line-height: 1;
+  }
+  .stepper button:hover:not(:disabled) { background: #a65e20; }
+  .stepper button:disabled { background: #ddc3a5; cursor: not-allowed; }
+  .stepper output { min-width: 28px; text-align: center; font-weight: bold; font-size: 1.15rem; }
+  section { padding: 18px 28px; }
+  h2 { margin: 0 0 12px; font-size: 1.3rem; color: #a65e20; border-bottom: 1px solid #ecd8bd; padding-bottom: 6px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li.ing { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+  li.ing input { accent-color: #c9772f; width: 18px; height: 18px; }
+  li.ing.done span { text-decoration: line-through; opacity: .5; }
+  .qty { font-weight: bold; min-width: 80px; display: inline-block; }
+  ol { margin: 0; padding-left: 22px; }
+  ol li { margin-bottom: 10px; line-height: 1.5; }
+  footer { padding: 12px 28px 22px; font-size: .85rem; color: #8a6a4a; font-style: italic; }
+</style>
+</head>
+<body>
+<article class="card">
+  <header>
+    <h1>Fluffy Pancakes</h1>
+    <p>Golden, tender, weekend-morning classics</p>
+    <div class="emoji" aria-hidden="true">🥞</div>
+  </header>
+
+  <div class="meta">
+    <div>⏱ Prep 10 min · Cook 15 min</div>
+    <div class="stepper" aria-label="Servings">
+      <span>Servings:</span>
+      <button id="minus" aria-label="Decrease servings">−</button>
+      <output id="servings" aria-live="polite">4</output>
+      <button id="plus" aria-label="Increase servings">+</button>
+    </div>
+  </div>
+
+  <section>
+    <h2>Ingredients</h2>
+    <ul id="ingredients"></ul>
+  </section>
+
+  <section>
+    <h2>Steps</h2>
+    <ol>
+      <li>In a large bowl, whisk together the flour, sugar, baking powder and salt.</li>
+      <li>In another bowl, whisk the milk, eggs, melted butter and vanilla until smooth.</li>
+      <li>Pour the wet ingredients into the dry and stir gently until just combined — a few lumps are fine.</li>
+      <li>Let the batter rest for 5 minutes while you heat a lightly buttered skillet over medium heat.</li>
+      <li>Pour about ¼ cup of batter per pancake. Cook until bubbles form and edges look set, about 2 minutes.</li>
+      <li>Flip and cook another 1–2 minutes until golden. Serve warm with maple syrup and berries.</li>
+    </ol>
+  </section>
+
+  <footer>Tip: Tap an ingredient to check it off as you go.</footer>
+</article>
+
+<script>
+  const BASE = 4;
+  const items = [
+    { q: 1.5,  u: "cups",  n: "all-purpose flour" },
+    { q: 2,    u: "tbsp",  n: "sugar" },
+    { q: 2,    u: "tsp",   n: "baking powder" },
+    { q: 0.5,  u: "tsp",   n: "salt" },
+    { q: 1.25, u: "cups",  n: "milk" },
+    { q: 2,    u: "",      n: "large eggs" },
+    { q: 3,    u: "tbsp",  n: "butter, melted" },
+    { q: 1,    u: "tsp",   n: "vanilla extract" }
+  ];
+  let servings = BASE;
+  const fracs = { 0.25: "¼", 0.5: "½", 0.75: "¾", 0.33: "⅓", 0.67: "⅔" };
+
+  function fmt(x) {
+    const r = Math.round(x * 4) / 4;
+    const whole = Math.floor(r), frac = +(r - whole).toFixed(2);
+    if (!frac) return String(whole || "¼");
+    return (whole ? whole + " " : "") + (fracs[frac] || frac);
+  }
+
+  const list = document.getElementById("ingredients");
+  items.forEach((it, i) => {
+    const li = document.createElement("li");
+    li.className = "ing";
+    li.innerHTML = `<input type="checkbox" id="i${i}"><label for="i${i}"><span><span class="qty"></span> ${it.n}</span></label>`;
+    li.querySelector("input").addEventListener("change", e => li.classList.toggle("done", e.target.checked));
+    list.appendChild(li);
+  });
+
+  function render() {
+    document.getElementById("servings").textContent = servings;
+    document.querySelectorAll(".qty").forEach((el, i) => {
+      const it = items[i], v = it.q * servings / BASE;
+      el.textContent = it.u === "" ? Math.max(1, Math.round(v)) : fmt(v) + " " + it.u;
+    });
+    document.getElementById("minus").disabled = servings <= 1;
+    document.getElementById("plus").disabled = servings >= 20;
+  }
+  document.getElementById("minus").onclick = () => { if (servings > 1) { servings--; render(); } };
+  document.getElementById("plus").onclick = () => { if (servings < 20) { servings++; render(); } };
+  render();
+</script>
+</body>
+</html>

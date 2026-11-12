@@ -32,6 +32,7 @@ export default defineConfig({
         test: {
           name: "default",
           include: ["src/**/*.test.{ts,tsx}"],
+          setupFiles: ["../../scripts/vitest-waitfor-interval.mjs"],
         },
       },
       {

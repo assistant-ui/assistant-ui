@@ -1,0 +1,84 @@
+---
+title: Loading and errors
+description: A remote is a network resource. It can be slow, and it can fail. You decide what shows in its place.
+---
+
+import {
+  ErrorsDemo,
+  FailuresDemo,
+  FallbackDemo,
+} from "@/components/pages/docs/samples/remote-components/demos";
+import { RemoteSource } from "@/components/pages/docs/samples/remote-components/remote-source";
+
+## Fallback
+
+`fallback` sits in the layout until the remote is ready. The frame stays hidden until its first size report matches the slot, so the first visible frame is already the right size. Click Reload to load the document again.
+
+<FallbackDemo />
+
+```tsx title="host.tsx"
+const ref = useRef<RemoteComponentHandle>(null);
+
+<RemoteComponent
+  ref={ref}
+  src="https://widgets.example/slow.html"
+  fallback={<div className="skeleton" />}
+/>
+<button onClick={() => ref.current?.reload()}>Reload</button>
+```
+
+`loading="lazy"` waits until the slot is within 200px of the viewport. `ref.reload()` starts over with a new document.
+
+## Ready
+
+The runtime decides when the page is ready. It waits for the `load` event, or 1.5 s after `DOMContentLoaded` if images or frames hold `load` back. Then it waits two more tasks, so content that script renders on load, such as React's first commit, is in the first size. Web fonts get up to a second. Then the host shows the frame.
+
+A page held back by a slow server keeps the fallback until the document arrives. Content a page renders later, after a fetch, resizes the slot like any other change. Render a placeholder of about the right size in the meantime.
+
+## Errors and retry
+
+Errors that stop the remote are fatal: it timed out, failed to load, speaks no common protocol, or broke a security rule. The host then shows `errorFallback`. A function gets the error and a `retry` callback that loads the remote again.
+
+Uncaught errors and unhandled rejections in the page go to `onError` as `runtime`, with `fatal: false`. That includes React render errors. React then unmounts the tree, so the slot goes empty. Wrap your component in an error boundary to show something instead, or reload it from the host.
+
+<ErrorsDemo />
+
+```tsx title="host.tsx"
+<RemoteComponent
+  src="https://widgets.example/crashy.html"
+  errorFallback={(error, retry) => (
+    <div role="alert">
+      <code>{error.code}</code> {error.message}
+      <button onClick={retry}>Retry</button>
+    </div>
+  )}
+  onError={(error, { fatal }) => log(error.code, fatal)}
+/>
+```
+
+<RemoteSource name="crashy" />
+
+## Timeouts and load failures
+
+The remote must be ready within `timeout` (10 s by default). If the document loads but its runtime does not start the handshake within 3 s, that is a `load` error. Usually the page has no runtime tag, or the script was blocked.
+
+Both remotes below point at a plain text file with no runtime. The first fails with `load` after 3 s. The second gives up at its 2 s timeout first.
+
+<FailuresDemo />
+
+```tsx title="host.tsx"
+// Nothing that speaks the protocol at this URL.
+<RemoteComponent src="/robots.txt" sandbox="allow-scripts" errorFallback={…} />
+
+// The host waits 2 s, before the 3 s load check.
+<RemoteComponent src="/robots.txt" sandbox="allow-scripts" timeout={2000} errorFallback={…} />
+```
+
+## Error codes
+
+| Code | Fatal |
+| --- | --- |
+| `timeout`, `load`, `protocol`, `security` | Yes. The host shows `errorFallback` until retry. |
+| `runtime`, `data` | No. Reported to `onError` only. |
+
+Calls can also reject with `closed`, `cancelled`, `stale-function`, `overlay` or `unsupported`.

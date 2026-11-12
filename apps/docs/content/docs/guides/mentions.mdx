@@ -6,8 +6,6 @@ platforms: ["react"]
 
 Mentions let users type `@` in the composer to open a popover picker, select an item (e.g. a tool), and insert a directive into the message text. The LLM can then use the directive as a hint.
 
-<AgentSetup product="guides/mentions" />
-
 ## How It Works
 
 ```mermaid
@@ -23,13 +21,21 @@ The mention system has three layers:
 
 Mentions are one kind of [trigger popover](/docs/guides/slash-commands#trigger-popover-architecture). A mention declares its behavior with a `<TriggerPopover.Directive>` sub-primitive, which writes the formatter-serialized directive into the composer on selection.
 
-## Quick Start
+<AnchorAlias id="quick-start" />
+
+## Setup
+
+<AgentSetup product="guides/mentions" section />
+
+<ManualSteps>
 
 The pre-built [Mention UI components](/elements/composer-trigger-popover) cover the full setup with two shadcn components, the popover picker and the message-side chip renderer:
 
 <InstallCommand shadcn={["composer-trigger-popover", "directive-text"]} />
 
 See the [Composer Trigger Popover](/elements/composer-trigger-popover) and [Directive Text](/elements/directive-text) guides for setup steps.
+
+</ManualSteps>
 
 The rest of this guide covers the underlying concepts and customization points.
 

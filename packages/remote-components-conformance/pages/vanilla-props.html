@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>vanilla-props</title>
+<style>.w{padding:12px;border:1px solid var(--color-border,#ccc);border-radius:var(--radius-md,8px)}</style></head>
+<body>
+<div class="w">
+  <h3 style="margin:0 0 6px">Weather in <span id="city" data-probe="city">somewhere</span></h3>
+  <p id="note" style="margin:0 0 8px" hidden></p>
+  <button id="mon" data-probe="mon">Monday</button>
+  <form id="search" style="margin-top:8px"><input name="q" value="rain"><button>Search</button></form>
+  <p id="count" data-probe="count">0 updates</p>
+  <p id="theme" data-probe="theme">0 theme changes</p>
+</div>
+<script>
+  let n = 0;
+  let t = 0;
+  function render(props) {
+    document.getElementById("city").textContent = props.city ?? "somewhere";
+    const note = document.getElementById("note");
+    note.textContent = props.note ?? "";
+    note.hidden = !props.note;
+  }
+  render(rc.props);
+  rc.addEventListener("props-changed", () => {
+    render(rc.props);
+    document.getElementById("count").textContent = ++n + " updates";
+  });
+  rc.addEventListener("theme-changed", () => {
+    document.getElementById("theme").textContent = ++t + " theme changes";
+  });
+  document.getElementById("mon").onclick = () => rc.props.onSelect("mon");
+  document.getElementById("search").onsubmit = (e) => {
+    e.preventDefault();
+    rc.props.onSubmit(Object.fromEntries(new FormData(e.target)));
+  };
+</script>
+</body></html>

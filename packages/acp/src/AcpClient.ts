@@ -513,14 +513,17 @@ export class AcpClient {
   /**
    * HTTP and SSE servers need the agent to advertise the transport. ACP-transport
    * servers route MCP traffic through the client over `mcp/message`, which this
-   * client does not implement, so they are never sent.
+   * client does not implement, so they are never sent. SDK 2 moved that
+   * transport to its unstable schema, so `McpServer` no longer names it, but an
+   * untyped caller can still pass one and an agent can still advertise it.
    */
   private sessionParams() {
     const mcpServers = this.options.mcpServers ?? [];
     const accepted = this.agentCapabilities?.mcpCapabilities;
     const unsupported = mcpServers.filter(
       (server) =>
-        "type" in server && (server.type === "acp" || !accepted?.[server.type]),
+        "type" in server &&
+        ((server.type as string) === "acp" || !accepted?.[server.type]),
     );
     if (unsupported.length > 0) {
       throw new Error(

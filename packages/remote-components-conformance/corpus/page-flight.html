@@ -1,0 +1,62 @@
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 12px; font-family: var(--font-sans); color: var(--color-text); background: transparent; }
+  .pass { display: flex; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md, 12px); overflow: hidden; }
+  .main { flex: 1; padding: 18px 20px; min-width: 0; }
+  .stub { width: 150px; padding: 18px 16px; border-left: 2px dashed var(--color-border); position: relative; display: flex; flex-direction: column; gap: 10px; }
+  .stub::before, .stub::after { content: ""; position: absolute; left: -11px; width: 20px; height: 20px; border-radius: 50%; background: var(--color-border); }
+  .stub::before { top: -11px; } .stub::after { bottom: -11px; }
+  .top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--color-text-muted); }
+  .airline { font-weight: 600; color: var(--color-accent); letter-spacing: .5px; }
+  .route { display: flex; align-items: center; justify-content: space-between; margin: 16px 0; gap: 10px; }
+  .code { font-size: 34px; font-weight: 700; line-height: 1; }
+  .city { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
+  .time { font-size: 18px; font-weight: 600; margin-top: 8px; }
+  .mid { flex: 1; display: flex; flex-direction: column; align-items: center; color: var(--color-text-muted); font-size: 12px; }
+  .line { width: 100%; display: flex; align-items: center; gap: 6px; color: var(--color-accent); }
+  .line span { flex: 1; border-top: 1px dashed var(--color-border); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; border-top: 1px solid var(--color-border); padding-top: 12px; }
+  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--color-text-muted); }
+  .val { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .barcode { height: 44px; margin-top: auto; background: repeating-linear-gradient(90deg, var(--color-text) 0 2px, transparent 2px 4px, var(--color-text) 4px 5px, transparent 5px 8px, var(--color-text) 8px 11px, transparent 11px 13px); opacity: .85; }
+  @media (max-width: 480px) { .pass { flex-direction: column; } .stub { width: auto; border-left: none; border-top: 2px dashed var(--color-border); flex-direction: row; flex-wrap: wrap; } .stub::before,.stub::after{display:none} .barcode{width:100%} .grid{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+  <div class="pass">
+    <div class="main">
+      <div class="top"><span class="airline">✈ SKYLINE AIR</span><span>Boarding Pass · Economy</span></div>
+      <div class="route">
+        <div>
+          <div class="code">SFO</div>
+          <div class="city">San Francisco</div>
+          <div class="time">8:05 AM</div>
+        </div>
+        <div class="mid">
+          <div>Nonstop</div>
+          <div class="line"><span></span>✈<span></span></div>
+          <div>5h 25m</div>
+        </div>
+        <div style="text-align:right">
+          <div class="code">JFK</div>
+          <div class="city">New York</div>
+          <div class="time">4:30 PM</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div><div class="lbl">Passenger</div><div class="val">A. Morgan</div></div>
+        <div><div class="lbl">Flight</div><div class="val">SK 482</div></div>
+        <div><div class="lbl">Date</div><div class="val">Jun 14</div></div>
+        <div><div class="lbl">Boarding</div><div class="val">7:25 AM</div></div>
+      </div>
+    </div>
+    <div class="stub">
+      <div><div class="lbl">Gate</div><div class="val">B12</div></div>
+      <div><div class="lbl">Seat</div><div class="val">14A</div></div>
+      <div><div class="lbl">Group</div><div class="val">3</div></div>
+      <div class="barcode"></div>
+    </div>
+  </div>
+</body>
+</html>

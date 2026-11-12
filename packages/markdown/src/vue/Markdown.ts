@@ -94,6 +94,7 @@ const Inline = defineComponent(
             return h("a", { href: node.url, title: node.title }, children);
           case "image":
             return h("img", {
+              referrerpolicy: "no-referrer",
               src: node.url,
               alt: node.alt,
               title: node.title,

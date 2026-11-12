@@ -18,6 +18,9 @@ import { FlowLLM } from "@/components/assistant-ui/elements/flow";
 import { ThemeImageLLM } from "@/components/pages/docs/theme-image";
 import { TapTutorialSlideshowLLM } from "@/components/pages/docs/tap/tutorial-slideshow.llm";
 import {
+  AgentSetupLLM,
+  AgentSetupPromptLLM,
+  ManualStepsLLM,
   QuickLinksLLM,
   QuickstartLLM,
   RuntimeGridLLM,
@@ -95,6 +98,10 @@ export const LLM_COMPONENTS: MDXComponents = {
     <blockquote>{children}</blockquote>
   ),
   Quickstart: QuickstartLLM,
+  AgentSetupPrompt: AgentSetupPromptLLM,
+  AgentSetup: AgentSetupLLM,
+  ManualSteps: ManualStepsLLM,
+  AnchorAlias: () => null,
   ThemeImage: ThemeImageLLM,
   SurfaceGrid: SurfaceGridLLM,
   RuntimeGrid: RuntimeGridLLM,

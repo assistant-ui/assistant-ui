@@ -45,6 +45,20 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.message.role !== "assistant" ||
   !s.thread.capabilities.reload;
 
+/** Refresh re-reads a message whose run another tab or session is still writing. */
+export const actionBarRefreshRunDisabled = (s: AssistantState): boolean =>
+  s.message.runState !== "in-progress";
+
+/** Resume continues a run that stopped heartbeating, from the stale message onward. */
+export const actionBarResumeDisabled = (s: AssistantState): boolean =>
+  s.thread.isRunning ||
+  s.thread.isDisabled ||
+  s.thread.voice !== undefined ||
+  s.message.role !== "assistant" ||
+  !s.message.isLast ||
+  !s.thread.capabilities.reload ||
+  s.message.runState !== "stale";
+
 const messageHasSettledText = (s: AssistantState): boolean =>
   (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
   s.message.parts.some((part) => part.type === "text" && part.text.length > 0);

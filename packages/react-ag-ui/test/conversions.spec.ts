@@ -832,6 +832,191 @@ describe("adapter conversions", () => {
     expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
+  describe("joinAdjacentAssistantMessages", () => {
+    const splitTurn = [
+      { id: "u-1", role: "user", content: "weather?" },
+      {
+        id: "a-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "get_weather", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", toolCallId: "c-1", content: "sunny" },
+      { id: "a-2", role: "assistant", content: "it is sunny" },
+    ];
+
+    it("keeps records with ids of their own apart by default", () => {
+      const result = fromAgUiMessages(splitTurn);
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-1", "a-2"]);
+    });
+
+    it.each([
+      {
+        source: "earlier",
+        earlier: ["c-1"],
+        later: undefined,
+        expected: ["c-1"],
+      },
+      {
+        source: "later",
+        earlier: undefined,
+        later: ["c-2"],
+        expected: ["c-2"],
+      },
+      {
+        source: "later of both",
+        earlier: ["c-1"],
+        later: ["c-2"],
+        expected: ["c-2"],
+      },
+    ])(
+      "preserves the $source pending list in the default container fold",
+      ({ earlier, later, expected }) => {
+        const records = [
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "checking",
+            toolCalls: [
+              {
+                id: "c-1",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+            ...(earlier
+              ? {
+                  metadata: {
+                    custom: { agui: { pendingToolCallIds: earlier } },
+                  },
+                }
+              : {}),
+          },
+          {
+            id: "c-2",
+            role: "assistant",
+            toolCalls: [
+              {
+                id: "c-2",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+            ...(later
+              ? {
+                  metadata: { custom: { agui: { pendingToolCallIds: later } } },
+                }
+              : {}),
+          },
+        ];
+        for (const options of [
+          undefined,
+          { joinAdjacentAssistantMessages: false },
+        ]) {
+          const result = fromAgUiMessages(records, options);
+          expect(result).toHaveLength(1);
+          expect(result[0]).toMatchObject({
+            id: "a-1",
+            role: "assistant",
+            content: [
+              { type: "text", text: "checking" },
+              { type: "tool-call", toolCallId: "c-1" },
+              { type: "tool-call", toolCallId: "c-2" },
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          });
+          expect(result[0]!.metadata).toEqual({
+            custom: { agui: { pendingToolCallIds: expected } },
+          });
+        }
+      },
+    );
+
+    it("joins the turn under the id of the answer, tool step first", () => {
+      const result = fromAgUiMessages(splitTurn, {
+        joinAdjacentAssistantMessages: true,
+      });
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-2"]);
+      expect(result[1]).toMatchObject({
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "c-1",
+            toolName: "get_weather",
+            result: "sunny",
+          },
+          { type: "text", text: "it is sunny" },
+        ],
+      });
+    });
+
+    it("keeps assistant records a user message separates apart", () => {
+      const result = fromAgUiMessages(
+        [
+          ...splitTurn,
+          { id: "u-2", role: "user", content: "and tomorrow?" },
+          { id: "a-3", role: "assistant", content: "rain" },
+          { id: "a-4", role: "assistant", content: "bring an umbrella" },
+        ],
+        { joinAdjacentAssistantMessages: true },
+      );
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-2", "u-2", "a-4"]);
+      expect((result[3] as any).content.map((p: any) => p.text)).toEqual([
+        "rain",
+        "bring an umbrella",
+      ]);
+    });
+
+    it("keeps the pending calls of both joined records", () => {
+      const call = (id: string) => ({
+        id,
+        type: "function",
+        function: { name: "confirm", arguments: "{}" },
+      });
+      const result = fromAgUiMessages(
+        [
+          { id: "u-1", role: "user", content: "book it" },
+          {
+            id: "a-1",
+            role: "assistant",
+            toolCalls: [call("c-1")],
+            metadata: { custom: { agui: { pendingToolCallIds: ["c-1"] } } },
+          },
+          {
+            id: "a-2",
+            role: "assistant",
+            content: "please confirm both",
+            toolCalls: [call("c-2")],
+            metadata: { custom: { agui: { pendingToolCallIds: ["c-2"] } } },
+          },
+        ],
+        { joinAdjacentAssistantMessages: true },
+      );
+      expect(result.map((m) => m.id)).toEqual(["u-1", "a-2"]);
+      expect(
+        (result[1]!.metadata as any).custom.agui.pendingToolCallIds,
+      ).toEqual(["c-1", "c-2"]);
+      expect(result[1]!.status).toMatchObject({ type: "requires-action" });
+    });
+
+    it("round-trips the joined turn as one assistant record and its result", () => {
+      const wire = toAgUiMessages(
+        fromAgUiMessages(splitTurn, { joinAdjacentAssistantMessages: true }),
+      );
+      expect(wire.map((m) => [m.role, m.id])).toEqual([
+        ["user", "u-1"],
+        ["assistant", "a-2"],
+        ["tool", "t-1"],
+      ]);
+    });
+  });
+
   it("folds the answer onto the tool call container the run opened for it", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "weather?" },

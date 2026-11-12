@@ -1,8 +1,15 @@
 export type {
   CloudMessage,
+  CloudMessageRun,
+  CloudRunLease,
   AssistantCloudThreadMessageFeedbackBody,
   AssistantCloudThreadMessageFeedbackResponse,
 } from "./AssistantCloudThreadMessages";
+export type {
+  AssistantCloudThreadRuns,
+  AssistantCloudRunHeartbeatResponse,
+  CloudRunEndReason,
+} from "./AssistantCloudThreadRuns";
 export type {
   AssistantCloudTelemetryConfig,
   SdkIdentity,
@@ -47,7 +54,13 @@ export {
   type EngagementIdResolver,
 } from "./CloudEngagementReporter";
 export { readAnonymousRefreshToken } from "./AssistantCloudAuthStrategy";
-export { CloudMessagePersistence } from "./CloudMessagePersistence";
+export {
+  CloudMessagePersistence,
+  DEFAULT_RUN_STALE_AFTER_MS,
+  type CloudMessagePersistenceOptions,
+  type CloudMessageRunPhase,
+  type CloudRunState,
+} from "./CloudMessagePersistence";
 export {
   createFormattedPersistence,
   type MessageFormatAdapter,

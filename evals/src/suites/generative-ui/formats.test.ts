@@ -46,6 +46,7 @@ test("each format exposes only the tools it answers with", async () => {
   assert.deepEqual(await tools("text"), []);
   assert.deepEqual(await tools("present"), ["present"]);
   assert.deepEqual(await tools("spec"), ["render_spec"]);
+  assert.deepEqual(await tools("json-render"), ["render_json"]);
   assert.deepEqual(await tools("frame"), [
     "read_me",
     "show_widget",
@@ -71,6 +72,52 @@ test("auto gets the rules for choosing a format and the spec catalog", async () 
   );
   assert.equal(auto.prose, true);
   assert.equal(spec.prose, false);
+});
+
+test("json-render prompts with the kit's component catalog", async () => {
+  const format = await startFormat("json-render");
+  for (const name of Object.keys(kitLibrary)) {
+    assert.ok(format.system.includes(name), name);
+  }
+  assert.match(format.system, /Output ONLY JSONL patches/);
+  assert.match(format.system, /Never use the \$item statePath form/);
+  assert.match(format.system, /Use only setState actions/);
+  assert.equal(format.prose, false);
+});
+
+test("json-render lists events and checks a spec against the kit's catalog", async () => {
+  const format = await startFormat("json-render");
+  assert.match(format.system, /Button[^\n]*\[events: press\]/);
+  const patch = (path: string, value: unknown) =>
+    JSON.stringify({ op: "add", path, value });
+  const execute = format.tools!.render_json!.execute as (
+    input: { patches: string },
+    options: never,
+  ) => Promise<{ ok: boolean; errors?: string[] }>;
+  const run = (event: string) =>
+    execute(
+      {
+        patches: [
+          patch("/root", "main"),
+          patch("/elements/main", {
+            type: "Button",
+            props: { label: "Go" },
+            children: [],
+            on: {
+              [event]: {
+                action: "setState",
+                params: { statePath: "/a", value: 1 },
+              },
+            },
+          }),
+        ].join("\n"),
+      },
+      undefined as never,
+    );
+  const result = await run("click");
+  assert.equal(result.ok, false);
+  assert.match(result.errors!.join("\n"), /click/);
+  assert.equal((await run("press")).ok, true);
 });
 
 test("the vocabulary tells the model what the kit's element renders", () => {

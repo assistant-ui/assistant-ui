@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-type Logo = {
+export type Logo = {
   src: string;
   alt: string;
   href: string;
@@ -13,7 +13,7 @@ type Logo = {
   darkSrc?: string;
 };
 
-const LOGOS: Logo[] = [
+export const LOGOS: Logo[] = [
   {
     src: "/icons/cust/anthropic.svg",
     alt: "Anthropic",
@@ -47,7 +47,7 @@ const LOGOS: Logo[] = [
   },
   {
     src: "/icons/cust/langchain.svg",
-    alt: "Langchain",
+    alt: "LangChain",
     href: "https://langchain.com?ref=assistant-ui",
   },
   {
@@ -213,7 +213,7 @@ export function slotState(
   };
 }
 
-function LogoMark({
+export function LogoMark({
   logo,
   onSettle,
 }: {

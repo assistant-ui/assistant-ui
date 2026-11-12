@@ -9,7 +9,8 @@
     "packages/x-buildutils/src/**",
     "!packages/x-buildutils/src/**/*.test.{ts,tsx}",
     "packages/x-buildutils/ts/*.json",
-    "packages/x-buildutils/types/**"
+    "packages/x-buildutils/types/**",
+    "scripts/vitest-waitfor-interval.mjs"
   ],
   "tasks": {
     "build": {
@@ -68,19 +69,6 @@
     "dev": {
       "cache": false,
       "persistent": true
-    },
-    "preview:build": {
-      "dependsOn": ["^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/examples/bundle-shared/**",
-        "!$TURBO_ROOT$/examples/bundle-shared/node_modules/**",
-        "$TURBO_ROOT$/scripts/build-example-bundle.mjs",
-        "$TURBO_ROOT$/packages/ui/src/**",
-        "$TURBO_ROOT$/scripts/example-bundles.json",
-        "$TURBO_ROOT$/scripts/lib/script-options.mjs"
-      ],
-      "outputs": ["dist/**"]
     },
     "//#docs-source-inputs": {
       "inputs": ["$TURBO_DEFAULT$"]

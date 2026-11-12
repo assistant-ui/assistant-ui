@@ -1,0 +1,126 @@
+---
+title: Serving
+description: Any server can serve remotes. The serving layer turns whatever HTML you have into a remote component.
+---
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/remote-components-host-react"]} />
+
+On the server that serves the pages:
+
+<InstallCommand npm={["@assistant-ui/remote-components-serve"]} />
+
+For React pages, optionally `@assistant-ui/remote-components-react`, and `@assistant-ui/remote-components-vite` as a dev dependency.
+
+<Callout>
+  The packages are not on npm yet. In the assistant-ui monorepo, depend on them with `workspace:*`.
+</Callout>
+
+## The serving layer
+
+`@assistant-ui/remote-components-serve` normalizes a document. It adds a doctype when there is none, since no doctype means quirks mode. It adds the runtime tag first in the head, unless the page loads it already. And it returns the headers: the CSP for the network policy, `frame-ancestors` from the `frameAncestors` option, and `Allow-CSP-From` so a host can narrow the policy.
+
+```html title="in"
+<h1>Hello</h1>
+<p>No doctype, no head.</p>
+```
+
+```txt title="out"
+<!doctype html><script src="/rc-runtime.js"></script>
+<h1>Hello</h1>
+<p>No doctype, no head.</p>
+
+Content-Security-Policy: connect-src https: wss:; frame-ancestors https://app.example
+Allow-CSP-From: *
+X-Content-Type-Options: nosniff
+```
+
+For Node servers, a middleware serves the runtime files and normalizes every page under a directory:
+
+```ts title="server.ts"
+import express from "express";
+import { remoteComponentsMiddleware } from "@assistant-ui/remote-components-serve/node";
+
+const app = express();
+app.use(
+  remoteComponentsMiddleware({
+    root: path.resolve("widgets"),           // every *.html under it
+    network: "public",                       // or "none", or a list of origins
+    frameAncestors: ["https://app.example"], // who may embed the pages
+  }),
+);
+```
+
+For HTML you build at request time, call it yourself:
+
+```ts title="handler.ts"
+import { normalizeHtml } from "@assistant-ui/remote-components-serve";
+
+// html from a database, a model, a template…
+const { html: page, headers } = normalizeHtml(html, {
+  runtime: { src: "/rc-runtime.js" },
+  network: ["https://api.example.com"],
+  frameAncestors: ["https://app.example"],
+});
+res.writeHead(200, headers).end(page);
+```
+
+`rsvp.html` on the [Introduction](/remote-components/docs) is a fragment on disk. Served this way, the browser gets a full document.
+
+## Streaming
+
+Send `streamPrefix()` first: the doctype and the runtime tag. The runtime connects while the rest of the page is still on its way. The host shows the page like any other, after `load` or 1.5 s after `DOMContentLoaded`. A doctype later in the stream is ignored.
+
+```ts title="stream.ts"
+import { streamPrefix } from "@assistant-ui/remote-components-serve";
+
+res.writeHead(200, headers);
+res.write(streamPrefix());          // doctype + runtime tag
+for await (const chunk of model.stream()) res.write(chunk);
+res.end();
+```
+
+## Static hosting
+
+Pages that already carry the runtime tag can sit on any static host, next to `rc-runtime.js` and its chunks. Set the headers yourself. Netlify and Cloudflare Pages read a `_headers` file. The [Vite plugin](/remote-components/docs/vite) writes one.
+
+```txt title="_headers"
+/*
+  Access-Control-Allow-Origin: *
+  X-Content-Type-Options: nosniff
+  Allow-CSP-From: *
+  Content-Security-Policy: connect-src https: wss:; frame-ancestors https://app.example
+```
+
+- Use a different site from your app, which means a different registrable domain. Put remotes on `widgets.example.net` next to `app.example.com`. A subdomain like `widgets.example.com` shares cookies with your app.
+- `Access-Control-Allow-Origin: *` on scripts and fonts. Opaque frames load them with `Origin: null`.
+- `frame-ancestors` lists the pages that may embed your remotes. Without it, any page can frame them and pass any props.
+- Cache hashed assets forever. Keep HTML short-lived, so a deploy reaches users on their next load.
+
+## Safe Content Frames
+
+For code you don't trust, show remotes in a [Safe Content Frame](/safe-content-frame). Each publisher, or each instance, gets its own hashed origin on a public-suffix domain. You host nothing extra.
+
+```tsx title="host.tsx"
+<RemoteHostProvider
+  isolation="scf"
+  scf={{
+    salt: "publisher",                              // or "instance"
+    // shimDomain: "scf.example-usercontent.com",   // self-hosted shim
+  }}
+>
+  <RemoteComponent src="https://widgets.example/weather.html" instanceId="w1" />
+</RemoteHostProvider>
+```
+
+- The host fetches the page, adds `<base href>` so relative URLs still reach your server, and inlines the runtime. For a URL that ends in `/` it tries `single.html` first.
+- The CSP is written into the document, so the network policy holds in every browser.
+- `salt: "instance"` needs a stable `instanceId`. Otherwise the origin, and its storage, changes on every load.
+- The public shim is `scf.auiusercontent.com`. To run your own, set `shimDomain`.
+
+## Versioning
+
+Host and page ship separately. At the handshake each side sends the protocol versions it supports, and they use the highest one both know. With none in common, the host shows `errorFallback` with a `protocol` error. The protocol is at version 3.
+
+New optional fields, events and methods don't change the version. A method the other side doesn't know fails with `unsupported`.

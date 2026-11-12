@@ -32,6 +32,7 @@ const useCheckoutHost = (restored: unknown) => {
       ...initial,
       ...snapshot,
       agent: { ...initial.agent, ...snapshot.agent },
+      browser: { ...initial.browser!, ...snapshot.browser },
     };
   });
 
@@ -400,6 +401,12 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/bye": () => {
       state.agent.connected = false;
+    },
+    "browser/heartbeat": () => {
+      state.browser = { lastSeenAt: Date.now(), connected: true };
+    },
+    "browser/bye": () => {
+      if (state.browser) state.browser.connected = false;
     },
     "agent/plan": ({ markdown }) => {
       requireStarted();

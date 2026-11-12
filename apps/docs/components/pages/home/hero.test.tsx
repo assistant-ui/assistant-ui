@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -20,27 +20,45 @@ afterEach(() => {
 });
 
 const ctaRow = () =>
-  screen.getByRole("button", { name: "Quick Start" }).parentElement!;
+  screen.getByRole("button", { name: "Talk to an expert" }).parentElement!;
+
+const expectTalkToAnExpert = (count: number) => {
+  const row = ctaRow();
+  expect(row.children).toHaveLength(count);
+  const expert = screen.getByRole("button", { name: "Talk to an expert" });
+  expect(expert.parentElement).toBe(row);
+  expect(expert.getAttribute("href")).toBe("/contact-sales");
+};
 
 describe("hero", () => {
-  it("opens the setup dialog from the one call to action when checkout is configured", async () => {
+  it("offers the one-line setup prompt with a menu and a ghost expert link", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
     const { Hero } = await load();
     render(<Hero stars={null} downloads={null} />);
-    const trigger = screen.getByRole("button", { name: "Quick Start" });
-    expect(trigger.tagName).toBe("BUTTON");
-    expect(ctaRow().children).toHaveLength(1);
-    expect(screen.queryByRole("link", { name: "Read the docs" })).toBeNull();
-    expect(screen.queryByText("npx assistant-ui init")).toBeNull();
-  });
-
-  it("links the call to action to the installation guide without a checkout worker", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.stubEnv("NODE_ENV", "production");
-    const { Hero } = await load();
-    render(<Hero stars={null} downloads={null} />);
-    const link = screen.getByRole("button", { name: "Quick Start" });
-    expect(link.tagName).toBe("A");
-    expect(link.getAttribute("href")).toBe("/docs/installation");
-    expect(ctaRow().children).toHaveLength(1);
+    const prompt = screen.getByRole("button", {
+      name: "Copy the setup prompt for your agent",
+    });
+    expect(prompt.textContent).toBe("install and set up assistant-ui");
+    expect(prompt.textContent).not.toContain("Tell your coding agent");
+    fireEvent.click(prompt);
+    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
+    expect(screen.queryByRole("link", { name: "Install manually" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Quick Start" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const split = prompt.parentElement!;
+    expect(split.parentElement).toBe(ctaRow());
+    expect(
+      split.contains(
+        screen.getByRole("button", { name: "More ways to install" }),
+      ),
+    ).toBe(true);
+    expectTalkToAnExpert(2);
+    const expert = screen.getByRole("button", { name: "Talk to an expert" });
+    expect(expert.className).toContain("hover:bg-transparent");
+    expect(expert.querySelector("svg[aria-hidden]")).not.toBeNull();
   });
 });

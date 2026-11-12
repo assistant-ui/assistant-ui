@@ -152,6 +152,8 @@ const imagesSettled = () =>
     new Promise((resolve) => setTimeout(resolve, 5_000)),
   ]);
 
+const opaqueOrigin = new URLSearchParams(location.search).has("opaque");
+
 let root: Root | undefined;
 let disposeWidget: (() => void) | undefined;
 
@@ -166,6 +168,7 @@ function reset() {
 async function renderFrame(code: string, errors: string[], host: HTMLElement) {
   const widget = createWidget({
     container: host,
+    opaqueOrigin,
     tokens,
     animate: false,
     onOpenLink: () => {},

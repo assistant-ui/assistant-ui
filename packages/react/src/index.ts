@@ -570,6 +570,12 @@ export {
   type Unstable_TriggerPopoverAriaProps,
 } from "./unstable/useComposerInput";
 
+// Unstable - the run-start focus decision shared by composer implementations
+export {
+  unstable_useComposerRunStartFocusGuard,
+  type Unstable_ComposerRunStartFocusGuard,
+} from "./unstable/useComposerRunStartFocusGuard";
+
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---

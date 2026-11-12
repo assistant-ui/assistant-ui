@@ -7,6 +7,8 @@ import { logger } from "../lib/utils/logger";
 import {
   cleanupPendingProjectDownloads,
   downloadProject,
+  formatProject,
+  resolveFormatCommand,
   resolveLatestReleaseRef,
   scaffoldProject,
   transformProject,
@@ -819,6 +821,11 @@ export const create = new Command()
         }
       }
 
+      // 7. Format files the CLI and shadcn wrote so lint passes out of the box
+      if (!opts.skipInstall) {
+        await formatProject(absoluteProjectDir, pm);
+      }
+
       disarmCleanup();
 
       logger.break();
@@ -852,6 +859,10 @@ export const create = new Command()
         logger.info(`  ${pm} install`);
         if (transformResult.registryInstallCommand) {
           logger.info(`  ${transformResult.registryInstallCommand}`);
+        }
+        const formatCommand = resolveFormatCommand(absoluteProjectDir, pm);
+        if (formatCommand) {
+          logger.info(`  ${formatCommand[0]} ${formatCommand[1].join(" ")}`);
         }
       }
       if (isVSCodeExtension) {

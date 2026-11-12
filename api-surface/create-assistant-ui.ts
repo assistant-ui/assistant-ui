@@ -74,6 +74,11 @@ export const cliSurface: CliSurfaceSnapshot = {
       "description": "copy templates/examples from a local assistant-ui repo root",
       "required": true,
       "hidden": true
+    },
+    {
+      "flags": "--force",
+      "description": "run even when a coding agent is detected outside a setup session",
+      "hidden": true
     }
   ]
 };
