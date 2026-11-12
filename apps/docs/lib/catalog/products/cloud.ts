@@ -3,7 +3,6 @@ import type { CatalogProduct } from "../types";
 export const cloud: CatalogProduct = {
   slug: "cloud",
   href: "/components/cloud",
-  purchase: "cart",
   name: "Assistant Cloud",
   tagline:
     "Persistence, thread history, and titles for an existing assistant-ui app.",

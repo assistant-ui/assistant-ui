@@ -42,6 +42,38 @@ describe("GET /api/cloud/projects", () => {
     expect(mocks.getAccessToken).not.toHaveBeenCalled();
   });
 
+  it("lets the setup app read the visitor's projects with their cookies", async () => {
+    mocks.accountsOptions = options;
+    mocks.getAccessToken.mockResolvedValue("at-1");
+    mocks.listCloudProjects.mockResolvedValue([]);
+    const response = await GET(
+      request({
+        origin: "https://setup.assistant-ui.com",
+        "sec-fetch-site": "same-site",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://setup.assistant-ui.com",
+    );
+    expect(response.headers.get("access-control-allow-credentials")).toBe(
+      "true",
+    );
+  });
+
+  it("rejects the setup origin from another site", async () => {
+    const response = await GET(
+      request({
+        origin: "https://setup.assistant-ui.com",
+        "sec-fetch-site": "cross-site",
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("reports a deployment without accounts before reading the session", async () => {
     const response = await GET(request());
 

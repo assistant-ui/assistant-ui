@@ -1,7 +1,6 @@
 import type { GenerativeUILibrary } from "../types";
 import { formDefinitions } from "./definitions/form";
-import { actionAttr, fire } from "./dispatch";
-import { collectFormValuesFromEvent } from "./collectFormValues";
+import { actionAttr, submitForm } from "./dispatch";
 
 export const formVocabulary = {
   Form: {
@@ -12,13 +11,7 @@ export const formVocabulary = {
         data-aui-gap={gap}
         data-aui-action={actionAttr($action)}
         onSubmit={(event) => {
-          event.preventDefault();
-          fire(
-            $action,
-            $dispatch,
-            collectFormValuesFromEvent(event),
-            event.currentTarget,
-          );
+          submitForm($action, $dispatch, event);
         }}
       >
         {children}

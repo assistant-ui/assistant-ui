@@ -28,8 +28,8 @@ const user = {
   image: null,
 };
 
-const request = () =>
-  new NextRequest("https://www.assistant-ui.com/api/auth/session");
+const request = (headers: HeadersInit = {}) =>
+  new NextRequest("https://www.assistant-ui.com/api/auth/session", { headers });
 
 const configured = (resolution: { session: unknown; cookies: string[] }) => {
   mocks.accounts = { resolveSession: vi.fn().mockResolvedValue(resolution) };
@@ -54,6 +54,26 @@ describe("GET /api/auth/session", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(answered).not.toHaveBeenCalled();
+  });
+
+  it("lets only the setup app read the session across origins", async () => {
+    const setup = await GET(
+      request({
+        origin: "https://setup.assistant-ui.com",
+        "sec-fetch-site": "same-site",
+      }),
+    );
+    expect(setup.headers.get("access-control-allow-origin")).toBe(
+      "https://setup.assistant-ui.com",
+    );
+    expect(setup.headers.get("access-control-allow-credentials")).toBe("true");
+    const other = await GET(
+      request({
+        origin: "https://example.com",
+        "sec-fetch-site": "cross-site",
+      }),
+    );
+    expect(other.headers.get("access-control-allow-origin")).toBeNull();
   });
 
   it("offers nothing on a deployment that carries no accounts configuration", async () => {

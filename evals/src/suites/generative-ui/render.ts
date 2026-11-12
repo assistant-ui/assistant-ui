@@ -99,8 +99,14 @@ export interface Renderer {
   close(): Promise<void>;
 }
 
-/** Renders answers one at a time in a headless Chrome, the way a chat app shows them. */
-export async function createRenderer(): Promise<Renderer> {
+/**
+ * Renders answers one at a time in a headless Chrome, the way a chat app shows them.
+ *
+ * `opaqueOrigin` renders frame answers in an opaque-origin iframe that loads no Safe Content Frame shim from the network. Such a frame has no storage, which a model-written widget may use, so eval runs keep the default.
+ */
+export async function createRenderer({
+  opaqueOrigin = false,
+}: { opaqueOrigin?: boolean } = {}): Promise<Renderer> {
   const [{ script, styles }, kit] = await Promise.all([
     bundleHarness(),
     kitStyles(),
@@ -125,7 +131,7 @@ export async function createRenderer(): Promise<Renderer> {
 
   try {
     const page = await openChromePage(
-      `http://127.0.0.1:${port}/`,
+      `http://127.0.0.1:${port}/${opaqueOrigin ? "?opaque" : ""}`,
       RENDER_WIDTH,
     );
     const renderOne = async (

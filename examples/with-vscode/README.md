@@ -40,3 +40,5 @@ Changing a setting re-creates the webview. The Readiness view runs `bridge-round
 `AUI_TESTBED_VSCODE_VERSION` selects the VS Code build. The local default is `stable`; CI pins its version in `.github/workflows/vscode-test-bed.yaml` and caches that download. To bump the CI version, update that workflow and run `AUI_TESTBED_VSCODE_VERSION=<version> pnpm probes` locally.
 
 The workflow runs the probes on `ubuntu-latest` under `xvfb-run` and uploads `test-results/` whether the run passes or fails. It installs `xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1` for the VS Code host.
+
+CI runs for changes to the extension, template, their linked workspace dependencies, and shared build inputs. Package `.test.ts` and `.test.tsx` files do not trigger it. `node --test scripts/vscode-test-bed.test.mjs` checks both workflow path filters against the current dependency graph; update both event filters when adding a workspace dependency. Unrelated docs, examples, and packages stay filtered out.

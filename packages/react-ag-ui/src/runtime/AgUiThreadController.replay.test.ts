@@ -3371,6 +3371,63 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(attempts).toBe(1);
   });
 
+  it("leaves an off-branch answer alone when the first message collides with its ID", async () => {
+    const core = await loaded(
+      [
+        user("u"),
+        assistant("off-branch", [{ type: "text", text: "old off branch" }]),
+        assistant("selected", [{ type: "text", text: "selected branch" }]),
+      ],
+      async (input, subscriber) => {
+        text(subscriber, "off-branch", "answer A");
+        streamToolCall(subscriber, "t", "{}");
+        text(subscriber, "fresh-b", "answer B");
+        emit(subscriber, {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "t",
+          messageId: "result-t",
+          content: "server result",
+        });
+        emit(subscriber, {
+          type: "TEXT_MESSAGE_END",
+          messageId: "off-branch",
+        });
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+      [null, "u", "u"],
+    );
+
+    await core.append({
+      role: "user",
+      content: [{ type: "text", text: "new prompt" }],
+      attachments: [],
+      createdAt: new Date(1),
+      metadata: { custom: {} },
+      parentId: core.getMessageRepository().headId ?? null,
+      sourceId: null,
+      runConfig: {},
+      startRun: true,
+    });
+
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "off-branch")?.message,
+    ).toMatchObject({
+      content: [{ type: "text", text: "old off branch" }],
+      status: { type: "complete" },
+    });
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === "fresh-b")?.message,
+    ).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({ toolCallId: "t", result: "server result" }),
+      ]),
+    });
+  });
+
   it.each(["frontend", "server"] as const)(
     "continues a running replay only for a %s result on its retained call",
     async (source) => {

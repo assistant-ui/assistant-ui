@@ -15,7 +15,7 @@ describe("Cloud pricing entry points", () => {
       "https://cloud.assistant-ui.com",
     );
     expect(pricingPlans.find((plan) => plan.name === "Enterprise")!.href).toBe(
-      "https://cal.com/simon-farshid/assistant-ui",
+      "/contact-sales",
     );
   });
 });

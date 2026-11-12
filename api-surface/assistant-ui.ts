@@ -8,6 +8,42 @@ export const cliSurface: CliSurfaceSnapshot = {
   "options": [],
   "commands": [
     {
+      "name": "setup",
+      "description": "set up assistant-ui with your coding agent, guided in your browser",
+      "usage": "[options]",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--products <slugs>",
+          "description": "comma-separated catalog slugs to set up (default: assistant-ui)",
+          "required": true
+        },
+        {
+          "flags": "--no-open",
+          "description": "print the setup link instead of opening the browser"
+        },
+        {
+          "flags": "--docs-url <url>",
+          "description": "the docs site with the catalog and guides",
+          "required": true,
+          "hidden": true
+        },
+        {
+          "flags": "--setup-server <url>",
+          "description": "the setup server the agent joins",
+          "required": true,
+          "hidden": true
+        },
+        {
+          "flags": "--setup-app-url <url>",
+          "description": "the setup app the browser opens",
+          "required": true,
+          "hidden": true
+        }
+      ],
+      "commands": []
+    },
+    {
       "name": "add",
       "description": "add a component to your project",
       "usage": "[options] <components...>",

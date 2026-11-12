@@ -132,6 +132,16 @@ describe("ToolFallback", () => {
     expect(container.textContent).toContain(label);
   });
 
+  it("labels a call whose result is an error as failed", async () => {
+    await renderTool({
+      status: { type: "complete" },
+      result: "Error: connect ECONNREFUSED",
+      isError: true,
+    });
+
+    expect(container.textContent).toBe("Failed search");
+  });
+
   it("renders the reason an incomplete call carries", async () => {
     await renderTool({
       status: { type: "incomplete", reason: "cancelled", error: "stopped" },

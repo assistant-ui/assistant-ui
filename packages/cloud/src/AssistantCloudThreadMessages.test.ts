@@ -173,3 +173,91 @@ describe("AssistantCloudThreadMessages responses", () => {
     });
   });
 });
+
+describe("AssistantCloudThreadMessages run leases", () => {
+  it("opens a run on create and decodes the lease", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValueOnce({
+      message_id: "msg_1",
+      lease_id: "lease_1",
+      heartbeat_interval_ms: 20000,
+    });
+
+    await expect(
+      messages.create("t1", {
+        parent_id: null,
+        format: "aui/v0",
+        content: {},
+        open_run: true,
+      }),
+    ).resolves.toEqual({
+      message_id: "msg_1",
+      run: {
+        lease_id: "lease_1",
+        heartbeat_interval_ms: 20000,
+      },
+    });
+    expect(makeRequest.mock.calls[0]![1].body).toMatchObject({
+      open_run: true,
+    });
+
+    makeRequest.mockResolvedValueOnce({ message_id: "msg_1" });
+    await messages.create("t1", {
+      parent_id: null,
+      format: "aui/v0",
+      content: {},
+      external_id: "e1",
+      lease_id: "lease_1",
+    });
+    expect(makeRequest.mock.calls[1]![1].body).toMatchObject({
+      lease_id: "lease_1",
+    });
+    expect(makeRequest.mock.calls[1]![1].body).not.toHaveProperty("open_run");
+  });
+
+  it("sends the lease id on update", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValueOnce(undefined);
+    await messages.update("t1", "msg_1", { content: {}, lease_id: "lease_1" });
+    expect(makeRequest).toHaveBeenCalledWith("/threads/t1/messages/msg_1", {
+      method: "PUT",
+      body: { content: {}, lease_id: "lease_1" },
+    });
+  });
+
+  it("decodes the run state of listed messages", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    const row = {
+      id: "msg_1",
+      parent_id: null,
+      height: 0,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      format: "aui/v0",
+      content: {},
+    };
+    makeRequest.mockResolvedValueOnce({
+      messages: [
+        { ...row, run: { status: "running", last_heartbeat_ms_ago: 1200 } },
+        {
+          ...row,
+          id: "msg_2",
+          run: { status: "ended", last_heartbeat_ms_ago: 40_000 },
+        },
+        { ...row, id: "msg_3", run: null },
+      ],
+    });
+
+    const { messages: listed } = await messages.list("t1");
+    expect(listed.map((m) => m.run)).toEqual([
+      { status: "running", last_heartbeat_ms_ago: 1200 },
+      { status: "ended", last_heartbeat_ms_ago: 40_000 },
+      undefined,
+    ]);
+
+    makeRequest.mockResolvedValueOnce({
+      messages: [{ ...row, run: { status: "paused" } }],
+    });
+    await expect(messages.list("t1")).rejects.toThrow(CloudResponseError);
+  });
+});
