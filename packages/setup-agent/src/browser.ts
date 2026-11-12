@@ -39,6 +39,8 @@ export const createBrowserGate = ({
   now?: () => number;
 }) => {
   const handled = new Set<string>();
+  /** Needs the agent was already told to ask about. */
+  const told = new Set<string>();
   let openedAt: number | undefined;
   let joinedSinceOpen = false;
   let lastBeat: number | null | undefined;
@@ -81,20 +83,24 @@ export const createBrowserGate = ({
       const needs = pendingNeeds(state);
       const keys = new Set(needs.map(needKey));
       for (const key of handled) if (!keys.has(key)) handled.delete(key);
+      for (const key of told) if (!keys.has(key)) told.delete(key);
       // Present, or gone too briefly to call it closed.
       const looksPresent =
         present ||
         (absentSince !== undefined &&
           time - absentSince < BROWSER_CLOSE_GRACE_MS);
       const closed = !looksPresent && absentSince !== undefined;
-      const ask = (need: SetupNeed, reason: AskReason): BrowserGateAction => ({
-        type: "ask",
-        reason,
-        need,
-        ...(reason === "recently-opened" && {
-          openedAgoMs: time - openedAt!,
-        }),
-      });
+      const ask = (need: SetupNeed, reason: AskReason): BrowserGateAction => {
+        told.add(needKey(need));
+        return {
+          type: "ask",
+          reason,
+          need,
+          ...(reason === "recently-opened" && {
+            openedAgoMs: time - openedAt!,
+          }),
+        };
+      };
       const actions: BrowserGateAction[] = [];
       if (closed && !closedReported) {
         // The tab closed while the user had something to answer there.
@@ -112,7 +118,7 @@ export const createBrowserGate = ({
         // The opened tab never joined: it did not open, or the user left it.
         joinTimeoutReported = true;
         for (const need of needs)
-          if (handled.has(needKey(need)))
+          if (handled.has(needKey(need)) && !told.has(needKey(need)))
             actions.push(ask(need, "recently-opened"));
       }
 

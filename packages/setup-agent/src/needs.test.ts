@@ -145,7 +145,7 @@ describe("answerNeed", () => {
     ]);
   });
 
-  it("refuses an answer the setup would, before sending anything", async () => {
+  it("refuses an answer the setup would before sending it, and closes only a current proposal", async () => {
     const { client, calls } = clientFor(
       stateWith(
         presetInput("framework") as Checkout.Input,
@@ -170,9 +170,11 @@ describe("answerNeed", () => {
     await expect(answerNeed(client, "finish", "close")).rejects.toThrow(
       "no proposal to close",
     );
+    client.state.completion = { proposedAt: 9 };
+    await answerNeed(client, "finish", "close");
+    expect(calls).toEqual([["checkout/finish", undefined]]);
     await expect(
       answerNeed(client, "q1", undefined, { dismiss: true }),
     ).rejects.toThrow("required");
-    expect(calls).toEqual([]);
   });
 });

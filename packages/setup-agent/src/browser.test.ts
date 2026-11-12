@@ -86,7 +86,8 @@ describe("createBrowserGate", () => {
     ]);
     // 30s on, the tab never joined: what waits is handed to the agent once.
     t.advance(18_000);
-    expect(t.update().map((action) => action.need.id)).toEqual(["q1", "q2"]);
+    // q2 was already handed over at 12s, so only q1 is.
+    expect(t.update().map((action) => action.need.id)).toEqual(["q1"]);
     expect(t.update()).toEqual([]);
     // It is still not a close, so a later need is not a reason to reopen.
     t.advance(65_000);

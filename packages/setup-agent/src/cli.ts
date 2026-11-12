@@ -184,7 +184,7 @@ export const agentInstructions = (
   const cmd = options.command ?? DEFAULT_COMMAND;
   const started = options.startedByAgent;
   const streaming = started?.streaming === true;
-  return `You are the coding agent for a setup ${started ? (streaming ? "you started; the user follows it in their browser, which setup opens when you ask the user something" : "you opened in the user's browser") : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
+  return `You are the coding agent for a setup ${started ? (streaming ? (started.opened === false ? "you started; setup opens no browser (--no-open), so the user follows it on the setup page if they open it, or answers you in your own conversation" : "you started; the user follows it in their browser, which setup opens when you ask the user something") : "you opened in the user's browser") : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
 
 ${streamSection(cmd, url, streaming, started?.opened === false)}
 
