@@ -1805,24 +1805,26 @@ function convertAgUiMessages(
   // a container beside the records around it, which the live run renders as
   // one message: the container joins the assistant record ahead of it, and
   // what follows a container joins it until the turn carries text, where a
-  // further text record opens a message of its own as it does live.
+  // further text record opens a message of its own as it does live. An app
+  // that knows its backend splits a turn across records it named itself opts
+  // into joining every assistant record that follows one opening a turn.
   const folded: CoreThreadMessageLike[] = [];
   for (const message of converted) {
     const previous = folded[folded.length - 1];
     if (
       previous !== undefined &&
-      ((joinAdjacentAssistantMessages &&
-        previous.role === "assistant" &&
-        message.role === "assistant") ||
-        (isSyntheticToolCallContainer(message)
-          ? opensTurn(previous)
-          : isSyntheticToolCallContainer(previous) &&
-            answersToolCallContainer(message)))
+      (isSyntheticToolCallContainer(message)
+        ? opensTurn(previous)
+        : (isSyntheticToolCallContainer(previous) &&
+            answersToolCallContainer(message)) ||
+          (joinAdjacentAssistantMessages &&
+            message.role === "assistant" &&
+            opensTurn(previous)))
     ) {
       folded[folded.length - 1] = foldTurnRecords(
         previous,
         message,
-        joinAdjacentAssistantMessages && opensTurn(previous),
+        joinAdjacentAssistantMessages,
       );
       continue;
     }

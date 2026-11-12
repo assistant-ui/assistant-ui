@@ -455,6 +455,8 @@ describe("fromAgUiSnapshotMessages subagent attribution", () => {
   it.each([false, true])(
     "does not merge pending lists while folding a nested run when joinAdjacentAssistantMessages is %s",
     (joinAdjacentAssistantMessages) => {
+      // An empty record does not open a turn, so the adjacent-record join
+      // leaves both records for the subagent fold.
       const converted = fromAgUiSnapshotMessages(
         [
           {

@@ -937,48 +937,6 @@ describe("adapter conversions", () => {
       },
     );
 
-    it.each(["a-1", "c-1"])(
-      "joins a metadata-only assistant record to the following record %s",
-      (id) => {
-        const records = [
-          {
-            id: "metadata",
-            role: "assistant",
-            metadata: { source: "history" },
-          },
-          {
-            id,
-            role: "assistant",
-            toolCalls: [
-              {
-                id: "c-1",
-                type: "function",
-                function: { name: "lookup", arguments: "{}" },
-              },
-            ],
-          },
-          { id: "t-1", role: "tool", toolCallId: "c-1", content: "sunny" },
-          { id: "a-2", role: "assistant", content: "it is sunny" },
-        ];
-        expect(fromAgUiMessages(records).map((message) => message.id)).toEqual(
-          id === "c-1" ? ["metadata", "a-2"] : ["metadata", "a-1", "a-2"],
-        );
-        const result = fromAgUiMessages(records, {
-          joinAdjacentAssistantMessages: true,
-        });
-        expect(result).toHaveLength(1);
-        expect(result[0]).toMatchObject({
-          id: "a-2",
-          role: "assistant",
-          content: [
-            { type: "tool-call", toolCallId: "c-1", result: "sunny" },
-            { type: "text", text: "it is sunny" },
-          ],
-          metadata: { custom: { source: "history" } },
-        });
-      },
-    );
-
     it("joins the turn under the id of the answer, tool step first", () => {
       const result = fromAgUiMessages(splitTurn, {
         joinAdjacentAssistantMessages: true,
