@@ -71,6 +71,8 @@ on:
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/typecheck.sh"
+      - "scripts/scheduled-failure-issue.test.mjs"
+      - ".github/workflows/scheduled-failure-issue.yaml"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
       - "turbo.json"

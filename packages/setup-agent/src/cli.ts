@@ -23,9 +23,7 @@ import { homedir, tmpdir, userInfo } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
-  AGENT_HEARTBEAT_MS,
   OPTION_ICONS,
-  classifyChoiceAnswer,
   currentPlan,
   isAgentPresent,
   isClosed,
@@ -33,16 +31,25 @@ import {
   isOptionIcon,
   isValidModelAnswer,
   parseEntryPointOptions,
-  parseMultipleAnswer,
   stepProgress,
 } from "./protocol";
 import type { Checkout } from "./protocol";
+import { answerNeed } from "./needs";
+import { answerFields, followSetup, shellWord } from "./stream";
+
+export { diffEvents } from "./stream";
+
+const DEFAULT_COMMAND = "npx setup-agent";
 
 export const HELP = `setup-agent <url> [command]
 
 Commands (the url always comes first):
   status                            Print the setup as JSON.
-  stream                            Follow the setup: one JSON array of events per line.
+  stream [--setup-app-url <url>] [--no-open]
+                                    Follow the setup: one JSON array of events per line. With --setup-app-url, open the setup page when the setup waits on the user.
+  answer <input-id> <answer> [--note <text>] [--dismiss]
+  answer plan approve | answer plan revise --feedback <text> | answer finish close
+                                    Answer for the user what they told you in your own conversation, as an "input.needed" event's "answer" shows.
   log <text>                        Send a message to the user: a reply, something no question or step conveys, or one wrap-up when finished.
   ack <message-id>                  Acknowledge a user message.
   ask <prompt> [--placeholder <text>] [--optional] [--step <step-id>] [--wait]
@@ -113,85 +120,107 @@ export const parseSetupUrl = (value: string): string => {
   return href;
 };
 
-/** `value` as one shell word, quoted only when it holds more than plain URL characters. */
-const shellWord = (value: string) =>
-  /^[A-Za-z0-9._~%/:@=+,-]+$/.test(value)
-    ? value
-    : `'${value.replaceAll("'", `'\\''`)}'`;
-
 export type AgentInstructionsOptions = {
+  /** How the agent invokes the setup commands, before the URL; `npx setup-agent` by default. */
+  command?: string;
   /**
    * The agent started this setup with `assistant-ui setup`, which already
-   * began planning and opened the setup page in the user's browser; there is
-   * no Begin plan click to wait for.
+   * began planning; there is no Begin plan click to wait for.
    */
   startedByAgent?: {
     browserUrl: string;
     /** False when the browser was not opened for the user; the agent then hands them the link. */
     opened?: boolean;
+    /**
+     * The command that printed this briefing is the stream: it keeps running
+     * and opens the browser only when the setup waits on the user.
+     */
+    streaming?: boolean;
   };
 };
 
-const beginPlanHandoff = (url: string) =>
+const EVENT_LIST = `"planning.started", "input.answered" ({inputId, answer, note?}; answer is an array for a choice question not asked with --single), "input.dismissed", "plan.approved", "plan.changes-requested" ({feedback}), "message.created" ({messageId, text}), "finished", "cancelled", "setup.created" ({products})`;
+
+const beginPlanHandoff = (cmd: string, url: string) =>
   `Before planning, check the current setup status. If it is "waiting", tell the user in your own conversation: "I'm connected. Go back to your browser and click Begin plan. You can watch my progress, answer questions, and steer me there." Then run:
-  npx setup-agent ${url} wait start
+  ${cmd} ${url} wait start
 Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. If it returns {"ok":false,"status":"cancelled"}, the user ended this setup before planning: do not plan, tell the user you are connected and waiting for their next setup, and run "wait start" again. Only the user in the browser should start planning; never invoke the browser's start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
 
 const agentStartedHandoff = ({
   browserUrl,
   opened = true,
+  streaming = false,
 }: NonNullable<AgentInstructionsOptions["startedByAgent"]>) =>
-  `You started this setup, and it is already planning: there is no Begin plan click to wait for. The browser asks the user to connect to you first; it shows your working directory once your stream is running. Check "status" before planning: if it is "planning" or "installing", go on with that phase. Tell the user in your own conversation, once: ${
-    opened
-      ? `"I opened the assistant-ui setup in your browser. I'll ask my questions there, and you can watch my progress and steer me from that page. If it didn't open, go to ${browserUrl} ."`
-      : `"Open ${browserUrl} to follow the assistant-ui setup. I'll ask my questions there, and you can watch my progress and steer me from that page."`
-  } If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+  streaming
+    ? `You started this setup, and it is already planning: there is no Begin plan click to wait for. Check "status" before planning: if it is "planning" or "installing", go on with that phase. If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`
+    : `You started this setup, and it is already planning: there is no Begin plan click to wait for. The browser asks the user to connect to you first; it shows your working directory once your stream is running. Check "status" before planning: if it is "planning" or "installing", go on with that phase. Tell the user in your own conversation, once: ${
+        opened
+          ? `"I opened the assistant-ui setup in your browser. I'll ask my questions there, and you can watch my progress and steer me from that page. If it didn't open, go to ${browserUrl} ."`
+          : `"Open ${browserUrl} to follow the assistant-ui setup. I'll ask my questions there, and you can watch my progress and steer me from that page."`
+      } If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+
+const streamSection = (
+  cmd: string,
+  url: string,
+  streaming: boolean,
+  noOpen: boolean,
+) =>
+  streaming
+    ? `The command that printed this is the stream. Keep it running in the background until the setup ends: the browser shows you as connected only while it runs, and it is how answers reach you. Each new line of its output is a JSON array of events: ${EVENT_LIST}, plus:
+- "browser.opened" ({id, message}): setup opened the setup page in the user's browser for a question. Tell the user once, in your own conversation, that it waits there.
+- "input.needed" ({id, message, question, options?, answer}): the user may not see the browser right now. Do what its message says: wait for "input.answered", or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
+If this command stops, start it again in the background with
+  ${cmd} ${url} stream${noOpen ? " --no-open" : ""}
+The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream.`
+    : `First, start a persistent Monitor on
+  ${cmd} ${url} stream
+and keep it running: the browser shows you as connected only while it runs, and it is how answers reach you. The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream. Each line is a JSON array of events: ${EVENT_LIST}.`;
 
 export const agentInstructions = (
   setupUrl: string,
   options: AgentInstructionsOptions = {},
 ) => {
   const url = shellWord(setupUrl);
+  const cmd = options.command ?? DEFAULT_COMMAND;
   const started = options.startedByAgent;
-  return `You are the coding agent for a setup ${started ? "you opened in the user's browser" : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
+  const streaming = started?.streaming === true;
+  return `You are the coding agent for a setup ${started ? (streaming ? (started.opened === false ? "you started; setup opens no browser (--no-open), so the user follows it on the setup page if they open it, or answers you in your own conversation" : "you started; the user follows it in their browser, which setup opens when you ask the user something") : "you opened in the user's browser") : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
 
-First, start a persistent Monitor on
-  npx setup-agent ${url} stream
-and keep it running: the browser shows you as connected only while it runs, and it is how answers reach you. The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream. Each line is a JSON array of events: "planning.started", "input.answered" ({inputId, answer, note?}; answer is an array for a choice question not asked with --single), "input.dismissed", "plan.approved", "plan.changes-requested" ({feedback}), "message.created" ({messageId, text}), "finished", "cancelled", "setup.created" ({products}).
+${streamSection(cmd, url, streaming, started?.opened === false)}
 
-The user can message you at any time, including while a question is waiting. Read "message.created" events, acknowledge each with "npx setup-agent ${url} ack <message-id>", and reply using "log" with what you will do. Pending messages are replayed when the stream starts and listed in "status". A message is not an answer or plan approval; keep those decisions explicit.
+The user can message you at any time, including while a question is waiting. Read "message.created" events, acknowledge each with "${cmd} ${url} ack <message-id>", and reply using "log" with what you will do. Pending messages are replayed when the stream starts and listed in "status". A message is not an answer or plan approval; keep those decisions explicit.
 
 "log" is a message to the user, and the user reads every one: send it only to reply to their message, to tell them something no question or step conveys (a blocker, a deviation from the plan, a decision you made for them), or once as a wrap-up when the install is finished. Findings go in the plan, progress in step notes, questions in "ask"; do not narrate.
 
-${started ? agentStartedHandoff(started) : beginPlanHandoff(url)}
+${started ? agentStartedHandoff(started) : beginPlanHandoff(cmd, url)}
 
 The remaining phases are plan, then install.
 
 1. Plan. Investigate only; change nothing yet. If the current directory is not an app to install into (a monorepo root, an empty folder, a library), ask where to install first:
-  npx setup-agent ${url} ask "Which project should I install into?" --placeholder "An absolute path to the app" --wait
+  ${cmd} ${url} ask "Which project should I install into?" --placeholder "An absolute path to the app" --wait
 Read the project: its app framework and package manager, the agent framework and model provider it already uses, where components live, any existing chat route. Fetch each product's "guide" URL from the setup below; it is the install reference. Ask for what the project does not decide, using the standard questions so the browser can render them well:
-  npx setup-agent ${url} ask --preset framework
-  npx setup-agent ${url} ask --preset llm-provider
+  ${cmd} ${url} ask --preset framework
+  ${cmd} ${url} ask --preset llm-provider
 The setup's products are starting names and guide references. If the setup lists no products, first ask the user what to set up with a choice question whose options are slugs from https://www.assistant-ui.com/catalog.md, then fetch https://www.assistant-ui.com/install.md?items=<slugs> as the guide. Explore each product's setup instructions, then discover and plan any other relevant products or dependencies the app needs. Read /catalog.md on the guide URL’s origin to find related products and fetch their setup guides. The starting list does not restrict the implementation or require adding another product to the list. Include relevant additions in the plan for approval.
 When the setup puts an assistant in the app, ask how users should access it after discovering the actual app and before proposing the plan. Skip this question when no product's guide installs an assistant (a standalone library or service setup, for example). Use an entry-point question with only 1–3 sensible alternatives. Describe the actual app's pages, workflow and component placement, not generic placeholder copy. Recommend one clear fit when there is one; two options may use the same form factor in different places. Each option needs a stable id, label, contextual description and entryPoint {"formFactor":"modal"|"sidebar"|"full-page","placement":"where it appears","trigger":"how users open it or navigate to it","recommended":true?}. Write the JSON array for this app and send it with:
-  npx setup-agent ${url} ask "Where should users access the assistant?" --entry-points '<JSON array>' --wait
+  ${cmd} ${url} ask "Where should users access the assistant?" --entry-points '<JSON array>' --wait
 Mark a clear fit with "recommended":true rather than --default, so the user makes the pick. When you ask it, do not submit the plan before the user picks an entry point. Respect the selected placement and trigger in the plan and implementation. Do not ask for a new-versus-existing app setting; discover the app from its files and ask only for an install path when needed.
 Skip a preset the code already answers (a chat route on the AI SDK, a provider key in .env.local) and log why. Ask everything at once, keep investigating, and block with "wait <input-id>" only when nothing else can proceed. A framework answer is "<framework>:<language>", for example "ai-sdk:typescript". A model answer is JSON {"provider","model","reasoningEffort"?}. An answer may carry a "note" from the user; follow it. A choice answer that matches none of the options is the user's own text.
 Then write the plan as markdown and submit it:
-  npx setup-agent ${url} plan --file <path> --wait
+  ${cmd} ${url} plan --file <path> --wait
 Use these headings, each with bullets: "## What I found" (facts as \`- **Label:** value\`: app framework, package manager, agent framework, model provider and model, where components live), "## What I will install" (packages and files, one per bullet), "## Steps" (a numbered list, one line each), and "## Open questions" only if any remain. Keep it under 30 lines; no preamble. "plan --wait" prints {"decision":"approve"} or {"decision":"revise","feedback":"..."}. On revise, address the feedback (ask again if you need to) and submit a new plan; repeat until approved. Do not change the project before approval: the setup refuses steps until then.
 
 2. Install. Declare the steps from your plan up front, in order:
-  npx setup-agent ${url} add-step "<title>" --detail "<one line>"
+  ${cmd} ${url} add-step "<title>" --detail "<one line>"
 which prints the step id. Then work through them: "step <id> active" before, "step <id> done --note '<one line on what you did>'" after; "skipped" when the step is already satisfied, "blocked" when you cannot continue, saying why in --note. Add steps as the work reveals them. Ask when you need another decision or value (--choices for a pick, plain for text; --optional when you can proceed without an answer; --wait only when the answer is the very next thing you need). A choice question is multi-select: the user checks any number of your options, and the answer is an array of the ids they checked, plus their own text as an entry when they typed one. Pass --single only when the options exclude each other (one framework, one model, yes or no); the answer is then one id. Every option must carry an icon, given as --icons "<id>=<icon>,..." with the closest name from this pack: ${OPTION_ICONS.join(", ")}. A question without an icon for each option is refused. Open inputs the user has not answered are listed under "inputs" in "status"; check them before asking again.
 The API key behind a model answer is not in the answer and you never see it: pick the variable name the provider's SDK reads (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) and run
-  npx setup-agent ${url} env <input-id> <ENV_VAR> --file .env.local
-which writes ENV_VAR=<key> into that file. Use the answer's model in the chat route and map reasoningEffort onto the provider's setting when it is set. Never invent a key or a model name.
+  ${cmd} ${url} env <input-id> <ENV_VAR> --file .env.local
+which writes ENV_VAR=<key> into that file. Use the answer's model in the chat route and map reasoningEffort onto the provider's setting when it is set. If "env" says the key was never deposited (the model question was answered from your conversation), ask the user to add the key to that file themselves. Never invent a key or a model name.
 
 When every product is installed and verified, run
-  npx setup-agent ${url} done --summary "<one or two lines on what you installed and how to try it>" --preview http://localhost:<port>
+  ${cmd} ${url} done --summary "<one or two lines on what you installed and how to try it>" --preview http://localhost:<port>
 Before that, start the project's dev server in the background when the project has one, check that the page you changed loads, and pass the address as --preview (the page itself when it is not the root); leave the server running so the user can try the result. Omit --preview when there is nothing to open. This proposes closing the setup; only the user closes it. Do not stop the stream or exit: stay idle on it, because the user may follow up with a "message.created" event. Handle it, then run "done" again. The stream prints "finished" once the user closes the setup, and "cancelled" if they end it early. Keep the stream running after either: the user's next setup starts on this same URL and arrives as "setup.created" with its products. Run
-  npx setup-agent ${url} wait start
+  ${cmd} ${url} wait start
 which returns once that setup begins, then run "status" for its products, guides and instructions and go through plan and install again. A "setup.created" event while you are still working means the user replaced this setup: drop what you were doing and start over the same way.
 `;
 };
@@ -330,145 +359,6 @@ const STEP_STATUSES: readonly Checkout.StepStatus[] = [
   "skipped",
   "blocked",
 ];
-
-type StreamEvent =
-  | { event: "planning.started" }
-  | { event: "message.created"; messageId: string; text: string }
-  | {
-      event: "input.answered";
-      inputId: string;
-      prompt: string;
-      /** The entries of a multiple choice answer, else the answer text. */
-      answer: string | string[];
-      note?: string;
-      /** True when a choice answer is, or a multiple one contains, the user's own text rather than an option. */
-      custom?: true;
-    }
-  | { event: "input.dismissed"; inputId: string; prompt: string }
-  | { event: "plan.approved"; revision: number }
-  | { event: "plan.changes-requested"; revision: number; feedback: string }
-  | { event: "finished"; next: string }
-  | { event: "cancelled"; next: string }
-  | { event: "setup.created"; products: string[] };
-
-const STAY_CONNECTED =
-  "This setup is over, not your connection. Keep the stream running, tell the user you are connected and waiting for their next setup, and run wait start.";
-
-export const diffEvents = (
-  before: Checkout.State,
-  after: Checkout.State,
-): StreamEvent[] => {
-  const events: StreamEvent[] = [];
-  if (before.status === "waiting" && after.status === "planning") {
-    events.push({ event: "planning.started" });
-  }
-  for (const entry of after.log) {
-    if (
-      entry.role === "user" &&
-      entry.acknowledgedAt === undefined &&
-      !before.log.some((previous) => previous.id === entry.id)
-    ) {
-      events.push({
-        event: "message.created",
-        messageId: entry.id,
-        text: entry.text,
-      });
-    }
-  }
-  for (const input of after.inputs) {
-    const previous = before.inputs.find(
-      (candidate) => candidate.id === input.id,
-    );
-    if (previous?.status === input.status) continue;
-    if (input.status === "answered") {
-      const answer = input.answer ?? "";
-      events.push({
-        event: "input.answered",
-        inputId: input.id,
-        prompt: input.prompt,
-        ...answerFields(input, answer),
-      });
-    } else if (input.status === "dismissed" && after.status !== "cancelled") {
-      events.push({
-        event: "input.dismissed",
-        inputId: input.id,
-        prompt: input.prompt,
-      });
-    }
-  }
-  for (const plan of after.plans) {
-    const previous = before.plans.find(
-      (candidate) => candidate.revision === plan.revision,
-    );
-    if (previous?.status === plan.status || plan.status === "proposed") {
-      continue;
-    }
-    if (plan.status === "approved") {
-      events.push({ event: "plan.approved", revision: plan.revision });
-    } else {
-      events.push({
-        event: "plan.changes-requested",
-        revision: plan.revision,
-        feedback: plan.feedback ?? "",
-      });
-    }
-  }
-  if (before.status !== "done" && after.status === "done") {
-    events.push({ event: "finished", next: STAY_CONNECTED });
-  }
-  if (before.status !== "cancelled" && after.status === "cancelled") {
-    events.push({ event: "cancelled", next: STAY_CONNECTED });
-  }
-  if (after.id !== null && after.id !== before.id) {
-    events.push({
-      event: "setup.created",
-      products: after.products.map((product) => product.slug),
-    });
-  }
-  return events;
-};
-
-const stream = async (client: CheckoutClient) => {
-  let previous = requireState(client);
-  let pending: StreamEvent[] = diffEvents({ ...previous, log: [] }, previous);
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const flush = () => {
-    timer = null;
-    if (pending.length === 0) return;
-    print(pending);
-    pending = [];
-  };
-  client.subscribe(() => {
-    const next = client.state;
-    if (next === undefined) return;
-    pending.push(...diffEvents(previous, next));
-    previous = next;
-    if (pending.length > 0 && timer === null) timer = setTimeout(flush, 200);
-  });
-  flush();
-  const kind = detectAgentKind();
-  await client.commands["agent/hello"]({
-    cwd: process.cwd(),
-    ...(kind !== undefined && { kind }),
-  });
-  const heartbeat = setInterval(() => {
-    void client.commands["agent/heartbeat"]().catch(() => {});
-  }, AGENT_HEARTBEAT_MS);
-  const stop = () => {
-    clearInterval(heartbeat);
-    flush();
-    void client.commands["agent/bye"]()
-      .catch(() => {})
-      .finally(() => {
-        client.dispose();
-        process.exit(0);
-      });
-  };
-  process.on("SIGHUP", stop);
-  process.on("SIGINT", stop);
-  process.on("SIGTERM", stop);
-  await new Promise(() => {});
-};
 
 /** Resolves once a setup is planning or installing, or once the one being waited on is cancelled; a setup already closed when the wait begins is over, so the wait is for the next one. */
 export const waitForStart = (
@@ -876,15 +766,6 @@ const readRedeemKey = async (hash: string) => {
   return undefined;
 };
 
-const answerFields = (input: Checkout.Input, answer: string) => ({
-  answer: (input.multiple && parseMultipleAnswer(answer)) || answer,
-  ...(input.note !== undefined && { note: input.note }),
-  ...(input.kind === "choice" &&
-    classifyChoiceAnswer(input, answer) === "custom" && {
-      custom: true as const,
-    }),
-});
-
 const answered = (input: Checkout.Input) => ({
   ok: true,
   inputId: input.id,
@@ -892,7 +773,55 @@ const answered = (input: Checkout.Input) => ({
   ...(input.answer !== undefined && answerFields(input, input.answer)),
 });
 
-export const main = async (argv: readonly string[]) => {
+export type RunSetupCommandOptions = {
+  /** How the agent invokes these commands, before the URL; `npx setup-agent` by default. */
+  command?: string;
+  /** Lets "stream" open the setup page when the setup waits on the user, as `--setup-app-url` does. */
+  browser?: { setupAppUrl: string; canOpen?: boolean };
+};
+
+const runStream = async (
+  client: CheckoutClient,
+  url: string,
+  flags: Parsed["flags"],
+  options: RunSetupCommandOptions,
+) => {
+  const setupAppUrl =
+    options.browser?.setupAppUrl ?? flagText(flags, "setup-app-url");
+  const linkId = new URL(url).pathname.split("/").filter(Boolean).at(-1);
+  const stream = await followSetup(client, {
+    ...(setupAppUrl !== undefined &&
+      linkId !== undefined && {
+        browser: {
+          setupAppUrl: parseSetupUrl(setupAppUrl),
+          linkId,
+          answerCommand: `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} answer`,
+          canOpen: (options.browser?.canOpen ?? true) && !flags.has("no-open"),
+        },
+      }),
+  });
+  const stop = () => {
+    void stream.stop().finally(() => {
+      client.dispose();
+      process.exit(0);
+    });
+  };
+  process.on("SIGHUP", stop);
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
+  await new Promise(() => {});
+};
+
+export const main = (argv: readonly string[]) => runSetupCommand(argv);
+
+/**
+ * Runs one setup command (`<url> <command> ...`) the way `npx setup-agent`
+ * does, for a CLI that embeds setup as its own command.
+ */
+export const runSetupCommand = async (
+  argv: readonly string[],
+  options: RunSetupCommandOptions = {},
+) => {
   const { positional, flags } = parseArgs(argv);
   const [first, command = "intro", ...rest] = positional;
   if (flags.has("help") || flags.has("h") || first === undefined) {
@@ -919,7 +848,11 @@ export const main = async (argv: readonly string[]) => {
         await commands["agent/intro"]({
           ...(kind !== undefined && { kind }),
         }).catch(() => {});
-        process.stdout.write(INSTRUCTIONS(url));
+        process.stdout.write(
+          agentInstructions(url, {
+            ...(options.command !== undefined && { command: options.command }),
+          }),
+        );
         process.stdout.write("\nCurrent setup:\n");
         print(summary(requireState(client)));
         break;
@@ -929,7 +862,22 @@ export const main = async (argv: readonly string[]) => {
         break;
       }
       case "stream": {
-        await stream(client);
+        await runStream(client, url, flags, options);
+        break;
+      }
+      case "answer": {
+        const id =
+          rest[0] ??
+          fail("usage: answer <input-id|plan|finish> <answer> [--note <text>]");
+        const note = flagText(flags, "note");
+        const feedback = flagText(flags, "feedback");
+        print(
+          await answerNeed(client, id, rest[1], {
+            ...(note !== undefined && { note }),
+            ...(feedback !== undefined && { feedback }),
+            ...(flags.has("dismiss") && { dismiss: true }),
+          }),
+        );
         break;
       }
       case "step": {

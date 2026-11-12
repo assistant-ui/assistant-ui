@@ -27,10 +27,12 @@ Lite mode also:
 - turns off Turbopack source maps, so stack traces and browser devtools show compiled code.
 - turns off Turbopack's persistent cache, so each restart compiles the pages you open again.
 
-To cap memory during `pnpm build`, limit the prerender workers:
+To cap memory during `pnpm build`, limit the prerender workers and Turbopack's MDX loader processes:
 
 ```sh
 DOCS_BUILD_CPUS=4 pnpm build
 ```
+
+On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s. With `DOCS_BUILD_CPUS=4` it peaks at about 16 GB and takes about 55 s. The PR that added this (assistant-ui/assistant-ui#10486) has the measurements.
 
 None of these settings change what a build produces.

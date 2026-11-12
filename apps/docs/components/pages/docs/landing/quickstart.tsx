@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import {
-  InstallManuallyLink,
-  SetupCommandPrompt,
-} from "@/components/shared/setup-command-prompt";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { useSurfaceOrDefault } from "@/components/pages/docs/platform/context";
 import {
   PLATFORM_ENTRY_PATHS,
@@ -19,9 +16,8 @@ export function Quickstart() {
   // React apps set up through the coding agent; the other surfaces start from a template.
   if (platform === "react")
     return (
-      <div className="not-prose flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="not-prose">
         <SetupCommandPrompt page="docs" section="overview" />
-        <InstallManuallyLink section="docs_overview" />
       </div>
     );
 

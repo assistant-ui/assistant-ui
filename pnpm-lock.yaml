@@ -4172,8 +4172,8 @@ importers:
   packages/acp:
     dependencies:
       '@agentclientprotocol/sdk':
-        specifier: ^1.9.0
-        version: 1.9.0(zod@4.6.7)
+        specifier: ^2.0.2
+        version: 2.0.2(zod@4.6.7)
       '@assistant-ui/core':
         specifier: ^0.3.35
         version: link:../core
@@ -7744,10 +7744,10 @@ packages:
   '@ag-ui/proto@1.0.3':
     resolution: {integrity: sha512-L3YVEJN1hCYx3P7Zfrf4e1obA1pwzykkkPZkNHAdcXyUZ05/ezvWCkErnfNoUlER8QCasBwRjKiDjicu3Tt7+g==}
 
-  '@agentclientprotocol/sdk@1.9.0':
-    resolution: {integrity: sha512-saCOTPYBK1iqWqJFAYHXbg3+zCoFXyZZFoqQAwdTWkbrZZPpAETr80QOnYr2l+dzPwL0jpNhn3eDY8MoEIDbUA==}
+  '@agentclientprotocol/sdk@2.0.2':
+    resolution: {integrity: sha512-jLywRB42hZMRMc4aUgt0uRjkY9FQnMdybv4XgLl+ddi75QuJn8Vbl0+CHcVHJDC0+WDfi1KQXRWtHaR5vp6gHw==}
     peerDependencies:
-      zod: ^3.25.0 || ^4.0.0
+      zod: ^3.25.76 || ^4.0.0
 
   '@ai-sdk/gateway@3.0.221':
     resolution: {integrity: sha512-21M3q5NuAuItmHmU2rlcK3OBb9zvcvctcyzQUu/O6YkAjVNqQjyhJ9XnYlUupdrZhNR0sn0QNmSh3zKtesqY8w==}
@@ -21429,8 +21429,8 @@ packages:
     resolution: {integrity: sha512-SMguiTnYrhpLdk3PwfzHeotrcwi8bNV4iemL9tx9poR/yeaMYwB9VzR1w7b57DuWpuqR8n6oZboi0hj3AxZxQg==}
     hasBin: true
 
-  semver@5.7.2:
-    resolution: {integrity: sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==}
+  semver@5.7.3:
+    resolution: {integrity: sha512-kM18BPOqTi0+TB68703/GJRpAML5Me+IDQsR1J26YB3EFKKNEyHIVZuWDX7+WKQB3tHwDwgk24BfhdpWUbytvQ==}
     hasBin: true
 
   semver@6.3.1:
@@ -21463,14 +21463,14 @@ packages:
     resolution: {integrity: sha512-FqlEuoTq/zRmA4Lg6aOqyH3lCHbUtCB0bmHCeFniX2GBdDqMJM3FwdvEhlE5Pim1dlt2FfBdVPmUNNiGhhKqpw==}
     engines: {node: '>=20.0.0'}
 
-  seroval-plugins@1.7.2:
-    resolution: {integrity: sha512-ud8kMCGLHmGkW9YtVDluJtqTukSx/4YBqtmPAvAz/HxbIwhwMeZU52imxeyZ1zoAXtqBDiaLwSasbnK9DptrDg==}
+  seroval-plugins@1.8.0:
+    resolution: {integrity: sha512-96vBb12rDvPPwdKUgWw1op3fGq8AVBFOr0IllbnM72yR5J9WWXF18cQ4g1XfDO7HCyh2dt70P3XdtyRayP8FWg==}
     engines: {node: '>=20'}
     peerDependencies:
-      seroval: ^1.0
+      seroval: ^1.8.0
 
-  seroval@1.7.2:
-    resolution: {integrity: sha512-NPOYrDVbvtuTo5m9InqKE7O6wBASON46OabjyqLUGPvoXNDYp0pReuFYkqOQwGsoj1OpZVj6mIdnRRgt5O1/gQ==}
+  seroval@1.8.0:
+    resolution: {integrity: sha512-W5N4cMPc58lypAsScCmhGTyZxNZ6gPHvLHtMqtyvDFpfyNDsH1QjU0nI9Lr34+Q5ZLPsWeqOhkgTY5XtaPVQ4A==}
     engines: {node: '>=20'}
 
   serve-placeholder@2.0.2:
@@ -23366,7 +23366,7 @@ snapshots:
       '@protobuf-ts/protoc': 2.11.1
       zod: 3.25.76
 
-  '@agentclientprotocol/sdk@1.9.0(zod@4.6.7)':
+  '@agentclientprotocol/sdk@2.0.2(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
 
@@ -27662,7 +27662,7 @@ snapshots:
       pkg-types: 2.4.0
       postcss: 8.5.31
       rolldown-string: 0.3.1(rolldown@1.2.15)
-      seroval: 1.7.2
+      seroval: 1.8.0
       std-env: 4.3.0
       ufo: 1.6.4
       unenv: 2.0.0-rc.24
@@ -27737,7 +27737,7 @@ snapshots:
       pkg-types: 2.4.0
       postcss: 8.5.31
       rolldown-string: 0.3.1(rolldown@1.2.15)
-      seroval: 1.7.2
+      seroval: 1.8.0
       std-env: 4.3.0
       ufo: 1.6.4
       unenv: 2.0.0-rc.24
@@ -27812,7 +27812,7 @@ snapshots:
       pkg-types: 2.4.0
       postcss: 8.5.31
       rolldown-string: 0.3.1(rolldown@1.2.15)
-      seroval: 1.7.2
+      seroval: 1.8.0
       std-env: 4.3.0
       ufo: 1.6.4
       unenv: 2.0.0-rc.24
@@ -30837,8 +30837,8 @@ snapshots:
     dependencies:
       '@tanstack/history': 1.162.5
       cookie-es: 3.1.1
-      seroval: 1.7.2
-      seroval-plugins: 1.7.2(seroval@1.7.2)
+      seroval: 1.8.0
+      seroval-plugins: 1.8.0(seroval@1.8.0)
 
   '@tanstack/router-generator@1.167.46(supports-color@10.2.2)':
     dependencies:
@@ -30895,7 +30895,7 @@ snapshots:
       '@tanstack/router-core': 1.171.39
       '@tanstack/start-fn-stubs': 1.162.0
       '@tanstack/start-storage-context': 1.167.41
-      seroval: 1.7.2
+      seroval: 1.8.0
 
   '@tanstack/start-fn-stubs@1.162.0': {}
 
@@ -30914,7 +30914,7 @@ snapshots:
       lightningcss: 1.33.0
       pathe: 2.0.3
       picomatch: 4.0.7
-      seroval: 1.7.2
+      seroval: 1.8.0
       source-map: 0.7.6
       srvx: 1.0.7
       tinyglobby: 0.2.17
@@ -30945,7 +30945,7 @@ snapshots:
       '@tanstack/start-storage-context': 1.167.41
       cookie-es: 3.1.1
       fetchdts: 0.2.0
-      seroval: 1.7.2
+      seroval: 1.8.0
 
   '@tanstack/start-storage-context@1.167.41':
     dependencies:
@@ -36734,7 +36734,7 @@ snapshots:
   make-dir@2.1.0:
     dependencies:
       pify: 4.0.1
-      semver: 5.7.2
+      semver: 5.7.3
 
   makeerror@1.0.12:
     dependencies:
@@ -40779,7 +40779,7 @@ snapshots:
     dependencies:
       commander: 6.2.1
 
-  semver@5.7.2: {}
+  semver@5.7.3: {}
 
   semver@6.3.1: {}
 
@@ -40827,11 +40827,11 @@ snapshots:
 
   serialize-javascript@7.1.4: {}
 
-  seroval-plugins@1.7.2(seroval@1.7.2):
+  seroval-plugins@1.8.0(seroval@1.8.0):
     dependencies:
-      seroval: 1.7.2
+      seroval: 1.8.0
 
-  seroval@1.7.2: {}
+  seroval@1.8.0: {}
 
   serve-placeholder@2.0.2:
     dependencies:

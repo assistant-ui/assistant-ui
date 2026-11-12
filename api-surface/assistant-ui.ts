@@ -10,8 +10,15 @@ export const cliSurface: CliSurfaceSnapshot = {
     {
       "name": "setup",
       "description": "set up assistant-ui with your coding agent, guided in your browser",
-      "usage": "[options]",
-      "arguments": [],
+      "usage": "[options] [url-and-command...]",
+      "arguments": [
+        {
+          "syntax": "[url-and-command...]",
+          "description": "a setup command for the agent: <url> <command> [args], such as <url> ask, <url> answer or <url> stream",
+          "required": false,
+          "variadic": true
+        }
+      ],
       "options": [
         {
           "flags": "--products <slugs>",
@@ -20,7 +27,7 @@ export const cliSurface: CliSurfaceSnapshot = {
         },
         {
           "flags": "--no-open",
-          "description": "print the setup link instead of opening the browser"
+          "description": "never open the browser; the agent asks the user in its own conversation"
         },
         {
           "flags": "--docs-url <url>",

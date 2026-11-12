@@ -16,6 +16,12 @@ import { AGENT_SETUP_HINT, AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
  * markdown for `.md`, `llms.txt` and the MCP docs server.
  */
 
+/** `text` with its backtick spans as <code>, so the markdown keeps them as code instead of escaping the backticks. */
+const withInlineCode = (text: string) =>
+  text
+    .split("`")
+    .map((part, i) => (i % 2 === 1 ? <code key={i}>{part}</code> : part));
+
 export const QuickstartLLM = (
   _props: Record<string, never>,
   ctx?: LLMRenderContext,
@@ -26,12 +32,12 @@ export const QuickstartLLM = (
     return (
       <>
         <p>
-          Tell your coding agent: <code>{AGENT_SETUP_PROMPT}</code>
+          Ask your coding agent to <code>{AGENT_SETUP_PROMPT}</code>.
         </p>
-        <p>{AGENT_SETUP_HINT}</p>
+        <p>{withInlineCode(AGENT_SETUP_HINT)}</p>
         <p>
           To install by hand, follow the{" "}
-          <a href={PLATFORM_ENTRY_PATHS[platform]}>installation guide</a>.
+          <a href="/docs/manual-installation">manual installation guide</a>.
         </p>
       </>
     );
@@ -48,6 +54,14 @@ export const QuickstartLLM = (
     </>
   );
 };
+
+/** The installation page's prompt, with what the agent runs for it. */
+export const AgentSetupPromptLLM = () => (
+  <>
+    <pre>{AGENT_SETUP_PROMPT}</pre>
+    <p>{withInlineCode(AGENT_SETUP_HINT)}</p>
+  </>
+);
 
 export const SurfaceGridLLM = () => (
   <ul>

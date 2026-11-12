@@ -1221,3 +1221,59 @@ describe("model key handoff", () => {
     },
   );
 });
+
+describe("answer", () => {
+  it("answers an input for the user from the agent's side", async () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      id: "setup-a",
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          phase: "planning",
+          kind: "text",
+          prompt: "Where?",
+          optional: false,
+          status: "open",
+          createdAt: 2,
+        },
+      ],
+    };
+    const answer = vi.fn(async () => {});
+    connectCheckoutMock.mockResolvedValue({
+      state,
+      commands: { "checkout/answer": answer },
+      dispose: vi.fn(),
+    } as unknown as Awaited<ReturnType<typeof connectCheckout>>);
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      stdout.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    await main([
+      "https://checkout.test/session",
+      "answer",
+      "q1",
+      "apps/web",
+      "--note",
+      "said in chat",
+    ]);
+    expect(answer).toHaveBeenCalledWith({
+      inputId: "q1",
+      answer: "apps/web",
+      note: "said in chat",
+    });
+    expect(stdout).toHaveBeenCalledWith(
+      `${JSON.stringify({ ok: true, id: "q1", status: "answered" })}\n`,
+    );
+  });
+});
+
+describe("help", () => {
+  it("documents answer in the help", () => {
+    expect(HELP).toContain("answer <input-id> <answer>");
+    expect(HELP).toContain("--setup-app-url");
+  });
+});
