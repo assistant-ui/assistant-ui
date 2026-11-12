@@ -68,7 +68,10 @@ async function reload(history: ReturnType<typeof createHistory>) {
   return core.getMessages().map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
 }
 
-async function run(events: (requestMessages: any[]) => object[][]) {
+async function run(
+  events: (requestMessages: any[]) => object[][],
+  afterEvents?: (core: AgUiThreadController) => Promise<void>,
+) {
   const writes: string[] = [];
   const history = createHistory(writes);
   let write!: (e: object) => void;
@@ -103,6 +106,7 @@ async function run(events: (requestMessages: any[]) => object[][]) {
     for (const e of batch) write(e);
     await settle();
   }
+  await afterEvents?.(core);
   close();
   await sending;
   await settle();
@@ -141,7 +145,193 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
     ]);
     expect(shown).toContain("other:complete");
     expect(rows.get("other")?.status, writes.join(", ")).toBe("complete");
+    expect(writes.filter((write) => write === "append other")).toHaveLength(1);
+    expect(writes.filter((write) => write.endsWith(" other"))).toHaveLength(1);
     expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+  });
+
+  it.each([false, true])(
+    "stores the snapshot-selected answer on EOF without a later update (previous text ended: %s)",
+    async (textEnded) => {
+      const { rows, writes, shown, reloaded } = await run((req) => [
+        start,
+        ...(textEnded ? [[end]] : []),
+        [moveSnapshot(req)],
+      ]);
+
+      expect(shown).toContain("other:complete");
+      expect(rows.get("other"), writes.join(", ")).toEqual({
+        id: "other",
+        status: "complete",
+        text: "o",
+      });
+      expect(writes.filter((write) => write === "append other")).toHaveLength(
+        1,
+      );
+      expect(writes.filter((write) => write.endsWith(" other"))).toHaveLength(
+        1,
+      );
+      expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+    },
+  );
+
+  it("control: stores a complete snapshot-only answer on EOF without a later update", async () => {
+    const { rows, writes, shown, reloaded } = await run((req) => [
+      [
+        { type: "RUN_STARTED", threadId: "t", runId: "r" },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [...req, { id: "only", role: "assistant", content: "o" }],
+        },
+      ],
+    ]);
+
+    expect(shown).toContain("only:complete");
+    expect(rows.get("only"), writes.join(", ")).toEqual({
+      id: "only",
+      status: "complete",
+      text: "o",
+    });
+    expect(writes.filter((write) => write === "append only")).toHaveLength(1);
+    expect(writes.filter((write) => write.endsWith(" only"))).toHaveLength(1);
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+  });
+
+  it("control: stores the snapshot-selected answer exactly once when Stop precedes EOF", async () => {
+    const { rows, writes, shown, reloaded } = await run(
+      (req) => [start, [moveSnapshot(req)]],
+      (core) => core.cancel(),
+    );
+
+    expect(shown).toContain("other:incomplete");
+    expect(rows.get("other"), writes.join(", ")).toEqual({
+      id: "other",
+      status: "incomplete",
+      text: "o",
+    });
+    expect(writes.filter((write) => write === "append other")).toHaveLength(1);
+    expect(writes.filter((write) => write.endsWith(" other"))).toHaveLength(1);
+    expect(reloaded.slice(1), writes.join(", ")).toEqual(shown.slice(1));
+  });
+
+  it("control: an older EOF finalizer does not write a newer run's answer", async () => {
+    const writes: string[] = [];
+    const history = createHistory(writes);
+    let transportFinished!: () => void;
+    const firstTransport = new Promise<void>((resolve) => {
+      transportFinished = resolve;
+    });
+    let releaseFinalizer!: () => void;
+    const firstFinalizer = new Promise<void>((resolve) => {
+      releaseFinalizer = resolve;
+    });
+    let runs = 0;
+    class DelayedAgent extends HttpAgent {
+      override async runAgent(...args: Parameters<HttpAgent["runAgent"]>) {
+        const first = runs++ === 0;
+        const result = await super.runAgent(...args);
+        if (first) {
+          transportFinished();
+          await firstFinalizer;
+        }
+        return result;
+      }
+    }
+    let finishSecond!: () => void;
+    let requests = 0;
+    const agent = new DelayedAgent({
+      url: "https://agent.test",
+      fetch: async (_url: unknown, init: RequestInit) => {
+        const requestMessages = JSON.parse(init.body as string).messages ?? [];
+        const first = requests++ === 0;
+        const events = first
+          ? [...start, moveSnapshot(requestMessages)]
+          : [
+              { type: "RUN_STARTED", threadId: "t", runId: "r2" },
+              {
+                type: "TEXT_MESSAGE_START",
+                messageId: "next-answer",
+                role: "assistant",
+              },
+              {
+                type: "TEXT_MESSAGE_CONTENT",
+                messageId: "next-answer",
+                delta: "a2",
+              },
+              {
+                type: "MESSAGES_SNAPSHOT",
+                messages: [
+                  ...requestMessages,
+                  { id: "next-answer", role: "assistant", content: "a2" },
+                  { id: "newest", role: "assistant", content: "new answer" },
+                ],
+              },
+            ];
+        const encoder = new TextEncoder();
+        const encoded = encoder.encode(
+          events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+        );
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoded);
+            if (first) controller.close();
+            else
+              finishSecond = () => {
+                controller.enqueue(
+                  encoder.encode(
+                    [
+                      { type: "TEXT_MESSAGE_END", messageId: "next-answer" },
+                      { type: "RUN_FINISHED", threadId: "t", runId: "r2" },
+                    ]
+                      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                      .join(""),
+                  ),
+                );
+                controller.close();
+              };
+          },
+        });
+        return new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      },
+    });
+    const core = new AgUiThreadController({
+      agent,
+      logger: makeLogger(),
+      showThinking: false,
+      history: history as any,
+    });
+    const firstSending = core.append(userMessage);
+    await firstTransport;
+    const secondSending = core.append({ ...userMessage, parentId: "other" });
+    await expect.poll(() => core.getMessages().at(-1)?.id).toBe("newest");
+    expect(core.getMessages().at(-1)?.status?.type).toBe("complete");
+    expect(history.rows().has("newest")).toBe(false);
+
+    const writesBeforeFinalizer = [...writes];
+    releaseFinalizer();
+    await firstSending;
+    expect(core.isRunning()).toBe(true);
+    expect(writes).toEqual(writesBeforeFinalizer);
+    expect(history.rows().has("newest")).toBe(false);
+
+    finishSecond();
+    await secondSending;
+    await expect
+      .poll(() => history.rows().get("newest"))
+      .toEqual({
+        id: "newest",
+        status: "complete",
+        text: "new answer",
+      });
+    expect(writes.filter((write) => write === "append other")).toHaveLength(1);
+    expect(writes.filter((write) => write === "append newest")).toHaveLength(1);
+    expect(writes.filter((write) => write.endsWith(" newest"))).toHaveLength(1);
+    expect((await reload(history)).slice(-2)).toEqual([
+      "next-answer:complete",
+      "newest:complete",
+    ]);
   });
 
   it("stores the new head after one head-move snapshot and RUN_ERROR", async () => {
