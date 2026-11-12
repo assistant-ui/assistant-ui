@@ -194,6 +194,28 @@ describe("fromThreadMessageLike", () => {
 
       expect(message.content).toEqual([]);
     });
+
+    it("keeps an explicitly redacted empty reasoning part in order", () => {
+      const message = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "Before" },
+            { type: "reasoning", text: "", redacted: true },
+            { type: "text", text: "After" },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(message.content).toEqual([
+        { type: "text", text: "Before" },
+        { type: "reasoning", text: "", redacted: true },
+        { type: "text", text: "After" },
+      ]);
+    });
+
     it("drops an assistant image part whose image is undefined", () => {
       const result = fromThreadMessageLike(
         {
