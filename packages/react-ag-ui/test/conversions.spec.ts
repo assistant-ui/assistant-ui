@@ -833,9 +833,6 @@ describe("adapter conversions", () => {
   });
 
   describe("joinAdjacentAssistantMessages", () => {
-    // A backend that rebuilds history from its own records names the record
-    // carrying a turn's tool call itself, so it is not a container the client
-    // opened and the turn arrives as two assistant records.
     const splitTurn = [
       { id: "u-1", role: "user", content: "weather?" },
       {
@@ -857,6 +854,130 @@ describe("adapter conversions", () => {
       const result = fromAgUiMessages(splitTurn);
       expect(result.map((m) => m.id)).toEqual(["u-1", "a-1", "a-2"]);
     });
+
+    it.each([
+      {
+        source: "earlier",
+        earlier: ["c-1"],
+        later: undefined,
+        expected: ["c-1"],
+      },
+      {
+        source: "later",
+        earlier: undefined,
+        later: ["c-2"],
+        expected: ["c-2"],
+      },
+      {
+        source: "later of both",
+        earlier: ["c-1"],
+        later: ["c-2"],
+        expected: ["c-2"],
+      },
+    ])(
+      "preserves the $source pending list in the default container fold",
+      ({ earlier, later, expected }) => {
+        const records = [
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "checking",
+            toolCalls: [
+              {
+                id: "c-1",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+            ...(earlier
+              ? {
+                  metadata: {
+                    custom: { agui: { pendingToolCallIds: earlier } },
+                  },
+                }
+              : {}),
+          },
+          {
+            id: "c-2",
+            role: "assistant",
+            toolCalls: [
+              {
+                id: "c-2",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+            ...(later
+              ? {
+                  metadata: { custom: { agui: { pendingToolCallIds: later } } },
+                }
+              : {}),
+          },
+        ];
+        for (const options of [
+          undefined,
+          { joinAdjacentAssistantMessages: false },
+        ]) {
+          const result = fromAgUiMessages(records, options);
+          expect(result).toHaveLength(1);
+          expect(result[0]).toMatchObject({
+            id: "a-1",
+            role: "assistant",
+            content: [
+              { type: "text", text: "checking" },
+              { type: "tool-call", toolCallId: "c-1" },
+              { type: "tool-call", toolCallId: "c-2" },
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          });
+          expect(result[0]!.metadata).toEqual({
+            custom: { agui: { pendingToolCallIds: expected } },
+          });
+        }
+      },
+    );
+
+    it.each(["a-1", "c-1"])(
+      "joins a metadata-only assistant record to the following record %s",
+      (id) => {
+        const records = [
+          {
+            id: "metadata",
+            role: "assistant",
+            metadata: { source: "history" },
+          },
+          {
+            id,
+            role: "assistant",
+            toolCalls: [
+              {
+                id: "c-1",
+                type: "function",
+                function: { name: "lookup", arguments: "{}" },
+              },
+            ],
+          },
+          { id: "t-1", role: "tool", toolCallId: "c-1", content: "sunny" },
+          { id: "a-2", role: "assistant", content: "it is sunny" },
+        ];
+        expect(fromAgUiMessages(records).map((message) => message.id)).toEqual(
+          id === "c-1" ? ["metadata", "a-2"] : ["metadata", "a-1", "a-2"],
+        );
+        const result = fromAgUiMessages(records, {
+          joinAdjacentAssistantMessages: true,
+        });
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatchObject({
+          id: "a-2",
+          role: "assistant",
+          content: [
+            { type: "tool-call", toolCallId: "c-1", result: "sunny" },
+            { type: "text", text: "it is sunny" },
+          ],
+          metadata: { custom: { source: "history" } },
+        });
+      },
+    );
 
     it("joins the turn under the id of the answer, tool step first", () => {
       const result = fromAgUiMessages(splitTurn, {

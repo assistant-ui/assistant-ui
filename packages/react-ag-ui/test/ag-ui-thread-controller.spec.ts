@@ -309,6 +309,74 @@ describe("joinStrategy", () => {
       ],
     ]);
   });
+
+  it("keeps the active streamed id when concat-content prepends it to joined snapshot records", async () => {
+    let atSnapshot: readonly ThreadMessage[] = [];
+    let core: AgUiThreadController;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber: AgentSubscriber) => {
+        const params = createAgentSubscriberParams();
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: EventType.TEXT_MESSAGE_START,
+            messageId: "streamed",
+            role: "assistant",
+          },
+          ...params,
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: EventType.TEXT_MESSAGE_CONTENT,
+            messageId: "streamed",
+            delta: "checking",
+          },
+          textMessageBuffer: "checking",
+          ...params,
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: EventType.MESSAGES_SNAPSHOT,
+            messages: [
+              { id: "u-1", role: "user", content: "weather?" },
+              {
+                id: "a-1",
+                role: "assistant",
+                toolCalls: [
+                  {
+                    id: "c-1",
+                    type: "function",
+                    function: { name: "lookup", arguments: "{}" },
+                  },
+                ],
+              },
+              { id: "t-1", role: "tool", toolCallId: "c-1", content: "sunny" },
+              { id: "a-2", role: "assistant", content: "it is sunny" },
+            ],
+          },
+          ...params,
+        });
+        atSnapshot = core.getMessages();
+        notifyRunFinalized(subscriber);
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent, {
+      joinStrategy: "concat-content",
+      joinAdjacentAssistantMessages: true,
+    });
+    await core.append(createAppendMessage());
+
+    for (const messages of [atSnapshot, core.getMessages()]) {
+      const assistants = messages.filter(
+        (message) => message.role === "assistant",
+      );
+      expect(assistants.map((message) => message.id)).toEqual(["streamed"]);
+      expect(assistants[0]!.content).toMatchObject([
+        { type: "text", text: "checking" },
+        { type: "tool-call", toolCallId: "c-1", result: "sunny" },
+        { type: "text", text: "it is sunny" },
+      ]);
+    }
+  });
 });
 
 const noopLogger = makeLogger();

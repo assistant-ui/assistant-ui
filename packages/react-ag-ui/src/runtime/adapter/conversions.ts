@@ -1075,16 +1075,6 @@ function readNamespacedMetadata(metadata: unknown): Record<string, unknown> {
   return isObject(namespaced) ? namespaced : {};
 }
 
-function unresolvedToolCallIds(message: CoreThreadMessageLike): string[] {
-  if (!Array.isArray(message.content)) return [];
-  return message.content.flatMap((part) => {
-    if (!isObject(part) || part.type !== "tool-call") return [];
-    if (part.result !== undefined) return [];
-    const id = getString(part, "toolCallId");
-    return id ? [id] : [];
-  });
-}
-
 function foldTurnRecords(
   previous: CoreThreadMessageLike,
   message: CoreThreadMessageLike,
@@ -1106,9 +1096,6 @@ function foldTurnRecords(
       trailsCalls ? { ...entry, after: true } : entry,
     ),
   ];
-  // A record without the list leaves every call it carries without a result
-  // pending, so the merged list keeps those beside the other record's list.
-  // Joined records an agent named each may carry a list of their own.
   const previousPending = readPersistedPendingToolCallIds(previous.metadata);
   const messagePending = readPersistedPendingToolCallIds(message.metadata);
   const pendingToolCallIds =
@@ -1116,8 +1103,8 @@ function foldTurnRecords(
     (previousPending === undefined && messagePending === undefined)
       ? []
       : [
-          ...(previousPending ?? unresolvedToolCallIds(previous)),
-          ...(messagePending ?? unresolvedToolCallIds(message)),
+          ...admittedUnresolvedToolCallIds(previous, false),
+          ...admittedUnresolvedToolCallIds(message, false),
         ];
   const namespaced = {
     ...readNamespacedMetadata(previous.metadata),
@@ -1818,26 +1805,24 @@ function convertAgUiMessages(
   // a container beside the records around it, which the live run renders as
   // one message: the container joins the assistant record ahead of it, and
   // what follows a container joins it until the turn carries text, where a
-  // further text record opens a message of its own as it does live. An app
-  // that knows its backend splits a turn across records it named itself opts
-  // into joining every assistant record that follows one opening a turn.
+  // further text record opens a message of its own as it does live.
   const folded: CoreThreadMessageLike[] = [];
   for (const message of converted) {
     const previous = folded[folded.length - 1];
     if (
       previous !== undefined &&
-      (isSyntheticToolCallContainer(message)
-        ? opensTurn(previous)
-        : (isSyntheticToolCallContainer(previous) &&
-            answersToolCallContainer(message)) ||
-          (joinAdjacentAssistantMessages &&
-            message.role === "assistant" &&
-            opensTurn(previous)))
+      ((joinAdjacentAssistantMessages &&
+        previous.role === "assistant" &&
+        message.role === "assistant") ||
+        (isSyntheticToolCallContainer(message)
+          ? opensTurn(previous)
+          : isSyntheticToolCallContainer(previous) &&
+            answersToolCallContainer(message)))
     ) {
       folded[folded.length - 1] = foldTurnRecords(
         previous,
         message,
-        joinAdjacentAssistantMessages,
+        joinAdjacentAssistantMessages && opensTurn(previous),
       );
       continue;
     }
