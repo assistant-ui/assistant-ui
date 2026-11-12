@@ -46,6 +46,7 @@ export const createBrowserGate = ({
   let present = false;
   let absentSince: number | undefined;
   let closedReported = true;
+  let joinTimeoutReported = true;
 
   const trackPresence = (browser: Checkout.State["browser"]) => {
     if (browser === undefined) return;
@@ -103,6 +104,18 @@ export const createBrowserGate = ({
             actions.push(ask(need, "browser-closed"));
       }
 
+      if (
+        !joinTimeoutReported &&
+        !joinedSinceOpen &&
+        time - openedAt! >= BROWSER_REOPEN_GUARD_MS
+      ) {
+        // The opened tab never joined: it did not open, or the user left it.
+        joinTimeoutReported = true;
+        for (const need of needs)
+          if (handled.has(needKey(need)))
+            actions.push(ask(need, "recently-opened"));
+      }
+
       const fresh = needs.filter((need) => !handled.has(needKey(need)));
       for (const need of fresh) handled.add(needKey(need));
       if (fresh.length === 0 || looksPresent) return actions;
@@ -115,6 +128,7 @@ export const createBrowserGate = ({
       ) {
         openedAt = time;
         joinedSinceOpen = false;
+        joinTimeoutReported = false;
         // One tab shows every waiting question.
         return [...actions, { type: "open", url: target, need: fresh[0]! }];
       }

@@ -130,7 +130,7 @@ describe("followSetup", () => {
         id: "q1",
         url: PAGE,
         message:
-          'Opened the setup in the user\'s browser for "Which package manager?". Tell the user once that it is waiting there. The answer arrives on this stream.',
+          'Opened the setup in the user\'s browser for "Which package manager?". Tell the user once that it is waiting there, and give them https://setup.test/#link=abc&setup=s1 in case it did not open. The answer arrives on this stream.',
       },
     ]);
 

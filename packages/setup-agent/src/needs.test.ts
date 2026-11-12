@@ -55,6 +55,7 @@ describe("pendingNeeds", () => {
       phase: "installing",
       at: 10,
       text: "more",
+      acknowledgedAt: 11,
     });
     expect(pendingNeeds(state).map((need) => need.id)).toEqual(["q1", "plan"]);
     state.status = "done";
@@ -80,6 +81,9 @@ describe("terminalQuestion", () => {
       /^Which agent framework runs your backend\? Options: ai-sdk:typescript \(Vercel AI SDK \(TypeScript\): Shortest path/,
     );
     expect(model!.question).toContain("The API key is not typed here");
+    expect(model!.answerFormat).toBe(
+      "<provider>:<model>, such as openai:gpt-5",
+    );
   });
 });
 
@@ -163,7 +167,12 @@ describe("answerNeed", () => {
     await expect(answerNeed(client, "plan", "revise")).rejects.toThrow(
       "--feedback",
     );
-    await expect(answerNeed(client, "finish", "yes")).rejects.toThrow("close");
+    await expect(answerNeed(client, "finish", "close")).rejects.toThrow(
+      "no proposal to close",
+    );
+    await expect(
+      answerNeed(client, "q1", undefined, { dismiss: true }),
+    ).rejects.toThrow("required");
     expect(calls).toEqual([]);
   });
 });

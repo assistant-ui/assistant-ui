@@ -66,8 +66,8 @@ The browser opens only when the setup waits on the user (an open input, a propos
 
 - opens the page for the first need, one tab for everything waiting;
 - opens nothing while a joined page is present;
-- never opens a second tab within 30s of the last, and never reopens a tab that has not joined; it prints `input.needed` (`reason: "recently-opened"`) so the agent can ask in its own chat;
-- prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, or a need arrives inside the 30s after it left; the next need after that reopens it;
+- never opens a second tab within 30s of the last, and never reopens a tab that has not joined (30s after opening one that never joined, it hands what waits to the agent); it prints `input.needed` (`reason: "recently-opened"`) so the agent can ask in its own chat;
+- prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, or a need arrives inside the 30s after it left; a later need reopens it once that 30s guard has expired;
 - under `--no-open` (with `--setup-app-url` for the bin), prints `input.needed` (`reason: "no-browser"`) for every need.
 
 Each `input.needed` carries the question, its options and the `answer` command. On a worker without browser presence, setup opens once and then leaves the rest to the agent.

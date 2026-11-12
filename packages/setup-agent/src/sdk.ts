@@ -67,7 +67,7 @@ const setupBriefing = (
   return `${name} is running. This command keeps running: it is the setup's stream.
 
 1. Keep it running in the background until the setup ends. If you started it in the foreground, stop it and resume it in the background (Claude Code: Bash with run_in_background; Codex and other agents: add > "\${TMPDIR:-/tmp}/setup-${session.linkId}.log" 2>&1 & and read that file):
-  ${command} ${url} stream
+  ${command} ${url} stream${canOpen ? "" : " --no-open"}
 2. Read its new output as it arrives. Each line after this briefing is a JSON array of events.
 3. Run every other command in another shell: ${command} ${url} <command>.
 4. ${
@@ -78,7 +78,11 @@ const setupBriefing = (
 
 ${agentInstructions(session.agentUrl, {
   command,
-  startedByAgent: { browserUrl: session.browserUrl, streaming: true },
+  startedByAgent: {
+    browserUrl: session.browserUrl,
+    streaming: true,
+    opened: canOpen,
+  },
 })}
 Setup page, if the user asks for it: ${session.browserUrl}
 

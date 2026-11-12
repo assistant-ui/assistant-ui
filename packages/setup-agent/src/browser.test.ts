@@ -84,8 +84,12 @@ describe("createBrowserGate", () => {
         openedAgoMs: 12_000,
       }),
     ]);
-    // The user may still be on the connect page, so this is not a close.
-    t.advance(83_000);
+    // 30s on, the tab never joined: what waits is handed to the agent once.
+    t.advance(18_000);
+    expect(t.update().map((action) => action.need.id)).toEqual(["q1", "q2"]);
+    expect(t.update()).toEqual([]);
+    // It is still not a close, so a later need is not a reason to reopen.
+    t.advance(65_000);
     t.ask();
     expect(t.update()).toEqual([
       expect.objectContaining({
@@ -157,9 +161,9 @@ describe("createBrowserGate", () => {
     expect(t.update()).toEqual([expect.objectContaining(open)]);
     t.advance(120_000);
     t.ask();
-    expect(t.update()).toEqual([
-      expect.objectContaining({ type: "ask", reason: "recently-opened" }),
-    ]);
+    expect(
+      t.update().map((action) => action.type === "ask" && action.reason),
+    ).toEqual(["recently-opened", "recently-opened"]);
   });
 
   it("treats a proposed plan and a proposal to close as needs", () => {

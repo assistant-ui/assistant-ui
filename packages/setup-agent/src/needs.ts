@@ -3,7 +3,6 @@ import {
   classifyChoiceAnswer,
   currentPlan,
   finishProposed,
-  followedUpSinceProposal,
   isClosed,
   isValidEntryPointAnswer,
   isValidModelAnswer,
@@ -34,7 +33,14 @@ export const pendingNeeds = (state: Checkout.State): SetupNeed[] => {
   const plan = currentPlan(state);
   if (plan?.status === "proposed")
     needs.push({ id: "plan", kind: "plan", plan });
-  if (finishProposed(state) && !followedUpSinceProposal(state))
+  // Any message after the proposal, acknowledged or not, means more work first.
+  if (
+    finishProposed(state) &&
+    !state.log.some(
+      (entry) =>
+        entry.role === "user" && entry.at > state.completion!.proposedAt,
+    )
+  )
     needs.push({ id: "finish", kind: "finish", completion: state.completion! });
   return needs;
 };
@@ -44,7 +50,7 @@ export const needKey = (need: SetupNeed) =>
   need.kind === "input"
     ? `input:${need.input.id}:${need.input.createdAt}`
     : need.kind === "plan"
-      ? `plan:${need.plan.submittedAt}`
+      ? `plan:${need.plan.revision}:${need.plan.submittedAt}`
       : `finish:${need.completion.proposedAt}`;
 
 type NeedOption = { id: string; label: string; description?: string };
@@ -225,6 +231,10 @@ export const answerNeed = async (
     return { ok: true, id, decision: value };
   }
   if (id === "finish") {
+    if (!pendingNeeds(state).some((need) => need.id === "finish"))
+      throw new Error(
+        "no proposal to close is waiting; finish the user's follow-up and run done again",
+      );
     if (value !== "close")
       throw new Error(
         "answer finish with close; if the user wants more, do it and run done again",
@@ -236,6 +246,8 @@ export const answerNeed = async (
   if (input === undefined) throw new Error(`no input "${id}"`);
   if (input.status !== "open")
     throw new Error(`input "${id}" is already ${input.status}`);
+  if (options.dismiss && !input.optional)
+    throw new Error(`input "${id}" is required; answer it instead`);
   if (options.dismiss || (input.kind === "product" && value === "decline")) {
     await commands["checkout/dismiss"]({ inputId: id });
     return { ok: true, id, status: "dismissed" };

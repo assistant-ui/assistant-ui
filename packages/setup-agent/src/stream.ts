@@ -189,7 +189,7 @@ const gateEvent = (
       event: "browser.opened",
       id: need.id,
       url: action.url,
-      message: `Opened the setup in the user's browser for ${need.kind === "input" ? `"${need.input.prompt.trim()}"` : need.kind === "plan" ? "the plan review" : "closing the setup"}. Tell the user once that it is waiting there. The answer arrives on this stream.`,
+      message: `Opened the setup in the user's browser for ${need.kind === "input" ? `"${need.input.prompt.trim() || "Your agent needs an answer."}"` : need.kind === "plan" ? "the plan review" : "closing the setup"}. Tell the user once that it is waiting there, and give them ${action.url} in case it did not open. The answer arrives on this stream.`,
     };
   const question = terminalQuestion(need);
   return {

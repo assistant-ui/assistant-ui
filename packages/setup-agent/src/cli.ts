@@ -159,13 +159,18 @@ const agentStartedHandoff = ({
           : `"Open ${browserUrl} to follow the assistant-ui setup. I'll ask my questions there, and you can watch my progress and steer me from that page."`
       } If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
 
-const streamSection = (cmd: string, url: string, streaming: boolean) =>
+const streamSection = (
+  cmd: string,
+  url: string,
+  streaming: boolean,
+  noOpen: boolean,
+) =>
   streaming
     ? `The command that printed this is the stream. Keep it running in the background until the setup ends: the browser shows you as connected only while it runs, and it is how answers reach you. Each new line of its output is a JSON array of events: ${EVENT_LIST}, plus:
 - "browser.opened" ({id, message}): setup opened the setup page in the user's browser for a question. Tell the user once, in your own conversation, that it waits there.
 - "input.needed" ({id, message, question, options?, answer}): the user may not see the browser right now. Do what its message says: wait for "input.answered", or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
 If this command stops, start it again in the background with
-  ${cmd} ${url} stream
+  ${cmd} ${url} stream${noOpen ? " --no-open" : ""}
 The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream.`
     : `First, start a persistent Monitor on
   ${cmd} ${url} stream
@@ -181,7 +186,7 @@ export const agentInstructions = (
   const streaming = started?.streaming === true;
   return `You are the coding agent for a setup ${started ? (streaming ? "you started; the user follows it in their browser, which setup opens when you ask the user something" : "you opened in the user's browser") : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
 
-${streamSection(cmd, url, streaming)}
+${streamSection(cmd, url, streaming, started?.opened === false)}
 
 The user can message you at any time, including while a question is waiting. Read "message.created" events, acknowledge each with "${cmd} ${url} ack <message-id>", and reply using "log" with what you will do. Pending messages are replayed when the stream starts and listed in "status". A message is not an answer or plan approval; keep those decisions explicit.
 
@@ -210,7 +215,7 @@ Use these headings, each with bullets: "## What I found" (facts as \`- **Label:*
 which prints the step id. Then work through them: "step <id> active" before, "step <id> done --note '<one line on what you did>'" after; "skipped" when the step is already satisfied, "blocked" when you cannot continue, saying why in --note. Add steps as the work reveals them. Ask when you need another decision or value (--choices for a pick, plain for text; --optional when you can proceed without an answer; --wait only when the answer is the very next thing you need). A choice question is multi-select: the user checks any number of your options, and the answer is an array of the ids they checked, plus their own text as an entry when they typed one. Pass --single only when the options exclude each other (one framework, one model, yes or no); the answer is then one id. Every option must carry an icon, given as --icons "<id>=<icon>,..." with the closest name from this pack: ${OPTION_ICONS.join(", ")}. A question without an icon for each option is refused. Open inputs the user has not answered are listed under "inputs" in "status"; check them before asking again.
 The API key behind a model answer is not in the answer and you never see it: pick the variable name the provider's SDK reads (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) and run
   ${cmd} ${url} env <input-id> <ENV_VAR> --file .env.local
-which writes ENV_VAR=<key> into that file. Use the answer's model in the chat route and map reasoningEffort onto the provider's setting when it is set. Never invent a key or a model name.
+which writes ENV_VAR=<key> into that file. Use the answer's model in the chat route and map reasoningEffort onto the provider's setting when it is set. If "env" says the key was never deposited (the model question was answered from your conversation), ask the user to add the key to that file themselves. Never invent a key or a model name.
 
 When every product is installed and verified, run
   ${cmd} ${url} done --summary "<one or two lines on what you installed and how to try it>" --preview http://localhost:<port>
