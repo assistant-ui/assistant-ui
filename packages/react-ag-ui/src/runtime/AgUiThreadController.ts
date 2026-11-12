@@ -227,6 +227,7 @@ type ResumeSource = ResumeStream | "connect";
 // of function identity holds when the app loads its own copy of @ag-ui/client.
 const implementsConnect = (agent: AbstractAgent): boolean => {
   if (typeof agent.connectAgent !== "function") return false;
+  if (Object.prototype.hasOwnProperty.call(agent, "connect")) return true;
   for (
     let proto: object | null = Object.getPrototypeOf(agent);
     proto !== null;
@@ -740,9 +741,6 @@ export class AgUiThreadController {
     }
   }
 
-  // Leaving a thread (switch or teardown) detaches from a run the agent can
-  // rejoin through connect(), so the run keeps going server-side; every other
-  // agent, and every explicit cancel, aborts the run.
   private stopAgent(agent: AbstractAgent, leaveRunning: boolean): void {
     if (leaveRunning && implementsConnect(agent)) {
       void agent.detachActiveRun().catch((error: unknown) => {

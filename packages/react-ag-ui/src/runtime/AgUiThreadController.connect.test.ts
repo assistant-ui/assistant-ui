@@ -142,6 +142,36 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
     ]);
   });
 
+  it("rejoins through a connect class field without starting a new run", async () => {
+    class FieldReconnectingAgent extends HttpAgent {
+      protected override connect = (_input: RunAgentInput) =>
+        transformHttpEventStream(
+          runHttpRequest(() =>
+            this.fetch(`${this.url}/stream`, {
+              signal: this.abortController.signal,
+            }),
+          ),
+        );
+    }
+    const fetch = fetchFor({ "https://agent.test/stream": inFlightRun });
+    const agent = new FieldReconnectingAgent({
+      url: "https://agent.test",
+      fetch,
+    });
+    const core = setup(agent, true);
+
+    await core.__internal_load();
+
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      "https://agent.test/stream",
+    ]);
+    expect(transcript(core).map(({ id, text }) => [id, text])).toEqual([
+      ["question", "Hi"],
+      ["answer", "Hello again"],
+    ]);
+    expect(core.isRunning()).toBe(false);
+  });
+
   it("keeps starting a run for an agent without connect()", async () => {
     const fetch = fetchFor({ "https://agent.test": inFlightRun });
     const agent = new HttpAgent({ url: "https://agent.test", fetch });

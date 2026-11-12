@@ -232,6 +232,128 @@ def _assistant_texts(thread: dict) -> list[str]:
     ]
 
 
+async def _start_run(durable: DurableAGUI, run_input: dict):
+    async def receive():
+        return {"type": "http.request", "body": json.dumps(run_input).encode()}
+
+    return await durable.start_run(
+        Request(
+            {"type": "http", "method": "POST", "path": "/agent", "headers": []},
+            receive,
+        )
+    )
+
+
+def test_get_thread_includes_answer_when_run_finishes_during_status_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release = asyncio.Event()
+        finished = asyncio.Event()
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Hello "
+            started.set()
+            await release.wait()
+            yield "again"
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+            on_finalize=lambda *_: finished.set(),
+        )
+        durable = DurableAGUI(Agent(FunctionModel(stream_function=stream)), streams=streams)
+        question = _user("Hi")
+        await _start_run(durable, _run_input("thread", [question], "run"))
+        await started.wait()
+        status = streams.status
+
+        async def finish_during_status_check(stream_id: str):
+            release.set()
+            await finished.wait()
+            return await status(stream_id)
+
+        monkeypatch.setattr(streams, "status", finish_during_status_check)
+
+        thread = await durable.get_thread("thread")
+
+        assert thread is not None
+        assert thread["running"] is False
+        assert thread["runId"] == "run"
+        assert thread["messages"][0] == question
+        assert _assistant_texts(thread) == ["Hello again"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_cancel_reaches_producer_after_concurrent_starts() -> None:
+    async def scenario() -> None:
+        duplicate_waiting = asyncio.Event()
+        release_duplicate = asyncio.Event()
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        cancelled = asyncio.Event()
+        finished = asyncio.Event()
+        calls = 0
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            nonlocal calls
+            calls += 1
+            yield "Partial answer"
+            started.set()
+            try:
+                await release_model.wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+            yield " completed"
+
+        async def options(request: Request, run_input):
+            if run_input.messages[0].content == "Duplicate":
+                duplicate_waiting.set()
+                await release_duplicate.wait()
+            return {}
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+            on_finalize=lambda *_: finished.set(),
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            streams=streams,
+            run_options=options,
+        )
+        question = _user("Original")
+        duplicate = asyncio.create_task(
+            _start_run(durable, _run_input("thread", [_user("Duplicate")], "run"))
+        )
+        await duplicate_waiting.wait()
+        producer = await _start_run(durable, _run_input("thread", [question], "run"))
+        await started.wait()
+        release_duplicate.set()
+        consumer = await duplicate
+
+        try:
+            assert producer.status_code == consumer.status_code == 200
+            assert await durable.cancel("thread", "run") is True
+            try:
+                await asyncio.wait_for(cancelled.wait(), timeout=1)
+            except asyncio.TimeoutError:
+                pytest.fail("cancel did not reach the producer")
+        finally:
+            release_model.set()
+            await asyncio.wait_for(finished.wait(), timeout=5)
+
+        assert calls == 1
+        thread = await durable.get_thread("thread")
+        assert thread is not None
+        assert thread["running"] is False
+        assert thread["messages"][0] == question
+        assert _assistant_texts(thread) == ["Partial answer"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
 def _start_and_disconnect(client: httpx.Client, thread_id: str, messages: list[dict]):
     """POST a run, read until the gate holds it mid-answer, then drop the connection."""
     seen: list[dict] = []

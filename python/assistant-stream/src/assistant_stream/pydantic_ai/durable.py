@@ -118,8 +118,6 @@ class DurableAGUI(Generic[AgentDepsT]):
         self._adapter_options = adapter_options or {}
         self._tokens: dict[str, CancellationToken] = {}
 
-    # Request handlers. Each returns a Starlette response; `routes()` mounts them.
-
     async def start_run(self, request: Request) -> Response:
         """POST /agent: start a run and stream its frames."""
         try:
@@ -159,23 +157,6 @@ class DurableAGUI(Generic[AgentDepsT]):
             else {}
         )
         input_messages = _dump(run_input.messages)
-        await self.threads.put(
-            thread_id,
-            ThreadRecord(
-                messages=input_messages,
-                stream_id=stream_id,
-                run_id=run_id,
-                running=True,
-                owner=owner,
-            ),
-        )
-        # Supersede the previous run only after this run owns the record, so the
-        # previous run's settle finds it replaced and leaves it alone.
-        if previous is not None and previous.running and previous.stream_id:
-            self._cancel_local(previous.stream_id)
-
-        token = CancellationToken()
-        self._tokens[stream_id] = token
         settled = False
 
         async def settle(new_messages: Sequence[ModelMessage]) -> None:
@@ -202,7 +183,24 @@ class DurableAGUI(Generic[AgentDepsT]):
             await settle(cancelled.new_messages())
 
         async def make_stream() -> AsyncIterator[bytes]:
+            token = CancellationToken()
+            self._tokens[stream_id] = token
             try:
+                await self.threads.put(
+                    thread_id,
+                    ThreadRecord(
+                        messages=input_messages,
+                        stream_id=stream_id,
+                        run_id=run_id,
+                        running=True,
+                        owner=owner,
+                    ),
+                )
+                # Supersede the previous run only after this run owns the record, so the
+                # previous run's settle finds it replaced and leaves it alone.
+                if previous is not None and previous.running and previous.stream_id:
+                    self._cancel_local(previous.stream_id)
+
                 events = adapter.run_stream(
                     cancellation_token=token,
                     on_complete=on_complete,
@@ -226,7 +224,17 @@ class DurableAGUI(Generic[AgentDepsT]):
         record = await self._record(thread_id, owner)
         if record is None:
             return None
-        running = await self._is_running(record)
+        while True:
+            running = await self._is_running(record)
+            if running:
+                break
+            latest = await self._record(thread_id, owner)
+            if latest is None:
+                return None
+            if latest.stream_id == record.stream_id:
+                record = latest
+                break
+            record = latest
         return {
             "id": thread_id,
             "messages": record.messages,
