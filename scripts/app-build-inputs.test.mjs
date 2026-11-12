@@ -203,7 +203,10 @@ test("the workflow gates dependency-backed app build steps", () => {
       name,
     );
   }
-  assert.doesNotMatch(step("Setup pnpm for app build planning"), /\n        if:/);
+  assert.doesNotMatch(
+    step("Setup pnpm for app build planning"),
+    /\n        if:/,
+  );
   assert.ok(
     buildAppsJob[0].indexOf("- name: Setup pnpm for app build planning") <
       buildAppsJob[0].indexOf("- name: Detect app build inputs"),
