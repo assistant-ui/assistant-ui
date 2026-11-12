@@ -1,4 +1,3 @@
-import { checkoutEnabled } from "./checkout/config.ts";
 import { SUB_PROJECT_SLUGS, subProject } from "./docs-sites.ts";
 import { isAiPlaygroundEnabled } from "./feature-flags.ts";
 
@@ -158,9 +157,7 @@ export const PLATFORM_LINKS: DropdownItem[] = [
 ];
 
 export const NAV_ITEMS: NavItem[] = [
-  ...(checkoutEnabled
-    ? [{ type: "link" as const, label: "Components", href: "/components" }]
-    : []),
+  { type: "link", label: "Components", href: "/components" },
   { type: "link", label: "Docs", href: "/docs" },
   {
     type: "mega",

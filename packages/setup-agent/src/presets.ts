@@ -134,7 +134,7 @@ export const INPUT_PRESETS: Record<PresetId, Preset> = {
     help: {
       summary:
         "Pick the app the assistant should live in. For a new project, Next.js is the shortest path: the assistant-ui CLI scaffolds the chat route with it. Pick Vite, React Router or TanStack Start when the rest of your stack already uses them, and Expo for a native app.",
-      href: `${DOCS}/docs/installation`,
+      href: `${DOCS}/docs/manual-installation`,
     },
   },
 };

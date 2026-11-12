@@ -89,6 +89,12 @@ const runtime = useAgUiRuntime({
 });
 ```
 
+When `load()` also returns `unstable_resume: true`, the thread has a run in
+flight. The runtime replays it through the adapter's `resume()` method, or, when
+the adapter has none and the agent implements AG-UI's `connect()`, rejoins it
+with `agent.connectAgent()`. With neither, it starts a new run, so the agent runs
+again. See [durable threads](/docs/runtimes/ag-ui/durable-threads).
+
 Messages sent during the session are always forwarded to the agent through the
 run input, independent of `append`. A no-op `append` is therefore only safe when
 your backend already persists the conversation on its own; otherwise those
@@ -170,9 +176,9 @@ The thread list adapter is currently experimental and may change without notice.
 | --- | --- | --- |
 | `threadId` | `string` | The currently active thread ID. |
 | `onSwitchToNewThread` | `() => Promise<void>` | Called when the user creates a new thread. Reset your thread state here. |
-| `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state?, unstable_resume? }>` | Called when the user switches threads. Return the persisted messages and, optionally, the opaque state. Set `unstable_resume: true` when the thread has a run in flight; the runtime then resumes it through the history adapter's `resume()` method. |
+| `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state?, unstable_resume? }>` | Called when the user switches threads. Return the persisted messages and, optionally, the opaque state. Set `unstable_resume: true` when the thread has a run in flight; the runtime then resumes it through the history adapter's `resume()` method, or, without one, rejoins it through `agent.connectAgent()` when the agent implements `connect()`. |
 
-Switching threads cancels the active run and discards messages queued for the previous thread. No run starts until the switch finishes, including one that `onCancel` would start; once a newer switch finishes, its thread accepts sends even while an older load is still pending.
+Switching threads stops the active run with `abortRun()` and discards messages queued for the previous thread. An agent that implements `connect()` is detached with `detachActiveRun()` instead: the client stops listening, the run keeps going on the server, and the thread can rejoin it later. Stop still calls `abortRun()`; see [durable threads](/docs/runtimes/ag-ui/durable-threads). No run starts until the switch finishes, including one that `onCancel` would start; once a newer switch finishes, its thread accepts sends even while an older load is still pending.
 
 ```tsx
 const runtime = useAgUiRuntime({

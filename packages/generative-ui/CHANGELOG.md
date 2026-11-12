@@ -1,5 +1,19 @@
 # @assistant-ui/generative-ui
 
+## 0.0.11
+
+### Patch Changes
+
+- [#10418](https://github.com/assistant-ui/assistant-ui/pull/10418) [`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2) - Preserve explicitly optional inputs when converting forms to Slack blocks. ([@mahshid](https://github.com/mahshid))
+
+## 0.0.10
+
+### Patch Changes
+
+- [#10380](https://github.com/assistant-ui/assistant-ui/pull/10380) [`47b6556`](https://github.com/assistant-ui/assistant-ui/commit/47b6556da134f3f52447c6f8325523e89b3b1f4f) - Reveal inactive tab panels when native form validation rejects their first invalid control. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+
 ## 0.0.9
 
 ### Patch Changes

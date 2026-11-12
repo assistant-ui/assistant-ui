@@ -52,7 +52,9 @@ export function WebSearch({
           </ShimmerLabel>
         ) : (
           <span className="fade-in animate-in duration-300">
-            Read 3 sources
+            {results.length === 0
+              ? "No sources found"
+              : `Read ${results.length} ${results.length === 1 ? "source" : "sources"}`}
           </span>
         )}
       </div>

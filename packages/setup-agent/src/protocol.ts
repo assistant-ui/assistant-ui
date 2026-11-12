@@ -174,6 +174,15 @@ export namespace Checkout {
       /** When the command was first run against this checkout, before the agent joined the stream. */
       introducedAt: number | null;
     };
+    /**
+     * The setup page in the user's browser, while one has joined the link.
+     * Absent on hosts older than browser presence.
+     */
+    browser?: {
+      lastSeenAt: number | null;
+      /** False once the page said goodbye; heartbeats set it again. */
+      connected: boolean;
+    };
     /** Every revision in order; the last one is current. */
     plans: Plan[];
     steps: Step[];
@@ -231,6 +240,10 @@ export namespace Checkout {
     "agent/hello": (params: { cwd?: string; kind?: string }) => void;
     "agent/heartbeat": () => void;
     "agent/bye": () => void;
+    /** The setup page is open and joined; sent every BROWSER_HEARTBEAT_MS. */
+    "browser/heartbeat": () => void;
+    /** The setup page is closing. */
+    "browser/bye": () => void;
     "agent/plan": (params: { markdown: string }) => { revision: number };
     "agent/add-step": (params: {
       title: string;
@@ -276,6 +289,9 @@ export namespace Checkout {
 
 export const AGENT_PRESENCE_MS = 15_000;
 export const AGENT_HEARTBEAT_MS = 5_000;
+/** A background tab's timers slow down, so a browser counts as present for longer than an agent. */
+export const BROWSER_PRESENCE_MS = 20_000;
+export const BROWSER_HEARTBEAT_MS = 5_000;
 
 export const initialCheckoutState = (): Checkout.State => ({
   version: 2,
@@ -291,6 +307,7 @@ export const initialCheckoutState = (): Checkout.State => ({
     kind: null,
     introducedAt: null,
   },
+  browser: { lastSeenAt: null, connected: false },
   plans: [],
   steps: [],
   inputs: [],

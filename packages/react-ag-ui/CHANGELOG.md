@@ -1,5 +1,54 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.8
+
+### Patch Changes
+
+- [#10422](https://github.com/assistant-ui/assistant-ui/pull/10422) [`75c0162`](https://github.com/assistant-ui/assistant-ui/commit/75c0162c3426fa930a7b70b43c22a7d94796b7b1) - feat: rejoin an in-flight run through `agent.connect()` when a thread loads or is switched to with `unstable_resume` and the history adapter has no `resume()`; leaving such a thread detaches from the run instead of aborting it ([@Yonom](https://github.com/Yonom))
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [[`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2)]:
+  - @assistant-ui/generative-ui@0.0.11
+
+## 0.1.6
+
+### Patch Changes
+
+- [#10461](https://github.com/assistant-ui/assistant-ui/pull/10461) [`437b410`](https://github.com/assistant-ui/assistant-ui/commit/437b410726e283798ff3b61b0f4209129225e2fa) - Route AG-UI events to the assistant message they name after a messages snapshot moves the head, so later text, tool calls, results, and sub-agent output stay on the earlier answer, and an answer cut off by a disconnect settles as incomplete. ([@okisdev](https://github.com/okisdev))
+
+- [#10429](https://github.com/assistant-ui/assistant-ui/pull/10429) [`21f88ce`](https://github.com/assistant-ui/assistant-ui/commit/21f88ceebbe09250ce27160796a92cb0f5f14f47) - Keep an assistant answer running when a later snapshot adds a tool call to the current head. ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.1.5
+
+### Patch Changes
+
+- [#10451](https://github.com/assistant-ui/assistant-ui/pull/10451) [`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5) - an Assistant Cloud reply whose run went stale after it wrote content is now a regular error with Regenerate (`message.runState` is undefined for it), and only a reply that wrote nothing reads as `runState: "stale"`. For that reply, `ActionBarPrimitive.Resume` deletes it and its stored row and runs again from the user message, with no branch; a runtime that cannot delete messages starts a new branch as before. `useAgUiRuntime` now supports deleting a message, which also removes its stored history entry. Regenerate is disabled while another tab still drives the run. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5)]:
+  - @assistant-ui/core@0.3.35
+
+## 0.1.4
+
+### Patch Changes
+
+- [#10444](https://github.com/assistant-ui/assistant-ui/pull/10444) [`2c298df`](https://github.com/assistant-ui/assistant-ui/commit/2c298dfa8392926f6b206cadf1c8cf0791e8030e) - Persist assistant messages that a snapshot adds during a run, including an answer the snapshot moves the run onto or delivers on its own. A run's assistants that were never written are appended first, in branch order, so the stored head ends on the thread's last message. ([@Yonom](https://github.com/Yonom))
+
+- [#10444](https://github.com/assistant-ui/assistant-ui/pull/10444) [`2c298df`](https://github.com/assistant-ui/assistant-ui/commit/2c298dfa8392926f6b206cadf1c8cf0791e8030e) - Settle a sub-agent message that a messages snapshot left waiting on its own tool call when the run ends without RUN_FINISHED. ([@Yonom](https://github.com/Yonom))
+
+## 0.1.3
+
+### Patch Changes
+
+- [#10288](https://github.com/assistant-ui/assistant-ui/pull/10288) [`ece6d9e`](https://github.com/assistant-ui/assistant-ui/commit/ece6d9ed29f9d93f71b7750b822ebc27d4a43c71) - send the agent's initialState on a thread's first request, with each thread starting from it even when threads share one agent ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10358](https://github.com/assistant-ui/assistant-ui/pull/10358) [`855e9fa`](https://github.com/assistant-ui/assistant-ui/commit/855e9fafc30d026c6889737c605395746e546336) - Keep moved-off assistant messages settled across repeated snapshots and attach streamed tool results to their originating message. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`47b6556`](https://github.com/assistant-ui/assistant-ui/commit/47b6556da134f3f52447c6f8325523e89b3b1f4f), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - @assistant-ui/generative-ui@0.0.10
+  - @assistant-ui/core@0.3.34
+
 ## 0.1.2
 
 ### Patch Changes

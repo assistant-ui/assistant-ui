@@ -602,6 +602,28 @@ describe("begin planning", () => {
 });
 
 describe("agent instructions", () => {
+  it("goes straight to planning for a setup the agent started", () => {
+    const browserUrl =
+      "https://setup.assistant-ui.com/#link=abc12345&setup=def67890";
+    const started = agentInstructions("https://setup.test/abc12345", {
+      startedByAgent: { browserUrl },
+    });
+    expect(started).not.toContain("click Begin plan");
+    expect(started).not.toContain("wait start\nKeep the stream running");
+    expect(started).toContain("there is no Begin plan click to wait for");
+    expect(started).toContain(browserUrl);
+    expect(started).toContain("a setup you opened in the user's browser");
+    const opened = agentInstructions("https://setup.test/abc12345");
+    expect(opened).toContain("click Begin plan");
+    expect(opened).toContain("a setup the user opened in their browser");
+  });
+
+  it("asks what to set up when the setup has no products", () => {
+    expect(agentInstructions("https://setup.test/s")).toContain(
+      "If the setup lists no products, first ask the user what to set up",
+    );
+  });
+
   it("prints a setup URL as one quoted shell word", () => {
     const instructions = agentInstructions("https://checkout.test/a'b;c");
     expect(instructions).toContain(
@@ -1198,4 +1220,60 @@ describe("model key handoff", () => {
       expect(await readFile(target, "utf8")).toBe("other-value");
     },
   );
+});
+
+describe("answer", () => {
+  it("answers an input for the user from the agent's side", async () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      id: "setup-a",
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          phase: "planning",
+          kind: "text",
+          prompt: "Where?",
+          optional: false,
+          status: "open",
+          createdAt: 2,
+        },
+      ],
+    };
+    const answer = vi.fn(async () => {});
+    connectCheckoutMock.mockResolvedValue({
+      state,
+      commands: { "checkout/answer": answer },
+      dispose: vi.fn(),
+    } as unknown as Awaited<ReturnType<typeof connectCheckout>>);
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      stdout.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    await main([
+      "https://checkout.test/session",
+      "answer",
+      "q1",
+      "apps/web",
+      "--note",
+      "said in chat",
+    ]);
+    expect(answer).toHaveBeenCalledWith({
+      inputId: "q1",
+      answer: "apps/web",
+      note: "said in chat",
+    });
+    expect(stdout).toHaveBeenCalledWith(
+      `${JSON.stringify({ ok: true, id: "q1", status: "answered" })}\n`,
+    );
+  });
+});
+
+describe("help", () => {
+  it("documents answer in the help", () => {
+    expect(HELP).toContain("answer <input-id> <answer>");
+    expect(HELP).toContain("--setup-app-url");
+  });
 });

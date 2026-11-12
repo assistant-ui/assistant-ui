@@ -4,10 +4,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "dev": { "port": 8791 },
-  "routes": [
-    { "pattern": "setup.assistant-ui.com", "custom_domain": true },
-    { "pattern": "checkout.assistant-ui.com", "custom_domain": true },
-  ],
+  // setup.assistant-ui.com is the setup app (apps/setup) on Vercel; the worker
+  // keeps checkout.assistant-ui.com, where the agent and the browser meet.
+  "routes": [{ "pattern": "checkout.assistant-ui.com", "custom_domain": true }],
   "durable_objects": {
     "bindings": [{ "name": "CHECKOUT", "class_name": "CheckoutDO" }],
   },

@@ -1,5 +1,31 @@
 # @assistant-ui/react
 
+## 0.15.36
+
+### Patch Changes
+
+- [#10493](https://github.com/assistant-ui/assistant-ui/pull/10493) [`2691e38`](https://github.com/assistant-ui/assistant-ui/commit/2691e38409423e2ab5e51771a16fa05410554f80) - react: expose `unstable_useComposerRunStartFocusGuard`, the decision `ComposerPrimitive.Input` makes on `thread.runStart`, and use it in `LexicalComposerInput` instead of a copy that resolved the thread root from the DOM. The guard reads the thread root from context, so a composer portaled outside `ThreadPrimitive.Root` now takes focus on a run start when focus sits inside its thread, matching `ComposerPrimitive.Input`. ([@egg119](https://github.com/egg119))
+  
+  react-lexical: raise the `@assistant-ui/react` peer floor to `^0.15.36`, the first release that exports the hook. `@assistant-ui/react` is a host-supplied peer and `onlyUpdatePeerDependentsWhenOutOfRange` is set, so the floor has to be raised by hand.
+
+## 0.15.35
+
+### Patch Changes
+
+- [#10451](https://github.com/assistant-ui/assistant-ui/pull/10451) [`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5) - an Assistant Cloud reply whose run went stale after it wrote content is now a regular error with Regenerate (`message.runState` is undefined for it), and only a reply that wrote nothing reads as `runState: "stale"`. For that reply, `ActionBarPrimitive.Resume` deletes it and its stored row and runs again from the user message, with no branch; a runtime that cannot delete messages starts a new branch as before. `useAgUiRuntime` now supports deleting a message, which also removes its stored history entry. Regenerate is disabled while another tab still drives the run. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`66a8f32`](https://github.com/assistant-ui/assistant-ui/commit/66a8f3225886bfaa9c88aff22aebd0412d2614a5)]:
+  - @assistant-ui/core@0.3.35
+
+## 0.15.34
+
+### Patch Changes
+
+- [#10424](https://github.com/assistant-ui/assistant-ui/pull/10424) [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423) - store a running assistant message in Assistant Cloud as soon as its run starts, so its run lease is heartbeated while the tab streams it, also in the background; a reply whose run went `staleAfter` (default 30 seconds, an option on `useCloudThreadListAdapter`) without a heartbeat now loads as an interrupted error instead of disappearing, and the new `ActionBarPrimitive.Resume` starts a new branch beside it, the same way Regenerate does, with its own lease. A reply another tab is still writing shows as in progress and follows the run live until it finishes or goes quiet; the new `ActionBarPrimitive.RefreshRun` re-reads it on demand, and a late run that beats again shows as in progress again. The AI SDK runtime (`withFormat` history) holds run leases too when each thread message maps to one AI SDK message, and shows the same states on load; `MessageFormatItem` gains `unstable_status` and `GenericThreadHistoryAdapter` gains `unstable_onReload` for this. Messages carry `runState` (`"stale"` or `"in-progress"`), `ErrorPrimitive.Root` exposes it as `data-run-state` (with `role="status"` while in progress), and `ActionBarPrimitive.Root` with `hideWhenRunning` also hides while another tab writes the reply. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`8e3da5f`](https://github.com/assistant-ui/assistant-ui/commit/8e3da5fbafd9cc61b52f47cd367c7908958bbfb2), [`f70872a`](https://github.com/assistant-ui/assistant-ui/commit/f70872a43574d311322c0b5071b4581e0a71bdff), [`f9e57a5`](https://github.com/assistant-ui/assistant-ui/commit/f9e57a56cd6d4dc1a6eed6788565016d7cffffaa), [`45e7b34`](https://github.com/assistant-ui/assistant-ui/commit/45e7b34f0fd632f9bd5e857fe40bcad2a50c1a17), [`9755dbd`](https://github.com/assistant-ui/assistant-ui/commit/9755dbdd77b81aa5d7deca0b0cca6264b85f5de4), [`3f91b8a`](https://github.com/assistant-ui/assistant-ui/commit/3f91b8ae271c810f65d0f60d9b6d4b655c00a423), [`27d4bb8`](https://github.com/assistant-ui/assistant-ui/commit/27d4bb82926072f80b72169548fdebf47f96e357), [`f0c5845`](https://github.com/assistant-ui/assistant-ui/commit/f0c584556f637203386830e8648e5a5231ca8340)]:
+  - assistant-stream@0.3.57
+  - assistant-cloud@0.2.11
+  - @assistant-ui/core@0.3.34
+
 ## 0.15.33
 
 ### Patch Changes

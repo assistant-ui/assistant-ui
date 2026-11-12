@@ -671,7 +671,7 @@ const elementsRegistryItems: RegistryItem[] = [
     slug: "edit-message",
     title: "Edit a sent message",
     description:
-      "Rewrite a turn in place, told up front how many replies the edit throws away.",
+      "Rewrite a turn in place as a new branch, told up front how many replies stay behind on the old one.",
     file: "edit-message.tsx",
     dependencies: ["lucide-react"],
   }),

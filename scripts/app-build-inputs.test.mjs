@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import {
   APP_BUILD_INPUTS,
   hasAppBuildInputs,
-  hasExampleBundleInputs,
+  hasPackageInputs,
 } from "./app-build-inputs.mjs";
 
 const repoRoot = path.resolve(
@@ -37,17 +37,6 @@ test("detects app build inputs", () => {
     "apps/registry/src/registry.ts",
     "apps/future-app/src/index.ts",
     "examples/with-ai-sdk-v7/app/page.tsx",
-    "packages/react/src/index.ts",
-    "packages/core/package.json",
-    "packages/core/src/client.spec.ts",
-    "packages/core/src/client.bench.ts",
-    "packages/core/src/testUtils.ts",
-    "packages/core/src/tests/fixture.ts",
-    "packages/core/src/client.test.mts",
-    "packages/core/tests/client.test.ts",
-    "packages/ui/src/components/react/thread.test.tsx",
-    "packages/react-devtools/src/views/thread.test.tsx",
-    "packages/metro/src/transformer.test.ts",
     "apps/registry/src/registry.test.ts",
     "examples/with-ai-sdk-v7/app/page.test.tsx",
     "templates/minimal/app/page.test.tsx",
@@ -59,15 +48,11 @@ test("detects app build inputs", () => {
     ".github/workflows/code-quality.yaml",
     "scripts/app-build-inputs.mjs",
     "scripts/app-build-inputs.test.mjs",
+    "scripts/ci-has-tasks.mjs",
+    "scripts/ci-has-tasks.test.mjs",
     "apps/docs/content/docs/index.mdx",
     "scripts/lib/script-options.mjs",
     "scripts/lib/package-test-inputs.mjs",
-    "scripts/build-example-bundle.mjs",
-    "scripts/run-example-bundles.mjs",
-    "scripts/example-bundles.json",
-    "scripts/package-example-bundles.mjs",
-    "scripts/prepare-example-bundles.mjs",
-    "scripts/example-bundles.test.mjs",
   ]) {
     assert.equal(hasAppBuildInputs([file]), true, file);
   }
@@ -86,19 +71,41 @@ test("ignores changes outside app builds", () => {
     "packages/x-buildutils/src/declarations.test.ts",
   ]) {
     assert.equal(hasAppBuildInputs([file]), false, file);
+    assert.equal(hasPackageInputs([file]), false, file);
   }
   assert.equal(hasAppBuildInputs([]), false);
+  assert.equal(hasPackageInputs([]), false);
+});
+
+test("leaves package changes to Turbo's planner", () => {
+  for (const file of [
+    "packages/react/src/index.ts",
+    "packages/core/package.json",
+    "packages/core/src/client.spec.ts",
+    "packages/core/src/client.bench.ts",
+    "packages/core/src/testUtils.ts",
+    "packages/core/src/tests/fixture.ts",
+    "packages/core/src/client.test.mts",
+    "packages/core/tests/client.test.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
+    "packages/x-changelog/index.mjs",
+  ]) {
+    assert.equal(hasAppBuildInputs([file]), false, file);
+    assert.equal(hasPackageInputs([file]), true, file);
+  }
 });
 
 test("keeps real build inputs in mixed package-test changes", () => {
   const packageTest = "packages/cloud/src/telemetry/index.test.ts";
-  for (const input of [
-    "packages/cloud/src/telemetry/index.ts",
-    "packages/ui/src/components/react/thread.test.tsx",
-    "pnpm-lock.yaml",
+  for (const [detect, input] of [
+    [hasPackageInputs, "packages/cloud/src/telemetry/index.ts"],
+    [hasPackageInputs, "packages/ui/src/components/react/thread.test.tsx"],
+    [hasAppBuildInputs, "pnpm-lock.yaml"],
   ]) {
-    assert.equal(hasAppBuildInputs([packageTest, input]), true, input);
-    assert.equal(hasAppBuildInputs([input, packageTest]), true, input);
+    assert.equal(detect([packageTest, input]), true, input);
+    assert.equal(detect([input, packageTest]), true, input);
   }
 });
 
@@ -118,65 +125,23 @@ test("the CLI reads NUL-separated paths", () => {
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);
   assert.equal(unrelated.stdout, "false\n");
-});
 
-test("standalone bundles skip unrelated adapter changes", () => {
-  const result = spawnSync(process.execPath, [script, "--bundles"], {
-    input:
-      "packages/react-ag-ui/src/runtime/adapter/conversions.ts\0packages/react-langchain/src/convertMessages.ts\0",
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, "false\n");
-});
-
-test("standalone bundles retain source, CSS, packaging, and guide inputs", () => {
-  for (const file of [
-    "examples/bundle-ai-sdk/src/main.tsx",
-    "examples/bundle-shared/transport.test.mjs",
-    "packages/core/src/types/message.ts",
-    "packages/react-markdown/src/index.ts",
-    "packages/ui/src/components/react/assistant-ui/elements/thread.aui.test.tsx",
-    "packages/x-buildutils/src/index.ts",
-    "apps/docs/content/docs/runtimes/ai-sdk/v7.mdx",
-    "scripts/package-example-bundles.mjs",
-    "scripts/example-bundles.test.mjs",
-    "scripts/example-bundles.json",
-    "scripts/app-build-inputs.mjs",
-    "scripts/app-build-inputs.test.mjs",
-    "scripts/lib/workspace.mjs",
-    "scripts/lib/main.mjs",
-    "turbo.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    ".github/workflows/code-quality.yaml",
-    "packages/removed-dependency/package.json",
+  const packageChange = "README.md\0packages/react-ag-ui/src/index.ts\0";
+  for (const [args, stdout] of [
+    [[], "false\n"],
+    [["--packages"], "true\n"],
   ]) {
-    assert.equal(hasExampleBundleInputs([file]), true, file);
+    const result = spawnSync(process.execPath, [script, ...args], {
+      input: packageChange,
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, stdout, args.join(" "));
   }
 });
 
-test("standalone bundles ignore unrelated apps, templates, and isolated package tests", () => {
-  assert.equal(hasExampleBundleInputs([]), false);
-  const unrelated = [
-    "apps/registry/src/registry.ts",
-    "apps/docs/components/layout.tsx",
-    "examples/with-langgraph/app/page.tsx",
-    "templates/minimal/app/page.tsx",
-    "packages/core/src/runtime/message.test.ts",
-    "packages/react-lexical/src/index.ts",
-    "README.md",
-  ];
-  assert.equal(hasExampleBundleInputs(unrelated), false);
-  assert.equal(hasAppBuildInputs(unrelated), true);
-  assert.equal(
-    hasExampleBundleInputs([...unrelated, "examples/bundle-shared/styles.css"]),
-    true,
-  );
-});
-
-function bundleFixture(t) {
-  const root = mkdtempSync(path.join(tmpdir(), "aui-bundle-inputs-"));
+function ciFixture(t) {
+  const root = mkdtempSync(path.join(tmpdir(), "aui-app-inputs-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const write = (file, value) => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -185,53 +150,17 @@ function bundleFixture(t) {
       typeof value === "string" ? value : JSON.stringify(value),
     );
   };
-  write("pnpm-workspace.yaml", "packages:\n  - packages/*\n  - examples/*\n");
-  write("scripts/example-bundles.json", [{ package: "bundle-new" }]);
-  write("examples/bundle-new/package.json", {
-    name: "bundle-new",
-    dependencies: { bridge: "workspace:*" },
-  });
-  write("examples/bundle-shared/package.json", { name: "bundle-shared" });
-  write("packages/ui/package.json", { name: "@assistant-ui/ui" });
-  write("packages/x-buildutils/package.json", {
-    name: "@assistant-ui/x-buildutils",
-  });
-  write("packages/bridge/package.json", {
-    name: "bridge",
-    peerDependencies: { runtime: "^1.0.0" },
-    devDependencies: { compiler: "workspace:*" },
-    optionalDependencies: { optional: "workspace:*" },
-  });
-  write("packages/runtime/package.json", {
-    name: "runtime",
-    dependencies: { bridge: "workspace:*" },
-  });
-  write("packages/compiler/package.json", { name: "compiler" });
-  write("packages/optional/package.json", { name: "optional" });
+  write("pnpm-workspace.yaml", "packages:\n  - packages/*\n");
   write("packages/unrelated/package.json", { name: "unrelated" });
   return { root, write };
 }
-
-test("new bundles follow transitive workspace dependencies, including peers and build tools", (t) => {
-  const { root } = bundleFixture(t);
-  for (const file of [
-    "examples/bundle-new/src/main.tsx",
-    "packages/runtime/src/index.ts",
-    "packages/compiler/src/index.ts",
-    "packages/optional/src/index.ts",
-  ]) {
-    assert.equal(hasExampleBundleInputs([file], root), true, file);
-  }
-  assert.equal(
-    hasExampleBundleInputs(["packages/unrelated/src/index.ts"], root),
-    false,
-  );
-});
 
 test("the detector watches its own implementation", () => {
   for (const file of [
     "scripts/app-build-inputs.mjs",
     "scripts/app-build-inputs.test.mjs",
+    "scripts/ci-has-tasks.mjs",
+    "scripts/ci-has-tasks.test.mjs",
   ]) {
     assert.ok(APP_BUILD_INPUTS.includes(file), file);
     assert.equal(workflow.split(`      - "${file}"`).length - 1, 1, file);
@@ -274,30 +203,39 @@ test("the workflow gates dependency-backed app build steps", () => {
       name,
     );
   }
-
-  for (const name of ["Setup pnpm and node.js", "Install dependencies"]) {
-    assert.match(
-      step(name),
-      /steps\.app_build_inputs\.outputs\.bundles == 'true'/,
-    );
-  }
-  assert.match(
-    step("Verify standalone example bundle contracts"),
-    /if: steps\.app_build_inputs\.outputs\.bundles == 'true'/,
-  );
   assert.doesNotMatch(
-    step("Verify standalone example bundle contracts"),
-    /outputs\.run/,
+    step("Setup pnpm for app build planning"),
+    /\n        if:/,
   );
-
+  assert.ok(
+    buildAppsJob[0].indexOf("- name: Setup pnpm for app build planning") <
+      buildAppsJob[0].indexOf("- name: Detect app build inputs"),
+  );
   assert.doesNotMatch(
     step("Test app build input detector"),
     /steps\.app_build_inputs\.outputs\.run/,
   );
 });
 
-test("the workflow emits independent app and bundle decisions and keeps an unknown base enabled", (t) => {
-  const { root, write } = bundleFixture(t);
+test("the planner asks Turbo with the Build apps commands", () => {
+  const planned = [
+    ...step("Detect app build inputs").matchAll(
+      /node scripts\/ci-has-tasks\.mjs --plan build (.+)\) \|\| run=true$/gm,
+    ),
+  ].map(([, filters]) => filters);
+  const built = [
+    ...step("Build apps").matchAll(/pnpm turbo build (.+)$/gm),
+  ].map(([, filters]) => filters);
+  assert.equal(built.length, 2);
+  assert.deepEqual(planned, built);
+});
+
+test("the app build installs without the pnpm store cache", () => {
+  assert.match(step("Setup pnpm and node.js"), /cache: false/);
+});
+
+test("the workflow plans package changes and keeps an unknown base enabled", (t) => {
+  const { root, write } = ciFixture(t);
   for (const file of ["app-build-inputs.mjs", "prepare-ci-base.mjs", "lib"]) {
     cpSync(
       path.join(repoRoot, "scripts", file),
@@ -305,6 +243,17 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
       { recursive: true },
     );
   }
+  const calls = path.join(root, "planner-calls");
+  write(
+    "scripts/ci-has-tasks.mjs",
+    `import { appendFileSync, readFileSync } from "node:fs";
+appendFileSync(process.env.PLANNER_CALLS, JSON.stringify(process.argv.slice(2)) + "\\n");
+const count = readFileSync(process.env.PLANNER_CALLS, "utf8").trim().split("\\n").length;
+const answer = process.env.PLANNER_ANSWERS.split(",")[count - 1];
+if (answer === "error") process.exit(1);
+console.log(answer);
+`,
+  );
   const git = (...args) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
   git("init", "--quiet");
@@ -322,8 +271,9 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
     .map((line) => line.replace(/^          /, ""))
     .join("\n");
   const output = path.join(root, "output");
-  const detect = (comparisonBase) => {
+  const detect = (comparisonBase, answers = "") => {
     writeFileSync(output, "");
+    writeFileSync(calls, "");
     execFileSync("bash", ["-c", run], {
       cwd: root,
       env: {
@@ -332,23 +282,63 @@ test("the workflow emits independent app and bundle decisions and keeps an unkno
         CI_MERGE_GROUP_BASE: comparisonBase,
         GITHUB_OUTPUT: output,
         RUNNER_TEMP: root,
+        PLANNER_CALLS: calls,
+        PLANNER_ANSWERS: answers,
       },
     });
-    return Object.fromEntries(
-      readFileSync(output, "utf8")
-        .trim()
+    return {
+      outputs: Object.fromEntries(
+        readFileSync(output, "utf8")
+          .trim()
+          .split("\n")
+          .map((line) => line.split("=")),
+      ),
+      calls: readFileSync(calls, "utf8")
         .split("\n")
-        .map((line) => line.split("=")),
-    );
+        .filter(Boolean)
+        .map((line) => JSON.parse(line)),
+    };
   };
-  assert.deepEqual(detect(base), { run: "true", bundles: "false", base });
-  assert.deepEqual(detect("missing"), {
-    run: "true",
-    bundles: "true",
-    base: "missing",
+  const apps = [
+    "--plan",
+    "build",
+    `--filter=...[${base}]`,
+    "--filter=!./packages/*",
+    "--filter=!./api-surface",
+    "--filter=!@assistant-ui/docs-site",
+    "--filter=!./examples/*",
+  ];
+  const examples = ["--plan", "build", `--filter={./examples/*}[${base}]`];
+
+  assert.deepEqual(detect(base, "false,false"), {
+    outputs: { run: "false", base },
+    calls: [apps, examples],
   });
-  write("packages/runtime/src/index.ts", "export const value = 2;");
-  git("add", "packages/runtime/src/index.ts");
-  git("commit", "--quiet", "-m", "shared runtime");
-  assert.deepEqual(detect(base), { run: "true", bundles: "true", base });
+  const appsPlanned = detect(base, "true");
+  assert.equal(appsPlanned.outputs.run, "true");
+  assert.deepEqual(appsPlanned.calls, [apps]);
+  assert.deepEqual(detect(base, "false,true"), {
+    outputs: { run: "true", base },
+    calls: [apps, examples],
+  });
+  assert.deepEqual(detect(base, "error"), {
+    outputs: { run: "true", base },
+    calls: [apps],
+  });
+  assert.deepEqual(detect(base, "false,error"), {
+    outputs: { run: "true", base },
+    calls: [apps, examples],
+  });
+  assert.deepEqual(detect("missing"), {
+    outputs: { run: "true", base: "missing" },
+    calls: [],
+  });
+
+  write("templates/starter/app/page.tsx", "export default null;");
+  git("add", "templates/starter/app/page.tsx");
+  git("commit", "--quiet", "-m", "template");
+  assert.deepEqual(detect(base), {
+    outputs: { run: "true", base },
+    calls: [],
+  });
 });
