@@ -14,19 +14,23 @@ import { PromptCopyButton } from "@/components/shared/prompt-copy-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import { agentSetupPrompt } from "@/lib/agent-setup-prompt";
+import { openManualSteps } from "@/components/shared/manual-steps";
 
 /** The setup prompt for a coding agent, copied on click, with a menu for the manual steps. */
 export function SetupCommandPrompt({
   page,
   section,
   products,
+  prompt: promptOverride,
 }: {
   page: string;
   section: string;
   /** Catalog slugs the setup starts with; the bare prompt when omitted. */
   products?: readonly string[];
+  /** The exact prompt to show and copy, in place of the catalog prompt. */
+  prompt?: string;
 }) {
-  const prompt = agentSetupPrompt(products);
+  const prompt = promptOverride ?? agentSetupPrompt(products);
   return (
     <div className="border-border/60 bg-muted/30 hover:border-border rounded-control inline-flex max-w-full items-stretch overflow-hidden border transition-colors">
       <PromptCopyButton
@@ -77,9 +81,20 @@ export function SetupCommandPrompt({
             render={
               <Link
                 href="/docs/manual-installation"
-                onClick={() =>
-                  analytics.cta.clicked("start_setup_manual", `${section}_menu`)
-                }
+                onClick={(event) => {
+                  // A page with its own manual steps opens them in place.
+                  const inPlace = openManualSteps();
+                  if (inPlace) event.preventDefault();
+                  analytics.cta.clicked(
+                    "start_setup_manual",
+                    `${section}_menu`,
+                    {
+                      page,
+                      path: window.location.pathname,
+                      in_place: inPlace,
+                    },
+                  );
+                }}
               />
             }
           >

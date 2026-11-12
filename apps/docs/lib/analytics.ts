@@ -74,7 +74,8 @@ export const analytics = {
         | "start_setup_agent"
         | "start_setup_manual",
       location: string,
-    ) => trackEvent("cta_clicked", { cta, location }),
+      properties?: AnalyticsProperties,
+    ) => trackEvent("cta_clicked", { ...properties, cta, location }),
 
     /** The setup prompt's dropdown (copy prompt / manual steps) was opened. */
     setupMenuOpened: (location: string) =>

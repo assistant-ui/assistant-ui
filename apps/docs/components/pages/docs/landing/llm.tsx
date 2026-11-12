@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { GROUPS } from "@/components/pages/docs/landing/quick-links";
 import { RUNTIMES } from "@/components/pages/docs/landing/runtime-grid";
 import { SURFACES } from "@/components/pages/docs/landing/surface-grid";
@@ -8,7 +9,12 @@ import {
   PLATFORM_QUICKSTART_COMMANDS,
 } from "@/lib/docs-platform";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
-import { AGENT_SETUP_HINT, AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
+import {
+  AGENT_SETUP_HINT,
+  AGENT_SETUP_PROMPT,
+  pageSetupPreamble,
+} from "@/lib/agent-setup-prompt";
+import { getCatalogItem } from "@/lib/catalog";
 
 /**
  * Text equivalents for the landing components. The interactive versions render
@@ -61,6 +67,17 @@ export const AgentSetupPromptLLM = () => (
     <pre>{AGENT_SETUP_PROMPT}</pre>
     <p>{withInlineCode(AGENT_SETUP_HINT)}</p>
   </>
+);
+
+/** A guide's setup for agents: the setup command for its product, then the manual steps that follow. */
+export const AgentSetupLLM = ({ product }: { product: string }) => {
+  const item = getCatalogItem(product);
+  return item ? <p>{withInlineCode(pageSetupPreamble([item.slug]))}</p> : null;
+};
+
+/** The manual steps stay in the markdown in full, never collapsed. */
+export const ManualStepsLLM = ({ children }: { children?: ReactNode }) => (
+  <>{children}</>
 );
 
 export const SurfaceGridLLM = () => (

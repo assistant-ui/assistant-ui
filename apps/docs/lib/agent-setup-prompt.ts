@@ -1,3 +1,5 @@
+import { BASE_URL } from "./constants";
+
 // What a person tells their coding agent to set up assistant-ui. The agent
 // runs the setup command, which opens the guided setup in the browser and
 // prints the steps it follows.
@@ -21,6 +23,14 @@ export const agentSetupPrompt = (
 
 /** Older copies of the prompt that agents should still answer the same way. */
 export const LEGACY_AGENT_SETUP_PROMPTS = ["set up assistant-ui"] as const;
+
+/** The prompt for one docs page's setup: the page's canonical URL, which serves its full steps as markdown. */
+export const pageSetupPrompt = (path: string) =>
+  `set up ${new URL(path, BASE_URL).href}`;
+
+/** What a page's markdown tells an agent before its manual steps. */
+export const pageSetupPreamble = (products: readonly string[]) =>
+  `To set this up, run \`${AGENT_SETUP_COMMAND} --products ${products.join(",")}\` if available; otherwise follow these steps.`;
 
 /** For agents whose package runner resolves a release without `setup`, such as pnpm's minimum release age. */
 export const agentSetupFallback = (command = AGENT_SETUP_COMMAND) =>

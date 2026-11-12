@@ -6,8 +6,6 @@ platforms: ["react"]
 
 Slash commands let users type `/` in the composer to open a popover, browse available commands, and execute one. Unlike [mentions](/docs/guides/mentions) (which only insert a directive into the message), slash commands additionally fire an **action callback** at the moment of selection.
 
-<AgentSetup product="guides/slash-commands" />
-
 ## How It Works
 
 ```mermaid
@@ -19,7 +17,13 @@ The slash command system is built on the same [trigger popover architecture](#tr
 
 By default `Action` leaves a directive chip in the composer, which gives the user and the LLM a record of the commands that were invoked. Pass `removeOnExecute` to strip the `/command` text instead.
 
-## Quick Start
+<AnchorAlias id="quick-start" />
+
+## Setup
+
+<AgentSetup product="guides/slash-commands" section />
+
+<ManualSteps>
 
 ### 1. Define Commands with `unstable_useSlashCommandAdapter`
 
@@ -125,6 +129,8 @@ For side effects on top of `execute` (logging, analytics, intercept), wrap the h
   }}
 />
 ```
+
+</ManualSteps>
 
 ## Categorized Commands
 

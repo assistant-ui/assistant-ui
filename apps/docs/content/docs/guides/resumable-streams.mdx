@@ -8,15 +8,19 @@ platforms: ["react"]
 
 It works with any encoder that already ships in `assistant-stream` (the AI SDK UI message stream, the data stream protocol, the assistant transport SSE format, or your own), because persistence happens at the byte level after encoding.
 
-<AgentSetup product="guides/resumable-streams" />
-
 ## What it solves
 
 A user sends a long prompt, walks away, and reloads the tab. Without resumable streams the LLM call is wasted; with them the client picks up where it left off. The same flow handles dropped mobile connections and lets a stream started on one device be read on another, gated by an opaque stream id.
 
 If your responses are short or you do not care about reload survival, the standard `streamText().toUIMessageStreamResponse()` path is enough.
 
-## Server side: minimum wiring
+## Setup
+
+<AgentSetup product="guides/resumable-streams" section />
+
+<ManualSteps>
+
+### Server side: minimum wiring
 
 Construct a `ResumableStreamContext` once per process and reuse it across requests. The context is the seam between your route handlers and the storage backend.
 
@@ -86,7 +90,7 @@ export async function GET(
 
 The context has two more methods: `ctx.status(streamId)` returns `"streaming" | "done" | "error" | "missing"`, and `ctx.delete(streamId)` removes all persisted state for a stream and terminates active readers. The remaining options on `createResumableStreamContext` (`onAcquire`, `onAppend`, `onFinalize`, `onError`) are observability hooks covered in [Resumable Stream Deployment](/docs/guides/resumable-stream-deployment).
 
-## Client side: native integration
+### Client side: native integration
 
 `@assistant-ui/ai-sdk` ships a `resumable` option on `AssistantChatTransport`. It captures the stream id from the response header, redirects `chat.resumeStream()` reconnects to your resume route, and clears the stored id when the response finishes naturally. Pair it with `useChatRuntime`, which fires `chat.resumeStream()` whenever its resumable storage reports a pending id, including ids discovered after mount.
 
@@ -145,13 +149,13 @@ If your transport already wraps `fetch` or `prepareReconnectToStreamRequest`, th
 
 The default finish detector reads complete SSE events and clears the pending stream id when an event's top-level JSON `type` is `"finish"`. A nested `type` inside tool output, custom data, or message metadata does not finish the stream. Override `isFinishEvent` on the `resumable` option when you ship a custom encoder; it receives each byte chunk and the accumulated decoded text. Without a matching finish event, storage retains the stream ID after an otherwise completed response, so the composer can continue offering a stale Resume action.
 
-### Stop and resume in the composer
+#### Stop and resume in the composer
 
 With the resumable transport above, pressing **Stop generating** retains the stream ID. Automatic reconnect after a reload still uses `chat.resumeStream()`. Stop disconnects the local reader; manual Resume does not restart a cancelled server job. The backend must keep generation and replay available after the client disconnects. Leave manual Resume disabled if aborting the request also ends that server-side continuation. For a manual **Resume generating** control, pass `canResume: true` only when the server replays the full interrupted message with the same `start.messageId`. Set `generateMessageId: () => crypto.randomUUID()` on the initial `toUIMessageStreamResponse()` call, as in the server example. This writes the message ID into the persisted `start` chunk; replay those bytes from the beginning so every reconnect retains that ID. [AI SDK 7 starts a resume with fresh message state](https://github.com/vercel/ai/blob/ai%407.0.101/packages/ai/src/ui/chat.ts#L733-L740) and replaces the last message only when their IDs match. An omitted or different ID appends a second answer; a replay containing only the remaining text loses the earlier partial content. Leave manual Resume disabled unless the endpoint satisfies both requirements. When the server emits `finish`, storage is cleared.
 
 Typing a new draft keeps Send available. With manual Resume enabled, starting a new send, edit, or regeneration request clears the previous checkpoint, so a failed request cannot replay an older answer into the new turn. Switching message branches also clears the checkpoint to prevent replaying an answer from another branch. Resumable storage alone does not expose manual Resume. Custom adapters can opt in with `canResume` and `onResume`; they own checkpoint expiry and error state. A cancelled run without a retained checkpoint cannot be resumed. Custom composer layouts can use `ComposerPrimitive.Resume` or import the headless `useComposerResume` hook from `@assistant-ui/core/react` to expose the same action.
 
-### Multiple threads
+#### Multiple threads
 
 The snippet above stores the pending stream id under one `sessionStorage` key, which is correct for a single chat surface. Under a thread list runtime (`useRemoteThreadListRuntime`, which `useChatRuntime` wraps) with more than one alive thread, a single shared key is written and cleared by whichever thread acts last. If you switch threads while a response is in flight, the response header writes its stream id to the shared key, and the thread you switched to reads that key on mount and replays the other conversation's stream. An unscoped clear when a stream finishes can also drop another thread's pending id. After a reload, a pending id under the shared key is claimed by whichever thread is main at mount, which with a thread list is a fresh empty thread rather than the one that started the stream.
 
@@ -221,6 +225,8 @@ export default function Page() {
 `useCloudThreadListAdapter` is the same adapter `useChatRuntime({ cloud })` builds internally, so cloud thread history and attachments keep working; to bring your own backend, pass a custom `RemoteThreadListAdapter` instead. Each thread's runtime hook constructs its own transport and storage, keyed by that thread's identity, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`.
 
 Key by `remoteId ?? id` under a recognizable prefix, read lazily. A brand-new thread has no `remoteId` yet, but the transport initializes the thread before the request goes out, so by the time the response header delivers the stream id the getter resolves to the `remoteId`. After a reload the same conversation comes back with that `remoteId` as its id, so the stored entry is found again and the pending stream resumes. The local-id fallback covers a thread that has never sent, whose key nothing else reads or writes. Keying by the local id alone would break resume across reloads for threads created in the current session, because their local `__LOCALID_` id is replaced by the `remoteId` when the list reloads.
+
+</ManualSteps>
 
 ## Storage choices
 

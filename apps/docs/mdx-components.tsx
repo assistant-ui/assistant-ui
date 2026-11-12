@@ -3,6 +3,8 @@ import type { CSSProperties, ComponentProps, ReactNode } from "react";
 import { Callout } from "@/components/ui/callout";
 import { AgentSetup } from "@/components/shared/shop-entry";
 import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
+import { ManualSteps } from "@/components/shared/manual-steps";
+import { AnchorAlias } from "@/components/shared/anchor-alias";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
 import { Step, Steps } from "@/components/ui/steps";
@@ -149,6 +151,8 @@ export function getMDXComponents(
     PlatformTabs,
     Callout,
     AgentSetup,
+    ManualSteps,
+    AnchorAlias,
     AgentSetupPrompt: () => (
       <div className="not-prose my-6">
         <SetupCommandPrompt page="docs" section="installation" />
