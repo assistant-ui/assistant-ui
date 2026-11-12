@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { HttpAgent } from "@ag-ui/client";
-import type { AppendMessage } from "@assistant-ui/core";
+import {
+  fromThreadMessageLike,
+  type AppendMessage,
+  type ExportedMessageRepository,
+  type ThreadHistoryAdapter,
+} from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
 
@@ -18,7 +23,10 @@ const userMessage: AppendMessage = {
 
 type Wire = { messages: unknown[] };
 
-function createController(events: (wire: Wire) => object[]) {
+function createController(
+  events: (wire: Wire) => object[],
+  options: Partial<ConstructorParameters<typeof AgUiThreadController>[0]> = {},
+) {
   const agent = new HttpAgent({
     url: "https://example.invalid",
     fetch: async (_url: unknown, init: RequestInit) => {
@@ -36,6 +44,7 @@ function createController(events: (wire: Wire) => object[]) {
     logger: makeLogger(),
     showThinking: false,
     onError: () => {},
+    ...options,
   });
 }
 
@@ -172,6 +181,399 @@ describe("AgUiThreadController snapshot head moves", () => {
     ]);
     await core.append(userMessage);
     expect(statuses(core).answer).toBe("complete");
+  });
+
+  it("projects an interrupt onto its moved-off call and resumes from that gate", async () => {
+    const interrupt = {
+      id: "approval",
+      reason: "tool_call",
+      toolCallId: "task",
+    };
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, otherRecord),
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "interrupt", interrupts: [interrupt] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval" },
+    });
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "other",
+      interrupts: [interrupt],
+    });
+
+    const startRun = vi
+      .spyOn(core as any, "startRun")
+      .mockResolvedValue(undefined);
+    await core.respondToToolApproval({
+      approvalId: "approval",
+      approved: true,
+    });
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval", approved: true },
+    });
+    expect(startRun).toHaveBeenCalledWith(
+      "other",
+      {},
+      {
+        entries: [
+          {
+            interruptId: "approval",
+            status: "resolved",
+            payload: { approved: true },
+          },
+        ],
+        interruptedMessageId: "other",
+      },
+    );
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it("keeps a moved-off interrupt answerable after a snapshot to a user head", async () => {
+    const interrupt = {
+      id: "approval",
+      reason: "tool_call",
+      toolCallId: "task",
+    };
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, { id: "next-user", role: "user", content: "More" }),
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "interrupt", interrupts: [interrupt] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval" },
+    });
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "answer",
+      interrupts: [interrupt],
+    });
+
+    const startRun = vi
+      .spyOn(core as any, "startRun")
+      .mockResolvedValue(undefined);
+    await core.respondToToolApproval({
+      approvalId: "approval",
+      approved: true,
+    });
+
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval", approved: true },
+    });
+    expect(startRun).toHaveBeenCalledWith(
+      "next-user",
+      {},
+      {
+        entries: [
+          {
+            interruptId: "approval",
+            status: "resolved",
+            payload: { approved: true },
+          },
+        ],
+        interruptedMessageId: "answer",
+      },
+    );
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it("keeps a moved-off interrupt without a tool call answerable after a snapshot to a user head", async () => {
+    const interrupt = { id: "confirm", reason: "confirmation" };
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      snapshot(wire, { id: "next-user", role: "user", content: "More" }),
+      {
+        type: "RUN_FINISHED",
+        threadId: "thread",
+        runId: "run",
+        outcome: { type: "interrupt", interrupts: [interrupt] },
+      },
+    ]);
+
+    await core.append(userMessage);
+
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "answer",
+      interrupts: [interrupt],
+    });
+
+    const startRun = vi
+      .spyOn(core as any, "startRun")
+      .mockResolvedValue(undefined);
+    await core.submitInterruptResponses([
+      { interruptId: "confirm", status: "resolved" },
+    ]);
+
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it.each([false, true])(
+    "preserves moved-off approval gates after a history reload (split batch: %s)",
+    async (splitBatch) => {
+      const items = new Map<
+        string,
+        ExportedMessageRepository["messages"][number]
+      >();
+      let headId: string | null = null;
+      const history: ThreadHistoryAdapter = {
+        load: async () => ({
+          headId,
+          messages: structuredClone([...items.values()]),
+        }),
+        append: vi.fn(async (item) => {
+          items.set(item.message.id, structuredClone(item));
+          headId = item.message.id;
+        }),
+        update: async (item) => {
+          items.set(item.message.id, structuredClone(item));
+        },
+      };
+      const interrupts = [
+        { id: "approval", reason: "tool_call", toolCallId: "task" },
+        ...(splitBatch
+          ? [{ id: "other-approval", reason: "tool_call", toolCallId: "check" }]
+          : []),
+      ];
+      const core = createController(
+        (wire) => [
+          start,
+          ...answerText,
+          ...taskCallEvents,
+          snapshot(wire, otherRecord),
+          ...(splitBatch
+            ? [
+                {
+                  type: "TOOL_CALL_START",
+                  toolCallId: "check",
+                  toolCallName: "check",
+                  parentMessageId: "other",
+                },
+                { type: "TOOL_CALL_END", toolCallId: "check" },
+              ]
+            : []),
+          {
+            ...finished,
+            outcome: { type: "interrupt", interrupts },
+          },
+        ],
+        { history },
+      );
+
+      await core.append(userMessage);
+
+      expect(taskPartFor(core, "answer")).toMatchObject({
+        approval: { id: "approval" },
+      });
+      const reloaded = createController(() => [], { history });
+      await reloaded.__internal_load();
+
+      expect(taskPartFor(reloaded, "answer")).toMatchObject({
+        approval: { id: "approval" },
+      });
+      expect(reloaded.getPendingInterrupts()).toEqual({
+        messageId: "other",
+        interrupts,
+      });
+      if (splitBatch) {
+        expect(message(reloaded, "other")?.content).toContainEqual(
+          expect.objectContaining({
+            type: "tool-call",
+            toolCallId: "check",
+            approval: { id: "other-approval" },
+          }),
+        );
+      }
+      expect(headId).toBe("other");
+      expect(
+        vi.mocked(history.append).mock.calls.map(([item]) => item.message.id),
+      ).toEqual([expect.any(String), "answer", "other"]);
+    },
+  );
+
+  it.each(["external messages", "history adapter"])(
+    "ignores an interrupt before a trailing user in loaded history and allows a new send (%s)",
+    async (source) => {
+      const events = vi.fn(() => [start, ...answerText, finished]);
+      const messages = [
+        fromThreadMessageLike(
+          {
+            id: "old-answer",
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "task",
+                toolName: "task",
+                args: {},
+                argsText: "{}",
+                approval: { id: "old-approval" },
+              },
+            ],
+            status: { type: "requires-action", reason: "interrupt" },
+            metadata: {
+              custom: {
+                agui: {
+                  interrupts: [
+                    {
+                      id: "old-approval",
+                      reason: "tool_call",
+                      toolCallId: "task",
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "old-answer",
+          { type: "complete", reason: "stop" },
+        ),
+        fromThreadMessageLike(
+          {
+            id: "new-user",
+            role: "user",
+            content: [{ type: "text", text: "Continue without it." }],
+          },
+          "new-user",
+          { type: "complete", reason: "stop" },
+        ),
+      ];
+      const core = createController(
+        events,
+        source === "history adapter"
+          ? {
+              history: {
+                load: async () => ({
+                  headId: "new-user",
+                  messages: messages.map((message, index) => ({
+                    parentId: messages[index - 1]?.id ?? null,
+                    message,
+                  })),
+                }),
+                append: async () => {},
+              },
+            }
+          : {},
+      );
+      if (source === "history adapter") await core.__internal_load();
+      else core.applyExternalMessages(messages);
+
+      expect(core.getPendingInterrupts()).toBeNull();
+      await expect(
+        core.append({ ...userMessage, parentId: "new-user" }),
+      ).resolves.toBeUndefined();
+      expect(events).toHaveBeenCalledOnce();
+      expect(message(core, "answer")?.status?.type).toBe("complete");
+    },
+  );
+
+  it.each([false, true])(
+    "ignores an old interrupt behind a completed newer turn and allows a new send (trailing user: %s)",
+    async (trailingUser) => {
+      const events = vi.fn(() => [start, ...answerText, finished]);
+      const core = createController(events);
+      core.applyExternalMessages([
+        fromThreadMessageLike(
+          {
+            id: "old-answer",
+            role: "assistant",
+            content: [{ type: "text", text: "Awaiting confirmation." }],
+            status: { type: "requires-action", reason: "interrupt" },
+            metadata: {
+              custom: {
+                agui: {
+                  interrupts: [{ id: "old-interrupt", reason: "confirmation" }],
+                },
+              },
+            },
+          },
+          "old-answer",
+          { type: "complete", reason: "stop" },
+        ),
+        fromThreadMessageLike(
+          {
+            id: "new-user",
+            role: "user",
+            content: [{ type: "text", text: "Continue without it." }],
+          },
+          "new-user",
+          { type: "complete", reason: "stop" },
+        ),
+        fromThreadMessageLike(
+          {
+            id: "completed-answer",
+            role: "assistant",
+            content: [{ type: "text", text: "Done." }],
+            status: { type: "complete", reason: "stop" },
+          },
+          "completed-answer",
+          { type: "complete", reason: "stop" },
+        ),
+        ...(trailingUser
+          ? [
+              fromThreadMessageLike(
+                {
+                  id: "trailing-user",
+                  role: "user",
+                  content: [{ type: "text", text: "More." }],
+                },
+                "trailing-user",
+                { type: "complete", reason: "stop" },
+              ),
+            ]
+          : []),
+      ]);
+
+      expect(core.getPendingInterrupts()).toBeNull();
+      await expect(
+        core.append({
+          ...userMessage,
+          parentId: trailingUser ? "trailing-user" : "completed-answer",
+        }),
+      ).resolves.toBeUndefined();
+      expect(events).toHaveBeenCalledOnce();
+      expect(message(core, "answer")?.status?.type).toBe("complete");
+    },
+  );
+
+  it("keeps the prior assistant as the event owner when a snapshot head is non-assistant", async () => {
+    const core = createController((wire) => [
+      start,
+      ...answerText,
+      ...taskCallEvents,
+      snapshot(wire, { id: "next-user", role: "user", content: "More" }),
+      taskResult,
+      finished,
+    ]);
+
+    await core.append(userMessage);
+
+    expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "next-user",
+      role: "user",
+    });
   });
 
   it("settles the moved-off answer and sub-agent after the tool result", async () => {
