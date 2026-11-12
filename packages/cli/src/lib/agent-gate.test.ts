@@ -79,31 +79,36 @@ describe("the setup session marker", () => {
   it("is active once setup marks it, until it is cleared", () => {
     expect(active(project)).toBe(false);
     const file = markSetupSession({ setupId: "abc", cwd: project }, dir);
-    expect(file).toBe(setupSessionMarkerPath(project, dir));
+    expect(file).toBe(setupSessionMarkerPath(project, "abc", dir));
     expect(JSON.parse(fs.readFileSync(file!, "utf8"))).toMatchObject({
       setupId: "abc",
       cwd: fs.realpathSync(project),
     });
     expect(active(project)).toBe(true);
-    // Another setup's id leaves it in place.
-    clearSetupSession(file!, "other");
-    expect(active(project)).toBe(true);
-    clearSetupSession(file!, "abc");
+    clearSetupSession(file!);
     expect(fs.existsSync(file!)).toBe(false);
     expect(active(project)).toBe(false);
     // Clearing twice is harmless.
-    clearSetupSession(file!, "abc");
+    clearSetupSession(file!);
   });
 
-  it("is not removed by an older setup that a newer one replaced in the same project", () => {
-    const older = markSetupSession({ setupId: "old", cwd: project }, dir)!;
-    const newer = markSetupSession({ setupId: "new", cwd: project }, dir)!;
-    expect(newer).toBe(older);
-    clearSetupSession(older, "old");
-    expect(active(project)).toBe(true);
-    clearSetupSession(newer, "new");
-    expect(active(project)).toBe(false);
-  });
+  it.each([
+    ["older", "newer"],
+    ["newer", "older"],
+  ])(
+    "keeps a project's session while any of its setups runs (the %s one exits first)",
+    (first, second) => {
+      const files = {
+        older: markSetupSession({ setupId: "old", cwd: project }, dir)!,
+        newer: markSetupSession({ setupId: "new", cwd: project }, dir)!,
+      };
+      expect(files.older).not.toBe(files.newer);
+      clearSetupSession(files[first as "older"]);
+      expect(active(project)).toBe(true);
+      clearSetupSession(files[second as "older"]);
+      expect(active(project)).toBe(false);
+    },
+  );
 
   it("lasts two hours from when setup started it, however often it is used", () => {
     const start = Date.now();
@@ -138,7 +143,7 @@ describe("the setup session marker", () => {
     expect(active(os.homedir())).toBe(false);
   });
 
-  it("keeps one marker per project, so concurrent setups do not replace each other", () => {
+  it("keeps markers per project, so concurrent setups do not replace each other", () => {
     const other = path.join(dir, "other");
     fs.mkdirSync(other);
     const a = markSetupSession({ setupId: "a", cwd: project }, dir);
@@ -146,14 +151,14 @@ describe("the setup session marker", () => {
     expect(a).not.toBe(b);
     expect(active(project)).toBe(true);
     expect(active(other)).toBe(true);
-    clearSetupSession(b!, "b");
+    clearSetupSession(b!);
     expect(active(project)).toBe(true);
     expect(active(other)).toBe(false);
-    expect(setupSessionMarkerPath(path.join(project, "."), dir)).toBe(a);
+    expect(setupSessionMarkerPath(path.join(project, "."), "a", dir)).toBe(a);
   });
 
   it("is inactive for a marker that is malformed or for another folder", () => {
-    const file = setupSessionMarkerPath(project, dir);
+    const file = setupSessionMarkerPath(project, "abc", dir);
     fs.writeFileSync(file, JSON.stringify({ setupId: "abc" }));
     expect(active(project)).toBe(false);
     fs.writeFileSync(file, "not json");

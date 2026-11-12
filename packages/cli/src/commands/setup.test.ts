@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { runAgentSetup } from "setup-agent/sdk";
 import {
   clearSetupSession,
+  isSetupSessionActive,
   markSetupSession,
   setupSessionMarkerPath,
   shouldGateAgent,
@@ -141,7 +142,7 @@ describe("setup", () => {
       expect(printed).toContain(gateNote(true));
       expect(gateNote(true)).not.toContain("--force");
       // `init`, `create` and `add` run in the agent's later shells, which share the temp directory.
-      const marker = setupSessionMarkerPath(process.cwd(), tmp);
+      const marker = setupSessionMarkerPath(process.cwd(), "def", tmp);
       expect(fs.existsSync(marker)).toBe(true);
       expect(shouldGateAgent()).toBe(false);
       // Setup removes its marker when it is stopped.
@@ -208,7 +209,7 @@ describe("setup", () => {
     try {
       const running = setup.parseAsync(["--no-open"], { from: "user" });
       await started;
-      const marker = setupSessionMarkerPath(process.cwd(), tmp);
+      const marker = setupSessionMarkerPath(process.cwd(), "def", tmp);
       expect(fs.existsSync(marker)).toBe(true);
       process.emit("SIGINT", "SIGINT");
       expect(exit).toHaveBeenCalledWith(0);
@@ -230,14 +231,16 @@ describe("setup", () => {
     }
   });
 
-  it("keeps a newer setup's marker when an older setup in the same project exits", () => {
+  it("keeps the session while another setup in the same project still runs", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aui-setup-"));
     try {
       const older = markSetupSession({ setupId: "old" }, tmp)!;
       const newer = markSetupSession({ setupId: "new" }, tmp)!;
-      expect(newer).toBe(older);
-      clearSetupSession(older, "old");
+      clearSetupSession(older);
       expect(fs.existsSync(newer)).toBe(true);
+      expect(isSetupSessionActive({ dir: tmp })).toBe(true);
+      clearSetupSession(newer);
+      expect(isSetupSessionActive({ dir: tmp })).toBe(false);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

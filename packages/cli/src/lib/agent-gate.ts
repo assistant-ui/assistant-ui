@@ -38,26 +38,25 @@ export const isInsideFolder = (dir: string, root: string) => {
   return relative.split(path.sep)[0] !== "..";
 };
 
+const hash = (value: string, length: number) =>
+  createHash("sha256").update(value).digest("hex").slice(0, length);
+
+/** The start of every marker name for setups in the project folder `project`. */
+const markerPrefix = (project: string) =>
+  `assistant-ui-setup-${process.getuid?.() ?? "user"}-${hash(realPath(project), 16)}-`;
+
 /**
- * Where `setup` notes that a setup session is active for the project folder
- * `project`. One file per OS user and project, so setups in different
- * projects never replace each other's marker. It lives in the temp directory,
+ * Where `setup` notes that the setup session `setupId` is active for the
+ * project folder `project`. One file per OS user, project and setup, so no
+ * setup replaces or removes another's marker. It lives in the temp directory,
  * which the agent's shell shares across the commands it runs and which
  * sandboxed agents can write to, and never in the user's project.
  */
 export const setupSessionMarkerPath = (
   project: string,
+  setupId: string,
   dir: string = os.tmpdir(),
-) => {
-  const key = createHash("sha256")
-    .update(realPath(project))
-    .digest("hex")
-    .slice(0, 16);
-  return path.join(
-    dir,
-    `assistant-ui-setup-${process.getuid?.() ?? "user"}-${key}.json`,
-  );
-};
+) => path.join(dir, `${markerPrefix(project)}${hash(setupId, 12)}.json`);
 
 type SetupSessionMarker = {
   setupId: string;
@@ -75,7 +74,7 @@ export const markSetupSession = (
   dir: string = os.tmpdir(),
 ) => {
   const cwd = realPath(session.cwd ?? process.cwd());
-  const file = setupSessionMarkerPath(cwd, dir);
+  const file = setupSessionMarkerPath(cwd, session.setupId, dir);
   const marker: SetupSessionMarker = {
     setupId: session.setupId,
     cwd,
@@ -107,11 +106,10 @@ const readMarker = (file: string): SetupSessionMarker | undefined => {
 };
 
 /**
- * Removes a setup session's marker when it still belongs to `setupId`; setup
- * calls it when it exits. A newer setup in the same project keeps its marker.
+ * Removes a setup session's marker; setup calls it when it exits. Other
+ * setups in the same project keep their own markers.
  */
-export const clearSetupSession = (file: string, setupId: string) => {
-  if (readMarker(file)?.setupId !== setupId) return;
+export const clearSetupSession = (file: string) => {
   try {
     fs.rmSync(file, { force: true });
   } catch {
@@ -130,17 +128,27 @@ export const isSetupSessionActive = ({
   now = Date.now(),
   dir = os.tmpdir(),
 }: { target?: string; now?: number; dir?: string } = {}) => {
+  let names: string[];
+  try {
+    names = fs.readdirSync(dir).filter((name) => name.endsWith(".json"));
+  } catch {
+    return false;
+  }
+  const isLive = (marker: SetupSessionMarker | undefined, folder: string) =>
+    marker !== undefined &&
+    marker.cwd === folder &&
+    now - marker.startedAt >= 0 &&
+    now - marker.startedAt <= SETUP_SESSION_TTL_MS &&
+    isInsideFolder(target, marker.cwd);
   let folder = realPath(target);
   for (;;) {
-    const marker = readMarker(setupSessionMarkerPath(folder, dir));
-    if (
-      marker !== undefined &&
-      marker.cwd === folder &&
-      now - marker.startedAt >= 0 &&
-      now - marker.startedAt <= SETUP_SESSION_TTL_MS &&
-      isInsideFolder(target, marker.cwd)
-    )
-      return true;
+    const prefix = markerPrefix(folder);
+    for (const name of names)
+      if (
+        name.startsWith(prefix) &&
+        isLive(readMarker(path.join(dir, name)), folder)
+      )
+        return true;
     const parent = path.dirname(folder);
     if (parent === folder) return false;
     folder = parent;

@@ -155,11 +155,11 @@ const runForAgent = async (options: SetupOptions) => {
     endpoints.docsUrl,
   );
   // The steps run `init`, `create` and `add` in later shells; the marker lets them past the agent gate.
-  let marker: { file: string; setupId: string } | undefined;
+  let marker: string | undefined;
   let running: Awaited<ReturnType<typeof runAgentSetup>> | undefined;
   // Installed before the session starts, so a signal during startup also ends it.
   const stop = () => {
-    if (marker !== undefined) clearSetupSession(marker.file, marker.setupId);
+    if (marker !== undefined) clearSetupSession(marker);
     if (running === undefined) return process.exit(0);
     const { stream, client } = running;
     void stream.stop().finally(() => {
@@ -178,12 +178,11 @@ const runForAgent = async (options: SetupOptions) => {
     name: "assistant-ui setup",
     canOpen: options.open,
     onSession: (session) => {
-      const { setupId } = session;
-      const file = markSetupSession({ setupId });
+      const file = markSetupSession({ setupId: session.setupId });
       if (file === undefined) return;
-      marker = { file, setupId };
+      marker = file;
       // Ends the session on any exit, including errors; signals go through stop.
-      process.once("exit", () => clearSetupSession(file, setupId));
+      process.once("exit", () => clearSetupSession(file));
     },
     write: (text) =>
       process.stdout.write(`${text}\n${gateNote(marker !== undefined)}\n`),
