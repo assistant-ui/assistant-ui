@@ -6019,8 +6019,11 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.3(supports-color@10.2.2))(react@19.3.1)(supports-color@10.2.2)(unified@11.0.5)
       '@streamdown/code':
-        specifier: ^1.1.1
-        version: 1.1.1(react@19.3.1)
+        specifier: ^2.0.0
+        version: 2.0.0(react@19.3.1)
+      '@streamdown/code-v1':
+        specifier: npm:@streamdown/code@^1.1.1
+        version: '@streamdown/code@1.1.1(react@19.3.1)'
       '@streamdown/math':
         specifier: ^1.0.3
         version: 1.0.3(react@19.3.1)(supports-color@10.2.2)
@@ -13879,6 +13882,12 @@ packages:
 
   '@streamdown/code@1.1.1':
     resolution: {integrity: sha512-i7HTNuDgZWb+VdrNVOam9gQhIc5MSSDXKWXgbUrn/4vSRaSMM+Rtl10MQj4wLWPNpF7p80waJsAqFP8HZfb0Jg==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+
+  '@streamdown/code@2.0.0':
+    resolution: {integrity: sha512-sSyX/9gOOcivbP7204+sfAam+gotxjUNV+T4EuN3aa6i5x1LaqtB6Ln/Mxzd1XGvm0vNApO4oKLZs+7gzFI1kQ==}
+    engines: {node: '>=20'}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
@@ -31485,6 +31494,11 @@ snapshots:
     dependencies:
       react: 19.3.1
       shiki: 3.23.0
+
+  '@streamdown/code@2.0.0(react@19.3.1)':
+    dependencies:
+      react: 19.3.1
+      shiki: 4.5.0
 
   '@streamdown/math@1.0.3(react@19.3.1)(supports-color@10.2.2)':
     dependencies:

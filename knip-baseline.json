@@ -37,6 +37,7 @@
       "@assistant-ui/store"
     ],
     "packages/react-native/package.json": ["@babel/core", "react-native-web"],
+    "packages/react-streamdown/package.json": ["@streamdown/code-v1"],
     "packages/react/package.json": ["@types/json-schema"],
     "packages/remote-components-vite/package.json": [
       "@assistant-ui/remote-components-react"
