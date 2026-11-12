@@ -53,7 +53,7 @@ export function SetupCommandPrompt({
       <PromptCopyButton
         bare
         text={prompt}
-        label="Copy the setup prompt for your coding agent"
+        label="Copy the setup prompt for your agent"
         onCopy={() => analytics.cta.promptCopied({ page, section })}
       >
         <span className="text-foreground font-mono text-[12.5px] [overflow-wrap:anywhere] [font-variant-ligatures:none]">
@@ -83,7 +83,7 @@ export function SetupCommandPrompt({
                   () => {
                     analytics.cta.promptCopied({ page, section });
                     toast.success(
-                      "Setup prompt copied. Paste it into your coding agent.",
+                      "Setup prompt copied. Paste it into your agent.",
                     );
                   },
                   () =>
@@ -94,7 +94,7 @@ export function SetupCommandPrompt({
             }}
           >
             <CopyIcon />
-            Copy prompt for coding agents
+            Copy prompt for agents
           </DropdownMenuItem>
           {stepsOnPage ? (
             <DropdownMenuItem
@@ -148,7 +148,7 @@ export function SetupPromptTrigger({
       ownClick?.();
       copyToClipboard(agentSetupPrompt(products, notes));
       analytics.cta.promptCopied({ page, section });
-      toast.success("Setup prompt copied. Paste it into your coding agent.");
+      toast.success("Setup prompt copied. Paste it into your agent.");
     },
     children,
   });
