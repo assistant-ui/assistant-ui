@@ -14,6 +14,7 @@ export function DemoCard({
   connection,
   wide = false,
   action,
+  captionAction,
   children,
 }: {
   href: string;
@@ -23,6 +24,7 @@ export function DemoCard({
   connection?: string;
   wide?: boolean;
   action?: React.ReactNode;
+  captionAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -65,29 +67,32 @@ export function DemoCard({
           </div>
         ) : null}
       </div>
-      <Link
-        href={href}
-        aria-label={title}
-        className="group/caption mt-3.5 flex items-baseline gap-2.5"
-      >
-        {index === undefined ? null : (
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {String(index).padStart(2, "0")}
-          </span>
-        )}
-        <h3 className="text-[13.5px] font-medium underline-offset-4 group-hover/caption:underline">
-          {title}
-        </h3>
-        {connection ? (
-          <span className="text-muted-foreground text-xs">{connection}</span>
-        ) : null}
-        <span
-          aria-hidden
-          className="text-muted-foreground ms-auto self-center opacity-0 transition-opacity group-hover/plate:opacity-100 motion-reduce:transition-none"
+      <div className="mt-3.5 flex items-baseline gap-1.5">
+        <Link
+          href={href}
+          aria-label={title}
+          className="group/caption flex min-w-0 flex-1 items-baseline gap-2.5"
         >
-          <ArrowUpRightIcon className="size-3.5" />
-        </span>
-      </Link>
+          {index === undefined ? null : (
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {String(index).padStart(2, "0")}
+            </span>
+          )}
+          <h3 className="text-[13.5px] font-medium underline-offset-4 group-hover/caption:underline">
+            {title}
+          </h3>
+          {connection ? (
+            <span className="text-muted-foreground text-xs">{connection}</span>
+          ) : null}
+          <span
+            aria-hidden
+            className="text-muted-foreground ms-auto self-center opacity-0 transition-opacity group-hover/plate:opacity-100 motion-reduce:transition-none"
+          >
+            <ArrowUpRightIcon className="size-3.5" />
+          </span>
+        </Link>
+        {captionAction}
+      </div>
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {description}
       </p>

@@ -10,7 +10,10 @@ import {
 import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
+  elementRegistryName,
 } from "@/components/pages/elements/registry";
+import { CartToggle } from "@/components/pages/elements/cart/cart-toggle";
+import { ElementsCart } from "@/components/pages/elements/cart/elements-cart";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
@@ -74,6 +77,19 @@ export default function ElementsPage() {
                       ? { connection: element.connection }
                       : {})}
                     {...(element.wide ? { wide: true } : {})}
+                    {...(element.generative
+                      ? {}
+                      : {
+                          captionAction: (
+                            <CartToggle
+                              item={{
+                                slug: element.slug,
+                                title: element.title,
+                                registryName: elementRegistryName(element),
+                              }}
+                            />
+                          ),
+                        })}
                   >
                     <element.Component />
                   </DemoCard>
@@ -103,6 +119,7 @@ export default function ElementsPage() {
           </Link>
         </div>
       </footer>
+      <ElementsCart />
     </PageFrame>
   );
 }
