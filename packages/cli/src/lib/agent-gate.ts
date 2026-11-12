@@ -51,7 +51,7 @@ const realPath = (dir: string) => {
 };
 
 /** True when `dir` is the project folder `root` or a folder inside it. */
-export const isInsideFolder = (dir: string, root: string) => {
+const isInsideFolder = (dir: string, root: string) => {
   const relative = path.relative(realPath(root), realPath(dir));
   return (
     relative === "" ||
