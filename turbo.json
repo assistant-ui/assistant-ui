@@ -9,8 +9,7 @@
     "packages/x-buildutils/src/**",
     "!packages/x-buildutils/src/**/*.test.{ts,tsx}",
     "packages/x-buildutils/ts/*.json",
-    "packages/x-buildutils/types/**",
-    "scripts/vitest-waitfor-interval.mjs"
+    "packages/x-buildutils/types/**"
   ],
   "tasks": {
     "build": {
@@ -45,17 +44,20 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "scripts/vitest-waitfor-interval.mjs"]
     },
     "test:coverage": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "scripts/vitest-waitfor-interval.mjs"],
       "outputs": ["coverage/**"]
     },
     "typecheck": {
       "dependsOn": ["^build"]
     },
     "test:peer-react18": {
-      "dependsOn": ["^build", "build"]
+      "dependsOn": ["^build", "build"],
+      "inputs": ["$TURBO_DEFAULT$", "scripts/vitest-waitfor-interval.mjs"]
     },
     "test:types:peer-react18": {
       "dependsOn": ["^build", "build"]
