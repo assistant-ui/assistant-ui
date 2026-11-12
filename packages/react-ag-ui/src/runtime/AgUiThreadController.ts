@@ -4067,6 +4067,10 @@ export class AgUiThreadController {
           joinAdjacentAssistantMessages: this.joinAdjacentAssistantMessages,
         },
         this.subagentParentToolCallIds,
+        new Set([
+          ...heldMessages.keys(),
+          ...(activeAssistant === undefined ? [] : [activeAssistant.id]),
+        ]),
       );
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
