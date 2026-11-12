@@ -1,5 +1,41 @@
 # assistant-ui
 
+## 0.0.133
+
+### Patch Changes
+
+- [#10490](https://github.com/assistant-ui/assistant-ui/pull/10490) [`9e537e3`](https://github.com/assistant-ui/assistant-ui/commit/9e537e3c54014fb17d38adc84edd78b9a91376d0) - `init`, `create` and `add` now stop when a coding agent runs them outside a setup session, and point it to `npx assistant-ui@latest setup` with exit code 2. `setup` marks its session for the folder it runs in, so the `init`, `create` and `add` steps it gives the agent still run. Pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1` to run them under an agent anyway. People in a terminal and CI without agent markers see no change. Run by an agent, `--help` now ends with the pointer to `setup`, and `init` and `create` print it after they finish instead of before, so it survives `| tail`. ([@Yonom](https://github.com/Yonom))
+
+- [#10455](https://github.com/assistant-ui/assistant-ui/pull/10455) [`acbfff1`](https://github.com/assistant-ui/assistant-ui/commit/acbfff1d70caf9a64d5b776df7fd4867371cfb2a) - `cloud setup` accepts a plain HTTP `--backend-url` on any 127.0.0.0/8 address, the same local addresses `--api-url` accepts. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10489](https://github.com/assistant-ui/assistant-ui/pull/10489) [`d7bac9e`](https://github.com/assistant-ui/assistant-ui/commit/d7bac9e32c9195dd5a414524fb684b450f90faa7) - `setup` now suggests the prompt "install and set up assistant-ui", the agent hint says to run `npx -y --prefer-online assistant-ui@latest setup` when `setup` is unknown, and the framework help links to the manual installation guide. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`d7bac9e`](https://github.com/assistant-ui/assistant-ui/commit/d7bac9e32c9195dd5a414524fb684b450f90faa7)]:
+  - setup-agent@0.1.1
+
+## 0.0.132
+
+### Patch Changes
+
+- [#10492](https://github.com/assistant-ui/assistant-ui/pull/10492) [`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa) - `assistant-ui setup` now runs the setup's stream itself, so agents run one long-running command in the background instead of a separate `npx setup-agent … stream`. It opens the browser only when the setup needs the user (a question, the plan, the finish), opens it again for the next question if the user closed it, and never opens two tabs within 30 seconds; the agent can then ask in its own chat and answer with `npx assistant-ui@latest setup <url> answer …`. The other setup commands run as `npx assistant-ui@latest setup <url> <command>`. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa)]:
+  - setup-agent@0.1.0
+
+## 0.0.131
+
+### Patch Changes
+
+- [#10485](https://github.com/assistant-ui/assistant-ui/pull/10485) [`6a4111e`](https://github.com/assistant-ui/assistant-ui/commit/6a4111e7ab558d6dbed3db3a18511b2275934caa) - `assistant-ui setup` now opens the setup at setup.assistant-ui.com and connects the agent through checkout.assistant-ui.com. The hidden `--setup-app-url` flag (`ASSISTANT_UI_SETUP_APP_URL`) points the browser at another setup app. The prompt the terminal flow hands to an agent is now `set up assistant-ui`. Setup links from earlier versions stop working once the domains move. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.130
+
+### Patch Changes
+
+- [#10477](https://github.com/assistant-ui/assistant-ui/pull/10477) [`316fb06`](https://github.com/assistant-ui/assistant-ui/commit/316fb0626ff487fbebc00e84f997dd7982c5240b) - Add `assistant-ui setup`. Run by a coding agent, it starts a guided setup, opens it in the user's browser, and prints the steps the agent follows. Run in a terminal, it asks which coding agent you use and starts it with the setup prompt, or copies the prompt for an agent it cannot start. Help for the CLI, `create` and `init` now opens with a pointer to `setup` when an agent reads it, and `create` and `init` print the same line before they run under an agent. ([@Yonom](https://github.com/Yonom))
+
+- [#10473](https://github.com/assistant-ui/assistant-ui/pull/10473) [`7db1f74`](https://github.com/assistant-ui/assistant-ui/commit/7db1f744a09e6279c1624bb6a0d93b9e4912ae58) - fix(cli): `init` in a fresh Next.js app now renders `<Assistant />` on an untouched starter `app/page.tsx` (or prints where to render it), keeps the project's font when shadcn writes a self-referencing `--font-sans`, explains the `cn` dependency in `lib/utils.ts`, and says that no `TooltipProvider` is needed ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`316fb06`](https://github.com/assistant-ui/assistant-ui/commit/316fb0626ff487fbebc00e84f997dd7982c5240b)]:
+  - setup-agent@0.0.9
+
 ## 0.0.129
 
 ### Patch Changes

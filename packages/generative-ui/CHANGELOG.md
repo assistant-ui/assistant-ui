@@ -1,5 +1,11 @@
 # @assistant-ui/generative-ui
 
+## 0.0.11
+
+### Patch Changes
+
+- [#10418](https://github.com/assistant-ui/assistant-ui/pull/10418) [`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2) - Preserve explicitly optional inputs when converting forms to Slack blocks. ([@mahshid](https://github.com/mahshid))
+
 ## 0.0.10
 
 ### Patch Changes

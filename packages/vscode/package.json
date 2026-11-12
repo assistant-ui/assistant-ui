@@ -1,7 +1,6 @@
 {
   "name": "@assistant-ui/vscode",
   "version": "0.0.0",
-  "private": true,
   "description": "Run assistant-ui inside VS Code extension webviews by tunnelling fetch to the extension host",
   "keywords": [
     "vscode",
@@ -40,11 +39,18 @@
   "files": [
     "dist",
     "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/testUtils.ts",
     "README.md"
   ],
   "sideEffects": [
     "./src/theme.css"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
@@ -62,9 +68,6 @@
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
-    "@types/react": {
-      "optional": true
-    },
     "react": {
       "optional": true
     }

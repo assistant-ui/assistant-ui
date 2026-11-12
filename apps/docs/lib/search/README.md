@@ -4,7 +4,7 @@ Cmd+K (Ctrl+K on Windows/Linux) searches the current page and the docs catalogue
 The palette uses the shared command and dialog primitives, with scopes for Docs,
 Elements, Examples, and Design. It has no chat mode. A query with no results
 offers one action, which closes the palette and sends the query to Ask AI. The
-action is missing on `/components/setup` and embedded pages, when no Ask AI handler
+action is missing on embedded pages, when no Ask AI handler
 is registered, and after an index error.
 
 Opening the palette immediately shows built-in page shortcuts grouped by category.

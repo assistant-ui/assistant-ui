@@ -5,7 +5,6 @@ import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 import {
   highlightElementSource,
@@ -314,31 +313,27 @@ export default async function ElementPage({
                   </NativeLane>
                 )}
                 <ReactLane>
-                  {checkoutEnabled ? (
-                    <>
-                      <AgentSetup
-                        product={elementProductSlug(element.slug)}
-                        prominent
-                      />
-                      <details className="group/manual">
-                        <summary
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" }),
-                            "not-prose cursor-pointer list-none [&::-webkit-details-marker]:hidden",
-                          )}
-                        >
-                          Install manually
-                          <ChevronDownIcon
-                            aria-hidden
-                            className="transition-[rotate] group-open/manual:rotate-180 motion-reduce:transition-none"
-                          />
-                        </summary>
-                        <div className="mt-6">{manualInstall}</div>
-                      </details>
-                    </>
-                  ) : (
-                    manualInstall
-                  )}
+                  <>
+                    <AgentSetup
+                      product={elementProductSlug(element.slug)}
+                      prominent
+                    />
+                    <details className="group/manual">
+                      <summary
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "not-prose cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                        )}
+                      >
+                        Install manually
+                        <ChevronDownIcon
+                          aria-hidden
+                          className="transition-[rotate] group-open/manual:rotate-180 motion-reduce:transition-none"
+                        />
+                      </summary>
+                      <div className="mt-6">{manualInstall}</div>
+                    </details>
+                  </>
                 </ReactLane>
               </div>
             </section>

@@ -1,7 +1,7 @@
 /**
  * The installable elements, as [slug, title, registry item, runtime-wired].
- * A data-only mirror of components/pages/elements/registry.tsx: the cart runs
- * in the site header, so it cannot import the registry and its demos.
+ * A data-only mirror of components/pages/elements/registry.tsx: setup entry
+ * points load the catalog, so it cannot import the registry and its demos.
  * element-index.test.ts fails when the two drift.
  */
 export const ELEMENT_INDEX: readonly (readonly [

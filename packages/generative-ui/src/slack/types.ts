@@ -153,6 +153,7 @@ export interface SlackActionsBlock {
 /** A Slack input block. */
 export interface SlackInputBlock {
   readonly type: "input";
+  readonly optional?: boolean;
   readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
