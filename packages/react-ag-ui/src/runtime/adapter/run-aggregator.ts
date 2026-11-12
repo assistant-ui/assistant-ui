@@ -591,6 +591,16 @@ export class RunAggregator {
         if (event.outcome?.type === "interrupt") {
           this.interrupts = event.outcome.interrupts;
           this.status = { type: "requires-action", reason: "interrupt" };
+          for (const buffer of this.retained.values()) {
+            if (
+              this.interrupts.some(
+                (interrupt) =>
+                  interrupt.toolCallId !== undefined &&
+                  buffer.toolCalls.has(interrupt.toolCallId),
+              )
+            )
+              this.withBuffer(buffer, () => this.emit());
+          }
           this.emit();
           break;
         }
@@ -1729,12 +1739,10 @@ export class RunAggregator {
       reachable,
       partsByScope,
       approvals: projectAgUiToolApprovals(
-        this.buf === this.current && this.status?.type === "requires-action"
-          ? this.interrupts
-          : undefined,
+        this.status?.type === "requires-action" ? this.interrupts : undefined,
         new Set(
-          Array.from(this.buf.toolCalls.values()).map(
-            (entry) => entry.toolCallId,
+          this.buffers().flatMap((buffer) =>
+            Array.from(buffer.toolCalls.keys()),
           ),
         ),
       ),

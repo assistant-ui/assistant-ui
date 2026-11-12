@@ -380,6 +380,82 @@ describe("AgUiThreadController snapshot head moves", () => {
     },
   );
 
+  it.each(["external messages", "history adapter"])(
+    "ignores an interrupt before a trailing user in loaded history and allows a new send (%s)",
+    async (source) => {
+      const events = vi.fn(() => [start, ...answerText, finished]);
+      const messages = [
+        fromThreadMessageLike(
+          {
+            id: "old-answer",
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "task",
+                toolName: "task",
+                args: {},
+                argsText: "{}",
+                approval: { id: "old-approval" },
+              },
+            ],
+            status: { type: "requires-action", reason: "interrupt" },
+            metadata: {
+              custom: {
+                agui: {
+                  interrupts: [
+                    {
+                      id: "old-approval",
+                      reason: "tool_call",
+                      toolCallId: "task",
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "old-answer",
+          { type: "complete", reason: "stop" },
+        ),
+        fromThreadMessageLike(
+          {
+            id: "new-user",
+            role: "user",
+            content: [{ type: "text", text: "Continue without it." }],
+          },
+          "new-user",
+          { type: "complete", reason: "stop" },
+        ),
+      ];
+      const core = createController(
+        events,
+        source === "history adapter"
+          ? {
+              history: {
+                load: async () => ({
+                  headId: "new-user",
+                  messages: messages.map((message, index) => ({
+                    parentId: messages[index - 1]?.id ?? null,
+                    message,
+                  })),
+                }),
+                append: async () => {},
+              },
+            }
+          : {},
+      );
+      if (source === "history adapter") await core.__internal_load();
+      else core.applyExternalMessages(messages);
+
+      expect(core.getPendingInterrupts()).toBeNull();
+      await expect(
+        core.append({ ...userMessage, parentId: "new-user" }),
+      ).resolves.toBeUndefined();
+      expect(events).toHaveBeenCalledOnce();
+      expect(message(core, "answer")?.status?.type).toBe("complete");
+    },
+  );
+
   it.each([false, true])(
     "ignores an old interrupt behind a completed newer turn and allows a new send (trailing user: %s)",
     async (trailingUser) => {

@@ -444,7 +444,7 @@ export class AgUiThreadController {
   // Counts runs started, so a finished run can tell a newer one began.
   private runCount = 0;
   private history: ThreadHistoryAdapter | undefined;
-  private deferAssistantHistory = false;
+  private readonly snapshotHeadMovedAssistantIds = new Set<string>();
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly subagentParentToolCallIds = new Map<
     string,
@@ -593,6 +593,7 @@ export class AgUiThreadController {
       if (!repo) return;
 
       this.session.applyExternalMessageRepository(repo);
+      this.snapshotHeadMovedAssistantIds.clear();
       this.assistantHistoryParents.clear();
       this.subagentParentToolCallIds.clear();
       this.snapshotHistoryIds.clear();
@@ -938,6 +939,13 @@ export class AgUiThreadController {
         | undefined
     )?.interrupts;
     if (!stored?.length) return null;
+    if (
+      this.getMessages().at(-1)?.role !== "assistant" &&
+      !this.getAssistantMessagesForInterrupts(stored).some((message) =>
+        this.snapshotHeadMovedAssistantIds.has(message.id),
+      )
+    )
+      return null;
     return { messageId: assistant.id, interrupts: stored };
   }
 
@@ -1110,7 +1118,7 @@ export class AgUiThreadController {
 
     let recorded = false;
     for (const message of interruptOwners) {
-      const updated = this.session.updateMessage(message.id, (current) => {
+      this.session.updateMessage(message.id, (current) => {
         if (current.role !== "assistant") return current;
         const assistant = current as ThreadAssistantMessage;
         const content = withToolApprovalDecision(assistant.content, options);
@@ -1118,7 +1126,6 @@ export class AgUiThreadController {
         recorded = true;
         return { ...assistant, content };
       });
-      if (!updated) continue;
     }
     if (!recorded) {
       throw new Error(
@@ -1616,6 +1623,7 @@ export class AgUiThreadController {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    if (!this.state.isRunning) this.snapshotHeadMovedAssistantIds.clear();
     messages = messages.map((message) => {
       if (message.role === "system" || message.metadata.modality !== undefined)
         return message;
@@ -1764,6 +1772,7 @@ export class AgUiThreadController {
     const activeRunAgent = this.activeRunAgent;
 
     this.dispatch({ type: "resetThread" });
+    this.snapshotHeadMovedAssistantIds.clear();
     this.subagentParentToolCallIds.clear();
 
     if (controller) {
@@ -1796,6 +1805,7 @@ export class AgUiThreadController {
     // queue serializes sends instead. append supersedes earlier, before it links
     // its message; this covers the entry points that start a run without one.
     if (!this.supersedeActiveRun()) return;
+    this.snapshotHeadMovedAssistantIds.clear();
 
     const generation = this.state.historyMutationGeneration;
     const normalizedRunConfig = runConfig ?? {};
@@ -2583,8 +2593,6 @@ export class AgUiThreadController {
         event.type === "RUN_FINISHED" ||
         event.type === "RUN_ERROR" ||
         event.type === "RUN_CANCELLED";
-      this.deferAssistantHistory =
-        event.type === "RUN_FINISHED" && event.outcome?.type === "interrupt";
       if (settlingRun) persistRunAssistants(true);
       const beforeSnapshot =
         event.type === "MESSAGES_SNAPSHOT" ? this.session.getMessages() : [];
@@ -2599,17 +2607,6 @@ export class AgUiThreadController {
           heldMessages,
           candidateContexts.size ? reconcileReplaySnapshot : undefined,
         );
-        if (
-          event.type === "RUN_FINISHED" &&
-          event.outcome?.type === "interrupt"
-        ) {
-          this.projectRetainedInterruptApprovals(event.outcome.interrupts);
-          this.deferAssistantHistory = false;
-          for (const message of this.session.getMessages()) {
-            if (message.role === "assistant")
-              this.persistAssistantHistory(message.id);
-          }
-        }
         if (event.type === "MESSAGES_SNAPSHOT") {
           // Assistants a snapshot adds belong to the run's history even when
           // the run never streams into them. Every import resets the pending
@@ -2691,7 +2688,6 @@ export class AgUiThreadController {
         }
         if (settlingRun) persistRunAssistants(false);
       } finally {
-        this.deferAssistantHistory = false;
         settlingRun = false;
       }
     };
@@ -3238,7 +3234,16 @@ export class AgUiThreadController {
             : undefined;
         const approvals = projectAgUiToolApprovals(
           interrupts,
-          new Set(calls.map((part) => part.toolCallId)),
+          new Set([
+            ...calls.map((part) => part.toolCallId),
+            ...this.getAssistantMessagesForInterrupts(interrupts ?? []).flatMap(
+              (message) =>
+                Array.from(
+                  iterateToolCallParts(message.content),
+                  (part) => part.toolCallId,
+                ),
+            ),
+          ]),
         );
         const originalCalls = new Map(
           Array.from(
@@ -3706,6 +3711,12 @@ export class AgUiThreadController {
           headId === null
             ? undefined
             : this.session.tryGetMessage(headId)?.message;
+        if (
+          headId !== previousHeadId &&
+          activeAssistant?.role === "assistant" &&
+          activeAssistant.id !== headId
+        )
+          this.snapshotHeadMovedAssistantIds.add(activeAssistant.id);
         const hasNewPendingToolCallAnswer =
           head?.role === "assistant" &&
           !runStartMessageIds.has(head.id) &&
@@ -3975,63 +3986,6 @@ export class AgUiThreadController {
     this.publishUpdate();
     if (this.maybeCompleteAfterToolResults(messageId)) return;
     this.persistSettledAssistant(messageId);
-  }
-
-  private projectRetainedInterruptApprovals(
-    interrupts: readonly AgUiInterrupt[],
-  ): void {
-    const turn = this.getAssistantMessagesForInterrupts(interrupts);
-    const toolCallIds = new Set(
-      turn.flatMap((message) =>
-        Array.from(
-          iterateToolCallParts(message.content),
-          (part) => part.toolCallId,
-        ),
-      ),
-    );
-    const approvals = projectAgUiToolApprovals(interrupts, toolCallIds);
-    if (approvals.size === 0) return;
-
-    const approvalsByMessage = new Map<
-      string,
-      Map<string, NonNullable<ReturnType<typeof approvals.get>>>
-    >();
-    for (const [toolCallId, approval] of approvals) {
-      const messageId = this.findMessageIdForToolCall(toolCallId);
-      if (!messageId || !turn.some((message) => message.id === messageId))
-        continue;
-      const ownerApprovals = approvalsByMessage.get(messageId) ?? new Map();
-      ownerApprovals.set(toolCallId, approval);
-      approvalsByMessage.set(messageId, ownerApprovals);
-    }
-
-    const changedMessageIds: string[] = [];
-    for (const [messageId, ownerApprovals] of approvalsByMessage) {
-      let changed = false;
-      this.session.updateMessage(messageId, (message) => {
-        if (message.role !== "assistant") return message;
-        const assistant = message as ThreadAssistantMessage;
-        const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
-          const approval = ownerApprovals.get(part.toolCallId);
-          if (!approval) return part;
-          const next = { ...part, approval };
-          const preserved = preserveToolApprovalDecision(part, next);
-          changed = true;
-          return preserved ? { ...next, approval: preserved } : next;
-        });
-        return changed ? { ...assistant, content } : assistant;
-      });
-      if (changed) {
-        const item = this.session.tryGetMessage(messageId);
-        if (item) this.markPendingAssistantHistory(messageId, item.parentId);
-        changedMessageIds.push(messageId);
-      }
-    }
-
-    if (changedMessageIds.length === 0) return;
-    this.publishUpdate();
-    for (const messageId of changedMessageIds)
-      this.persistAssistantHistory(messageId);
   }
 
   private importMessagesSnapshot(
@@ -4322,7 +4276,7 @@ export class AgUiThreadController {
 
   private persistAssistantHistory(messageId: string) {
     const history = this.history;
-    if (!history || this.deferAssistantHistory) return;
+    if (!history) return;
     const parentId = this.assistantHistoryParents.get(messageId);
     if (parentId === undefined) return;
     const message = this.session.tryGetMessage(messageId)?.message;
