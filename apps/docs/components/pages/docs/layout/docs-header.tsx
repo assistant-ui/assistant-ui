@@ -20,7 +20,6 @@ import { DocsSiteHeader } from "@assistant-ui/docs-theme/ui";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
-import { CartButton } from "@/components/shared/shop-entry";
 import { headerSlashClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
@@ -196,7 +195,6 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
       }
       mobileControls={
         <>
-          <CartButton />
           <SearchIconButton className="size-8" />
           <AskAIButton />
         </>
@@ -204,7 +202,6 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
       condensedNavigation={
         <>
           <div className="flex items-center gap-2">
-            <CartButton />
             <SearchIconButton className="size-7" />
             <AskAIButton />
           </div>
@@ -221,7 +218,6 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
       desktopNavigation={
         <>
           <div className="flex min-w-0 items-center gap-2">
-            <CartButton />
             <SearchIconButton className="size-7 xl:hidden" />
             <HeaderSearch />
             <AskAIButton />

@@ -25,6 +25,7 @@ import {
   provisionCloudHarness,
   resolveProvisionRequest,
 } from "../lib/cloud-provision";
+import { isLoopbackHostname } from "../lib/cloud-url";
 import { logger } from "../lib/utils/logger";
 import { create } from "./create";
 
@@ -292,10 +293,7 @@ export const setupCloud = async (
     );
   if (
     backend.protocol !== "https:" &&
-    !(
-      backend.protocol === "http:" &&
-      ["localhost", "127.0.0.1", "[::1]"].includes(backend.hostname)
-    )
+    !(backend.protocol === "http:" && isLoopbackHostname(backend.hostname))
   ) {
     throw new Error(
       "Use an HTTPS backend URL or an HTTP localhost URL for development.",

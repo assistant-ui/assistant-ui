@@ -1,5 +1,11 @@
 # @assistant-ui/react-mcp
 
+## 0.1.28
+
+### Patch Changes
+
+- [#10384](https://github.com/assistant-ui/assistant-ui/pull/10384) [`107cc67`](https://github.com/assistant-ui/assistant-ui/commit/107cc6731114416059f11eaa358b802137d46c1c) - fix(react-mcp): do not seed non-finite defaults into elicitation drafts ([@lhy-dcf](https://github.com/lhy-dcf))
+
 ## 0.1.27
 
 ### Patch Changes

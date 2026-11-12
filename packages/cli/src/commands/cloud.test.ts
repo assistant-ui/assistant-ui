@@ -322,6 +322,31 @@ describe("cloud setup", () => {
     expect(cloudAccessToken.mock.calls.length).toBe(before);
   });
 
+  it("allows an HTTP backend on any 127.0.0.0/8 address, like the Cloud URL", async () => {
+    const directory = await fixture();
+    await setupCloud(directory, {
+      ...options,
+      backendUrl: "http://127.1.2.3:3000/api/chat",
+    });
+    expect(provisionCloudHarness).toHaveBeenLastCalledWith(
+      options.apiUrl,
+      "oauth-access",
+      expect.objectContaining({ backend_urls: [], allow_localhost: true }),
+    );
+  });
+
+  it("rejects an HTTP backend that is not on this machine before logging in", async () => {
+    const directory = await fixture();
+    const before = cloudAccessToken.mock.calls.length;
+    await expect(
+      setupCloud(directory, {
+        ...options,
+        backendUrl: "http://app.example.com/api/chat",
+      }),
+    ).rejects.toThrow("Use an HTTPS backend URL");
+    expect(cloudAccessToken.mock.calls.length).toBe(before);
+  });
+
   it("stops before provisioning when organization selection is cancelled", async () => {
     const directory = await fixture();
     fetchOrganizations.mockResolvedValue([

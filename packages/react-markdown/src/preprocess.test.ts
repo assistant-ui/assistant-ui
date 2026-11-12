@@ -337,6 +337,21 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("fences a one-line body whose delimiters sit on lines of their own", () => {
+    expect(rewriteLatexBracketDelimiters("Text\n\\[\nx = 1\n\\]\nmore")).toBe(
+      "Text\n$$\nx = 1\n$$\nmore",
+    );
+  });
+
+  it("keeps a one-line body on one span when prose shares a delimiter's line", () => {
+    expect(
+      rewriteLatexBracketDelimiters("**Result \\[\nx\n\\] correct**"),
+    ).toBe("**Result $$x$$ correct**");
+    expect(rewriteLatexBracketDelimiters("\\[\nx\n\\] holds")).toBe(
+      "$$x$$ holds",
+    );
+  });
+
   it("leaves an empty delimiter pair as written", () => {
     expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
     expect(rewriteLatexBracketDelimiters("\\[ \n \\]\nrest")).toBe(
@@ -396,10 +411,10 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("converts displays with blank lines only at the body edges", () => {
     expect(
       rewriteLatexBracketDelimiters("\\[\n\\text{`x`} = 1\n\n\\]\nText"),
-    ).toBe("$$\\text{`x`} = 1$$\nText");
+    ).toBe("$$\n\\text{`x`} = 1\n$$\nText");
     expect(
       rewriteLatexBracketDelimiters("\\[\n\n\\text{`x`} = 1\n\\]\nText"),
-    ).toBe("$$\\text{`x`} = 1$$\nText");
+    ).toBe("$$\n\\text{`x`} = 1\n$$\nText");
     expect(
       rewriteLatexBracketDelimiters(
         "> \\[\n> \\text{`x`} = 1\n>\n> \\]\n> Text",
@@ -453,7 +468,7 @@ describe("rewriteLatexBracketDelimiters", () => {
       rewriteLatexBracketDelimiters(
         "Read \\[ this\n\n`code`\n\\[\n\\text{`x`}\n\\]",
       ),
-    ).toBe("Read \\[ this\n\n`code`\n$$\\text{`x`}$$");
+    ).toBe("Read \\[ this\n\n`code`\n$$\n\\text{`x`}\n$$");
   });
 
   it("does not span newlines for inline math", () => {
@@ -792,6 +807,21 @@ describe("rewriteCustomMathTags", () => {
     );
   });
 
+  it("fences a one-line math tag body whose tags sit on lines of their own", () => {
+    expect(rewriteCustomMathTags("Text\n[/math]\nx = 1\n[/math]\nmore")).toBe(
+      "Text\n$$\nx = 1\n$$\nmore",
+    );
+  });
+
+  it("keeps a one-line math tag body on one span when a code span shares a tag's line", () => {
+    expect(rewriteCustomMathTags("Text\n[/math]\nx\n[/math] `code`")).toBe(
+      "Text\n$$x$$ `code`",
+    );
+    expect(rewriteCustomMathTags("`a` [/math]\nx\n[/math]\nmore")).toBe(
+      "`a` $$x$$\nmore",
+    );
+  });
+
   it("does not add a blank line before a CRLF suffix", () => {
     expect(rewriteCustomMathTags("[/math]\na\nb\n[/math]\r\nrest")).toBe(
       "$$\na\nb\n$$\r\nrest",
@@ -969,9 +999,9 @@ describe("normalizeMathDelimiters", () => {
     },
   );
 
-  it("keeps a one-equation display inline after an empty list marker", () => {
+  it("fences a one-equation display after an empty list marker", () => {
     expect(normalizeMathDelimiters("Steps:\n- \\[\nx\n\\]")).toBe(
-      "Steps:\n- $$x$$",
+      "Steps:\n- $$\n  x\n  $$",
     );
   });
 
@@ -2023,7 +2053,7 @@ describe("HTML blocks", () => {
     ["[/math]", "[/math]"],
   ])("normalizes %s display math containing block tags", (open, close) => {
     expect(normalizeMathDelimiters(`${open}\n<p> = m <v>\n${close}`)).toBe(
-      "$$<p> = m <v>$$",
+      "$$\n<p> = m <v>\n$$",
     );
     expect(
       normalizeMathDelimiters(`${open}\n<pre>\nx\n${close}\n\\(y\\)`),

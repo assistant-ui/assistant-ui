@@ -3,13 +3,16 @@ type ValidationError = {
   message: string;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const getOwn = (value: Record<string, unknown>, key: string): unknown =>
+export const getOwn = (value: Record<string, unknown>, key: string): unknown =>
   Object.hasOwn(value, key) ? value[key] : undefined;
 
-const matchesType = (type: unknown, value: unknown): boolean => {
+export const matchesType = (
+  type: unknown,
+  value: unknown,
+): boolean | undefined => {
   switch (type) {
     case "string":
       return typeof value === "string";
@@ -24,7 +27,7 @@ const matchesType = (type: unknown, value: unknown): boolean => {
     case "boolean":
       return typeof value === "boolean";
     default:
-      return true;
+      return undefined;
   }
 };
 
@@ -48,7 +51,7 @@ export const validateElicitationContent = (
 
       const value = content[property];
       const type = getOwn(schema, "type");
-      if (typeof type === "string" && !matchesType(type, value)) {
+      if (typeof type === "string" && matchesType(type, value) === false) {
         errors.push({ property, message: typeMessage(type) });
       }
 

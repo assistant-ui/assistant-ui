@@ -1165,6 +1165,41 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
+    it("preserves an explicitly optional input in Slack", () => {
+      const { blocks } = toSlackBlocks(
+        {
+          $type: "Input",
+          name: "notes",
+          label: "Notes",
+          required: false,
+        },
+        { surface: "modal" },
+      );
+
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        optional: true,
+      });
+    });
+
+    it.each([
+      { label: "explicitly required", props: { required: true } },
+      { label: "required omitted", props: {} },
+    ])("keeps existing behavior when $label", ({ props }) => {
+      const { blocks } = toSlackBlocks(
+        {
+          $type: "Input",
+          name: "notes",
+          label: "Notes",
+          ...props,
+        },
+        { surface: "modal" },
+      );
+
+      expect(blocks[0]).toMatchObject({ type: "input" });
+      expect(blocks[0]).not.toHaveProperty("optional");
+    });
+
     it.each([undefined, false])(
       "enables Enter actions for an actionable single-line input (multiline: %s)",
       (multiline) => {

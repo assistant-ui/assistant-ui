@@ -177,6 +177,22 @@ const history = unstable_useComposerInputHistory();
 function unstable_useComposerInputHistory(): Unstable_ComposerInputHistory;
 ```
 
+### unstable_useComposerRunStartFocusGuard
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-11-12; it may change in any release.
+</Callout>
+
+The decision `ComposerPrimitive.Input` makes when a run starts: whether the
+run may move focus into this composer. Alternative composer implementations
+(`@assistant-ui/react-lexical`) have to make the same call, and can only make
+it correctly with the thread root from context: a composer portaled outside
+`ThreadPrimitive.Root` has no `data-aui-thread-root` ancestor.
+
+```ts
+const unstable_useComposerRunStartFocusGuard: () => Unstable_ComposerRunStartFocusGuard;
+```
+
 ### unstable_useMessageStallDetection
 
 <Callout type="tip">
