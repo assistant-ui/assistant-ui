@@ -35,4 +35,6 @@ DOCS_BUILD_CPUS=4 pnpm build
 
 On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s. With `DOCS_BUILD_CPUS=4` it peaks at about 16 GB and takes about 55 s. The PR that added this (assistant-ui/assistant-ui#10486) has the measurements.
 
+`pnpm build` runs `next build` in two steps: `--experimental-build-mode=compile` bundles the app, and `--experimental-build-mode=generate` prerenders the pages in a new process. Turbopack keeps about 8 GB of compile state until its process exits, so prerendering in the same process stacked the prerender workers on top of it. With `DOCS_BUILD_CPUS=4` the two steps peak at about 9 GB and 5 GB, against about 14.5 GB for one `next build`.
+
 None of these settings change what a build produces.
