@@ -106,7 +106,7 @@ describe("loadGuide", () => {
 });
 
 describe("setup-agent <url>", () => {
-  const run = async () => {
+  const run = async (command = () => main([URL])) => {
     const calls: string[] = [];
     connectCheckoutMock.mockResolvedValue({
       state: { ...initialCheckoutState(), status: "planning" },
@@ -128,7 +128,7 @@ describe("setup-agent <url>", () => {
       exit.mockRestore();
       connectCheckoutMock.mockReset();
     });
-    await main([URL]).catch(() => {});
+    await command().catch(() => {});
     return {
       calls,
       out: stdout.mock.calls.map(([text]) => String(text)).join(""),
@@ -220,5 +220,27 @@ describe("setup-agent <url>", () => {
     await main([URL, "wait", "q1"]);
     expect(fetch).not.toHaveBeenCalled();
     expect(String(stdout.mock.lastCall?.[0])).toContain('"answer":"apps/web"');
+  });
+
+  it("asks for the no-browser wording unless the stream can open the setup page", async () => {
+    const { runSetupCommand } = await import("./cli");
+    const cases: [string[], Parameters<typeof runSetupCommand>[1], string][] = [
+      [[], {}, "0"],
+      [["--setup-app-url", "https://setup.test"], {}, "1"],
+      [["--setup-app-url", "https://setup.test", "--no-open"], {}, "0"],
+      [
+        [],
+        { browser: { setupAppUrl: "https://setup.test", canOpen: false } },
+        "0",
+      ],
+      [[], { browser: { setupAppUrl: "https://setup.test" } }, "1"],
+    ];
+    for (const [flags, options, opened] of cases) {
+      // A failing guide ends the command right after the request is made.
+      const fetch = serve(() => new Response("Not found", { status: 404 }));
+      await run(() => runSetupCommand([URL, "stream", ...flags], options));
+      const [asked] = (fetch.mock.calls[0] ?? []) as unknown[];
+      expect(String(asked)).toContain(`&opened=${opened}`);
+    }
   });
 });
