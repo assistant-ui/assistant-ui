@@ -219,9 +219,9 @@ export const emitDeclarations = ({
   assertPreservedDirectives({ cwd, entry });
   assertDocumentedExpandos({ cwd, entry });
 
-  // The config sits beside the package's own so that `extends`, `types` and
-  // automatic type inclusion resolve exactly as they do for the package.
-  const config = resolve(cwd, "tsconfig.aui-build.json");
+  // Beside the package's tsconfig so `extends` and type inclusion resolve as
+  // they do for the package; named per process and never written over a file.
+  const config = resolve(cwd, `tsconfig.aui-build.${process.pid}.json`);
   writeFileSync(
     config,
     JSON.stringify({
@@ -238,6 +238,7 @@ export const emitDeclarations = ({
       files: entry.map((file) => resolve(cwd, file)),
       include: [],
     }),
+    { flag: "wx" },
   );
   let result: ReturnType<typeof spawnSync>;
   try {

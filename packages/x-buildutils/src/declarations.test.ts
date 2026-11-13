@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -37,6 +37,9 @@ const fixture = (t: TestContext, files: Record<string, string>) => {
   }
   return cwd;
 };
+
+const leftoverConfigs = (cwd: string) =>
+  readdirSync(cwd).filter((file) => file.startsWith("tsconfig.aui-build"));
 
 const emit = (cwd: string, entry: readonly string[]) => {
   rmSync(join(cwd, "dist"), { recursive: true, force: true });
@@ -223,7 +226,7 @@ test("emitDeclarations fails on a declaration the emitter cannot name", (t) => {
       }),
     /TS4023/,
   );
-  assert.equal(existsSync(join(cwd, "tsconfig.aui-build.json")), false);
+  assert.deepEqual(leftoverConfigs(cwd), []);
 });
 
 test("emitDeclarations fails on a tsconfig the compiler would reject", (t) => {
@@ -262,7 +265,7 @@ test("emitDeclarations keeps the doc comment of a function that gains properties
     readFileSync(join(cwd, "dist", "view.d.ts"), "utf8"),
     /\/\*\* Renders the view\. \*\/\nexport declare function View\(\)/,
   );
-  assert.equal(existsSync(join(cwd, "tsconfig.aui-build.json")), false);
+  assert.deepEqual(leftoverConfigs(cwd), []);
 });
 
 test("emitDeclarations fails on a documented constant that gains properties", (t) => {
@@ -290,6 +293,23 @@ test("emitDeclarations fails on a documented constant that gains properties", (t
       /Declare these as functions/.test(error.message) &&
       error.message.endsWith("\n  src/view.ts: View"),
   );
+});
+
+test("emitDeclarations never overwrites a config it did not write", (t) => {
+  const cwd = fixture(t, { "index.ts": "export const value = 1;" });
+  const config = join(cwd, `tsconfig.aui-build.${process.pid}.json`);
+  writeFileSync(config, "{}");
+  assert.throws(
+    () =>
+      emitDeclarations({
+        cwd,
+        entry: ["src/index.ts"],
+        rootDir: "src",
+        outDir: "dist",
+      }),
+    /EEXIST/,
+  );
+  assert.equal(readFileSync(config, "utf8"), "{}");
 });
 
 test("emitDeclarations fails on a reference directive the emitter would drop", (t) => {
