@@ -317,9 +317,9 @@ describe("runAgentSetup with the setup server's guide", () => {
         agent: { cwd: "/app" },
       },
     });
-    expect(fetch.mock.calls[0]?.[0]).toMatch(
-      new RegExp(`^${session.agentUrl}/guide\\?`),
-    );
+    expect(
+      fetch.mock.calls[0]?.[0]?.startsWith(`${session.agentUrl}/guide?`),
+    ).toBe(true);
     expect(out).toContain(
       `my-tool setup via the server: npx my-tool setup ${session.agentUrl} stream --no-open\n`,
     );

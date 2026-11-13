@@ -7,7 +7,7 @@ import {
 import type { CodingAgent } from "./agents";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
-import { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
+import { INPUT_PRESETS, presetInput } from "./presets";
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import {
@@ -509,7 +509,7 @@ export const askSeed = (
   }
   const preset = flagText(flags, "preset");
   if (preset !== undefined) {
-    if (!isPresetId(preset, presets)) {
+    if (!Object.hasOwn(presets, preset)) {
       return fail(
         `unknown preset "${preset}"; use ${Object.keys(presets).join(" or ")}`,
       );

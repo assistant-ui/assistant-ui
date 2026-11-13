@@ -39,21 +39,14 @@ export const LOCAL_ACTIONS = [
 export type LocalAction = (typeof LOCAL_ACTIONS)[number];
 
 /**
- * Commands and flags this CLI has, so the server only tells the agent to use
- * what it can run. A new command or flag adds an entry here.
+ * Commands and flags this CLI added after protocol 1's baseline, so the
+ * server only tells the agent to use what it can run. Everything this
+ * release has is the baseline and needs no entry. A later release that adds
+ * a command or flag adds its name here, and `buildGuide` names it only
+ * behind `has("<name>")`; the baseline test in guide.test.ts fails when the
+ * baseline briefing names a command the CLI does not have.
  */
-export const CLI_FEATURES = [
-  "ask.preset",
-  "ask.choices",
-  "ask.single",
-  "ask.entry-points",
-  "ask.wait",
-  "wait.timeout",
-  "env.redeem-key",
-  "answer",
-  "done.preview",
-  "presets",
-] as const;
+export const CLI_FEATURES: readonly string[] = [];
 
 /** What the CLI sends the server: its local actions as `action:<name>`, then its features. */
 export const CLI_CAPABILITIES: readonly string[] = [
@@ -178,7 +171,7 @@ When the setup puts an assistant in the app, ask how users should access it afte
   {{cmd}} {{url}} ask "Where should users access the assistant?" --entry-points '<JSON array>' --wait
 Mark a clear fit with "recommended":true rather than --default, so the user makes the pick. When you ask it, do not submit the plan before the user picks an entry point. Respect the selected placement and trigger in the plan and implementation. Do not ask for a new-versus-existing app setting; discover the app from its files and ask only for an install path when needed.`;
 
-const briefing = (context: GuideContext, has: (feature: string) => boolean) => {
+const briefing = (context: GuideContext) => {
   const { started, opened } = context;
   const byAgent = started !== "user";
   const streaming = started === "agent-stream";
@@ -201,7 +194,7 @@ The remaining phases are plan, then install.
 Read the project: its app framework and package manager, the agent framework and model provider it already uses, where components live, any existing chat route. Fetch each product's "guide" URL from the setup below; it is the install reference. Ask for what the project does not decide, using the standard questions so the browser can render them well:
   {{cmd}} {{url}} ask --preset framework
   {{cmd}} {{url}} ask --preset llm-provider
-The setup's products are starting names and guide references. If the setup lists no products, first ask the user what to set up with a choice question whose options are slugs from https://www.assistant-ui.com/catalog.md, then fetch https://www.assistant-ui.com/install.md?items=<slugs> as the guide. Explore each product's setup instructions, then discover and plan any other relevant products or dependencies the app needs. Read /catalog.md on the guide URL’s origin to find related products and fetch their setup guides. The starting list does not restrict the implementation or require adding another product to the list. Include relevant additions in the plan for approval.${has("ask.entry-points") ? entryPointQuestion : ""}
+The setup's products are starting names and guide references. If the setup lists no products, first ask the user what to set up with a choice question whose options are slugs from https://www.assistant-ui.com/catalog.md, then fetch https://www.assistant-ui.com/install.md?items=<slugs> as the guide. Explore each product's setup instructions, then discover and plan any other relevant products or dependencies the app needs. Read /catalog.md on the guide URL’s origin to find related products and fetch their setup guides. The starting list does not restrict the implementation or require adding another product to the list. Include relevant additions in the plan for approval.${entryPointQuestion}
 Skip a preset the code already answers (a chat route on the AI SDK, a provider key in .env.local) and log why. Ask everything at once, keep investigating, and then run "wait <input-id>" for each open question before you write the plan; do not end your turn while they are open. A framework answer is "<framework>:<language>", for example "ai-sdk:typescript". A model answer is JSON {"provider","model","reasoningEffort"?}. An answer may carry a "note" from the user; follow it. A choice answer that matches none of the options is the user's own text.
 Then write the plan as markdown and submit it:
   {{cmd}} {{url}} plan --file <path> --wait
@@ -264,7 +257,7 @@ export const buildGuide = ({
   return {
     protocol: Math.min(protocol, GUIDE_PROTOCOL),
     texts: {
-      briefing: briefing(context, has),
+      briefing: briefing(context),
       "intro.status-heading": "\nCurrent setup:\n",
       "stream.briefing": streamBriefing(context.opened),
       "stream.briefing-footer":
@@ -311,7 +304,7 @@ export const buildGuide = ({
         "option ids separated by commas, or the user's own text",
     },
     intro,
-    presets: has("presets") ? { ...INPUT_PRESETS } : {},
+    presets: { ...INPUT_PRESETS },
   };
 };
 
@@ -448,6 +441,12 @@ const isForbiddenChar = (code: number) =>
   (code >= 0x202a && code <= 0x202e) ||
   (code >= 0x2066 && code <= 0x2069);
 
+/** `text` with every character a guide may not hold replaced, for quoting server input in a message. */
+export const sanitizeForTerminal = (text: string, max = 200) =>
+  [...text.slice(0, max)]
+    .map((char) => (isForbiddenChar(char.charCodeAt(0)) ? "?" : char))
+    .join("");
+
 const checkString = (value: unknown, where: string, max: number): string => {
   if (typeof value !== "string") throw new GuideError(`${where} is not text`);
   if (value.length > max) throw new GuideError(`${where} is too long`);
@@ -543,7 +542,7 @@ const checkOption = (value: unknown, where: string) => {
   if (value.variants !== undefined) {
     if (!Array.isArray(value.variants) || value.variants.length > 16)
       throw new GuideError(`${where} variants are not a short list`);
-    option.variants = value.variants.map((variant: unknown, index) => {
+    const variants = value.variants.map((variant: unknown, index) => {
       const at = `${where} variant ${index}`;
       if (!isRecord(variant)) throw new GuideError(`${at} is not an object`);
       checkKeys(variant, ["id", "label"], at);
@@ -555,6 +554,9 @@ const checkOption = (value: unknown, where: string) => {
         label: checkString(variant.label, `${at} label`, 100),
       };
     });
+    if (new Set(variants.map((variant) => variant.id)).size !== variants.length)
+      throw new GuideError(`${where} repeats a variant id`);
+    option.variants = variants;
   }
   return option;
 };
@@ -589,8 +591,16 @@ const checkPreset = (id: string, value: unknown): Preset => {
     } catch {
       url = undefined;
     }
-    if (url?.protocol !== "https:")
-      throw new GuideError(`${where} help link is not an https URL`);
+    if (
+      url?.protocol !== "https:" ||
+      !(
+        url.hostname === "assistant-ui.com" ||
+        url.hostname.endsWith(".assistant-ui.com")
+      )
+    )
+      throw new GuideError(
+        `${where} help link is not an https link on assistant-ui.com`,
+      );
     help.href = href;
   }
   const preset: Preset = {

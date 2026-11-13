@@ -44,7 +44,7 @@ const GUIDE_PATH = /^\/[^/]+\/guide$/;
 /** The CLI's guide for the protocol and capabilities it asks with; text and data only. */
 const serveGuide = (url: URL, method: string) => {
   if (method !== "GET" && method !== "HEAD")
-    return new Response(null, { status: 405, headers: { Allow: "GET" } });
+    return new Response(null, { status: 405, headers: { Allow: "GET, HEAD" } });
   const { status, body } = respondToGuideRequest(url.searchParams);
   return new Response(method === "HEAD" ? null : JSON.stringify(body), {
     status,

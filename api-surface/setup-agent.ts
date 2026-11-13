@@ -22,18 +22,7 @@ declare const BROWSER_HEARTBEAT_MS = 5000;
 
 declare const CLI_CAPABILITIES: readonly string[];
 
-declare const CLI_FEATURES: readonly [
-  "ask.preset",
-  "ask.choices",
-  "ask.single",
-  "ask.entry-points",
-  "ask.wait",
-  "wait.timeout",
-  "env.redeem-key",
-  "answer",
-  "done.preview",
-  "presets"
-];
+declare const CLI_FEATURES: readonly string[];
 
 declare const CODING_AGENTS: readonly CodingAgent[];
 
@@ -649,7 +638,7 @@ declare const followedUpSinceProposal: (state: Checkout.State) => boolean;
 declare const guideQuery: (_param1: GuideRequest) => string;
 
 declare namespace entry_guide_exports {
-  export { CLI_CAPABILITIES, CLI_FEATURES, DEFAULT_GUIDE_CONTEXT, GUIDE_PROTOCOL, GUIDE_TEXTS, Guide, GuideContext, GuideError, GuideRequest, GuideResponse, GuideStep, GuideTextKey, LOCAL_ACTIONS, LocalAction, MIN_GUIDE_PROTOCOL, buildGuide, bundledGuide, guideQuery, parseGuide, parseGuideQuery, renderText, respondToGuideRequest };
+  export { CLI_CAPABILITIES, CLI_FEATURES, DEFAULT_GUIDE_CONTEXT, GUIDE_PROTOCOL, GUIDE_TEXTS, Guide, GuideContext, GuideError, GuideRequest, GuideResponse, GuideStep, GuideTextKey, LOCAL_ACTIONS, LocalAction, MIN_GUIDE_PROTOCOL, buildGuide, bundledGuide, guideQuery, parseGuide, parseGuideQuery, renderText, respondToGuideRequest, sanitizeForTerminal };
 }
 
 declare namespace entry_host_exports {
@@ -674,7 +663,7 @@ declare const isDirectInvocation: (env?: NodeJS.ProcessEnv, stdin?: {
 
 declare const isOptionIcon: (value: string) => value is OptionIcon;
 
-declare const isPresetId: (id: string, presets?: Readonly<Record<string, Preset>>) => id is PresetId;
+declare const isPresetId: (id: string) => id is PresetId;
 
 declare const isValidEntryPointAnswer: (input: Checkout.Input, answer: string) => boolean;
 
@@ -707,7 +696,7 @@ declare const parseSetupUrl: (value: string) => string;
 
 declare const planNeedsReview: (state: Checkout.State) => boolean;
 
-declare const presetInput: (id: PresetId, overrides?: PresetOverrides, presets?: Readonly<Record<string, Preset>>) => Checkout.InputSeed & {
+declare const presetInput: (id: string, overrides?: PresetOverrides, presets?: Readonly<Record<string, Preset>>) => Checkout.InputSeed & {
   stepId?: string;
 };
 
@@ -729,6 +718,8 @@ declare const runAgentSetup: (options: RunAgentSetupOptions) => Promise<{
 declare const runCodingAgent: (agent: CodingAgent, prompt: string) => Promise<number | undefined>;
 
 declare const runSetupCommand: (argv: readonly string[], options?: RunSetupCommandOptions) => Promise<void>;
+
+declare const sanitizeForTerminal: (text: string, max?: number) => string;
 
 declare namespace entry_sdk_exports {
   export { RunAgentSetupOptions, SetupSession, runAgentSetup };

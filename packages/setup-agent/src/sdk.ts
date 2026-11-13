@@ -103,10 +103,11 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
   const setupId = createSetupId();
   const agentUrl = `${options.server.replace(/\/$/, "")}/${linkId}`;
   // The briefing and the stream's wording come from the setup server.
-  const guideLoad = loadGuide(agentUrl, {
-    started: "agent-stream",
-    opened: options.canOpen !== false,
-  });
+  const guideLoad = loadGuide(
+    agentUrl,
+    { started: "agent-stream", opened: options.canOpen !== false },
+    options.env === undefined ? {} : { env: options.env },
+  );
   const client = await connect(agentUrl);
   try {
     const kind = detectAgentKind(options.env);

@@ -3,6 +3,7 @@ import {
   GUIDE_PROTOCOL,
   GuideError,
   buildGuide,
+  sanitizeForTerminal,
   guideQuery,
   parseGuide,
 } from "./guide";
@@ -99,7 +100,9 @@ export const loadGuide = async (
       guide: bundled,
       source: "bundled",
       reason: error instanceof GuideError ? "rejected" : "unavailable",
-      ...(error instanceof GuideError && { detail: error.message }),
+      ...(error instanceof GuideError && {
+        detail: sanitizeForTerminal(error.message),
+      }),
     };
   }
 };

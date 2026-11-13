@@ -140,10 +140,8 @@ export const INPUT_PRESETS: Record<PresetId, Preset> = {
   },
 };
 
-export const isPresetId = (
-  id: string,
-  presets: Readonly<Record<string, Preset>> = INPUT_PRESETS,
-): id is PresetId => Object.hasOwn(presets, id);
+export const isPresetId = (id: string): id is PresetId =>
+  Object.hasOwn(INPUT_PRESETS, id);
 
 /**
  * Build the seed for a standard input, throwing on an unknown preset, option
@@ -151,12 +149,12 @@ export const isPresetId = (
  * the setup server sent.
  */
 export const presetInput = (
-  id: PresetId,
+  id: string,
   overrides: PresetOverrides = {},
   presets: Readonly<Record<string, Preset>> = INPUT_PRESETS,
 ): Checkout.InputSeed & { stepId?: string } => {
-  const preset = presets[id];
-  if (preset === undefined) throw new Error(`unknown preset "${id}"`);
+  if (!Object.hasOwn(presets, id)) throw new Error(`unknown preset "${id}"`);
+  const preset = presets[id]!;
   const listed = overrides.only
     ? overrides.only.map((optionId) => {
         const option = preset.options.find((c) => c.id === optionId);

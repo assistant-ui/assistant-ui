@@ -16,6 +16,7 @@ import {
 import type { GuideRequest } from "./guide";
 import { loadGuide, guideWarning } from "./guide-client";
 import { INPUT_PRESETS } from "./presets";
+import { HELP } from "./cli";
 
 const request: GuideRequest = {
   protocol: GUIDE_PROTOCOL,
@@ -86,13 +87,21 @@ describe("the guide's wire", () => {
 });
 
 describe("the server adapts to what the CLI can do", () => {
-  it("leaves out a command the CLI does not have", () => {
-    const without = buildGuide({
+  it("names only commands the protocol 1 baseline has, so a new one must sit behind has()", () => {
+    // A CLI with no features past the baseline: the oldest one that fetches a guide.
+    const baseline = buildGuide({
       ...request,
-      capabilities: CLI_CAPABILITIES.filter((c) => c !== "ask.entry-points"),
+      capabilities: LOCAL_ACTIONS.map((action) => `action:${action}`),
     });
-    expect(bundledGuide().texts.briefing).toContain("--entry-points");
-    expect(without.texts.briefing).not.toContain("--entry-points");
+    const commands = new Set(
+      [...HELP.matchAll(/^ {2}([a-z-]+)/gm)].map(([, name]) => name),
+    );
+    for (const text of Object.values(baseline.texts)) {
+      for (const [, command] of text.matchAll(
+        /\{\{cmd\}\} \{\{url\}\} ([a-z-]+)/g,
+      ))
+        expect(commands, `the baseline names "${command}"`).toContain(command);
+    }
   });
 
   it("only sends steps for actions the CLI offered", () => {
@@ -101,7 +110,6 @@ describe("the server adapts to what the CLI can do", () => {
       capabilities: ["action:print"],
     });
     expect(guide.intro.map((step) => step.action)).toEqual(["print", "print"]);
-    expect(guide.presets).toEqual({});
   });
 });
 
@@ -221,6 +229,20 @@ describe("parseGuide", () => {
       { ...framework, options: [{ id: "a:b", label: "x" }] },
       { ...framework, default: "nope" },
       { ...framework, help: { summary: "x", href: "javascript:alert(1)" } },
+      { ...framework, help: { summary: "x", href: "https://evil.test/docs" } },
+      {
+        ...framework,
+        options: [
+          {
+            id: "a",
+            label: "A",
+            variants: [
+              { id: "ts", label: "TS" },
+              { id: "ts", label: "TS again" },
+            ],
+          },
+        ],
+      },
       { ...framework, run: "npm i evil" },
     ]) {
       expect(() =>
@@ -306,7 +328,10 @@ describe("loadGuide", () => {
     for (const body of ["x".repeat(300 * 1024), "{not json"]) {
       const fetch = vi.fn(async () => new Response(body));
       const loaded = await loadGuide(URL, request.context, { fetch, env: {} });
-      expect(loaded.source).toBe("bundled");
+      expect(loaded).toMatchObject({
+        source: "bundled",
+        reason: body.startsWith("x") ? "rejected" : "unavailable",
+      });
     }
   });
 
@@ -326,5 +351,29 @@ describe("local actions", () => {
     expect(LOCAL_ACTIONS).toEqual(["print", "print-status", "announce-agent"]);
     for (const action of LOCAL_ACTIONS)
       expect(CLI_CAPABILITIES).toContain(`action:${action}`);
+  });
+});
+
+describe("guideWarning", () => {
+  it("never prints a control character the server put in an error", () => {
+    const warning = guideWarning({
+      guide: bundledGuide(),
+      source: "bundled",
+      reason: "rejected",
+      detail: "x",
+    });
+    expect(warning).toContain("(x)");
+  });
+
+  it("quotes a server-chosen action without its control characters", async () => {
+    const fetch = vi.fn(async () =>
+      jsonResponse(served({ intro: [{ action: "ex\u009b2J\u202eec" }] })),
+    );
+    const loaded = await loadGuide("https://checkout.test/l", request.context, {
+      fetch,
+      env: {},
+    });
+    expect(loaded.reason).toBe("rejected");
+    expect(guideWarning(loaded)).not.toMatch(/[\u009b\u202e]/);
   });
 });
