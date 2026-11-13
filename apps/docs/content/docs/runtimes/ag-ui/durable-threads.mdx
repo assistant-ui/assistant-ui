@@ -97,6 +97,8 @@ Assistant Cloud can keep the thread list and the messages while the durable serv
 Make the AG-UI runtime the `runtimeHook` of `useCloudThreadListRuntime`:
 
 ```tsx title="app/CloudRuntimeProvider.tsx"
+"use client";
+
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AssistantCloud,
@@ -109,7 +111,7 @@ import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { DurableHttpAgent } from "@/lib/durable-agent";
 import { useDurableTakeover, withDurableRuns } from "@/lib/cloud-durable";
 
-const baseUrl = "https://api.example.com/api";
+const baseUrl = "https://api.example.com";
 const cloud = new AssistantCloud({
   baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
   authToken: () => getCloudToken(),

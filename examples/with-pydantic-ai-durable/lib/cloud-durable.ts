@@ -169,6 +169,10 @@ export const decideDurableThread = (
   };
 };
 
+// Loads that returned the thread as stored because the durable server could not be read; the takeover tries those again.
+const failedLookups = new WeakSet<object>();
+const LOOKUP_RETRY_MS = 5_000;
+
 /** Wraps `history.load()` so a reopened thread meets its durable run. */
 export const withDurableRuns = (
   history: ThreadHistoryAdapter,
@@ -189,6 +193,7 @@ export const withDurableRuns = (
       thread = await agent.getThread(agent.threadId);
     } catch (error) {
       console.warn("[durable] could not read the thread", error);
+      failedLookups.add(repository);
       return repository;
     }
     const decision = decideDurableThread(repository, thread, options);
@@ -259,6 +264,7 @@ export const useDurableTakeover = (
     let busy = false;
     // A reply is taken over at most once per mount: every load decodes new objects, so the guard is the id.
     let checkedId: string | undefined;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     const check = () => {
       if (disposed || busy) return;
       const { isRunning, isLoading, messages } = thread.getState();
@@ -274,6 +280,11 @@ export const useDurableTakeover = (
         try {
           const repository = await history.load();
           if (disposed || thread.getState().isRunning) return;
+          if (failedLookups.has(repository)) {
+            checkedId = undefined;
+            retry = setTimeout(check, LOOKUP_RETRY_MS);
+            return;
+          }
           thread.import(repository);
           if (repository.unstable_resume && repository.headId)
             thread.resumeRun({ parentId: repository.headId });
@@ -289,6 +300,7 @@ export const useDurableTakeover = (
     const unsubscribe = thread.subscribe(check);
     return () => {
       disposed = true;
+      clearTimeout(retry);
       unsubscribe();
     };
   }, [runtime, history]);

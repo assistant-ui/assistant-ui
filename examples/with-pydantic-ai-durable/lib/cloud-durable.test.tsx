@@ -189,6 +189,7 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
     connects: [] as string[],
     starts: [] as RunAgentInput[],
     getThreads: [] as string[],
+    failGets: 0,
   };
   const push = (event: object) => {
     const frame = sse(event);
@@ -276,6 +277,10 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
     const id = thread ? decodeURIComponent(thread[1]!) : undefined;
     if (method === "GET" && thread && !thread[2]) {
       state.getThreads.push(id!);
+      if (state.failGets > 0) {
+        state.failGets--;
+        return json({ error: "unavailable" }, 503);
+      }
       return state.record
         ? json({ id: threadId, ...state.record })
         : json({ error: "not found" }, 404);
@@ -343,6 +348,7 @@ class DurableTestAgent extends HttpAgent {
       `http://durable.test/threads/${encodeURIComponent(threadId)}`,
     );
     if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`GET thread failed: ${response.status}`);
     return (await response.json()) as {
       messages: unknown[];
       running: boolean;
@@ -678,6 +684,21 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     expect(durable.state.getThreads).toHaveLength(1);
     expect(durable.state.connects).toEqual([]);
     expect(durable.state.starts).toEqual([]);
+  }, 15_000);
+
+  it("(a) rejoins once the durable server answers again after a failed lookup", async () => {
+    useServers([userRow, partialRow(45_000)], null);
+    durable.begin(runInput);
+    // The first load and the first takeover read both fail.
+    durable.state.failGets = 2;
+    const tab = await openTab("tab-b");
+    await openThread(tab);
+
+    await waitFor(() => expect(durable.state.connects).toEqual(["durable-1"]), {
+      timeout: 10_000,
+    });
+    expect(durable.state.starts).toEqual([]);
+    expect(cloud.rows.some((row) => row.id === "a1")).toBe(false);
   }, 15_000);
 
   it("(c) two tabs that rejoin the same run at once store one answer", async () => {
