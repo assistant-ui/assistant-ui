@@ -100,10 +100,16 @@ describe.each([true, false])(
           );
         } else {
           expect(opaqueOf(previous)).toEqual([
-            { id: "r-1", encryptedValue: "sig-r-1" },
+            {
+              id: "r-1",
+              encryptedValue: "sig-r-1",
+              index: parentText ? 1 : 0,
+            },
           ]);
           expect(opaqueOf(latest)).toEqual(
-            nextReasoning ? [{ id: "r-2", encryptedValue: "sig-r-2" }] : [],
+            nextReasoning
+              ? [{ id: "r-2", encryptedValue: "sig-r-2", index: 0 }]
+              : [],
           );
         }
         const exported = toAgUiMessages([

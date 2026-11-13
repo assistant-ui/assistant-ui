@@ -34,7 +34,14 @@ export type AgUiOpaqueReasoning = {
   id: string;
   encryptedValue: string;
   metadata?: Record<string, unknown>;
+  /** Replays after the message and its tool results. */
   after?: boolean;
+  /**
+   * Content index the block arrived ahead of, so a message joining several
+   * steps replays it inside the step it came from. Without it, the block
+   * replays ahead of the whole message.
+   */
+  index?: number;
 };
 
 export type AgUiCustomMetadata = {

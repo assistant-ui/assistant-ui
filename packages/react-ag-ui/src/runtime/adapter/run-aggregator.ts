@@ -72,6 +72,9 @@ type BuildContext = {
   root?: {
     opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[];
     lastMaterializedIndex: number;
+    // partOrder indices of the root parts that made it into the snapshot, in
+    // order, so an anchor can be turned into the content slot it precedes.
+    materializedIndices: number[];
   };
 };
 
@@ -1356,10 +1359,16 @@ export class RunAggregator {
         let insertAt = parentIndex + 1;
         while (insertAt < this.buf.partOrder.length) {
           const part = this.buf.partOrder[insertAt];
+          // Reasoning the step streamed between its prose and its calls stays
+          // ahead of them: a step replays reasoning before its calls, and a
+          // call ahead of it would read as the end of the step.
           if (
-            part?.kind === "tool-call" &&
-            this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
-              parentMessageId
+            (part?.kind === "tool-call" &&
+              this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
+                parentMessageId) ||
+            (part?.kind === "reasoning" &&
+              part.subagentRunId === undefined &&
+              scope === ROOT_SCOPE)
           ) {
             insertAt += 1;
             continue;
@@ -1367,6 +1376,15 @@ export class RunAggregator {
           break;
         }
         this.buf.partOrder.splice(insertAt, 0, entry);
+        // Hidden blocks anchor on partOrder indices; one that arrived after
+        // the slot the call slid into still sits after the call.
+        for (const anchors of [
+          this.buf.hiddenBlockAnchors,
+          this.buf.hiddenSignatureAnchors,
+        ]) {
+          for (const [id, anchor] of anchors)
+            if (anchor > insertAt) anchors.set(id, anchor + 1);
+        }
         return;
       }
     }
@@ -1569,7 +1587,10 @@ export class RunAggregator {
 
     for (const { index, part } of ctx.partsByScope.get(scope) ?? []) {
       const materialized = () => {
-        if (isRoot && ctx.root) ctx.root.lastMaterializedIndex = index;
+        if (isRoot && ctx.root) {
+          ctx.root.lastMaterializedIndex = index;
+          ctx.root.materializedIndices.push(index);
+        }
       };
 
       if (part.kind === "tool-call") {
@@ -1706,6 +1727,7 @@ export class RunAggregator {
         }),
       ) as (AgUiOpaqueReasoning & { anchor: number })[],
       lastMaterializedIndex: -1,
+      materializedIndices: [] as number[],
     };
     // A run that ended incomplete can no longer be resumed, so a gate left over
     // from an earlier interrupt outcome is unanswerable and must not stay
@@ -1749,7 +1771,8 @@ export class RunAggregator {
       root,
     };
     const snapshot = this.buildParts(ROOT_SCOPE, 0, ctx);
-    const { opaqueCandidates, lastMaterializedIndex } = root;
+    const { opaqueCandidates, lastMaterializedIndex, materializedIndices } =
+      root;
 
     const toolMessageIds = new Set<string>();
     for (const call of this.buf.toolCalls.values()) {
@@ -1772,7 +1795,14 @@ export class RunAggregator {
         return !collides;
       })
       .map(({ anchor, ...entry }) =>
-        lastMaterializedIndex < anchor ? { ...entry, after: true } : entry,
+        lastMaterializedIndex < anchor
+          ? { ...entry, after: true }
+          : {
+              ...entry,
+              // The content slot it arrived ahead of: joined content holds
+              // several steps, and the block has to replay inside its own.
+              index: materializedIndices.filter((i) => i < anchor).length,
+            },
       );
     if (publishableOpaqueReasoning.length > 0)
       this.buf.hasEmittedOpaqueReasoning = true;

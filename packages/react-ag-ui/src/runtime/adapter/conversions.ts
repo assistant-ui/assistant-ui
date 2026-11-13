@@ -876,7 +876,13 @@ function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
         id,
         encryptedValue,
         ...(metadata ? { metadata } : {}),
-        ...(entry.after === true ? { after: true } : {}),
+        ...(entry.after === true
+          ? { after: true }
+          : typeof entry.index === "number" &&
+              Number.isInteger(entry.index) &&
+              entry.index >= 0
+            ? { index: entry.index }
+            : {}),
       },
     ];
   });
@@ -1084,16 +1090,17 @@ function foldTurnRecords(
     ...(readPersistedInterrupts(previous.metadata) ?? []),
     ...(readPersistedInterrupts(message.metadata) ?? []),
   ];
-  // An entry that rode a record behind the turn's calls sat ahead of content
-  // that now follows them, so it is replayed after the merged record and its
-  // tool results rather than ahead of a message that no longer starts there.
-  // One that rode the container opening the turn sat ahead of every call and
-  // stays ahead of the record.
-  const trailsCalls = carriesPart(previous, "tool-call");
+  // An entry keeps the content slot it arrived ahead of, so the export puts
+  // it back in its own step: one that rode the record behind the turn's
+  // calls opens the step that answered them, and one that trailed the
+  // earlier record now sits ahead of the content joined after it.
+  const offset = Array.isArray(previous.content) ? previous.content.length : 0;
   const opaqueReasoning = [
-    ...readOpaqueReasoning(previous.metadata),
+    ...readOpaqueReasoning(previous.metadata).map(({ after, ...entry }) =>
+      after ? { ...entry, index: offset } : entry,
+    ),
     ...readOpaqueReasoning(message.metadata).map((entry) =>
-      trailsCalls ? { ...entry, after: true } : entry,
+      entry.after ? entry : { ...entry, index: offset + (entry.index ?? 0) },
     ),
   ];
   const previousPending = readPersistedPendingToolCallIds(previous.metadata);
@@ -1883,110 +1890,232 @@ function convertAgUiMessages(
   return folded;
 }
 
+type AssistantStep = {
+  // Content indices, so positioned opaque reasoning can find its step.
+  start: number;
+  parts: { index: number; part: unknown }[];
+};
+
+const isExportedToolCall = (part: unknown): part is ToolCallPart =>
+  isObject(part) &&
+  part.type === "tool-call" &&
+  !(typeof part.toolCallId === "string" && part.toolCallId.startsWith("a2ui:"));
+
+// A model step ends with its tool calls: reasoning or prose after a call
+// belongs to the next step, which answered the call's result, and so does a
+// call addressed to a different assistant record than the calls before it.
+// Joined content keeps parts in arrival order, so these boundaries are the
+// steps the backend streamed, and each one goes back out as its own records.
+function splitAssistantSteps(content: readonly unknown[]): AssistantStep[] {
+  const steps: AssistantStep[] = [{ start: 0, parts: [] }];
+  let stepParentIds: Set<string> | undefined;
+  for (const [index, part] of content.entries()) {
+    const type = isObject(part) ? part.type : undefined;
+    const parentId = isExportedToolCall(part)
+      ? getString(part, "parentId")
+      : undefined;
+    if (
+      stepParentIds !== undefined &&
+      (type === "reasoning" ||
+        type === "text" ||
+        (parentId !== undefined &&
+          stepParentIds.size > 0 &&
+          !stepParentIds.has(parentId)))
+    ) {
+      steps.push({ start: index, parts: [] });
+      stepParentIds = undefined;
+    }
+    steps.at(-1)!.parts.push({ index, part });
+    if (isExportedToolCall(part)) {
+      stepParentIds ??= new Set();
+      if (parentId !== undefined) stepParentIds.add(parentId);
+    }
+  }
+  return steps;
+}
+
+// Some providers reject a blank reasoning block, but a blank one carrying a
+// signature or wire id is a redacted block the provider needs back verbatim.
+function isExportableReasoning(part: Record<string, unknown>): boolean {
+  const text = getString(part, "text") ?? "";
+  if (text.trim().length > 0) return true;
+  const { encryptedValue, reasoningId, messageMetadata } =
+    readAgUiReasoningMeta(part.providerMetadata);
+  return !!encryptedValue?.trim() || !!reasoningId?.trim() || !!messageMetadata;
+}
+
 function convertAssistantMessage(
   message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
+  positionedReasoning: readonly (AgUiOpaqueReasoning & { index: number })[],
+  toOpaqueRecord: (entry: AgUiOpaqueReasoning) => AgUiMessage,
 ): void {
-  const content = extractText(message.content);
   const contentArray = Array.isArray(message.content) ? message.content : [];
-
-  const toolCallParts = contentArray.filter(
-    (part): part is ToolCallPart =>
-      part?.type === "tool-call" &&
-      !(
-        typeof part.toolCallId === "string" &&
-        part.toolCallId.startsWith("a2ui:")
-      ),
+  const steps =
+    typeof message.content === "string"
+      ? [{ start: 0, parts: [] }]
+      : splitAssistantSteps(contentArray);
+  const stepOf = (index: number) =>
+    Math.max(
+      0,
+      steps.findLastIndex((step) => step.start <= index),
+    );
+  const opaqueBySteps = steps.map(
+    () => [] as (AgUiOpaqueReasoning & { index: number })[],
   );
+  for (const entry of [...positionedReasoning].sort(
+    (a, b) => a.index - b.index,
+  ))
+    opaqueBySteps[stepOf(entry.index)]!.push(entry);
 
-  const toolCalls = toolCallParts.map((part) => ({
-    ...normalizeToolCall(part),
-    part,
-  }));
-
-  // An AG-UI assistant record has no reasoning field, so reasoning leaves as
-  // the standalone record it arrived as, ahead of the assistant it belongs to.
-  const shellIsDropped = content.length === 0 && toolCalls.length === 0;
-  let reasoningIndex = 0;
-  for (const part of contentArray) {
-    if (!isObject(part) || part.type !== "reasoning") continue;
-    const text = getString(part, "text") ?? "";
-    if (text.trim().length === 0) continue;
-    const { encryptedValue, reasoningId, messageMetadata } =
-      readAgUiReasoningMeta(part.providerMetadata);
-    converted.push({
-      // The wire id is what a signature was issued against, so it wins over a
-      // synthesized one whenever the run carried it.
-      id: reasoningId?.trim()
-        ? reasoningId
-        : shellIsDropped && reasoningIndex === 0
-          ? message.id
-          : `${message.id}:reasoning-${reasoningIndex}`,
-      role: "reasoning",
-      content: text,
-      ...(encryptedValue !== undefined ? { encryptedValue } : {}),
-      ...(messageMetadata ? { metadata: messageMetadata } : {}),
-    });
-    reasoningIndex++;
-  }
-
-  // Some providers reject a replayed blank assistant turn, even when it carries metadata.
-  if (shellIsDropped) {
-    return;
-  }
-
-  // A subagent's tool calls live on nested assistant messages. Before
-  // subagent attribution they flattened to root and went out with this
-  // assistant record as their antecedent, so the resume payload restores
-  // exactly that shape: the calls join this record's toolCalls and their
-  // results follow as tool records — never a tool record without its call.
-  // The nested assistant content itself is backend-owned state and is not
-  // re-sent.
-  const nestedToolCalls: {
-    id: string;
-    call: AgUiToolCall;
-    part: ToolCallPart;
-  }[] = [];
-  for (const { part } of toolCalls) {
-    for (const { part: nestedToolCall } of walkToolCallTree(
-      part.messages ?? [],
-      { shouldDescend: isExportableNestedToolCall },
-    )) {
-      if (!isExportableNestedToolCall(nestedToolCall)) continue;
-      nestedToolCalls.push({
-        ...normalizeToolCall(nestedToolCall),
-        part: nestedToolCall,
-      });
-    }
-  }
-
-  converted.push({
-    id: message.id,
-    role: "assistant",
-    content,
-    ...(message.name ? { name: message.name } : {}),
-    ...withAgUiMessageMetadata(message.metadata),
-    ...(toolCalls.length + nestedToolCalls.length > 0
-      ? {
-          toolCalls: [...toolCalls, ...nestedToolCalls].map(
-            (entry) => entry.call,
-          ),
-        }
-      : {}),
+  const stepRecords = steps.map((step) => {
+    const toolCallParts = step.parts
+      .map(({ part }) => part)
+      .filter(isExportedToolCall);
+    const content =
+      typeof message.content === "string"
+        ? message.content
+        : extractText(step.parts.map(({ part }) => part));
+    return {
+      content,
+      toolCalls: toolCallParts.map((part) => ({
+        ...normalizeToolCall(part),
+        part,
+      })),
+    };
   });
+  const firstRecordStep = stepRecords.findIndex(
+    (step) => step.content.length > 0 || step.toolCalls.length > 0,
+  );
+  // The message id goes to the record carrying its prose, as the import fold
+  // keeps the id of the last record with text. A step that only called tools
+  // leaves as the container a run opens for a call, under that call's id, so
+  // a re-import folds it back into this message.
+  const lastTextStep = stepRecords.findLastIndex(
+    (step) => step.content.length > 0,
+  );
+  const ownerStep = lastTextStep >= 0 ? lastTextStep : firstRecordStep;
 
-  for (const { id: toolCallId, part } of toolCalls) {
-    emitToolResult(toolCallId, part, converted);
-  }
-  for (const { id: toolCallId, part } of nestedToolCalls) {
-    // A result recorded while the call's approval gate is still open must not
-    // reach the backend as if the gate had been decided.
-    const gateOpen =
-      part.approval != null &&
-      part.approval.approved === undefined &&
-      part.approval.resolution === undefined;
-    if (gateOpen) continue;
-    emitToolResult(toolCallId, part, converted);
+  let reasoningIndex = 0;
+  for (const [stepIndex, step] of steps.entries()) {
+    const { content, toolCalls } = stepRecords[stepIndex]!;
+    const recordId =
+      stepIndex === ownerStep || ownerStep < 0
+        ? message.id
+        : content.length === 0 && toolCalls[0] !== undefined
+          ? toolCalls[0].id
+          : `${message.id}:step-${stepIndex}`;
+
+    // An AG-UI assistant record has no reasoning field, so reasoning leaves as
+    // the standalone record it arrived as, ahead of the assistant it belongs
+    // to. A redacted block that rode the metadata goes back to the slot it
+    // arrived in among them.
+    const shellIsDropped = content.length === 0 && toolCalls.length === 0;
+    // A block that arrived after one of the step's calls cannot ride ahead of
+    // them, so it trails the step's results, where the next step would open.
+    const firstCallIndex = step.parts.find(({ part }) =>
+      isExportedToolCall(part),
+    )?.index;
+    const trailing = opaqueBySteps[stepIndex]!.filter(
+      (entry) => firstCallIndex !== undefined && entry.index > firstCallIndex,
+    );
+    const opaque = opaqueBySteps[stepIndex]!.filter(
+      (entry) => !trailing.includes(entry),
+    );
+    let opaqueCursor = 0;
+    const flushOpaqueBefore = (index: number) => {
+      while (
+        opaqueCursor < opaque.length &&
+        opaque[opaqueCursor]!.index <= index
+      )
+        converted.push(toOpaqueRecord(opaque[opaqueCursor++]!));
+    };
+    for (const { index, part } of step.parts) {
+      if (!isObject(part) || part.type !== "reasoning") continue;
+      flushOpaqueBefore(index);
+      if (!isExportableReasoning(part)) continue;
+      const text = getString(part, "text") ?? "";
+      const { encryptedValue, reasoningId, messageMetadata } =
+        readAgUiReasoningMeta(part.providerMetadata);
+      converted.push({
+        // The wire id is what a signature was issued against, so it wins over
+        // a synthesized one whenever the run carried it.
+        id: reasoningId?.trim()
+          ? reasoningId
+          : shellIsDropped && firstRecordStep < 0 && reasoningIndex === 0
+            ? message.id
+            : `${message.id}:reasoning-${reasoningIndex}`,
+        role: "reasoning",
+        content: text,
+        ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+        ...(messageMetadata ? { metadata: messageMetadata } : {}),
+      });
+      reasoningIndex++;
+    }
+    flushOpaqueBefore(Number.POSITIVE_INFINITY);
+
+    // Some providers reject a replayed blank assistant turn, even when it carries metadata.
+    if (shellIsDropped) {
+      for (const entry of trailing) converted.push(toOpaqueRecord(entry));
+      continue;
+    }
+
+    // A subagent's tool calls live on nested assistant messages. Before
+    // subagent attribution they flattened to root and went out with this
+    // assistant record as their antecedent, so the resume payload restores
+    // exactly that shape: the calls join this record's toolCalls and their
+    // results follow as tool records — never a tool record without its call.
+    // The nested assistant content itself is backend-owned state and is not
+    // re-sent.
+    const nestedToolCalls: {
+      id: string;
+      call: AgUiToolCall;
+      part: ToolCallPart;
+    }[] = [];
+    for (const { part } of toolCalls) {
+      for (const { part: nestedToolCall } of walkToolCallTree(
+        part.messages ?? [],
+        { shouldDescend: isExportableNestedToolCall },
+      )) {
+        if (!isExportableNestedToolCall(nestedToolCall)) continue;
+        nestedToolCalls.push({
+          ...normalizeToolCall(nestedToolCall),
+          part: nestedToolCall,
+        });
+      }
+    }
+
+    converted.push({
+      id: recordId,
+      role: "assistant",
+      content,
+      ...(message.name ? { name: message.name } : {}),
+      ...(recordId === message.id
+        ? withAgUiMessageMetadata(message.metadata)
+        : {}),
+      ...(toolCalls.length + nestedToolCalls.length > 0
+        ? {
+            toolCalls: [...toolCalls, ...nestedToolCalls].map(
+              (entry) => entry.call,
+            ),
+          }
+        : {}),
+    });
+
+    for (const { id: toolCallId, part } of toolCalls) {
+      emitToolResult(toolCallId, part, converted);
+    }
+    for (const { id: toolCallId, part } of nestedToolCalls) {
+      // A result recorded while the call's approval gate is still open must
+      // not reach the backend as if the gate had been decided.
+      const gateOpen =
+        part.approval != null &&
+        part.approval.approved === undefined &&
+        part.approval.resolution === undefined;
+      if (gateOpen) continue;
+      emitToolResult(toolCallId, part, converted);
+    }
+    for (const entry of trailing) converted.push(toOpaqueRecord(entry));
   }
 }
 
@@ -2086,8 +2215,18 @@ export function toAgUiMessages(
       encryptedValue: entry.encryptedValue,
       ...(entry.metadata ? { metadata: entry.metadata } : {}),
     });
+    // Inside an assistant message, an entry that knows its content slot goes
+    // back to the step it arrived in; anywhere else it leads the message.
+    const positioned =
+      message.role === "assistant"
+        ? opaqueReasoning.filter(
+            (entry): entry is AgUiOpaqueReasoning & { index: number } =>
+              entry.after !== true && entry.index !== undefined,
+          )
+        : [];
     for (const entry of opaqueReasoning) {
-      if (entry.after !== true) converted.push(toOpaqueRecord(entry));
+      if (entry.after !== true && !positioned.includes(entry as never))
+        converted.push(toOpaqueRecord(entry));
     }
     const flushTrailingOpaqueReasoning = () => {
       for (const entry of opaqueReasoning) {
@@ -2096,7 +2235,7 @@ export function toAgUiMessages(
     };
 
     if (message.role === "assistant") {
-      convertAssistantMessage(message, converted);
+      convertAssistantMessage(message, converted, positioned, toOpaqueRecord);
       flushTrailingOpaqueReasoning();
       continue;
     }

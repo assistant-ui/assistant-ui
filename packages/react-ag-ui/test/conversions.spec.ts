@@ -1005,14 +1005,19 @@ describe("adapter conversions", () => {
       expect(result[1]!.status).toMatchObject({ type: "requires-action" });
     });
 
-    it("round-trips the joined turn as one assistant record and its result", () => {
+    it("round-trips the joined turn step by step, as one message", () => {
       const wire = toAgUiMessages(
         fromAgUiMessages(splitTurn, { joinAdjacentAssistantMessages: true }),
       );
       expect(wire.map((m) => [m.role, m.id])).toEqual([
         ["user", "u-1"],
-        ["assistant", "a-2"],
+        ["assistant", "c-1"],
         ["tool", "t-1"],
+        ["assistant", "a-2"],
+      ]);
+      expect(fromAgUiMessages(wire as any).map((m) => m.id)).toEqual([
+        "u-1",
+        "a-2",
       ]);
     });
   });
@@ -1438,9 +1443,9 @@ describe("adapter conversions", () => {
     expect(imported.map((m) => m.id)).toEqual(["m-2"]);
     expect(toAgUiMessages(imported)).toEqual([
       {
-        id: "m-2",
+        id: "c-1",
         role: "assistant",
-        content: "it is sunny",
+        content: "",
         toolCalls: [
           {
             id: "c-1",
@@ -1451,6 +1456,7 @@ describe("adapter conversions", () => {
       },
       { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
       { id: "e-1", role: "reasoning", content: "", encryptedValue: "sig" },
+      { id: "m-2", role: "assistant", content: "it is sunny" },
     ]);
   });
 
@@ -1480,9 +1486,9 @@ describe("adapter conversions", () => {
       { id: "u-1", role: "user", content: "weather?" },
       { id: "r-1", role: "reasoning", content: "check the tool" },
       {
-        id: "m-2",
+        id: "c-1",
         role: "assistant",
-        content: "it is sunny",
+        content: "",
         toolCalls: [
           {
             id: "c-1",
@@ -1492,6 +1498,7 @@ describe("adapter conversions", () => {
         ],
       },
       { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "m-2", role: "assistant", content: "it is sunny" },
     ]);
     expect(fromAgUiMessages(exported as any).map((m) => m.id)).toEqual([
       "u-1",
