@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -127,6 +128,80 @@ test("emitDeclarations writes one deterministic declaration per entry with runti
   assert.deepEqual(emit(cwd, entry), first);
 });
 
+const BASE64 =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Generated line and column to source line and column, per the source map v3
+// encoding.
+const decodeMappings = (mappings: string) => {
+  const segments: number[][] = [];
+  const state = [0, 0, 0, 0];
+  mappings.split(";").forEach((line, generatedLine) => {
+    let generatedColumn = 0;
+    for (const segment of line.split(",").filter(Boolean)) {
+      const fields: number[] = [];
+      let value = 0;
+      let shift = 0;
+      for (const char of segment) {
+        const digit = BASE64.indexOf(char);
+        value += (digit & 31) << shift;
+        shift += 5;
+        if (digit & 32) continue;
+        fields.push(value & 1 ? -(value >>> 1) : value >>> 1);
+        value = 0;
+        shift = 0;
+      }
+      generatedColumn += fields[0]!;
+      if (fields.length < 4) continue;
+      state[1]! += fields[2]!;
+      state[2]! += fields[3]!;
+      segments.push([generatedLine, generatedColumn, state[1]!, state[2]!]);
+    }
+  });
+  return segments;
+};
+
+test("emitDeclarations keeps the declaration map aligned after rewriting a specifier", (t) => {
+  const cwd = fixture(t, {
+    "other.ts": "export interface Other { id: number }",
+    "make.ts": [
+      'import type { Other } from "./other";',
+      "export const makeOther = (): Other => ({ id: 1 });",
+    ].join("\n"),
+    "index.ts": [
+      'import { makeOther } from "./make";',
+      "export function pair(first = makeOther(), second = 1) {",
+      "  return [first, second] as const;",
+      "}",
+    ].join("\n"),
+  });
+  emitDeclarations({
+    cwd,
+    entry: ["src/index.ts", "src/make.ts", "src/other.ts"],
+    rootDir: "src",
+    outDir: "dist",
+  });
+  const declaration = readFileSync(join(cwd, "dist", "index.d.ts"), "utf8");
+  const map = JSON.parse(
+    readFileSync(join(cwd, "dist", "index.d.ts.map"), "utf8"),
+  ) as { mappings: string };
+  const source = readFileSync(join(cwd, "src", "index.ts"), "utf8").split("\n");
+
+  const lines = declaration.split("\n");
+  const line = lines.findIndex((text) => text.includes("second?"));
+  assert.match(lines[line]!, /import\("\.\/other\.js"\)\.Other, second\?/);
+  const column = lines[line]!.indexOf("second?");
+  const segment = decodeMappings(map.mappings).find(
+    ([generatedLine, generatedColumn]) =>
+      generatedLine === line && generatedColumn === column,
+  );
+  assert.ok(segment, `no mapping at ${line}:${column}`);
+  assert.equal(
+    source[segment[2]!]!.slice(segment[3]!, segment[3]! + "second".length),
+    "second",
+  );
+});
+
 test("emitDeclarations fails on a declaration the emitter cannot name", (t) => {
   const cwd = fixture(t, {
     "hidden.ts": [
@@ -148,6 +223,7 @@ test("emitDeclarations fails on a declaration the emitter cannot name", (t) => {
       }),
     /TS4023/,
   );
+  assert.equal(existsSync(join(cwd, "tsconfig.aui-build.json")), false);
 });
 
 test("emitDeclarations fails on a tsconfig the compiler would reject", (t) => {
@@ -165,6 +241,54 @@ test("emitDeclarations fails on a tsconfig the compiler would reject", (t) => {
         outDir: "dist",
       }),
     /TS5024|moduleResolution/,
+  );
+});
+
+test("emitDeclarations keeps the doc comment of a function that gains properties", (t) => {
+  const cwd = fixture(t, {
+    "view.ts": [
+      "/** Renders the view. */",
+      "export function View() { return null; }",
+      'View.displayName = "View";',
+    ].join("\n"),
+  });
+  emitDeclarations({
+    cwd,
+    entry: ["src/view.ts"],
+    rootDir: "src",
+    outDir: "dist",
+  });
+  assert.match(
+    readFileSync(join(cwd, "dist", "view.d.ts"), "utf8"),
+    /\/\*\* Renders the view\. \*\/\nexport declare function View\(\)/,
+  );
+  assert.equal(existsSync(join(cwd, "tsconfig.aui-build.json")), false);
+});
+
+test("emitDeclarations fails on a documented constant that gains properties", (t) => {
+  const cwd = fixture(t, {
+    "view.ts": [
+      "/** Renders the view. */",
+      "export const View = () => null;",
+      'View.displayName = "View";',
+      "export const Plain = () => null;",
+      'Plain.displayName = "Plain";',
+      "/** Typed, so it stays a constant. */",
+      "export const Typed: { (): null; displayName?: string } = () => null;",
+      'Typed.displayName = "Typed";',
+    ].join("\n"),
+  });
+  assert.throws(
+    () =>
+      emitDeclarations({
+        cwd,
+        entry: ["src/view.ts"],
+        rootDir: "src",
+        outDir: "dist",
+      }),
+    (error: Error) =>
+      /Declare these as functions/.test(error.message) &&
+      error.message.endsWith("\n  src/view.ts: View"),
   );
 });
 

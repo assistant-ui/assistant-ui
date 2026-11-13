@@ -1,14 +1,17 @@
 import { RenderOptions, Theme, Theme as Theme$1, ThemeName, ThemeName as ThemeName$1 } from "markdansi";
 
-declare const MarkdownText: import("react").MemoExoticComponent<{
+declare const MarkdownText: import("react").MemoExoticComponent<typeof MarkdownTextImpl>;
+
+declare const MarkdownTextImpl: {
   (_param0: MarkdownTextProps): import("react").JSX.Element;
   displayName: string;
-}>;
-
-declare const MarkdownTextPrimitive: {
-  (_param1: MarkdownTextPrimitiveProps): import("react").JSX.Element;
-  displayName: string;
 };
+
+declare function MarkdownTextPrimitive(_param1: MarkdownTextPrimitiveProps): import("react").JSX.Element;
+
+declare namespace MarkdownTextPrimitive {
+  var displayName: string;
+}
 
 type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text"> & {
   preprocess?: ((text: string) => string) | undefined;

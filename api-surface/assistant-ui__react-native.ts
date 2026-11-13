@@ -49,10 +49,11 @@ type ActionBarReloadProps = Omit<PrimitivePressableProps, "children" | "onPress"
   }) => ReactNode);
 };
 
-declare const ActionBarSpeak: {
-  (_param5: ActionBarSpeakProps): import("react").JSX.Element;
-  displayName: string;
-};
+declare function ActionBarSpeak(_param5: ActionBarSpeakProps): import("react").JSX.Element;
+
+declare namespace ActionBarSpeak {
+  var displayName: string;
+}
 
 type ActionBarSpeakProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
@@ -60,10 +61,11 @@ type ActionBarSpeakProps = Omit<PrimitivePressableProps, "children" | "onPress">
   }) => ReactNode);
 };
 
-declare const ActionBarStopSpeaking: {
-  (_param6: ActionBarStopSpeakingProps): import("react").JSX.Element;
-  displayName: string;
-};
+declare function ActionBarStopSpeaking(_param6: ActionBarStopSpeakingProps): import("react").JSX.Element;
+
+declare namespace ActionBarStopSpeaking {
+  var displayName: string;
+}
 
 type ActionBarStopSpeakingProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
@@ -1471,7 +1473,7 @@ declare class CompositeAttachmentAdapter implements AttachmentAdapter {
   constructor(adapters: AttachmentAdapter[]);
   add(state: {
     file: File;
-  }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void, any>;
+  }): AsyncGenerator<PendingAttachment, void, any> | Promise<PendingAttachment>;
   send(attachment: PendingAttachment, options?: {
     signal?: AbortSignal;
   }): Promise<CompleteAttachment>;
@@ -1701,19 +1703,21 @@ type EnrichedPartState = (Extract<PartState, {
   type: "data";
 }>;
 
-declare const ErrorMessage: {
-  (_param19: ErrorMessageProps): import("react").JSX.Element | null;
-  displayName: string;
-};
+declare function ErrorMessage(_param19: ErrorMessageProps): import("react").JSX.Element | null;
+
+declare namespace ErrorMessage {
+  var displayName: string;
+}
 
 type ErrorMessageProps = TextProps & {
   children?: ReactNode;
 };
 
-declare const ErrorRoot: {
-  (_param20: ErrorRootProps): import("react").JSX.Element | null;
-  displayName: string;
-};
+declare function ErrorRoot(_param20: ErrorRootProps): import("react").JSX.Element | null;
+
+declare namespace ErrorRoot {
+  var displayName: string;
+}
 
 type ErrorRootProps = ViewProps & {
   children: ReactNode;
@@ -2494,10 +2498,11 @@ declare namespace MessagePrimitiveGroupedParts {
   };
 }
 
-declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param23: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
-  displayName: string;
-};
+declare function MessagePrimitiveGroupedParts<TKey extends `group-${string}`>(_param23: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+
+declare namespace MessagePrimitiveGroupedParts {
+  var displayName: string;
+}
 
 declare namespace MessagePrimitivePartByIndex {
   type Props = {
@@ -4286,38 +4291,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       unmuteVoice: () => void;
       submitFeedback: (feedback: SubmitFeedbackOptions) => void;
       getModelContext: () => ModelContext$1;
-      composer: Readonly<{
-        isEditing: boolean;
-        canCancel: boolean;
-        canSend: boolean;
-        isEmpty: boolean;
-        attachments: readonly Attachment[];
-        attachmentAccept: string;
-        addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
-        removeAttachment: (attachmentId: string) => Promise<void>;
-        text: string;
-        setText: (value: string, options?: ComposerSetTextOptions) => void;
-        role: MessageRole;
-        setRole: (role: MessageRole) => void;
-        runConfig: RunConfig;
-        setRunConfig: (runConfig: RunConfig) => void;
-        quote: QuoteInfo | undefined;
-        setQuote: (quote: QuoteInfo | undefined) => void;
-        reset: () => Promise<void>;
-        clearAttachments: () => Promise<void>;
-        send: (options?: SendOptions) => void;
-        cancel: () => void;
-        submission?: ComposerSubmission | undefined;
-        inTransit?: readonly ComposerSubmission[] | undefined;
-        queue: readonly QueueItemState[];
-        moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
-        removeQueueItem: (queueItemId: string) => void;
-        dictation: DictationState | undefined;
-        startDictation: () => void;
-        stopDictation: () => void;
-        subscribe: (callback: () => void) => Unsubscribe$1;
-        unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe$1;
-      }>;
+      composer: ThreadComposerRuntimeCore;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
       __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
@@ -5296,7 +5270,7 @@ declare const unstable_useInteractableVersions: <TState = unknown>(id: string, n
   restore: () => void;
 })[];
 
-declare const unstable_useThreadMessageIds: () => readonly string[];
+declare const unstable_useThreadMessageIds: typeof useThreadMessageIds;
 
 declare const useAssistantContext: (config: AssistantContextConfig) => void;
 
@@ -5366,6 +5340,8 @@ declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param52?: LocalRun
 declare const useRemoteThreadListRuntime: (options: RemoteThreadListOptions) => AssistantRuntime;
 
 declare const useRuntimeAdapters: () => RuntimeAdapters | null;
+
+declare const useThreadMessageIds: () => readonly string[];
 
 declare const useToolArgsStatus: <TArgs extends Record<string, unknown> = Record<string, unknown>>() => ToolArgsStatus<TArgs>;
 

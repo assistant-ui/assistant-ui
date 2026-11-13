@@ -2493,26 +2493,28 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
   text: string;
   image_url?: never;
   id?: never;
-  mime_type?: never;
+  url?: never;
   filename?: never;
   metadata?: never;
-  source_type?: never;
-  url?: never;
   data?: never;
+  mime_type?: never;
+  source_type?: never;
 } | {
+  text?: never;
   type: "image_url";
   image_url: {
     url: string;
   };
-  text?: never;
   id?: never;
-  mime_type?: never;
+  url?: never;
   filename?: never;
   metadata?: never;
-  source_type?: never;
-  url?: never;
   data?: never;
+  mime_type?: never;
+  source_type?: never;
 } | {
+  text?: never;
+  image_url?: never;
   type: "file";
   id: string;
   mime_type: string;
@@ -2521,11 +2523,12 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
     filename: string;
   };
   source_type: "id";
-  text?: never;
-  image_url?: never;
   url?: never;
   data?: never;
 } | {
+  text?: never;
+  image_url?: never;
+  id?: never;
   type: "file";
   url: string;
   mime_type: string;
@@ -2534,11 +2537,12 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
     filename: string;
   };
   source_type: "url";
+  data?: never;
+} | {
   text?: never;
   image_url?: never;
   id?: never;
-  data?: never;
-} | {
+  url?: never;
   type: "file";
   data: string;
   mime_type: string;
@@ -2547,21 +2551,17 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
     filename: string;
   };
   source_type: "base64";
+} | {
   text?: never;
   image_url?: never;
   id?: never;
   url?: never;
-} | {
+  filename?: never;
+  metadata?: never;
   type: "audio";
   data: string;
   mime_type: string;
   source_type: "base64";
-  text?: never;
-  image_url?: never;
-  id?: never;
-  filename?: never;
-  metadata?: never;
-  url?: never;
 })[];
 
 declare const getMessageModality: (additionalKwargs: Record<string, unknown> | undefined) => MessageModality | undefined;
