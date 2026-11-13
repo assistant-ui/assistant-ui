@@ -102,9 +102,28 @@ const isNotFound = (error) => error && error.status === 404;
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// The registry can lag behind a successful publish, so a reported version is
-// retried (~100s, inside the job's timeout) before it is declared missing.
-const REGISTRY_RETRY_DELAYS = [10_000, 20_000, 30_000, 40_000];
+// npm can show a version minutes after the publish step reports it, so the
+// reported versions share one wait before any of them is declared missing.
+const REGISTRY_POLL_MS = 10_000;
+const REGISTRY_WAIT_MS = 15 * 60_000;
+
+// Returns the packages still missing from npm metadata when the wait ends.
+const waitForRegistry = async (packages, { getNpmMetadata, sleep, log }) => {
+  let missing = packages;
+  for (let waitedMs = 0; ; waitedMs += REGISTRY_POLL_MS) {
+    const stillMissing = [];
+    for (const pkg of missing) {
+      const metadata = await getNpmMetadata(pkg.name);
+      if (!metadata?.versions?.[pkg.version]) stillMissing.push(pkg);
+    }
+    missing = stillMissing;
+    if (missing.length === 0 || waitedMs >= REGISTRY_WAIT_MS) return missing;
+    log(
+      `${missing.map((pkg) => `${pkg.name}@${pkg.version}`).join(", ")} published by this run but not visible on npm yet; waiting`,
+    );
+    await sleep(REGISTRY_POLL_MS);
+  }
+};
 
 // Exactly the publishedPackages versions are tagged, and only while the
 // recorded publish checkout equals releaseSha; with no list nothing is
@@ -138,34 +157,26 @@ export const createReleaseTags = async ({
     return { problems };
   }
 
+  const isPublished = (pkg) =>
+    publishedPackages.some(
+      (entry) => entry.name === pkg.name && entry.version === pkg.version,
+    );
+  const missing = new Set(
+    await waitForRegistry(packages.filter(isPublished), {
+      getNpmMetadata,
+      sleep,
+      log,
+    }),
+  );
+
   for (const pkg of packages) {
     const tag = `${pkg.name}@${pkg.version}`;
 
-    if (
-      !publishedPackages.some(
-        (entry) => entry.name === pkg.name && entry.version === pkg.version,
-      )
-    ) {
+    if (!isPublished(pkg)) {
       log(`${tag} was not published by this run; skipping`);
       continue;
     }
-
-    let metadata = await getNpmMetadata(pkg.name);
-    let onRegistry = Boolean(metadata?.versions?.[pkg.version]);
-    if (!onRegistry) {
-      for (const delay of REGISTRY_RETRY_DELAYS) {
-        log(
-          `${tag} was published by this run but is not visible on npm yet; waiting`,
-        );
-        await sleep(delay);
-        metadata = await getNpmMetadata(pkg.name);
-        if (metadata?.versions?.[pkg.version]) {
-          onRegistry = true;
-          break;
-        }
-      }
-    }
-    if (!onRegistry) {
+    if (missing.has(pkg)) {
       problems.push(
         `${tag} was reported as published by the publish step but is still missing from the npm registry metadata; rerun this job once the registry settles.`,
       );
