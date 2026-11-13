@@ -5,13 +5,7 @@
  * release. The CLI renders `{{name}}` placeholders with values it computes
  * itself and runs intro steps only from its own allow-list.
  */
-import {
-  GUIDE_PROTOCOL,
-  OPTION_ICONS,
-  type Guide,
-  type GuideContext,
-  type GuideStep,
-} from "setup-agent";
+import type { Guide, GuideContext, GuideStep } from "setup-agent";
 
 const EVENT_LIST = `"planning.started", "input.answered" ({inputId, answer, note?}; answer is an array for a choice question not asked with --single), "input.dismissed", "plan.approved", "plan.changes-requested" ({feedback}), "message.created" ({messageId, text}), "finished", "cancelled", "setup.created" ({products})`;
 
@@ -81,7 +75,7 @@ Use these headings, each with bullets: "## What I found" (facts as \`- **Label:*
 
 2. Install. Declare the steps from your plan up front, in order:
   {{cmd}} {{url}} add-step "<title>" --detail "<one line>"
-which prints the step id. Then work through them: "step <id> active" before, "step <id> done --note '<one line on what you did>'" after; "skipped" when the step is already satisfied, "blocked" when you cannot continue, saying why in --note. Add steps as the work reveals them. Ask when you need another decision or value (--choices for a pick, plain for text; --optional when you can proceed without an answer; --wait only when the answer is the very next thing you need). A choice question is multi-select: the user checks any number of your options, and the answer is an array of the ids they checked, plus their own text as an entry when they typed one. Pass --single only when the options exclude each other (one framework, one model, yes or no); the answer is then one id. Every option must carry an icon, given as --icons "<id>=<icon>,..." with the closest name from this pack: ${OPTION_ICONS.join(", ")}. A question without an icon for each option is refused. Open inputs the user has not answered are listed under "inputs" in "status"; check them before asking again.
+which prints the step id. Then work through them: "step <id> active" before, "step <id> done --note '<one line on what you did>'" after; "skipped" when the step is already satisfied, "blocked" when you cannot continue, saying why in --note. Add steps as the work reveals them. Ask when you need another decision or value (--choices for a pick, plain for text; --optional when you can proceed without an answer; --wait only when the answer is the very next thing you need). A choice question is multi-select: the user checks any number of your options, and the answer is an array of the ids they checked, plus their own text as an entry when they typed one. Pass --single only when the options exclude each other (one framework, one model, yes or no); the answer is then one id. Every option must carry an icon, given as --icons "<id>=<icon>,..." with the closest name from this pack: {{icons}}. A question without an icon for each option is refused. Open inputs the user has not answered are listed under "inputs" in "status"; check them before asking again.
 The API key behind a model answer is not in the answer and you never see it: pick the variable name the provider's SDK reads (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) and run
   {{cmd}} {{url}} env <input-id> <ENV_VAR> --file .env.local
 which writes ENV_VAR=<key> into that file. Use the answer's model in the chat route and map reasoningEffort onto the provider's setting when it is set. If "env" says the key was never deposited (the model question was answered from your conversation), ask the user to add the key to that file themselves. Never invent a key or a model name.
@@ -122,7 +116,7 @@ export const buildGuide = (context: GuideContext): Guide => {
     { action: "print-status" },
   ];
   return {
-    protocol: GUIDE_PROTOCOL,
+    protocol: 1,
     texts: {
       briefing: briefing(context),
       "intro.status-heading": "\nCurrent setup:\n",
@@ -174,6 +168,15 @@ export const buildGuide = (context: GuideContext): Guide => {
   };
 };
 
+/**
+ * One builder for every guide protocol a published CLI speaks. The server is
+ * the only source of the text, so a protocol stays here until no CLI in use
+ * speaks it; a new one is added beside it, never in its place.
+ */
+const BUILDERS: Record<string, (context: GuideContext) => Guide> = {
+  "1": buildGuide,
+};
+
 const STARTS: readonly GuideContext["started"][] = [
   "user",
   "agent",
@@ -182,10 +185,16 @@ const STARTS: readonly GuideContext["started"][] = [
 
 /** `GET /<link>/guide?protocol=<n>&started=<who>&opened=<0|1>`: the guide, or why not. */
 export const respondToGuideRequest = (params: URLSearchParams) => {
-  if (params.get("protocol") !== String(GUIDE_PROTOCOL))
+  const build = Object.hasOwn(BUILDERS, params.get("protocol") ?? "")
+    ? BUILDERS[params.get("protocol")!]
+    : undefined;
+  if (build === undefined)
     return {
       status: 426,
-      body: { error: "unsupported-protocol", protocol: GUIDE_PROTOCOL },
+      body: {
+        error: "unsupported-protocol",
+        supported: Object.keys(BUILDERS).map(Number),
+      },
     };
   const started = params.get("started") ?? "user";
   const opened = params.get("opened") ?? "1";
@@ -196,7 +205,7 @@ export const respondToGuideRequest = (params: URLSearchParams) => {
     return { status: 400, body: { error: "invalid-request" } };
   return {
     status: 200,
-    body: buildGuide({
+    body: build({
       started: started as GuideContext["started"],
       opened: opened === "1",
     }),

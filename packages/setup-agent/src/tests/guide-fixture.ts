@@ -2,7 +2,7 @@ import { GUIDE_PROTOCOL, GUIDE_TEXT_KEYS } from "../guide";
 import type { Guide, GuideTextKey } from "../guide";
 
 const PLACEHOLDERS: Partial<Record<GuideTextKey, string[]>> = {
-  briefing: ["cmd", "url"],
+  briefing: ["cmd", "url", "icons"],
   "stream.briefing": ["name", "cmd", "url", "browserUrl"],
   "stream.briefing-footer": ["browserUrl"],
   "stream.opened.input": ["prompt", "url", "wait"],

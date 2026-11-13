@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as sdk from "./sdk";
-import { initialCheckoutState } from "./protocol";
+import { OPTION_ICONS, initialCheckoutState } from "./protocol";
 import type { Checkout } from "./protocol";
 import type { CheckoutClient } from "./client";
 
@@ -65,7 +65,7 @@ describe("setup-agent/sdk", () => {
       // The briefing is the server's guide, with this command's values filled in.
       const url = `https://checkout.test/${session.linkId}`;
       expect(out).toBe(
-        `[stream.briefing] my-tool setup npx my-tool setup ${url} ${session.browserUrl}[briefing] npx my-tool setup ${url}\n[stream.briefing-footer] ${session.browserUrl}${JSON.stringify({ status: "planning", products: [{ slug: "assistant-ui", name: "assistant-ui" }] })}\n`,
+        `[stream.briefing] my-tool setup npx my-tool setup ${url} ${session.browserUrl}[briefing] npx my-tool setup ${url} ${OPTION_ICONS.join(", ")}\n[stream.briefing-footer] ${session.browserUrl}${JSON.stringify({ status: "planning", products: [{ slug: "assistant-ui", name: "assistant-ui" }] })}\n`,
       );
       expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toBe(
         `${url}/guide?protocol=1&started=agent-stream&opened=1`,

@@ -89,9 +89,13 @@ describe("loadGuide", () => {
   });
 
   it("tells an outdated CLI to update, and refuses an oversized or unusable guide", async () => {
-    serve(() => Response.json({}, { status: 426 }));
+    serve(() => Response.json({ supported: [2] }, { status: 426 }));
     await expect(loadGuide(URL, CONTEXT)).rejects.toThrow(
       "run the latest setup-agent",
+    );
+    serve(() => Response.json({ supported: [] }, { status: 426 }));
+    await expect(loadGuide(URL, CONTEXT)).rejects.toThrow(
+      "newer than the setup server",
     );
     serve(() => new Response("x".repeat(300 * 1024)));
     await expect(loadGuide(URL, CONTEXT)).rejects.toThrow("too large");

@@ -148,10 +148,16 @@ export const loadGuide = async (
   } catch {
     throw new Error(offline);
   }
-  if (response.status === 426)
+  if (response.status === 426) {
+    const { supported = [] } = (await response.json().catch(() => ({}))) as {
+      supported?: unknown[];
+    };
     throw new Error(
-      "this setup-agent is older than the setup server supports; run the latest setup-agent",
+      supported.some((v) => typeof v === "number" && v > GUIDE_PROTOCOL)
+        ? "this setup-agent is older than the setup server supports; run the latest setup-agent"
+        : "this setup-agent is newer than the setup server; try again once the server updates",
     );
+  }
   if (!response.ok) throw new Error(`${offline} (HTTP ${response.status})`);
   try {
     let body = "";

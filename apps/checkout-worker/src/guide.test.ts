@@ -24,6 +24,8 @@ describe("buildGuide", () => {
       expect(text).toContain("{{cmd}} {{url}} wait <input-id>\n");
       expect(text).toContain('never repeat an "ask" or "plan"');
       expect(text).not.toMatch(/\b(?:cart|shop|checkout|purchase)\b/i);
+      // The icon pack is the CLI's, which validates icons against it.
+      expect(text).toContain("from this pack: {{icons}}.");
     }
   });
 
@@ -71,7 +73,12 @@ describe("GET /<link>/guide", () => {
   });
 
   it("answers 426 to another protocol and 400 to a malformed request", async () => {
-    expect((await get("protocol=0")).status).toBe(426);
+    const retired = await get("protocol=0");
+    expect(retired.status).toBe(426);
+    expect(await retired.json()).toEqual({
+      error: "unsupported-protocol",
+      supported: [1],
+    });
     expect(
       respondToGuideRequest(new URLSearchParams("protocol=1&started=robot"))
         .status,
