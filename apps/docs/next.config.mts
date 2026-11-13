@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { withDocs } from "@farming-labs/next/config";
 import docsConfig from "./docs.config.ts";
@@ -142,9 +142,29 @@ function codeHighlightVersions() {
     .join(" ");
 }
 
+// About half of Vercel builds restore a Turbopack cache they cannot reuse, and
+// compiling against it takes 3-5 min, against about 1 min with no cache.
+// Vercel would keep restoring and uploading the folder an earlier build wrote,
+// so it is removed as well.
+const skipBuildCache = Boolean(process.env.VERCEL);
+if (skipBuildCache)
+  rmSync(new URL("./.next/cache/turbopack", import.meta.url), {
+    recursive: true,
+    force: true,
+  });
+
 const config: NextConfig = {
   cacheComponents: true,
-  ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
+  ...(buildCpus || skipBuildCache
+    ? {
+        experimental: {
+          ...(buildCpus ? { cpus: buildCpus } : {}),
+          ...(skipBuildCache
+            ? { turbopackFileSystemCacheForBuild: false }
+            : {}),
+        },
+      }
+    : {}),
   // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
   // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
   ...(process.env.NEXT_ALLOWED_DEV_ORIGINS
