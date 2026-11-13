@@ -67,6 +67,8 @@ describe("setup-agent/sdk", () => {
         `npx my-tool setup https://checkout.test/${session.linkId} stream`,
       );
       expect(out).toContain("run_in_background");
+      expect(out).toContain("never end your turn to wait for it");
+      expect(out).not.toContain("Read its new output as it arrives");
       expect(out).toContain('"input.needed"');
       expect(out).toContain('"browser.opened"');
       expect(out).not.toContain("start a persistent Monitor");

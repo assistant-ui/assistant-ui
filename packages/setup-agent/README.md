@@ -11,7 +11,7 @@ npx setup-agent <url> ask --preset llm-provider --only openai,anthropic --defaul
 npx setup-agent <url> ask "Where should assistant-ui live?" --optional   # keep working; the answer arrives on the stream
 npx setup-agent <url> ask "Which integrations?" --choices slack,email --icons "slack=message,email=mail"   # multi-select; answers ["slack","email"]
 npx setup-agent <url> ask "Which package manager?" --choices pnpm,npm --icons "pnpm=package,npm=package" --single   # the options exclude each other; answers "pnpm"
-npx setup-agent <url> wait q1      # block only when nothing else can proceed
+npx setup-agent <url> wait q1      # block for the answer; after 100s it prints {"ok":false,"status":"waiting","next":...} to run again
 npx setup-agent <url> plan --file plan.md --wait   # {"decision":"approve"} or {"decision":"revise","feedback":"..."}
 npx setup-agent <url> add-step "Install the packages" --detail "pnpm add ..." --active   # prints {"stepId":"s1"}
 npx setup-agent <url> step s1 done --note "installed"
@@ -28,6 +28,10 @@ A setup opens `waiting` with its products and nothing else: no steps, no questio
 The URL is the browser's link to its agent, not one setup. A finished or cancelled setup stays on the link, and the browser's next setup replaces it with a new `checkout/create` carrying a new `id`: the plans, steps, inputs and log start over, the agent's presence carries across when it is still connected, and the stream prints `setup.created` with the new products. The agent keeps the stream running after `finished` or `cancelled` and blocks on `wait start`, which returns once the next setup begins planning; a setup already closed when the wait begins is skipped rather than reported.
 
 The browser sends the setup `id` and the displayed plan `revision` with each `checkout/plan` decision. The host rejects a mismatched setup or revision with `stale-plan`, so a queued decision cannot approve or revise a newer plan. Older clients may omit these fields and retain their existing behavior. The guard requires a host running this version of `setup-agent`.
+
+## Waiting
+
+Nothing wakes a coding agent that ends its turn: the stream prints to a background process the agent only reads between commands. So the briefing tells the agent to run the setup to the end in one turn and to block on every answer with `wait <input-id>`, `plan --wait` or `ask --wait`. Those waits return after 100 seconds, under the two minutes Claude Code gives a shell command by default, with `{"ok":false,"status":"waiting","waitingFor":"q1","next":"<command>"}`; the agent runs `next` again. `--timeout <seconds>` sets another limit, and `0` waits as long as it takes. `wait start` has no limit by default, since waiting for the user's next setup is idle time. The agent ends its turn only to ask the user in its own conversation, and after `done`.
 
 ## Inputs
 

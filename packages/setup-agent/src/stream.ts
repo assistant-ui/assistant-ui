@@ -167,29 +167,44 @@ export const shellWord = (value: string) =>
 
 const ASK_MESSAGES: Record<
   AskReason,
-  (question: string, context: { agoSeconds: number; page: string }) => string
+  (
+    question: string,
+    context: { agoSeconds: number; page: string; wait: string },
+  ) => string
 > = {
-  "recently-opened": (question, { agoSeconds }) =>
-    `A browser tab for setup was opened ${agoSeconds}s ago. Wait for the user there, or ask the user directly in the terminal: ${question}`,
+  "recently-opened": (question, { agoSeconds, wait }) =>
+    `A browser tab for setup was opened ${agoSeconds}s ago. Wait for the user there${wait}, or ask the user directly in the terminal: ${question}`,
   "browser-closed": (question) =>
     `The user closed the setup tab. Ask the user directly in the terminal: ${question}`,
   "no-browser": (question, { page }) =>
     `No browser tab is open for this setup. Ask the user directly in the terminal, or give them ${page}: ${question}`,
 };
 
+/** The command that blocks on a need, beside the one that answers it: `<cmd> <url> wait`. */
+const waitCommandFor = (answerCommand: string) =>
+  answerCommand.endsWith(" answer")
+    ? `${answerCommand.slice(0, -" answer".length)} wait`
+    : undefined;
+
 /** What the agent reads when setup opened the browser, or when it should ask the user itself. */
 const gateEvent = (
   action: BrowserGateAction,
   answerCommand: string,
   page: string,
+  waitCommand?: string,
 ): StreamEvent => {
   const { need } = action;
+  // Closing the setup is the user's call after "done"; there is nothing to block on.
+  const wait =
+    waitCommand !== undefined && need.kind !== "finish"
+      ? ` with "${waitCommand} ${need.id}"`
+      : "";
   if (action.type === "open")
     return {
       event: "browser.opened",
       id: need.id,
       url: action.url,
-      message: `Opened the setup in the user's browser for ${need.kind === "input" ? `"${need.input.prompt.trim() || "Your agent needs an answer."}"` : need.kind === "plan" ? "the plan review" : "closing the setup"}. Tell the user once that it is waiting there, and give them ${action.url} in case it did not open. The answer arrives on this stream.`,
+      message: `Opened the setup in the user's browser for ${need.kind === "input" ? `"${need.input.prompt.trim() || "Your agent needs an answer."}"` : need.kind === "plan" ? "the plan review" : "closing the setup"}. Tell the user once that it is waiting there, and give them ${action.url} in case it did not open.${need.kind === "finish" ? " The answer arrives on this stream." : ` Then keep working in the same turn; when you need the answer, block on it${wait || ' with "wait"'}. Do not end your turn to wait: nothing on this stream wakes you.`}`,
     };
   const question = terminalQuestion(need);
   return {
@@ -199,6 +214,7 @@ const gateEvent = (
     message: ASK_MESSAGES[action.reason](formatTerminalQuestion(question), {
       agoSeconds: Math.round((action.openedAgoMs ?? 0) / 1000),
       page,
+      wait,
     }),
     ...question,
     answer: `${answerCommand} ${need.id} <${question.answerFormat}>`,
@@ -263,7 +279,12 @@ export const followSetup = async (
     for (const action of gate?.update(state) ?? []) {
       if (action.type === "open") (browser!.open ?? openUrl)(action.url);
       pending.push(
-        gateEvent(action, browser!.answerCommand, page(state) ?? ""),
+        gateEvent(
+          action,
+          browser!.answerCommand,
+          page(state) ?? "",
+          waitCommandFor(browser!.answerCommand),
+        ),
       );
     }
   };
