@@ -156,16 +156,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Pull Vercel Environment Information
-        working-directory: apps/registry
-        run: pnpm exec vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm --filter @assistant-ui/x-deploy exec vercel pull --yes --prod --cwd "$GITHUB_WORKSPACE/apps/registry" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
-        working-directory: apps/registry
-        run: pnpm exec vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm --filter @assistant-ui/x-deploy exec vercel build --prod --cwd "$GITHUB_WORKSPACE/apps/registry" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
-        working-directory: apps/registry
-        run: pnpm exec vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm --filter @assistant-ui/x-deploy exec vercel deploy --prebuilt --prod --cwd "$GITHUB_WORKSPACE/apps/registry" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Recovery guidance
         if: failure()

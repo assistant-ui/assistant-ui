@@ -1,0 +1,9 @@
+{
+  "name": "@assistant-ui/x-deploy",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal: pins the Vercel CLI that the deploy workflows run, outside every app's install",
+  "devDependencies": {
+    "vercel": "^65.2.0"
+  }
+}
