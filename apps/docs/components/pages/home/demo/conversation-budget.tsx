@@ -92,7 +92,7 @@ export function ConversationBudget({
       </p>
       {canSignIn ? (
         <a
-          href={`/api/auth/login?redirect=${encodeURIComponent(pathname)}`}
+          href={`/api/auth/login?return=${encodeURIComponent(pathname)}`}
           onClick={() => trackDemoSignInClick("budget")}
           className="bg-primary text-primary-foreground rounded-control grid h-8 shrink-0 place-items-center px-3 text-[13px] font-medium transition-opacity hover:opacity-90"
         >
