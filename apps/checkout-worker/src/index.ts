@@ -1,6 +1,5 @@
 import { CheckoutHost } from "setup-agent/host";
 import { isClosed, isValidModelAnswer, type Checkout } from "setup-agent";
-import { respondToGuideRequest } from "./guide";
 import { resource, useResource } from "@assistant-ui/tap";
 import {
   StatewireDurableObject,
@@ -38,8 +37,6 @@ const withCors = (response: Response) => {
 };
 
 const SECRET_PATH = /\/secret\/([^/]+)$/;
-/** `/<link>/guide`: the CLI's texts and intro steps (./guide.ts), without the setup's state. */
-const GUIDE_PATH = /^\/[^/]+\/guide$/;
 const SECRET_TTL_MS = 60 * 60 * 1000;
 const MAX_SECRET_BYTES = 16 * 1024;
 
@@ -262,8 +259,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * and `setup-agent` versions from the last two weeks use. Changes are
  * additive only, and this worker deploys before a CLI that relies on them
  * is published. Routes: `/<link>` (statewire, HTTP and WebSocket) and
- * `/<link>/secret/<input>` (model key deposits), and `/<link>/guide` (the
- * CLI's wording, by guide protocol version). Browser presence
+ * `/<link>/secret/<input>` (model key deposits). Browser presence
  * (`browser/heartbeat`, `browser/bye`, `state.browser`) is additive; CLIs
  * that predate it ignore it, and newer CLIs fall back when it is missing.
  */
@@ -273,13 +269,6 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
     const url = new URL(request.url);
-    if (request.method === "GET" && GUIDE_PATH.test(url.pathname)) {
-      const { status, body } = respondToGuideRequest(url.searchParams);
-      return Response.json(body, {
-        status,
-        headers: { "cache-control": "no-store", ...CORS_HEADERS },
-      });
-    }
     url.pathname = `/checkout${url.pathname}`;
     const response = await routeStatewireRequest(
       new Request(url, request),

@@ -794,27 +794,24 @@ export const runSetupCommand = async (
   if (command === "intro" && isDirectInvocation()) return launchAgent(url);
 
   // Commands that print guidance get their wording from the setup server.
-  // ask and plan print guide text only when they wait.
-  const guideLoad =
-    ["intro", "stream", "wait", "done"].includes(command) ||
-    (["ask", "plan"].includes(command) && flags.has("wait"))
-      ? loadGuide(url, {
-          started: "user",
-          opened:
-            command !== "stream" ||
-            ((options.browser?.canOpen ?? true) && !flags.has("no-open")),
-        })
-      : undefined;
-  // Settled now, so a failed fetch is reported once, after the connection.
-  guideLoad?.catch(() => {});
   const client = await connectCheckout(url).catch((error: unknown) =>
     fail(error instanceof Error ? error.message : String(error)),
   );
   const commands = client.commands;
-  const guide = (await guideLoad?.catch((error: unknown) => {
-    client.dispose();
-    return fail(error instanceof Error ? error.message : String(error));
-  })) as Guide;
+  // The wording comes from the setup server, fetched only when a command
+  // prints some, so an outage never blocks a question, a plan or an answer.
+  let guideLoad: Promise<Guide> | undefined;
+  const guide = () =>
+    (guideLoad ??= loadGuide(url, {
+      started: "user",
+      // Only a stream given the setup page's URL can open it.
+      opened:
+        command !== "stream" ||
+        ((options.browser?.setupAppUrl ?? flagText(flags, "setup-app-url")) !==
+          undefined &&
+          (options.browser?.canOpen ?? true) &&
+          !flags.has("no-open")),
+    }));
   const waitCommand = (target: string) =>
     `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} wait ${target}`;
 
@@ -822,7 +819,8 @@ export const runSetupCommand = async (
     switch (command) {
       case "intro": {
         // The steps are the server's, but each is one of these fixed actions.
-        for (const step of guide.intro) {
+        const intro = await guide();
+        for (const step of intro.intro) {
           if (step.action === "announce-agent") {
             const kind = detectAgentKind();
             await commands["agent/intro"]({
@@ -830,7 +828,7 @@ export const runSetupCommand = async (
             }).catch(() => {});
           } else if (step.action === "print") {
             process.stdout.write(
-              renderText(guide, step.text, localValues(url, options.command)),
+              renderText(intro, step.text, localValues(url, options.command)),
             );
           } else print(summary(requireState(client)));
         }
@@ -841,7 +839,7 @@ export const runSetupCommand = async (
         break;
       }
       case "stream": {
-        await runStream(client, url, flags, options, guide);
+        await runStream(client, url, flags, options, await guide());
         break;
       }
       case "answer": {
@@ -906,7 +904,7 @@ export const runSetupCommand = async (
         );
         print(
           plan === TIMED_OUT
-            ? stillWaiting("plan", waitCommand("plan"), guide)
+            ? stillWaiting("plan", waitCommand("plan"), await guide())
             : decided(plan, requireState(client)),
         );
         break;
@@ -948,7 +946,7 @@ export const runSetupCommand = async (
         );
         print(
           input === TIMED_OUT
-            ? stillWaiting(inputId, waitCommand(inputId), guide)
+            ? stillWaiting(inputId, waitCommand(inputId), await guide())
             : answered(input),
         );
         break;
@@ -964,7 +962,7 @@ export const runSetupCommand = async (
             waitSeconds(flags, 0),
           );
           if (status === TIMED_OUT) {
-            print(stillWaiting("start", waitCommand("start"), guide));
+            print(stillWaiting("start", waitCommand("start"), await guide()));
             break;
           }
           print({
@@ -981,7 +979,7 @@ export const runSetupCommand = async (
           );
           print(
             decision === TIMED_OUT
-              ? stillWaiting("plan", waitCommand("plan"), guide)
+              ? stillWaiting("plan", waitCommand("plan"), await guide())
               : decided(decision, requireState(client)),
           );
           break;
@@ -995,7 +993,7 @@ export const runSetupCommand = async (
         );
         print(
           input === TIMED_OUT
-            ? stillWaiting(target, waitCommand(target), guide)
+            ? stillWaiting(target, waitCommand(target), await guide())
             : answered(input),
         );
         break;
@@ -1092,6 +1090,8 @@ export const runSetupCommand = async (
         break;
       }
       case "done": {
+        // Fetched first, so an outage fails the command before it proposes closing.
+        const hint = renderText(await guide(), "done.next");
         const summary = flagText(flags, "summary");
         const preview = flagText(flags, "preview");
         await commands["agent/done"]({
@@ -1101,7 +1101,7 @@ export const runSetupCommand = async (
         print({
           ok: true,
           status: "proposed",
-          next: renderText(guide, "done.next"),
+          next: hint,
         });
         break;
       }

@@ -97,7 +97,8 @@ describe("loadGuide", () => {
     await expect(loadGuide(URL, CONTEXT)).rejects.toThrow(
       "newer than the setup server",
     );
-    serve(() => new Response("x".repeat(300 * 1024)));
+    // Counted in bytes: 100k three-byte characters are 300 KB.
+    serve(() => new Response("€".repeat(100 * 1024)));
     await expect(loadGuide(URL, CONTEXT)).rejects.toThrow("too large");
     serve(() => Response.json(withIntro([{ action: "exec" }])));
     await expect(loadGuide(URL, CONTEXT)).rejects.toThrow("cannot use");
@@ -170,12 +171,54 @@ describe("setup-agent <url>", () => {
       dispose: vi.fn(),
     } as unknown as Awaited<ReturnType<typeof connectCheckout>>);
     const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    onTestFinished(() => {
+      stdout.mockRestore();
+      stderr.mockRestore();
+      exit.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    await main([URL, "ask", "Which project?"]);
+    expect(exit).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(ask).toHaveBeenCalledOnce();
+  });
+
+  it("reads an answer that already arrived without the guide", async () => {
+    const fetch = serve(() => {
+      throw new TypeError("fetch failed");
+    });
+    connectCheckoutMock.mockResolvedValue({
+      state: {
+        ...initialCheckoutState(),
+        status: "planning",
+        inputs: [
+          {
+            id: "q1",
+            phase: "planning",
+            kind: "text",
+            prompt: "Which project?",
+            optional: false,
+            status: "answered",
+            answer: "apps/web",
+            createdAt: 1,
+          },
+        ],
+      },
+      subscribe: () => () => {},
+      commands: {},
+      dispose: vi.fn(),
+    } as unknown as Awaited<ReturnType<typeof connectCheckout>>);
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
     onTestFinished(() => {
       stdout.mockRestore();
       connectCheckoutMock.mockReset();
     });
-    await main([URL, "ask", "Which project?"]);
+    await main([URL, "wait", "q1"]);
     expect(fetch).not.toHaveBeenCalled();
-    expect(ask).toHaveBeenCalledOnce();
+    expect(String(stdout.mock.lastCall?.[0])).toContain('"answer":"apps/web"');
   });
 });

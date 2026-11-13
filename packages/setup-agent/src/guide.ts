@@ -161,12 +161,14 @@ export const loadGuide = async (
   if (!response.ok) throw new Error(`${offline} (HTTP ${response.status})`);
   try {
     let body = "";
+    let bytes = 0;
     const decoder = new TextDecoder();
     for await (const chunk of response.body ?? []) {
+      bytes += chunk.byteLength;
+      if (bytes > MAX_GUIDE_BYTES) throw new Error("it is too large");
       body += decoder.decode(chunk, { stream: true });
-      if (body.length > MAX_GUIDE_BYTES) throw new Error("it is too large");
     }
-    return parseGuide(JSON.parse(body));
+    return parseGuide(JSON.parse(body + decoder.decode()));
   } catch (error) {
     throw new Error(
       `the setup server sent a guide this setup-agent cannot use (${error instanceof Error ? error.message : String(error)})`,
