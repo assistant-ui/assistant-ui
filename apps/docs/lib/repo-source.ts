@@ -20,8 +20,14 @@ const READ_CONCURRENCY = 32;
 // A dot directory keeps this verbatim copy of the monorepo out of TypeScript's
 // include and the bundler's module rules, which both skip dotted directories.
 // Vitest discovers them, so it needs the explicit exclude in vitest.config.ts.
+// Routes that read it list it in `outputFileTracingIncludes`, which
+// scripts/check-repo-source-traces.mts verifies.
 export function repoSourceRoot() {
-  return path.join(process.cwd(), "generated", ".repo-source");
+  return path.join(
+    /* turbopackIgnore: true */ process.cwd(),
+    "generated",
+    ".repo-source",
+  );
 }
 
 export function createRepoSourceReader(
