@@ -22,6 +22,7 @@ try:
         AdapterFactory,
         DurableAGUI,
         RunContextFactory,
+        SSEResponse,
     )
 except ImportError as error:  # pragma: no cover - depends on installed extras
     raise ImportError(
@@ -36,6 +37,7 @@ __all__ = [
     "InMemoryThreadStore",
     "PostgresThreadStore",
     "RunContextFactory",
+    "SSEResponse",
     "SqliteThreadStore",
     "ThreadRecord",
     "ThreadStore",

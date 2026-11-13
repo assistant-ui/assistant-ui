@@ -372,7 +372,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             if producer and not ready.done():
                 ready.set_exception(error)
             raise
-        return _SSEResponse(self._keepalive(body))
+        return SSEResponse(self._keepalive(body))
 
     async def get_thread(
         self, thread_id: str, *, owner: str | None = None
@@ -500,7 +500,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             if await self._record(thread_id, owner) is None:
                 return _not_found()
             body = await self.resume_stream(thread_id, owner=owner)
-            return _SSEResponse(body or _empty_stream())
+            return SSEResponse(body or _empty_stream())
 
         async def cancel(request: Request, owner: str | None) -> Response:
             cancelled = await self.cancel(
@@ -572,9 +572,10 @@ class DurableAGUI(Generic[AgentDepsT]):
             return None
 
 
-class _SSEResponse(StreamingResponse):
-    """Closes its body when the response ends, also when the client is gone,
-    so a pending keepalive read stops with the request. The run goes on."""
+class SSEResponse(StreamingResponse):
+    """An SSE response that closes its body when the response ends, also when
+    the client is gone, so a pending keepalive read stops with the request.
+    The run goes on. Use it to return `resume_stream` from custom routes."""
 
     def __init__(self, body: AsyncIterator[bytes]) -> None:
         super().__init__(body, media_type=SSE)

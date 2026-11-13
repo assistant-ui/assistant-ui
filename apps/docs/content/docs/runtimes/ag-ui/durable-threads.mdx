@@ -114,8 +114,8 @@ durable = DurableAGUI(agent, threads=threads, run_context=mcp_session)
 | `await cancel(thread_id, run_id, owner=)` | Whether the cancel reached the run. |
 
 ```python
+from assistant_stream.pydantic_ai import SSEResponse
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
@@ -145,8 +145,10 @@ async def stream(thread_id: str, request: Request):
     body = await durable.resume_stream(thread_id, owner=await require_user(request))
     if body is None:
         raise HTTPException(404)
-    return StreamingResponse(body, media_type="text/event-stream")
+    return SSEResponse(body)
 ```
+
+`SSEResponse` closes the stream when the client goes away. A plain `StreamingResponse` can leave a keepalive read open until garbage collection.
 
 Refuse a request without a user before calling these methods. `owner=None` means the threads that have no owner, so passing it for a signed-out request would expose them. Pass the same id the `owner` callable returns.
 
