@@ -16,6 +16,7 @@ import { analytics } from "@/lib/analytics";
 import {
   BUILDING_MAX_LENGTH,
   COMPANY_SIZES,
+  FIELD_MAX_LENGTH,
   EMPTY_CONTACT_SALES_VALUES,
   REFERRAL_SOURCES,
   ROLES,
@@ -176,6 +177,7 @@ export function ContactSalesForm({
     id: fieldId(field),
     name: field,
     value: values[field],
+    maxLength: field === "building" ? BUILDING_MAX_LENGTH : FIELD_MAX_LENGTH,
     onChange: (
       event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     ) => set(field)(event.target.value),
@@ -294,7 +296,6 @@ export function ContactSalesForm({
       >
         <Textarea
           rows={4}
-          maxLength={BUILDING_MAX_LENGTH}
           placeholder="Your product and where chat fits in."
           className="min-h-28"
           {...inputProps("building")}

@@ -1,13 +1,15 @@
 import {
   BUILDING_MAX_LENGTH,
+  COMPANY_SIZES,
   EMPTY_CONTACT_SALES_VALUES,
+  FIELD_MAX_LENGTH,
+  REFERRAL_SOURCES,
+  ROLES,
   validateContactSales,
   type ContactSalesField,
   type ContactSalesValues,
 } from "@/lib/contact-sales";
 
-/** Longest value any one-line field may hold. */
-export const CONTACT_SALES_FIELD_MAX_LENGTH = 200;
 /** Longest page URL kept in the email. */
 const PAGE_URL_MAX_LENGTH = 500;
 
@@ -23,6 +25,16 @@ const FIELDS = Object.keys(EMPTY_CONTACT_SALES_VALUES) as ContactSalesField[];
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
+/** Flattens a value to one line so it cannot forge other lines in the email. */
+const oneLine = (value: string) => value.trim().replace(/\s+/g, " ");
+
+/** Select fields only accept the form's own options. Empty means skipped. */
+const OPTIONS: Partial<Record<ContactSalesField, readonly string[]>> = {
+  companySize: COMPANY_SIZES,
+  role: ROLES,
+  referral: REFERRAL_SOURCES,
+};
+
 /**
  * Reads a request body into a submission, or null when it is malformed,
  * too long or fails the same checks the form runs.
@@ -35,18 +47,17 @@ export function parseContactSalesSubmission(
   const values = { ...EMPTY_CONTACT_SALES_VALUES };
   for (const field of FIELDS) {
     const value = asString(record[field]);
-    const max =
-      field === "building"
-        ? BUILDING_MAX_LENGTH
-        : CONTACT_SALES_FIELD_MAX_LENGTH;
+    const max = field === "building" ? BUILDING_MAX_LENGTH : FIELD_MAX_LENGTH;
     if (value.length > max) return null;
+    const options = OPTIONS[field];
+    if (options && value !== "" && !options.includes(value)) return null;
     values[field] = value;
   }
   if (Object.keys(validateContactSales(values)).length > 0) return null;
   return {
     values,
     website: asString(record.website),
-    pageUrl: asString(record.pageUrl).slice(0, PAGE_URL_MAX_LENGTH),
+    pageUrl: oneLine(asString(record.pageUrl)).slice(0, PAGE_URL_MAX_LENGTH),
   };
 }
 
@@ -57,7 +68,6 @@ export function contactSalesEmail(
   { values, pageUrl }: ContactSalesSubmission,
   submittedAt: Date,
 ): ContactSalesEmail {
-  const oneLine = (value: string) => value.trim().replace(/\s+/g, " ");
   const lines = [
     `Name: ${oneLine(values.firstName)} ${oneLine(values.lastName)}`,
     `Email: ${oneLine(values.email)}`,
@@ -148,6 +158,8 @@ export async function sendContactSalesEmail(
       codes = Array.isArray(body?.errors)
         ? body.errors.map((error) => error?.code ?? "unknown")
         : [];
+      if ((result?.permanent_bounces?.length ?? 0) > 0)
+        codes.push("permanent_bounce");
       if (codes.length === 0) codes = ["delivery_unconfirmed"];
     }
   } catch {

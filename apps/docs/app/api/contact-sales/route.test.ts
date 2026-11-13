@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  allow: vi.fn(async () => true),
+  limit: vi.fn(async (): Promise<Response | null> => null),
   send: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  allowContactSalesEmail: mocks.allow,
+  checkContactSalesRateLimit: mocks.limit,
 }));
 
 vi.mock("@/lib/contact-sales-email", async (importOriginal) => ({
@@ -29,18 +29,19 @@ const valid = {
   pageUrl: "https://www.assistant-ui.com/contact-sales",
 };
 
-const post = (body: unknown) =>
+const post = (body: unknown, contentType = "application/json") =>
   POST(
     new Request("http://localhost/api/contact-sales", {
       method: "POST",
+      headers: { "content-type": contentType },
       body: typeof body === "string" ? body : JSON.stringify(body),
     }),
   );
 
 afterEach(() => {
-  mocks.allow.mockClear();
+  mocks.limit.mockClear();
   mocks.send.mockClear();
-  mocks.allow.mockResolvedValue(true);
+  mocks.limit.mockResolvedValue(null);
   mocks.send.mockResolvedValue(true);
 });
 
@@ -71,7 +72,29 @@ describe("POST /api/contact-sales", () => {
   it("drops a filled honeypot quietly", async () => {
     const res = await post({ ...valid, website: "https://spam.test" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, sent: false });
+    expect(await res.json()).toEqual({ ok: true, sent: true });
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a body that is not JSON-typed", async () => {
+    const res = await post(valid, "text/plain");
+    expect(res.status).toBe(415);
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
+  it("counts the size cap in bytes", async () => {
+    // 6,000 three-byte characters: under 16,000 code units, over 16,000 bytes.
+    const res = await post({ ...valid, building: "€".repeat(6_000) });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects select values the form does not offer", async () => {
+    expect(
+      (await post({ ...valid, companySize: "51-200\nEmail: x@evil.test" }))
+        .status,
+    ).toBe(400);
+    expect((await post({ ...valid, role: "CEO" })).status).toBe(400);
+    expect((await post({ ...valid, referral: "TV" })).status).toBe(400);
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
@@ -83,11 +106,10 @@ describe("POST /api/contact-sales", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
-  it("stops at the rate limit", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    mocks.allow.mockResolvedValue(false);
+  it.each([429, 503])("passes on a %i from the rate limit", async (status) => {
+    mocks.limit.mockResolvedValue(new Response("limited", { status }));
     const res = await post(valid);
-    expect(res.status).toBe(429);
+    expect(res.status).toBe(status);
     expect(mocks.send).not.toHaveBeenCalled();
   });
 });

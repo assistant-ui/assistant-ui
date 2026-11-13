@@ -44,6 +44,26 @@ describe("parseContactSalesSubmission", () => {
     ).toBeNull();
   });
 
+  it("only accepts the form's own select options", () => {
+    expect(
+      parseContactSalesSubmission({ ...body, companySize: "51-200\nEmail: x" }),
+    ).toBeNull();
+    expect(parseContactSalesSubmission({ ...body, role: "CEO" })).toBeNull();
+    expect(parseContactSalesSubmission({ ...body, referral: "TV" })).toBeNull();
+    expect(
+      parseContactSalesSubmission({ ...body, role: "", referral: "" }),
+    ).not.toBeNull();
+  });
+
+  it("keeps the page URL on one line", () => {
+    expect(
+      parseContactSalesSubmission({
+        ...body,
+        pageUrl: "https://x.test/\nEmail: forged@evil.test",
+      })?.pageUrl,
+    ).toBe("https://x.test/ Email: forged@evil.test");
+  });
+
   it("ignores fields that are not strings", () => {
     expect(
       parseContactSalesSubmission({ ...body, role: 42 })?.values.role,
@@ -95,10 +115,11 @@ describe("contactSalesEmail", () => {
 
 describe("sendContactSalesEmail", () => {
   const fetchMock = vi.fn();
-  const error = vi.spyOn(console, "error").mockImplementation(() => {});
-  vi.spyOn(console, "info").mockImplementation(() => {});
+  let error: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    error = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "info").mockImplementation(() => {});
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "account-id");
     vi.stubEnv("CLOUDFLARE_EMAIL_API_TOKEN", "token");
@@ -109,7 +130,7 @@ describe("sendContactSalesEmail", () => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     fetchMock.mockReset();
-    error.mockClear();
+    vi.restoreAllMocks();
   });
 
   const email = { subject: "Sales inquiry: Acme", text: "Name: Ada" };
@@ -166,6 +187,24 @@ describe("sendContactSalesEmail", () => {
       false,
     );
     expect(error.mock.calls[0]![0]).toContain("10000");
+  });
+
+  it("logs a permanent bounce", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({
+        success: true,
+        errors: [],
+        result: {
+          delivered: [],
+          queued: [],
+          permanent_bounces: ["sales@example.test"],
+        },
+      }),
+    );
+    await expect(sendContactSalesEmail(email, "ada@acme.dev")).resolves.toBe(
+      false,
+    );
+    expect(error.mock.calls[0]![0]).toContain("permanent_bounce");
   });
 
   it("logs and returns false when the request throws", async () => {

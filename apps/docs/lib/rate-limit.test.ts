@@ -46,6 +46,7 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
 
 import {
   checkAnonymousSessionIssuanceRateLimit,
+  checkContactSalesRateLimit,
   checkMcpDocsToolRateLimit,
   checkMcpTemplateToolRateLimit,
   checkPublicAssistantRateLimit,
@@ -558,6 +559,80 @@ describe("Xulux download proxy rate limits", () => {
     expect(response?.status).toBe(503);
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("xulux_download_rate_limit_unavailable"),
+    );
+  });
+});
+
+describe("contact sales limits", () => {
+  const request = () =>
+    new Request("https://www.assistant-ui.com/api/contact-sales", {
+      method: "POST",
+      headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+    });
+
+  it("caps emails per IP and overall", async () => {
+    await checkContactSalesRateLimit(request());
+
+    expect(mocks.configs.get("aui:contact-sales:ip:burst")).toEqual({
+      limit: 3,
+      window: "10m",
+    });
+    expect(mocks.configs.get("aui:contact-sales:ip:daily")).toEqual({
+      limit: 10,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:contact-sales:global:daily")).toEqual({
+      limit: 200,
+      window: "1d",
+    });
+  });
+
+  it("keys the per-client buckets by IP, the ceiling globally", async () => {
+    await expect(checkContactSalesRateLimit(request())).resolves.toBeNull();
+
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:contact-sales:ip:burst", key: "203.0.113.10" },
+      { prefix: "aui:contact-sales:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:contact-sales:global:daily", key: "all" },
+    ]);
+  });
+
+  it.each([
+    ["aui:contact-sales:ip:burst", 1],
+    ["aui:contact-sales:ip:daily", 2],
+    ["aui:contact-sales:global:daily", 3],
+  ] as const)(
+    "stops after an exhausted %s limit",
+    async (prefix, expectedCalls) => {
+      mocks.results.set(prefix, false);
+
+      const response = await checkContactSalesRateLimit(request());
+
+      expect(response?.status).toBe(429);
+      expect(mocks.calls).toHaveLength(expectedCalls);
+    },
+  );
+
+  it("fails closed when no client IP is available", async () => {
+    const response = await checkContactSalesRateLimit(
+      new Request("https://www.assistant-ui.com/api/contact-sales"),
+    );
+
+    expect(response?.status).toBe(503);
+    expect(mocks.calls).toHaveLength(0);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("contact_sales_client_ip_missing"),
+    );
+  });
+
+  it("fails closed when the rate-limit store is unavailable", async () => {
+    mocks.errors.set("aui:contact-sales:ip:burst", new Error("Redis down"));
+
+    const response = await checkContactSalesRateLimit(request());
+
+    expect(response?.status).toBe(503);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("contact_sales_rate_limit_unavailable"),
     );
   });
 });

@@ -579,43 +579,23 @@ export async function checkXuluxDownloadProxyRateLimit(
   });
 }
 
-/**
- * Limits contact-sales emails. Returns true when this request may send one.
- * A missing IP or an unreachable Redis lets the email through: the visitor
- * still books on cal.com either way, and an inquiry matters more than spam.
- */
-export async function allowContactSalesEmail(
+export async function checkContactSalesRateLimit(
   request: Request,
-): Promise<boolean> {
-  try {
-    const limits = await publicAssistantRateLimitsPromise;
-    if (!limits) return true;
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "contact_sales", async (limits) => {
     const ip = getClientIp(request);
-    const checks = [
-      ...(ip
-        ? ([
-            [limits.contactSalesIpBurst, ip],
-            [limits.contactSalesIpDaily, ip],
-          ] as const)
-        : []),
+    if (!ip) return missingClientIpResponse(request, "contact_sales");
+    for (const [limiter, key] of [
+      [limits.contactSalesIpBurst, ip],
+      [limits.contactSalesIpDaily, ip],
       [limits.contactSalesGlobalDaily, "all"],
-    ] as const;
-    for (const [limiter, key] of checks) {
+    ] as const) {
       const result = await limiter.limit(key);
-      if (!result.success) return false;
+      if (!result.success)
+        return limitResponse("Contact sales limit exceeded", result.reset);
     }
-    return true;
-  } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: "error",
-        message: "contact_sales_rate_limit_unavailable",
-        requestId: request.headers.get("x-vercel-id"),
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-    return true;
-  }
+    return null;
+  });
 }
 
 export async function checkRateLimit(req: Request): Promise<Response | null> {

@@ -174,6 +174,37 @@ describe("ContactSalesForm", () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
   });
 
+  it("opens cal.com after 2.5s when the email request hangs", async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => {}));
+    const navigate = vi.fn();
+    render(<ContactSalesForm navigate={navigate} />);
+    fillText();
+    await pickSize("1-10");
+
+    vi.useFakeTimers();
+    try {
+      submit();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(navigate).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(navigate).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("caps text fields at the length the server accepts", () => {
+    render(<ContactSalesForm navigate={vi.fn()} />);
+    expect(screen.getByLabelText("Company").getAttribute("maxlength")).toBe(
+      "200",
+    );
+    expect(
+      screen
+        .getByLabelText(/^What are you building\?/)
+        .getAttribute("maxlength"),
+    ).toBe("1000");
+  });
+
   it("sends the hidden honeypot value so the server can drop bots", async () => {
     const navigate = vi.fn();
     const { container } = render(<ContactSalesForm navigate={navigate} />);
