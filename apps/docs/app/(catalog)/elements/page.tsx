@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createOgMetadata } from "@/lib/og";
 import { Button } from "@/components/ui/button";
 import { DemoCard } from "@/components/pages/elements/demo-card";
+import { ElementDemo } from "@/components/pages/elements/element-demos";
 import {
   SectionHeader,
   SectionIndex,
@@ -96,7 +97,7 @@ export default function ElementsPage() {
                           ),
                         })}
                   >
-                    <element.Component />
+                    <ElementDemo demo={element.slug} />
                   </DemoCard>
                 );
               })}
