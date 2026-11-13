@@ -5,17 +5,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const load = async () => {
   vi.resetModules();
-  return import("./shop-entry");
+  return import("./lazy-agent-setup");
 };
 
 afterEach(() => {
   cleanup();
-  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
-describe("shop entry points", () => {
-  it("loads the banner when a checkout worker is configured", async () => {
+describe("lazy agent setup", () => {
+  it("loads the setup banner", async () => {
     const { AgentSetup } = await load();
     // The banner is a lazy chunk; importing it first keeps a slow import out of
     // findByRole's one-second window.
