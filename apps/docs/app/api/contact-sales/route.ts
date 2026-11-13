@@ -8,10 +8,14 @@ import { checkContactSalesRateLimit } from "@/lib/rate-limit";
 /** Bodies past this many bytes are not a real form. */
 const MAX_BODY_BYTES = 16_000;
 
-const json = (body: { ok: boolean; sent: boolean }, status = 200) =>
+const json = (
+  body: { ok: boolean; sent: boolean },
+  status = 200,
+  headers: Record<string, string> = {},
+) =>
   Response.json(body, {
     status,
-    headers: { "Cache-Control": "private, no-store" },
+    headers: { "Cache-Control": "private, no-store", ...headers },
   });
 
 /** Reads the body as text, or null once it passes `MAX_BODY_BYTES`. */
@@ -67,7 +71,21 @@ export async function POST(req: Request) {
   if (submission.website.trim() !== "") return json({ ok: true, sent: true });
 
   const limited = await checkContactSalesRateLimit(req);
-  if (limited) return json({ ok: false, sent: false }, limited.status);
+  if (limited) {
+    if (limited.status === 429)
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          message: "contact_sales_rate_limited",
+        }),
+      );
+    const retryAfter = limited.headers.get("Retry-After");
+    return json(
+      { ok: false, sent: false },
+      limited.status,
+      retryAfter ? { "Retry-After": retryAfter } : {},
+    );
+  }
 
   const sent = await sendContactSalesEmail(
     contactSalesEmail(submission, new Date()),

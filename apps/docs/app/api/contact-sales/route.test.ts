@@ -106,10 +106,26 @@ describe("POST /api/contact-sales", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
-  it.each([429, 503])("passes on a %i from the rate limit", async (status) => {
-    mocks.limit.mockResolvedValue(new Response("limited", { status }));
+  it("passes on a 429 with its Retry-After and logs it", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mocks.limit.mockResolvedValue(
+      new Response("limited", {
+        status: 429,
+        headers: { "Retry-After": "30" },
+      }),
+    );
     const res = await post(valid);
-    expect(res.status).toBe(status);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("30");
+    expect(warn.mock.calls[0]![0]).toContain("contact_sales_rate_limited");
+    expect(mocks.send).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("passes on a 503 from the rate limit", async () => {
+    mocks.limit.mockResolvedValue(new Response("down", { status: 503 }));
+    const res = await post(valid);
+    expect(res.status).toBe(503);
     expect(mocks.send).not.toHaveBeenCalled();
   });
 });
