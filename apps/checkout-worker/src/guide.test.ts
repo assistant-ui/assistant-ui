@@ -96,6 +96,7 @@ describe("GET /<link>/guide", () => {
   });
 
   it("answers 426 to another protocol and 400 to a malformed request", async () => {
+    expect((await get("protocol=1234567")).status).toBe(426);
     const retired = await get("protocol=0");
     expect(retired.status).toBe(426);
     expect(await retired.json()).toEqual({

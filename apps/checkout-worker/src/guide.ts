@@ -201,7 +201,7 @@ const STARTS: readonly GuideContext["started"][] = [
 /** `GET /<link>/guide?protocol=<n>&started=<who>&opened=<0|1>`: the guide, or why not. */
 export const respondToGuideRequest = (params: URLSearchParams) => {
   const protocol = params.get("protocol") ?? "";
-  if (!/^[0-9]{1,6}$/.test(protocol))
+  if (!/^[0-9]+$/.test(protocol))
     return { status: 400, body: { error: "invalid-request" } };
   const build = Object.hasOwn(BUILDERS, protocol)
     ? BUILDERS[protocol]
