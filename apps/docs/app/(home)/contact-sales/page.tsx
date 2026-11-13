@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 const title = "Contact sales";
 const description =
-  "Talk to the assistant-ui team about shipping AI chat in production, scaling on Assistant Cloud, and enterprise terms.";
+  "Talk to the assistant-ui team about your chat UI, Assistant Cloud or enterprise terms.";
 
 export const metadata: Metadata = {
   title,
@@ -20,24 +20,23 @@ export const metadata: Metadata = {
 
 const TOPICS = [
   {
-    title: "Ship your AI product sooner",
+    title: "Ship sooner",
     description:
-      "Streaming, tool calls, attachments and auto-scroll are ready for production. Your engineers build what sets your product apart, on the backend and model stack you already run.",
+      "Streaming, tool calls, attachments and auto-scroll work out of the box. Keep your own backend and models.",
   },
   {
-    title: "A chat experience users trust",
-    description:
-      "Polished, accessible chat from your first release, styled to match your brand.",
+    title: "Polished chat UI",
+    description: "Accessible from day one. Styled to match your brand.",
   },
   {
-    title: "Scale with Assistant Cloud",
+    title: "Assistant Cloud",
     description:
-      "Hosted thread history, titles and user auth, priced by monthly active users as you grow.",
+      "We host thread history, titles and user auth. You pay per monthly active user.",
   },
   {
-    title: "Enterprise terms",
+    title: "Enterprise",
     description:
-      "Dedicated support, a 99.9% uptime SLA, custom pricing, your own backend integration and on-premises deployment.",
+      "Dedicated support, a 99.9% uptime SLA and custom pricing. Run it on your own servers. We help connect your backend.",
   },
 ];
 
@@ -50,9 +49,7 @@ export default function ContactSalesPage() {
         <header className="flex flex-col gap-4 lg:col-start-1 lg:row-start-1">
           <h1 className={typePage}>Talk to the assistant-ui team</h1>
           <p className={cn(typeDeck, "max-w-[46ch]")}>
-            See how assistant-ui and Assistant Cloud fit your product, your
-            stack and your requirements. Tell us about your team and we'll get
-            you to the right people.
+            Tell us what you're building. Then pick a time to talk.
           </p>
         </header>
 

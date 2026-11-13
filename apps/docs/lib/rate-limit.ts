@@ -202,6 +202,21 @@ const getPublicAssistantRateLimits = async () => {
       prefix: "aui:follow-up:global:alert",
       limiter: Ratelimit.fixedWindow(1, "10m"),
     }),
+    contactSalesIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:contact-sales:ip:burst",
+      limiter: Ratelimit.fixedWindow(3, "10m"),
+    }),
+    contactSalesIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:contact-sales:ip:daily",
+      limiter: Ratelimit.fixedWindow(10, "1d"),
+    }),
+    contactSalesGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:contact-sales:global:daily",
+      limiter: Ratelimit.fixedWindow(200, "1d"),
+    }),
     xuluxDownloadIpBurst: new Ratelimit({
       redis,
       prefix: "aui:xulux-download:ip:burst",
@@ -562,6 +577,45 @@ export async function checkXuluxDownloadProxyRateLimit(
     }
     return null;
   });
+}
+
+/**
+ * Limits contact-sales emails. Returns true when this request may send one.
+ * A missing IP or an unreachable Redis lets the email through: the visitor
+ * still books on cal.com either way, and an inquiry matters more than spam.
+ */
+export async function allowContactSalesEmail(
+  request: Request,
+): Promise<boolean> {
+  try {
+    const limits = await publicAssistantRateLimitsPromise;
+    if (!limits) return true;
+    const ip = getClientIp(request);
+    const checks = [
+      ...(ip
+        ? ([
+            [limits.contactSalesIpBurst, ip],
+            [limits.contactSalesIpDaily, ip],
+          ] as const)
+        : []),
+      [limits.contactSalesGlobalDaily, "all"],
+    ] as const;
+    for (const [limiter, key] of checks) {
+      const result = await limiter.limit(key);
+      if (!result.success) return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "contact_sales_rate_limit_unavailable",
+        requestId: request.headers.get("x-vercel-id"),
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    return true;
+  }
 }
 
 export async function checkRateLimit(req: Request): Promise<Response | null> {

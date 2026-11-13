@@ -12,10 +12,10 @@ it("reads intro, form, talking points, then customers in source order", () => {
   const order = [
     screen.getByRole("heading", { level: 1 }),
     screen.getByRole("form", { name: "Contact sales" }),
-    screen.getByText("Ship your AI product sooner"),
-    screen.getByText("A chat experience users trust"),
-    screen.getByText("Scale with Assistant Cloud"),
-    screen.getByText("Enterprise terms"),
+    screen.getByText("Ship sooner"),
+    screen.getByText("Polished chat UI"),
+    screen.getByText("Assistant Cloud"),
+    screen.getByText("Enterprise"),
     screen.getByRole("region", { name: "Customers" }),
   ];
   for (let i = 1; i < order.length; i++) {
