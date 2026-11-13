@@ -165,6 +165,16 @@ const HANDWRITTEN_STATES: Record<string, StatesLoader> = {
 const loadGenerativeStates: StatesLoader = () =>
   import("./generative").then((m) => m.GENERATIVE_STATES);
 
+/**
+ * Elements whose states hold only `default`, so the preview shows no switcher.
+ * The preview reads this before their states load, so it does not hold an
+ * empty switcher row for them. `states.test.tsx` keeps it in sync.
+ */
+export const DEFAULT_ONLY_STATE_SLUGS: ReadonlySet<string> = new Set([
+  "mcp-config",
+  "typing-indicator",
+]);
+
 export const ELEMENT_STATES: Record<string, StatesLoader> = {
   ...HANDWRITTEN_STATES,
   ...Object.fromEntries(

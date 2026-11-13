@@ -9,7 +9,10 @@ import {
 import { cn } from "@/lib/utils";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import { ELEMENT_STATES } from "@/components/demo/elements/states";
+import {
+  DEFAULT_ONLY_STATE_SLUGS,
+  ELEMENT_STATES,
+} from "@/components/demo/elements/states";
 import {
   DEFAULT_STATE_KEY,
   type ElementState,
@@ -124,7 +127,9 @@ export function ElementStatesPreview({ slug, ...props }: PreviewProps) {
     <ElementStatesFigure
       {...props}
       states={states ?? undefined}
-      reserveSwitcher={states === undefined}
+      reserveSwitcher={
+        states === undefined && !DEFAULT_ONLY_STATE_SLUGS.has(slug)
+      }
     />
   );
 }

@@ -39,12 +39,16 @@ const ONLY_DEFAULT: ElementStates = [{ key: "default", label: "Default" }];
 const loadedSlugs: string[] = [];
 
 vi.mock("@/components/demo/elements/states", () => ({
+  DEFAULT_ONLY_STATE_SLUGS: new Set<string>(),
   ELEMENT_STATES: new Proxy(
     {},
     {
       get: (_, slug: string) => async () => {
         loadedSlugs.push(slug);
-        return { [slug]: STATES, other: ONLY_DEFAULT };
+        // Generative slugs share one map; every other element has its own list.
+        return slug.startsWith("generative-")
+          ? { [slug]: STATES, other: ONLY_DEFAULT }
+          : STATES;
       },
     },
   ),
@@ -198,5 +202,21 @@ describe("ElementStatesPreview", () => {
     expect(screen.getByText("live demo 1")).toBeTruthy();
     expect(mounts).toBe(1);
     expect(loadedSlugs).toEqual(["generative-booking"]);
+  });
+
+  it("loads an element's own state list", async () => {
+    render(
+      <ElementStatesPreview
+        slug="tool-call"
+        caption="Live demo"
+        canvasClassName=""
+      >
+        <p>live demo</p>
+      </ElementStatesPreview>,
+    );
+    expect(
+      await screen.findByRole("radio", { name: "Long input" }),
+    ).toBeTruthy();
+    expect(loadedSlugs).toContain("tool-call");
   });
 });

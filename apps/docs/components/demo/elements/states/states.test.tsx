@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { act, render } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ELEMENT_STATES } from "./index";
+import { DEFAULT_ONLY_STATE_SLUGS, ELEMENT_STATES } from "./index";
 import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 import { GENERATIVE_STATES } from "./generative";
 import { DEFAULT_STATE_KEY, type ElementStates } from "./types";
@@ -78,6 +78,18 @@ describe("element states", () => {
       const slug = file.replace(/\.tsx?$/, "");
       expect(await ELEMENT_STATES[slug]?.(), slug).toBe(loaded[i]!.states);
     }
+  });
+
+  it("lists exactly the elements whose states hold only default", async () => {
+    const defaultOnly: string[] = [];
+    for (const slug of catalogSlugs) {
+      const source = await ELEMENT_STATES[slug]?.();
+      const states = Array.isArray(source)
+        ? (source as ElementStates)
+        : (source as Record<string, ElementStates> | undefined)?.[slug];
+      if (states && states.length === 1) defaultOnly.push(slug);
+    }
+    expect(defaultOnly.sort()).toEqual([...DEFAULT_ONLY_STATE_SLUGS].sort());
   });
 
   it("loads the shared generative states for every generative slug", async () => {
