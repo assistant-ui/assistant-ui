@@ -83,13 +83,9 @@ const RESOLVED_PROMISE = Promise.resolve();
 
 const EMPTY_LIST = createEmptyRemoteThreadState();
 
-const adapterStoreIdentity = (adapter: RemoteThreadListAdapter) =>
-  adapter.storeKey ?? adapter;
-
-const isSameBackingStore = (
-  left: RemoteThreadListAdapter,
-  right: RemoteThreadListAdapter,
-) => Object.is(adapterStoreIdentity(left), adapterStoreIdentity(right));
+const adapterStoreIdentity = (
+  adapter: RemoteThreadListAdapter,
+): string | RemoteThreadListAdapter => adapter.storeKey ?? adapter;
 
 export type RemoteThreadListProps = {
   /**
@@ -618,6 +614,7 @@ const useRemoteThreadList = (
       session: {
         adapter,
         adapterAtLoad: adapter,
+        storeIdentityAtLoad: adapterStoreIdentity(adapter),
         adapterGeneration: 0,
         titleStates: new Map<string, ThreadTitleState>(),
         mutations: new ThreadMutationQueue(),
@@ -735,6 +732,7 @@ const useRemoteThreadList = (
     const replaceList = session.replaceListPending;
     const generation = session.loadGeneration;
     const adapter = session.adapter;
+    const storeIdentity = adapterStoreIdentity(adapter);
     const statusAtRequest = statusSnapshot(store.baseValue);
     const applyPage = (
       state: RemoteThreadState,
@@ -801,6 +799,7 @@ const useRemoteThreadList = (
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
+          session.storeIdentityAtLoad = storeIdentity;
           session.replaceListPending = false;
           return applyPage(state, page);
         },
@@ -823,7 +822,11 @@ const useRemoteThreadList = (
   }, [assignMainThreadId, lifetimes, notifyRemoteId, session, store]);
 
   const reload = useCallback(() => {
-    const adapterChanged = !isSameBackingStore(adapter, session.adapterAtLoad);
+    const storeIdentity = adapterStoreIdentity(adapter);
+    const adapterChanged = !Object.is(
+      storeIdentity,
+      session.storeIdentityAtLoad,
+    );
     session.loadGeneration++;
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
@@ -856,6 +859,7 @@ const useRemoteThreadList = (
       session.pendingSwitchGeneration = undefined;
       session.pendingEnsures.clear();
       session.adapterAtLoad = adapter;
+      session.storeIdentityAtLoad = storeIdentity;
       if (ensureThread) {
         store.reset({
           ...store.baseValue,

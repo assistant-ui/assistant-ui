@@ -86,14 +86,22 @@ export type RemoteThreadListAdapter = {
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
   /**
-   * Identity of the backing store this adapter talks to. Two adapter objects
-   * with the same `storeKey` share in-flight mutations and optimistic list
-   * state. When omitted, the adapter object itself is the identity, so a new
-   * object is treated as a different store.
+   * Identity of the backing store this adapter talks to. On the
+   * `RemoteThreadList` client, two adapter objects with the same `storeKey`
+   * share in-flight mutations and optimistic list state. When omitted, the
+   * adapter object itself is the identity, so a new object is treated as a
+   * different store. The client records the key when it loads the list and
+   * compares later adapters against that recorded value.
    *
    * A matching thread id never implies a shared store. Set this when the app
-   * recreates the adapter for the same backend (for example a `useMemo` whose
-   * deps change).
+   * recreates the adapter for the same backend, and derive it from every value
+   * that scopes the store (account, workspace, endpoint) so a real store change
+   * yields a different key. A constant key carries the previous store's
+   * optimistic state and queued mutations into the new one.
+   *
+   * `useRemoteThreadListRuntime` ignores this when it mounts with an adapter
+   * that has `unstable_Provider`, because that runtime runs on the deprecated
+   * class core.
    */
   storeKey?: string | undefined;
 
