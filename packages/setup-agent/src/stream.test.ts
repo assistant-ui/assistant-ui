@@ -7,6 +7,7 @@ import type { StreamEvent } from "./stream";
 
 const PAGE = "https://setup.test/#link=abc&setup=s1";
 const ANSWER = "npx assistant-ui@latest setup https://checkout.test/abc answer";
+const WAIT = "npx assistant-ui@latest setup https://checkout.test/abc wait";
 
 /** A client whose state the test changes, notifying like a statewire client. */
 const fakeClient = () => {
@@ -129,8 +130,7 @@ describe("followSetup", () => {
         event: "browser.opened",
         id: "q1",
         url: PAGE,
-        message:
-          'Opened the setup in the user\'s browser for "Which package manager?". Tell the user once that it is waiting there, and give them https://setup.test/#link=abc&setup=s1 in case it did not open. The answer arrives on this stream.',
+        message: `Opened the setup in the user's browser for "Which package manager?". Tell the user once that it is waiting there, and give them https://setup.test/#link=abc&setup=s1 in case it did not open. Then keep working in the same turn; when you need the answer, block on it with "${WAIT} q1". Do not end your turn to wait: nothing on this stream wakes you.`,
       },
     ]);
 
@@ -160,8 +160,7 @@ describe("followSetup", () => {
       event: "input.needed",
       id: "q3",
       reason: "recently-opened",
-      message:
-        "A browser tab for setup was opened 10s ago. Wait for the user there, or ask the user directly in the terminal: Which registry? Options: pnpm (pnpm), npm (npm).",
+      message: `A browser tab for setup was opened 10s ago. Wait for the user there with "${WAIT} q3", or ask the user directly in the terminal: Which registry? Options: pnpm (pnpm), npm (npm).`,
       question: "Which registry?",
       options: [
         { id: "pnpm", label: "pnpm" },

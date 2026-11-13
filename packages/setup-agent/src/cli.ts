@@ -41,6 +41,15 @@ export { diffEvents } from "./stream";
 
 const DEFAULT_COMMAND = "npx setup-agent";
 
+/**
+ * How long "wait <input-id>", "wait plan" and "--wait" block before handing
+ * control back with a "waiting" result, in seconds. Agent shells kill a
+ * command after a limit of their own (two minutes by default in Claude
+ * Code); a wait that returns first lets the agent run it again instead of
+ * reading the kill as the end of the setup.
+ */
+const DEFAULT_WAIT_SECONDS = 100;
+
 export const HELP = `setup-agent <url> [command]
 
 Commands (the url always comes first):
@@ -65,10 +74,13 @@ Commands (the url always comes first):
   ask <prompt> --entry-points '<JSON array>' [--default <id>] [--optional] [--step <step-id>] [--wait]
                                     Ask where users should access the assistant. Each of 1–3 options has id, label, description and entryPoint {formFactor: modal|sidebar|full-page, placement, trigger, recommended?}. Answers one option id.
   wait start                        Block until the user clicks Begin plan in their browser; after a finished or cancelled setup, until the next one begins.
-  wait <input-id>                   Block until the user answers or dismisses an input. A multi-select answer prints as an array.
-  plan (<markdown> | --file <path>) [--wait]
+  wait <input-id> [--timeout <seconds>]
+                                    Block until the user answers or dismisses an input. A multi-select answer prints as an array.
+  plan (<markdown> | --file <path>) [--wait] [--timeout <seconds>]
                                     Propose the plan for the user to approve. --wait blocks until they decide.
-  wait plan                         Block until the user approves the plan or asks for changes.
+  wait plan [--timeout <seconds>]   Block until the user approves the plan or asks for changes.
+                                    wait <input-id>, wait plan and every --wait give up after ${DEFAULT_WAIT_SECONDS}s (--timeout, 0 for no limit) and prints
+                                    {"ok":false,"status":"waiting","next":"<command>"}: run "next" again to keep waiting.
   env <input-id> <ENV_VAR> [--file <path>]
                                     Write the API key behind an answered llm-provider input to an env file (default .env.local) as ENV_VAR=<key>, without printing it.
   add-step <title> [--detail <text>] [--product <slug>] [--active]
@@ -166,15 +178,21 @@ const streamSection = (
   noOpen: boolean,
 ) =>
   streaming
-    ? `The command that printed this is the stream. Keep it running in the background until the setup ends: the browser shows you as connected only while it runs, and it is how answers reach you. Each new line of its output is a JSON array of events: ${EVENT_LIST}, plus:
-- "browser.opened" ({id, message}): setup opened the setup page in the user's browser for a question. Tell the user once, in your own conversation, that it waits there.
-- "input.needed" ({id, message, question, options?, answer}): the user may not see the browser right now. Do what its message says: wait for "input.answered", or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
+    ? `The command that printed this is the stream. Keep it running in the background until the setup ends: the browser shows you as connected only while it runs. New output does not wake you: read its new lines between your other commands. Each new line is a JSON array of events: ${EVENT_LIST}, plus:
+- "browser.opened" ({id, message}): setup opened the setup page in the user's browser for a question. Tell the user once, in your own conversation, that it waits there, and keep working in the same turn.
+- "input.needed" ({id, message, question, options?, answer}): the user may not see the browser right now. Do what its message says: run "wait <id>" for their answer in the browser, or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
 If this command stops, start it again in the background with
   ${cmd} ${url} stream${noOpen ? " --no-open" : ""}
 The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream.`
     : `First, start a persistent Monitor on
   ${cmd} ${url} stream
 and keep it running: the browser shows you as connected only while it runs, and it is how answers reach you. The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream. Each line is a JSON array of events: ${EVENT_LIST}.`;
+
+/** Why the agent must not end its turn mid-setup, and how it waits instead. */
+const keepGoing = (cmd: string, url: string) =>
+  `Run the setup to the end in one go. Nothing wakes you while you wait: not the stream, not the browser. If you end your turn before the install is done, the setup stays paused until the user types to you, even after they answer in the browser. So never end your turn to wait for an answer, and do not stop after telling the user something. To get an answer, block on it:
+  ${cmd} ${url} wait <input-id>
+("plan --wait" and "ask --wait" block the same way). A wait that prints {"ok":false,"status":"waiting"} has not failed and the setup is not stuck: run its "next" command again, right away. End your turn only to ask the user in your own conversation (an "input.needed" you relay, or a value only they can give), and go on as soon as they reply; or once the install is done and proposed with "done".`;
 
 export const agentInstructions = (
   setupUrl: string,
@@ -187,6 +205,8 @@ export const agentInstructions = (
   return `You are the coding agent for a setup ${started ? (streaming ? (started.opened === false ? "you started; setup opens no browser (--no-open), so the user follows it on the setup page if they open it, or answers you in your own conversation" : "you started; the user follows it in their browser, which setup opens when you ask the user something") : "you opened in the user's browser") : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
 
 ${streamSection(cmd, url, streaming, started?.opened === false)}
+
+${keepGoing(cmd, url)}
 
 The user can message you at any time, including while a question is waiting. Read "message.created" events, acknowledge each with "${cmd} ${url} ack <message-id>", and reply using "log" with what you will do. Pending messages are replayed when the stream starts and listed in "status". A message is not an answer or plan approval; keep those decisions explicit.
 
@@ -205,7 +225,7 @@ The setup's products are starting names and guide references. If the setup lists
 When the setup puts an assistant in the app, ask how users should access it after discovering the actual app and before proposing the plan. Skip this question when no product's guide installs an assistant (a standalone library or service setup, for example). Use an entry-point question with only 1–3 sensible alternatives. Describe the actual app's pages, workflow and component placement, not generic placeholder copy. Recommend one clear fit when there is one; two options may use the same form factor in different places. Each option needs a stable id, label, contextual description and entryPoint {"formFactor":"modal"|"sidebar"|"full-page","placement":"where it appears","trigger":"how users open it or navigate to it","recommended":true?}. Write the JSON array for this app and send it with:
   ${cmd} ${url} ask "Where should users access the assistant?" --entry-points '<JSON array>' --wait
 Mark a clear fit with "recommended":true rather than --default, so the user makes the pick. When you ask it, do not submit the plan before the user picks an entry point. Respect the selected placement and trigger in the plan and implementation. Do not ask for a new-versus-existing app setting; discover the app from its files and ask only for an install path when needed.
-Skip a preset the code already answers (a chat route on the AI SDK, a provider key in .env.local) and log why. Ask everything at once, keep investigating, and block with "wait <input-id>" only when nothing else can proceed. A framework answer is "<framework>:<language>", for example "ai-sdk:typescript". A model answer is JSON {"provider","model","reasoningEffort"?}. An answer may carry a "note" from the user; follow it. A choice answer that matches none of the options is the user's own text.
+Skip a preset the code already answers (a chat route on the AI SDK, a provider key in .env.local) and log why. Ask everything at once, keep investigating, and then run "wait <input-id>" for each open question before you write the plan; do not end your turn while they are open. A framework answer is "<framework>:<language>", for example "ai-sdk:typescript". A model answer is JSON {"provider","model","reasoningEffort"?}. An answer may carry a "note" from the user; follow it. A choice answer that matches none of the options is the user's own text.
 Then write the plan as markdown and submit it:
   ${cmd} ${url} plan --file <path> --wait
 Use these headings, each with bullets: "## What I found" (facts as \`- **Label:** value\`: app framework, package manager, agent framework, model provider and model, where components live), "## What I will install" (packages and files, one per bullet), "## Steps" (a numbered list, one line each), and "## Open questions" only if any remain. Keep it under 30 lines; no preamble. "plan --wait" prints {"decision":"approve"} or {"decision":"revise","feedback":"..."}. On revise, address the feedback (ask again if you need to) and submit a new plan; repeat until approved. Do not change the project before approval: the setup refuses steps until then.
@@ -415,6 +435,47 @@ const waitForPlan = (client: CheckoutClient, revision: number) =>
     const unsubscribe = client.subscribe(check);
     check();
   });
+
+/** The seconds `--timeout` asks a wait to block for; 0 is no limit. */
+const waitSeconds = (flags: Parsed["flags"], fallback: number) => {
+  const value = flagText(flags, "timeout");
+  if (value === undefined) return fallback;
+  const seconds = Number(value);
+  if (!/^\d+(?:\.\d+)?$/.test(value) || !Number.isFinite(seconds)) {
+    return fail("--timeout takes a number of seconds, 0 for no limit");
+  }
+  return seconds;
+};
+
+const TIMED_OUT = Symbol("timed out");
+
+/** `promise`, or `TIMED_OUT` once `seconds` pass first; 0 waits as long as it takes. */
+const within = async <T>(
+  promise: Promise<T>,
+  seconds: number,
+): Promise<T | typeof TIMED_OUT> => {
+  if (seconds === 0) return promise;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<typeof TIMED_OUT>((resolve) => {
+        timer = setTimeout(() => resolve(TIMED_OUT), seconds * 1000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/** What a wait prints when the user has not decided yet: the command to run again, now. */
+const stillWaiting = (target: string, next: string) => ({
+  ok: false,
+  status: "waiting",
+  waitingFor: target,
+  next,
+  message: `The user has not answered yet. Run "next" now to keep waiting, or go on with other work and run it when you need the answer. Do not end your turn: nothing resumes you until you run it.`,
+});
 
 const decided = (plan: Checkout.Plan | undefined, state: Checkout.State) => {
   if (state.status === "cancelled") return { ok: false, status: "cancelled" };
@@ -840,6 +901,8 @@ export const runSetupCommand = async (
     fail(error instanceof Error ? error.message : String(error)),
   );
   const commands = client.commands;
+  const waitCommand = (target: string) =>
+    `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} wait ${target}`;
 
   try {
     switch (command) {
@@ -921,8 +984,15 @@ export const runSetupCommand = async (
           print({ ok: true, revision });
           break;
         }
-        const plan = await waitForPlan(client, revision);
-        print(decided(plan, requireState(client)));
+        const plan = await within(
+          waitForPlan(client, revision),
+          waitSeconds(flags, DEFAULT_WAIT_SECONDS),
+        );
+        print(
+          plan === TIMED_OUT
+            ? stillWaiting("plan", waitCommand("plan"))
+            : decided(plan, requireState(client)),
+        );
         break;
       }
       case "ask": {
@@ -956,7 +1026,15 @@ export const runSetupCommand = async (
           print({ ok: true, inputId });
           break;
         }
-        print(await waitForInput(client, inputId).then(answered));
+        const input = await within(
+          waitForInput(client, inputId),
+          waitSeconds(flags, DEFAULT_WAIT_SECONDS),
+        );
+        print(
+          input === TIMED_OUT
+            ? stillWaiting(inputId, waitCommand(inputId))
+            : answered(input),
+        );
         break;
       }
       case "wait": {
@@ -964,7 +1042,15 @@ export const runSetupCommand = async (
           rest[0] ?? fail("usage: wait start | wait <input-id> | wait plan");
         const state = requireState(client);
         if (target === "start") {
-          const status = await waitForStart(client);
+          // Waiting for the user's next setup is idle time, so it has no limit by default.
+          const status = await within(
+            waitForStart(client),
+            waitSeconds(flags, 0),
+          );
+          if (status === TIMED_OUT) {
+            print(stillWaiting("start", waitCommand("start")));
+            break;
+          }
           print({
             ok: status === "planning" || status === "installing",
             status,
@@ -973,18 +1059,29 @@ export const runSetupCommand = async (
         }
         if (target === "plan") {
           const plan = currentPlan(state) ?? fail("no plan has been proposed");
+          const decision = await within(
+            waitForPlan(client, plan.revision),
+            waitSeconds(flags, DEFAULT_WAIT_SECONDS),
+          );
           print(
-            decided(
-              await waitForPlan(client, plan.revision),
-              requireState(client),
-            ),
+            decision === TIMED_OUT
+              ? stillWaiting("plan", waitCommand("plan"))
+              : decided(decision, requireState(client)),
           );
           break;
         }
         if (!state.inputs.some((input) => input.id === target)) {
           fail(`no input "${target}"`);
         }
-        print(await waitForInput(client, target).then(answered));
+        const input = await within(
+          waitForInput(client, target),
+          waitSeconds(flags, DEFAULT_WAIT_SECONDS),
+        );
+        print(
+          input === TIMED_OUT
+            ? stillWaiting(target, waitCommand(target))
+            : answered(input),
+        );
         break;
       }
       case "env": {

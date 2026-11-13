@@ -68,7 +68,7 @@ const setupBriefing = (
 
 1. Keep it running in the background until the setup ends. If you started it in the foreground, stop it and resume it in the background (Claude Code: Bash with run_in_background; Codex and other agents: add > "\${TMPDIR:-/tmp}/setup-${session.linkId}.log" 2>&1 & and read that file):
   ${command} ${url} stream${canOpen ? "" : " --no-open"}
-2. Read its new output as it arrives. Each line after this briefing is a JSON array of events.
+2. Its new output does not wake you, so never end your turn to wait for it. Read the new lines between your other commands; each line after this briefing is a JSON array of events. Answers reach you through the blocking "wait" commands below.
 3. Run every other command in another shell: ${command} ${url} <command>.
 4. ${
     canOpen

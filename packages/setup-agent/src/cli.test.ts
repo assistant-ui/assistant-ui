@@ -59,6 +59,126 @@ describe("the agent's briefing", () => {
   });
 });
 
+describe("running to the end", () => {
+  it("tells the agent not to end its turn to wait, and how to block instead", () => {
+    for (const instructions of [
+      agentInstructions("https://example.test/session"),
+      agentInstructions("https://example.test/session", {
+        command: "npx assistant-ui@latest setup",
+        startedByAgent: { browserUrl: "https://setup.test", streaming: true },
+      }),
+    ]) {
+      expect(instructions).toContain("Run the setup to the end in one go.");
+      expect(instructions).toContain(
+        "never end your turn to wait for an answer",
+      );
+      expect(instructions).toMatch(/ wait <input-id>\n/);
+      expect(instructions).toContain('run its "next" command again');
+      expect(instructions).not.toContain(
+        'block with "wait <input-id>" only when nothing else can proceed',
+      );
+    }
+    const streaming = agentInstructions("https://example.test/session", {
+      startedByAgent: { browserUrl: "https://setup.test", streaming: true },
+    });
+    expect(streaming).toContain("New output does not wake you");
+    expect(streaming).not.toContain('wait for "input.answered"');
+  });
+});
+
+describe("waiting on the user", () => {
+  // Under the two minutes Claude Code's shell gives a command by default.
+  const DEFAULT_WAIT_SECONDS = 100;
+  const URL = "https://checkout.test/session";
+
+  const connect = () => {
+    const listeners = new Set<() => void>();
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      id: "setup-a",
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          phase: "planning",
+          kind: "text",
+          prompt: "Which project?",
+          optional: false,
+          status: "open",
+          createdAt: 2,
+        },
+      ],
+    };
+    const client = {
+      state,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      commands: {},
+      dispose: vi.fn(),
+    };
+    connectCheckoutMock.mockResolvedValue(
+      client as unknown as Awaited<ReturnType<typeof connectCheckout>>,
+    );
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+      stdout.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    const printed = () =>
+      JSON.parse(String(stdout.mock.lastCall?.[0] ?? "null")) as unknown;
+    const answer = (value: string) => {
+      state.inputs[0]!.status = "answered";
+      state.inputs[0]!.answer = value;
+      for (const listener of listeners) listener();
+    };
+    return { printed, answer };
+  };
+
+  it("hands the turn back with the command to run again before an agent shell kills the wait", async () => {
+    const t = connect();
+    const run = main([URL, "wait", "q1"]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_SECONDS * 1000 - 1);
+    expect(t.printed()).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    await run;
+    expect(t.printed()).toMatchObject({
+      ok: false,
+      status: "waiting",
+      waitingFor: "q1",
+      next: `npx setup-agent ${URL} wait q1`,
+    });
+  });
+
+  it("prints the answer when it arrives in time", async () => {
+    const t = connect();
+    const run = main([URL, "wait", "q1"]);
+    await vi.advanceTimersByTimeAsync(5_000);
+    t.answer("apps/web");
+    await run;
+    expect(t.printed()).toMatchObject({
+      ok: true,
+      inputId: "q1",
+      status: "answered",
+      answer: "apps/web",
+    });
+  });
+
+  it("waits as long as it takes with --timeout 0", async () => {
+    const t = connect();
+    const run = main([URL, "wait", "q1", "--timeout", "0"]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_SECONDS * 1000 * 5);
+    expect(t.printed()).toBeNull();
+    t.answer("apps/web");
+    await run;
+    expect(t.printed()).toMatchObject({ ok: true, answer: "apps/web" });
+  });
+});
+
 describe("askSeed", () => {
   const parse = (argv: string[]) => {
     const flags = new Map<string, string | true>();
