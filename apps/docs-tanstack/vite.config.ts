@@ -4,6 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import mdx from "fumadocs-mdx/vite";
+import { aui } from "@assistant-ui/vite";
 import * as MdxConfig from "./source.config";
 import { prerenderPages } from "./src/lib/pages";
 import { stubPlugin } from "./src/lib/stub-plugin";
@@ -34,6 +35,7 @@ export default defineConfig({
     stubPlugin(),
     docsPathsPlugin(fileURLToPath(new URL("../docs/tsconfig.json", import.meta.url))),
     mdx(MdxConfig),
+    aui(),
     tailwindcss(),
     tanstackStart({
       prerender: {
