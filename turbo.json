@@ -20,7 +20,9 @@
         "!**/*.test.{ts,tsx}",
         "!**/*.spec.{ts,tsx}",
         "!**/__tests__/**",
-        "!vitest.peer-*.config.ts"
+        "!vitest.peer-*.config.ts",
+        "!$TURBO_ROOT$/packages/*/README.md",
+        "!$TURBO_ROOT$/packages/*/CHANGELOG.md"
       ],
       "outputs": [
         "dist/**",

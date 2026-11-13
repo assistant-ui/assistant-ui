@@ -69,6 +69,7 @@ on:
       - "scripts/package-build-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
       - "scripts/turbo-env-files.test.mjs"
+      - "scripts/turbo-package-docs.test.mjs"
       - "scripts/prepare-ci-base.mjs"
       - "scripts/prepare-ci-base.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
@@ -419,9 +420,9 @@ jobs:
       - name: Test package build input detector
         run: node --test scripts/package-build-inputs.test.mjs
 
-      - name: Test build cache environment inputs
+      - name: Test build cache inputs
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: node --test scripts/turbo-redis-env.test.mjs scripts/turbo-env-files.test.mjs scripts/pull-request-turbo-cache.test.mjs
+        run: node --test scripts/turbo-redis-env.test.mjs scripts/turbo-env-files.test.mjs scripts/turbo-package-docs.test.mjs scripts/pull-request-turbo-cache.test.mjs
 
       - name: Measure bundle sizes against the base
         if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.package_build_inputs.outputs.run == 'true'
