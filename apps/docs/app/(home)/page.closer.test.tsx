@@ -2,21 +2,6 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import reactPackage from "../../../../packages/react/package.json";
-
-// A deployment need not carry node_modules, and reading from there is how the label went null.
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs")>();
-  return {
-    ...actual,
-    promises: {
-      ...actual.promises,
-      readFile: async () => {
-        throw new Error("ENOENT");
-      },
-    },
-  };
-});
 vi.mock("next/cache", async (importOriginal) => ({
   ...(await importOriginal()),
   cacheLife: vi.fn(),
@@ -26,7 +11,10 @@ vi.mock("@/lib/npm", () => ({ getWeeklyDownloads: async () => null }));
 vi.mock("@/lib/element-source", () => ({
   highlightElementSource: async (code: string) => code,
 }));
-vi.mock("@/components/pages/home/hero", () => ({ Hero: () => null }));
+vi.mock("@/components/pages/home/hero", async (importOriginal) => ({
+  ...(await importOriginal()),
+  Hero: () => null,
+}));
 vi.mock("@/components/pages/home/demo", () => ({ HomeDemo: () => null }));
 
 import HomePage from "./page";
@@ -52,9 +40,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("labels the workspace version with no package manifest to read at runtime", async () => {
+it("closes with the same call to action as the hero", async () => {
   render(await HomePage());
 
-  const label = screen.getByText(`@assistant-ui/react@${reactPackage.version}`);
-  expect(label.parentElement?.textContent).toContain("MIT License");
+  expect(
+    screen.getByRole("button", {
+      name: "Copy the setup prompt for your agent",
+    }).textContent,
+  ).toBe("install and set up assistant-ui");
+  expect(
+    screen
+      .getByRole("button", { name: "Talk to an expert" })
+      .getAttribute("href"),
+  ).toBe("/contact-sales");
+  expect(screen.queryByText("Read the docs")).toBeNull();
 });
