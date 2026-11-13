@@ -37,7 +37,7 @@ export function SidebarAccount(): ReactNode {
         <AccountMenu user={session.user} />
       ) : (
         <a
-          href={`/api/auth/login?redirect=${encodeURIComponent(pathname)}`}
+          href={`/api/auth/login?return=${encodeURIComponent(pathname)}`}
           onClick={() => trackDemoSignInClick("sidebar")}
           className={rowClass}
         >

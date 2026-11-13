@@ -4,8 +4,8 @@ import { NextRequest } from "next/server";
 import { proxy } from "./proxy";
 
 describe("proxy", () => {
-  it("preserves the legacy changelog redirect", () => {
-    const response = proxy(
+  it("preserves the legacy changelog redirect", async () => {
+    const response = await proxy(
       new NextRequest(
         "https://www.assistant-ui.com/changelog?pkg=react&page=2",
       ),
@@ -16,10 +16,13 @@ describe("proxy", () => {
     );
   });
 
-  it("preserves the retired analytics endpoint", () => {
+  it("preserves the retired analytics endpoint", async () => {
     expect(
-      proxy(new NextRequest("https://www.assistant-ui.com/umami/api/send"))
-        .status,
+      (
+        await proxy(
+          new NextRequest("https://www.assistant-ui.com/umami/api/send"),
+        )
+      ).status,
     ).toBe(204);
   });
 });
