@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import worker, { CheckoutDO } from "./index";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
-import { GUIDE_PROTOCOL, buildGuide, type Guide } from "setup-agent/guide";
 
 const instances: CheckoutDO[] = [];
 const clients: StatewireClient<
@@ -570,60 +569,5 @@ describe("worker routing", () => {
     expect(response.headers.get("Access-Control-Expose-Headers")).toBe(
       "Statewire-Lease",
     );
-  });
-
-  it("serves the CLI's guide for its protocol without addressing a durable object", async () => {
-    const idFromName = vi.fn((name: string) => name);
-    const query = new URLSearchParams({
-      protocol: String(GUIDE_PROTOCOL),
-      capabilities: "action:print,action:print-status,action:announce-agent",
-      started: "user",
-      opened: "1",
-    });
-    const response = await worker.fetch(
-      new Request(`https://checkout.test/session/guide?${query}`),
-      { CHECKOUT: { idFromName, get: vi.fn() } },
-    );
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    const guide = (await response.json()) as Guide;
-    expect(guide).toEqual(
-      buildGuide({
-        protocol: GUIDE_PROTOCOL,
-        capabilities: [
-          "action:print",
-          "action:print-status",
-          "action:announce-agent",
-        ],
-        context: { started: "user", opened: true },
-      }),
-    );
-    expect(guide.texts.briefing).toContain(
-      "Run the setup to the end in one go.",
-    );
-    expect(idFromName).not.toHaveBeenCalled();
-  });
-
-  it("refuses a malformed guide request and other methods", async () => {
-    const env = { CHECKOUT: { idFromName: vi.fn(), get: vi.fn() } };
-    expect(
-      (
-        await worker.fetch(
-          new Request("https://checkout.test/session/guide?protocol=x"),
-          env,
-        )
-      ).status,
-    ).toBe(400);
-    expect(
-      (
-        await worker.fetch(
-          new Request("https://checkout.test/session/guide?protocol=1", {
-            method: "POST",
-          }),
-          env,
-        )
-      ).status,
-    ).toBe(405);
   });
 });

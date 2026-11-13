@@ -1,3 +1,4 @@
+import { testGuide } from "./tests/guide-fixture";
 import { describe, expect, it } from "vitest";
 import {
   answerNeed,
@@ -70,7 +71,7 @@ describe("terminalQuestion", () => {
         presetInput("framework") as Checkout.Input,
         presetInput("llm-provider") as Checkout.Input,
       ),
-    ).map((need) => terminalQuestion(need));
+    ).map((need) => terminalQuestion(need, testGuide));
     expect(framework!.options?.map((option) => option.id)).toEqual([
       "ai-sdk:typescript",
       "mastra:typescript",
@@ -80,10 +81,8 @@ describe("terminalQuestion", () => {
     expect(formatTerminalQuestion(framework!)).toMatch(
       /^Which agent framework runs your backend\? Options: ai-sdk:typescript \(Vercel AI SDK \(TypeScript\): Shortest path/,
     );
-    expect(model!.question).toContain("The API key is not typed here");
-    expect(model!.answerFormat).toBe(
-      "<provider>:<model>, such as openai:gpt-5",
-    );
+    expect(model!.question).toContain("[need.input.model]");
+    expect(model!.answerFormat).toBe("[need.format.model]");
   });
 });
 

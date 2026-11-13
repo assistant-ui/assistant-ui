@@ -11,8 +11,8 @@ import {
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
-import { bundledGuide, renderText } from "./guide-builder";
-import type { Guide, GuideTextKey } from "./guide-builder";
+import { renderText } from "./guide";
+import type { Guide, GuideTextKey } from "./guide";
 
 /**
  * Something the setup waits on the user for: an open question, a proposed
@@ -96,10 +96,10 @@ const ANSWER_FORMATS = {
   choice: "need.format.choice",
 } as const satisfies Record<Checkout.InputKind, GuideTextKey>;
 
-/** A need as a question for the agent's own conversation, worded by `guide`. */
+/** A need as a question for the agent's own conversation, worded by the setup server's `guide`. */
 export const terminalQuestion = (
   need: SetupNeed,
-  guide: Pick<Guide, "texts"> = bundledGuide(),
+  guide: Pick<Guide, "texts">,
 ): TerminalQuestion => {
   const text = (key: GuideTextKey, values?: Record<string, string>) =>
     renderText(guide, key, values);

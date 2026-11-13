@@ -11,8 +11,8 @@ import {
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
-import { bundledGuide, renderText } from "./guide-builder";
-import type { Guide } from "./guide-builder";
+import { renderText } from "./guide";
+import type { Guide } from "./guide";
 
 export type StreamEvent =
   | { event: "planning.started" }
@@ -49,14 +49,11 @@ export type StreamEvent =
       answer: string;
     } & TerminalQuestion);
 
-/**
- * The events between two states. `guide` supplies the wording of their
- * hints: the setup server's, or the bundled copy.
- */
+/** The events between two states, with hints worded by the setup server's `guide`. */
 export const diffEvents = (
   before: Checkout.State,
   after: Checkout.State,
-  guide: Pick<Guide, "texts"> = bundledGuide(),
+  guide: Pick<Guide, "texts">,
 ): StreamEvent[] => {
   const events: StreamEvent[] = [];
   const stayConnected = renderText(guide, "stream.stay-connected");
@@ -204,11 +201,11 @@ const gateEvent = (
       message: renderText(guide, `stream.opened.${need.kind}`, {
         url: action.url,
         wait: wait || ' with "wait"',
-        ...(need.kind === "input" && {
-          prompt:
-            need.input.prompt.trim() ||
-            renderText(guide, "need.input.empty-prompt"),
-        }),
+        prompt:
+          need.kind === "input"
+            ? need.input.prompt.trim() ||
+              renderText(guide, "need.input.empty-prompt")
+            : "",
       }),
     };
   const question = terminalQuestion(need, guide);
@@ -228,8 +225,8 @@ const gateEvent = (
 };
 
 export type FollowSetupOptions = {
-  /** The wording of the stream's messages: the setup server's guide, or the bundled copy by default. */
-  guide?: Pick<Guide, "texts">;
+  /** The setup server's wording for the stream's messages. */
+  guide: Pick<Guide, "texts">;
   /** Writes one line of events; the default prints a JSON array to stdout. */
   print?: (events: StreamEvent[]) => void;
   /** The agent the stream reports in its hello; detected by default. */
@@ -255,7 +252,7 @@ export type FollowSetupOptions = {
  */
 export const followSetup = async (
   client: Pick<CheckoutClient, "state" | "subscribe" | "commands">,
-  { print, agent, browser, guide = bundledGuide() }: FollowSetupOptions = {},
+  { print, agent, browser, guide }: FollowSetupOptions,
 ) => {
   const write =
     print ??

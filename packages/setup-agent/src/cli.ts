@@ -7,7 +7,7 @@ import {
 import type { CodingAgent } from "./agents";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
-import { INPUT_PRESETS, presetInput } from "./presets";
+import { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import {
@@ -36,10 +36,8 @@ import {
 import type { Checkout } from "./protocol";
 import { answerNeed } from "./needs";
 import { answerFields, followSetup, shellWord } from "./stream";
-import { bundledGuide, renderText } from "./guide-builder";
-import type { Guide, GuideContext } from "./guide-builder";
-import { guideWarning, loadGuide } from "./guide-client";
-import type { Preset } from "./presets";
+import { loadGuide, renderText } from "./guide";
+import type { Guide } from "./guide";
 
 export { diffEvents } from "./stream";
 
@@ -136,69 +134,12 @@ export const parseSetupUrl = (value: string): string => {
   return href;
 };
 
-export type AgentInstructionsOptions = {
-  /** How the agent invokes the setup commands, before the URL; `npx setup-agent` by default. */
-  command?: string;
-  /**
-   * The agent started this setup with `assistant-ui setup`, which already
-   * began planning; there is no Begin plan click to wait for.
-   */
-  startedByAgent?: {
-    browserUrl: string;
-    /** False when the browser was not opened for the user; the agent then hands them the link. */
-    opened?: boolean;
-    /**
-     * The command that printed this briefing is the stream: it keeps running
-     * and opens the browser only when the setup waits on the user.
-     */
-    streaming?: boolean;
-  };
-  /**
-   * The guide to word the briefing with, as `loadGuide` fetched it from the
-   * setup server for the same context; the bundled copy by default.
-   */
-  guide?: Pick<Guide, "texts">;
-};
-
-/** The guide context `options` describe: who started the setup and whether a browser opens. */
-const instructionsContext = (
-  options: Pick<AgentInstructionsOptions, "startedByAgent"> = {},
-): GuideContext => {
-  const started = options.startedByAgent;
-  return {
-    started:
-      started === undefined
-        ? "user"
-        : started.streaming === true
-          ? "agent-stream"
-          : "agent",
-    opened: started?.opened !== false,
-  };
-};
-
-/** The values the CLI fills into a guide text itself: never the server's to choose. */
-const localValues = (
-  setupUrl: string,
-  command: string | undefined,
-  browserUrl = "",
-) => ({
-  cmd: command ?? DEFAULT_COMMAND,
+/** The values the CLI fills into guide texts itself; never the server's to choose. */
+const localValues = (setupUrl: string, command = DEFAULT_COMMAND) => ({
+  cmd: command,
   url: shellWord(setupUrl),
-  browserUrl,
   icons: OPTION_ICONS.join(", "),
 });
-
-export const agentInstructions = (
-  setupUrl: string,
-  options: AgentInstructionsOptions = {},
-) =>
-  renderText(
-    options.guide ?? bundledGuide(instructionsContext(options)),
-    "briefing",
-    localValues(setupUrl, options.command, options.startedByAgent?.browserUrl),
-  );
-
-export const INSTRUCTIONS = agentInstructions;
 
 type Parsed = { positional: string[]; flags: Map<string, string | true> };
 
@@ -422,11 +363,7 @@ const within = async <T>(
 };
 
 /** What a wait prints when the user has not decided yet: the command to run again, now. */
-const stillWaiting = (
-  target: string,
-  next: string,
-  guide: Pick<Guide, "texts">,
-) => ({
+const stillWaiting = (target: string, next: string, guide: Guide) => ({
   ok: false,
   status: "waiting",
   waitingFor: target,
@@ -456,7 +393,6 @@ const splitList = (value: string | undefined) =>
 export const askSeed = (
   rest: readonly string[],
   flags: Parsed["flags"],
-  presets: Readonly<Record<string, Preset>> = INPUT_PRESETS,
 ): Checkout.InputSeed & { stepId?: string } => {
   const stepId = flagText(flags, "step");
   const optional = flags.has("optional");
@@ -509,9 +445,9 @@ export const askSeed = (
   }
   const preset = flagText(flags, "preset");
   if (preset !== undefined) {
-    if (!Object.hasOwn(presets, preset)) {
+    if (!isPresetId(preset)) {
       return fail(
-        `unknown preset "${preset}"; use ${Object.keys(presets).join(" or ")}`,
+        `unknown preset "${preset}"; use ${Object.keys(INPUT_PRESETS).join(" or ")}`,
       );
     }
     const only = splitList(flagText(flags, "only"));
@@ -522,17 +458,13 @@ export const askSeed = (
         : { id, description: description.join("=") };
     });
     try {
-      const seed = presetInput(
-        preset,
-        {
-          ...(only !== undefined && { only }),
-          ...(found !== undefined && { found }),
-          ...(fallback !== undefined && { default: fallback }),
-          optional,
-          ...(stepId !== undefined && { stepId }),
-        },
-        presets,
-      );
+      const seed = presetInput(preset, {
+        ...(only !== undefined && { only }),
+        ...(found !== undefined && { found }),
+        ...(fallback !== undefined && { default: fallback }),
+        optional,
+        ...(stepId !== undefined && { stepId }),
+      });
       return rest[0] === undefined ? seed : { ...seed, prompt: rest[0] };
     } catch (error) {
       return fail(error instanceof Error ? error.message : String(error));
@@ -839,49 +771,6 @@ const runStream = async (
 
 export const main = (argv: readonly string[]) => runSetupCommand(argv);
 
-/** The commands whose output carries guide text; the others skip fetching it. */
-const GUIDE_COMMANDS = new Set([
-  "intro",
-  "stream",
-  "ask",
-  "plan",
-  "wait",
-  "done",
-]);
-
-/** `setup-agent <url>` is run by an agent the user pointed at a setup they opened. */
-const INTRO_CONTEXT: GuideContext = { started: "user", opened: true };
-
-/**
- * Runs the guide's intro steps in order. Each one is a local action from the
- * fixed set `parseGuide` admits; there is no other way for a guide to act.
- */
-const runIntro = async (
-  client: CheckoutClient,
-  guide: Guide,
-  values: Record<string, string>,
-) => {
-  for (const step of guide.intro) {
-    switch (step.action) {
-      case "announce-agent": {
-        const kind = detectAgentKind();
-        await client.commands["agent/intro"]({
-          ...(kind !== undefined && { kind }),
-        }).catch(() => {});
-        break;
-      }
-      case "print":
-        process.stdout.write(renderText(guide, step.text, values));
-        break;
-      case "print-status":
-        print(summary(requireState(client)));
-        break;
-      default:
-        step satisfies never;
-    }
-  }
-};
-
 /**
  * Runs one setup command (`<url> <command> ...`) the way `npx setup-agent`
  * does, for a CLI that embeds setup as its own command.
@@ -904,37 +793,46 @@ export const runSetupCommand = async (
   }
   if (command === "intro" && isDirectInvocation()) return launchAgent(url);
 
-  // The wording and the flow come from the setup server, fetched alongside
-  // the connection, for the commands that print any; the rest need none.
-  // A stream that cannot open the browser asks for the wording that says so.
-  const context: GuideContext =
-    command === "stream"
-      ? {
-          started: "user",
-          opened: (options.browser?.canOpen ?? true) && !flags.has("no-open"),
-        }
-      : INTRO_CONTEXT;
-  const guideLoad = GUIDE_COMMANDS.has(command)
-    ? loadGuide(url, context)
+  // Commands that print guidance get their wording from the setup server.
+  const guideLoad = ["intro", "stream", "ask", "plan", "wait", "done"].includes(
+    command,
+  )
+    ? loadGuide(url, {
+        started: "user",
+        opened:
+          command !== "stream" ||
+          ((options.browser?.canOpen ?? true) && !flags.has("no-open")),
+      })
     : undefined;
+  // Settled now, so a failed fetch is reported once, after the connection.
+  guideLoad?.catch(() => {});
   const client = await connectCheckout(url).catch((error: unknown) =>
     fail(error instanceof Error ? error.message : String(error)),
   );
   const commands = client.commands;
-  let guide = bundledGuide(context);
-  if (guideLoad !== undefined) {
-    const loaded = await guideLoad;
-    const warning = guideWarning(loaded);
-    if (warning !== undefined) process.stderr.write(warning);
-    guide = loaded.guide;
-  }
+  const guide = (await guideLoad?.catch((error: unknown) => {
+    client.dispose();
+    return fail(error instanceof Error ? error.message : String(error));
+  })) as Guide;
   const waitCommand = (target: string) =>
     `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} wait ${target}`;
 
   try {
     switch (command) {
       case "intro": {
-        await runIntro(client, guide, localValues(url, options.command));
+        // The steps are the server's, but each is one of these fixed actions.
+        for (const step of guide.intro) {
+          if (step.action === "announce-agent") {
+            const kind = detectAgentKind();
+            await commands["agent/intro"]({
+              ...(kind !== undefined && { kind }),
+            }).catch(() => {});
+          } else if (step.action === "print") {
+            process.stdout.write(
+              renderText(guide, step.text, localValues(url, options.command)),
+            );
+          } else print(summary(requireState(client)));
+        }
         break;
       }
       case "status": {
@@ -1013,7 +911,7 @@ export const runSetupCommand = async (
         break;
       }
       case "ask": {
-        const seed = askSeed(rest, flags, guide.presets);
+        const seed = askSeed(rest, flags);
         const redeemKey =
           seed.kind === "model" ? randomBytes(32).toString("hex") : undefined;
         const redeemKeyHash =

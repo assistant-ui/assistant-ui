@@ -5,10 +5,9 @@
  */
 import { randomInt } from "node:crypto";
 import { detectAgentKind } from "./agents";
-import { agentInstructions } from "./cli";
-import { renderText } from "./guide-builder";
-import type { Guide } from "./guide-builder";
-import { guideWarning, loadGuide } from "./guide-client";
+import { OPTION_ICONS } from "./protocol";
+import { loadGuide, renderText } from "./guide";
+import type { Guide } from "./guide";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import type { Checkout } from "./protocol";
@@ -61,11 +60,7 @@ export type RunAgentSetupOptions = {
 const setupBriefing = (
   session: SetupSession,
   guide: Guide,
-  {
-    command,
-    name = "Setup",
-    canOpen = true,
-  }: Pick<RunAgentSetupOptions, "command" | "name" | "canOpen">,
+  { command, name = "Setup" }: Pick<RunAgentSetupOptions, "command" | "name">,
 ) => {
   const values = {
     name,
@@ -73,19 +68,9 @@ const setupBriefing = (
     url: shellWord(session.agentUrl),
     linkId: session.linkId,
     browserUrl: session.browserUrl,
+    icons: OPTION_ICONS.join(", "),
   };
-  return `${renderText(guide, "stream.briefing", values)}${agentInstructions(
-    session.agentUrl,
-    {
-      command,
-      startedByAgent: {
-        browserUrl: session.browserUrl,
-        streaming: true,
-        opened: canOpen,
-      },
-      guide,
-    },
-  )}
+  return `${renderText(guide, "stream.briefing", values)}${renderText(guide, "briefing", values)}
 ${renderText(guide, "stream.briefing-footer", values)}${JSON.stringify({ status: "planning", products: session.products })}
 `;
 };
@@ -102,12 +87,11 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
   const linkId = createSetupId();
   const setupId = createSetupId();
   const agentUrl = `${options.server.replace(/\/$/, "")}/${linkId}`;
-  // The briefing and the stream's wording come from the setup server.
-  const guideLoad = loadGuide(
-    agentUrl,
-    { started: "agent-stream", opened: options.canOpen !== false },
-    options.env === undefined ? {} : { env: options.env },
-  );
+  // Online-only: the briefing and the stream's wording come from the setup server.
+  const guide = await loadGuide(agentUrl, {
+    started: "agent-stream",
+    opened: options.canOpen !== false,
+  });
   const client = await connect(agentUrl);
   try {
     const kind = detectAgentKind(options.env);
@@ -128,14 +112,11 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
       products: options.products,
     };
     options.onSession?.(session);
-    const loaded = await guideLoad;
-    const warning = guideWarning(loaded);
-    if (warning !== undefined) process.stderr.write(warning);
     (options.write ?? ((text) => process.stdout.write(text)))(
-      setupBriefing(session, loaded.guide, options),
+      setupBriefing(session, guide, options),
     );
     const stream = await followSetup(client, {
-      guide: loaded.guide,
+      guide,
       ...options.stream,
       agent: { ...(kind !== undefined && { kind }), ...options.stream?.agent },
       browser: {

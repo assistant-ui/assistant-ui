@@ -36,10 +36,6 @@
     "./cli": {
       "types": "./dist/cli.d.ts",
       "default": "./dist/cli.js"
-    },
-    "./guide": {
-      "types": "./dist/guide.d.ts",
-      "default": "./dist/guide.js"
     }
   },
   "main": "./dist/index.js",

@@ -62,20 +62,14 @@ describe("setup-agent/sdk", () => {
           agent: { cwd: "/app" },
         },
       });
-      expect(out).toMatch(/^my-tool setup is running\./);
-      expect(out).toContain(
-        `npx my-tool setup https://checkout.test/${session.linkId} stream`,
+      // The briefing is the server's guide, with this command's values filled in.
+      const url = `https://checkout.test/${session.linkId}`;
+      expect(out).toBe(
+        `[stream.briefing] my-tool setup npx my-tool setup ${url} ${session.browserUrl}[briefing] npx my-tool setup ${url}\n[stream.briefing-footer] ${session.browserUrl}${JSON.stringify({ status: "planning", products: [{ slug: "assistant-ui", name: "assistant-ui" }] })}\n`,
       );
-      expect(out).toContain("run_in_background");
-      expect(out).toContain("never end your turn to wait for it");
-      expect(out).not.toContain("Read its new output as it arrives");
-      expect(out).toContain('"input.needed"');
-      expect(out).toContain('"browser.opened"');
-      expect(out).not.toContain("start a persistent Monitor");
-      expect(out).toContain("opens the user's browser by itself");
-      expect(out).not.toContain("npx setup-agent");
-      expect(out).not.toContain("click Begin plan");
-      expect(out).toContain(session.browserUrl);
+      expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toBe(
+        `${url}/guide?protocol=1&started=agent-stream&opened=1`,
+      );
       expect(open).not.toHaveBeenCalled();
       expect(calls.map(([name]) => name)).toEqual([
         "checkout/create",
