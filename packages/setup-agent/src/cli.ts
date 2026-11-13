@@ -79,7 +79,7 @@ Commands (the url always comes first):
   plan (<markdown> | --file <path>) [--wait] [--timeout <seconds>]
                                     Propose the plan for the user to approve. --wait blocks until they decide.
   wait plan [--timeout <seconds>]   Block until the user approves the plan or asks for changes.
-                                    wait <input-id>, wait plan and every --wait give up after ${DEFAULT_WAIT_SECONDS}s (--timeout, 0 for no limit) and prints
+                                    wait <input-id>, wait plan and every --wait give up after ${DEFAULT_WAIT_SECONDS}s (--timeout, 0 for no limit) and print
                                     {"ok":false,"status":"waiting","next":"<command>"}: run "next" again to keep waiting.
   env <input-id> <ENV_VAR> [--file <path>]
                                     Write the API key behind an answered llm-provider input to an env file (default .env.local) as ENV_VAR=<key>, without printing it.
@@ -190,7 +190,7 @@ and keep it running: the browser shows you as connected only while it runs, and 
 
 /** Why the agent must not end its turn mid-setup, and how it waits instead. */
 const keepGoing = (cmd: string, url: string) =>
-  `Run the setup to the end in one go. Nothing wakes you while you wait: not the stream, not the browser. If you end your turn before the install is done, the setup stays paused until the user types to you, even after they answer in the browser. So never end your turn to wait for an answer, and do not stop after telling the user something. To get an answer, block on it:
+  `Run the setup to the end in one go. Do not count on the stream or the browser to wake you: if you end your turn before the install is done, the setup can stay paused until the user types to you, even after they answer in the browser. So never end your turn to wait for an answer, and do not stop after telling the user something. To get an answer, block on it:
   ${cmd} ${url} wait <input-id>
 ("plan --wait" and "ask --wait" block the same way). A wait that prints {"ok":false,"status":"waiting"} has not failed and the setup is not stuck: run its "next" command, right away. "next" only waits; never repeat an "ask" or "plan" to keep waiting, since that asks or submits again. End your turn only to ask the user in your own conversation (an "input.needed" you relay, or a value only they can give), and go on as soon as they reply; or once the install is done and proposed with "done".`;
 
