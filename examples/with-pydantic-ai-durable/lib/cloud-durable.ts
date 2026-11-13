@@ -57,6 +57,7 @@ type TailState = "missing" | "settled" | "stale" | "elsewhere";
 const RUN_STALE = "run_stale";
 const RUN_IN_PROGRESS = "run_in_progress";
 // The status AG-UI gives a reply whose stream ended without RUN_FINISHED; a durable run can still be going.
+// This is the controller's error text, not a stable code: if its wording changes, such replies count as settled again.
 const CONNECTION_ENDED = "The connection ended before the answer finished.";
 
 const lastIndexOf = <T>(items: readonly T[], test: (item: T) => boolean) => {
@@ -248,7 +249,8 @@ export const useDurableTakeover = (
     const thread = runtime.thread;
     let disposed = false;
     let busy = false;
-    let checked: ThreadMessage | undefined;
+    // A reply is taken over at most once per mount: every load decodes new objects, so the guard is the id.
+    let checkedId: string | undefined;
     const check = () => {
       if (disposed || busy) return;
       const { isRunning, isLoading, messages } = thread.getState();
@@ -256,9 +258,9 @@ export const useDurableTakeover = (
       const userIndex = lastIndexOf(messages, (m) => m.role === "user");
       if (userIndex === -1) return;
       const last = messages.at(-1);
-      if (last === checked) return;
+      if (!last || last.id === checkedId) return;
       if (tailStateOf(messages.slice(userIndex + 1)) !== "stale") return;
-      checked = last;
+      checkedId = last.id;
       busy = true;
       void (async () => {
         try {

@@ -662,6 +662,24 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     expect(durable.state.connects).toEqual([]);
   }, 15_000);
 
+  it("(c) a stale reply the server can't account for is read again once, not in a loop", async () => {
+    useServers([userRow, partialRow(0)], null);
+    const tab = await openTab("tab-b", 300);
+    await openThread(tab);
+    await waitFor(
+      () =>
+        expect(
+          tab.getAui().thread.getState().messages[1]?.status,
+        ).toMatchObject({ error: { code: "run_stale" } }),
+      { timeout: 8_000 },
+    );
+    await waitFor(() => expect(durable.state.getThreads).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    expect(durable.state.getThreads).toHaveLength(1);
+    expect(durable.state.connects).toEqual([]);
+    expect(durable.state.starts).toEqual([]);
+  }, 15_000);
+
   it("(c) two tabs that rejoin the same run at once store one answer", async () => {
     useServers([userRow, partialRow(45_000)], null);
     durable.begin(runInput);
