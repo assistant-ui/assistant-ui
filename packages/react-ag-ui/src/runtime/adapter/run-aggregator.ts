@@ -1362,12 +1362,15 @@ export class RunAggregator {
       if (parentIndex !== -1) {
         // A sibling call of the same parent already placed sets the slot, so
         // calls of one step stay together whatever streamed between them.
-        const lastSibling = this.buf.partOrder.findLastIndex(
-          (part) =>
-            part.kind === "tool-call" &&
-            this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
-              parentMessageId,
-        );
+        const isSibling = (part: PartOrderEntry | undefined) => {
+          if (part?.kind !== "tool-call") return false;
+          const call = this.buf.toolCalls.get(part.toolCallId);
+          return (
+            call?.parentMessageId === parentMessageId &&
+            (call.subagentRunId ?? ROOT_SCOPE) === scope
+          );
+        };
+        const lastSibling = this.buf.partOrder.findLastIndex(isSibling);
         let insertAt = Math.max(parentIndex, lastSibling) + 1;
         while (insertAt < this.buf.partOrder.length) {
           const part = this.buf.partOrder[insertAt];
@@ -1375,9 +1378,7 @@ export class RunAggregator {
           // ahead of them: a step replays reasoning before its calls, and a
           // call ahead of it would read as the end of the step.
           if (
-            (part?.kind === "tool-call" &&
-              this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
-                parentMessageId) ||
+            isSibling(part) ||
             (part?.kind === "reasoning" &&
               part.subagentRunId === undefined &&
               scope === ROOT_SCOPE &&
@@ -1927,15 +1928,14 @@ export class RunAggregator {
     timestamp?: number,
   ): void {
     const followsToolResult = () => {
-      const last = this.buf.partOrder.findLast(
-        (part) =>
-          part.kind === "tool-call" ||
-          ((part.kind === "text" || part.kind === "reasoning") &&
-            part.subagentRunId === undefined),
+      const last = this.buf.partOrder.findLast((part) =>
+        part.kind === "tool-call"
+          ? this.buf.toolCalls.get(part.toolCallId)?.subagentRunId === undefined
+          : (part.kind === "text" || part.kind === "reasoning") &&
+            part.subagentRunId === undefined,
       );
       if (last?.kind !== "tool-call") return false;
-      const call = this.buf.toolCalls.get(last.toolCallId);
-      return call?.subagentRunId === undefined && call?.result !== undefined;
+      return this.buf.toolCalls.get(last.toolCallId)?.result !== undefined;
     };
     if (!this.showThinking) {
       if (scope !== ROOT_SCOPE) return;

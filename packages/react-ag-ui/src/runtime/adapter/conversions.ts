@@ -1514,7 +1514,14 @@ function convertAgUiMessages(
     const role = getString(rawMessage, "role");
     if (!role) continue;
     const opensStep = followsToolResult;
-    if (role !== "reasoning") followsToolResult = role === "tool";
+    if (role === "tool") followsToolResult = true;
+    else if (
+      role === "assistant" ||
+      role === "user" ||
+      role === "system" ||
+      role === "developer"
+    )
+      followsToolResult = false;
 
     if (role === "tool") {
       flushPendingReasoning();
