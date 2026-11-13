@@ -1,7 +1,8 @@
 name: Docs Cache Probe
 
-# Experiment branch only, never merged: deploys apps/docs as a Vercel preview
-# with the Turbopack build cache on, so identical rebuilds can be compared.
+# Experiment branch only, never merged: builds the same commit of apps/docs as
+# six Git-based Vercel previews in a row, each restoring the previous build's
+# cache, so identical rebuilds with the Turbopack build cache can be compared.
 on:
   push:
     branches:
@@ -16,34 +17,45 @@ concurrency:
 
 jobs:
   preview:
-    name: Deploy docs preview
+    name: Build the same commit six times
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: prj_alMGZSXeFUhPBYPfWcfNM1VDJAls
+      TEAM_ID: ${{ secrets.VERCEL_ORG_ID }}
+      PROJECT_ID: prj_alMGZSXeFUhPBYPfWcfNM1VDJAls
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Setup node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
-        with:
-          node-version-file: package.json
-
-      - name: Setup pnpm
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
-        with:
-          cache: false
-          install: false
-
-      # The Vercel CLI comes from the lockfile pin that with-react-ink-web declares.
-      - name: Install the pinned Vercel CLI
-        run: pnpm install --frozen-lockfile --ignore-scripts --filter with-react-ink-web
-
-      - name: Deploy preview
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: pnpm --filter with-react-ink-web exec vercel deploy --target preview --force --with-cache --yes --cwd "$GITHUB_WORKSPACE" --token="$VERCEL_TOKEN"
+      - name: Deploy and wait for each cache upload
+        run: |
+          set -euo pipefail
+          api() {
+            curl -sS --fail-with-body \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" "$@"
+          }
+          body=$(jq -n --arg p "$PROJECT_ID" --arg sha "$GITHUB_SHA" '{
+            name: "assistant-ui", project: $p, target: "preview",
+            gitSource: { type: "github", org: "assistant-ui", repo: "assistant-ui",
+                         ref: "perf/docs-cache-probe", sha: $sha } }')
+          for i in 1 2 3 4 5 6; do
+            dep=$(api -X POST "https://api.vercel.com/v13/deployments?teamId=$TEAM_ID" -d "$body")
+            id=$(jq -r .id <<<"$dep")
+            echo "build $i: id=$id url=https://$(jq -r .url <<<"$dep")"
+            state=""
+            for t in $(seq 1 120); do
+              state=$(api "https://api.vercel.com/v13/deployments/$id?teamId=$TEAM_ID" | jq -r .readyState)
+              case "$state" in READY|ERROR|CANCELED) break ;; esac
+              sleep 15
+            done
+            echo "build $i: state=$state"
+            [ "$state" = READY ] || exit 1
+            # The deployment is READY before its build cache is uploaded; the next
+            # build must restore this one's cache.
+            for t in $(seq 1 60); do
+              if api "https://api.vercel.com/v3/deployments/$id/events?teamId=$TEAM_ID&limit=-1" | grep -q "Build cache uploaded"; then
+                echo "build $i: cache uploaded"
+                break
+              fi
+              sleep 15
+            done
+          done
