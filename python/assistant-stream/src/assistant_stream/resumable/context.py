@@ -132,9 +132,17 @@ def _start_producer_task(
 
     async def _pump() -> None:
         try:
-            async for chunk in make_stream():
-                await store.append(stream_id, chunk, **lease_kwargs)
-                _call_hook(on_append, stream_id, len(chunk))
+            chunks = make_stream()
+            try:
+                async for chunk in chunks:
+                    await store.append(stream_id, chunk, **lease_kwargs)
+                    _call_hook(on_append, stream_id, len(chunk))
+            finally:
+                # Close the producer here, in this task, so its cleanup does
+                # not run later from the event loop's async generator finalizer.
+                aclose = getattr(chunks, "aclose", None)
+                if aclose is not None:
+                    await aclose()
             finalized = await store.finalize(stream_id, "done", **lease_kwargs)
             if finalized is False:
                 _call_hook(

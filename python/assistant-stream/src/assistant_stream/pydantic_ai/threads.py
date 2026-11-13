@@ -52,11 +52,8 @@ class ThreadStore(Protocol):
     unset `stream_id`.
     `list` returns the owner's threads, most recently updated first; an owner
     of None means threads written without an owner.
-    `request_cancel` atomically sets `cancel_requested` on the stored record
-    only while it is running with the given `stream_id`, and reports whether
-    it did. It is how a cancel reaches a run on another worker. It is optional:
-    the default returns False, and cancel then reaches only the worker that
-    received the cancel request.
+    Stores that also implement `CancellableThreadStore` let a cancel reach a
+    run on another worker.
     """
 
     async def get(self, thread_id: str) -> ThreadRecord | None: ...
@@ -73,8 +70,22 @@ class ThreadStore(Protocol):
         self, *, owner: str | None = None, limit: int = 100
     ) -> list[tuple[str, ThreadRecord]]: ...
 
-    async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
-        return False
+
+
+class CancellableThreadStore(ThreadStore, Protocol):
+    """A `ThreadStore` that can carry a cancel request to another worker.
+
+    `request_cancel` atomically sets `cancel_requested` on the stored record
+    only while it is running with the given `stream_id`, and reports whether
+    it did. `run_state` returns the stored record's `(stream_id,
+    cancel_requested)`, or None when there is none; the worker running a run
+    polls it, so it should read only those two fields. All built-in stores
+    implement it. Without it, a cancel reaches only the worker that received it.
+    """
+
+    async def request_cancel(self, thread_id: str, stream_id: str) -> bool: ...
+
+    async def run_state(self, thread_id: str) -> tuple[str | None, bool] | None: ...
 
 
 class InMemoryThreadStore:
@@ -111,6 +122,12 @@ class InMemoryThreadStore:
             return False
         self._records[thread_id] = replace(current, cancel_requested=True)
         return True
+
+    async def run_state(self, thread_id: str) -> tuple[str | None, bool] | None:
+        current = self._records.get(thread_id)
+        if current is None:
+            return None
+        return current.stream_id, current.cancel_requested
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100
@@ -202,6 +219,16 @@ class SqliteThreadStore:
             )
             return cursor.rowcount == 1
 
+    def _run_state(self, thread_id: str) -> tuple[str | None, bool] | None:
+        with self._connect() as db:
+            row = db.execute(
+                f"SELECT json_extract(record, '$.stream_id'),"
+                f" json_extract(record, '$.cancel_requested') FROM {self._table}"
+                " WHERE id = ?",
+                (thread_id,),
+            ).fetchone()
+        return None if row is None else (row[0], bool(row[1]))
+
     def _list(self, owner: str | None, limit: int) -> list[tuple[str, ThreadRecord]]:
         with self._connect() as db:
             rows = db.execute(
@@ -254,6 +281,9 @@ class SqliteThreadStore:
 
     async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
         return await asyncio.to_thread(self._request_cancel, thread_id, stream_id)
+
+    async def run_state(self, thread_id: str) -> tuple[str | None, bool] | None:
+        return await asyncio.to_thread(self._run_state, thread_id)
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100
@@ -382,6 +412,17 @@ class PostgresThreadStore:
                 (thread_id, stream_id),
             )
             return cursor.rowcount == 1
+
+    async def run_state(self, thread_id: str) -> tuple[str | None, bool] | None:
+        async with self._pool.connection() as db:
+            cursor = await db.execute(
+                f"SELECT record->>'stream_id',"
+                f" coalesce((record->>'cancel_requested')::boolean, false)"
+                f" FROM {self._table} WHERE id = %s",
+                (thread_id,),
+            )
+            row = await cursor.fetchone()
+        return None if row is None else (row[0], bool(row[1]))
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100

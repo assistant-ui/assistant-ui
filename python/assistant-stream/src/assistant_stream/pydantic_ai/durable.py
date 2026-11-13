@@ -71,7 +71,7 @@ AdapterFactory = Callable[
     AGUIAdapter[Any, Any] | Awaitable[AGUIAdapter[Any, Any]],
 ]
 """Returns the `AGUIAdapter` (or a subclass) that runs one request's input."""
-RunContext = Callable[
+RunContextFactory = Callable[
     [Request, RunAgentInput],
     AbstractAsyncContextManager[Mapping[str, Any] | None],
 ]
@@ -165,7 +165,7 @@ class DurableAGUI(Generic[AgentDepsT]):
         run_options: RunOptions | None = None,
         adapter_options: dict[str, Any] | None = None,
         adapter_factory: AdapterFactory | None = None,
-        run_context: RunContext | None = None,
+        run_context: RunContextFactory | None = None,
         keepalive_interval: float | None = None,
         cancel_poll_interval: float | None = DEFAULT_CANCEL_POLL_INTERVAL,
     ) -> None:
@@ -275,20 +275,25 @@ class DurableAGUI(Generic[AgentDepsT]):
         async def watch_for_cancel(interval: float) -> None:
             # A cancel sent to another worker, or a newer run started on
             # another worker, shows up only in the shared thread record.
+            run_state = getattr(self.threads, "run_state", None)
             while not token.cancelled:
                 await asyncio.sleep(interval)
                 try:
-                    current = await self.threads.get(thread_id)
+                    if run_state is not None:
+                        state = await run_state(thread_id)
+                    else:
+                        record = await self.threads.get(thread_id)
+                        state = (
+                            None
+                            if record is None
+                            else (record.stream_id, record.cancel_requested)
+                        )
                 except Exception:
                     logger.warning(
                         "cancel check failed for %s", stream_id, exc_info=True
                     )
                     continue
-                if (
-                    current is None
-                    or current.stream_id != stream_id
-                    or current.cancel_requested
-                ):
+                if state is None or state[0] != stream_id or state[1]:
                     token.cancel()
 
         async def make_stream() -> AsyncIterator[bytes]:
@@ -297,7 +302,13 @@ class DurableAGUI(Generic[AgentDepsT]):
                 await asyncio.shield(ready)
                 async with AsyncExitStack() as stack:
                     run_kwargs = dict(options)
-                    if self._run_context is not None:
+                    if self._cancel_poll_interval is not None:
+                        watcher = asyncio.create_task(
+                            watch_for_cancel(self._cancel_poll_interval)
+                        )
+                        stack.push_async_callback(_stop, watcher)
+                    # A run cancelled or refused before it starts opens nothing.
+                    if self._run_context is not None and not token.cancelled:
                         extra = await stack.enter_async_context(
                             self._run_context(request, run_input)
                         )
@@ -308,11 +319,6 @@ class DurableAGUI(Generic[AgentDepsT]):
                                     f" keyword arguments or None, got {type(extra)!r}"
                                 )
                             run_kwargs.update(extra)
-                    if self._cancel_poll_interval is not None:
-                        watcher = asyncio.create_task(
-                            watch_for_cancel(self._cancel_poll_interval)
-                        )
-                        stack.push_async_callback(_stop, watcher)
                     events = adapter.run_stream(
                         cancellation_token=token,
                         on_complete=on_complete,
@@ -438,8 +444,10 @@ class DurableAGUI(Generic[AgentDepsT]):
         POST /threads/{id}/cancel?run=.
 
         A run on this process stops at once. A run on another worker is marked
-        in the thread store (`ThreadStore.request_cancel`) and stops when that
-        worker next checks, within `cancel_poll_interval`. Returns whether the
+        in the thread store (`CancellableThreadStore.request_cancel`) and stops
+        when that worker next checks, within `cancel_poll_interval`. A cancel
+        that arrives while `run_context` is still being entered takes effect
+        once entry finishes. Returns whether the
         cancel was delivered or recorded. The partial answer is kept.
         """
         record = await self._record(thread_id, owner)

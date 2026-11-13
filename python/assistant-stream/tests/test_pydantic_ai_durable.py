@@ -1557,11 +1557,14 @@ def test_thread_stores_request_cancel(kind: str, tmp_path: Path) -> None:
                 updated_at=10,
             )
             assert await store.request_cancel("thread", "one") is False
+            assert await store.run_state("thread") is None
             await store.put("thread", running)
+            assert await store.run_state("thread") == ("one", False)
             assert await store.request_cancel("thread", "two") is False
             assert await store.request_cancel("thread", "one") is True
             record = await store.get("thread")
             assert record == replace(running, cancel_requested=True)
+            assert await store.run_state("thread") == ("one", True)
 
             settled = replace(running, running=False, updated_at=11)
             assert await store.put_if_current("thread", settled)
@@ -1577,3 +1580,81 @@ def test_thread_stores_request_cancel(kind: str, tmp_path: Path) -> None:
 def test_thread_records_without_cancel_requested_still_load() -> None:
     old = json.dumps({"messages": [], "stream_id": "one", "running": True})
     assert ThreadRecord.from_json(old).cancel_requested is False
+
+
+def test_run_context_closes_in_its_task_when_the_stream_store_fails() -> None:
+    events: list[tuple[str, asyncio.Task | None]] = []
+
+    class FailingStore:
+        """Fails the second append, like a Redis write error mid-run."""
+
+        def __init__(self) -> None:
+            self._inner = create_in_memory_resumable_stream_store()
+            self._appends = 0
+
+        def __getattr__(self, name: str):
+            return getattr(self._inner, name)
+
+        async def append(self, stream_id: str, chunk: bytes, **kwargs) -> None:
+            self._appends += 1
+            if self._appends == 2:
+                raise RuntimeError("store write failed")
+            await self._inner.append(stream_id, chunk, **kwargs)
+
+    async def scenario() -> None:
+        model = Model()
+        model.gate.set()
+
+        @asynccontextmanager
+        async def per_run(request: Request, run_input: RunAgentInput):
+            events.append(("open", asyncio.current_task()))
+            try:
+                yield None
+            finally:
+                events.append(("close", asyncio.current_task()))
+
+        finished = asyncio.Event()
+        streams = create_resumable_stream_context(
+            store=FailingStore(), on_finalize=lambda *_: finished.set()
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)),
+            streams=streams,
+            run_context=per_run,
+        )
+        await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        await finished.wait()
+
+        assert [name for name, _ in events] == ["open", "close"]
+        assert events[0][1] is events[1][1] is not None
+        thread = await durable.get_thread("thread")
+        assert thread is not None and thread["running"] is False
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_run_context_is_not_opened_for_a_run_cancelled_before_it_starts() -> None:
+    opened: list[str] = []
+
+    async def scenario() -> None:
+        model = Model()
+
+        @asynccontextmanager
+        async def per_run(request: Request, run_input: RunAgentInput):
+            opened.append(run_input.run_id)
+            yield None
+
+        streams, finished = _finished_streams()
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)),
+            streams=streams,
+            run_context=per_run,
+        )
+        await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        assert await durable.cancel("thread", "run") is True
+        await finished.wait()
+
+        assert opened == []
+        assert model.calls == 0
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
