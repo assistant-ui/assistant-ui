@@ -43,9 +43,12 @@ class ThreadStore(Protocol):
     """Where thread records live. Implement it to use your own database.
 
     `put_if_current` writes the record only if the stored record has the same
-    `stream_id`, atomically, and reports whether it wrote. `list` returns the
-    owner's threads, most recently updated first; an owner of None means
-    threads written without an owner.
+    `stream_id`, atomically, and reports whether it wrote. `put_if_stream` writes
+    the record only if the stored `stream_id` matches `expected`, atomically,
+    and reports whether it wrote, with None matching a missing record or an
+    unset `stream_id`.
+    `list` returns the owner's threads, most recently updated first; an owner
+    of None means threads written without an owner.
     """
 
     async def get(self, thread_id: str) -> ThreadRecord | None: ...
@@ -53,6 +56,10 @@ class ThreadStore(Protocol):
     async def put(self, thread_id: str, record: ThreadRecord) -> None: ...
 
     async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool: ...
+
+    async def put_if_stream(
+        self, thread_id: str, record: ThreadRecord, *, expected: str | None
+    ) -> bool: ...
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100
@@ -74,6 +81,15 @@ class InMemoryThreadStore:
     async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool:
         current = self._records.get(thread_id)
         if current is None or current.stream_id != record.stream_id:
+            return False
+        self._records[thread_id] = record
+        return True
+
+    async def put_if_stream(
+        self, thread_id: str, record: ThreadRecord, *, expected: str | None
+    ) -> bool:
+        current = self._records.get(thread_id)
+        if (current.stream_id if current is not None else None) != expected:
             return False
         self._records[thread_id] = record
         return True
@@ -166,6 +182,33 @@ class SqliteThreadStore:
             ).fetchall()
         return [(row[0], ThreadRecord.from_json(row[1])) for row in rows]
 
+    def _put_if_stream(
+        self, thread_id: str, record: ThreadRecord, expected: str | None
+    ) -> bool:
+        with self._connect() as db:
+            if expected is None:
+                cursor = db.execute(
+                    f"INSERT INTO {self._table} (id, owner, record, updated_at)"
+                    " VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET"
+                    " owner = excluded.owner, record = excluded.record,"
+                    " updated_at = excluded.updated_at"
+                    " WHERE json_extract(record, '$.stream_id') IS NULL",
+                    (thread_id, record.owner, record.to_json(), record.updated_at),
+                )
+            else:
+                cursor = db.execute(
+                    f"UPDATE {self._table} SET owner = ?, record = ?, updated_at = ?"
+                    " WHERE id = ? AND json_extract(record, '$.stream_id') IS ?",
+                    (
+                        record.owner,
+                        record.to_json(),
+                        record.updated_at,
+                        thread_id,
+                        expected,
+                    ),
+                )
+            return cursor.rowcount == 1
+
     async def get(self, thread_id: str) -> ThreadRecord | None:
         return await asyncio.to_thread(self._get, thread_id)
 
@@ -174,6 +217,11 @@ class SqliteThreadStore:
 
     async def put_if_current(self, thread_id: str, record: ThreadRecord) -> bool:
         return await asyncio.to_thread(self._put_if_current, thread_id, record)
+
+    async def put_if_stream(
+        self, thread_id: str, record: ThreadRecord, *, expected: str | None
+    ) -> bool:
+        return await asyncio.to_thread(self._put_if_stream, thread_id, record, expected)
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100
@@ -262,6 +310,34 @@ class PostgresThreadStore:
                     record.stream_id,
                 ),
             )
+            return cursor.rowcount == 1
+
+    async def put_if_stream(
+        self, thread_id: str, record: ThreadRecord, *, expected: str | None
+    ) -> bool:
+        async with self._pool.connection() as db:
+            if expected is None:
+                cursor = await db.execute(
+                    f"INSERT INTO {self._table} (id, owner, record, updated_at)"
+                    " VALUES (%s, %s, %s::jsonb, %s) ON CONFLICT (id) DO UPDATE SET"
+                    " owner = excluded.owner, record = excluded.record,"
+                    " updated_at = excluded.updated_at"
+                    f" WHERE {self._table}.record->>'stream_id' IS NULL",
+                    (thread_id, record.owner, record.to_json(), record.updated_at),
+                )
+            else:
+                cursor = await db.execute(
+                    f"UPDATE {self._table} SET owner = %s, record = %s::jsonb,"
+                    " updated_at = %s WHERE id = %s"
+                    " AND record->>'stream_id' IS NOT DISTINCT FROM %s::text",
+                    (
+                        record.owner,
+                        record.to_json(),
+                        record.updated_at,
+                        thread_id,
+                        expected,
+                    ),
+                )
             return cursor.rowcount == 1
 
     async def list(
