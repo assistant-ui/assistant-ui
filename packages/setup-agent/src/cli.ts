@@ -36,8 +36,8 @@ import {
 import type { Checkout } from "./protocol";
 import { answerNeed } from "./needs";
 import { answerFields, followSetup, shellWord } from "./stream";
-import { bundledGuide, renderText } from "./guide";
-import type { Guide, GuideContext } from "./guide";
+import { bundledGuide, renderText } from "./guide-builder";
+import type { Guide, GuideContext } from "./guide-builder";
 import { guideWarning, loadGuide } from "./guide-client";
 import type { Preset } from "./presets";
 
@@ -906,14 +906,22 @@ export const runSetupCommand = async (
 
   // The wording and the flow come from the setup server, fetched alongside
   // the connection, for the commands that print any; the rest need none.
+  // A stream that cannot open the browser asks for the wording that says so.
+  const context: GuideContext =
+    command === "stream"
+      ? {
+          started: "user",
+          opened: (options.browser?.canOpen ?? true) && !flags.has("no-open"),
+        }
+      : INTRO_CONTEXT;
   const guideLoad = GUIDE_COMMANDS.has(command)
-    ? loadGuide(url, INTRO_CONTEXT)
+    ? loadGuide(url, context)
     : undefined;
   const client = await connectCheckout(url).catch((error: unknown) =>
     fail(error instanceof Error ? error.message : String(error)),
   );
   const commands = client.commands;
-  let guide = bundledGuide(INTRO_CONTEXT);
+  let guide = bundledGuide(context);
   if (guideLoad !== undefined) {
     const loaded = await guideLoad;
     const warning = guideWarning(loaded);

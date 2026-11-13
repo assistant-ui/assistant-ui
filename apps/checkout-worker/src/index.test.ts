@@ -2,12 +2,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import worker, { CheckoutDO } from "./index";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
-import {
-  CLI_CAPABILITIES,
-  GUIDE_PROTOCOL,
-  guideQuery,
-  parseGuide,
-} from "setup-agent/guide";
+import { GUIDE_PROTOCOL, buildGuide, type Guide } from "setup-agent/guide";
 
 const instances: CheckoutDO[] = [];
 const clients: StatewireClient<
@@ -579,10 +574,11 @@ describe("worker routing", () => {
 
   it("serves the CLI's guide for its protocol without addressing a durable object", async () => {
     const idFromName = vi.fn((name: string) => name);
-    const query = guideQuery({
-      protocol: GUIDE_PROTOCOL,
-      capabilities: CLI_CAPABILITIES,
-      context: { started: "user", opened: true },
+    const query = new URLSearchParams({
+      protocol: String(GUIDE_PROTOCOL),
+      capabilities: "action:print,action:print-status,action:announce-agent",
+      started: "user",
+      opened: "1",
     });
     const response = await worker.fetch(
       new Request(`https://checkout.test/session/guide?${query}`),
@@ -591,14 +587,21 @@ describe("worker routing", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    const guide = await response.json();
-    expect(
-      parseGuide(guide, {
+    const guide = (await response.json()) as Guide;
+    expect(guide).toEqual(
+      buildGuide({
         protocol: GUIDE_PROTOCOL,
-        capabilities: CLI_CAPABILITIES,
+        capabilities: [
+          "action:print",
+          "action:print-status",
+          "action:announce-agent",
+        ],
         context: { started: "user", opened: true },
-      }).texts.briefing,
-    ).toContain("Run the setup to the end in one go.");
+      }),
+    );
+    expect(guide.texts.briefing).toContain(
+      "Run the setup to the end in one go.",
+    );
     expect(idFromName).not.toHaveBeenCalled();
   });
 

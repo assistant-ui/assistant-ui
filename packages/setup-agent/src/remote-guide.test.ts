@@ -2,7 +2,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { connectCheckout } from "./client";
 import { initialCheckoutState, type Checkout } from "./protocol";
 import { agentInstructions, main } from "./cli";
-import { CLI_CAPABILITIES, GUIDE_PROTOCOL, buildGuide } from "./guide";
+import { CLI_CAPABILITIES, GUIDE_PROTOCOL, buildGuide } from "./guide-builder";
 import * as sdk from "./sdk";
 import type { CheckoutClient } from "./client";
 

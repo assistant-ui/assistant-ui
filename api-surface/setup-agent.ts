@@ -20,10 +20,6 @@ type AskReason = "browser-closed" | "no-browser" | "recently-opened";
 
 declare const BROWSER_HEARTBEAT_MS = 5000;
 
-declare const CLI_CAPABILITIES: readonly string[];
-
-declare const CLI_FEATURES: readonly string[];
-
 declare const CODING_AGENTS: readonly CodingAgent[];
 
 declare namespace Checkout {
@@ -268,8 +264,6 @@ type CodingAgent = {
   };
 };
 
-declare const DEFAULT_GUIDE_CONTEXT: GuideContext;
-
 type FollowSetupOptions = {
   guide?: Pick<Guide, "texts">;
   print?: (events: StreamEvent[]) => void;
@@ -392,10 +386,6 @@ type GuideContext = {
   opened: boolean;
 };
 
-declare class GuideError extends Error {
-  name: string;
-}
-
 type GuideRequest = {
   protocol: number;
   capabilities: readonly string[];
@@ -423,14 +413,6 @@ declare const HELP: string;
 declare const INPUT_PRESETS: Record<PresetId, Preset>;
 
 declare const INSTRUCTIONS: typeof agentInstructions;
-
-declare const LOCAL_ACTIONS: readonly [
-  "print",
-  "print-status",
-  "announce-agent"
-];
-
-type LocalAction = (typeof LOCAL_ACTIONS)[number];
 
 declare const MIN_GUIDE_PROTOCOL = 1;
 
@@ -613,8 +595,6 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"], presets
 
 declare const buildGuide: (_param0: GuideRequest) => Guide;
 
-declare const bundledGuide: (context?: GuideContext) => Guide;
-
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
@@ -635,10 +615,8 @@ declare const finishProposed: (state: Checkout.State) => boolean;
 
 declare const followedUpSinceProposal: (state: Checkout.State) => boolean;
 
-declare const guideQuery: (_param1: GuideRequest) => string;
-
 declare namespace entry_guide_exports {
-  export { CLI_CAPABILITIES, CLI_FEATURES, DEFAULT_GUIDE_CONTEXT, GUIDE_PROTOCOL, GUIDE_TEXTS, Guide, GuideContext, GuideError, GuideRequest, GuideResponse, GuideStep, GuideTextKey, LOCAL_ACTIONS, LocalAction, MIN_GUIDE_PROTOCOL, buildGuide, bundledGuide, guideQuery, parseGuide, parseGuideQuery, renderText, respondToGuideRequest, sanitizeForTerminal };
+  export { GUIDE_PROTOCOL, Guide, GuideContext, GuideRequest, GuideResponse, GuideStep, GuideTextKey, MIN_GUIDE_PROTOCOL, buildGuide, respondToGuideRequest };
 }
 
 declare namespace entry_host_exports {
@@ -682,10 +660,6 @@ declare const parseChoiceAnswer: (answer: string) => {
 
 declare const parseEntryPointOptions: (value: unknown) => Checkout.EntryPointOption[] | undefined;
 
-declare const parseGuide: (value: unknown, request: GuideRequest, fallback?: Guide) => Guide;
-
-declare const parseGuideQuery: (params: URLSearchParams) => GuideRequest | undefined;
-
 declare const parseModelAnswer: (answer: string) => Checkout.ModelAnswer | undefined;
 
 declare const parseMultipleAnswer: (answer: string) => string[] | undefined;
@@ -699,8 +673,6 @@ declare const planNeedsReview: (state: Checkout.State) => boolean;
 declare const presetInput: (id: string, overrides?: PresetOverrides, presets?: Readonly<Record<string, Preset>>) => Checkout.InputSeed & {
   stepId?: string;
 };
-
-declare const renderText: (guide: Pick<Guide, "texts">, key: GuideTextKey, values?: Partial<Record<string, string | number>>) => string;
 
 declare const respondToGuideRequest: (params: URLSearchParams, supported?: {
   min: number;
@@ -718,8 +690,6 @@ declare const runAgentSetup: (options: RunAgentSetupOptions) => Promise<{
 declare const runCodingAgent: (agent: CodingAgent, prompt: string) => Promise<number | undefined>;
 
 declare const runSetupCommand: (argv: readonly string[], options?: RunSetupCommandOptions) => Promise<void>;
-
-declare const sanitizeForTerminal: (text: string, max?: number) => string;
 
 declare namespace entry_sdk_exports {
   export { RunAgentSetupOptions, SetupSession, runAgentSetup };

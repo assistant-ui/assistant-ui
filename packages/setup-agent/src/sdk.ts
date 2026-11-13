@@ -6,8 +6,8 @@
 import { randomInt } from "node:crypto";
 import { detectAgentKind } from "./agents";
 import { agentInstructions } from "./cli";
-import { renderText } from "./guide";
-import type { Guide } from "./guide";
+import { renderText } from "./guide-builder";
+import type { Guide } from "./guide-builder";
 import { guideWarning, loadGuide } from "./guide-client";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";

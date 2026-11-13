@@ -86,13 +86,13 @@ The CLI's wording and flow come from the setup server, so a fix reaches people o
 
 `setup-agent/guide` exports `buildGuide`, which both sides use: the worker serves it, and the CLI keeps it as the bundled copy. The CLI uses that copy when the server is unreachable, answers without a guide, no longer serves its protocol (426), or sends one it refuses. `SETUP_AGENT_GUIDE=bundled` skips the server.
 
-**Protocol.** The CLI sends `GUIDE_PROTOCOL` and its capabilities: each local action as `action:<name>`, plus `CLI_FEATURES`, the commands and flags it gained after protocol 1's baseline (none yet). The server answers with a protocol no newer than the CLI's, and names a newer command only behind `has("<feature>")`, so it only mentions what the CLI has. A test fails when the baseline briefing names a command the CLI lacks. It answers 426 to a CLI older than it still serves. Bump the protocol only for a change an older CLI cannot read. A new command or local action needs an npm release and a new capability; wording, ordering and question options need only a deploy.
+**Protocol.** The CLI sends `GUIDE_PROTOCOL` and its capabilities: each local action as `action:<name>`, plus `CLI_FEATURES`, the commands and flags it gained after protocol 1's baseline (none yet). The server answers with a protocol no newer than the CLI's, and names a newer command only behind `has("<feature>")`, so it only mentions what the CLI has. A test freezes the protocol 1 commands and flags and fails when the baseline guide names anything else. The server answers 426 to a CLI older than it still serves. Bump the protocol only for a change an older CLI cannot read. A new command or local action needs an npm release and a new capability; wording, ordering and question options need only a deploy, though a new `llm-provider` option also needs the setup app to know the provider.
 
 **Safety.** The guide is data, never code. `parseGuide` checks it before anything runs:
 
 - a step must be one of `print` (a text by key), `print-status` or `announce-agent`, with no other fields, and one the CLI offered; anything else rejects the whole guide;
 - a text may use only its own placeholders and no control characters or bidirectional overrides, so it cannot rewrite the terminal;
-- a preset may only be a choice or model question with unique plain options, icon keys and an https help link on assistant-ui.com;
+- a preset may only be a choice or model question with unique plain option ids, optional icon keys and a help summary; a help link is optional and must be https on assistant-ui.com;
 - the guide must be under 256 KB, come from the setup URL itself (redirects refused) and name a protocol the CLI speaks.
 
 Commands for the CLI to run, files to write, URLs for it to open and env values never come from the guide: they stay in the CLI's own code. The server's text can still tell the agent what to do, as it already can through questions, products and user messages, so the guide is as trusted as the setup server.

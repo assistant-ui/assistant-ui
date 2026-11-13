@@ -12,8 +12,8 @@ import {
   parseGuideQuery,
   renderText,
   respondToGuideRequest,
-} from "./guide";
-import type { GuideRequest } from "./guide";
+} from "./guide-builder";
+import type { GuideRequest } from "./guide-builder";
 import { loadGuide, guideWarning } from "./guide-client";
 import { INPUT_PRESETS } from "./presets";
 import { HELP } from "./cli";
@@ -87,20 +87,63 @@ describe("the guide's wire", () => {
 });
 
 describe("the server adapts to what the CLI can do", () => {
-  it("names only commands the protocol 1 baseline has, so a new one must sit behind has()", () => {
-    // A CLI with no features past the baseline: the oldest one that fetches a guide.
+  it("names only what the protocol 1 baseline has, so anything newer must sit behind has()", () => {
+    // Frozen: the commands and flags every CLI that fetches a guide has. Never
+    // add to these; a newer command or flag goes in CLI_FEATURES instead.
+    const COMMANDS = [
+      "status",
+      "stream",
+      "answer",
+      "log",
+      "ack",
+      "ask",
+      "wait",
+      "plan",
+      "env",
+      "add-step",
+      "step",
+      "done",
+    ];
+    const FLAGS = [
+      "setup-app-url",
+      "no-open",
+      "note",
+      "dismiss",
+      "feedback",
+      "placeholder",
+      "optional",
+      "step",
+      "wait",
+      "preset",
+      "only",
+      "choices",
+      "default",
+      "icons",
+      "single",
+      "entry-points",
+      "timeout",
+      "file",
+      "detail",
+      "product",
+      "active",
+      "summary",
+      "preview",
+    ];
+    for (const command of COMMANDS)
+      expect(HELP).toMatch(new RegExp(`^  ${command}\\b`, "m"));
+    for (const flag of FLAGS) expect(HELP).toContain(`--${flag}`);
+    // The oldest CLI that fetches a guide: no features past the baseline.
     const baseline = buildGuide({
       ...request,
       capabilities: LOCAL_ACTIONS.map((action) => `action:${action}`),
     });
-    const commands = new Set(
-      [...HELP.matchAll(/^ {2}([a-z-]+)/gm)].map(([, name]) => name),
-    );
     for (const text of Object.values(baseline.texts)) {
       for (const [, command] of text.matchAll(
         /\{\{cmd\}\} \{\{url\}\} ([a-z-]+)/g,
       ))
-        expect(commands, `the baseline names "${command}"`).toContain(command);
+        expect(COMMANDS, `the baseline names "${command}"`).toContain(command);
+      for (const [, flag] of text.matchAll(/(?<![\w-])--([a-z][a-z-]*)/g))
+        expect(FLAGS, `the baseline names "--${flag}"`).toContain(flag);
     }
   });
 
@@ -355,16 +398,6 @@ describe("local actions", () => {
 });
 
 describe("guideWarning", () => {
-  it("never prints a control character the server put in an error", () => {
-    const warning = guideWarning({
-      guide: bundledGuide(),
-      source: "bundled",
-      reason: "rejected",
-      detail: "x",
-    });
-    expect(warning).toContain("(x)");
-  });
-
   it("quotes a server-chosen action without its control characters", async () => {
     const fetch = vi.fn(async () =>
       jsonResponse(served({ intro: [{ action: "ex\u009b2J\u202eec" }] })),

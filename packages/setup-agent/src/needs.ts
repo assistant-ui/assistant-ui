@@ -11,8 +11,8 @@ import {
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
-import { bundledGuide, renderText } from "./guide";
-import type { Guide, GuideTextKey } from "./guide";
+import { bundledGuide, renderText } from "./guide-builder";
+import type { Guide, GuideTextKey } from "./guide-builder";
 
 /**
  * Something the setup waits on the user for: an open question, a proposed

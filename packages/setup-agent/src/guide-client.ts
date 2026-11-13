@@ -6,8 +6,8 @@ import {
   sanitizeForTerminal,
   guideQuery,
   parseGuide,
-} from "./guide";
-import type { Guide, GuideContext, GuideRequest } from "./guide";
+} from "./guide-builder";
+import type { Guide, GuideContext, GuideRequest } from "./guide-builder";
 
 /** How long a command waits for the guide before it uses the bundled copy. */
 const GUIDE_TIMEOUT_MS = 2_500;

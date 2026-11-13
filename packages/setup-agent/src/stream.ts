@@ -11,8 +11,8 @@ import {
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
-import { bundledGuide, renderText } from "./guide";
-import type { Guide } from "./guide";
+import { bundledGuide, renderText } from "./guide-builder";
+import type { Guide } from "./guide-builder";
 
 export type StreamEvent =
   | { event: "planning.started" }
