@@ -34,19 +34,13 @@ import type {
   AgUiResumeEntry,
   UseAgUiRuntimeOptions,
 } from "./runtime/types";
-import {
-  AgUiThreadController,
-  implementsConnect,
-} from "./runtime/AgUiThreadController";
-import { durableFollowState, withDurableRuns } from "./runtime/durable-runs";
+import { AgUiThreadController } from "./runtime/AgUiThreadController";
 import { agUiExtras } from "./agUiExtras";
 import type { QueueItemState } from "@assistant-ui/core/store";
 
 const EMPTY_INTERRUPTS: readonly AgUiInterrupt[] = [];
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
-// How often a thread that follows another tab's reply looks at it again.
-const FOLLOW_CHECK_MS = 1_000;
 
 export type AgUiAssistantRuntime = AssistantRuntime & {
   /**
@@ -73,69 +67,7 @@ export function useAgUiRuntime(
   const switchingGenerationRef = useRef<number | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
 
-  const storedHistory = options.adapters?.history ?? runtimeAdapters?.history;
-  // Read at load time, so the wrapped adapter stays stable across renders.
-  const durableRef = useRef(options.durableRuns);
-  const agentRef = useRef(options.agent);
-  const loggerRef = useRef(logger);
-  const messageOptionsRef = useRef({
-    showThinking: options.showThinking ?? true,
-    joinAdjacentAssistantMessages:
-      options.joinAdjacentAssistantMessages ?? false,
-  });
-  useIsomorphicLayoutEffect(() => {
-    messageOptionsRef.current = {
-      showThinking: options.showThinking ?? true,
-      joinAdjacentAssistantMessages:
-        options.joinAdjacentAssistantMessages ?? false,
-    };
-    durableRef.current = options.durableRuns;
-    agentRef.current = options.agent;
-    loggerRef.current = logger;
-  });
-  const followTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const hasDurableRuns = options.durableRuns !== undefined;
-  const historyAdapter = useMemo(
-    () =>
-      storedHistory && hasDurableRuns
-        ? withDurableRuns(storedHistory, {
-            durable: () => durableRef.current,
-            getThreadId: () => agentRef.current.threadId,
-            canRejoin: () => implementsConnect(agentRef.current),
-            messageOptions: () => messageOptionsRef.current,
-            logger: {
-              debug: (...args) => loggerRef.current.debug(...args),
-              error: (...args) => loggerRef.current.error(...args),
-            },
-            // Another tab writes the reply. Once the shown reply goes stale, that tab stopped: read the thread again, which rejoins the run.
-            onFollow: (recheckInMs) => {
-              const check = (delay: number) => {
-                clearTimeout(followTimerRef.current);
-                followTimerRef.current = setTimeout(() => {
-                  followTimerRef.current = undefined;
-                  const core = coreRef.current;
-                  if (!core || core.isRunning()) return;
-                  const state = durableFollowState(core.getMessages());
-                  if (state === "elsewhere") check(FOLLOW_CHECK_MS);
-                  else if (state === "stale")
-                    void core.__internal_reloadHistory();
-                }, delay);
-              };
-              check(recheckInMs);
-            },
-          })
-        : storedHistory,
-    [storedHistory, hasDurableRuns],
-  );
-  useEffect(
-    () => () => {
-      clearTimeout(followTimerRef.current);
-      followTimerRef.current = undefined;
-    },
-    [],
-  );
+  const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
   const threadListAdapter = options.adapters?.threadList;
 
   if (!coreRef.current) {

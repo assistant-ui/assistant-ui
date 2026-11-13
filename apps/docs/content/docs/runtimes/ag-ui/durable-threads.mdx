@@ -89,12 +89,23 @@ Keep one agent instance and set its `threadId` when switching threads, because t
 
 ## With Assistant Cloud
 
-Assistant Cloud can keep the thread list and the messages while the durable server keeps the runs. Make the AG-UI runtime the `runtimeHook` of `useCloudThreadListRuntime` and pass `durableRuns`:
+Assistant Cloud can keep the thread list and the messages while the durable server keeps the runs. Copy `lib/cloud-durable.ts` from the example next to `lib/durable-agent.ts`. It has two pieces, built on public APIs only:
+
+- `withDurableRuns(history, agent)` wraps the Cloud history adapter's `load()`. A thread that opens with an unfinished reply asks the server for the thread. If the run is still going, it deletes the stored partial reply and returns `unstable_resume: true`, so the runtime rejoins through `connect()`. If the run ended with no tab open, it stores the server's answer in place of the interrupted reply.
+- `useDurableTakeover(runtime, history)` covers a reply another tab was writing. When that reply goes stale, it reads the thread again and calls `resumeRun`, which follows the run through `connect()`.
+
+Make the AG-UI runtime the `runtimeHook` of `useCloudThreadListRuntime`:
 
 ```tsx title="app/CloudRuntimeProvider.tsx"
-import { useState } from "react";
-import { useAuiState, useCloudThreadListRuntime } from "@assistant-ui/react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  useAuiState,
+  useCloudThreadListRuntime,
+  useRuntimeAdapters,
+} from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { DurableHttpAgent } from "@/lib/durable-agent";
+import { useDurableTakeover, withDurableRuns } from "@/lib/cloud-durable";
 
 function useDurableThreadRuntime() {
   // The durable server keys threads by the cloud thread's external id.
@@ -102,10 +113,20 @@ function useDurableThreadRuntime() {
     (s) => s.threadListItem.externalId ?? s.threadListItem.id,
   );
   const [agent] = useState(() => new DurableHttpAgent({ baseUrl, threadId }));
-  return useAgUiRuntime({
+  useEffect(() => {
+    agent.threadId = threadId;
+  }, [agent, threadId]);
+  const cloudHistory = useRuntimeAdapters()?.history;
+  const history = useMemo(
+    () => cloudHistory && withDurableRuns(cloudHistory, agent),
+    [cloudHistory, agent],
+  );
+  const runtime = useAgUiRuntime({
     agent,
-    durableRuns: { getThread: (id) => agent.getThread(id) },
+    ...(history ? { adapters: { history } } : undefined),
   });
+  useDurableTakeover(runtime, history);
+  return runtime;
 }
 
 const runtime = useCloudThreadListRuntime({
@@ -117,18 +138,18 @@ const runtime = useCloudThreadListRuntime({
 
 `create` saves the thread's first id as the cloud thread's `external_id`, so the agent sends the same thread id to the durable server before and after a reload. Threads created without it fall back to the cloud thread id.
 
-`getThread(threadId)` reads `GET /threads/{id}` and returns `{ messages, running }`, or `null` for a thread the server doesn't know. The runtime calls it only when a thread loads with no finished reply after its last user message. It matches the turn by position, because the server and the cloud give messages different ids: the cloud's last user message is the server's user message with the same index. When the two disagree on how many turns there are, or on that message's text, the thread loads from the cloud as stored.
+The server and the cloud give messages different ids, so the turn is matched by position: the cloud's last user message is the server's user message with the same index. When the two disagree on how many turns there are, or on that message's text, the thread loads from the cloud as stored.
 
 | When the thread opens | What happens |
 | --- | --- |
-| The run is still going, and the tab that wrote the reply closed | The stored partial reply is deleted, and the runtime rejoins the run through `connect()`. The answer streams once and is stored once, as the reply. |
-| The run ended while no tab was open | The stored partial reply is replaced with the server's answer, saved under the user message with the server's ids. |
-| Another tab is still writing the reply | This tab shows the reply as in progress and writes nothing. If the other tab stops beating its run lease (it was closed or reloaded), the reply goes stale after `staleAfter` and this tab rejoins the run. |
+| The run is still going, and the tab that wrote the reply closed | The stored partial reply is deleted, and the runtime rejoins the run through `connect()`. The answer streams once and is stored once. |
+| The run ended while no tab was open | The stored partial reply is replaced with the server's answer, stored under the user message with the server's ids. |
+| Another tab is still writing the reply | This tab shows the reply as in progress and writes nothing. If the other tab stops beating its run lease (it was closed or reloaded), the reply goes stale after `staleAfter`, and this tab rejoins the run through `resumeRun`. |
 | The reply is stored in full | Nothing changes. The durable server isn't asked. |
 
-Two tabs that rejoin the same run at once store one reply: both store it under the run's message id, and the cloud keeps one message per id. A reloaded tab sees its own lease as another tab's until the lease goes stale, so it waits up to `staleAfter` (30 seconds by default) before it rejoins. A shorter `staleAfter` on `useCloudThreadListRuntime` shortens the wait.
+Two tabs that rejoin the same run at once store one reply: both store it under the run's message id, and the cloud keeps one message per id. A reloaded tab sees its own lease as another tab's until the lease goes stale, so it waits up to `staleAfter` (30 seconds by default) before it rejoins. To shorten that wait, build the list with `useCloudThreadListAdapter({ cloud, staleAfter })` and `useRemoteThreadListRuntime`.
 
-The example runs this way when `NEXT_PUBLIC_ASSISTANT_BASE_URL` is set.
+The example runs this way when `NEXT_PUBLIC_ASSISTANT_BASE_URL` is set. It uses anonymous Cloud access to stay self-contained. In production, sign users in to Assistant Cloud, send the same identity to the durable server in the agent's `headers`, and scope its threads with `owner`.
 
 ## Production
 

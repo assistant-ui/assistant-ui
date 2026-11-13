@@ -21,7 +21,6 @@ import type {
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { McpToolCallResult } from "./mcp-tool-result";
-import type { AgUiDurableRuns } from "./durable-runs";
 
 export const AG_UI_METADATA_NAMESPACE = "agui";
 export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
@@ -163,18 +162,6 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;
-  /**
-   * Pairs a history adapter that stores messages itself, such as Assistant
-   * Cloud's, with an AG-UI server whose runs keep going after the browser
-   * closes, such as `DurableAGUI`. When a thread loads with an unfinished
-   * reply, the runtime asks the server for the thread. A run that is still
-   * going is rejoined through the agent's `connect()` in place of the stored
-   * partial reply. A run that ended while no tab was open has its answer
-   * stored in place of the partial reply. While another tab is still writing
-   * the reply, this tab leaves it to that tab, and takes over if that tab's
-   * run lease goes stale.
-   */
-  durableRuns?: AgUiDurableRuns | undefined;
 };
 
 export type AgUiInterruptReason =

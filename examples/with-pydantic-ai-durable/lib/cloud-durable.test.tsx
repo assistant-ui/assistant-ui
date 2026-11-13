@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import {
   HttpAgent,
@@ -9,15 +9,21 @@ import {
   type RunAgentInput,
 } from "@ag-ui/client";
 import {
+  AssistantCloud,
   AssistantRuntimeProvider,
+  useAui,
+  useAuiState,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
-} from "@assistant-ui/core/react";
-import type { AssistantRuntime, ThreadMessage } from "@assistant-ui/core";
-import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
-import { AssistantCloud } from "assistant-cloud";
+  useRuntimeAdapters,
+  type AssistantRuntime,
+  type ThreadMessage,
+} from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAgUiRuntime } from "./useAgUiRuntime";
+import { useDurableTakeover, withDurableRuns } from "./cloud-durable";
+
+type AssistantClient = ReturnType<typeof useAui>;
 
 // Both servers run in memory behind one fetch stub: Assistant Cloud at cloud.test, a DurableAGUI-like server at durable.test.
 
@@ -350,22 +356,7 @@ type Tab = {
 };
 
 // `tab` rides in the Aui-User-Id header so calls can be told apart; the in-memory cloud ignores ownership.
-// An agent with no connect(), which cannot follow a run in flight.
-class RunOnlyAgent extends HttpAgent {
-  constructor(threadId: string) {
-    super({ url: "http://durable.test/agent", threadId });
-  }
-  override abortRun() {}
-  getThread = DurableTestAgent.prototype.getThread;
-}
-
-const openTab = async (
-  tab: string,
-  staleAfter = 30_000,
-  Agent: new (
-    threadId: string,
-  ) => DurableTestAgent | RunOnlyAgent = DurableTestAgent,
-): Promise<Tab> => {
+const openTab = async (tab: string, staleAfter = 30_000): Promise<Tab> => {
   const client = new AssistantCloud({
     baseUrl: "http://cloud.test",
     apiKey: "key",
@@ -392,12 +383,21 @@ const openTab = async (
         const threadId = useAuiState(
           (s) => s.threadListItem.externalId ?? s.threadListItem.id,
         );
-        const [agent] = useState(() => new Agent(threadId));
-        agent.threadId = threadId;
-        return useAgUiRuntime({
+        const [agent] = useState(() => new DurableTestAgent(threadId));
+        useEffect(() => {
+          agent.threadId = threadId;
+        }, [agent, threadId]);
+        const cloudHistory = useRuntimeAdapters()?.history;
+        const history = useMemo(
+          () => cloudHistory && withDurableRuns(cloudHistory, agent),
+          [cloudHistory, agent],
+        );
+        const runtime = useAgUiRuntime({
           agent,
-          durableRuns: { getThread: (id) => agent.getThread(id) },
+          ...(history ? { adapters: { history } } : undefined),
         });
+        useDurableTakeover(runtime, history);
+        return runtime;
       },
     });
     return (
@@ -524,7 +524,10 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     await waitFor(() =>
       expect(tab.getAui().thread.getState().messages).toHaveLength(2),
     );
+    // Still inside the lease's fresh window.
+    await new Promise((resolve) => setTimeout(resolve, 150));
     expect(durable.state.connects).toEqual([]);
+    expect(durable.state.starts).toEqual([]);
 
     await waitFor(() => expect(durable.state.connects).toEqual(["durable-1"]), {
       timeout: 8_000,
@@ -540,23 +543,9 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     );
     expect(assistantRows()).toHaveLength(1);
     expect(shown(tab)).toEqual(["user: hello", "assistant: partial answer"]);
-  }, 15_000);
-
-  it("(a) leaves the thread as stored when the agent cannot follow a run in flight, instead of starting it again", async () => {
-    useServers([userRow, partialRow(45_000)], null);
-    durable.begin(runInput);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const tab = await openTab("tab-b", 30_000, RunOnlyAgent);
-    await openThread(tab);
-
-    await waitFor(() =>
-      expect(tab.getAui().thread.getState().messages).toHaveLength(2),
-    );
-    await waitFor(() => expect(durable.state.getThreads).toHaveLength(1));
+    // The takeover followed the run; it never started another.
     expect(durable.state.starts).toEqual([]);
-    expect(durable.state.connects).toEqual([]);
-    expect(cloud.rows.map((row) => row.id)).toEqual(["u1", "a1"]);
-  });
+  }, 15_000);
 
   it("(b) stores the server's answer for a run that finished with no tab open, in place of the interrupted reply", async () => {
     useServers([userRow, partialRow(45_000)], null);

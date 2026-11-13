@@ -19,15 +19,6 @@ type AgUiAssistantRuntime = AssistantRuntime & {
   unstable_submitInterruptResponses: (responses: readonly AgUiResumeEntry[]) => Promise<void>;
 };
 
-type AgUiDurableRuns = {
-  getThread: (threadId: string) => Promise<AgUiDurableThread | null>;
-};
-
-type AgUiDurableThread = {
-  messages: readonly unknown[];
-  running: boolean;
-};
-
 type AgUiInterrupt = {
   id: string;
   reason: AgUiInterruptReason;
@@ -1793,7 +1784,6 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;
-  durableRuns?: AgUiDurableRuns | undefined;
 };
 
 type UseAgUiThreadListAdapter = Omit<ExternalStoreThreadListAdapter, "onSwitchToThread"> & {
@@ -1817,7 +1807,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiDurableRuns, AgUiDurableThread, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiResumeTranscript, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiResumeTranscript, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
 declare function toAgUiMessages(messages: readonly ThreadMessageLike[]): AgUiMessage[];

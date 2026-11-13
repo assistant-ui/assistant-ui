@@ -1,9 +1,10 @@
 import type {
   ExportedMessageRepository,
+  ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/core";
-import { describe, expect, it } from "vitest";
-import { decideDurableThread, durableFollowState } from "./durable-runs";
+} from "@assistant-ui/react";
+import { describe, expect, it, vi } from "vitest";
+import { decideDurableThread, withDurableRuns } from "./cloud-durable";
 
 const message = (
   id: string,
@@ -106,7 +107,7 @@ describe("decideDurableThread", () => {
     ).toMatchObject({ type: "resume", headId: "u1", remove: [] });
   });
 
-  it("follows a reply another tab writes, rechecking near its stale time", () => {
+  it("leaves a reply another tab is writing to that tab", () => {
     expect(
       decideDurableThread(
         repo(
@@ -115,7 +116,35 @@ describe("decideDurableThread", () => {
         ),
         { running: true, messages: serverFirstTurn.slice(0, 1) },
       ),
-    ).toEqual({ type: "follow", recheckInMs: 4_500 });
+    ).toEqual({ type: "keep" });
+  });
+
+  it("rejoins a reply whose stream ended without RUN_FINISHED", () => {
+    expect(
+      decideDurableThread(
+        repo(
+          message("u1", "user", "hi"),
+          message("a1", "assistant", "par", {
+            type: "incomplete",
+            reason: "error",
+            error: "The connection ended before the answer finished.",
+          }),
+        ),
+        { running: true, messages: serverFirstTurn.slice(0, 1) },
+      ),
+    ).toMatchObject({ type: "resume", headId: "u1" });
+  });
+
+  it("keeps the thread when only one side of the matched user message has text", () => {
+    expect(
+      decideDurableThread(
+        repo(message("u1", "user", ""), message("a1", "assistant", "", stale)),
+        {
+          running: true,
+          messages: [{ id: "s-u1", role: "user", content: "hi" }],
+        },
+      ),
+    ).toEqual({ type: "keep" });
   });
 
   it("replaces an interrupted reply with the server's answer, chained under the user message", () => {
@@ -249,17 +278,47 @@ describe("decideDurableThread conversion options", () => {
   });
 });
 
-describe("durableFollowState", () => {
-  it("tells a reply written elsewhere from a stale one and a settled one", () => {
-    const u1 = message("u1", "user", "hi");
+describe("withDurableRuns", () => {
+  const stored = repo(
+    message("u1", "user", "hi"),
+    message("a1", "assistant", "he", stale),
+  );
+  const finished = {
+    running: false,
+    messages: [
+      ...serverFirstTurn,
+      { id: "s-a2", role: "assistant", content: "again" },
+    ],
+  };
+  const agent = { threadId: "t", getThread: async () => finished };
+
+  it("leaves the thread as stored when the history cannot delete", async () => {
+    const append = vi.fn();
+    const history: ThreadHistoryAdapter = { load: async () => stored, append };
+    const loaded = await withDurableRuns(history, agent).load();
+    expect(loaded).toBe(stored);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("takes back a partly stored answer, so the next load stores it again", async () => {
+    const del = vi.fn(async (_items: { message: { id: string } }[]) => {});
+    const append = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("offline"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => stored,
+      append,
+      delete: del,
+    };
+    const loaded = await withDurableRuns(history, agent, {
+      joinAdjacentAssistantMessages: false,
+    }).load();
     expect(
-      durableFollowState([u1, message("a1", "assistant", "", elsewhere(1))]),
-    ).toBe("elsewhere");
-    expect(
-      durableFollowState([u1, message("a1", "assistant", "x", stale)]),
-    ).toBe("stale");
-    expect(durableFollowState([u1, message("a1", "assistant", "x")])).toBe(
-      undefined,
-    );
+      del.mock.calls.map(([items]) => items.map((i) => i.message.id)),
+    ).toEqual([["a1"], ["s-a1"]]);
+    expect(loaded.headId).toBe("u1");
+    expect(loaded.messages.map((i) => i.message.id)).toEqual(["u1"]);
   });
 });
