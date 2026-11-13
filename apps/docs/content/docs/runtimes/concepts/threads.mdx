@@ -54,7 +54,7 @@ See the [cloud documentation](/docs/cloud) for setup, auth, and self-host option
 
 ## RemoteThreadListRuntime (custom database)
 
-`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it reloads the list and drops cached threads that are not in the replacement page.
+`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it with a different backing store (or a new object without `storeKey`) reloads the list, drops cached threads that are not in the replacement page, and stops applying in-flight mutations from the previous adapter. On the `RemoteThreadList` client, set `storeKey` when you recreate the adapter for the same store so in-flight mutations keep their optimistic updates. Derive the key from everything that scopes the store, such as the account, workspace, and endpoint: a constant key carries the previous store's pending mutations into the new one. `storeKey` has no effect when `useRemoteThreadListRuntime` mounts with an adapter that has `unstable_Provider`, because that runtime runs on the deprecated class core.
 
 `runtimeHook` accepts any runtime hook, such as `useLocalRuntime`, `useDataStreamRuntime`, or `useChatRuntime`.
 
