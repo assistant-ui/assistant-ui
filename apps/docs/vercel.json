@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --frozen-lockfile --filter @assistant-ui/docs-site...",
-  "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh"
+  "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
+  "build": {
+    "env": {
+      "TURBO_FORCE": "true"
+    }
+  }
 }
