@@ -5,15 +5,29 @@ frames are written to a resumable stream (`assistant_stream.resumable`), and the
 thread transcript is written to a `ThreadStore`. A client that comes back reads
 the transcript and, while the run is still going, replays its frames from the
 first one and follows it to the end.
+
+`DurableAGUI.routes()` mounts the default endpoints. To serve other paths, add
+middleware or wrap responses, call the building blocks `start_run`,
+`get_thread`, `list_threads`, `resume_stream` and `cancel` from your own routes.
 """
 
 from __future__ import annotations
 
 import asyncio
 import inspect
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+import logging
+import math
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Mapping,
+    Sequence,
+)
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import replace
-from typing import Any, Generic
+from typing import Any, Generic, cast
 
 from ag_ui.core import Message, RunAgentInput
 from pydantic import ValidationError
@@ -38,15 +52,31 @@ from assistant_stream.resumable import (
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
 )
+from assistant_stream.serialization.heartbeat import add_keepalive
+
+logger = logging.getLogger(__name__)
 
 SSE = "text/event-stream"
 DEFAULT_STREAM_TTL_MS = 60 * 60 * 1000
+DEFAULT_CANCEL_POLL_INTERVAL = 1.0
+KEEPALIVE_LINE = b": ping\n\n"
 
 _MaybeAwaitable = Any | Awaitable[Any]
 RunOptions = Callable[[Request, RunAgentInput], _MaybeAwaitable]
 """Returns keyword arguments for `AGUIAdapter.run_stream` (deps, model_settings, ...)."""
 Owner = Callable[[Request], _MaybeAwaitable]
 """Returns the id of the user making the request, or None to refuse it."""
+AdapterFactory = Callable[
+    [Request, RunAgentInput],
+    AGUIAdapter[Any, Any] | Awaitable[AGUIAdapter[Any, Any]],
+]
+"""Returns the `AGUIAdapter` (or a subclass) that runs one request's input."""
+RunContext = Callable[
+    [Request, RunAgentInput],
+    AbstractAsyncContextManager[Mapping[str, Any] | None],
+]
+"""Returns an async context manager entered around one run, in the task that
+runs it. It may yield extra keyword arguments for `AGUIAdapter.run_stream`."""
 
 
 class _Unauthorized(Exception):
@@ -55,6 +85,15 @@ class _Unauthorized(Exception):
 
 async def _resolve(value: Any) -> Any:
     return await value if inspect.isawaitable(value) else value
+
+
+def _interval(name: str, value: float | None) -> float | None:
+    if value is None:
+        return None
+    seconds = float(value)
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError(f"{name} must be a positive number of seconds, got {value!r}")
+    return seconds
 
 
 def _dump(messages: Sequence[Message]) -> list[dict[str, Any]]:
@@ -98,6 +137,22 @@ class DurableAGUI(Generic[AgentDepsT]):
         run_options: Returns extra keyword arguments for
             `AGUIAdapter.run_stream`, such as `deps` (sync or async).
         adapter_options: Extra keyword arguments for `AGUIAdapter`.
+        adapter_factory: Builds the adapter for a request from the request and
+            its `RunAgentInput` (sync or async), for example an `AGUIAdapter`
+            subclass. Replaces `adapter_options`; pass one or the other.
+        run_context: Returns an async context manager that is entered when the
+            run starts and exited when it ends, in the task that runs it, so a
+            per-run resource such as an MCP session lives exactly as long as
+            the run. It may yield a dict of extra `run_stream` keyword
+            arguments (such as `toolsets`), which override `run_options`.
+        keepalive_interval: Seconds of silence after which an SSE comment
+            (`: ping`) is sent on the run stream and on resumed streams, so
+            proxies and load balancers with idle timeouts keep the connection
+            open during long tool calls. Off by default.
+        cancel_poll_interval: How often, in seconds, a run checks its thread
+            record for a cancel requested on another worker, or for a newer
+            run that replaced it. None turns the check off, and cancel then
+            reaches only this process.
     """
 
     def __init__(
@@ -109,7 +164,13 @@ class DurableAGUI(Generic[AgentDepsT]):
         owner: Owner | None = None,
         run_options: RunOptions | None = None,
         adapter_options: dict[str, Any] | None = None,
+        adapter_factory: AdapterFactory | None = None,
+        run_context: RunContext | None = None,
+        keepalive_interval: float | None = None,
+        cancel_poll_interval: float | None = DEFAULT_CANCEL_POLL_INTERVAL,
     ) -> None:
+        if adapter_factory is not None and adapter_options:
+            raise ValueError("pass adapter_factory or adapter_options, not both")
         self.agent = agent
         self.threads: ThreadStore = threads or InMemoryThreadStore()
         self.streams = streams or create_resumable_stream_context(
@@ -119,10 +180,22 @@ class DurableAGUI(Generic[AgentDepsT]):
         self._owner = owner
         self._run_options = run_options
         self._adapter_options = adapter_options or {}
+        self._adapter_factory = adapter_factory
+        self._run_context = run_context
+        self._keepalive_interval = _interval("keepalive_interval", keepalive_interval)
+        self._cancel_poll_interval = _interval(
+            "cancel_poll_interval", cancel_poll_interval
+        )
         self._tokens: dict[str, CancellationToken] = {}
 
     async def start_run(self, request: Request) -> Response:
-        """POST /agent: start a run and stream its frames."""
+        """Start a run from the request's AG-UI `RunAgentInput` body and stream
+        its frames as SSE. Served as POST /agent by `routes()`.
+
+        The run goes on after the response closes. Answers 401 when `owner`
+        refuses the request, 422 for an invalid body, 400 for invalid ids, 404
+        for another owner's thread, and 409 when the run id already exists.
+        """
         try:
             owner = await self._request_owner(request)
         except _Unauthorized:
@@ -148,12 +221,7 @@ class DurableAGUI(Generic[AgentDepsT]):
         if status != "missing":
             return JSONResponse({"error": "run already exists"}, status_code=409)
 
-        adapter = AGUIAdapter(
-            agent=self.agent,
-            run_input=run_input,
-            accept=SSE,
-            **self._adapter_options,
-        )
+        adapter = await self._adapter(request, run_input)
         options = (
             await _resolve(self._run_options(request, run_input))
             if self._run_options
@@ -204,18 +272,55 @@ class DurableAGUI(Generic[AgentDepsT]):
         async def on_cancel(cancelled: Any) -> None:
             await settle(cancelled.new_messages())
 
+        async def watch_for_cancel(interval: float) -> None:
+            # A cancel sent to another worker, or a newer run started on
+            # another worker, shows up only in the shared thread record.
+            while not token.cancelled:
+                await asyncio.sleep(interval)
+                try:
+                    current = await self.threads.get(thread_id)
+                except Exception:
+                    logger.warning(
+                        "cancel check failed for %s", stream_id, exc_info=True
+                    )
+                    continue
+                if (
+                    current is None
+                    or current.stream_id != stream_id
+                    or current.cancel_requested
+                ):
+                    token.cancel()
+
         async def make_stream() -> AsyncIterator[bytes]:
             try:
                 producer_started.set()
                 await asyncio.shield(ready)
-                events = adapter.run_stream(
-                    cancellation_token=token,
-                    on_complete=on_complete,
-                    on_cancel=on_cancel,
-                    **options,
-                )
-                async for frame in adapter.encode_stream(events):
-                    yield frame.encode("utf-8")
+                async with AsyncExitStack() as stack:
+                    run_kwargs = dict(options)
+                    if self._run_context is not None:
+                        extra = await stack.enter_async_context(
+                            self._run_context(request, run_input)
+                        )
+                        if extra is not None:
+                            if not isinstance(extra, Mapping):
+                                raise TypeError(
+                                    "run_context must yield a mapping of run_stream"
+                                    f" keyword arguments or None, got {type(extra)!r}"
+                                )
+                            run_kwargs.update(extra)
+                    if self._cancel_poll_interval is not None:
+                        watcher = asyncio.create_task(
+                            watch_for_cancel(self._cancel_poll_interval)
+                        )
+                        stack.push_async_callback(_stop, watcher)
+                    events = adapter.run_stream(
+                        cancellation_token=token,
+                        on_complete=on_complete,
+                        on_cancel=on_cancel,
+                        **run_kwargs,
+                    )
+                    async for frame in adapter.encode_stream(events):
+                        yield frame.encode("utf-8")
             finally:
                 self._tokens.pop(stream_id, None)
                 if not settled:
@@ -260,12 +365,17 @@ class DurableAGUI(Generic[AgentDepsT]):
             if producer and not ready.done():
                 ready.set_exception(error)
             raise
-        return StreamingResponse(body, media_type=SSE)
+        return StreamingResponse(self._keepalive(body), media_type=SSE)
 
     async def get_thread(
         self, thread_id: str, *, owner: str | None = None
     ) -> dict[str, Any] | None:
-        """The thread's messages and whether a run is still going, or None."""
+        """The thread as `{id, messages, running, runId}`, or None when it does
+        not exist or belongs to another owner. Served as GET /threads/{id}.
+
+        While `running` is true, `messages` holds only the run's input; the
+        output comes from `resume_stream`.
+        """
         record = await self._record(thread_id, owner)
         if record is None:
             return None
@@ -290,7 +400,9 @@ class DurableAGUI(Generic[AgentDepsT]):
     async def list_threads(
         self, *, owner: str | None = None, limit: int = 100
     ) -> list[dict[str, Any]]:
-        """The owner's threads, most recently updated first."""
+        """The owner's threads as `{id, title, running, updatedAt}`, most
+        recently updated first. Served as GET /threads.
+        """
         return [
             {
                 "id": thread_id,
@@ -304,22 +416,31 @@ class DurableAGUI(Generic[AgentDepsT]):
     async def resume_stream(
         self, thread_id: str, *, owner: str | None = None
     ) -> AsyncIterator[bytes] | None:
-        """The latest run's frames from the first one, following it live."""
+        """The latest run's SSE frames from the first one, following it live,
+        or None when the thread or its stream is gone. Served as
+        GET /threads/{id}/stream. Sends keepalive comments when
+        `keepalive_interval` is set.
+        """
         record = await self._record(thread_id, owner)
         if record is None or not record.stream_id:
             return None
         try:
-            return await self.streams.resume(record.stream_id)
+            stream = await self.streams.resume(record.stream_id)
         except ResumableStreamError:
             return None
+        return None if stream is None else self._keepalive(stream)
 
     async def cancel(
         self, thread_id: str, run_id: str | None = None, *, owner: str | None = None
     ) -> bool:
         """Cancel the thread's run, or only run `run_id` when given, so a late
-        cancel for a superseded run cannot stop its replacement.
+        cancel for a superseded run cannot stop its replacement. Served as
+        POST /threads/{id}/cancel?run=.
 
-        Reaches only runs on this process.
+        A run on this process stops at once. A run on another worker is marked
+        in the thread store (`ThreadStore.request_cancel`) and stops when that
+        worker next checks, within `cancel_poll_interval`. Returns whether the
+        cancel was delivered or recorded. The partial answer is kept.
         """
         record = await self._record(thread_id, owner)
         if record is None:
@@ -328,7 +449,14 @@ class DurableAGUI(Generic[AgentDepsT]):
             return False
         if run_id is not None and record.run_id != run_id:
             return False
-        return self._cancel_local(record.stream_id)
+        if self._cancel_local(record.stream_id):
+            return True
+        if self._cancel_poll_interval is None or not await self._is_running(record):
+            return False
+        request_cancel = getattr(self.threads, "request_cancel", None)
+        if request_cancel is None:
+            return False
+        return bool(await request_cancel(thread_id, record.stream_id))
 
     def routes(self, prefix: str = "") -> list[Route]:
         """Starlette routes for the AG-UI endpoint and the thread endpoints.
@@ -382,6 +510,25 @@ class DurableAGUI(Generic[AgentDepsT]):
             Route(f"{threads}/{{thread_id}}/cancel", scoped(cancel), methods=["POST"]),
         ]
 
+    async def _adapter(
+        self, request: Request, run_input: RunAgentInput
+    ) -> AGUIAdapter[Any, Any]:
+        if self._adapter_factory is None:
+            return AGUIAdapter(
+                agent=self.agent,
+                run_input=run_input,
+                accept=SSE,
+                **self._adapter_options,
+            )
+        return await _resolve(self._adapter_factory(request, run_input))
+
+    def _keepalive(self, stream: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
+        if self._keepalive_interval is None:
+            return stream
+        # The resumable context hands out async generators.
+        generator = cast(AsyncGenerator[bytes, None], stream)
+        return add_keepalive(generator, self._keepalive_interval, KEEPALIVE_LINE)
+
     async def _request_owner(self, request: Request) -> str | None:
         if self._owner is None:
             return None
@@ -414,6 +561,11 @@ class DurableAGUI(Generic[AgentDepsT]):
             return await self.streams.status(stream_id)
         except ResumableStreamError:
             return None
+
+
+async def _stop(task: asyncio.Task[None]) -> None:
+    task.cancel()
+    await asyncio.wait({task})
 
 
 def _stream_id(thread_id: str, run_id: str) -> str:

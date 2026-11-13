@@ -11,6 +11,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -19,9 +20,11 @@ pytest.importorskip("pydantic_ai.ui.ag_ui", reason="needs the pydantic-ai extra"
 
 import httpx
 import uvicorn
+from ag_ui.core import RunAgentInput
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.ui.ag_ui import AGUIAdapter
 from starlette.applications import Starlette
 from starlette.requests import Request
 
@@ -32,6 +35,7 @@ from assistant_stream.pydantic_ai import (
     SqliteThreadStore,
     ThreadRecord,
 )
+from assistant_stream.pydantic_ai.durable import KEEPALIVE_LINE, SSE
 from assistant_stream.resumable import (
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
@@ -1121,3 +1125,455 @@ def test_a_superseded_run_does_not_overwrite_its_replacement(server: Server) -> 
         assert final["runId"] == replacement["runId"]
         assert [m["role"] for m in final["messages"]] == ["user", "user", "assistant"]
         assert _assistant_texts(final) == ["".join(WORDS)]
+
+
+async def _drain(response) -> list[bytes]:
+    return [
+        chunk if isinstance(chunk, bytes) else chunk.encode()
+        async for chunk in response.body_iterator
+    ]
+
+
+def _frames(chunks: list[bytes]) -> list[dict]:
+    return list(_events(b"".join(chunks).decode().splitlines()))
+
+
+def _finished_streams() -> tuple[object, asyncio.Event]:
+    finished = asyncio.Event()
+    streams = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store(),
+        on_finalize=lambda *_: finished.set(),
+    )
+    return streams, finished
+
+
+@pytest.mark.parametrize("flavor", ["sync", "async"])
+def test_adapter_factory_builds_the_adapter_for_each_run(flavor: str) -> None:
+    built: list[tuple[str, str]] = []
+    ran: list[str] = []
+
+    class RecordingAdapter(AGUIAdapter):
+        def run_stream(self, **kwargs):
+            ran.append(self.run_input.run_id)
+            return super().run_stream(**kwargs)
+
+    async def scenario() -> None:
+        model = Model()
+        model.gate.set()
+        agent = Agent(FunctionModel(stream_function=model.stream))
+
+        def build(request: Request, run_input: RunAgentInput) -> AGUIAdapter:
+            built.append((request.url.path, run_input.run_id))
+            return RecordingAdapter(agent=agent, run_input=run_input, accept=SSE)
+
+        async def build_async(request: Request, run_input: RunAgentInput):
+            await asyncio.sleep(0)
+            return build(request, run_input)
+
+        durable = DurableAGUI(
+            agent, adapter_factory=build if flavor == "sync" else build_async
+        )
+        response = await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        frames = _frames(await _drain(response))
+
+        assert built == [("/agent", "run")]
+        assert ran == ["run"]
+        assert _text(frames) == "".join(WORDS)
+        thread = await durable.get_thread("thread")
+        assert thread is not None and _assistant_texts(thread) == ["".join(WORDS)]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_adapter_factory_and_adapter_options_are_exclusive() -> None:
+    agent = Agent(FunctionModel(stream_function=Model().stream))
+    with pytest.raises(ValueError):
+        DurableAGUI(
+            agent,
+            adapter_factory=lambda request, run_input: AGUIAdapter(
+                agent=agent, run_input=run_input
+            ),
+            adapter_options={"manage_system_prompt": "client"},
+        )
+
+
+def test_run_context_wraps_the_run_in_its_task() -> None:
+    events: list[str] = []
+    tasks: list[asyncio.Task | None] = []
+
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            events.append(f"model:{messages[-1].instructions}")
+            yield "Hello"
+            started.set()
+            await release.wait()
+            yield " world"
+
+        @asynccontextmanager
+        async def per_run(request: Request, run_input: RunAgentInput):
+            events.append(f"open:{run_input.run_id}")
+            tasks.append(asyncio.current_task())
+            try:
+                yield {"instructions": "from the context"}
+            finally:
+                events.append(f"close:{run_input.run_id}")
+                tasks.append(asyncio.current_task())
+
+        streams, finished = _finished_streams()
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            streams=streams,
+            run_context=per_run,
+        )
+        response = await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        # The client goes away; the run and its context stay open.
+        del response
+        await started.wait()
+        assert events == ["open:run", "model:from the context"]
+
+        release.set()
+        await finished.wait()
+
+        assert events == ["open:run", "model:from the context", "close:run"]
+        assert tasks[0] is tasks[1] is not None
+        thread = await durable.get_thread("thread")
+        assert thread is not None and _assistant_texts(thread) == ["Hello world"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_run_context_closes_when_the_run_is_cancelled() -> None:
+    events: list[str] = []
+
+    async def scenario() -> None:
+        started = asyncio.Event()
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial"
+            started.set()
+            await asyncio.Event().wait()
+            yield "never"
+
+        @asynccontextmanager
+        async def per_run(request: Request, run_input: RunAgentInput):
+            events.append("open")
+            try:
+                yield None
+            finally:
+                events.append("close")
+
+        streams, finished = _finished_streams()
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            streams=streams,
+            run_context=per_run,
+        )
+        await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        await started.wait()
+        assert await durable.cancel("thread", "run") is True
+        await finished.wait()
+
+        assert events == ["open", "close"]
+        thread = await durable.get_thread("thread")
+        assert thread is not None and _assistant_texts(thread) == ["Partial"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+async def _gated_durable(**kwargs):
+    model = Model()
+    streams, finished = _finished_streams()
+    durable = DurableAGUI(
+        Agent(FunctionModel(stream_function=model.stream)), streams=streams, **kwargs
+    )
+    return model, durable, finished
+
+
+async def _read_until_pings(body: AsyncIterator[bytes], pings: int) -> list[bytes]:
+    chunks: list[bytes] = []
+    async for chunk in body:
+        chunks.append(chunk if isinstance(chunk, bytes) else chunk.encode())
+        if chunks.count(KEEPALIVE_LINE) >= pings:
+            return chunks
+    return chunks
+
+
+def test_keepalive_pings_idle_run_and_resumed_streams() -> None:
+    async def scenario() -> None:
+        model, durable, finished = await _gated_durable(keepalive_interval=0.05)
+        response = await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        body = response.body_iterator
+
+        before = await _read_until_pings(body, 2)
+        assert _text(_frames(before)) == "".join(WORDS[:GATE_AFTER])
+
+        resumed = await durable.resume_stream("thread")
+        assert resumed is not None
+        replay = await _read_until_pings(resumed, 2)
+        assert _text(_frames(replay)) == "".join(WORDS[:GATE_AFTER])
+
+        model.gate.set()
+        rest = [chunk async for chunk in body]
+        replay_rest = [chunk async for chunk in resumed]
+        await finished.wait()
+
+        live = _frames(before + rest)
+        assert live[-1]["type"] == "RUN_FINISHED"
+        assert _text(live) == "".join(WORDS)
+        assert _frames(replay + replay_rest) == live
+        assert all(
+            chunk == KEEPALIVE_LINE or chunk.startswith(b"data: ")
+            for chunk in before + rest
+        )
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_keepalive_is_off_by_default() -> None:
+    async def scenario() -> None:
+        model, durable, finished = await _gated_durable()
+        response = await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+
+        async def release_later() -> None:
+            await asyncio.sleep(0.2)
+            model.gate.set()
+
+        releaser = asyncio.create_task(release_later())
+        chunks = await _drain(response)
+        await releaser
+        assert KEEPALIVE_LINE not in chunks
+        assert _text(_frames(chunks)) == "".join(WORDS)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_keepalive_and_poll_intervals_must_be_positive() -> None:
+    agent = Agent(FunctionModel(stream_function=Model().stream))
+    for option in ("keepalive_interval", "cancel_poll_interval"):
+        for value in (0, -1, float("inf"), float("nan")):
+            with pytest.raises(ValueError):
+                DurableAGUI(agent, **{option: value})
+
+
+class _Workers:
+    """Two DurableAGUI instances that share a thread store and a stream store,
+    like two server processes behind a load balancer."""
+
+    def __init__(self, threads, streams_store, model_stream, **kwargs) -> None:
+        self.finished = asyncio.Event()
+        self.finalized: list[str] = []
+
+        def on_finalize(stream_id: str, *_: object) -> None:
+            self.finalized.append(stream_id)
+            self.finished.set()
+
+        def worker(**options) -> DurableAGUI:
+            # Each worker has its own context (and so its own producer tasks
+            # and hooks) over the same store.
+            return DurableAGUI(
+                Agent(FunctionModel(stream_function=model_stream)),
+                threads=threads,
+                streams=create_resumable_stream_context(
+                    store=streams_store, on_finalize=on_finalize
+                ),
+                **options,
+            )
+
+        self.a = worker(cancel_poll_interval=0.05, **kwargs)
+        self.b = worker(cancel_poll_interval=0.05, **kwargs)
+
+
+async def _shared_threads(kind: str, tmp_path: Path):
+    if kind == "postgres":
+        return await PostgresThreadStore.connect(
+            os.environ["DATABASE_URL"], table=f"t_{uuid.uuid4().hex}"
+        )
+    if kind == "sqlite":
+        return SqliteThreadStore(tmp_path / "threads.db")
+    return InMemoryThreadStore()
+
+
+async def _drop(threads) -> None:
+    if isinstance(threads, PostgresThreadStore):
+        async with threads._pool.connection() as db:
+            await db.execute(f"DROP TABLE {threads._table}")
+        await threads.close()
+
+
+SHARED_BACKENDS = [
+    pytest.param(("memory", "memory"), id="memory+memory"),
+    pytest.param(("sqlite", "memory"), id="sqlite+memory"),
+    pytest.param(
+        ("postgres", "redis"),
+        id="postgres+redis",
+        marks=pytest.mark.skipif(
+            not (os.environ.get("DATABASE_URL") and os.environ.get("REDIS_URL")),
+            reason="needs DATABASE_URL and REDIS_URL",
+        ),
+    ),
+]
+
+
+def _cancellable_model():
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stream(messages: list[ModelMessage], info: AgentInfo):
+        yield f"Partial {messages[-1].parts[-1].content}"
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+        yield " never"
+
+    return stream, started, cancelled
+
+
+@pytest.mark.parametrize("backends", SHARED_BACKENDS)
+def test_cancel_on_another_worker_stops_the_run(
+    backends: tuple[str, str], tmp_path: Path
+) -> None:
+    async def scenario() -> None:
+        threads = await _shared_threads(backends[0], tmp_path)
+        streams_store, cleanup = _stream_store(backends[1])
+        stream, started, cancelled = _cancellable_model()
+        workers = _Workers(threads, streams_store, stream)
+        try:
+            await _start_run(workers.a, _run_input("thread", [_user("Hi")], "run"))
+            await started.wait()
+
+            assert await workers.b.cancel("thread", "other-run") is False
+            assert await workers.b.cancel("thread", "run") is True
+            await asyncio.wait_for(cancelled.wait(), timeout=5)
+            await asyncio.wait_for(workers.finished.wait(), timeout=5)
+
+            thread = await workers.b.get_thread("thread")
+            assert thread is not None
+            assert thread["running"] is False
+            assert _assistant_texts(thread) == ["Partial Hi"]
+            record = await threads.get("thread")
+            assert record is not None and record.cancel_requested is False
+            assert await workers.b.cancel("thread", "run") is False
+        finally:
+            await _drop(threads)
+            await cleanup()
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=20))
+
+
+@pytest.mark.parametrize("backends", SHARED_BACKENDS)
+def test_a_run_started_on_another_worker_replaces_the_old_one(
+    backends: tuple[str, str], tmp_path: Path
+) -> None:
+    async def scenario() -> None:
+        threads = await _shared_threads(backends[0], tmp_path)
+        streams_store, cleanup = _stream_store(backends[1])
+        stream, started, cancelled = _cancellable_model()
+        workers = _Workers(threads, streams_store, stream)
+        try:
+            await _start_run(workers.a, _run_input("thread", [_user("First")], "one"))
+            await started.wait()
+            started.clear()
+            await _start_run(workers.b, _run_input("thread", [_user("Second")], "two"))
+            await started.wait()
+
+            await asyncio.wait_for(cancelled.wait(), timeout=5)
+            record = await threads.get("thread")
+            assert record is not None
+            assert (record.run_id, record.running) == ("two", True)
+
+            assert await workers.a.cancel("thread", "two") is True
+            await asyncio.wait_for(
+                _until(lambda: len(workers.finalized) == 2), timeout=5
+            )
+            thread = await workers.a.get_thread("thread")
+            assert thread is not None and thread["running"] is False
+            assert _assistant_texts(thread) == ["Partial Second"]
+        finally:
+            await _drop(threads)
+            await cleanup()
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=20))
+
+
+async def _until(predicate) -> None:
+    while not predicate():
+        await asyncio.sleep(0.01)
+
+
+def test_cancel_stays_local_without_store_support() -> None:
+    class LegacyStore:
+        """A custom store written before request_cancel existed."""
+
+        def __init__(self) -> None:
+            self._inner = InMemoryThreadStore()
+            self.get = self._inner.get
+            self.put = self._inner.put
+            self.put_if_current = self._inner.put_if_current
+            self.put_if_stream = self._inner.put_if_stream
+            self.list = self._inner.list
+
+    async def scenario() -> None:
+        stream, started, cancelled = _cancellable_model()
+        workers = _Workers(LegacyStore(), create_in_memory_resumable_stream_store(), stream)
+        await _start_run(workers.a, _run_input("thread", [_user("Hi")], "run"))
+        await started.wait()
+
+        assert await workers.b.cancel("thread", "run") is False
+        assert await workers.a.cancel("thread", "run") is True
+        await asyncio.wait_for(cancelled.wait(), timeout=5)
+        await workers.finished.wait()
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "memory",
+        "sqlite",
+        pytest.param(
+            "postgres",
+            marks=pytest.mark.skipif(
+                not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
+            ),
+        ),
+    ],
+)
+def test_thread_stores_request_cancel(kind: str, tmp_path: Path) -> None:
+    async def scenario() -> None:
+        store = await _shared_threads(kind, tmp_path)
+        try:
+            running = ThreadRecord(
+                messages=[_user("Hi")],
+                stream_id="one",
+                run_id="run",
+                running=True,
+                updated_at=10,
+            )
+            assert await store.request_cancel("thread", "one") is False
+            await store.put("thread", running)
+            assert await store.request_cancel("thread", "two") is False
+            assert await store.request_cancel("thread", "one") is True
+            record = await store.get("thread")
+            assert record == replace(running, cancel_requested=True)
+
+            settled = replace(running, running=False, updated_at=11)
+            assert await store.put_if_current("thread", settled)
+            assert await store.get("thread") == settled
+            assert await store.request_cancel("thread", "one") is False
+            assert (await store.get("thread")).cancel_requested is False
+        finally:
+            await _drop(store)
+
+    asyncio.run(scenario())
+
+
+def test_thread_records_without_cancel_requested_still_load() -> None:
+    old = json.dumps({"messages": [], "stream_id": "one", "running": True})
+    assert ThreadRecord.from_json(old).cancel_requested is False

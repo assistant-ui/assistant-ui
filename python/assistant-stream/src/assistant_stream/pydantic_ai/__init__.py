@@ -17,7 +17,11 @@ from assistant_stream.pydantic_ai.threads import (
 )
 
 try:
-    from assistant_stream.pydantic_ai.durable import DurableAGUI
+    from assistant_stream.pydantic_ai.durable import (
+        AdapterFactory,
+        DurableAGUI,
+        RunContext,
+    )
 except ImportError as error:  # pragma: no cover - depends on installed extras
     raise ImportError(
         "assistant_stream.pydantic_ai needs Pydantic AI with AG-UI support: "
@@ -25,9 +29,11 @@ except ImportError as error:  # pragma: no cover - depends on installed extras
     ) from error
 
 __all__ = [
+    "AdapterFactory",
     "DurableAGUI",
     "InMemoryThreadStore",
     "PostgresThreadStore",
+    "RunContext",
     "SqliteThreadStore",
     "ThreadRecord",
     "ThreadStore",

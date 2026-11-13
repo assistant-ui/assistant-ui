@@ -7,7 +7,7 @@ import json
 import re
 import sqlite3
 import time
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -20,6 +20,8 @@ class ThreadRecord:
 
     While `running` is true, `messages` holds only the run's input. The run's
     output reaches the client once, from the stream named by `stream_id`.
+    `cancel_requested` is set by `ThreadStore.request_cancel` so the worker
+    that owns the run can stop it.
     """
 
     messages: list[dict[str, Any]] = field(default_factory=list)
@@ -28,6 +30,7 @@ class ThreadRecord:
     running: bool = False
     owner: str | None = None
     updated_at: float = field(default_factory=time.time)
+    cancel_requested: bool = False
 
     def to_json(self) -> str:
         return json.dumps(asdict(self))
@@ -49,6 +52,11 @@ class ThreadStore(Protocol):
     unset `stream_id`.
     `list` returns the owner's threads, most recently updated first; an owner
     of None means threads written without an owner.
+    `request_cancel` atomically sets `cancel_requested` on the stored record
+    only while it is running with the given `stream_id`, and reports whether
+    it did. It is how a cancel reaches a run on another worker. It is optional:
+    the default returns False, and cancel then reaches only the worker that
+    received the cancel request.
     """
 
     async def get(self, thread_id: str) -> ThreadRecord | None: ...
@@ -64,6 +72,9 @@ class ThreadStore(Protocol):
     async def list(
         self, *, owner: str | None = None, limit: int = 100
     ) -> list[tuple[str, ThreadRecord]]: ...
+
+    async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
+        return False
 
 
 class InMemoryThreadStore:
@@ -92,6 +103,13 @@ class InMemoryThreadStore:
         if (current.stream_id if current is not None else None) != expected:
             return False
         self._records[thread_id] = record
+        return True
+
+    async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
+        current = self._records.get(thread_id)
+        if current is None or not current.running or current.stream_id != stream_id:
+            return False
+        self._records[thread_id] = replace(current, cancel_requested=True)
         return True
 
     async def list(
@@ -173,6 +191,17 @@ class SqliteThreadStore:
             )
             return cursor.rowcount == 1
 
+    def _request_cancel(self, thread_id: str, stream_id: str) -> bool:
+        with self._connect() as db:
+            cursor = db.execute(
+                f"UPDATE {self._table}"
+                " SET record = json_set(record, '$.cancel_requested', json('true'))"
+                " WHERE id = ? AND json_extract(record, '$.stream_id') IS ?"
+                " AND json_extract(record, '$.running') = 1",
+                (thread_id, stream_id),
+            )
+            return cursor.rowcount == 1
+
     def _list(self, owner: str | None, limit: int) -> list[tuple[str, ThreadRecord]]:
         with self._connect() as db:
             rows = db.execute(
@@ -222,6 +251,9 @@ class SqliteThreadStore:
         self, thread_id: str, record: ThreadRecord, *, expected: str | None
     ) -> bool:
         return await asyncio.to_thread(self._put_if_stream, thread_id, record, expected)
+
+    async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
+        return await asyncio.to_thread(self._request_cancel, thread_id, stream_id)
 
     async def list(
         self, *, owner: str | None = None, limit: int = 100
@@ -338,6 +370,17 @@ class PostgresThreadStore:
                         expected,
                     ),
                 )
+            return cursor.rowcount == 1
+
+    async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
+        async with self._pool.connection() as db:
+            cursor = await db.execute(
+                f"UPDATE {self._table}"
+                " SET record = jsonb_set(record, '{cancel_requested}', 'true'::jsonb)"
+                " WHERE id = %s AND record->>'stream_id' = %s"
+                " AND record->'running' = 'true'::jsonb",
+                (thread_id, stream_id),
+            )
             return cursor.rowcount == 1
 
     async def list(
