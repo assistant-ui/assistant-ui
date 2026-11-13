@@ -75,7 +75,7 @@ Commands (the url always comes first):
                                     --icons is required and names an icon for every option, from: ${OPTION_ICONS.join(", ")}.
   ask <prompt> --entry-points '<JSON array>' [--default <id>] [--optional] [--step <step-id>] [--wait]
                                     Ask where users should access the assistant. Each of 1–3 options has id, label, description and entryPoint {formFactor: modal|sidebar|full-page, placement, trigger, recommended?}. Answers one option id.
-  wait start                        Block until the setup page starts the plan; after a finished or cancelled setup, until the next one begins.
+  wait start                        Block until the setup page starts the plan; prints {"ok":false,"status":"cancelled"} if the user cancels first. After a finished or cancelled setup, waits for the next one to begin.
   wait <input-id> [--timeout <seconds>]
                                     Block until the user answers or dismisses an input. A multi-select answer prints as an array.
   plan (<markdown> | --file <path>) [--wait] [--timeout <seconds>]
@@ -794,16 +794,17 @@ export const runSetupCommand = async (
   if (command === "intro" && isDirectInvocation()) return launchAgent(url);
 
   // Commands that print guidance get their wording from the setup server.
-  const guideLoad = ["intro", "stream", "ask", "plan", "wait", "done"].includes(
-    command,
-  )
-    ? loadGuide(url, {
-        started: "user",
-        opened:
-          command !== "stream" ||
-          ((options.browser?.canOpen ?? true) && !flags.has("no-open")),
-      })
-    : undefined;
+  // ask and plan print guide text only when they wait.
+  const guideLoad =
+    ["intro", "stream", "wait", "done"].includes(command) ||
+    (["ask", "plan"].includes(command) && flags.has("wait"))
+      ? loadGuide(url, {
+          started: "user",
+          opened:
+            command !== "stream" ||
+            ((options.browser?.canOpen ?? true) && !flags.has("no-open")),
+        })
+      : undefined;
   // Settled now, so a failed fetch is reported once, after the connection.
   guideLoad?.catch(() => {});
   const client = await connectCheckout(url).catch((error: unknown) =>

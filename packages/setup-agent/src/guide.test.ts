@@ -158,4 +158,24 @@ describe("setup-agent <url>", () => {
     expect(t.out).toBe("");
     expect(t.err).toBe(`setup-agent: Setup needs internet access to ${URL}\n`);
   });
+
+  it("still asks without --wait when the guide is unreachable: only printed text needs it", async () => {
+    const fetch = serve(() => {
+      throw new TypeError("fetch failed");
+    });
+    const ask = vi.fn(async () => ({ inputId: "q1" }));
+    connectCheckoutMock.mockResolvedValue({
+      state: { ...initialCheckoutState(), status: "planning" },
+      commands: { "agent/ask": ask },
+      dispose: vi.fn(),
+    } as unknown as Awaited<ReturnType<typeof connectCheckout>>);
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      stdout.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    await main([URL, "ask", "Which project?"]);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(ask).toHaveBeenCalledOnce();
+  });
 });
