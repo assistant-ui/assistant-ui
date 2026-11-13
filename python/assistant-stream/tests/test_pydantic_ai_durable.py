@@ -708,6 +708,58 @@ def test_producer_cancelled_before_entering_stream_does_not_leave_a_running_reco
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
+def test_cancelled_startup_is_not_replaced_by_its_pending_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def scenario() -> None:
+        tasks: list[asyncio.Task[None]] = []
+        finalizing = asyncio.Event()
+        release = asyncio.Event()
+        store = create_in_memory_resumable_stream_store()
+        finalize = store.finalize
+
+        async def delayed_finalize(*args, **kwargs):
+            finalizing.set()
+            await release.wait()
+            return await finalize(*args, **kwargs)
+
+        def cancel_producer(task: asyncio.Task[None]) -> None:
+            tasks.append(task)
+            if len(tasks) == 1:
+                task.cancel()
+
+        monkeypatch.setattr(store, "finalize", delayed_finalize)
+        streams = create_resumable_stream_context(
+            store=store, wait_until=cancel_producer
+        )
+        model = Model()
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)), streams=streams
+        )
+        question = _user("Hi")
+        try:
+            response = await _start_run(
+                durable, _run_input("thread", [question], "run")
+            )
+            await asyncio.wait_for(finalizing.wait(), timeout=1)
+            record = await durable.threads.get("thread")
+            assert response.status_code == 200
+            assert record is not None
+            assert record.messages == [question]
+            assert record.running is False
+            assert model.calls == 0
+            assert await durable.cancel("thread", "run") is False
+            assert tasks[0].cancelled()
+            assert len(tasks) == 2 and not tasks[1].done()
+        finally:
+            release.set()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        assert await streams.status("6-thread.run") == "error"
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
 def _start_and_disconnect(client: httpx.Client, thread_id: str, messages: list[dict]):
     """POST a run, read until the gate holds it mid-answer, then drop the connection."""
     seen: list[dict] = []
