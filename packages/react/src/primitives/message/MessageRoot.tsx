@@ -28,11 +28,23 @@ const useIsHoveringRef = () => {
   const callbackRef = useCallback(
     (el: HTMLElement) => {
       let active = true;
+      const setHovering = (value: boolean) => {
+        try {
+          message.setIsHovering(value);
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            error.message !== "Resource updated before mount"
+          ) {
+            throw error;
+          }
+        }
+      };
       const handleMouseEnter = () => {
-        message.setIsHovering(true);
+        setHovering(true);
       };
       const handleMouseLeave = () => {
-        message.setIsHovering(false);
+        setHovering(false);
       };
 
       el.addEventListener("mouseenter", handleMouseEnter);
@@ -41,7 +53,7 @@ const useIsHoveringRef = () => {
       if (el.matches(":hover")) {
         // TODO this is needed for SSR to work, figure out why
         queueMicrotask(() => {
-          if (active) message.setIsHovering(true);
+          if (active) setHovering(true);
         });
       }
 
@@ -49,7 +61,7 @@ const useIsHoveringRef = () => {
         active = false;
         el.removeEventListener("mouseenter", handleMouseEnter);
         el.removeEventListener("mouseleave", handleMouseLeave);
-        message.setIsHovering(false);
+        setHovering(false);
       };
     },
     [message],
