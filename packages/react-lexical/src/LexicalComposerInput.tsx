@@ -284,8 +284,7 @@ export const LexicalComposerInput = forwardRef<
     );
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
-    const { "aria-expanded": _, ...popoverAria } =
-      unstable_useTriggerPopoverAriaProps();
+    const ariaProps = unstable_useTriggerPopoverAriaProps();
 
     // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
@@ -321,7 +320,7 @@ export const LexicalComposerInput = forwardRef<
                     "aria-placeholder": placeholder,
                   }
                 : {})}
-              {...popoverAria}
+              {...ariaProps}
             />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />

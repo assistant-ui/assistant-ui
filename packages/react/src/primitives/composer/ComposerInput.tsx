@@ -140,9 +140,9 @@ export namespace ComposerPrimitiveInput {
  *
  * When rendered inside `TriggerPopoverRoot` and a popover is open, the
  * underlying `<textarea>` automatically receives `aria-controls`,
- * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
- * combobox relationship. These computed attributes override user-provided
- * values for those four ARIA props while the popover is open.
+ * `aria-haspopup`, and `aria-activedescendant` for the active popover.
+ * These computed attributes override user-provided values for those three
+ * ARIA props while the popover is open.
  *
  * @example
  * ```tsx
@@ -391,13 +391,13 @@ export const ComposerPrimitiveInput = forwardRef<
       if (value === "") compactContext?.setMultiline(false);
     }, [value, compactContext]);
 
-    const ariaComboboxProps = useTriggerPopoverAriaProps();
+    const ariaProps = useTriggerPopoverAriaProps();
 
     const inputProps = {
       name: "input" as const,
       value,
       ...rest,
-      ...ariaComboboxProps,
+      ...ariaProps,
       ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
       disabled: isDisabled,
       onChange: composeEventHandlers(

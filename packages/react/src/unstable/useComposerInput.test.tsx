@@ -168,11 +168,10 @@ describe("unstable_useTriggerPopoverAriaProps", () => {
     expect(renderAria()()).toEqual({});
   });
 
-  it("describes the active popover combobox relationship", () => {
+  it("describes the active popover relationship", () => {
     fixture.activeAria = { popoverId: "pop-1", highlightedItemId: "item-2" };
     expect(renderAria()()).toEqual({
       "aria-controls": "pop-1",
-      "aria-expanded": true,
       "aria-haspopup": "listbox",
       "aria-activedescendant": "item-2",
     });
