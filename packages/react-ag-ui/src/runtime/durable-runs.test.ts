@@ -202,6 +202,53 @@ describe("decideDurableThread", () => {
   });
 });
 
+describe("decideDurableThread conversion options", () => {
+  const stored = repo(
+    message("u1", "user", "hi"),
+    message("a1", "assistant", "", stale),
+  );
+  const server = {
+    running: false,
+    messages: [
+      { id: "s-u1", role: "user", content: "hi" },
+      { id: "s-r1", role: "reasoning", content: "thinking it over" },
+      {
+        id: "s-a1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "s-t1", role: "tool", toolCallId: "call-1", content: "42" },
+      { id: "s-a2", role: "assistant", content: "the answer" },
+    ],
+  };
+  const added = (options: Parameters<typeof decideDurableThread>[2]) => {
+    const decision = decideDurableThread(stored, server, options);
+    if (decision.type !== "replace") throw new Error(decision.type);
+    return decision.add.map((item) => item.message);
+  };
+
+  it("hides reasoning when the runtime does", () => {
+    const parts = (options?: { showThinking: boolean }) =>
+      added(options).flatMap((m) => m.content.map((part) => part.type));
+    expect(parts()).toContain("reasoning");
+    expect(parts({ showThinking: false })).not.toContain("reasoning");
+  });
+
+  it("joins a reply split across records when the runtime does", () => {
+    expect(added(undefined)).toHaveLength(2);
+    expect(
+      added({ joinAdjacentAssistantMessages: true }).map((m) => m.role),
+    ).toEqual(["assistant"]);
+  });
+});
+
 describe("durableFollowState", () => {
   it("tells a reply written elsewhere from a stale one and a settled one", () => {
     const u1 = message("u1", "user", "hi");

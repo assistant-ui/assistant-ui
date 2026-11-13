@@ -4,7 +4,10 @@ import {
   type ThreadHistoryAdapter,
   type ThreadMessage,
 } from "@assistant-ui/core";
-import { fromAgUiMessages } from "./adapter/conversions";
+import {
+  fromAgUiMessages,
+  type FromAgUiMessagesOptions,
+} from "./adapter/conversions";
 import type { Logger } from "./logger";
 
 /** A thread as a durable AG-UI server reports it, such as `GET /threads/{id}` of `DurableAGUI`. */
@@ -134,8 +137,12 @@ const textOf = (message: ThreadMessage) =>
     .join("")
     .trim();
 
-const toItems = (messages: readonly unknown[]) =>
-  ExportedMessageRepository.fromArray(fromAgUiMessages(messages)).messages;
+const toItems = (
+  messages: readonly unknown[],
+  options: FromAgUiMessagesOptions | undefined,
+) =>
+  ExportedMessageRepository.fromArray(fromAgUiMessages(messages, options))
+    .messages;
 
 /**
  * Decides how a stored thread meets its durable run. Messages are matched by
@@ -146,6 +153,8 @@ const toItems = (messages: readonly unknown[]) =>
 export const decideDurableThread = (
   repository: ExportedMessageRepository,
   durable: AgUiDurableThread | null,
+  /** The runtime's conversion options, so a stored answer has the shape a streamed one has. */
+  messageOptions?: FromAgUiMessagesOptions,
 ): DurableDecision => {
   if (!durable) return { type: "keep" };
   const branch = headBranch(repository);
@@ -161,7 +170,7 @@ export const decideDurableThread = (
   const turn = branch
     .slice(0, userIndex + 1)
     .filter((item) => item.message.role === "user").length;
-  const serverItems = toItems(durable.messages);
+  const serverItems = toItems(durable.messages, messageOptions);
   const serverUsers = serverItems.filter(
     (item) => item.message.role === "user",
   );
@@ -228,6 +237,7 @@ export const withDurableRuns = (
     getThreadId: () => string;
     /** Whether the runtime can follow a run in flight, through the agent's `connect()` or `history.resume()`. */
     canRejoin: () => boolean;
+    messageOptions: () => FromAgUiMessagesOptions;
     logger: Logger;
     onFollow: (recheckInMs: number) => void;
   },
@@ -251,7 +261,11 @@ export const withDurableRuns = (
       options.logger.error("[agui] failed to read the durable thread", error);
       return repository;
     }
-    const decision = decideDurableThread(repository, thread);
+    const decision = decideDurableThread(
+      repository,
+      thread,
+      options.messageOptions(),
+    );
     if (decision.type === "keep") return repository;
     // Without a way to follow the run, resuming would start the agent again.
     if (decision.type === "resume" && !history.resume && !options.canRejoin()) {

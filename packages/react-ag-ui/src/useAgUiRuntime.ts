@@ -78,7 +78,17 @@ export function useAgUiRuntime(
   const durableRef = useRef(options.durableRuns);
   const agentRef = useRef(options.agent);
   const loggerRef = useRef(logger);
+  const messageOptionsRef = useRef({
+    showThinking: options.showThinking ?? true,
+    joinAdjacentAssistantMessages:
+      options.joinAdjacentAssistantMessages ?? false,
+  });
   useIsomorphicLayoutEffect(() => {
+    messageOptionsRef.current = {
+      showThinking: options.showThinking ?? true,
+      joinAdjacentAssistantMessages:
+        options.joinAdjacentAssistantMessages ?? false,
+    };
     durableRef.current = options.durableRuns;
     agentRef.current = options.agent;
     loggerRef.current = logger;
@@ -94,6 +104,7 @@ export function useAgUiRuntime(
             durable: () => durableRef.current,
             getThreadId: () => agentRef.current.threadId,
             canRejoin: () => implementsConnect(agentRef.current),
+            messageOptions: () => messageOptionsRef.current,
             logger: {
               debug: (...args) => loggerRef.current.debug(...args),
               error: (...args) => loggerRef.current.error(...args),
