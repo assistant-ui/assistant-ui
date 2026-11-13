@@ -38,7 +38,7 @@ jobs:
             gitSource: { type: "github", org: "assistant-ui", repo: "assistant-ui",
                          ref: "perf/docs-cache-probe", sha: $sha } }')
           for i in 1 2 3 4 5 6; do
-            dep=$(api -X POST "https://api.vercel.com/v13/deployments?teamId=$TEAM_ID" -d "$body")
+            dep=$(api -X POST "https://api.vercel.com/v13/deployments?teamId=$TEAM_ID" -d "$body") || { echo "create failed: $dep"; exit 1; }
             id=$(jq -r .id <<<"$dep")
             echo "build $i: id=$id url=https://$(jq -r .url <<<"$dep")"
             state=""
