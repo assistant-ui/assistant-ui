@@ -271,9 +271,9 @@ jobs:
     environment: pypi publish
     runs-on: ubuntu-24.04
     permissions:
-      # Required to create GitHub releases.
-      contents: write
-      # Required for PyPI trusted publishing (OIDC).
+      # Required for PyPI trusted publishing (OIDC). Release creation needs
+      # `contents: write`, which lives in the release job instead.
+      contents: read
       id-token: write
     concurrency:
       group: pypi-publish-exec
@@ -307,6 +307,57 @@ jobs:
         with:
           packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
 
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::Publish failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  release:
+    name: Create the GitHub release
+    needs:
+      - approve
+      - summary
+      - publish
+    # Runs when publish is skipped (the version is already on PyPI) or failed
+    # after its upload, so a rerun can still reconcile the release. summary is
+    # required so the release commit always passed its ancestor validation.
+    if: ${{ always() && !cancelled() && needs.approve.result == 'success' && needs.summary.result == 'success' && needs.publish.result != 'cancelled' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      # Required to create the release. Nothing else in this workflow holds it.
+      contents: write
+    concurrency:
+      # Scoped to the release commit so one release's run never cancels another's.
+      group: pypi-release-${{ needs.approve.outputs.release_sha }}
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+      VERSION: ${{ needs.summary.outputs.version }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      # The 403 in #10543 says which call failed but not what the token was
+      # allowed to do. Report the permissions this job's token actually holds
+      # before the creating call, so a refusal names its own cause.
+      - name: Check the token can write contents
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          can_write=$(gh api "/repos/${GITHUB_REPOSITORY}" --jq '[.permissions.push, .permissions.maintain, .permissions.admin] | any')
+          echo "Token on ${GITHUB_REPOSITORY}: push/maintain/admin = ${can_write}"
+          if [ "$can_write" != "true" ]; then
+            echo "::error::This job's GITHUB_TOKEN cannot write contents on ${GITHUB_REPOSITORY}; a release cannot be created from it."
+            exit 1
+          fi
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -336,9 +387,3 @@ jobs:
               --title "$tag" \
               --notes "First $PYTHON_PACKAGE_NAME release published via this workflow."
           fi
-
-      - name: Recovery guidance
-        if: failure()
-        run: |
-          echo "::error::Publish failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}."
-          echo "::error::Rerun this workflow run, or workflow_dispatch with releaseSha=${RELEASE_SHA}."
