@@ -46,7 +46,7 @@ If this command stops, start it again in the background with
   {{cmd}} {{url}} stream${noOpen ? " --no-open" : ""}
 The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream.`
     : `First, start a persistent Monitor on
-  {{cmd}} {{url}} stream
+  {{cmd}} {{url}} stream${noOpen ? " --no-open" : ""}
 and keep it running: the browser shows you as connected only while it runs, and it is how answers reach you. The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream. Each line is a JSON array of events: ${EVENT_LIST}.`;
 
 /** Why the agent must not end its turn mid-setup, and how it waits instead. */
@@ -200,8 +200,11 @@ const STARTS: readonly GuideContext["started"][] = [
 
 /** `GET /<link>/guide?protocol=<n>&started=<who>&opened=<0|1>`: the guide, or why not. */
 export const respondToGuideRequest = (params: URLSearchParams) => {
-  const build = Object.hasOwn(BUILDERS, params.get("protocol") ?? "")
-    ? BUILDERS[params.get("protocol")!]
+  const protocol = params.get("protocol") ?? "";
+  if (!/^[0-9]{1,6}$/.test(protocol))
+    return { status: 400, body: { error: "invalid-request" } };
+  const build = Object.hasOwn(BUILDERS, protocol)
+    ? BUILDERS[protocol]
     : undefined;
   if (build === undefined)
     return {
