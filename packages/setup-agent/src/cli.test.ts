@@ -73,7 +73,8 @@ describe("running to the end", () => {
         "never end your turn to wait for an answer",
       );
       expect(instructions).toMatch(/ wait <input-id>\n/);
-      expect(instructions).toContain('run its "next" command again');
+      expect(instructions).toContain('run its "next" command, right away');
+      expect(instructions).toContain('never repeat an "ask" or "plan"');
       expect(instructions).not.toContain(
         'block with "wait <input-id>" only when nothing else can proceed',
       );
@@ -136,7 +137,7 @@ describe("waiting on the user", () => {
       state.inputs[0]!.answer = value;
       for (const listener of listeners) listener();
     };
-    return { printed, answer };
+    return { state, printed, answer };
   };
 
   it("hands the turn back with the command to run again before an agent shell kills the wait", async () => {
@@ -151,6 +152,25 @@ describe("waiting on the user", () => {
       status: "waiting",
       waitingFor: "q1",
       next: `npx setup-agent ${URL} wait q1`,
+    });
+  });
+
+  it("hands back a plan wait as wait plan, so the agent does not submit the plan again", async () => {
+    const t = connect();
+    t.state.plans.push({
+      revision: 1,
+      markdown: "## Steps",
+      status: "proposed",
+      submittedAt: 3,
+    });
+    const run = main([URL, "wait", "plan"]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_SECONDS * 1000);
+    await run;
+    expect(t.printed()).toMatchObject({
+      ok: false,
+      status: "waiting",
+      waitingFor: "plan",
+      next: `npx setup-agent ${URL} wait plan`,
     });
   });
 

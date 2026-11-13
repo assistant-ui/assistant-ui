@@ -192,7 +192,7 @@ and keep it running: the browser shows you as connected only while it runs, and 
 const keepGoing = (cmd: string, url: string) =>
   `Run the setup to the end in one go. Nothing wakes you while you wait: not the stream, not the browser. If you end your turn before the install is done, the setup stays paused until the user types to you, even after they answer in the browser. So never end your turn to wait for an answer, and do not stop after telling the user something. To get an answer, block on it:
   ${cmd} ${url} wait <input-id>
-("plan --wait" and "ask --wait" block the same way). A wait that prints {"ok":false,"status":"waiting"} has not failed and the setup is not stuck: run its "next" command again, right away. End your turn only to ask the user in your own conversation (an "input.needed" you relay, or a value only they can give), and go on as soon as they reply; or once the install is done and proposed with "done".`;
+("plan --wait" and "ask --wait" block the same way). A wait that prints {"ok":false,"status":"waiting"} has not failed and the setup is not stuck: run its "next" command, right away. "next" only waits; never repeat an "ask" or "plan" to keep waiting, since that asks or submits again. End your turn only to ask the user in your own conversation (an "input.needed" you relay, or a value only they can give), and go on as soon as they reply; or once the install is done and proposed with "done".`;
 
 export const agentInstructions = (
   setupUrl: string,
@@ -228,7 +228,7 @@ Mark a clear fit with "recommended":true rather than --default, so the user make
 Skip a preset the code already answers (a chat route on the AI SDK, a provider key in .env.local) and log why. Ask everything at once, keep investigating, and then run "wait <input-id>" for each open question before you write the plan; do not end your turn while they are open. A framework answer is "<framework>:<language>", for example "ai-sdk:typescript". A model answer is JSON {"provider","model","reasoningEffort"?}. An answer may carry a "note" from the user; follow it. A choice answer that matches none of the options is the user's own text.
 Then write the plan as markdown and submit it:
   ${cmd} ${url} plan --file <path> --wait
-Use these headings, each with bullets: "## What I found" (facts as \`- **Label:** value\`: app framework, package manager, agent framework, model provider and model, where components live), "## What I will install" (packages and files, one per bullet), "## Steps" (a numbered list, one line each), and "## Open questions" only if any remain. Keep it under 30 lines; no preamble. "plan --wait" prints {"decision":"approve"} or {"decision":"revise","feedback":"..."}. On revise, address the feedback (ask again if you need to) and submit a new plan; repeat until approved. Do not change the project before approval: the setup refuses steps until then.
+Use these headings, each with bullets: "## What I found" (facts as \`- **Label:** value\`: app framework, package manager, agent framework, model provider and model, where components live), "## What I will install" (packages and files, one per bullet), "## Steps" (a numbered list, one line each), and "## Open questions" only if any remain. Keep it under 30 lines; no preamble. "plan --wait" prints {"decision":"approve"} or {"decision":"revise","feedback":"..."}; when it prints {"ok":false,"status":"waiting"}, the plan is submitted and still with the user, so keep waiting with "wait plan" and do not submit it again. On revise, address the feedback (ask again if you need to) and submit a new plan; repeat until approved. Do not change the project before approval: the setup refuses steps until then.
 
 2. Install. Declare the steps from your plan up front, in order:
   ${cmd} ${url} add-step "<title>" --detail "<one line>"
@@ -474,7 +474,7 @@ const stillWaiting = (target: string, next: string) => ({
   status: "waiting",
   waitingFor: target,
   next,
-  message: `The user has not answered yet. Run "next" now to keep waiting, or go on with other work and run it when you need the answer. Do not end your turn: nothing resumes you until you run it.`,
+  message: `The user has not answered yet. Run "next" now to keep waiting (it only waits; do not repeat the command you ran, which would ask or submit again), or go on with other work and run it when you need the answer. Do not end your turn: nothing resumes you until you run it.`,
 });
 
 const decided = (plan: Checkout.Plan | undefined, state: Checkout.State) => {
