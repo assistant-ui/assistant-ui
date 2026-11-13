@@ -6,6 +6,16 @@ import {
 } from "../core/helpers/execution-context";
 import { addCommit } from "../core/helpers/root";
 
+// Module scope isolates the stable wrapper from the commit closure's V8 context, which captures the render's callback.
+const createEffectEvent = <T extends (...args: any[]) => any>(
+  callbackRef: useRef.RefObject<T>,
+): T =>
+  ((...args: Parameters<T>) => {
+    if (isDevelopment && peekResourceFiber())
+      throw new Error("useEffectEvent cannot be called during render");
+    return callbackRef.current(...args);
+  }) as T;
+
 /**
  * Creates a stable function reference that always calls the most recent version of the callback.
  * Similar to React's useEffectEvent hook.
@@ -33,9 +43,5 @@ export function useEffectEvent<T extends (...args: any[]) => any>(
     });
   }
 
-  return useRef(((...args: Parameters<T>) => {
-    if (isDevelopment && peekResourceFiber())
-      throw new Error("useEffectEvent cannot be called during render");
-    return callbackRef.current(...args);
-  }) as T).current;
+  return useRef(createEffectEvent(callbackRef)).current;
 }

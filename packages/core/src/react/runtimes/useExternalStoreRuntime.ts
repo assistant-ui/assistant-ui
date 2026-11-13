@@ -3,6 +3,8 @@
 import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+import type { ModelContextProvider } from "../../model-context/types";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
 import {
@@ -13,6 +15,58 @@ import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useIsRemoteThreadRuntimeHosted } from "./RemoteThreadRuntimeHostContext";
+
+// Module scope isolates stable callbacks from the render's V8 context containing adapters and messages.
+const useRuntimeLifetime = (
+  isHosted: boolean,
+  lifetime: { generation: number },
+  runtime: ExternalStoreRuntimeCore,
+) => {
+  useInsertionEffect(() => {
+    if (isHosted) return;
+    const generation = ++lifetime.generation;
+    return () =>
+      queueMicrotask(() => {
+        if (lifetime.generation === generation) {
+          disposeThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
+        }
+      });
+  }, [isHosted, lifetime, runtime]);
+
+  useReplaySafeEffect(() => {
+    return () => {
+      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
+    };
+  }, [runtime]);
+};
+
+const useHistoryCopy = (
+  copiesHistory: boolean,
+  history: ThreadHistoryAdapter | undefined,
+  historyCopy: ExternalStoreHistoryCopy,
+  runtime: ExternalStoreRuntimeCore,
+) => {
+  useReplaySafeEffect(() => {
+    if (!copiesHistory || !history) return;
+    return historyCopy.attach(
+      runtime.threads.getMainThreadRuntimeCore(),
+      history,
+    );
+  }, [copiesHistory, history, historyCopy, runtime]);
+};
+
+const useRuntimeModelContext = (
+  modelContext: ModelContextProvider | undefined,
+  runtime: ExternalStoreRuntimeCore,
+) => {
+  useEffect(() => {
+    if (!modelContext) return undefined;
+    return runtime.registerModelContextProvider(modelContext);
+  }, [modelContext, runtime]);
+};
+
+const createAssistantRuntime = (runtime: ExternalStoreRuntimeCore) => () =>
+  new AssistantRuntimeImpl(runtime);
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
@@ -40,40 +94,15 @@ export const useExternalStoreRuntime = <T>(
   const isHosted = useIsRemoteThreadRuntimeHosted();
   const [lifetime] = useState(() => ({ generation: 0 }));
 
-  useInsertionEffect(() => {
-    if (isHosted) return;
-    const generation = ++lifetime.generation;
-    return () =>
-      queueMicrotask(() => {
-        if (lifetime.generation === generation) {
-          disposeThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
-        }
-      });
-  }, [isHosted, lifetime, runtime]);
-
-  useReplaySafeEffect(() => {
-    return () => {
-      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
-    };
-  }, [runtime]);
+  useRuntimeLifetime(isHosted, lifetime, runtime);
 
   useEffect(() => {
     runtime.setAdapter(adaptedStore);
   });
 
-  useReplaySafeEffect(() => {
-    if (!copiesHistory || !history) return;
-    return historyCopy.attach(
-      runtime.threads.getMainThreadRuntimeCore(),
-      history,
-    );
-  }, [copiesHistory, history, historyCopy, runtime]);
+  useHistoryCopy(copiesHistory, history, historyCopy, runtime);
+  useRuntimeModelContext(modelContext, runtime);
 
-  useEffect(() => {
-    if (!modelContext) return undefined;
-    return runtime.registerModelContextProvider(modelContext);
-  }, [modelContext, runtime]);
-
-  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  const [assistantRuntime] = useState(createAssistantRuntime(runtime));
   return assistantRuntime;
 };

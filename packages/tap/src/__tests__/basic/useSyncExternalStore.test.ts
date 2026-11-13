@@ -138,18 +138,25 @@ describe("useSyncExternalStore", () => {
     expect(clientReads).toBe(0);
   });
 
-  it("uses getSnapshot on re-renders after the first", () => {
+  it("uses the latest getSnapshot without re-subscribing after the first render", async () => {
     const store = createStore("client");
-    const testFiber = createTestResource((_p: { n: number }) =>
+    const testFiber = createTestResource((p: { prefix: string }) =>
       useSyncExternalStore(
-        (cb) => store.subscribe(cb),
-        () => store.getState(),
+        store.subscribe,
+        () => p.prefix + store.getState(),
         () => "server",
       ),
     );
 
-    renderTest(testFiber, { n: 1 });
-    expect(renderTest(testFiber, { n: 2 })).toBe("client");
+    expect(renderTest(testFiber, { prefix: "" })).toBe("server");
+    expect(renderTest(testFiber, { prefix: "next:" })).toBe("next:client");
+    store.setState("updated");
+    await waitForNextTick();
+    expect(getCommittedValue(testFiber)).toBe("next:updated");
+    expect(store.subscribeCalls).toBe(1);
+    expect(store.unsubscribeCalls).toBe(0);
+    cleanupAllResources();
+    expect(store.unsubscribeCalls).toBe(1);
   });
 
   it("re-subscribes when the store changes identity and unsubscribes on unmount", async () => {

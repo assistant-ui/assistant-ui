@@ -39,6 +39,48 @@ const useThreadListItemClientById = ({
 
 const ThreadListItemClientById = resource(useThreadListItemClientById);
 
+// Module scope prevents stable methods and subscriptions from sharing the V8 context that holds a render's messages.
+const useThreadListRuntimeBinding = (
+  runtime: ThreadListRuntime,
+  afterStateCommit: ReturnType<typeof useAfterStateCommit>,
+): Pick<
+  ClientOutput<"threads">,
+  | "switchToThread"
+  | "switchToNewThread"
+  | "getLoadThreadsPromise"
+  | "reload"
+  | "reloadMainThread"
+  | "loadMore"
+> => {
+  const emit = useAssistantEmit();
+  useEffect(
+    () =>
+      runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
+        if (threadId === runtime.getState().mainThreadId) return;
+        emit(`thread.${type}`, { threadId });
+      }),
+    [runtime, emit],
+  );
+
+  return {
+    switchToThread: (threadId, options) =>
+      handleThreadListAction("switch", () =>
+        runtime.switchToThread(threadId, options),
+      ),
+    switchToNewThread: () =>
+      handleThreadListAction("create", () => runtime.switchToNewThread()),
+    getLoadThreadsPromise: () =>
+      afterStateCommit(runtime.getLoadThreadsPromise()),
+    reload: () => afterStateCommit(runtime.reload()),
+    reloadMainThread: () => runtime.reloadMainThread(),
+    loadMore: () => afterStateCommit(runtime.loadMore()),
+  };
+};
+
+function createValueAccessor<T>(value: T) {
+  return () => value;
+}
+
 const useThreadListClient = ({
   runtime,
   __internal_assistantRuntime,
@@ -50,15 +92,7 @@ const useThreadListClient = ({
   const afterStateCommit = useAfterStateCommit(runtimeState, runtime.getState);
   useThreadSelectionEvents(runtimeState.mainThreadId);
 
-  const emit = useAssistantEmit();
-  useEffect(
-    () =>
-      runtime.unstable_subscribeThreadEvents(({ threadId, type }) => {
-        if (threadId === runtime.getState().mainThreadId) return;
-        emit(`thread.${type}`, { threadId });
-      }),
-    [runtime, emit],
-  );
+  const binding = useThreadListRuntimeBinding(runtime, afterStateCommit);
 
   const main = useClientResource(
     ThreadClient({
@@ -99,7 +133,7 @@ const useThreadListClient = ({
 
   return {
     getState: () => state,
-    thread: () => main.methods,
+    thread: createValueAccessor(main.methods),
     item: (threadIdOrOptions) => {
       if (threadIdOrOptions === "main") {
         return threadItems.get({ key: state.mainThreadId });
@@ -115,18 +149,15 @@ const useThreadListClient = ({
         : state.threadIds[index]!;
       return threadItems.get({ key: id });
     },
-    switchToThread: (threadId, options) =>
-      handleThreadListAction("switch", () =>
-        runtime.switchToThread(threadId, options),
-      ),
-    switchToNewThread: () =>
-      handleThreadListAction("create", () => runtime.switchToNewThread()),
-    getLoadThreadsPromise: () =>
-      afterStateCommit(runtime.getLoadThreadsPromise()),
-    reload: () => afterStateCommit(runtime.reload()),
-    reloadMainThread: () => runtime.reloadMainThread(),
-    loadMore: () => afterStateCommit(runtime.loadMore()),
-    __internal_getAssistantRuntime: () => __internal_assistantRuntime,
+    switchToThread: binding.switchToThread,
+    switchToNewThread: binding.switchToNewThread,
+    getLoadThreadsPromise: binding.getLoadThreadsPromise,
+    reload: binding.reload,
+    reloadMainThread: binding.reloadMainThread,
+    loadMore: binding.loadMore,
+    __internal_getAssistantRuntime: createValueAccessor(
+      __internal_assistantRuntime,
+    ),
   };
 };
 
