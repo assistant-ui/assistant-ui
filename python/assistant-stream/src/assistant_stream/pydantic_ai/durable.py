@@ -234,22 +234,26 @@ class DurableAGUI(Generic[AgentDepsT]):
                     running=True,
                     owner=owner,
                 )
-                while not await self.threads.put_if_stream(
-                    thread_id,
-                    record,
-                    expected=previous.stream_id if previous is not None else None,
+                while not (
+                    settled or (producer_task is not None and producer_task.done())
                 ):
+                    if await self.threads.put_if_stream(
+                        thread_id,
+                        record,
+                        expected=previous.stream_id if previous is not None else None,
+                    ):
+                        break
                     previous = await self.threads.get(thread_id)
                     if previous is not None and previous.owner != owner:
                         token.cancel()
                         ready.set_result(None)
                         return _not_found()
-                if previous is not None and previous.running and previous.stream_id:
-                    self._cancel_local(previous.stream_id)
                 await producer_started.wait()
                 if settled or (producer_task is not None and producer_task.done()):
                     self._tokens.pop(stream_id, None)
                     await settle([])
+                elif previous is not None and previous.running and previous.stream_id:
+                    self._cancel_local(previous.stream_id)
                 if not ready.done():
                     ready.set_result(None)
         except BaseException as error:

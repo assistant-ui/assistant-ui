@@ -492,6 +492,137 @@ def test_concurrent_distinct_runs_cancel_the_superseded_producer(
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
+@pytest.mark.parametrize("kind", ["memory", "sqlite"])
+def test_dead_producer_does_not_reclaim_a_concurrent_run(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        claiming = asyncio.Event()
+        release_claim = asyncio.Event()
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        cancelled = asyncio.Event()
+        producers = []
+        threads = (
+            InMemoryThreadStore()
+            if kind == "memory"
+            else SqliteThreadStore(tmp_path / "threads.db")
+        )
+        put_if_stream = threads.put_if_stream
+
+        async def pause_first_claim(thread_id, record, *, expected):
+            if record.run_id == "first":
+                claiming.set()
+                await release_claim.wait()
+            return await put_if_stream(thread_id, record, expected=expected)
+
+        monkeypatch.setattr(threads, "put_if_stream", pause_first_claim)
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial answer"
+            started.set()
+            try:
+                await release_model.wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+            yield " completed"
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(), wait_until=producers.append
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)), threads=threads, streams=streams
+        )
+        first = asyncio.create_task(
+            _start_run(durable, _run_input("thread", [_user("First")], "first"))
+        )
+        await claiming.wait()
+        producers[0].cancel()
+        await asyncio.gather(producers[0], return_exceptions=True)
+        question = _user("Second")
+
+        try:
+            assert (
+                await _start_run(durable, _run_input("thread", [question], "second"))
+            ).status_code == 200
+            await started.wait()
+            release_claim.set()
+            assert (await first).status_code == 200
+            assert "6-thread.first" not in durable._tokens
+        finally:
+            release_claim.set()
+            release_model.set()
+            await first
+            await asyncio.gather(*producers[1:])
+
+        assert cancelled.is_set() is False
+        record = await threads.get("thread")
+        assert record is not None
+        assert record.run_id == "second"
+        assert record.stream_id == "6-thread.second"
+        assert record.running is False
+        thread = await durable.get_thread("thread")
+        assert thread is not None
+        assert thread["runId"] == "second"
+        assert thread["messages"][0] == question
+        assert _assistant_texts(thread) == ["Partial answer completed"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", ["memory", "sqlite"])
+def test_producer_dead_before_first_claim_leaves_existing_record_untouched(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        producers = []
+
+        def cancel_producer(task: asyncio.Task[None]) -> None:
+            producers.append(task)
+            task.cancel()
+
+        model = Model()
+        threads = (
+            InMemoryThreadStore()
+            if kind == "memory"
+            else SqliteThreadStore(tmp_path / "threads.db")
+        )
+        existing = ThreadRecord(
+            messages=[_user("Existing")],
+            stream_id="6-thread.existing",
+            run_id="existing",
+            running=True,
+        )
+        await threads.put("thread", existing)
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(), wait_until=cancel_producer
+        )
+        run = type(streams).run
+
+        async def finish_before_claim(context, stream_id, make_stream):
+            body = await run(context, stream_id, make_stream)
+            await asyncio.gather(*producers, return_exceptions=True)
+            return body
+
+        monkeypatch.setattr(type(streams), "run", finish_before_claim)
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)),
+            threads=threads,
+            streams=streams,
+        )
+
+        assert (
+            await _start_run(durable, _run_input("thread", [_user("New")], "run"))
+        ).status_code == 200
+
+        assert await threads.get("thread") == existing
+        assert model.calls == 0
+        assert "6-thread.run" not in durable._tokens
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
 def test_producer_cancelled_during_startup_does_not_leave_a_running_record(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
