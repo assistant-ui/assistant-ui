@@ -18,7 +18,9 @@ const workflow = read(".github/workflows/code-quality.yaml");
 const SUITES = ["api-surface:test", "review-policy:test"];
 
 const pushPaths = (() => {
-  const trigger = workflow.split("\n  push:\n")[1]?.split("\n  pull_request:")[0];
+  const trigger = workflow
+    .split("\n  push:\n")[1]
+    ?.split("\n  pull_request:")[0];
   assert.ok(trigger, "the workflow has a push trigger");
   return [...trigger.matchAll(/- "([^"]+)"/g)].map((match) => match[1]);
 })();
@@ -39,7 +41,9 @@ test("the workflow still runs every suite this guard covers", () => {
   for (const suite of SUITES) {
     assert.match(
       workflow,
-      new RegExp(`run: (?:pnpm run|node --run) ${suite.replace(":", "\\:")}\\b`),
+      new RegExp(
+        `run: (?:pnpm run|node --run) ${suite.replace(":", "\\:")}\\b`,
+      ),
       `the workflow no longer runs \`${suite}\`; update SUITES`,
     );
   }
