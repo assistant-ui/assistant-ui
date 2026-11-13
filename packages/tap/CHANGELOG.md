@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.26
+
+### Patch Changes
+
+- [#10513](https://github.com/assistant-ui/assistant-ui/pull/10513) [`a62f296`](https://github.com/assistant-ui/assistant-ui/commit/a62f2969ce2d24efd405548e80c486f8409f407d) - Release replaced external-store messages while their runtime remains mounted by narrowing the capture scopes of stable lifecycle callbacks, subscriptions, and client methods. ([@LeoLB-Wang](https://github.com/LeoLB-Wang))
+
 ## 0.9.25
 
 ### Patch Changes

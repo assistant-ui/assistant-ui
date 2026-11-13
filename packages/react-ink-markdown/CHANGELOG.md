@@ -1,5 +1,13 @@
 # @assistant-ui/react-ink-markdown
 
+## 0.0.54
+
+### Patch Changes
+
+- [#10544](https://github.com/assistant-ui/assistant-ui/pull/10544) [`7854908`](https://github.com/assistant-ui/assistant-ui/commit/7854908de003619397e9e30c578eb926246d2068) - Declare `MessagePrimitiveGroupedParts` and `MarkdownTextPrimitive` as functions so their doc comments reach the emitted declarations. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`7854908`](https://github.com/assistant-ui/assistant-ui/commit/7854908de003619397e9e30c578eb926246d2068), [`a62f296`](https://github.com/assistant-ui/assistant-ui/commit/a62f2969ce2d24efd405548e80c486f8409f407d)]:
+  - @assistant-ui/core@0.3.36
+
 ## 0.0.53
 
 ### Patch Changes

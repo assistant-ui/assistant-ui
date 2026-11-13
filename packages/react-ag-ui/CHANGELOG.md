@@ -1,5 +1,21 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.10
+
+### Patch Changes
+
+- [#10556](https://github.com/assistant-ui/assistant-ui/pull/10556) [`8b3bbd4`](https://github.com/assistant-ui/assistant-ui/commit/8b3bbd4b335ab814366230ac8dc86a5e46fb102f) - Send a message that joins several steps back as one step at a time: each step's reasoning, then its assistant record, then its tool results. Signed reasoning with empty text is kept, and redacted blocks go back to the step they arrived in. Backends that rebuild history from the request, like pydantic-ai on Claude with extended thinking, no longer reject follow-ups and tool continuations after `joinStrategy: "concat-content"`. ([@Yonom](https://github.com/Yonom))
+
+- [#10559](https://github.com/assistant-ui/assistant-ui/pull/10559) [`b2311ec`](https://github.com/assistant-ui/assistant-ui/commit/b2311ec7a8a15533a20e3ff206653dd0f020ef8e) - `resumeRun` without a `stream` follows the run in flight through the history adapter's `resume()` or the agent's `connect()`, instead of starting the agent again. It starts a new run only when the agent has no `connect()` and the adapter has no `resume()`. ([@Yonom](https://github.com/Yonom))
+
+- [#10520](https://github.com/assistant-ui/assistant-ui/pull/10520) [`53ab9cb`](https://github.com/assistant-ui/assistant-ui/commit/53ab9cbae076b569b37189795b93b71af0a40117) - Persist the answer selected by a snapshot to history when the stream ends without a terminal event. ([@okisdev](https://github.com/okisdev))
+
+- [#10521](https://github.com/assistant-ui/assistant-ui/pull/10521) [`606035d`](https://github.com/assistant-ui/assistant-ui/commit/606035d3cb1d9367742029b874ab226837805c61) - Keep a tool call on one message when `joinAdjacentAssistantMessages` folds the active assistant during a snapshot head move. ([@okisdev](https://github.com/okisdev))
+
+- [#10464](https://github.com/assistant-ui/assistant-ui/pull/10464) [`dd278e5`](https://github.com/assistant-ui/assistant-ui/commit/dd278e5098773ebe2d9b7dfb6ebcff4263b2b751) - Preserve event ownership across snapshot head moves and retain tool approval gates on their calls. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`7854908`](https://github.com/assistant-ui/assistant-ui/commit/7854908de003619397e9e30c578eb926246d2068), [`a62f296`](https://github.com/assistant-ui/assistant-ui/commit/a62f2969ce2d24efd405548e80c486f8409f407d)]:
+  - @assistant-ui/core@0.3.36
+
 ## 0.1.9
 
 ### Patch Changes
