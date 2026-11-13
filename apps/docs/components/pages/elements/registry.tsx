@@ -1673,6 +1673,12 @@ export const ELEMENTS: FlatElement[] = ELEMENT_SECTIONS.flatMap((section) =>
 
 export const ELEMENT_COUNT = ELEMENTS.length;
 
+export function elementRegistryName(element: ElementEntry): string {
+  return (
+    element.registryName ?? `elements-${element.installName ?? element.slug}`
+  );
+}
+
 export function getElement(slug: string): FlatElement | undefined {
   return ELEMENTS.find((element) => element.slug === slug);
 }
