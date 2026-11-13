@@ -12,10 +12,15 @@ describe("buildGuide", () => {
     for (const context of CONTEXTS) {
       const guide = buildGuide(context);
       expect(guide.protocol).toBe(1);
+      expect(guide.intro).toEqual([
+        { action: "announce-agent" },
+        { action: "print", text: "briefing" },
+        { action: "print", text: "intro.status-heading" },
+        { action: "print-status" },
+      ]);
       for (const step of guide.intro)
-        expect(["print", "print-status", "announce-agent"]).toContain(
-          step.action,
-        );
+        if (step.action === "print")
+          expect(guide.texts[step.text]).toBeTypeOf("string");
       for (const text of Object.values(guide.texts))
         // oxlint-disable-next-line no-control-regex
         expect(text).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
@@ -44,9 +49,11 @@ describe("buildGuide", () => {
     expect(briefing({ started: "agent", opened: true })).toContain(
       "there is no Begin plan click to wait for",
     );
-    expect(briefing({ started: "agent-stream", opened: false })).toContain(
-      "{{cmd}} {{url}} stream --no-open",
-    );
+    // Without a browser, every stream command the agent is told to run keeps --no-open.
+    for (const started of ["agent", "agent-stream"] as const)
+      expect(briefing({ started, opened: false })).not.toMatch(
+        /\{\{url\}\} stream(?! --no-open)/,
+      );
   });
 
   it("asks contextual entry points before the plan", () => {
@@ -91,5 +98,9 @@ describe("GET /<link>/guide", () => {
       respondToGuideRequest(new URLSearchParams("protocol=1&started=robot"))
         .status,
     ).toBe(400);
+    for (const query of ["", "protocol=abc", "protocol=1.5"])
+      expect(respondToGuideRequest(new URLSearchParams(query)).status).toBe(
+        400,
+      );
   });
 });
