@@ -39,6 +39,7 @@ from pydantic_ai.ui.ag_ui import AGUIAdapter
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
+from starlette.types import Send
 
 from assistant_stream.pydantic_ai.threads import (
     InMemoryThreadStore,
@@ -169,7 +170,7 @@ class DurableAGUI(Generic[AgentDepsT]):
         keepalive_interval: float | None = None,
         cancel_poll_interval: float | None = DEFAULT_CANCEL_POLL_INTERVAL,
     ) -> None:
-        if adapter_factory is not None and adapter_options:
+        if adapter_factory is not None and adapter_options is not None:
             raise ValueError("pass adapter_factory or adapter_options, not both")
         self.agent = agent
         self.threads: ThreadStore = threads or InMemoryThreadStore()
@@ -371,7 +372,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             if producer and not ready.done():
                 ready.set_exception(error)
             raise
-        return StreamingResponse(self._keepalive(body), media_type=SSE)
+        return _SSEResponse(self._keepalive(body))
 
     async def get_thread(
         self, thread_id: str, *, owner: str | None = None
@@ -499,7 +500,7 @@ class DurableAGUI(Generic[AgentDepsT]):
             if await self._record(thread_id, owner) is None:
                 return _not_found()
             body = await self.resume_stream(thread_id, owner=owner)
-            return StreamingResponse(body or _empty_stream(), media_type=SSE)
+            return _SSEResponse(body or _empty_stream())
 
         async def cancel(request: Request, owner: str | None) -> Response:
             cancelled = await self.cancel(
@@ -569,6 +570,22 @@ class DurableAGUI(Generic[AgentDepsT]):
             return await self.streams.status(stream_id)
         except ResumableStreamError:
             return None
+
+
+class _SSEResponse(StreamingResponse):
+    """Closes its body when the response ends, also when the client is gone,
+    so a pending keepalive read stops with the request. The run goes on."""
+
+    def __init__(self, body: AsyncIterator[bytes]) -> None:
+        super().__init__(body, media_type=SSE)
+
+    async def stream_response(self, send: Send) -> None:
+        try:
+            await super().stream_response(send)
+        finally:
+            close = getattr(self.body_iterator, "aclose", None)
+            if close is not None:
+                await close()
 
 
 async def _stop(task: asyncio.Task[None]) -> None:

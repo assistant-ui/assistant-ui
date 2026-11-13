@@ -1187,14 +1187,15 @@ def test_adapter_factory_builds_the_adapter_for_each_run(flavor: str) -> None:
 
 def test_adapter_factory_and_adapter_options_are_exclusive() -> None:
     agent = Agent(FunctionModel(stream_function=Model().stream))
-    with pytest.raises(ValueError):
-        DurableAGUI(
-            agent,
-            adapter_factory=lambda request, run_input: AGUIAdapter(
-                agent=agent, run_input=run_input
-            ),
-            adapter_options={"manage_system_prompt": "client"},
-        )
+    for options in ({"manage_system_prompt": "client"}, {}):
+        with pytest.raises(ValueError):
+            DurableAGUI(
+                agent,
+                adapter_factory=lambda request, run_input: AGUIAdapter(
+                    agent=agent, run_input=run_input
+                ),
+                adapter_options=options,
+            )
 
 
 def test_run_context_wraps_the_run_in_its_task() -> None:
@@ -1656,5 +1657,29 @@ def test_run_context_is_not_opened_for_a_run_cancelled_before_it_starts() -> Non
 
         assert opened == []
         assert model.calls == 0
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_a_client_gone_during_keepalive_closes_the_read_but_not_the_run() -> None:
+    async def scenario() -> None:
+        model, durable, finished = await _gated_durable(keepalive_interval=0.02)
+        response = await _start_run(durable, _run_input("thread", [_user("Hi")], "run"))
+        sent: list[bytes] = []
+
+        async def send(message: dict) -> None:
+            body = message.get("body", b"")
+            if body == KEEPALIVE_LINE:
+                raise OSError("client went away")
+            sent.append(body)
+
+        with pytest.raises(OSError):
+            await response.stream_response(send)
+
+        assert response.body_iterator.ag_frame is None  # closed, nothing pending
+        model.gate.set()
+        await finished.wait()
+        thread = await durable.get_thread("thread")
+        assert thread is not None and _assistant_texts(thread) == ["".join(WORDS)]
 
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))

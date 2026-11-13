@@ -20,7 +20,7 @@ class ThreadRecord:
 
     While `running` is true, `messages` holds only the run's input. The run's
     output reaches the client once, from the stream named by `stream_id`.
-    `cancel_requested` is set by `ThreadStore.request_cancel` so the worker
+    `cancel_requested` is set by `CancellableThreadStore.request_cancel` so the worker
     that owns the run can stop it.
     """
 
