@@ -2,12 +2,12 @@ import { defineConfig, type Plugin } from "vite";
 import { fileURLToPath } from "node:url";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import viteTsConfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 import mdx from "fumadocs-mdx/vite";
 import * as MdxConfig from "./source.config";
 import { prerenderPages } from "./src/lib/pages";
 import { stubPlugin } from "./src/lib/stub-plugin";
+import { docsPathsPlugin } from "./src/lib/docs-paths-plugin";
 
 const shim = (f: string) =>
   fileURLToPath(new URL(`./src/shims/${f}`, import.meta.url));
@@ -32,8 +32,8 @@ export default defineConfig({
   },
   plugins: [
     stubPlugin(),
+    docsPathsPlugin(fileURLToPath(new URL("../docs/tsconfig.json", import.meta.url))),
     mdx(MdxConfig),
-    viteTsConfigPaths({ projects: ["../docs/tsconfig.json"], loose: true }),
     tailwindcss(),
     tanstackStart({
       prerender: {

@@ -3,3 +3,6 @@
 dist
 node_modules
 .tanstack
+components
+generated
+content

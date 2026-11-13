@@ -10,11 +10,13 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { getMDXComponents } from "./mdx-components";
+// Real provider every /docs page renders inside (apps/docs/components/pages/docs/layout/docs-root-layout.tsx).
+import { DocsRuntimeProvider } from "../../../docs/runtimes/docs";
 
 export type Key = string; // docs | elements | ... | site:<id>
 
 export const loadPage = createServerFn({ method: "GET" })
-  .inputValidator((d: { key: Key; slugs: string[] }) => d)
+  .validator((d: { key: Key; slugs: string[] }) => d)
   .handler(async ({ data: { key, slugs } }) => {
     const { sources } = await import("./source");
     const source = sources[key];
@@ -83,7 +85,9 @@ export function DocRoute({
   const Content = clientLoaderFor(data.key).getComponent(data.file);
   return (
     <DocsLayout tree={pageTree} nav={{ title: "assistant-ui" }}>
-      <Content />
+      <DocsRuntimeProvider>
+        <Content />
+      </DocsRuntimeProvider>
     </DocsLayout>
   );
 }
