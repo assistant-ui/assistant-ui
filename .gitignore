@@ -21,6 +21,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+tsconfig.aui-build.*.json
 next-env.d.ts
 
 # vercel

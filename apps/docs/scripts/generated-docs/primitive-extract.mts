@@ -187,7 +187,7 @@ function extractElementType(ns: ModuleDeclaration): string | undefined {
   return undefined;
 }
 
-function getPrimitiveComponentMeta(
+export function getPrimitiveComponentMeta(
   sourceFile: SourceFile,
   localName: string,
   options?: JsDocRenderOptions,
@@ -196,13 +196,16 @@ function getPrimitiveComponentMeta(
   deprecated?: string | undefined;
   examples?: string[] | undefined;
 } {
-  for (const varDecl of sourceFile.getVariableDeclarations()) {
-    if (varDecl.getName() !== localName) continue;
-    const statement = varDecl.getVariableStatement();
-    if (!statement) continue;
-    const jsDocs = statement.getJsDocs();
-    if (jsDocs.length === 0) continue;
-    const doc = jsDocs[0]!;
+  const declarations = [
+    ...sourceFile
+      .getVariableDeclarations()
+      .filter((varDecl) => varDecl.getName() === localName)
+      .map((varDecl) => varDecl.getVariableStatement()),
+    ...sourceFile.getFunctions().filter((fn) => fn.getName() === localName),
+  ];
+  for (const declaration of declarations) {
+    const doc = declaration?.getJsDocs()[0];
+    if (!doc) continue;
     const description = getJsDocCommentText(
       doc,
       `${localName} primitive`,

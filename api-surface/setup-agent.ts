@@ -283,7 +283,7 @@ declare const HELP: string;
 
 declare const INPUT_PRESETS: Record<PresetId, Preset>;
 
-declare const INSTRUCTIONS: (setupUrl: string, options?: AgentInstructionsOptions) => string;
+declare const INSTRUCTIONS: typeof agentInstructions;
 
 type NeedOption = {
   id: string;
@@ -517,8 +517,8 @@ declare const main: (argv: readonly string[]) => Promise<void>;
 declare const openInputs: (state: Checkout.State) => Checkout.Input[];
 
 declare const parseChoiceAnswer: (answer: string) => {
-  variant?: string;
   option: string;
+  variant?: string;
 };
 
 declare const parseEntryPointOptions: (value: unknown) => Checkout.EntryPointOption[] | undefined;

@@ -2080,7 +2080,7 @@ declare class CompositeAttachmentAdapter implements AttachmentAdapter {
   constructor(adapters: AttachmentAdapter[]);
   add(state: {
     file: File;
-  }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void, any>;
+  }): AsyncGenerator<PendingAttachment, void, any> | Promise<PendingAttachment>;
   send(attachment: PendingAttachment, options?: {
     signal?: AbortSignal;
   }): Promise<CompleteAttachment>;
@@ -3273,10 +3273,11 @@ declare namespace MessagePrimitiveGroupedParts {
   };
 }
 
-declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param2: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
-  displayName: string;
-};
+declare function MessagePrimitiveGroupedParts<TKey extends `group-${string}`>(_param2: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+
+declare namespace MessagePrimitiveGroupedParts {
+  var displayName: string;
+}
 
 declare namespace MessagePrimitiveIf {
   type Props = PropsWithChildren<UseMessageIfProps>;
@@ -5530,38 +5531,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       unmuteVoice: () => void;
       submitFeedback: (feedback: SubmitFeedbackOptions) => void;
       getModelContext: () => ModelContext$1;
-      composer: Readonly<{
-        isEditing: boolean;
-        canCancel: boolean;
-        canSend: boolean;
-        isEmpty: boolean;
-        attachments: readonly Attachment[];
-        attachmentAccept: string;
-        addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
-        removeAttachment: (attachmentId: string) => Promise<void>;
-        text: string;
-        setText: (value: string, options?: ComposerSetTextOptions) => void;
-        role: MessageRole;
-        setRole: (role: MessageRole) => void;
-        runConfig: RunConfig;
-        setRunConfig: (runConfig: RunConfig) => void;
-        quote: QuoteInfo | undefined;
-        setQuote: (quote: QuoteInfo | undefined) => void;
-        reset: () => Promise<void>;
-        clearAttachments: () => Promise<void>;
-        send: (options?: SendOptions) => void;
-        cancel: () => void;
-        submission?: ComposerSubmission | undefined;
-        inTransit?: readonly ComposerSubmission[] | undefined;
-        queue: readonly QueueItemState[];
-        moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
-        removeQueueItem: (queueItemId: string) => void;
-        dictation: DictationState | undefined;
-        startDictation: () => void;
-        stopDictation: () => void;
-        subscribe: (callback: () => void) => Unsubscribe;
-        unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe;
-      }>;
+      composer: ThreadComposerRuntimeCore;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
       __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
@@ -6904,7 +6874,7 @@ declare function unstable_useSlashCommandAdapter(options: Unstable_UseSlashComma
   fallbackIcon?: Unstable_IconComponent;
 };
 
-declare const unstable_useThreadMessageIds: () => readonly string[];
+declare const unstable_useThreadMessageIds: typeof useThreadMessageIds;
 
 declare function unstable_useTriggerPopoverAriaProps(): Unstable_TriggerPopoverAriaProps;
 
@@ -7070,9 +7040,9 @@ declare const useMessagePartSource: () => ({
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 });
 
-declare const useMessagePartText: () => (TextMessagePart & {
+declare const useMessagePartText: () => (ReasoningMessagePart & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
-}) | (ReasoningMessagePart & {
+}) | (TextMessagePart & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 });
 
@@ -7215,6 +7185,8 @@ declare const useThreadListItemUnarchive: () => (() => void) | null;
 declare const useThreadListLoadMore: () => (() => void) | null;
 
 declare const useThreadLoadEarlier: () => (() => void) | null;
+
+declare const useThreadMessageIds: () => readonly string[];
 
 declare namespace useThreadScrollToBottom {
   type Options = {

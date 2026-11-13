@@ -268,6 +268,11 @@ type BackendToolDeclaration<TArgs extends Record<string, unknown> = Record<strin
   providerOptions?: ProviderOptions;
 };
 
+type CreateGorpStreamOptions = {
+  execute: (controller: GorpStreamController) => void | PromiseLike<void>;
+  defaultValue?: ReadonlyJSONValue;
+};
+
 type CreateResumableAssistantStreamResponseOptions = {
   readonly context: ResumableStreamContext;
   readonly streamId: string;
@@ -390,6 +395,11 @@ type GenericUserMessage = {
 type GorpStreamChunk = {
   readonly snapshot: ReadonlyJSONValue;
   readonly operations: readonly GorpStreamOperation[];
+};
+
+type GorpStreamController = {
+  readonly abortSignal: AbortSignal;
+  enqueue(operations: readonly GorpStreamOperation[]): void;
 };
 
 declare class GorpStreamDeltaTracker {
@@ -1247,23 +1257,19 @@ declare function createAssistantStreamController(options?: AssistantStreamOption
 
 declare function createAssistantStreamResponse(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): Response;
 
+declare const createGorpStream: (_param1: CreateGorpStreamOptions) => ReadableStream<GorpStreamChunk>;
+
 declare function createInMemoryResumableStreamStore(options?: InMemoryResumableStreamStoreOptions): ResumableStreamStore & {
   dispose: () => void;
 };
 
-declare const createInitialMessage: (_param1?: {
+declare const createInitialMessage: (_param2?: {
   unstable_state?: ReadonlyJSONValue;
 }) => AssistantMessage;
 
 declare function createIoredisResumableStreamStore(client: IoRedisLike, options?: RedisResumableStreamStoreOptions): ResumableStreamStore;
 
-declare const createObjectStream: (_param2: {
-  execute: (controller: {
-    readonly abortSignal: AbortSignal;
-    enqueue(operations: readonly GorpStreamOperation[]): void;
-  }) => void | PromiseLike<void>;
-  defaultValue?: ReadonlyJSONValue;
-}) => ReadableStream<GorpStreamChunk>;
+declare const createObjectStream: typeof createGorpStream;
 
 declare function createRedisResumableStreamStore(client: NodeRedisLike, options?: RedisResumableStreamStoreOptions): ResumableStreamStore;
 
@@ -1273,7 +1279,9 @@ declare function createResumableStreamContext(options: ResumableStreamContextOpt
 
 declare function createResumeAssistantStreamResponse(options: CreateResumeAssistantStreamResponseOptions): Promise<Response>;
 
-declare const fromObjectStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
+declare const fromGorpStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
+
+declare const fromObjectStreamResponse: typeof fromGorpStreamResponse;
 
 declare const frontendTools: (tools: FrontendTools) => ToolSet;
 
