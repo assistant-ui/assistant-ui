@@ -1,189 +1,10 @@
-import { RunActivityDemo } from "@/components/demo/elements/run-activity";
-import type { ComponentType } from "react";
-import {
-  GenerationLoaderDemo,
-  GenerationLoaderRoundedDemo,
-  GenerationLoaderSquaresDemo,
-} from "@/components/demo/elements/loading-state";
-import { DataTableDemo } from "@/components/demo/elements/data-table";
-import { RecommendationCardDemo } from "@/components/demo/elements/recommendation-card";
-import { NumberTickerDemo } from "@/components/demo/elements/number-ticker";
-import { ChatPanelDemo } from "@/components/demo/elements/chat-panel";
-import { ThinkingIndicatorDemo } from "@/components/demo/elements/thinking-indicator";
-import { ReasoningPanelDemo } from "@/components/demo/elements/reasoning-panel";
-import { StreamingTextDemo } from "@/components/demo/elements/streaming-text";
-import {
-  TypingIndicatorBareDemo,
-  TypingIndicatorDemo,
-} from "@/components/demo/elements/typing-indicator";
-import {
-  MessagePairDemo,
-  MessagePairFlatDemo,
-} from "@/components/demo/elements/message-pair";
-import { MessageBranchesDemo } from "@/components/demo/elements/message-branches";
-import { MessageActionsDemo } from "@/components/demo/elements/message-actions";
-import {
-  SuggestionsDemo,
-  SuggestionsListDemo,
-} from "@/components/demo/elements/suggestions";
-import { ErrorStateDemo } from "@/components/demo/elements/error-state";
-import { ToolCallDemo } from "@/components/demo/elements/tool-call";
-import { ToolTimelineDemo } from "@/components/demo/elements/tool-timeline";
-import {
-  TerminalBlockDemo,
-  TerminalBlockFailedDemo,
-  TerminalBlockInkDemo,
-} from "@/components/demo/elements/terminal-block";
-import { CodeDiffDemo } from "@/components/demo/elements/code-diff";
-import { WebSearchDemo } from "@/components/demo/elements/web-search";
-import { SourcesDemo } from "@/components/demo/elements/sources";
-import { InlineCitationDemo } from "@/components/demo/elements/inline-citation";
-import {
-  LinkPreviewCompactDemo,
-  LinkPreviewDemo,
-} from "@/components/demo/elements/link-preview";
-import { ImageGenerationDemo } from "@/components/demo/elements/image-generation";
-import { ImageGalleryDemo } from "@/components/demo/elements/image-gallery";
-import { AgentPlanDemo } from "@/components/demo/elements/agent-plan";
-import { SubagentListDemo } from "@/components/demo/elements/subagent-list";
-import { AgentStatusDemo } from "@/components/demo/elements/agent-status";
-import { TaskCardDemo } from "@/components/demo/elements/task-card";
-import {
-  ApprovalCardDemo,
-  ApprovalCardDestructiveDemo,
-} from "@/components/demo/elements/approval-card";
-import {
-  OptionListDemo,
-  OptionListMultipleDemo,
-} from "@/components/demo/elements/option-list";
-import { QuestionFlowDemo } from "@/components/demo/elements/question-flow";
-import { ArtifactCardDemo } from "@/components/demo/elements/artifact-card";
-import { ComposerDemo } from "@/components/demo/elements/composer";
-import { ComposerSlashDemo } from "@/components/demo/elements/composer-slash";
-import { ComposerMentionsDemo } from "@/components/demo/elements/composer-mentions";
-import { ComposerAttachmentsDemo } from "@/components/demo/elements/composer-attachments";
-import { ComposerModelsDemo } from "@/components/demo/elements/composer-models";
-import { ComposerVoiceDemo } from "@/components/demo/elements/composer-voice";
-import { ComposerContextDemo } from "@/components/demo/elements/composer-context";
-import { EmptyStateDemo } from "@/components/demo/elements/empty-state";
-import { ThreadListDemo } from "@/components/demo/elements/thread-list";
-import { ScrollAnchorDemo } from "@/components/demo/elements/scroll-anchor";
-import { ConversationMapDemo } from "@/components/demo/elements/conversation-map";
-import { TodoListDemo } from "@/components/demo/elements/todo-list";
-import { MessageQueueDemo } from "@/components/demo/elements/message-queue";
-import { MessageAttachmentDemo } from "@/components/demo/elements/message-attachment";
-import { ReviewableDiffDemo } from "@/components/demo/elements/reviewable-diff";
-import { FileTreeDemo } from "@/components/demo/elements/file-tree";
-import { ElicitationFormDemo } from "@/components/demo/elements/elicitation-form";
-import { RetrievalChunksDemo } from "@/components/demo/elements/retrieval-chunks";
-import {
-  ChartBarsDemo,
-  ChartDemo,
-  ChartLineDemo,
-} from "@/components/demo/elements/chart";
-import {
-  AudioPlayerDemo,
-  VideoPlayerDemo,
-} from "@/components/demo/elements/media-player";
-import { TraceWaterfallDemo } from "@/components/demo/elements/trace-waterfall";
-import { CanvasSplitDemo } from "@/components/demo/elements/canvas-split";
-import { VoiceConversationDemo } from "@/components/demo/elements/voice-conversation";
-import { ReadAloudDemo } from "@/components/demo/elements/read-aloud";
-import { McpServerPanelDemo } from "@/components/demo/elements/mcp-server-panel";
-import { FeedbackDialogDemo } from "@/components/demo/elements/feedback-dialog";
-import { QuoteReplyDemo } from "@/components/demo/elements/quote-reply";
-import { EditMessageDemo } from "@/components/demo/elements/edit-message";
-import { ConnectionStateDemo } from "@/components/demo/elements/connection-state";
-import { StoppedRunDemo } from "@/components/demo/elements/stopped-run";
-import { AgentCardDemo } from "@/components/demo/elements/agent-card";
-import { WebPreviewDemo } from "@/components/demo/elements/web-preview";
-import { MessageTimingDemo } from "@/components/demo/elements/message-timing";
-import { DraftRestoreDemo } from "@/components/demo/elements/draft-restore";
-import { DiagramDemo } from "@/components/demo/elements/diagram";
-import { FlowGraphDemo } from "@/components/demo/elements/flow-graph";
-import { ActivityGraphDemo } from "@/components/demo/elements/activity-graph";
-import { ToolGroupDemo } from "@/components/demo/elements/tool-group";
-import { ContextBreakdownDemo } from "@/components/demo/elements/context-breakdown";
-import { ModelPickerDemo } from "@/components/demo/elements/model-picker";
-import { ReasoningEffortDemo } from "@/components/demo/elements/reasoning-effort";
-import { GuardrailNoticeDemo } from "@/components/demo/elements/guardrail-notice";
-import { DaySeparatorDemo } from "@/components/demo/elements/day-separator";
-import { SpeakerIdentityDemo } from "@/components/demo/elements/speaker-identity";
-import { RegenerateMenuDemo } from "@/components/demo/elements/regenerate-menu";
-import { ConfidenceMarkerDemo } from "@/components/demo/elements/confidence-marker";
-import { ToolErrorDemo } from "@/components/demo/elements/tool-error";
-import { PermissionGrantDemo } from "@/components/demo/elements/permission-grant";
-import { ComputerUseDemo } from "@/components/demo/elements/computer-use";
-import { CodeRunnerDemo } from "@/components/demo/elements/code-runner";
-import { DocumentReferenceDemo } from "@/components/demo/elements/document-reference";
-import { MemoryChipsDemo } from "@/components/demo/elements/memory-chips";
-import { ResearchReportDemo } from "@/components/demo/elements/research-report";
-import { MapAnswerDemo } from "@/components/demo/elements/map-answer";
-import { GeoMapDemo } from "@/components/demo/elements/geo-map";
-import { MathBlockDemo } from "@/components/demo/elements/math-block";
-import { SpecSheetDemo } from "@/components/demo/elements/spec-sheet";
-import { ComparisonCardDemo } from "@/components/demo/elements/comparison-card";
-import { TimelineDemo } from "@/components/demo/elements/timeline";
-import { JobProgressDemo } from "@/components/demo/elements/job-progress";
-import { ScoreBreakdownDemo } from "@/components/demo/elements/score-breakdown";
-import { CostMeterDemo } from "@/components/demo/elements/cost-meter";
-import { QuotaBannerDemo } from "@/components/demo/elements/quota-banner";
-import { AgentHandoffDemo } from "@/components/demo/elements/agent-handoff";
-import { BackgroundInboxDemo } from "@/components/demo/elements/background-inbox";
-import { CheckpointHistoryDemo } from "@/components/demo/elements/checkpoint-history";
-import { ScheduleCardDemo } from "@/components/demo/elements/schedule-card";
-import { PromptLibraryDemo } from "@/components/demo/elements/prompt-library";
-import { CommandPaletteDemo } from "@/components/demo/elements/command-palette";
-import { SharedConversationDemo } from "@/components/demo/elements/shared-conversation";
-import { ConversationSearchDemo } from "@/components/demo/elements/conversation-search";
-import { ThreadSearchDemo } from "@/components/demo/elements/thread-search";
-import { LauncherBubbleDemo } from "@/components/demo/elements/launcher-bubble";
-import { SettingsPanelDemo } from "@/components/demo/elements/settings-panel";
-import { OnboardingDemo } from "@/components/demo/elements/onboarding";
-import { MobileComposerDemo } from "@/components/demo/elements/mobile-composer";
-import {
-  AuiAssistantModalDemo,
-  AuiAssistantSidebarDemo,
-  AuiAttachmentDemo,
-  AuiComposerTriggerPopoverDemo,
-  AuiContextDisplayDemo,
-  AuiConversationMapDemo,
-  AuiDirectiveTextDemo,
-  AuiFileDemo,
-  AuiFollowUpSuggestionsDemo,
-  AuiGenerativeUIDemo,
-  AuiHeatGraphDemo,
-  AuiImageDemo,
-  AuiLogosDemo,
-  AuiMarkdownTextDemo,
-  AuiMcpConfigDemo,
-  AuiMermaidDiagramDemo,
-  AuiMessageTimingDemo,
-  AuiModelSelectorDemo,
-  AuiQuoteDemo,
-  AuiReasoningDemo,
-  AuiShikiHighlighterDemo,
-  AuiSourcesDemo,
-  AuiSourcesVariantsDemo,
-  AuiSyntaxHighlighterDemo,
-  AuiThreadDemo,
-  AuiThreadListDemo,
-  AuiThreadListSidebarDemo,
-  AuiToolFallbackDemo,
-  AuiToolFallbackReceiptDemo,
-  AuiToolGroupDemo,
-  AuiTooltipIconButtonDemo,
-  AuiVoiceDemo,
-  AuiVoiceStatesDemo,
-  AuiVoicePalettesDemo,
-} from "@/components/demo/elements/aui-demos";
-import * as generativeDemos from "@/components/demo/elements/generative-demos";
 import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 
+// Metadata only. Each demo loads from `element-demos.ts` by slug, so client
+// code that lists the catalog (the sidebar, the pager) does not bundle them.
 export interface ElementVariant {
   key: string;
   label: string;
-  Component: ComponentType;
 }
 
 export interface ElementEntry {
@@ -199,7 +20,6 @@ export interface ElementEntry {
   wide?: boolean;
   replay?: boolean;
   generative?: boolean;
-  Component: ComponentType;
   variants?: ElementVariant[];
 }
 
@@ -208,18 +28,6 @@ export interface ElementSection {
   description: string;
   elements: ElementEntry[];
 }
-
-const generativeDemoFor = (templateSlug: string): ComponentType => {
-  const exportName = `Generative${templateSlug
-    .split("-")
-    .map((part) => part[0]!.toUpperCase() + part.slice(1))
-    .join("")}Demo`;
-  const component = (
-    generativeDemos as unknown as Record<string, ComponentType | undefined>
-  )[exportName];
-  if (!component) throw new Error(`Missing generative demo: ${exportName}`);
-  return component;
-};
 
 export const ELEMENT_SECTIONS: ElementSection[] = [
   {
@@ -233,19 +41,10 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A pixel matrix that keeps time while the model has nothing to show yet.",
         file: "loading-state.tsx",
-        Component: GenerationLoaderDemo,
         variants: [
-          { key: "dots", label: "Dots", Component: GenerationLoaderDemo },
-          {
-            key: "squares",
-            label: "Squares",
-            Component: GenerationLoaderSquaresDemo,
-          },
-          {
-            key: "rounded",
-            label: "Rounded",
-            Component: GenerationLoaderRoundedDemo,
-          },
+          { key: "dots", label: "Dots" },
+          { key: "squares", label: "Squares" },
+          { key: "rounded", label: "Rounded" },
         ],
       },
       {
@@ -254,7 +53,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A live status line that names what the agent is doing right now, with elapsed time.",
         file: "thinking-indicator.tsx",
-        Component: ThinkingIndicatorDemo,
       },
       {
         slug: "streaming-text",
@@ -262,7 +60,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Tokens arrive softly: the newest words land in blue and settle into ink.",
         file: "streaming-text.tsx",
-        Component: StreamingTextDemo,
       },
       {
         slug: "typing-indicator",
@@ -271,14 +68,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The classic three dots, tuned to read as presence rather than noise.",
         file: "typing-indicator.tsx",
-        Component: TypingIndicatorDemo,
         variants: [
-          {
-            key: "bubble",
-            label: "Bubble",
-            Component: TypingIndicatorDemo,
-          },
-          { key: "bare", label: "Bare", Component: TypingIndicatorBareDemo },
+          { key: "bubble", label: "Bubble" },
+          { key: "bare", label: "Bare" },
         ],
       },
       {
@@ -287,7 +79,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "How hard to think, and how much of that budget the run actually spent.",
         file: "reasoning-effort.tsx",
-        Component: ReasoningEffortDemo,
       },
       {
         slug: "guardrail-notice",
@@ -296,7 +87,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A refusal in its own shape, with the nearest thing it can do instead.",
         file: "guardrail-notice.tsx",
-        Component: GuardrailNoticeDemo,
       },
     ],
   },
@@ -310,10 +100,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A user bubble and a streaming assistant reply, with actions that appear on hover.",
         file: "message-pair.tsx",
-        Component: MessagePairDemo,
         variants: [
-          { key: "bubble", label: "Bubble", Component: MessagePairDemo },
-          { key: "flat", label: "Flat", Component: MessagePairFlatDemo },
+          { key: "bubble", label: "Bubble" },
+          { key: "flat", label: "Flat" },
         ],
       },
       {
@@ -323,7 +112,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Navigate between regenerated versions of the same answer without losing your place.",
         file: "message-branches.tsx",
-        Component: MessageBranchesDemo,
       },
       {
         slug: "message-actions",
@@ -332,7 +120,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Copy, rate, and regenerate. Each action confirms itself with a small state change.",
         file: "message-actions.tsx",
-        Component: MessageActionsDemo,
       },
       {
         slug: "error-state",
@@ -341,7 +128,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A quiet failure banner with a retry path, not a modal in your face.",
         file: "error-state.tsx",
-        Component: ErrorStateDemo,
       },
       {
         slug: "message-queue",
@@ -350,7 +136,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
         file: "message-queue.tsx",
-        Component: MessageQueueDemo,
       },
       {
         slug: "edit-message",
@@ -359,7 +144,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Rewrite a turn in place as a new branch, told up front how many replies stay behind on the old one.",
         file: "edit-message.tsx",
-        Component: EditMessageDemo,
       },
       {
         slug: "feedback-dialog",
@@ -368,7 +152,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A thumbs-down that asks why, so the signal arrives with a reason attached.",
         file: "feedback-dialog.tsx",
-        Component: FeedbackDialogDemo,
       },
       {
         slug: "stopped-run",
@@ -376,7 +159,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "You pressed stop. The half-written answer stays, and continuing is one tap away.",
         file: "stopped-run.tsx",
-        Component: StoppedRunDemo,
       },
       {
         slug: "day-separator",
@@ -385,7 +167,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Chronology in a long thread: days marked, times on hover.",
         file: "day-separator.tsx",
-        Component: DaySeparatorDemo,
       },
       {
         slug: "speaker-identity",
@@ -394,7 +175,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Who is talking, once a thread holds more than a user and one model.",
         file: "speaker-identity.tsx",
-        Component: SpeakerIdentityDemo,
       },
       {
         slug: "regenerate-menu",
@@ -403,7 +183,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Fork the same turn to a different model instead of rolling the same dice.",
         file: "regenerate-menu.tsx",
-        Component: RegenerateMenuDemo,
       },
       {
         slug: "confidence-marker",
@@ -412,7 +191,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Which claims came from a source, which were inferred, and which are guesses.",
         file: "confidence-marker.tsx",
-        Component: ConfidenceMarkerDemo,
       },
     ],
   },
@@ -426,7 +204,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "One tool invocation with its request and result tucked behind a disclosure.",
         file: "tool-call.tsx",
-        Component: ToolCallDemo,
       },
       {
         slug: "run-activity",
@@ -434,7 +211,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Commentary and tools in one disclosure, with the final answer always visible.",
         file: "run-activity.tsx",
-        Component: RunActivityDemo,
       },
       {
         slug: "tool-timeline",
@@ -442,7 +218,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A whole working session summarized as verbs, targets, and file stats.",
         file: "tool-timeline.tsx",
-        Component: ToolTimelineDemo,
       },
       {
         slug: "terminal-block",
@@ -450,15 +225,10 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Command output that streams line by line and ends with an exit status.",
         file: "terminal-block.tsx",
-        Component: TerminalBlockDemo,
         variants: [
-          { key: "paper", label: "Paper", Component: TerminalBlockDemo },
-          { key: "ink", label: "Ink", Component: TerminalBlockInkDemo },
-          {
-            key: "failed",
-            label: "Failed",
-            Component: TerminalBlockFailedDemo,
-          },
+          { key: "paper", label: "Paper" },
+          { key: "ink", label: "Ink" },
+          { key: "failed", label: "Failed" },
         ],
       },
       {
@@ -467,7 +237,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A unified diff with tinted additions and removals, sized for chat.",
         file: "code-diff.tsx",
-        Component: CodeDiffDemo,
       },
       {
         slug: "reviewable-diff",
@@ -476,7 +245,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The same diff, but each hunk is a decision: keep it, discard it, apply what survived.",
         file: "reviewable-diff.tsx",
-        Component: ReviewableDiffDemo,
       },
       {
         slug: "file-tree",
@@ -484,7 +252,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Everything a run touched, as a tree, with the churn spelled out per file.",
         file: "file-tree.tsx",
-        Component: FileTreeDemo,
       },
       {
         slug: "elicitation-form",
@@ -493,7 +260,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A server pausing mid-tool-call to ask you for the fields it still needs.",
         file: "elicitation-form.tsx",
-        Component: ElicitationFormDemo,
       },
       {
         slug: "mcp-server-panel",
@@ -502,7 +268,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Which servers are connected, what each one brought, and which is still waiting on you.",
         file: "mcp-server-panel.tsx",
-        Component: McpServerPanelDemo,
       },
       {
         slug: "tool-error",
@@ -511,7 +276,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "One call failed. The error, the attempt count, and a retry that doesn't restart the turn.",
         file: "tool-error.tsx",
-        Component: ToolErrorDemo,
       },
       {
         slug: "permission-grant",
@@ -520,7 +284,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Granting a capability rather than approving one action, with the reach spelled out.",
         file: "permission-grant.tsx",
-        Component: PermissionGrantDemo,
       },
       {
         slug: "computer-use",
@@ -528,7 +291,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The screen the agent is driving, with a cursor trail and what it is doing right now.",
         file: "computer-use.tsx",
-        Component: ComputerUseDemo,
       },
       {
         slug: "code-runner",
@@ -537,7 +299,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A snippet with a run button, and the output it produced attached below it.",
         file: "code-runner.tsx",
-        Component: CodeRunnerDemo,
       },
     ],
   },
@@ -551,7 +312,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A search query and its results landing one by one as the agent reads.",
         file: "web-search.tsx",
-        Component: WebSearchDemo,
       },
       {
         slug: "inline-citation",
@@ -560,7 +320,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Numbered references inside a sentence, each with a hover preview of its source.",
         file: "inline-citation.tsx",
-        Component: InlineCitationDemo,
       },
       {
         slug: "link-preview",
@@ -568,14 +327,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A returned URL unfurled into a card with enough context to decide whether to open it.",
         file: "link-preview.tsx",
-        Component: LinkPreviewDemo,
         variants: [
-          { key: "card", label: "Card", Component: LinkPreviewDemo },
-          {
-            key: "compact",
-            label: "Compact",
-            Component: LinkPreviewCompactDemo,
-          },
+          { key: "card", label: "Card" },
+          { key: "compact", label: "Compact" },
         ],
       },
       {
@@ -584,7 +338,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A dot grid holds the frame while the image resolves out of a blur.",
         file: "image-generation.tsx",
-        Component: ImageGenerationDemo,
       },
       {
         slug: "image-gallery",
@@ -593,7 +346,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A compact grid of returned images that opens each one in a shared lightbox.",
         file: "image-gallery.tsx",
-        Component: ImageGalleryDemo,
       },
       {
         slug: "retrieval-chunks",
@@ -601,7 +353,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The passages a retrieval answer stands on, scored, before the answer itself arrives.",
         file: "retrieval-chunks.tsx",
-        Component: RetrievalChunksDemo,
       },
       {
         slug: "document-reference",
@@ -610,7 +361,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A document the answer leans on, with the quoted passage and the page to jump to.",
         file: "document-reference.tsx",
-        Component: DocumentReferenceDemo,
       },
       {
         slug: "memory-chips",
@@ -618,7 +368,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "What it now remembers about you, written during the turn and removable.",
         file: "memory-chips.tsx",
-        Component: MemoryChipsDemo,
       },
       {
         slug: "research-report",
@@ -626,7 +375,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "An outline that fills in section by section, each carrying the sources behind it.",
         file: "research-report.tsx",
-        Component: ResearchReportDemo,
       },
       {
         slug: "map-answer",
@@ -635,7 +383,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A location answer: pins, a route between them, and the list they came from.",
         file: "map-answer.tsx",
-        Component: MapAnswerDemo,
       },
       {
         slug: "geo-map",
@@ -644,7 +391,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Places and routes on a real tiled map, with an accessible list of every place.",
         file: "geo-map.tsx",
-        Component: GeoMapDemo,
       },
     ],
   },
@@ -658,7 +404,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A tool's rows and columns with formatting, sorting, and a card layout in narrow columns.",
         file: "data-table.tsx",
-        Component: DataTableDemo,
       },
       {
         slug: "number-ticker",
@@ -666,7 +411,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Digits that roll into place as a count updates in real time.",
         file: "number-ticker.tsx",
-        Component: NumberTickerDemo,
       },
       {
         slug: "chart",
@@ -674,11 +418,10 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Area, line, and bars, with points landing one at a time as the series streams in.",
         file: "chart.tsx",
-        Component: ChartDemo,
         variants: [
-          { key: "area", label: "Area", Component: ChartDemo },
-          { key: "line", label: "Line", Component: ChartLineDemo },
-          { key: "bars", label: "Bars", Component: ChartBarsDemo },
+          { key: "area", label: "Area" },
+          { key: "line", label: "Line" },
+          { key: "bars", label: "Bars" },
         ],
       },
       {
@@ -688,10 +431,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Audio and video a tool returned, played inline without leaving the thread.",
         file: "media-player.tsx",
-        Component: AudioPlayerDemo,
         variants: [
-          { key: "audio", label: "Audio", Component: AudioPlayerDemo },
-          { key: "video", label: "Video", Component: VideoPlayerDemo },
+          { key: "audio", label: "Audio" },
+          { key: "video", label: "Video" },
         ],
       },
       {
@@ -700,7 +442,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Chrome for a sandboxed preview: a URL bar, reload, and open-in-new around a frame you isolate.",
         file: "web-preview.tsx",
-        Component: WebPreviewDemo,
       },
       {
         slug: "diagram",
@@ -709,7 +450,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A drawn answer with zoom, reset, and a full-bleed view; you hand it the rendered graphic.",
         file: "diagram.tsx",
-        Component: DiagramDemo,
       },
       {
         slug: "flow-graph",
@@ -717,7 +457,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Work as a graph rather than a list: branches that fan out and rejoin.",
         file: "flow-graph.tsx",
-        Component: FlowGraphDemo,
       },
       {
         slug: "activity-graph",
@@ -726,7 +465,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A half-year of runs as a calendar of cells, dense where the work was.",
         file: "activity-graph.tsx",
-        Component: ActivityGraphDemo,
       },
       {
         slug: "math-block",
@@ -734,7 +472,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Rendered expressions with the working shown, one step at a time.",
         file: "math-block.tsx",
-        Component: MathBlockDemo,
       },
       {
         slug: "spec-sheet",
@@ -742,7 +479,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The most common structured answer after a table: one object, labeled.",
         file: "spec-sheet.tsx",
-        Component: SpecSheetDemo,
       },
       {
         slug: "comparison-card",
@@ -751,7 +487,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Two options weighed side by side, with the pick named and argued.",
         file: "comparison-card.tsx",
-        Component: ComparisonCardDemo,
       },
       {
         slug: "timeline",
@@ -759,7 +494,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Events on a time axis, with what already happened and what is still coming.",
         file: "timeline.tsx",
-        Component: TimelineDemo,
       },
       {
         slug: "job-progress",
@@ -767,7 +501,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Work measured in minutes: weighted stages, an ETA, and a way out.",
         file: "job-progress.tsx",
-        Component: JobProgressDemo,
       },
       {
         slug: "score-breakdown",
@@ -775,7 +508,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A verdict with its arithmetic shown: criteria, weights, and what pulled it down.",
         file: "score-breakdown.tsx",
-        Component: ScoreBreakdownDemo,
       },
     ],
   },
@@ -789,7 +521,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A checklist the agent works through, with progress you can glance.",
         file: "agent-plan.tsx",
-        Component: AgentPlanDemo,
       },
       {
         slug: "subagent-list",
@@ -797,7 +528,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Parallel workers with their own progress, models, and completions.",
         file: "subagent-list.tsx",
-        Component: SubagentListDemo,
       },
       {
         slug: "task-card",
@@ -808,7 +538,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A delegated task with its state, timing, result, and transcript in one card.",
         file: "task-card.tsx",
-        Component: TaskCardDemo,
       },
       {
         slug: "agent-status",
@@ -819,7 +548,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "One pill that always answers: what is it doing, and for how long.",
         file: "agent-status.tsx",
-        Component: AgentStatusDemo,
       },
       {
         slug: "approval-card",
@@ -828,14 +556,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Human in the loop: the agent asks before it runs anything with side effects.",
         file: "approval-card.tsx",
-        Component: ApprovalCardDemo,
         variants: [
-          { key: "command", label: "Command", Component: ApprovalCardDemo },
-          {
-            key: "destructive",
-            label: "Destructive",
-            Component: ApprovalCardDestructiveDemo,
-          },
+          { key: "command", label: "Command" },
+          { key: "destructive", label: "Destructive" },
         ],
       },
       {
@@ -845,14 +568,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
         file: "option-list.tsx",
-        Component: OptionListDemo,
         variants: [
-          { key: "single", label: "Single", Component: OptionListDemo },
-          {
-            key: "multiple",
-            label: "Multiple",
-            Component: OptionListMultipleDemo,
-          },
+          { key: "single", label: "Single" },
+          { key: "multiple", label: "Multiple" },
         ],
       },
       {
@@ -862,7 +580,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A few short questions asked one at a time, answered together and kept as a receipt.",
         file: "question-flow.tsx",
-        Component: QuestionFlowDemo,
       },
       {
         slug: "recommendation-card",
@@ -871,7 +588,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The agent proposes a change with its confidence, and waits for a yes.",
         file: "recommendation-card.tsx",
-        Component: RecommendationCardDemo,
       },
       {
         slug: "artifact-card",
@@ -879,7 +595,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A generated document as a tangible object, written live and versioned.",
         file: "artifact-card.tsx",
-        Component: ArtifactCardDemo,
       },
       {
         slug: "todo-list",
@@ -887,7 +602,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The agent's own working list, rewritten mid-run as it discovers what else is needed.",
         file: "todo-list.tsx",
-        Component: TodoListDemo,
       },
       {
         slug: "agent-card",
@@ -896,7 +610,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Who you are about to talk to: its skills, its model, and the endpoint behind it.",
         file: "agent-card.tsx",
-        Component: AgentCardDemo,
       },
       {
         slug: "agent-handoff",
@@ -904,7 +617,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Control passing between agents, with the reason and what came along.",
         file: "agent-handoff.tsx",
-        Component: AgentHandoffDemo,
       },
       {
         slug: "background-inbox",
@@ -912,7 +624,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Work still going somewhere else, and the results waiting to be collected.",
         file: "background-inbox.tsx",
-        Component: BackgroundInboxDemo,
       },
       {
         slug: "checkpoint-history",
@@ -921,7 +632,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Points you can fall back to, with what each one would give back.",
         file: "checkpoint-history.tsx",
-        Component: CheckpointHistoryDemo,
       },
       {
         slug: "schedule-card",
@@ -930,7 +640,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A run that repeats on its own, with its cadence and how it has been doing.",
         file: "schedule-card.tsx",
-        Component: ScheduleCardDemo,
       },
     ],
   },
@@ -944,7 +653,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Every span in a run on one time axis, nested, so you can see where it actually went.",
         file: "trace-waterfall.tsx",
-        Component: TraceWaterfallDemo,
       },
       {
         slug: "cost-meter",
@@ -953,7 +661,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "What the run spent, split by model, against the session total.",
         file: "cost-meter.tsx",
-        Component: CostMeterDemo,
       },
       {
         slug: "quota-banner",
@@ -961,7 +668,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "How much is left, when it comes back, and the way to get more.",
         file: "quota-banner.tsx",
-        Component: QuotaBannerDemo,
       },
     ],
   },
@@ -977,7 +683,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The unified input: attachments, commands, mentions, models, voice, and context in one surface.",
         file: "composer.tsx",
         wide: true,
-        Component: ComposerDemo,
       },
       {
         slug: "composer-slash-commands",
@@ -987,7 +692,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Type a slash and the command menu floats above the input, filtering as you continue.",
         file: "composer.tsx",
         installName: "composer",
-        Component: ComposerSlashDemo,
       },
       {
         slug: "composer-mentions",
@@ -997,7 +701,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Type @ to pull people and agents into the conversation, filtered as you go.",
         file: "composer.tsx",
         installName: "composer",
-        Component: ComposerMentionsDemo,
       },
       {
         slug: "composer-attachments",
@@ -1006,7 +709,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Files stage inside the composer with per-file progress before the message sends.",
         file: "composer.tsx",
         installName: "composer",
-        Component: ComposerAttachmentsDemo,
       },
       {
         slug: "composer-model-picker",
@@ -1016,7 +718,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The model lives in the composer rail, one tap away with context at a glance.",
         file: "composer.tsx",
         installName: "composer",
-        Component: ComposerModelsDemo,
       },
       {
         slug: "composer-voice",
@@ -1025,7 +726,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The mic morphs the input into a live waveform, then lands the transcript as text.",
         file: "composer.tsx",
         installName: "composer",
-        Component: ComposerVoiceDemo,
       },
       {
         slug: "composer-context",
@@ -1034,7 +734,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "A token ring in the rail fills as the conversation grows, warning near the limit.",
         file: "composer.tsx",
         installName: "composer",
-        Component: ComposerContextDemo,
       },
       {
         slug: "draft-restore",
@@ -1043,7 +742,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Come back to a thread and the sentence you never sent is still waiting.",
         file: "draft-restore.tsx",
-        Component: DraftRestoreDemo,
       },
       {
         slug: "context-breakdown",
@@ -1051,7 +749,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Where the window actually went: prompt, tools, files, conversation, and what's left.",
         file: "context-breakdown.tsx",
-        Component: ContextBreakdownDemo,
       },
       {
         slug: "prompt-library",
@@ -1060,7 +757,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Prompts you saved, searchable, with their variables shown before you insert one.",
         file: "prompt-library.tsx",
-        Component: PromptLibraryDemo,
       },
       {
         slug: "command-palette",
@@ -1069,7 +765,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Everything the app can do, one keystroke away and grouped by where it acts.",
         file: "command-palette.tsx",
-        Component: CommandPaletteDemo,
       },
     ],
   },
@@ -1087,7 +782,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "voice-conversation.tsx",
         registryName: "voice-conversation",
         connection: "AUI",
-        Component: VoiceConversationDemo,
       },
       {
         slug: "read-aloud",
@@ -1096,7 +790,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "An answer played back, the spoken word lit as it goes, speed under your thumb.",
         file: "read-aloud.tsx",
-        Component: ReadAloudDemo,
       },
     ],
   },
@@ -1111,7 +804,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The whole family working together: a message, a pause, a streamed reply.",
         file: "chat-panel.tsx",
         wide: true,
-        Component: ChatPanelDemo,
       },
       {
         slug: "empty-state",
@@ -1120,7 +812,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The first screen: a greeting, three ways in, and the composer front and center.",
         file: "empty-state.tsx",
         wide: true,
-        Component: EmptyStateDemo,
       },
       {
         slug: "scroll-anchor",
@@ -1128,7 +819,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Streaming never steals your scroll position; a pill offers the way back down.",
         file: "scroll-anchor.tsx",
-        Component: ScrollAnchorDemo,
       },
       {
         slug: "canvas-split",
@@ -1137,7 +827,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The thread steps aside and the document takes the room, still being written as you read.",
         file: "canvas-split.tsx",
         wide: true,
-        Component: CanvasSplitDemo,
       },
       {
         slug: "connection-state",
@@ -1145,7 +834,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The socket drops, the run keeps going on the server, and the stream is picked back up.",
         file: "connection-state.tsx",
-        Component: ConnectionStateDemo,
       },
       {
         slug: "shared-conversation",
@@ -1154,7 +842,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "A read-only transcript someone sent you, with a way to pick it up yourself.",
         file: "shared-conversation.tsx",
-        Component: SharedConversationDemo,
       },
       {
         slug: "conversation-search",
@@ -1163,7 +850,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Find inside a long thread, with every hit marked down the scrollbar.",
         file: "conversation-search.tsx",
-        Component: ConversationSearchDemo,
       },
       {
         slug: "thread-search",
@@ -1172,14 +858,12 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "History you can actually get back into: pinned first, then grouped by when.",
         file: "thread-search.tsx",
-        Component: ThreadSearchDemo,
       },
       {
         slug: "launcher-bubble",
         title: "Launcher",
         description: "The floating entry point, and the panel it opens into.",
         file: "launcher-bubble.tsx",
-        Component: LauncherBubbleDemo,
       },
       {
         slug: "settings-panel",
@@ -1188,7 +872,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "Model, system prompt, temperature, and what the assistant is allowed to do.",
         file: "settings-panel.tsx",
-        Component: SettingsPanelDemo,
       },
       {
         slug: "onboarding",
@@ -1197,7 +880,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "First run: three moves that teach what this assistant is actually for.",
         file: "onboarding.tsx",
-        Component: OnboardingDemo,
       },
       {
         slug: "mobile-composer",
@@ -1206,7 +888,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         description:
           "The bottom sheet: keyboard-aware, quick actions above, thumb-sized targets.",
         file: "mobile-composer.tsx",
-        Component: MobileComposerDemo,
       },
     ],
   },
@@ -1224,7 +905,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "thread",
         connection: "AUI",
         wide: true,
-        Component: AuiThreadDemo,
       },
       {
         slug: "assistant-modal",
@@ -1236,7 +916,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "assistant-modal",
         connection: "AUI",
         wide: true,
-        Component: AuiAssistantModalDemo,
       },
       {
         slug: "assistant-sidebar",
@@ -1248,7 +927,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "assistant-sidebar",
         connection: "AUI",
         wide: true,
-        Component: AuiAssistantSidebarDemo,
       },
       {
         slug: "thread-list",
@@ -1260,10 +938,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "thread-list.aui.tsx",
         registryName: "thread-list",
         connection: "AUI",
-        Component: AuiThreadListDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiThreadListDemo },
-          { key: "static", label: "Static", Component: ThreadListDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1276,7 +953,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "threadlist-sidebar",
         connection: "AUI",
         wide: true,
-        Component: AuiThreadListSidebarDemo,
       },
       {
         slug: "orb",
@@ -1289,15 +965,10 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "voice.aui.tsx",
         registryName: "voice",
         connection: "AUI",
-        Component: AuiVoiceDemo,
         variants: [
-          { key: "session", label: "Session", Component: AuiVoiceDemo },
-          { key: "states", label: "States", Component: AuiVoiceStatesDemo },
-          {
-            key: "palettes",
-            label: "Palettes",
-            Component: AuiVoicePalettesDemo,
-          },
+          { key: "session", label: "Session" },
+          { key: "states", label: "States" },
+          { key: "palettes", label: "Palettes" },
         ],
       },
       {
@@ -1310,10 +981,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "reasoning.aui.tsx",
         registryName: "reasoning",
         connection: "AUI",
-        Component: AuiReasoningDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiReasoningDemo },
-          { key: "static", label: "Static", Component: ReasoningPanelDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1326,10 +996,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "message-timing.aui.tsx",
         registryName: "message-timing",
         connection: "AUI",
-        Component: AuiMessageTimingDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiMessageTimingDemo },
-          { key: "static", label: "Static", Component: MessageTimingDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1343,14 +1012,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "conversation-map",
         connection: "AUI",
         wide: true,
-        Component: AuiConversationMapDemo,
         variants: [
-          {
-            key: "runtime",
-            label: "Runtime",
-            Component: AuiConversationMapDemo,
-          },
-          { key: "static", label: "Static", Component: ConversationMapDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1363,7 +1027,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "context-display.aui.tsx",
         registryName: "context-display",
         connection: "AUI",
-        Component: AuiContextDisplayDemo,
       },
       {
         slug: "mcp-config",
@@ -1374,7 +1037,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "mcp-config.aui.tsx",
         registryName: "mcp-config",
         connection: "AUI",
-        Component: AuiMcpConfigDemo,
       },
       {
         slug: "attachment",
@@ -1386,10 +1048,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "attachment.aui.tsx",
         registryName: "attachment",
         connection: "AUI",
-        Component: AuiAttachmentDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiAttachmentDemo },
-          { key: "static", label: "Static", Component: MessageAttachmentDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1403,15 +1064,10 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "follow-up-suggestions",
         connection: "AUI",
         wide: true,
-        Component: AuiFollowUpSuggestionsDemo,
         variants: [
-          {
-            key: "runtime",
-            label: "Runtime",
-            Component: AuiFollowUpSuggestionsDemo,
-          },
-          { key: "pills", label: "Pills", Component: SuggestionsDemo },
-          { key: "list", label: "List", Component: SuggestionsListDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "pills", label: "Pills" },
+          { key: "list", label: "List" },
         ],
       },
       {
@@ -1423,14 +1079,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "tool-fallback.aui.tsx",
         registryName: "tool-fallback",
         connection: "AUI",
-        Component: AuiToolFallbackDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiToolFallbackDemo },
-          {
-            key: "receipt",
-            label: "Receipt",
-            Component: AuiToolFallbackReceiptDemo,
-          },
+          { key: "runtime", label: "Runtime" },
+          { key: "receipt", label: "Receipt" },
         ],
       },
       {
@@ -1443,10 +1094,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "tool-group.aui.tsx",
         registryName: "tool-group",
         connection: "AUI",
-        Component: AuiToolGroupDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiToolGroupDemo },
-          { key: "static", label: "Static", Component: ToolGroupDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1459,10 +1109,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "quote.aui.tsx",
         registryName: "quote",
         connection: "AUI",
-        Component: AuiQuoteDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiQuoteDemo },
-          { key: "static", label: "Static", Component: QuoteReplyDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1475,15 +1124,10 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "sources.aui.tsx",
         registryName: "sources",
         connection: "AUI",
-        Component: AuiSourcesDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiSourcesDemo },
-          {
-            key: "variants",
-            label: "Variants",
-            Component: AuiSourcesVariantsDemo,
-          },
-          { key: "static", label: "Static", Component: SourcesDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "variants", label: "Variants" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1495,7 +1139,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "image.tsx",
         registryName: "image",
         connection: "AUI",
-        Component: AuiImageDemo,
       },
       {
         slug: "file",
@@ -1506,7 +1149,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "file.tsx",
         registryName: "file",
         connection: "AUI",
-        Component: AuiFileDemo,
       },
       {
         slug: "model-selector",
@@ -1518,10 +1160,9 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "model-selector.aui.tsx",
         registryName: "model-selector",
         connection: "AUI",
-        Component: AuiModelSelectorDemo,
         variants: [
-          { key: "runtime", label: "Runtime", Component: AuiModelSelectorDemo },
-          { key: "static", label: "Static", Component: ModelPickerDemo },
+          { key: "runtime", label: "Runtime" },
+          { key: "static", label: "Static" },
         ],
       },
       {
@@ -1533,7 +1174,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "composer-trigger-popover.aui.tsx",
         registryName: "composer-trigger-popover",
         connection: "AUI",
-        Component: AuiComposerTriggerPopoverDemo,
       },
       {
         slug: "directive-text",
@@ -1545,7 +1185,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "directive-text.aui.tsx",
         registryName: "directive-text",
         connection: "AUI",
-        Component: AuiDirectiveTextDemo,
       },
     ],
   },
@@ -1563,7 +1202,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "markdown-text",
         connection: "AUI",
         wide: true,
-        Component: AuiMarkdownTextDemo,
       },
       {
         slug: "syntax-highlighter",
@@ -1573,7 +1211,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Prism-based code highlighting for assistant markdown code blocks.",
         file: "syntax-highlighter.tsx",
         registryName: "syntax-highlighter",
-        Component: AuiSyntaxHighlighterDemo,
       },
       {
         slug: "shiki-highlighter",
@@ -1585,7 +1222,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "shiki-highlighter.aui.tsx",
         registryName: "shiki-highlighter",
         connection: "AUI",
-        Component: AuiShikiHighlighterDemo,
       },
       {
         slug: "mermaid-diagram",
@@ -1596,7 +1232,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Mermaid diagrams rendered inside messages, including partial streaming input.",
         file: "mermaid-diagram.aui.tsx",
         registryName: "mermaid-diagram",
-        Component: AuiMermaidDiagramDemo,
       },
       {
         slug: "generative-ui",
@@ -1607,7 +1242,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "generative-ui.tsx",
         registryName: "generative-ui",
         wide: true,
-        Component: AuiGenerativeUIDemo,
       },
     ],
   },
@@ -1623,7 +1257,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "An accessible icon button with a tooltip label and shared interaction states.",
         file: "tooltip-icon-button.tsx",
         registryName: "tooltip-icon-button",
-        Component: AuiTooltipIconButtonDemo,
       },
       {
         slug: "logos",
@@ -1633,7 +1266,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Inline SVG marks for OpenAI, Anthropic, and Google model providers.",
         file: "logos.tsx",
         registryName: "logos",
-        Component: AuiLogosDemo,
       },
       {
         slug: "heat-graph",
@@ -1644,7 +1276,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "heat-graph.tsx",
         registryName: "heat-graph",
         wide: true,
-        Component: AuiHeatGraphDemo,
       },
     ],
   },
@@ -1657,7 +1288,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
       generative: true,
       title: entry.template.title,
       description: entry.template.description,
-      Component: generativeDemoFor(entry.templateSlug),
     })),
   },
 ];

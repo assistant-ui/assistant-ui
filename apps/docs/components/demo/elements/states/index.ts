@@ -1,269 +1,180 @@
-import type { ElementStates } from "./types";
-import { GENERATIVE_STATES } from "./generative";
-import { states as activityGraph } from "./activity-graph";
-import { states as agentCard } from "./agent-card";
-import { states as agentHandoff } from "./agent-handoff";
-import { states as agentPlan } from "./agent-plan";
-import { states as agentStatus } from "./agent-status";
-import { states as approvalCard } from "./approval-card";
-import { states as artifactCard } from "./artifact-card";
-import { states as assistantModal } from "./assistant-modal";
-import { states as assistantSidebar } from "./assistant-sidebar";
-import { states as attachment } from "./attachment";
-import { states as backgroundInbox } from "./background-inbox";
-import { states as canvasSplit } from "./canvas-split";
-import { states as chart } from "./chart";
-import { states as chatPanel } from "./chat-panel";
-import { states as checkpointHistory } from "./checkpoint-history";
-import { states as codeDiff } from "./code-diff";
-import { states as codeRunner } from "./code-runner";
-import { states as commandPalette } from "./command-palette";
-import { states as comparisonCard } from "./comparison-card";
-import { states as composerAttachments } from "./composer-attachments";
-import { states as composerContext } from "./composer-context";
-import { states as composerMentions } from "./composer-mentions";
-import { states as composerModelPicker } from "./composer-model-picker";
-import { states as composerSlashCommands } from "./composer-slash-commands";
-import { states as composerTriggerPopover } from "./composer-trigger-popover";
-import { states as composerVoice } from "./composer-voice";
-import { states as composer } from "./composer";
-import { states as computerUse } from "./computer-use";
-import { states as confidenceMarker } from "./confidence-marker";
-import { states as connectionState } from "./connection-state";
-import { states as contextBreakdown } from "./context-breakdown";
-import { states as contextDisplay } from "./context-display";
-import { states as conversationMap } from "./conversation-map";
-import { states as conversationSearch } from "./conversation-search";
-import { states as costMeter } from "./cost-meter";
-import { states as dataTable } from "./data-table";
-import { states as daySeparator } from "./day-separator";
-import { states as diagram } from "./diagram";
-import { states as directiveText } from "./directive-text";
-import { states as documentReference } from "./document-reference";
-import { states as draftRestore } from "./draft-restore";
-import { states as editMessage } from "./edit-message";
-import { states as elicitationForm } from "./elicitation-form";
-import { states as emptyState } from "./empty-state";
-import { states as errorState } from "./error-state";
-import { states as feedbackDialog } from "./feedback-dialog";
-import { states as fileTree } from "./file-tree";
-import { states as file } from "./file";
-import { states as flowGraph } from "./flow-graph";
-import { states as followUpSuggestions } from "./follow-up-suggestions";
-import { states as generativeUi } from "./generative-ui";
-import { states as geoMap } from "./geo-map";
-import { states as guardrailNotice } from "./guardrail-notice";
-import { states as heatGraph } from "./heat-graph";
-import { states as imageGallery } from "./image-gallery";
-import { states as imageGeneration } from "./image-generation";
-import { states as image } from "./image";
-import { states as inlineCitation } from "./inline-citation";
-import { states as jobProgress } from "./job-progress";
-import { states as launcherBubble } from "./launcher-bubble";
-import { states as linkPreview } from "./link-preview";
-import { states as loadingState } from "./loading-state";
-import { states as logos } from "./logos";
-import { states as mapAnswer } from "./map-answer";
-import { states as markdownText } from "./markdown-text";
-import { states as mathBlock } from "./math-block";
-import { states as mcpConfig } from "./mcp-config";
-import { states as mcpServerPanel } from "./mcp-server-panel";
-import { states as mediaPlayer } from "./media-player";
-import { states as memoryChips } from "./memory-chips";
-import { states as mermaidDiagram } from "./mermaid-diagram";
-import { states as messageActions } from "./message-actions";
-import { states as messageBranches } from "./message-branches";
-import { states as messagePair } from "./message-pair";
-import { states as messageQueue } from "./message-queue";
-import { states as messageTiming } from "./message-timing";
-import { states as mobileComposer } from "./mobile-composer";
-import { states as modelSelector } from "./model-selector";
-import { states as numberTicker } from "./number-ticker";
-import { states as onboarding } from "./onboarding";
-import { states as optionList } from "./option-list";
-import { states as orb } from "./orb";
-import { states as permissionGrant } from "./permission-grant";
-import { states as promptLibrary } from "./prompt-library";
-import { states as questionFlow } from "./question-flow";
-import { states as quotaBanner } from "./quota-banner";
-import { states as quote } from "./quote";
-import { states as readAloud } from "./read-aloud";
-import { states as reasoningEffort } from "./reasoning-effort";
-import { states as reasoning } from "./reasoning";
-import { states as recommendationCard } from "./recommendation-card";
-import { states as regenerateMenu } from "./regenerate-menu";
-import { states as researchReport } from "./research-report";
-import { states as retrievalChunks } from "./retrieval-chunks";
-import { states as reviewableDiff } from "./reviewable-diff";
-import { states as runActivity } from "./run-activity";
-import { states as scheduleCard } from "./schedule-card";
-import { states as scoreBreakdown } from "./score-breakdown";
-import { states as scrollAnchor } from "./scroll-anchor";
-import { states as settingsPanel } from "./settings-panel";
-import { states as sharedConversation } from "./shared-conversation";
-import { states as shikiHighlighter } from "./shiki-highlighter";
-import { states as sources } from "./sources";
-import { states as speakerIdentity } from "./speaker-identity";
-import { states as specSheet } from "./spec-sheet";
-import { states as stoppedRun } from "./stopped-run";
-import { states as streamingText } from "./streaming-text";
-import { states as subagentList } from "./subagent-list";
-import { states as syntaxHighlighter } from "./syntax-highlighter";
-import { states as taskCard } from "./task-card";
-import { states as terminalBlock } from "./terminal-block";
-import { states as thinkingIndicator } from "./thinking-indicator";
-import { states as threadListSidebar } from "./thread-list-sidebar";
-import { states as threadList } from "./thread-list";
-import { states as threadSearch } from "./thread-search";
-import { states as thread } from "./thread";
-import { states as timeline } from "./timeline";
-import { states as todoList } from "./todo-list";
-import { states as toolCall } from "./tool-call";
-import { states as toolError } from "./tool-error";
-import { states as toolFallback } from "./tool-fallback";
-import { states as toolGroup } from "./tool-group";
-import { states as toolTimeline } from "./tool-timeline";
-import { states as tooltipIconButton } from "./tooltip-icon-button";
-import { states as traceWaterfall } from "./trace-waterfall";
-import { states as typingIndicator } from "./typing-indicator";
-import { states as voiceConversation } from "./voice-conversation";
-import { states as webPreview } from "./web-preview";
-import { states as webSearch } from "./web-search";
+import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
+import type { ElementStatesSource } from "./types";
 
-/** Every catalog element's preview states, keyed by slug. `states.test.tsx` fails on a missing slug. */
-export const ELEMENT_STATES: Record<string, ElementStates> = {
-  "activity-graph": activityGraph,
-  "agent-card": agentCard,
-  "agent-handoff": agentHandoff,
-  "agent-plan": agentPlan,
-  "agent-status": agentStatus,
-  "approval-card": approvalCard,
-  "artifact-card": artifactCard,
-  "assistant-modal": assistantModal,
-  "assistant-sidebar": assistantSidebar,
-  attachment: attachment,
-  "background-inbox": backgroundInbox,
-  "canvas-split": canvasSplit,
-  chart: chart,
-  "chat-panel": chatPanel,
-  "checkpoint-history": checkpointHistory,
-  "code-diff": codeDiff,
-  "code-runner": codeRunner,
-  "command-palette": commandPalette,
-  "comparison-card": comparisonCard,
-  "composer-attachments": composerAttachments,
-  "composer-context": composerContext,
-  "composer-mentions": composerMentions,
-  "composer-model-picker": composerModelPicker,
-  "composer-slash-commands": composerSlashCommands,
-  "composer-trigger-popover": composerTriggerPopover,
-  "composer-voice": composerVoice,
-  composer: composer,
-  "computer-use": computerUse,
-  "confidence-marker": confidenceMarker,
-  "connection-state": connectionState,
-  "context-breakdown": contextBreakdown,
-  "context-display": contextDisplay,
-  "conversation-map": conversationMap,
-  "conversation-search": conversationSearch,
-  "cost-meter": costMeter,
-  "data-table": dataTable,
-  "day-separator": daySeparator,
-  diagram: diagram,
-  "directive-text": directiveText,
-  "document-reference": documentReference,
-  "draft-restore": draftRestore,
-  "edit-message": editMessage,
-  "elicitation-form": elicitationForm,
-  "empty-state": emptyState,
-  "error-state": errorState,
-  "feedback-dialog": feedbackDialog,
-  "file-tree": fileTree,
-  file: file,
-  "flow-graph": flowGraph,
-  "follow-up-suggestions": followUpSuggestions,
-  "generative-ui": generativeUi,
-  "geo-map": geoMap,
-  "guardrail-notice": guardrailNotice,
-  "heat-graph": heatGraph,
-  "image-gallery": imageGallery,
-  "image-generation": imageGeneration,
-  image: image,
-  "inline-citation": inlineCitation,
-  "job-progress": jobProgress,
-  "launcher-bubble": launcherBubble,
-  "link-preview": linkPreview,
-  "loading-state": loadingState,
-  logos: logos,
-  "map-answer": mapAnswer,
-  "markdown-text": markdownText,
-  "math-block": mathBlock,
-  "mcp-config": mcpConfig,
-  "mcp-server-panel": mcpServerPanel,
-  "media-player": mediaPlayer,
-  "memory-chips": memoryChips,
-  "mermaid-diagram": mermaidDiagram,
-  "message-actions": messageActions,
-  "message-branches": messageBranches,
-  "message-pair": messagePair,
-  "message-queue": messageQueue,
-  "message-timing": messageTiming,
-  "mobile-composer": mobileComposer,
-  "model-selector": modelSelector,
-  "number-ticker": numberTicker,
-  onboarding: onboarding,
-  "option-list": optionList,
-  orb: orb,
-  "permission-grant": permissionGrant,
-  "prompt-library": promptLibrary,
-  "question-flow": questionFlow,
-  "quota-banner": quotaBanner,
-  quote: quote,
-  "read-aloud": readAloud,
-  "reasoning-effort": reasoningEffort,
-  reasoning: reasoning,
-  "recommendation-card": recommendationCard,
-  "regenerate-menu": regenerateMenu,
-  "research-report": researchReport,
-  "retrieval-chunks": retrievalChunks,
-  "reviewable-diff": reviewableDiff,
-  "run-activity": runActivity,
-  "schedule-card": scheduleCard,
-  "score-breakdown": scoreBreakdown,
-  "scroll-anchor": scrollAnchor,
-  "settings-panel": settingsPanel,
-  "shared-conversation": sharedConversation,
-  "shiki-highlighter": shikiHighlighter,
-  sources: sources,
-  "speaker-identity": speakerIdentity,
-  "spec-sheet": specSheet,
-  "stopped-run": stoppedRun,
-  "streaming-text": streamingText,
-  "subagent-list": subagentList,
-  "syntax-highlighter": syntaxHighlighter,
-  "task-card": taskCard,
-  "terminal-block": terminalBlock,
-  "thinking-indicator": thinkingIndicator,
-  "thread-list-sidebar": threadListSidebar,
-  "thread-list": threadList,
-  "thread-search": threadSearch,
-  thread: thread,
-  timeline: timeline,
-  "todo-list": todoList,
-  "tool-call": toolCall,
-  "tool-error": toolError,
-  "tool-fallback": toolFallback,
-  "tool-group": toolGroup,
-  "tool-timeline": toolTimeline,
-  "tooltip-icon-button": tooltipIconButton,
-  "trace-waterfall": traceWaterfall,
-  "typing-indicator": typingIndicator,
-  "voice-conversation": voiceConversation,
-  "web-preview": webPreview,
-  "web-search": webSearch,
-  ...GENERATIVE_STATES,
+type StatesLoader = () => Promise<ElementStatesSource>;
+
+/**
+ * Every handwritten element's preview states, keyed by slug. Each entry is its
+ * own dynamic import, so an element page loads its own fixtures and nothing
+ * else. `states.test.tsx` fails on a missing slug.
+ */
+const HANDWRITTEN_STATES: Record<string, StatesLoader> = {
+  "activity-graph": () => import("./activity-graph").then((m) => m.states),
+  "agent-card": () => import("./agent-card").then((m) => m.states),
+  "agent-handoff": () => import("./agent-handoff").then((m) => m.states),
+  "agent-plan": () => import("./agent-plan").then((m) => m.states),
+  "agent-status": () => import("./agent-status").then((m) => m.states),
+  "approval-card": () => import("./approval-card").then((m) => m.states),
+  "artifact-card": () => import("./artifact-card").then((m) => m.states),
+  "assistant-modal": () => import("./assistant-modal").then((m) => m.states),
+  "assistant-sidebar": () =>
+    import("./assistant-sidebar").then((m) => m.states),
+  attachment: () => import("./attachment").then((m) => m.states),
+  "background-inbox": () => import("./background-inbox").then((m) => m.states),
+  "canvas-split": () => import("./canvas-split").then((m) => m.states),
+  chart: () => import("./chart").then((m) => m.states),
+  "chat-panel": () => import("./chat-panel").then((m) => m.states),
+  "checkpoint-history": () =>
+    import("./checkpoint-history").then((m) => m.states),
+  "code-diff": () => import("./code-diff").then((m) => m.states),
+  "code-runner": () => import("./code-runner").then((m) => m.states),
+  "command-palette": () => import("./command-palette").then((m) => m.states),
+  "comparison-card": () => import("./comparison-card").then((m) => m.states),
+  "composer-attachments": () =>
+    import("./composer-attachments").then((m) => m.states),
+  "composer-context": () => import("./composer-context").then((m) => m.states),
+  "composer-mentions": () =>
+    import("./composer-mentions").then((m) => m.states),
+  "composer-model-picker": () =>
+    import("./composer-model-picker").then((m) => m.states),
+  "composer-slash-commands": () =>
+    import("./composer-slash-commands").then((m) => m.states),
+  "composer-trigger-popover": () =>
+    import("./composer-trigger-popover").then((m) => m.states),
+  "composer-voice": () => import("./composer-voice").then((m) => m.states),
+  composer: () => import("./composer").then((m) => m.states),
+  "computer-use": () => import("./computer-use").then((m) => m.states),
+  "confidence-marker": () =>
+    import("./confidence-marker").then((m) => m.states),
+  "connection-state": () => import("./connection-state").then((m) => m.states),
+  "context-breakdown": () =>
+    import("./context-breakdown").then((m) => m.states),
+  "context-display": () => import("./context-display").then((m) => m.states),
+  "conversation-map": () => import("./conversation-map").then((m) => m.states),
+  "conversation-search": () =>
+    import("./conversation-search").then((m) => m.states),
+  "cost-meter": () => import("./cost-meter").then((m) => m.states),
+  "data-table": () => import("./data-table").then((m) => m.states),
+  "day-separator": () => import("./day-separator").then((m) => m.states),
+  diagram: () => import("./diagram").then((m) => m.states),
+  "directive-text": () => import("./directive-text").then((m) => m.states),
+  "document-reference": () =>
+    import("./document-reference").then((m) => m.states),
+  "draft-restore": () => import("./draft-restore").then((m) => m.states),
+  "edit-message": () => import("./edit-message").then((m) => m.states),
+  "elicitation-form": () => import("./elicitation-form").then((m) => m.states),
+  "empty-state": () => import("./empty-state").then((m) => m.states),
+  "error-state": () => import("./error-state").then((m) => m.states),
+  "feedback-dialog": () => import("./feedback-dialog").then((m) => m.states),
+  "file-tree": () => import("./file-tree").then((m) => m.states),
+  file: () => import("./file").then((m) => m.states),
+  "flow-graph": () => import("./flow-graph").then((m) => m.states),
+  "follow-up-suggestions": () =>
+    import("./follow-up-suggestions").then((m) => m.states),
+  "generative-ui": () => import("./generative-ui").then((m) => m.states),
+  "geo-map": () => import("./geo-map").then((m) => m.states),
+  "guardrail-notice": () => import("./guardrail-notice").then((m) => m.states),
+  "heat-graph": () => import("./heat-graph").then((m) => m.states),
+  "image-gallery": () => import("./image-gallery").then((m) => m.states),
+  "image-generation": () => import("./image-generation").then((m) => m.states),
+  image: () => import("./image").then((m) => m.states),
+  "inline-citation": () => import("./inline-citation").then((m) => m.states),
+  "job-progress": () => import("./job-progress").then((m) => m.states),
+  "launcher-bubble": () => import("./launcher-bubble").then((m) => m.states),
+  "link-preview": () => import("./link-preview").then((m) => m.states),
+  "loading-state": () => import("./loading-state").then((m) => m.states),
+  logos: () => import("./logos").then((m) => m.states),
+  "map-answer": () => import("./map-answer").then((m) => m.states),
+  "markdown-text": () => import("./markdown-text").then((m) => m.states),
+  "math-block": () => import("./math-block").then((m) => m.states),
+  "mcp-config": () => import("./mcp-config").then((m) => m.states),
+  "mcp-server-panel": () => import("./mcp-server-panel").then((m) => m.states),
+  "media-player": () => import("./media-player").then((m) => m.states),
+  "memory-chips": () => import("./memory-chips").then((m) => m.states),
+  "mermaid-diagram": () => import("./mermaid-diagram").then((m) => m.states),
+  "message-actions": () => import("./message-actions").then((m) => m.states),
+  "message-branches": () => import("./message-branches").then((m) => m.states),
+  "message-pair": () => import("./message-pair").then((m) => m.states),
+  "message-queue": () => import("./message-queue").then((m) => m.states),
+  "message-timing": () => import("./message-timing").then((m) => m.states),
+  "mobile-composer": () => import("./mobile-composer").then((m) => m.states),
+  "model-selector": () => import("./model-selector").then((m) => m.states),
+  "number-ticker": () => import("./number-ticker").then((m) => m.states),
+  onboarding: () => import("./onboarding").then((m) => m.states),
+  "option-list": () => import("./option-list").then((m) => m.states),
+  orb: () => import("./orb").then((m) => m.states),
+  "permission-grant": () => import("./permission-grant").then((m) => m.states),
+  "prompt-library": () => import("./prompt-library").then((m) => m.states),
+  "question-flow": () => import("./question-flow").then((m) => m.states),
+  "quota-banner": () => import("./quota-banner").then((m) => m.states),
+  quote: () => import("./quote").then((m) => m.states),
+  "read-aloud": () => import("./read-aloud").then((m) => m.states),
+  "reasoning-effort": () => import("./reasoning-effort").then((m) => m.states),
+  reasoning: () => import("./reasoning").then((m) => m.states),
+  "recommendation-card": () =>
+    import("./recommendation-card").then((m) => m.states),
+  "regenerate-menu": () => import("./regenerate-menu").then((m) => m.states),
+  "research-report": () => import("./research-report").then((m) => m.states),
+  "retrieval-chunks": () => import("./retrieval-chunks").then((m) => m.states),
+  "reviewable-diff": () => import("./reviewable-diff").then((m) => m.states),
+  "run-activity": () => import("./run-activity").then((m) => m.states),
+  "schedule-card": () => import("./schedule-card").then((m) => m.states),
+  "score-breakdown": () => import("./score-breakdown").then((m) => m.states),
+  "scroll-anchor": () => import("./scroll-anchor").then((m) => m.states),
+  "settings-panel": () => import("./settings-panel").then((m) => m.states),
+  "shared-conversation": () =>
+    import("./shared-conversation").then((m) => m.states),
+  "shiki-highlighter": () =>
+    import("./shiki-highlighter").then((m) => m.states),
+  sources: () => import("./sources").then((m) => m.states),
+  "speaker-identity": () => import("./speaker-identity").then((m) => m.states),
+  "spec-sheet": () => import("./spec-sheet").then((m) => m.states),
+  "stopped-run": () => import("./stopped-run").then((m) => m.states),
+  "streaming-text": () => import("./streaming-text").then((m) => m.states),
+  "subagent-list": () => import("./subagent-list").then((m) => m.states),
+  "syntax-highlighter": () =>
+    import("./syntax-highlighter").then((m) => m.states),
+  "task-card": () => import("./task-card").then((m) => m.states),
+  "terminal-block": () => import("./terminal-block").then((m) => m.states),
+  "thinking-indicator": () =>
+    import("./thinking-indicator").then((m) => m.states),
+  "thread-list-sidebar": () =>
+    import("./thread-list-sidebar").then((m) => m.states),
+  "thread-list": () => import("./thread-list").then((m) => m.states),
+  "thread-search": () => import("./thread-search").then((m) => m.states),
+  thread: () => import("./thread").then((m) => m.states),
+  timeline: () => import("./timeline").then((m) => m.states),
+  "todo-list": () => import("./todo-list").then((m) => m.states),
+  "tool-call": () => import("./tool-call").then((m) => m.states),
+  "tool-error": () => import("./tool-error").then((m) => m.states),
+  "tool-fallback": () => import("./tool-fallback").then((m) => m.states),
+  "tool-group": () => import("./tool-group").then((m) => m.states),
+  "tool-timeline": () => import("./tool-timeline").then((m) => m.states),
+  "tooltip-icon-button": () =>
+    import("./tooltip-icon-button").then((m) => m.states),
+  "trace-waterfall": () => import("./trace-waterfall").then((m) => m.states),
+  "typing-indicator": () => import("./typing-indicator").then((m) => m.states),
+  "voice-conversation": () =>
+    import("./voice-conversation").then((m) => m.states),
+  "web-preview": () => import("./web-preview").then((m) => m.states),
+  "web-search": () => import("./web-search").then((m) => m.states),
 };
 
-export function getElementStates(slug: string): ElementStates | undefined {
-  return ELEMENT_STATES[slug];
+// The generative templates share one module, so their loader hands over the
+// whole map and the preview picks its slug on the client.
+const loadGenerativeStates: StatesLoader = () =>
+  import("./generative").then((m) => m.GENERATIVE_STATES);
+
+export const ELEMENT_STATES: Record<string, StatesLoader> = {
+  ...HANDWRITTEN_STATES,
+  ...Object.fromEntries(
+    GENERATIVE_ELEMENTS.map((entry) => [entry.slug, loadGenerativeStates]),
+  ),
+};
+
+/** Loads an element's states, for `ElementStatesPreview`'s `states` prop. */
+export function loadElementStates(
+  slug: string,
+): Promise<ElementStatesSource> | undefined {
+  return ELEMENT_STATES[slug]?.();
 }

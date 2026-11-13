@@ -73,11 +73,18 @@ describe("element states", () => {
     expect(unknown).toEqual([]);
   });
 
-  it("keys every states file by its own slug", () => {
-    stateFiles.forEach((file, i) => {
+  it("keys every states file by its own slug", async () => {
+    for (const [i, file] of stateFiles.entries()) {
       const slug = file.replace(/\.tsx?$/, "");
-      expect(ELEMENT_STATES[slug], slug).toBe(loaded[i]!.states);
-    });
+      expect(await ELEMENT_STATES[slug]?.(), slug).toBe(loaded[i]!.states);
+    }
+  });
+
+  it("loads the shared generative states for every generative slug", async () => {
+    for (const { slug } of GENERATIVE_ELEMENTS) {
+      expect(await ELEMENT_STATES[slug]?.(), slug).toBe(GENERATIVE_STATES);
+      expect(GENERATIVE_STATES[slug], slug).toBeDefined();
+    }
   });
 
   it("registers every states file in the index", () => {

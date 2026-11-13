@@ -1,13 +1,22 @@
 "use client";
 
-import { useRef, useSyncExternalStore, type KeyboardEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useRef,
+  useSyncExternalStore,
+  type ComponentType,
+  type KeyboardEvent,
+} from "react";
 import { cn } from "@/lib/utils";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import { getElementStates } from "@/components/demo/elements/states";
+import { ELEMENT_STATES } from "@/components/demo/elements/states";
 import {
   DEFAULT_STATE_KEY,
   type ElementState,
+  type ElementStates,
+  type ElementStatesSource,
 } from "@/components/demo/elements/states/types";
 
 const PARAM = "state";
@@ -43,20 +52,69 @@ function writeStateParam(key: string, mode: HistoryMode) {
   window.dispatchEvent(new Event(STATE_CHANGE));
 }
 
-export function ElementStatesPreview({
-  slug,
-  caption,
-  canvasClassName,
-  children,
-}: {
+function pickStates(
+  source: ElementStatesSource | undefined,
+  slug: string,
+): ElementStates | undefined {
+  if (!source) return undefined;
+  if (Array.isArray(source)) return source as ElementStates;
+  return (source as Readonly<Record<string, ElementStates>>)[slug];
+}
+
+type PreviewProps = {
   slug: string;
   /** Caption of the live demo; a fixture state replaces it with the state note. */
   caption: string;
   canvasClassName: string;
   /** The live demo, shown for the `default` state. */
   children: React.ReactNode;
+};
+
+const lazyFigures = new Map<string, ComponentType<PreviewProps>>();
+
+// One lazy figure per slug, so a page downloads only its own element's
+// fixtures. The server renders it in full; after a client navigation the live
+// demo shows at once and the switcher joins it when the chunk arrives.
+function lazyFigure(slug: string) {
+  let Figure = lazyFigures.get(slug);
+  if (!Figure) {
+    Figure = lazy(async () => {
+      const states = pickStates(await ELEMENT_STATES[slug]?.(), slug);
+      return {
+        default: (props: PreviewProps) => (
+          <ElementStatesFigure {...props} states={states} />
+        ),
+      };
+    });
+    lazyFigures.set(slug, Figure);
+  }
+  return Figure;
+}
+
+export function ElementStatesPreview(props: PreviewProps) {
+  const Figure = lazyFigure(props.slug);
+  return (
+    <Suspense
+      fallback={
+        <ElementStatesFigure {...props} states={undefined} reserveSwitcher />
+      }
+    >
+      <Figure {...props} />
+    </Suspense>
+  );
+}
+
+export function ElementStatesFigure({
+  states,
+  reserveSwitcher = false,
+  caption,
+  canvasClassName,
+  children,
+}: Omit<PreviewProps, "slug"> & {
+  states: ElementStates | undefined;
+  /** Holds the switcher's row while the states load, so the demo does not jump. */
+  reserveSwitcher?: boolean;
 }) {
-  const states = getElementStates(slug);
   const key = useSyncExternalStore(
     subscribe,
     readStateParam,
@@ -73,6 +131,7 @@ export function ElementStatesPreview({
 
   return (
     <figure className="mt-10">
+      {reserveSwitcher && <div aria-hidden className="mb-2.5 h-6" />}
       {states && states.length > 1 && (
         <StateSwitcher
           states={states}

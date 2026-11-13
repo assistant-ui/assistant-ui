@@ -9,33 +9,45 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ElementStatesPreview } from "./element-states";
+import type { ElementStates } from "@/components/demo/elements/states/types";
+import { ElementStatesFigure, ElementStatesPreview } from "./element-states";
+
+const STATES: ElementStates = [
+  { key: "default", label: "Default" },
+  {
+    key: "running",
+    label: "Running",
+    note: "The call is in flight.",
+    Component: () => <p>running fixture</p>,
+  },
+  {
+    key: "error",
+    label: "Failed",
+    note: "The call failed.",
+    Component: () => <p>error fixture</p>,
+  },
+  {
+    key: "long-content",
+    label: "Long input",
+    note: "A long query.",
+    Component: () => <p>long fixture</p>,
+  },
+];
+
+const ONLY_DEFAULT: ElementStates = [{ key: "default", label: "Default" }];
+
+const loadedSlugs: string[] = [];
 
 vi.mock("@/components/demo/elements/states", () => ({
-  getElementStates: (slug: string) => {
-    if (slug === "only-default") return [{ key: "default", label: "Default" }];
-    return [
-      { key: "default", label: "Default" },
-      {
-        key: "running",
-        label: "Running",
-        note: "The call is in flight.",
-        Component: () => <p>running fixture</p>,
+  ELEMENT_STATES: new Proxy(
+    {},
+    {
+      get: (_, slug: string) => async () => {
+        loadedSlugs.push(slug);
+        return { [slug]: STATES, other: ONLY_DEFAULT };
       },
-      {
-        key: "error",
-        label: "Failed",
-        note: "The call failed.",
-        Component: () => <p>error fixture</p>,
-      },
-      {
-        key: "long-content",
-        label: "Long input",
-        note: "A long query.",
-        Component: () => <p>long fixture</p>,
-      },
-    ];
-  },
+    },
+  ),
 }));
 
 vi.mock("@/components/demo/elements/demo-stage", () => ({
@@ -44,9 +56,13 @@ vi.mock("@/components/demo/elements/demo-stage", () => ({
 
 function renderPreview(slug = "tool-call") {
   return render(
-    <ElementStatesPreview slug={slug} caption="Live demo" canvasClassName="">
+    <ElementStatesFigure
+      states={slug === "only-default" ? ONLY_DEFAULT : STATES}
+      caption="Live demo"
+      canvasClassName=""
+    >
       <p>live demo</p>
-    </ElementStatesPreview>,
+    </ElementStatesFigure>,
   );
 }
 
@@ -150,5 +166,20 @@ describe("ElementStatesPreview", () => {
     renderPreview("only-default");
     expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(screen.getByText("live demo")).toBeTruthy();
+  });
+
+  it("loads its own states, picking them out of a shared map", async () => {
+    render(
+      <ElementStatesPreview
+        slug="generative-booking"
+        caption="Live demo"
+        canvasClassName=""
+      >
+        <p>live demo</p>
+      </ElementStatesPreview>,
+    );
+    expect(screen.getByText("live demo")).toBeTruthy();
+    expect(await screen.findByRole("radio", { name: "Failed" })).toBeTruthy();
+    expect(loadedSlugs).toEqual(["generative-booking"]);
   });
 });

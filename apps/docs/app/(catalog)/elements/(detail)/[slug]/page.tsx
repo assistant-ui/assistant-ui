@@ -27,6 +27,7 @@ import {
   elementRegistryName,
   getElement,
 } from "@/components/pages/elements/registry";
+import { ElementDemo } from "@/components/pages/elements/element-demos";
 import { AgentSetup } from "@/components/shared/shop-entry";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { elementProductSlug } from "@/lib/catalog/products/elements";
@@ -278,7 +279,11 @@ export default async function ElementPage({
               }
             >
               {element.variants ? (
-                <DemoVariants variants={element.variants} replay={replayable} />
+                <DemoVariants
+                  slug={element.slug}
+                  variants={element.variants}
+                  replay={replayable}
+                />
               ) : (
                 <div
                   className={cn(
@@ -287,7 +292,7 @@ export default async function ElementPage({
                   )}
                 >
                   <DemoStage replay={replayable}>
-                    <element.Component />
+                    <ElementDemo demo={element.slug} />
                   </DemoStage>
                 </div>
               )}
