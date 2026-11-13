@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,13 +40,14 @@ const ONLY_DEFAULT: ElementStates = [{ key: "default", label: "Default" }];
 const loadedSlugs: string[] = [];
 
 vi.mock("@/components/demo/elements/states", () => ({
-  DEFAULT_ONLY_STATE_SLUGS: new Set<string>(),
+  DEFAULT_ONLY_STATE_SLUGS: new Set(["only-default"]),
   ELEMENT_STATES: new Proxy(
     {},
     {
       get: (_, slug: string) => async () => {
         loadedSlugs.push(slug);
         // Generative slugs share one map; every other element has its own list.
+        if (slug === "only-default") return ONLY_DEFAULT;
         return slug.startsWith("generative-")
           ? { [slug]: STATES, other: ONLY_DEFAULT }
           : STATES;
@@ -202,6 +204,24 @@ describe("ElementStatesPreview", () => {
     expect(screen.getByText("live demo 1")).toBeTruthy();
     expect(mounts).toBe(1);
     expect(loadedSlugs).toEqual(["generative-booking"]);
+  });
+
+  it("holds no switcher row for a default-only element", async () => {
+    const { container } = render(
+      <ElementStatesPreview
+        slug="only-default"
+        caption="Live demo"
+        canvasClassName=""
+      >
+        <p>live demo</p>
+      </ElementStatesPreview>,
+    );
+    const figure = container.querySelector("figure")!;
+    const before = figure.children.length;
+    await waitFor(() => expect(loadedSlugs).toContain("only-default"));
+    await act(() => Promise.resolve());
+    expect(figure.children.length).toBe(before);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 
   it("loads an element's own state list", async () => {

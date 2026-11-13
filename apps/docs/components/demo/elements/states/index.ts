@@ -181,10 +181,3 @@ export const ELEMENT_STATES: Record<string, StatesLoader> = {
     GENERATIVE_ELEMENTS.map((entry) => [entry.slug, loadGenerativeStates]),
   ),
 };
-
-/** Loads an element's states, for `ElementStatesPreview`'s `states` prop. */
-export function loadElementStates(
-  slug: string,
-): Promise<ElementStatesSource> | undefined {
-  return ELEMENT_STATES[slug]?.();
-}
