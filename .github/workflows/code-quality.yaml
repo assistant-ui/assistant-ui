@@ -10,6 +10,7 @@ on:
       - "examples/**"
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
+      - "scripts/generate-api-surface.test.mjs"
       - "scripts/autofix-install.mjs"
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
@@ -17,6 +18,7 @@ on:
       - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
       - "scripts/diff-api-surface.mjs"
+      - "scripts/diff-api-surface.test.mjs"
       - "scripts/check-public-surface-removals.mjs"
       - "scripts/check-public-surface-removals.test.mjs"
       - "scripts/check-standalone-shim-imports.mjs"
@@ -67,6 +69,15 @@ on:
       - ".github/workflows/template-metrics.yaml"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/code-quality-inputs.test.mjs"
+      - "scripts/review-tier.mjs"
+      - "scripts/review-tier.test.mjs"
+      - "scripts/review-health.mjs"
+      - "scripts/review-health.test.mjs"
+      - "scripts/review-coverage-advice.mjs"
+      - "scripts/review-coverage-advice.test.mjs"
+      - "scripts/sync-review-policy.mjs"
+      - "scripts/sync-review-policy.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
       - "scripts/turbo-env-files.test.mjs"
       - "scripts/prepare-ci-base.mjs"
@@ -418,6 +429,9 @@ jobs:
 
       - name: Test package build input detector
         run: node --test scripts/package-build-inputs.test.mjs
+
+      - name: Test the Code Quality input coverage
+        run: node --test scripts/code-quality-inputs.test.mjs
 
       - name: Test build cache environment inputs
         if: steps.package_build_inputs.outputs.run == 'true'
