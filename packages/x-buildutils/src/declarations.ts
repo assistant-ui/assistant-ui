@@ -61,8 +61,6 @@ const writeVlq = (value: number) => {
   return text;
 };
 
-type Edit = { start: number; end: number; text: string };
-
 // A segment's first field is its generated column as a delta from the previous
 // segment on the same line. The other fields are deltas across the whole map
 // and stay valid, so moving text within a line only rewrites that field.
@@ -98,16 +96,15 @@ const relativeSpecifierEdits = (
   declaration: ts.SourceFile,
   importer: string,
   options: ts.CompilerOptions,
-  host: ts.ModuleResolutionHost,
   cache: ts.ModuleResolutionCache,
 ) => {
-  const edits: Edit[] = [];
-  const rewrite = (literal: ts.StringLiteral) => {
-    const next = outputSpecifier(literal.text, importer, options, host, cache);
-    if (next === literal.text) return;
+  const edits: { start: number; end: number; text: string }[] = [];
+  const rewrite = (node: ts.StringLiteral) => {
+    const next = outputSpecifier(node.text, importer, options, ts.sys, cache);
+    if (next === node.text) return;
     edits.push({
-      start: literal.getStart(declaration) + 1,
-      end: literal.getEnd() - 1,
+      start: node.getStart(declaration) + 1,
+      end: node.getEnd() - 1,
       text: next,
     });
   };
@@ -136,7 +133,6 @@ const relativeSpecifierEdits = (
 const rewriteRelativeSpecifiers = (
   declarationFile: string,
   options: ts.CompilerOptions,
-  host: ts.ModuleResolutionHost,
   cache: ts.ModuleResolutionCache,
 ) => {
   const mapFile = `${declarationFile}.map`;
@@ -156,13 +152,7 @@ const rewriteRelativeSpecifiers = (
     text,
     ts.ScriptTarget.Latest,
   );
-  const edits = relativeSpecifierEdits(
-    declaration,
-    importer,
-    options,
-    host,
-    cache,
-  );
+  const edits = relativeSpecifierEdits(declaration, importer, options, cache);
   if (edits.length === 0) return;
 
   let output = text;
@@ -290,7 +280,7 @@ export const emitDeclarations = ({
     options,
   );
   for (const declaration of declarations) {
-    rewriteRelativeSpecifiers(declaration, options, ts.sys, cache);
+    rewriteRelativeSpecifiers(declaration, options, cache);
   }
 };
 
