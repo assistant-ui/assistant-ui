@@ -146,7 +146,7 @@ function codeHighlightVersions() {
 // compiling against it takes 3-5 min, against about 1 min with no cache.
 // Vercel would keep restoring and uploading the folder an earlier build wrote,
 // so it is removed as well.
-const skipBuildCache = Boolean(process.env.VERCEL);
+const skipBuildCache = false;
 if (skipBuildCache)
   rmSync(new URL("./.next/cache/turbopack", import.meta.url), {
     recursive: true,
