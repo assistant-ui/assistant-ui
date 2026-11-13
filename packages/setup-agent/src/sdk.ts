@@ -6,6 +6,9 @@
 import { randomInt } from "node:crypto";
 import { detectAgentKind } from "./agents";
 import { agentInstructions } from "./cli";
+import { renderText } from "./guide";
+import type { Guide } from "./guide";
+import { guideWarning, loadGuide } from "./guide-client";
 import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import type { Checkout } from "./protocol";
@@ -57,37 +60,33 @@ export type RunAgentSetupOptions = {
 /** What the agent reads first in the output of a setup command that keeps running. */
 const setupBriefing = (
   session: SetupSession,
+  guide: Guide,
   {
     command,
     name = "Setup",
     canOpen = true,
   }: Pick<RunAgentSetupOptions, "command" | "name" | "canOpen">,
 ) => {
-  const url = shellWord(session.agentUrl);
-  return `${name} is running. This command keeps running: it is the setup's stream.
-
-1. Keep it running in the background until the setup ends. If you started it in the foreground, stop it and resume it in the background (Claude Code: Bash with run_in_background; Codex and other agents: add > "\${TMPDIR:-/tmp}/setup-${session.linkId}.log" 2>&1 & and read that file):
-  ${command} ${url} stream${canOpen ? "" : " --no-open"}
-2. Its new output does not wake you, so never end your turn to wait for it. Read the new lines between your other commands; each line after this briefing is a JSON array of events. Answers reach you through the blocking "wait" commands below.
-3. Run every other command in another shell: ${command} ${url} <command>.
-4. ${
-    canOpen
-      ? "Setup opens the user's browser by itself when you ask the user something; do not open it yourself."
-      : `Setup will not open a browser (--no-open). Give the user ${session.browserUrl} once, or ask in your own conversation.`
-  } On an "input.needed" event, do what its message says; to answer from here, run its "answer" command with the user's reply.
-
-${agentInstructions(session.agentUrl, {
-  command,
-  startedByAgent: {
+  const values = {
+    name,
+    cmd: command,
+    url: shellWord(session.agentUrl),
+    linkId: session.linkId,
     browserUrl: session.browserUrl,
-    streaming: true,
-    opened: canOpen,
-  },
-})}
-Setup page, if the user asks for it: ${session.browserUrl}
-
-Current setup:
-${JSON.stringify({ status: "planning", products: session.products })}
+  };
+  return `${renderText(guide, "stream.briefing", values)}${agentInstructions(
+    session.agentUrl,
+    {
+      command,
+      startedByAgent: {
+        browserUrl: session.browserUrl,
+        streaming: true,
+        opened: canOpen,
+      },
+      guide,
+    },
+  )}
+${renderText(guide, "stream.briefing-footer", values)}${JSON.stringify({ status: "planning", products: session.products })}
 `;
 };
 
@@ -103,6 +102,11 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
   const linkId = createSetupId();
   const setupId = createSetupId();
   const agentUrl = `${options.server.replace(/\/$/, "")}/${linkId}`;
+  // The briefing and the stream's wording come from the setup server.
+  const guideLoad = loadGuide(agentUrl, {
+    started: "agent-stream",
+    opened: options.canOpen !== false,
+  });
   const client = await connect(agentUrl);
   try {
     const kind = detectAgentKind(options.env);
@@ -123,10 +127,14 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
       products: options.products,
     };
     options.onSession?.(session);
+    const loaded = await guideLoad;
+    const warning = guideWarning(loaded);
+    if (warning !== undefined) process.stderr.write(warning);
     (options.write ?? ((text) => process.stdout.write(text)))(
-      setupBriefing(session, options),
+      setupBriefing(session, loaded.guide, options),
     );
     const stream = await followSetup(client, {
+      guide: loaded.guide,
       ...options.stream,
       agent: { ...(kind !== undefined && { kind }), ...options.stream?.agent },
       browser: {

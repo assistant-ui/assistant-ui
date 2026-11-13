@@ -17,7 +17,8 @@ export type PresetOverrides = {
   stepId?: string;
 };
 
-type Preset = {
+/** A standard question: what `ask --preset <id>` asks. */
+export type Preset = {
   kind: Checkout.InputKind;
   prompt: string;
   options: Checkout.ChoiceOption[];
@@ -139,15 +140,23 @@ export const INPUT_PRESETS: Record<PresetId, Preset> = {
   },
 };
 
-export const isPresetId = (id: string): id is PresetId =>
-  Object.hasOwn(INPUT_PRESETS, id);
+export const isPresetId = (
+  id: string,
+  presets: Readonly<Record<string, Preset>> = INPUT_PRESETS,
+): id is PresetId => Object.hasOwn(presets, id);
 
-/** Build the seed for a standard input, throwing on an unknown preset, option or default. */
+/**
+ * Build the seed for a standard input, throwing on an unknown preset, option
+ * or default. `presets` is the set to pick from: the bundled one, or the one
+ * the setup server sent.
+ */
 export const presetInput = (
   id: PresetId,
   overrides: PresetOverrides = {},
+  presets: Readonly<Record<string, Preset>> = INPUT_PRESETS,
 ): Checkout.InputSeed & { stepId?: string } => {
-  const preset = INPUT_PRESETS[id];
+  const preset = presets[id];
+  if (preset === undefined) throw new Error(`unknown preset "${id}"`);
   const listed = overrides.only
     ? overrides.only.map((optionId) => {
         const option = preset.options.find((c) => c.id === optionId);

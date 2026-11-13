@@ -70,7 +70,7 @@ describe("terminalQuestion", () => {
         presetInput("framework") as Checkout.Input,
         presetInput("llm-provider") as Checkout.Input,
       ),
-    ).map(terminalQuestion);
+    ).map((need) => terminalQuestion(need));
     expect(framework!.options?.map((option) => option.id)).toEqual([
       "ai-sdk:typescript",
       "mastra:typescript",

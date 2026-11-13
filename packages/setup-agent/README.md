@@ -76,6 +76,27 @@ The browser opens only when the setup waits on the user (an open input, a propos
 
 Each `input.needed` carries the question, its options and the `answer` command. On a worker without browser presence, setup opens once and then leaves the rest to the agent.
 
+## Guide
+
+The CLI's wording and flow come from the setup server, so a fix reaches people on old CLIs as soon as the server deploys. Commands that print guidance (`<url>` itself, `stream`, `ask`, `plan`, `wait`, `done`, and `runAgentSetup`) fetch `GET <setup-url>/guide?protocol=<n>&capabilities=<list>&started=<user|agent|agent-stream>&opened=<0|1>`. The answer carries:
+
+- `texts`: the briefing, the stream's `browser.opened`, `input.needed`, `finished` and `cancelled` messages, the `waiting` and `done` hints, and the questions `input.needed` relays. The CLI fills `{{cmd}}`, `{{url}}` and the other placeholders a text may use with values it computes itself.
+- `intro`: what `setup-agent <url>` does, in order, as steps from a fixed set of local actions.
+- `presets`: the standard questions `ask --preset` asks.
+
+`setup-agent/guide` exports `buildGuide`, which both sides use: the worker serves it, and the CLI keeps it as the bundled copy. The CLI uses that copy when the server is unreachable, answers without a guide, no longer serves its protocol (426), or sends one it refuses. `SETUP_AGENT_GUIDE=bundled` skips the server.
+
+**Protocol.** The CLI sends `GUIDE_PROTOCOL` and its capabilities: each local action as `action:<name>`, plus the commands and flags it has (`ask.entry-points`, `wait.timeout`, ...). The server answers with a protocol no newer than the CLI's and only mentions what the CLI has. It answers 426 to a CLI older than it still serves. Bump the protocol only for a change an older CLI cannot read. A new command or local action needs an npm release and a new capability; wording, ordering and question options need only a deploy.
+
+**Safety.** The guide is data, never code. `parseGuide` checks it before anything runs:
+
+- a step must be one of `print` (a text by key), `print-status` or `announce-agent`, with no other fields, and one the CLI offered; anything else rejects the whole guide;
+- a text may use only its own placeholders and no control characters or bidirectional overrides, so it cannot rewrite the terminal;
+- a preset may only be a choice or model question with plain options, icon keys and an https help link;
+- the guide must be under 256 KB, come from the setup URL itself (redirects refused) and name a protocol the CLI speaks.
+
+Commands to run, files to write, URLs to open and env values never come from the guide: they stay in the CLI's own code. The server's text can still tell the agent what to do, as it already can through questions, products and user messages, so the guide is as trusted as the setup server.
+
 ## Workspace
 
 The package lives in `packages/setup-agent`; its Cloudflare worker lives in `apps/checkout-worker`. Build the worker dependencies with `pnpm turbo build --filter="checkout-worker^..."`, then run `pnpm --filter checkout-worker dev`. The worker consumes the published `@statewire/cloudflare` adapter.

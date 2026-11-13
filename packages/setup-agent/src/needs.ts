@@ -11,6 +11,8 @@ import {
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
+import { bundledGuide, renderText } from "./guide";
+import type { Guide, GuideTextKey } from "./guide";
 
 /**
  * Something the setup waits on the user for: an open question, a proposed
@@ -86,49 +88,62 @@ const optionList = (input: Checkout.Input): NeedOption[] =>
       : [entry(option.id, option.label)];
   });
 
-const ANSWER_FORMATS: Record<Checkout.InputKind, string> = {
-  text: "the user's text, as one shell word",
-  product: "add or decline",
-  model: "<provider>:<model>, such as openai:gpt-5",
-  "entry-point": "one option id",
-  choice: "one option id, or the user's own text",
-};
+const ANSWER_FORMATS = {
+  text: "need.format.text",
+  product: "need.format.product",
+  model: "need.format.model",
+  "entry-point": "need.format.entry-point",
+  choice: "need.format.choice",
+} as const satisfies Record<Checkout.InputKind, GuideTextKey>;
 
-export const terminalQuestion = (need: SetupNeed): TerminalQuestion => {
+/** A need as a question for the agent's own conversation, worded by `guide`. */
+export const terminalQuestion = (
+  need: SetupNeed,
+  guide: Pick<Guide, "texts"> = bundledGuide(),
+): TerminalQuestion => {
+  const text = (key: GuideTextKey, values?: Record<string, string>) =>
+    renderText(guide, key, values);
   if (need.kind === "plan")
     return {
-      question:
-        "Approve the setup plan? Show the user the plan you proposed and ask whether to go ahead or what to change.",
+      question: text("need.plan.question"),
       options: [
-        { id: "approve", label: "Approve the plan" },
-        { id: "revise", label: "Ask for changes (pass --feedback)" },
+        { id: "approve", label: text("need.plan.approve") },
+        { id: "revise", label: text("need.plan.revise") },
       ],
-      answerFormat: 'approve, or revise --feedback "<what to change>"',
+      answerFormat: text("need.plan.format"),
     };
   if (need.kind === "finish")
     return {
-      question: `Everything is installed${need.completion.preview ? ` and running at ${need.completion.preview}` : ""}. Close the setup, or keep going?`,
-      options: [{ id: "close", label: "Close the setup" }],
-      answerFormat:
-        "close; if the user wants more, do it and run done again instead",
+      question: need.completion.preview
+        ? text("need.finish.question-preview", {
+            preview: need.completion.preview,
+          })
+        : text("need.finish.question"),
+      options: [{ id: "close", label: text("need.finish.close") }],
+      answerFormat: text("need.finish.format"),
     };
   const { input } = need;
   const options =
     input.kind === "product"
       ? [
-          { id: "add", label: `Add ${input.product ?? "the product"}` },
-          { id: "decline", label: "Leave it out" },
+          {
+            id: "add",
+            label: text("need.product.add", {
+              product: input.product ?? "the product",
+            }),
+          },
+          { id: "decline", label: text("need.product.decline") },
         ]
       : input.kind === "text"
         ? undefined
         : optionList(input);
   return {
-    question: `${input.prompt.trim() || "Your agent needs an answer."}${input.optional ? " (optional; --dismiss skips it)" : ""}${input.kind === "model" ? " The API key is not typed here: the user adds it to the project's env file themselves." : ""}`,
+    question: `${input.prompt.trim() || text("need.input.empty-prompt")}${input.optional ? text("need.input.optional") : ""}${input.kind === "model" ? text("need.input.model") : ""}`,
     ...(options && { options }),
     ...(input.multiple && { multiple: true as const }),
-    answerFormat: input.multiple
-      ? "option ids separated by commas, or the user's own text"
-      : ANSWER_FORMATS[input.kind],
+    answerFormat: text(
+      input.multiple ? "need.format.multiple" : ANSWER_FORMATS[input.kind],
+    ),
   };
 };
 
