@@ -28,7 +28,7 @@ import {
   getElement,
 } from "@/components/pages/elements/registry";
 import { ElementDemo } from "@/components/pages/elements/element-demos";
-import { AgentSetup } from "@/components/shared/shop-entry";
+import { AgentSetup } from "@/components/shared/lazy-agent-setup";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { getGenerativeElement } from "@/lib/generative-elements";
