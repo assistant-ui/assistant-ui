@@ -6,7 +6,7 @@ import { DESIGN_PREVIEWS } from "@/components/pages/design/registry";
 import { DemoCard } from "@/components/pages/elements/demo-card";
 
 const specimenClassName =
-  "flex h-full w-full min-w-0 overflow-auto [&_.not-prose]:m-auto! [&_.not-prose]:w-full [&_.not-prose>div]:border-0 [&_.not-prose>div]:p-0";
+  "flex h-full w-full min-w-0 overflow-auto [&_.not-prose]:my-0 [&>.not-prose]:m-auto! [&>.not-prose]:w-full [&>.not-prose>div]:border-0 [&>.not-prose>div]:p-0";
 
 export function DesignGallery(): ReactNode {
   let runningIndex = 0;
