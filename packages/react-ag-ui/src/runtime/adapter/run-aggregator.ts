@@ -72,6 +72,9 @@ type BuildContext = {
   root?: {
     opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[];
     lastMaterializedIndex: number;
+    // partOrder indices of the root parts that made it into the snapshot, in
+    // order, so an anchor can be turned into the content slot it precedes.
+    materializedIndices: number[];
   };
 };
 
@@ -189,6 +192,9 @@ type MessageBuffer = {
   hiddenSignatureAnchors: Map<string, number>;
   hiddenBlockAnchors: Map<string, number>;
   hiddenReasoningIds: Set<string>;
+  // Reasoning (by root part key or hidden block id) that opened after a tool
+  // result, so its block starts a new step on export.
+  stepOpeningReasoning: Set<string>;
   hiddenActiveReasoningId: string | undefined;
   hasEmittedOpaqueReasoning: boolean;
   loggedDroppedOpaqueIds: Set<string>;
@@ -230,6 +236,7 @@ const createMessageBuffer = (id?: string): MessageBuffer => ({
   hiddenSignatureAnchors: new Map(),
   hiddenBlockAnchors: new Map(),
   hiddenReasoningIds: new Set(),
+  stepOpeningReasoning: new Set(),
   hiddenActiveReasoningId: undefined,
   hasEmittedOpaqueReasoning: false,
   loggedDroppedOpaqueIds: new Set(),
@@ -1353,13 +1360,29 @@ export class RunAggregator {
         (part) => part.kind === "text" && part.key === parentKey,
       );
       if (parentIndex !== -1) {
-        let insertAt = parentIndex + 1;
+        // A sibling call of the same parent already placed sets the slot, so
+        // calls of one step stay together whatever streamed between them.
+        const isSibling = (part: PartOrderEntry | undefined) => {
+          if (part?.kind !== "tool-call") return false;
+          const call = this.buf.toolCalls.get(part.toolCallId);
+          return (
+            call?.parentMessageId === parentMessageId &&
+            (call.subagentRunId ?? ROOT_SCOPE) === scope
+          );
+        };
+        const lastSibling = this.buf.partOrder.findLastIndex(isSibling);
+        let insertAt = Math.max(parentIndex, lastSibling) + 1;
         while (insertAt < this.buf.partOrder.length) {
           const part = this.buf.partOrder[insertAt];
+          // Reasoning the step streamed between its prose and its calls stays
+          // ahead of them: a step replays reasoning before its calls, and a
+          // call ahead of it would read as the end of the step.
           if (
-            part?.kind === "tool-call" &&
-            this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
-              parentMessageId
+            isSibling(part) ||
+            (part?.kind === "reasoning" &&
+              part.subagentRunId === undefined &&
+              scope === ROOT_SCOPE &&
+              lastSibling === -1)
           ) {
             insertAt += 1;
             continue;
@@ -1367,6 +1390,15 @@ export class RunAggregator {
           break;
         }
         this.buf.partOrder.splice(insertAt, 0, entry);
+        // Hidden blocks anchor on partOrder indices; one that arrived after
+        // the slot the call slid into still sits after the call.
+        for (const anchors of [
+          this.buf.hiddenBlockAnchors,
+          this.buf.hiddenSignatureAnchors,
+        ]) {
+          for (const [id, anchor] of anchors)
+            if (anchor > insertAt) anchors.set(id, anchor + 1);
+        }
         return;
       }
     }
@@ -1569,7 +1601,10 @@ export class RunAggregator {
 
     for (const { index, part } of ctx.partsByScope.get(scope) ?? []) {
       const materialized = () => {
-        if (isRoot && ctx.root) ctx.root.lastMaterializedIndex = index;
+        if (isRoot && ctx.root) {
+          ctx.root.lastMaterializedIndex = index;
+          ctx.root.materializedIndices.push(index);
+        }
       };
 
       if (part.kind === "tool-call") {
@@ -1663,6 +1698,9 @@ export class RunAggregator {
               ctx.root.opaqueCandidates.push({
                 id,
                 encryptedValue,
+                ...(this.buf.stepOpeningReasoning.has(part.key)
+                  ? { opensStep: true }
+                  : {}),
                 anchor: index + 1,
               });
             }
@@ -1702,10 +1740,12 @@ export class RunAggregator {
         ([id, encryptedValue]) => ({
           id,
           encryptedValue,
+          ...(this.buf.stepOpeningReasoning.has(id) ? { opensStep: true } : {}),
           anchor: this.buf.hiddenSignatureAnchors.get(id)!,
         }),
       ) as (AgUiOpaqueReasoning & { anchor: number })[],
       lastMaterializedIndex: -1,
+      materializedIndices: [] as number[],
     };
     // A run that ended incomplete can no longer be resumed, so a gate left over
     // from an earlier interrupt outcome is unanswerable and must not stay
@@ -1749,7 +1789,8 @@ export class RunAggregator {
       root,
     };
     const snapshot = this.buildParts(ROOT_SCOPE, 0, ctx);
-    const { opaqueCandidates, lastMaterializedIndex } = root;
+    const { opaqueCandidates, lastMaterializedIndex, materializedIndices } =
+      root;
 
     const toolMessageIds = new Set<string>();
     for (const call of this.buf.toolCalls.values()) {
@@ -1772,7 +1813,14 @@ export class RunAggregator {
         return !collides;
       })
       .map(({ anchor, ...entry }) =>
-        lastMaterializedIndex < anchor ? { ...entry, after: true } : entry,
+        lastMaterializedIndex < anchor
+          ? { ...entry, after: true }
+          : {
+              ...entry,
+              // The content slot it arrived ahead of: joined content holds
+              // several steps, and the block has to replay inside its own.
+              index: materializedIndices.filter((i) => i < anchor).length,
+            },
       );
     if (publishableOpaqueReasoning.length > 0)
       this.buf.hasEmittedOpaqueReasoning = true;
@@ -1879,9 +1927,21 @@ export class RunAggregator {
     isMessageId = false,
     timestamp?: number,
   ): void {
+    const followsToolResult = () => {
+      const last = this.buf.partOrder.findLast((part) =>
+        part.kind === "tool-call"
+          ? this.buf.toolCalls.get(part.toolCallId)?.subagentRunId === undefined
+          : (part.kind === "text" || part.kind === "reasoning") &&
+            part.subagentRunId === undefined,
+      );
+      if (last?.kind !== "tool-call") return false;
+      return this.buf.toolCalls.get(last.toolCallId)?.result !== undefined;
+    };
     if (!this.showThinking) {
       if (scope !== ROOT_SCOPE) return;
       const anchor = this.buf.partOrder.length;
+      if (!this.buf.hiddenReasoningIds.has(messageId) && followsToolResult())
+        this.buf.stepOpeningReasoning.add(messageId);
       this.buf.hiddenReasoningIds.add(messageId);
       this.buf.hiddenBlockAnchors.set(messageId, anchor);
       this.buf.hiddenActiveReasoningId = messageId;
@@ -1895,6 +1955,8 @@ export class RunAggregator {
       this.buf.reasoningMessageIds.set(key, messageId);
     }
     if (!this.buf.reasoningParts.has(key)) {
+      if (scope === ROOT_SCOPE && followsToolResult())
+        this.buf.stepOpeningReasoning.add(key);
       this.buf.reasoningParts.set(key, { buffer: "" });
       this.buf.partOrder.push(
         scope === ROOT_SCOPE
