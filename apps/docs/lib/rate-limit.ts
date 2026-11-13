@@ -202,6 +202,21 @@ const getPublicAssistantRateLimits = async () => {
       prefix: "aui:follow-up:global:alert",
       limiter: Ratelimit.fixedWindow(1, "10m"),
     }),
+    contactSalesIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:contact-sales:ip:burst",
+      limiter: Ratelimit.fixedWindow(3, "10m"),
+    }),
+    contactSalesIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:contact-sales:ip:daily",
+      limiter: Ratelimit.fixedWindow(10, "1d"),
+    }),
+    contactSalesGlobalDaily: new Ratelimit({
+      redis,
+      prefix: "aui:contact-sales:global:daily",
+      limiter: Ratelimit.fixedWindow(200, "1d"),
+    }),
     xuluxDownloadIpBurst: new Ratelimit({
       redis,
       prefix: "aui:xulux-download:ip:burst",
@@ -559,6 +574,25 @@ export async function checkXuluxDownloadProxyRateLimit(
         publicAssistantLimitMessage("Template download usage"),
         globalDaily.reset,
       );
+    }
+    return null;
+  });
+}
+
+export async function checkContactSalesRateLimit(
+  request: Request,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "contact_sales", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "contact_sales");
+    for (const [limiter, key] of [
+      [limits.contactSalesIpBurst, ip],
+      [limits.contactSalesIpDaily, ip],
+      [limits.contactSalesGlobalDaily, "all"],
+    ] as const) {
+      const result = await limiter.limit(key);
+      if (!result.success)
+        return limitResponse("Contact sales limit exceeded", result.reset);
     }
     return null;
   });

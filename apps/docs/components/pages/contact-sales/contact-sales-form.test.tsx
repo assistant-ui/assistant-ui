@@ -21,10 +21,27 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
 
 import { ContactSalesForm } from "./contact-sales-form";
 
+const fetchMock = vi.fn(() => Promise.resolve(Response.json({ ok: true })));
+vi.stubGlobal("fetch", fetchMock);
+
 afterEach(() => {
   cleanup();
   submitted.mockClear();
+  fetchMock.mockClear();
+  fetchMock.mockImplementation(() =>
+    Promise.resolve(Response.json({ ok: true })),
+  );
 });
+
+const pickSize = async (size: string) => {
+  fireEvent.click(screen.getByLabelText("Company size"));
+  const option = await screen.findByRole("option", { name: size });
+  fireEvent.pointerDown(option);
+  fireEvent.click(option);
+  await waitFor(() =>
+    expect(screen.getByLabelText("Company size").textContent).toContain(size),
+  );
+};
 
 const type = (label: string | RegExp, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -56,6 +73,7 @@ describe("ContactSalesForm", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("First name"));
     expect(navigate).not.toHaveBeenCalled();
     expect(submitted).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("clears a field's error once it is fixed", () => {
@@ -69,11 +87,11 @@ describe("ContactSalesForm", () => {
     render(<ContactSalesForm navigate={vi.fn()} />);
     type("Work email", "ada@gmail.com");
     expect(
-      screen.getByText(/Use your work email if you have one/),
+      screen.getByText(/A work email helps us find your team/),
     ).toBeTruthy();
     type("Work email", "ada@acme.dev");
     expect(
-      screen.queryByText(/Use your work email if you have one/),
+      screen.queryByText(/A work email helps us find your team/),
     ).toBeNull();
   });
 
@@ -124,5 +142,85 @@ describe("ContactSalesForm", () => {
       referral: "unspecified",
       personal_email: false,
     });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [endpoint, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(endpoint).toBe("/api/contact-sales");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@acme.dev",
+      company: "Acme",
+      companySize: "51-200",
+      role: "",
+      building: "A support agent.",
+      referral: "",
+      website: "",
+      pageUrl: window.location.href,
+    });
+  });
+
+  it("still opens cal.com when the email request fails", async () => {
+    fetchMock.mockImplementation(() => Promise.reject(new Error("offline")));
+    const navigate = vi.fn();
+    render(<ContactSalesForm navigate={navigate} />);
+    fillText();
+    await pickSize("1-10");
+    submit();
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
+  });
+
+  it("opens cal.com after 2.5s when the email request hangs", async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => {}));
+    const navigate = vi.fn();
+    render(<ContactSalesForm navigate={navigate} />);
+    fillText();
+    await pickSize("1-10");
+
+    vi.useFakeTimers();
+    try {
+      submit();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(navigate).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(navigate).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("caps text fields at the length the server accepts", () => {
+    render(<ContactSalesForm navigate={vi.fn()} />);
+    expect(screen.getByLabelText("Company").getAttribute("maxlength")).toBe(
+      "200",
+    );
+    expect(
+      screen
+        .getByLabelText(/^What are you building\?/)
+        .getAttribute("maxlength"),
+    ).toBe("1000");
+  });
+
+  it("sends the hidden honeypot value so the server can drop bots", async () => {
+    const navigate = vi.fn();
+    const { container } = render(<ContactSalesForm navigate={navigate} />);
+    fillText();
+    const trap = container.querySelector<HTMLInputElement>(
+      'input[name="website"]',
+    )!;
+    expect(trap.tabIndex).toBe(-1);
+    trap.value = "https://spam.test";
+    await pickSize("1-10");
+    submit();
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string).website).toBe("https://spam.test");
   });
 });
