@@ -227,6 +227,6 @@ All other props forward to the popover's root `div`.
 
 ### Accessibility
 
-The popover implements the WAI-ARIA editable combobox pattern: the list has `role="listbox"` and each entry `role="option"` with `aria-selected`. While a popover is open, the composer's `ComposerPrimitive.Input` receives `aria-controls`, `aria-expanded="true"`, `aria-haspopup="listbox"`, and `aria-activedescendant` pointing at the highlighted option; these are removed when it closes. Rendering `ComposerPrimitive.Input` outside a `TriggerPopoverRoot` adds none of these attributes.
+The popover list has `role="listbox"` and each entry `role="option"` with `aria-selected`. While a popover is open, the composer's `ComposerPrimitive.Input` receives `aria-controls`, `aria-haspopup="listbox"`, and `aria-activedescendant` pointing at the highlighted option; these are removed when it closes. Rendering `ComposerPrimitive.Input` outside a `TriggerPopoverRoot` adds none of these attributes.
 
 </RuntimeMode>
