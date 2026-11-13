@@ -38,7 +38,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.34",
+    "@assistant-ui/core": "^0.3.36",
     "@assistant-ui/react-langchain": "^0.0.40",
     "@assistant-ui/store": "^0.3.23",
     "assistant-cloud": "*",
