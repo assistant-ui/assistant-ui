@@ -55,6 +55,7 @@ If the getter throws, the error is reported and the run continues without host e
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
+
 ## Activity snapshots
 
 An `a2ui-surface` activity becomes a `present` tool-call part. Its `artifact.a2ui` field contains replayable v0.9 operations, so a stored surface can be rebuilt with `applyA2uiOperations` and rendered again.
@@ -95,6 +96,8 @@ flight. The runtime replays it through the adapter's `resume()` method, or, when
 the adapter has none and the agent implements AG-UI's `connect()`, rejoins it
 with `agent.connectAgent()`. With neither, it starts a new run, so the agent runs
 again. See [durable threads](/docs/runtimes/ag-ui/durable-threads).
+
+`thread.resumeRun({ parentId })` follows the run in flight the same way. Without a `stream`, it uses the history adapter's `resume()`, or else the agent's `connect()`. It starts the agent again only when the agent has no `connect()` and the adapter has no `resume()`. A `stream` passed to `resumeRun` is used as given.
 
 Messages sent during the session are always forwarded to the agent through the
 run input, independent of `append`. A no-op `append` is therefore only safe when

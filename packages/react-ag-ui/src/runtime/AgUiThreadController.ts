@@ -838,11 +838,14 @@ export class AgUiThreadController {
     const historyImport = this.waitForHistoryImport();
     if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
+    // Resuming follows the run in flight; it starts the agent again only when
+    // there is no way to follow it (no stream, no history.resume(), and an
+    // agent without connect()).
     await this.startRun(
       config.parentId,
       config.runConfig ?? this.state.lastRunConfig,
       undefined,
-      config.stream,
+      config.stream ?? this.getResumeSource(),
       true,
     );
   }
