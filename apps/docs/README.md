@@ -35,6 +35,6 @@ DOCS_BUILD_CPUS=4 pnpm build
 
 On an 18-core machine, a default build peaks at about 27 GB and takes about 45 s. With `DOCS_BUILD_CPUS=4` it peaks at about 16 GB and takes about 55 s. The PR that added this (assistant-ui/assistant-ui#10486) has the measurements.
 
-On Vercel (`VERCEL` is set), the build turns off Turbopack's persistent cache (`turbopackFileSystemCacheForBuild: false`). Vercel restores the previous deployment's cache, and about half of production builds could not reuse it: their compile step took 2.8–5.0 min, against 11–18 s when the cache was reused and 53 s with no cache at all. Local builds keep the cache.
+On Vercel (`VERCEL` is set), the build turns off Turbopack's persistent cache (`turbopackFileSystemCacheForBuild: false`). Vercel restores the previous deployment's cache, and about half of production builds could not reuse it: their compile step took 2.8–5.0 min, against 11–18 s when the cache was reused and 53 s with no cache at all. The config also deletes `.next/cache/turbopack`, so Vercel stops restoring and uploading the folder an earlier build wrote. Local builds keep the cache.
 
 None of these settings change what a build produces.

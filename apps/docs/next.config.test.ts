@@ -12,6 +12,11 @@ import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import type { PluggableList } from "unified";
 
+const { rmSync } = vi.hoisted(() => ({ rmSync: vi.fn() }));
+vi.mock("node:fs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs")>()),
+  rmSync,
+}));
 vi.mock("@assistant-ui/next", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/next")>();
   return { ...actual, withAui: vi.fn(actual.withAui) };
@@ -92,15 +97,23 @@ describe("docs Next config composition", () => {
   });
 
   it("keeps Turbopack's build cache outside Vercel and turns it off on Vercel", async () => {
-    expect(config.experimental).not.toHaveProperty(
+    vi.resetModules();
+    const offVercel = await (await import("./next.config.mts")).default;
+    expect(offVercel.experimental).not.toHaveProperty(
       "turbopackFileSystemCacheForBuild",
     );
+    expect(rmSync).not.toHaveBeenCalled();
+
     vi.stubEnv("VERCEL", "1");
     vi.resetModules();
     const onVercel = await (await import("./next.config.mts")).default;
     vi.stubEnv("VERCEL", undefined);
     expect(onVercel.experimental?.turbopackFileSystemCacheForBuild).toBe(false);
     expect(onVercel.experimental?.cpus).toBe(3);
+    expect(rmSync).toHaveBeenCalledWith(
+      new URL("./.next/cache/turbopack", import.meta.url),
+      { recursive: true, force: true },
+    );
   });
 
   it("compiles navigation anchors, highlighted code, tables and Mermaid through Farming Labs", async () => {
