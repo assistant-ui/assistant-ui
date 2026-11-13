@@ -75,7 +75,7 @@ Commands (the url always comes first):
                                     --icons is required and names an icon for every option, from: ${OPTION_ICONS.join(", ")}.
   ask <prompt> --entry-points '<JSON array>' [--default <id>] [--optional] [--step <step-id>] [--wait]
                                     Ask where users should access the assistant. Each of 1–3 options has id, label, description and entryPoint {formFactor: modal|sidebar|full-page, placement, trigger, recommended?}. Answers one option id.
-  wait start                        Block until the user clicks Begin plan in their browser; after a finished or cancelled setup, until the next one begins.
+  wait start                        Block until the setup page starts the plan; after a finished or cancelled setup, until the next one begins.
   wait <input-id> [--timeout <seconds>]
                                     Block until the user answers or dismisses an input. A multi-select answer prints as an array.
   plan (<markdown> | --file <path>) [--wait] [--timeout <seconds>]

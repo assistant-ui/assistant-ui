@@ -29,9 +29,11 @@ describe("buildGuide", () => {
     }
   });
 
-  it("waits for Begin plan only for a setup the user opened", () => {
+  it("waits for the setup page to start the plan only for a setup the user opened", () => {
+    for (const context of CONTEXTS)
+      expect(briefing(context)).not.toContain("click Begin plan");
     expect(briefing({ started: "user", opened: true })).toContain(
-      "click Begin plan",
+      "{{cmd}} {{url}} wait start\nKeep the stream running while you wait.",
     );
     expect(briefing({ started: "agent", opened: true })).toContain(
       "there is no Begin plan click to wait for",
