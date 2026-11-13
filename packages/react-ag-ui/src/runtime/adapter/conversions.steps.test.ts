@@ -55,11 +55,11 @@ describe("toAgUiMessages joined steps", () => {
 
     expect(wire.map((m) => [m.role, m.id])).toEqual([
       ["reasoning", "r-1"],
-      ["assistant", "a-1:step-0"],
+      ["assistant", "m-1"],
       ["tool", "c-1:tool"],
       ["tool", "c-2:tool"],
       ["reasoning", "r-2"],
-      ["assistant", "c-3"],
+      ["assistant", "m-2"],
       ["tool", "c-3:tool"],
       ["reasoning", "r-3"],
       ["assistant", "a-1"],
@@ -141,10 +141,10 @@ describe("toAgUiMessages joined steps", () => {
     expect(wire.map((m) => [m.role, m.id])).toEqual([
       ["reasoning", "x-1"],
       ["reasoning", "r-1"],
-      ["assistant", "c-1"],
+      ["assistant", "m-1"],
       ["tool", "c-1:tool"],
       ["reasoning", "x-2"],
-      ["assistant", "c-2"],
+      ["assistant", "m-2"],
       ["tool", "c-2:tool"],
       ["reasoning", "x-3"],
       ["assistant", "a-1"],
@@ -190,5 +190,41 @@ describe("toAgUiMessages joined steps", () => {
     const imported = fromAgUiMessages(original as any, { showThinking: true });
     expect(imported.map((m) => m.id)).toEqual(["u-1", "m-2"]);
     expect(toAgUiMessages(imported)).toEqual(original);
+  });
+
+  it("keeps a redacted block between two answered tool-only steps", () => {
+    const call = (id: string) => ({
+      id,
+      role: "assistant",
+      toolCalls: [
+        { id, type: "function", function: { name: "lookup", arguments: "{}" } },
+      ],
+    });
+    const original = [
+      { id: "u-1", role: "user", content: "go" },
+      call("c-1"),
+      { id: "t-1", role: "tool", content: "one", toolCallId: "c-1" },
+      { id: "x-1", role: "reasoning", content: "", encryptedValue: "s1" },
+      call("c-2"),
+      { id: "t-2", role: "tool", content: "two", toolCallId: "c-2" },
+      { id: "m-1", role: "assistant", content: "Done." },
+    ];
+    const wire = toAgUiMessages(fromAgUiMessages(original as any));
+    expect(wire.map((m) => m.id)).toEqual([
+      "u-1",
+      "c-1",
+      "t-1",
+      "x-1",
+      "c-2",
+      "t-2",
+      "m-1",
+    ]);
+  });
+
+  it("does not use a parent id another step already goes out under", () => {
+    const wire = toAgUiMessages([
+      joined([toolCall("c-1", "a-1", "one"), { type: "text", text: "Done." }]),
+    ]);
+    expect(wire.map((m) => m.id)).toEqual(["c-1", "c-1:tool", "a-1"]);
   });
 });

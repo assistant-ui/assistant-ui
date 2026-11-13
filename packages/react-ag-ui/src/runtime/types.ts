@@ -42,6 +42,11 @@ export type AgUiOpaqueReasoning = {
    * replays ahead of the whole message.
    */
   index?: number;
+  /**
+   * The block arrived after a tool result, so it opens a new step even when
+   * no visible part marks the boundary.
+   */
+  opensStep?: boolean;
 };
 
 export type AgUiCustomMetadata = {

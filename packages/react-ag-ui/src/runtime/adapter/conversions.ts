@@ -883,6 +883,7 @@ function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
               entry.index >= 0
             ? { index: entry.index }
             : {}),
+        ...(entry.opensStep === true ? { opensStep: true } : {}),
       },
     ];
   });
@@ -1505,10 +1506,15 @@ function convertAgUiMessages(
     };
   };
 
+  // Whether the last record that was not reasoning is a tool result: a
+  // redacted block after one opens the step that answered it.
+  let followsToolResult = false;
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
     const role = getString(rawMessage, "role");
     if (!role) continue;
+    const opensStep = followsToolResult;
+    if (role !== "reasoning") followsToolResult = role === "tool";
 
     if (role === "tool") {
       flushPendingReasoning();
@@ -1748,6 +1754,7 @@ function convertAgUiMessages(
             id: opaqueId,
             encryptedValue,
             ...(messageMetadata ? { metadata: messageMetadata } : {}),
+            ...(opensStep ? { opensStep: true } : {}),
             anchor: converted.length,
           });
         }
@@ -1764,6 +1771,7 @@ function convertAgUiMessages(
             id: hiddenId,
             encryptedValue,
             ...(messageMetadata ? { metadata: messageMetadata } : {}),
+            ...(opensStep ? { opensStep: true } : {}),
             anchor: converted.length,
           });
         }
@@ -1906,7 +1914,13 @@ const isExportedToolCall = (part: unknown): part is ToolCallPart =>
 // call addressed to a different assistant record than the calls before it.
 // Joined content keeps parts in arrival order, so these boundaries are the
 // steps the backend streamed, and each one goes back out as its own records.
-function splitAssistantSteps(content: readonly unknown[]): AssistantStep[] {
+// `stepSlots` are content indices a redacted block that followed a tool
+// result arrived ahead of: it rides the metadata, but opens a step all the
+// same.
+function splitAssistantSteps(
+  content: readonly unknown[],
+  stepSlots: ReadonlySet<number>,
+): AssistantStep[] {
   const steps: AssistantStep[] = [{ start: 0, parts: [] }];
   let stepParentIds: Set<string> | undefined;
   for (const [index, part] of content.entries()) {
@@ -1918,6 +1932,7 @@ function splitAssistantSteps(content: readonly unknown[]): AssistantStep[] {
       stepParentIds !== undefined &&
       (type === "reasoning" ||
         type === "text" ||
+        stepSlots.has(index) ||
         (parentId !== undefined &&
           stepParentIds.size > 0 &&
           !stepParentIds.has(parentId)))
@@ -1939,9 +1954,10 @@ function splitAssistantSteps(content: readonly unknown[]): AssistantStep[] {
 function isExportableReasoning(part: Record<string, unknown>): boolean {
   const text = getString(part, "text") ?? "";
   if (text.trim().length > 0) return true;
-  const { encryptedValue, reasoningId, messageMetadata } =
-    readAgUiReasoningMeta(part.providerMetadata);
-  return !!encryptedValue?.trim() || !!reasoningId?.trim() || !!messageMetadata;
+  const { encryptedValue, reasoningId } = readAgUiReasoningMeta(
+    part.providerMetadata,
+  );
+  return !!encryptedValue?.trim() || !!reasoningId?.trim();
 }
 
 function convertAssistantMessage(
@@ -1954,7 +1970,14 @@ function convertAssistantMessage(
   const steps =
     typeof message.content === "string"
       ? [{ start: 0, parts: [] }]
-      : splitAssistantSteps(contentArray);
+      : splitAssistantSteps(
+          contentArray,
+          new Set(
+            positionedReasoning
+              .filter((entry) => entry.opensStep === true)
+              .map((entry) => entry.index),
+          ),
+        );
   const stepOf = (index: number) =>
     Math.max(
       0,
@@ -1995,6 +2018,27 @@ function convertAssistantMessage(
     (step) => step.content.length > 0,
   );
   const ownerStep = lastTextStep >= 0 ? lastTextStep : firstRecordStep;
+  // A step the backend addressed keeps the id it streamed the calls under,
+  // unless another record of this message already goes out under it.
+  const parentIdCounts = new Map<string, number>();
+  const stepParentIds = stepRecords.map((step) => {
+    const ids = new Set(
+      step.toolCalls.flatMap(({ part }) => {
+        const id = getString(part, "parentId");
+        return id?.trim() ? [id] : [];
+      }),
+    );
+    const id = ids.size === 1 ? [...ids][0]! : undefined;
+    if (id !== undefined)
+      parentIdCounts.set(id, (parentIdCounts.get(id) ?? 0) + 1);
+    return id;
+  });
+  const stepParentId = (stepIndex: number) => {
+    const id = stepParentIds[stepIndex];
+    return id !== undefined && id !== message.id && parentIdCounts.get(id) === 1
+      ? id
+      : undefined;
+  };
 
   let reasoningIndex = 0;
   for (const [stepIndex, step] of steps.entries()) {
@@ -2002,9 +2046,10 @@ function convertAssistantMessage(
     const recordId =
       stepIndex === ownerStep || ownerStep < 0
         ? message.id
-        : content.length === 0 && toolCalls[0] !== undefined
-          ? toolCalls[0].id
-          : `${message.id}:step-${stepIndex}`;
+        : (stepParentId(stepIndex) ??
+          (content.length === 0 && toolCalls[0] !== undefined
+            ? toolCalls[0].id
+            : `${message.id}:step-${stepIndex}`));
 
     // An AG-UI assistant record has no reasoning field, so reasoning leaves as
     // the standalone record it arrived as, ahead of the assistant it belongs

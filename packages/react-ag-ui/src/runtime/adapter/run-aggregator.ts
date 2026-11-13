@@ -192,6 +192,9 @@ type MessageBuffer = {
   hiddenSignatureAnchors: Map<string, number>;
   hiddenBlockAnchors: Map<string, number>;
   hiddenReasoningIds: Set<string>;
+  // Reasoning (by root part key or hidden block id) that opened after a tool
+  // result, so its block starts a new step on export.
+  stepOpeningReasoning: Set<string>;
   hiddenActiveReasoningId: string | undefined;
   hasEmittedOpaqueReasoning: boolean;
   loggedDroppedOpaqueIds: Set<string>;
@@ -233,6 +236,7 @@ const createMessageBuffer = (id?: string): MessageBuffer => ({
   hiddenSignatureAnchors: new Map(),
   hiddenBlockAnchors: new Map(),
   hiddenReasoningIds: new Set(),
+  stepOpeningReasoning: new Set(),
   hiddenActiveReasoningId: undefined,
   hasEmittedOpaqueReasoning: false,
   loggedDroppedOpaqueIds: new Set(),
@@ -1356,7 +1360,15 @@ export class RunAggregator {
         (part) => part.kind === "text" && part.key === parentKey,
       );
       if (parentIndex !== -1) {
-        let insertAt = parentIndex + 1;
+        // A sibling call of the same parent already placed sets the slot, so
+        // calls of one step stay together whatever streamed between them.
+        const lastSibling = this.buf.partOrder.findLastIndex(
+          (part) =>
+            part.kind === "tool-call" &&
+            this.buf.toolCalls.get(part.toolCallId)?.parentMessageId ===
+              parentMessageId,
+        );
+        let insertAt = Math.max(parentIndex, lastSibling) + 1;
         while (insertAt < this.buf.partOrder.length) {
           const part = this.buf.partOrder[insertAt];
           // Reasoning the step streamed between its prose and its calls stays
@@ -1368,7 +1380,8 @@ export class RunAggregator {
                 parentMessageId) ||
             (part?.kind === "reasoning" &&
               part.subagentRunId === undefined &&
-              scope === ROOT_SCOPE)
+              scope === ROOT_SCOPE &&
+              lastSibling === -1)
           ) {
             insertAt += 1;
             continue;
@@ -1684,6 +1697,9 @@ export class RunAggregator {
               ctx.root.opaqueCandidates.push({
                 id,
                 encryptedValue,
+                ...(this.buf.stepOpeningReasoning.has(part.key)
+                  ? { opensStep: true }
+                  : {}),
                 anchor: index + 1,
               });
             }
@@ -1723,6 +1739,7 @@ export class RunAggregator {
         ([id, encryptedValue]) => ({
           id,
           encryptedValue,
+          ...(this.buf.stepOpeningReasoning.has(id) ? { opensStep: true } : {}),
           anchor: this.buf.hiddenSignatureAnchors.get(id)!,
         }),
       ) as (AgUiOpaqueReasoning & { anchor: number })[],
@@ -1909,9 +1926,22 @@ export class RunAggregator {
     isMessageId = false,
     timestamp?: number,
   ): void {
+    const followsToolResult = () => {
+      const last = this.buf.partOrder.findLast(
+        (part) =>
+          part.kind === "tool-call" ||
+          ((part.kind === "text" || part.kind === "reasoning") &&
+            part.subagentRunId === undefined),
+      );
+      if (last?.kind !== "tool-call") return false;
+      const call = this.buf.toolCalls.get(last.toolCallId);
+      return call?.subagentRunId === undefined && call?.result !== undefined;
+    };
     if (!this.showThinking) {
       if (scope !== ROOT_SCOPE) return;
       const anchor = this.buf.partOrder.length;
+      if (!this.buf.hiddenReasoningIds.has(messageId) && followsToolResult())
+        this.buf.stepOpeningReasoning.add(messageId);
       this.buf.hiddenReasoningIds.add(messageId);
       this.buf.hiddenBlockAnchors.set(messageId, anchor);
       this.buf.hiddenActiveReasoningId = messageId;
@@ -1925,6 +1955,8 @@ export class RunAggregator {
       this.buf.reasoningMessageIds.set(key, messageId);
     }
     if (!this.buf.reasoningParts.has(key)) {
+      if (scope === ROOT_SCOPE && followsToolResult())
+        this.buf.stepOpeningReasoning.add(key);
       this.buf.reasoningParts.set(key, { buffer: "" });
       this.buf.partOrder.push(
         scope === ROOT_SCOPE

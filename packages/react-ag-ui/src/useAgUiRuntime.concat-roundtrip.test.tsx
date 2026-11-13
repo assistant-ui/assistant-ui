@@ -170,6 +170,28 @@ describe("useAgUiRuntime concat-content round-trip", () => {
         "tool:tc-2",
       ]);
 
+      expect(
+        resumed.messages
+          .filter((message) => message.role !== "user")
+          .map((message) =>
+            message.role === "tool"
+              ? [message.id, message.content]
+              : message.role === "assistant"
+                ? [
+                    message.id,
+                    message.toolCalls.map((c: any) => c.function.arguments),
+                  ]
+                : [message.id],
+          ),
+      ).toEqual([
+        ["r1"],
+        ["m1", ['{"q":"a"}']],
+        ["tool-1", "found"],
+        ["r2"],
+        ["m2", ['{"ok":true}']],
+        ["tc-2:tool", "confirmed"],
+      ]);
+
       await act(async () => {
         await result.current.thread.append({
           role: "user",
