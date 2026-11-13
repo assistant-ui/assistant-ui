@@ -31,6 +31,7 @@ import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import {
   INTERNAL,
+  type Unstable_TriggerPopoverAriaProps,
   unstable_useComposerRunStartFocusGuard,
   unstable_useTriggerPopoverAriaProps,
 } from "@assistant-ui/react";
@@ -284,7 +285,11 @@ export const LexicalComposerInput = forwardRef<
     );
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
-    const ariaProps = unstable_useTriggerPopoverAriaProps();
+    // Older @assistant-ui/react peers may still emit aria-expanded.
+    const { "aria-expanded": _, ...ariaProps } =
+      unstable_useTriggerPopoverAriaProps() as Unstable_TriggerPopoverAriaProps & {
+        "aria-expanded"?: boolean;
+      };
 
     // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
