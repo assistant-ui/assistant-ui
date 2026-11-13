@@ -9,6 +9,7 @@ Needs `pip install "assistant-stream[pydantic-ai]"`.
 """
 
 from assistant_stream.pydantic_ai.threads import (
+    CancellableThreadStore,
     InMemoryThreadStore,
     PostgresThreadStore,
     SqliteThreadStore,
@@ -17,7 +18,12 @@ from assistant_stream.pydantic_ai.threads import (
 )
 
 try:
-    from assistant_stream.pydantic_ai.durable import DurableAGUI
+    from assistant_stream.pydantic_ai.durable import (
+        AdapterFactory,
+        DurableAGUI,
+        RunContextFactory,
+        SSEResponse,
+    )
 except ImportError as error:  # pragma: no cover - depends on installed extras
     raise ImportError(
         "assistant_stream.pydantic_ai needs Pydantic AI with AG-UI support: "
@@ -25,9 +31,13 @@ except ImportError as error:  # pragma: no cover - depends on installed extras
     ) from error
 
 __all__ = [
+    "AdapterFactory",
+    "CancellableThreadStore",
     "DurableAGUI",
     "InMemoryThreadStore",
     "PostgresThreadStore",
+    "RunContextFactory",
+    "SSEResponse",
     "SqliteThreadStore",
     "ThreadRecord",
     "ThreadStore",

@@ -64,6 +64,94 @@ durable = DurableAGUI(
 )
 ```
 
+### Custom adapter and per-run resources
+
+`adapter_factory` builds the `AGUIAdapter` for each run, so you can pass a subclass. It gets the request and the `RunAgentInput` and can be sync or async. Use it in place of `adapter_options`.
+
+```python
+from pydantic_ai.ui.ag_ui import AGUIAdapter
+
+
+class MyAdapter(AGUIAdapter):
+    ...  # override what you need
+
+
+durable = DurableAGUI(
+    agent,
+    adapter_factory=lambda request, run_input: MyAdapter(
+        agent=agent, run_input=run_input, accept="text/event-stream"
+    ),
+)
+```
+
+`run_context` opens a resource for exactly one run, such as an MCP session. It returns an async context manager. The run enters it when it starts and exits it when the run finishes or is cancelled, in the task that runs it, so it stays open after the browser disconnects. It can yield a dict of extra `run_stream` arguments, which override `run_options`.
+
+```python
+from contextlib import asynccontextmanager
+
+from pydantic_ai.mcp import MCPToolset
+
+
+@asynccontextmanager
+async def mcp_session(request, run_input):
+    async with MCPToolset(MCP_URL) as mcp:
+        yield {"toolsets": [mcp]}
+
+
+durable = DurableAGUI(agent, threads=threads, run_context=mcp_session)
+```
+
+### Custom routes
+
+`routes()` is a shortcut. To use other paths, auth dependencies or middleware, call the same building blocks from your own routes:
+
+| Method | Returns |
+| --- | --- |
+| `await start_run(request)` | A streaming response for a new run. It reads the `RunAgentInput` body and calls `owner` itself. |
+| `await get_thread(thread_id, owner=)` | `{ id, messages, running, runId }`, or `None`. |
+| `await list_threads(owner=, limit=)` | `[{ id, title, running, updatedAt }]`, newest first. |
+| `await resume_stream(thread_id, owner=)` | The latest run's SSE bytes from its first frame, or `None`. |
+| `await cancel(thread_id, run_id, owner=)` | Whether the cancel reached the run. |
+
+```python
+from assistant_stream.pydantic_ai import SSEResponse
+from fastapi import FastAPI, HTTPException, Request
+
+app = FastAPI()
+
+
+async def require_user(request: Request) -> str:
+    user_id = await current_user(request)
+    if user_id is None:
+        raise HTTPException(401)
+    return user_id
+
+
+@app.post("/chat/runs")
+async def start(request: Request):
+    return await durable.start_run(request)  # calls `owner` itself
+
+
+@app.get("/chat/threads/{thread_id}")
+async def thread(thread_id: str, request: Request):
+    found = await durable.get_thread(thread_id, owner=await require_user(request))
+    if found is None:
+        raise HTTPException(404)
+    return found
+
+
+@app.get("/chat/threads/{thread_id}/stream")
+async def stream(thread_id: str, request: Request):
+    body = await durable.resume_stream(thread_id, owner=await require_user(request))
+    if body is None:
+        raise HTTPException(404)
+    return SSEResponse(body)
+```
+
+`SSEResponse` closes the stream when the client goes away. A plain `StreamingResponse` can leave a keepalive read open until garbage collection.
+
+Refuse a request without a user before calling these methods. `owner=None` means the threads that have no owner, so passing it for a signed-out request would expose them. Pass the same id the `owner` callable returns.
+
 ## Frontend
 
 Copy `lib/durable-agent.ts` from the example. It has two pieces:
@@ -126,9 +214,28 @@ async def lifespan(app):
 app = Starlette(lifespan=lifespan)
 ```
 
-To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, `list(owner=, limit=)`, and `put_if_current`, which writes a record only if the stored record has the same `stream_id` and must do so atomically (a conditional `UPDATE`). It's how a run that was replaced leaves its replacement's transcript alone. The protocol also requires `put_if_stream(thread_id, record, expected=)`, which atomically writes a record only when the stored `stream_id` matches `expected`, with `None` matching a missing record or an unset stream, so concurrent starts can claim the thread. The replaced run is cancelled when it runs in the same worker; in another worker it keeps running but cannot overwrite the replacement.
+To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, `list(owner=, limit=)`, and `put_if_current`, which writes a record only if the stored record has the same `stream_id` and must do so atomically (a conditional `UPDATE`). It's how a run that was replaced leaves its replacement's transcript alone. The protocol also requires `put_if_stream(thread_id, record, expected=)`, which atomically writes a record only when the stored `stream_id` matches `expected`, with `None` matching a missing record or an unset stream, so concurrent starts can claim the thread.
 
-Use Redis as soon as more than one worker serves the app. Any worker can then replay a run, whichever worker started it.
+A store can also implement `CancellableThreadStore`, which every built-in store does. It has two methods. `request_cancel(thread_id, stream_id)` atomically sets `cancel_requested` on the record, only while that stream's run is still running, and returns whether it did. `run_state(thread_id)` returns `(stream_id, cancel_requested)` and should read only those two fields, because each running run polls it. Without these methods, a cancel reaches only the worker that received it.
+
+Use Redis and Postgres as soon as more than one worker serves the app. Any worker can then replay a run, whichever worker started it.
+
+### More than one worker
+
+With a `CancellableThreadStore` and polling on (the default):
+
+- A cancel sent to any worker stops the run. The worker that runs it checks the run's state every `cancel_poll_interval` seconds (1 by default) and stops when a cancel was requested.
+- A new run on a thread stops the thread's previous run, on whichever worker it runs.
+
+`cancel_poll_interval=None` turns the check off. Cancel then reaches only the worker that received it, and a replaced run on another worker keeps running, though it can't overwrite its replacement.
+
+### Load balancer idle timeouts
+
+A long tool call can leave the stream silent for longer than a proxy's idle timeout, for example 60 seconds on an AWS ALB. Set `keepalive_interval` to send an SSE comment (`: ping`) after that many seconds of silence, on both the run stream and resumed streams. AG-UI clients ignore comments.
+
+```python
+durable = DurableAGUI(agent, threads=threads, streams=streams, keepalive_interval=15)
+```
 
 ## Closing and reopening the tab
 
@@ -142,7 +249,8 @@ Stop in the UI calls `abortRun()`, which cancels the run on the server. Switchin
 
 ## Limits
 
-- The run executes in the worker that received `POST /agent`. Cancel reaches only that worker.
+- The run executes in the worker that received `POST /agent`. A cancel sent to another worker takes up to `cancel_poll_interval` to stop it, and needs a `CancellableThreadStore`.
+- A cancel that arrives while `run_context` is still opening its resource takes effect once the resource is open.
 - A run whose worker dies stops, and its answer is not saved. The thread is reported as not running once the resumable store drops the stream. Pydantic AI's `DBOSAgent` or `TemporalAgent` alone doesn't change this, because the frames and the final transcript are written by the worker that took the request.
 - Assistant messages get server-generated ids when the run ends, so their ids change once between the live stream and the first reload.
 - Each `POST /agent` replaces the stored transcript with the one the client sent, the same trust model as `AGUIAdapter`.

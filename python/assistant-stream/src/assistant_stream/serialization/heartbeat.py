@@ -2,7 +2,9 @@ import asyncio
 import math
 from anyio import CancelScope
 from assistant_stream.create_run import _EARLY_CLOSE_GRACE_SECONDS
-from typing import AsyncGenerator, Optional, Union
+from typing import AsyncGenerator, Optional, TypeVar, Union
+
+T = TypeVar("T")
 
 DEFAULT_HEARTBEAT_INTERVAL = 15.0
 
@@ -38,10 +40,10 @@ def resolve_heartbeat_interval(
 
 
 async def add_keepalive(
-    stream: AsyncGenerator[str, None],
+    stream: AsyncGenerator[T, None],
     interval: float,
-    token: str,
-) -> AsyncGenerator[str, None]:
+    token: T,
+) -> AsyncGenerator[T, None]:
     """
     Yield `token` as a keepalive whenever the encoded stream is idle for
     `interval` seconds. Any real chunk resets the timer.
