@@ -3,7 +3,7 @@
  */
 import { act, useEffect, type FC } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $createParagraphNode,
@@ -28,6 +28,23 @@ import type {
 import { LexicalComposerInput } from "./LexicalComposerInput";
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
+const { emitLegacyAriaExpanded } = vi.hoisted(() => ({
+  emitLegacyAriaExpanded: { current: false },
+}));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/react")>();
+  return {
+    ...actual,
+    unstable_useTriggerPopoverAriaProps: () => {
+      const current = actual.unstable_useTriggerPopoverAriaProps();
+      return emitLegacyAriaExpanded.current && "aria-controls" in current
+        ? { ...current, "aria-expanded": true }
+        : current;
+    },
+  };
+});
 
 const noOpAdapter: ChatModelAdapter = {
   async *run() {},
@@ -115,6 +132,7 @@ describe("LexicalComposerInput directive triggers", () => {
   });
 
   afterEach(async () => {
+    emitLegacyAriaExpanded.current = false;
     await act(async () => {
       root.unmount();
     });
@@ -199,6 +217,26 @@ describe("LexicalComposerInput directive triggers", () => {
     expect(textbox().hasAttribute("aria-controls")).toBe(false);
     expect(textbox().hasAttribute("aria-haspopup")).toBe(false);
     expect(textbox().hasAttribute("aria-activedescendant")).toBe(false);
+  });
+
+  it("drops aria-expanded when a legacy @assistant-ui/react peer emits it", async () => {
+    emitLegacyAriaExpanded.current = true;
+
+    await act(async () => {
+      editor.update(() => {
+        const text = $createTextNode("ask @wea");
+        $getRoot().clear().append($createParagraphNode().append(text));
+        text.select();
+      });
+    });
+
+    const textbox = container.querySelector('[aria-label="Message"]')!;
+    const listbox = container.querySelector('[role="listbox"]')!;
+    expect(listbox).not.toBeNull();
+    expect(textbox.hasAttribute("aria-expanded")).toBe(false);
+    expect(textbox.getAttribute("aria-controls")).toBe(listbox.id);
+    expect(textbox.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(textbox.getAttribute("aria-activedescendant")).toBeTruthy();
   });
 
   it("reports nothing when the matched text is gone before the directive is inserted", async () => {

@@ -6127,7 +6127,6 @@ type TriggerPopoverActiveAria = {
 
 type TriggerPopoverAriaProps = {
   "aria-controls"?: string;
-  "aria-expanded"?: true;
   "aria-haspopup"?: "listbox";
   "aria-activedescendant"?: string | undefined;
 };

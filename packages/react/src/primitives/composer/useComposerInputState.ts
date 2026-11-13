@@ -5,7 +5,6 @@ import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRoo
 
 export type TriggerPopoverAriaProps = {
   "aria-controls"?: string;
-  "aria-expanded"?: true;
   "aria-haspopup"?: "listbox";
   "aria-activedescendant"?: string | undefined;
 };
@@ -27,7 +26,6 @@ export function useTriggerPopoverAriaProps(): TriggerPopoverAriaProps {
 
   return {
     "aria-controls": activeAria.popoverId,
-    "aria-expanded": true,
     "aria-haspopup": "listbox",
     "aria-activedescendant": activeAria.highlightedItemId,
   };
