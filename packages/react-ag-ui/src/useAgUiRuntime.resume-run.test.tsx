@@ -7,7 +7,11 @@ import {
   transformHttpEventStream,
   type RunAgentInput,
 } from "@ag-ui/client";
-import type { ThreadHistoryAdapter, ThreadMessage } from "@assistant-ui/core";
+import type {
+  ChatModelRunResult,
+  ThreadHistoryAdapter,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 
@@ -73,8 +77,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const render = (agent: HttpAgent) =>
-  renderHook(() => useAgUiRuntime({ agent, adapters: { history } }));
+const render = (agent: HttpAgent, adapter: ThreadHistoryAdapter = history) =>
+  renderHook(() => useAgUiRuntime({ agent, adapters: { history: adapter } }));
+
+const streamOf = (text: string) =>
+  async function* (): AsyncGenerator<ChatModelRunResult, void, unknown> {
+    yield {
+      content: [{ type: "text", text }],
+      status: { type: "complete", reason: "stop" },
+    };
+  };
 
 const shown = (runtime: ReturnType<typeof useAgUiRuntime>) =>
   runtime.thread
@@ -121,5 +133,54 @@ describe("resumeRun", () => {
       ]),
     );
     expect(calls).toEqual(["POST http://agent.test"]);
+  });
+
+  it("prefers the history adapter's resume() over connect()", async () => {
+    const calls = stubServer();
+    const resume = vi.fn(streamOf("from history"));
+    const { result } = render(
+      new FollowingAgent({ url: "http://agent.test" }),
+      {
+        ...history,
+        resume,
+      },
+    );
+    await waitFor(() =>
+      expect(result.current.thread.getState().messages).toHaveLength(1),
+    );
+
+    await act(async () => {
+      result.current.thread.resumeRun({ parentId: "question" });
+    });
+    await waitFor(() =>
+      expect(shown(result.current)).toEqual([
+        "user: Hi",
+        "assistant: from history",
+      ]),
+    );
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual([]);
+  });
+
+  it("uses a stream passed to resumeRun as given", async () => {
+    const calls = stubServer();
+    const { result } = render(new FollowingAgent({ url: "http://agent.test" }));
+    await waitFor(() =>
+      expect(result.current.thread.getState().messages).toHaveLength(1),
+    );
+
+    await act(async () => {
+      result.current.thread.resumeRun({
+        parentId: "question",
+        stream: streamOf("from the caller"),
+      });
+    });
+    await waitFor(() =>
+      expect(shown(result.current)).toEqual([
+        "user: Hi",
+        "assistant: from the caller",
+      ]),
+    );
+    expect(calls).toEqual([]);
   });
 });

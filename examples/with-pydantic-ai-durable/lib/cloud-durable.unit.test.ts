@@ -135,6 +135,18 @@ describe("decideDurableThread", () => {
     ).toMatchObject({ type: "resume", headId: "u1" });
   });
 
+  it("keeps the thread when the matched user message has no text to compare", () => {
+    expect(
+      decideDurableThread(
+        repo(message("u1", "user", ""), message("a1", "assistant", "", stale)),
+        {
+          running: true,
+          messages: [{ id: "s-u1", role: "user", content: "" }],
+        },
+      ),
+    ).toEqual({ type: "keep" });
+  });
+
   it("keeps the thread when only one side of the matched user message has text", () => {
     expect(
       decideDurableThread(
@@ -320,5 +332,25 @@ describe("withDurableRuns", () => {
     ).toEqual([["a1"], ["s-a1"]]);
     expect(loaded.headId).toBe("u1");
     expect(loaded.messages.map((i) => i.message.id)).toEqual(["u1"]);
+  });
+
+  it("shows the stored part of the answer when taking it back fails too", async () => {
+    const del = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("offline"));
+    const append = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("offline"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => stored,
+      append,
+      delete: del,
+    };
+    const loaded = await withDurableRuns(history, agent).load();
+    expect(loaded.headId).toBe("s-a1");
+    expect(loaded.messages.map((i) => i.message.id)).toEqual(["u1", "s-a1"]);
   });
 });

@@ -137,7 +137,9 @@ export const decideDurableThread = (
   const serverUsers = server.filter((i) => i.message.role === "user");
   if (serverUsers.length !== turn) return { type: "keep" };
   const serverUser = serverUsers[turn - 1]!;
-  if (textOf(user.message) !== textOf(serverUser.message))
+  // Text is the only content compared, so a prompt without text can't be matched.
+  const storedText = textOf(user.message);
+  if (!storedText || storedText !== textOf(serverUser.message))
     return { type: "keep" };
 
   const removeIds = new Set(tail.map((i) => i.message.id));
@@ -215,12 +217,18 @@ export const withDurableRuns = (
     } catch (error) {
       // Take back what was stored, so the next load sees no reply and tries again.
       console.warn("[durable] could not store the answer", error);
-      await history.delete(stored).catch(() => {});
-      const user = decision.add[0]!.parentId!;
+      const rolledBack = await history.delete(stored).then(
+        () => true,
+        () => false,
+      );
+      // If that fails too, show what the store now holds.
+      const shown = rolledBack ? [] : stored;
       return {
         ...repository,
-        headId: user,
-        messages: decision.messages.filter((i) => !decision.add.includes(i)),
+        headId: shown.at(-1)?.message.id ?? decision.add[0]!.parentId!,
+        messages: decision.messages.filter(
+          (i) => !decision.add.includes(i) || shown.includes(i),
+        ),
       };
     }
     return reconciled;
@@ -270,6 +278,8 @@ export const useDurableTakeover = (
           if (repository.unstable_resume && repository.headId)
             thread.resumeRun({ parentId: repository.headId });
         } catch (error) {
+          // A failed read may be tried again on the thread's next change.
+          checkedId = undefined;
           console.warn("[durable] could not take the run over", error);
         } finally {
           busy = false;

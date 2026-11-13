@@ -97,8 +97,10 @@ Assistant Cloud can keep the thread list and the messages while the durable serv
 Make the AG-UI runtime the `runtimeHook` of `useCloudThreadListRuntime`:
 
 ```tsx title="app/CloudRuntimeProvider.tsx"
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
   useAuiState,
   useCloudThreadListRuntime,
   useRuntimeAdapters,
@@ -106,6 +108,12 @@ import {
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { DurableHttpAgent } from "@/lib/durable-agent";
 import { useDurableTakeover, withDurableRuns } from "@/lib/cloud-durable";
+
+const baseUrl = "https://api.example.com/api";
+const cloud = new AssistantCloud({
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+  authToken: () => getCloudToken(),
+});
 
 function useDurableThreadRuntime() {
   // The durable server keys threads by the cloud thread's external id.
@@ -129,12 +137,19 @@ function useDurableThreadRuntime() {
   return runtime;
 }
 
-const runtime = useCloudThreadListRuntime({
-  cloud,
-  runtimeHook: useDurableThreadRuntime,
-  create: async (threadId) => ({ externalId: threadId }),
-});
+export function CloudRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useCloudThreadListRuntime({
+    cloud,
+    runtimeHook: useDurableThreadRuntime,
+    create: async (threadId) => ({ externalId: threadId }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
+  );
+}
 ```
+
+`getCloudToken` stands for your app's Assistant Cloud sign-in. Put the same user's credentials in the agent's `headers` so the durable server's `owner` can scope threads.
 
 `create` saves the thread's first id as the cloud thread's `external_id`, so the agent sends the same thread id to the durable server before and after a reload. Threads created without it fall back to the cloud thread id.
 
