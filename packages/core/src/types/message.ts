@@ -30,6 +30,8 @@ export type ReasoningMessagePart = {
   /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
   readonly id?: string;
   readonly text: string;
+  /** Reasoning content is unavailable; renderers may show a marker instead. */
+  readonly redacted?: boolean;
   readonly status?: MessagePartStreamStatus;
   /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   readonly unstable_summary?: string;

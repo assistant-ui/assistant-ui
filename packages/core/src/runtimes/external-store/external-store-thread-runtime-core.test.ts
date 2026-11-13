@@ -36,6 +36,28 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     ...overrides,
   } as ExternalStoreAdapter);
 
+it("keeps redacted reasoning from an external store", () => {
+  const runtime = new ExternalStoreThreadRuntimeCore(modelContextProvider, {
+    messages: [{ id: "a1" }],
+    convertMessage: (raw: { id: string }): ThreadMessageLike => ({
+      id: raw.id,
+      role: "assistant",
+      content: [
+        { type: "text", text: "Before" },
+        { type: "reasoning", text: "", redacted: true },
+        { type: "text", text: "After" },
+      ],
+    }),
+    onNew: async () => {},
+  } satisfies ExternalStoreAdapter<{ id: string }>);
+
+  expect(runtime.messages[0]?.content).toEqual([
+    { type: "text", text: "Before" },
+    { type: "reasoning", text: "", redacted: true },
+    { type: "text", text: "After" },
+  ]);
+});
+
 describe("ExternalStoreThreadRuntimeCore message repository", () => {
   const repositoryWithHead = (headId: string) =>
     ExportedMessageRepository.fromBranchableArray(
