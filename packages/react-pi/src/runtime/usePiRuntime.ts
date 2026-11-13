@@ -38,7 +38,7 @@ import {
   type PiInterruptAnswer,
 } from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
-import type { PiClient, PiThreadMetadata } from "../types";
+import type { PiClient, PiThinkingLevel, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 import { PI_SDK } from "../sdkIdentity";
@@ -434,6 +434,26 @@ const useNewPiThreadStore = (
     [optimisticMessages],
   );
 
+  // A thread with no Pi session yet has no controller to set a model on, so
+  // the choice is held here and applied to the session the first send creates.
+  // Without it the selector looks live and silently drops the pick.
+  const pendingSelectionRef = useRef<{
+    model?: { provider: string; modelId: string };
+    thinkingLevel?: PiThinkingLevel;
+  }>({});
+  const extras = useMemo<PiRuntimeExtrasInternal>(
+    () => ({
+      ...EMPTY_RUNTIME_EXTRAS,
+      setModel: async (input) => {
+        pendingSelectionRef.current.model = input;
+      },
+      setThinkingLevel: async (level) => {
+        pendingSelectionRef.current.thinkingLevel = level;
+      },
+    }),
+    [],
+  );
+
   const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
     () => ({
       isDisabled: isDisabled ?? false,
@@ -443,7 +463,7 @@ const useNewPiThreadStore = (
       isLoading: false,
       isRunning: false,
       messageRepository: optimisticRepository,
-      extras: EMPTY_RUNTIME_EXTRAS,
+      extras,
       ...(adapters ? { adapters } : {}),
       onNew: async (message) => {
         const optimistic = toOptimisticThreadMessage(
@@ -470,9 +490,21 @@ const useNewPiThreadStore = (
           if (!piThreadId) {
             throw new Error("This thread has no Pi thread to send to.");
           }
-          await getController(registry, piThreadId).sendMessage(message);
+          const controller = getController(registry, piThreadId);
+          // The session exists from here on, so the selection the person made
+          // while it did not can land before the message it should apply to.
+          const pendingSelection = pendingSelectionRef.current;
+          pendingSelectionRef.current = {};
+          if (pendingSelection.model) {
+            await controller.setModel(pendingSelection.model);
+          }
+          if (pendingSelection.thinkingLevel) {
+            await controller.setThinkingLevel(pendingSelection.thinkingLevel);
+          }
+          await controller.sendMessage(message);
           removeOptimisticMessage();
         } catch (error) {
+          pendingSelectionRef.current = {};
           removeOptimisticMessage();
           if (!isMessageNotSentError(error)) {
             invokePiErrorCallback(onError, error);

@@ -12,6 +12,7 @@ import type { PiClient, PiThreadSnapshot } from "../types";
 
 const mocks = vi.hoisted(() => ({
   adapters: [] as unknown[],
+  controllers: [] as unknown[],
   sendMessage: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -53,6 +54,10 @@ vi.mock("./ThreadController", async (importOriginal) => {
     resumeToolCall = vi.fn().mockResolvedValue(undefined);
     respondToHostUiRequest = vi.fn().mockResolvedValue(undefined);
     dispose = vi.fn();
+
+    constructor() {
+      mocks.controllers.push(this);
+    }
   }
 
   return { ...original, PiThreadController };
@@ -99,6 +104,7 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   mocks.adapters.length = 0;
+  mocks.controllers.length = 0;
 });
 
 describe("usePiRuntime new-thread first message", () => {
@@ -237,5 +243,65 @@ describe("usePiRuntime new-thread first message", () => {
 
     expect(mocks.sendMessage).toHaveBeenCalledOnce();
     expect(sentTexts()).toEqual(["strict mode message"]);
+  });
+
+  it("applies a model and thinking level picked before the first send", async () => {
+    const { client } = createClient();
+    let runtime!: AssistantRuntime;
+
+    const Harness = () => {
+      runtime = usePiRuntime({ client });
+      return createElement(AssistantRuntimeProvider, { runtime }, null);
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root!.render(createElement(Harness));
+    });
+    await act(async () => {});
+
+    // A thread with no session renders the new-thread store, so this is the
+    // extras a composer sees while it has no Pi thread to talk to yet.
+    const extras = (
+      mocks.adapters.at(-1) as {
+        extras: {
+          setModel: (input: {
+            provider: string;
+            modelId: string;
+          }) => Promise<void>;
+          setThinkingLevel: (level: "high") => Promise<void>;
+        };
+      }
+    ).extras;
+    await act(async () => {
+      await extras.setModel({
+        provider: "anthropic",
+        modelId: "claude-opus-5",
+      });
+      await extras.setThinkingLevel("high");
+    });
+
+    await act(async () => {
+      await runtime.thread.append("hello pi");
+    });
+    await act(async () => {});
+    await act(async () => {});
+
+    const controller = mocks.controllers.at(-1) as {
+      setModel: ReturnType<typeof vi.fn>;
+      setThinkingLevel: ReturnType<typeof vi.fn>;
+    };
+    expect(controller.setModel).toHaveBeenCalledWith({
+      provider: "anthropic",
+      modelId: "claude-opus-5",
+    });
+    expect(controller.setThinkingLevel).toHaveBeenCalledWith("high");
+    // The pick has to reach the session before the message it applies to.
+    expect(controller.setModel.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.sendMessage.mock.invocationCallOrder[0]!,
+    );
+    expect(
+      controller.setThinkingLevel.mock.invocationCallOrder[0],
+    ).toBeLessThan(mocks.sendMessage.mock.invocationCallOrder[0]!);
   });
 });
