@@ -2,6 +2,12 @@ import {
   generativeUiThemeVars,
   generativeUiVocabularyCss,
 } from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
+import {
+  BLOCKS,
+  blockRegistryName,
+  blockSourcePath,
+  type BlockEntry,
+} from "./blocks";
 import type { RegistryItem } from "./schema";
 
 const collapsibleStateCss = {
@@ -1059,6 +1065,28 @@ const elementsRegistryItems: RegistryItem[] = [
   }),
 ];
 
+const INSTALL_DIRECTORY_TYPES = new Set([
+  "registry:component",
+  "registry:hook",
+  "registry:lib",
+]);
+
+const createBlockRegistryItem = (block: BlockEntry): RegistryItem => ({
+  name: blockRegistryName(block.slug),
+  type: "registry:block",
+  title: block.title,
+  description: block.description,
+  files: block.files.map((file) => ({
+    type: file.type,
+    path: file.path,
+    sourcePath: blockSourcePath(block.slug, file),
+    ...(INSTALL_DIRECTORY_TYPES.has(file.type) ? {} : { target: file.path }),
+  })),
+  dependencies: block.dependencies,
+  registryDependencies: block.registryDependencies,
+  ...(block.docs ? { docs: block.docs } : {}),
+});
+
 export const registry: RegistryItem[] = [
   {
     name: "utils",
@@ -1077,6 +1105,7 @@ export const registry: RegistryItem[] = [
     dependencies: ["cn"],
   },
   ...elementsRegistryItems,
+  ...BLOCKS.map(createBlockRegistryItem),
   {
     name: "shimmer-style",
     type: "registry:style",

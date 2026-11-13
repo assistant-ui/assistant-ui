@@ -14,6 +14,7 @@ export function DemoCard({
   connection,
   wide = false,
   action,
+  canvasClassName,
   children,
 }: {
   href: string;
@@ -23,6 +24,7 @@ export function DemoCard({
   connection?: string;
   wide?: boolean;
   action?: React.ReactNode;
+  canvasClassName?: string;
   children: React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -57,6 +59,7 @@ export function DemoCard({
           demoCanvasClass,
           "group-hover/plate:border-foreground/25 h-[340px] transition-colors",
           wide && "md:h-[420px]",
+          canvasClassName,
         )}
       >
         {mounted ? (

@@ -1142,9 +1142,13 @@ function getScriptKind(filePath: string) {
   return ts.ScriptKind.Unknown;
 }
 
+const SCRIPT_FILE_RE = /\.[cm]?[jt]sx?$/;
+
 function getScriptContents(file: RegistryOutputFile) {
   if (!file.path.endsWith(".vue")) {
-    return [{ content: file.content, lang: undefined }];
+    return SCRIPT_FILE_RE.test(file.path)
+      ? [{ content: file.content, lang: undefined }]
+      : [];
   }
 
   const { descriptor, errors } = parse(file.content, { filename: file.path });

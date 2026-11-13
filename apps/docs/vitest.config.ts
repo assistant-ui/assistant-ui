@@ -68,6 +68,18 @@ export default {
         __dirname,
         "../../packages/ui/src/hooks/use-copy-to-clipboard",
       ),
+      "@/components/document-editor": resolve(
+        __dirname,
+        "../registry/blocks/agent-document-editor/components/document-editor",
+      ),
+      "@/hooks/use-document": resolve(
+        __dirname,
+        "../registry/blocks/agent-document-editor/hooks/use-document",
+      ),
+      "@/lib/document-editor": resolve(
+        __dirname,
+        "../registry/blocks/agent-document-editor/lib/document-editor",
+      ),
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",

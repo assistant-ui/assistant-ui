@@ -23,6 +23,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Extend: [
     { label: "Components", href: "/components" },
     { label: "Elements", href: "/elements" },
+    { label: "Blocks", href: "/blocks" },
     { label: "Design", href: "/design" },
   ],
   Resources: [

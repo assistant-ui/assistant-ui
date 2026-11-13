@@ -24,6 +24,15 @@
         "../../packages/ui/src/components/react/assistant-ui/*"
       ],
       "@/components/demo/elements/*": ["./components/demo/elements/*"],
+      "@/components/document-editor/*": [
+        "../registry/blocks/agent-document-editor/components/document-editor/*"
+      ],
+      "@/hooks/use-document": [
+        "../registry/blocks/agent-document-editor/hooks/use-document"
+      ],
+      "@/lib/document-editor/*": [
+        "../registry/blocks/agent-document-editor/lib/document-editor/*"
+      ],
       "@/components/icons/*": [
         "./components/icons/*",
         "../../packages/ui/src/components/react/icons/*"

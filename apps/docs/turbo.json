@@ -8,6 +8,8 @@
         "$TURBO_EXTENDS$",
         ".env*",
         "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/apps/registry/blocks/**",
+        "$TURBO_ROOT$/apps/registry/src/blocks.ts",
         "$TURBO_ROOT$/scripts/lib/script-options.mjs",
         "$TURBO_ROOT$/packages/*/vitest.peer-*.config.ts"
       ],

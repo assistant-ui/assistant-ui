@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { blog, examples, careers } from "@/lib/source";
 import { allDocsPages } from "@/lib/docs-pages";
 import { ELEMENTS } from "@/components/pages/elements/registry";
+import { BLOCKS } from "@/lib/blocks";
 import { DEMOS } from "@/lib/demos";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { CATALOG } from "@/lib/catalog";
@@ -39,6 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.6,
     },
+    { url: `${BASE_URL}/blocks`, changeFrequency: "weekly", priority: 0.7 },
     {
       url: `${BASE_URL}/design`,
       changeFrequency: "weekly",
@@ -112,6 +114,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
+  const blockPages: MetadataRoute.Sitemap = BLOCKS.map((block) => ({
+    url: `${BASE_URL}${block.href}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
   const designPages: MetadataRoute.Sitemap = DESIGN_COMPONENTS.map((item) => ({
     url: `${BASE_URL}/design/components/${item.slug}`,
     changeFrequency: "weekly" as const,
@@ -138,6 +146,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogPages,
     ...examplePages,
     ...elementPages,
+    ...blockPages,
     ...designPages,
     ...demoPages,
     ...careerPages,

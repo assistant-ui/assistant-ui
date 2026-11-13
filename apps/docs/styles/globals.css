@@ -105,6 +105,7 @@
 }
 
 @source "../../../packages/ui/src";
+@source "../../registry/blocks";
 @source "../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));

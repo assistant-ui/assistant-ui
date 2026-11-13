@@ -38,7 +38,7 @@ export async function readElementSource(file: string): Promise<string> {
 
 export async function highlightElementSource(
   code: string,
-  lang: "tsx" | "json" = "tsx",
+  lang: "tsx" | "json" | "bash" | "markdown" | "text" = "tsx",
 ): Promise<string> {
   "use cache";
   cacheLife("max");

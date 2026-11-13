@@ -1736,6 +1736,27 @@ test("install validation flags a relative import with no providing file", () => 
   assert.match(findings, /components\/assistant-ui\/badge\.tsx/);
 });
 
+test("install validation reads imports from script files only", () => {
+  const content =
+    'import { anthropic } from "@ai-sdk/anthropic";\nimport { Missing } from "./missing";\n';
+  const readme = {
+    type: "registry:file",
+    path: "components/assistant-ui/README.md",
+    target: "components/assistant-ui/README.md",
+    content,
+  };
+
+  assert.equal(findingsFrom([componentItem([readme])]), null);
+
+  const script = {
+    path: "components/assistant-ui/readme.ts",
+    content,
+  };
+  const findings = findingsFrom([componentItem([script])]);
+  assert.match(findings, /imports package "@ai-sdk\/anthropic"/);
+  assert.match(findings, /imports "\.\/missing"/);
+});
+
 test("install validation resolves a sibling through file.target, not file.path", () => {
   const files = [
     {
@@ -2856,6 +2877,54 @@ describe("built registry artifacts", { concurrency: false }, () => {
       createBuilt("thread", threadEmitted),
       createBuilt("thread-list", threadListEmitted),
     ]);
+  });
+
+  test("every block installs its page, route, and README under both flavors", async () => {
+    const { BLOCKS, blockRegistryName } = await import("../src/blocks.ts");
+    assert.ok(BLOCKS.length > 0);
+
+    for (const block of BLOCKS) {
+      for (const prefix of ["", "base/"]) {
+        const item = JSON.parse(
+          await readFile(
+            `dist/${prefix}${blockRegistryName(block.slug)}.json`,
+            "utf8",
+          ),
+        );
+        assert.equal(item.type, "registry:block");
+        assert.deepEqual(
+          item.files.map((file) => file.target ?? file.path),
+          block.files.map((file) => file.path),
+        );
+
+        const targeted = item.files.filter((file) => file.target);
+        assert.ok(
+          targeted.some((file) => /^app\/.+\/page\.tsx$/.test(file.target)),
+          `${block.slug} installs a page`,
+        );
+        assert.ok(
+          targeted.some((file) =>
+            /^app\/api\/.+\/route\.ts$/.test(file.target),
+          ),
+          `${block.slug} installs a route`,
+        );
+        const readme = targeted.find((file) =>
+          file.target.endsWith("/README.md"),
+        );
+        assert.ok(readme, `${block.slug} installs a README`);
+        assert.equal(
+          readme.content,
+          await readFile(`blocks/${block.slug}/README.md`, "utf8"),
+        );
+        for (const file of block.files) {
+          assert.ok(
+            readme.content.includes(`\`${file.path}\``) ||
+              file.path.endsWith("/README.md"),
+            `${block.slug} README documents ${file.path}`,
+          );
+        }
+      }
+    }
   });
 
   test("the real registry build satisfies the emitted install metadata contract", async () => {

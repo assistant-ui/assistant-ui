@@ -7,7 +7,7 @@
     "build": "tsx ./scripts/build-registry.ts",
     "test": "node --test scripts/build-registry.test.mjs && vitest run",
     "test:coverage": "pnpm run test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p blocks/agent-document-editor"
   },
   "dependencies": {
     "radix-ui": "^1.8.1"
@@ -21,6 +21,13 @@
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@lexical/history": "^0.53.0",
+    "@lexical/link": "^0.53.0",
+    "@lexical/list": "^0.53.0",
+    "@lexical/markdown": "^0.53.0",
+    "@lexical/react": "^0.53.0",
+    "@lexical/rich-text": "^0.53.0",
+    "@lexical/selection": "^0.53.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -31,9 +38,11 @@
     "assistant-stream": "workspace:*",
     "assistant-ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
+    "lexical": "^0.53.0",
     "lucide-react": "^1.61.0",
     "postcss": "^8.5.31",
     "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-resizable-panels": "^4.15.0",
     "react-shiki": "^0.11.2",
     "react-syntax-highlighter": "^16.1.2",

@@ -13,6 +13,12 @@ export default defineConfig({
       "@assistant-ui/ai-sdk": require.resolve("@assistant-ui/ai-sdk"),
       "assistant-stream/resumable":
         require.resolve("assistant-stream/resumable"),
+      "@/lib/document-editor": fileURLToPath(
+        new URL(
+          "./blocks/agent-document-editor/lib/document-editor",
+          import.meta.url,
+        ),
+      ),
       "@/lib/resumable-context": fileURLToPath(
         new URL(
           "./templates/ai-sdk-backend-resumable/lib/resumable-context.ts",
@@ -22,7 +28,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["app/**/*.test.ts"],
+    include: ["app/**/*.test.ts", "blocks/**/*.test.ts"],
     clearMocks: true,
   },
 });
