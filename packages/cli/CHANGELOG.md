@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.135
+
+### Patch Changes
+
+- Updated dependencies [[`4254c59`](https://github.com/assistant-ui/assistant-ui/commit/4254c59e520629b51f4278b9e93315fab40a30da)]:
+  - setup-agent@0.2.0
+
 ## 0.0.134
 
 ### Patch Changes
