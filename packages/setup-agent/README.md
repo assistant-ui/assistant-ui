@@ -78,7 +78,7 @@ Each `input.needed` carries the question, its options and the `answer` command. 
 
 ## Guide
 
-The CLI's wording and flow come from the setup server, so a fix reaches people on old CLIs as soon as the server deploys. Commands that print guidance (`<url>` itself, `stream`, `ask`, `plan`, `wait`, `done`, and `runAgentSetup`) fetch `GET <setup-url>/guide?protocol=<n>&capabilities=<list>&started=<user|agent|agent-stream>&opened=<0|1>`. The answer carries:
+The CLI's wording and flow come from the setup server, so a fix reaches people already on this version or later as soon as the worker deploys, with no upgrade on their side. The worker deploys after a `setup-agent` publish, since `buildGuide` ships in this package. Commands that print guidance (`<url>` itself, `stream`, `ask`, `plan`, `wait`, `done`, and `runAgentSetup`) fetch `GET <setup-url>/guide?protocol=<n>&capabilities=<list>&started=<user|agent|agent-stream>&opened=<0|1>`. The answer carries:
 
 - `texts`: the briefing, the stream's `browser.opened`, `input.needed`, `finished` and `cancelled` messages, the `waiting` and `done` hints, and the questions `input.needed` relays. The CLI fills `{{cmd}}`, `{{url}}` and the other placeholders a text may use with values it computes itself.
 - `intro`: what `setup-agent <url>` does, in order, as steps from a fixed set of local actions.
@@ -86,7 +86,7 @@ The CLI's wording and flow come from the setup server, so a fix reaches people o
 
 `setup-agent/guide` exports `buildGuide`, which both sides use: the worker serves it, and the CLI keeps it as the bundled copy. The CLI uses that copy when the server is unreachable, answers without a guide, no longer serves its protocol (426), or sends one it refuses. `SETUP_AGENT_GUIDE=bundled` skips the server.
 
-**Protocol.** The CLI sends `GUIDE_PROTOCOL` and its capabilities: each local action as `action:<name>`, plus `CLI_FEATURES`, the commands and flags it gained after protocol 1's baseline (none yet). The server answers with a protocol no newer than the CLI's, and names a newer command only behind `has("<feature>")`, so it only mentions what the CLI has. A test freezes the protocol 1 commands and flags and fails when the baseline guide names anything else. The server answers 426 to a CLI older than it still serves. Bump the protocol only for a change an older CLI cannot read. A new command or local action needs an npm release and a new capability; wording, ordering and question options need only a deploy, though a new `llm-provider` option also needs the setup app to know the provider.
+**Protocol.** The CLI sends `GUIDE_PROTOCOL` and its capabilities: each local action as `action:<name>`, plus `CLI_FEATURES`, the commands and flags it gained after protocol 1's baseline (none yet). The server answers with a protocol no newer than the CLI's, and names a newer command only behind `has("<feature>")`, so it only mentions what the CLI has. A test freezes the protocol 1 commands and flags and fails when the baseline guide names anything else. The server answers 426 to a CLI older than it still serves. Bump the protocol only for a change an older CLI cannot read. A new command or local action needs an npm release and a new capability; wording, ordering and question options need a `setup-agent` publish and the worker deploy that follows it, but no upgrade by users, though a new `llm-provider` option also needs the setup app to know the provider.
 
 **Safety.** The guide is data, never code. `parseGuide` checks it before anything runs:
 

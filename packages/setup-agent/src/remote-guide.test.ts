@@ -250,6 +250,36 @@ describe("the CLI with the setup server's guide", () => {
 });
 
 describe("runAgentSetup with the setup server's guide", () => {
+  it("makes no guide request when its env says SETUP_AGENT_GUIDE=bundled", async () => {
+    vi.stubEnv("SETUP_AGENT_GUIDE", "");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+    const client = {
+      state: initialCheckoutState(),
+      subscribe: () => () => {},
+      commands: new Proxy({}, { get: () => async () => {} }),
+      dispose: vi.fn(),
+    } as unknown as CheckoutClient;
+    let out = "";
+    const { stream } = await sdk.runAgentSetup({
+      server: "https://checkout.test",
+      setupAppUrl: "https://setup.test",
+      products: [],
+      command: "npx my-tool setup",
+      env: { SETUP_AGENT_GUIDE: "bundled" },
+      connect: async () => client,
+      write: (text) => (out += text),
+      stream: { print: () => {}, agent: { cwd: "/app" } },
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(out).toContain("Run the setup to the end in one go.");
+    await stream.stop();
+  });
+
   it("briefs the agent with the server's text and words the stream with it", async () => {
     vi.stubEnv("SETUP_AGENT_GUIDE", "");
     const fetch = vi.fn(async (url: string) => {
