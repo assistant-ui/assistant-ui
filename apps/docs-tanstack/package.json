@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3399",
-    "build": "vite build"
+    "build": "vite build",
+    "prebuild": "node -e \"for (const d of ['components','generated','content']) { try { require('fs').symlinkSync('../docs/'+d, d) } catch {} }\"",
+    "build:measure": "rm -rf dist .output .source node_modules/.vite && python3 ../../spike/measure.py tanstack ../../spike/tanstack.log -- pnpm build"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.46",
