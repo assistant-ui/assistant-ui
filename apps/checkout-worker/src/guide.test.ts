@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseGuide } from "setup-agent";
 import worker from "./index";
 import { buildGuide, respondToGuideRequest, type GuideContext } from "./guide";
 
@@ -8,6 +9,13 @@ const CONTEXTS: GuideContext[] = (
 const briefing = (context: GuideContext) => buildGuide(context).texts.briefing!;
 
 describe("buildGuide", () => {
+  it("serves a guide the CLI accepts unchanged, for every context", () => {
+    for (const context of CONTEXTS) {
+      const guide = buildGuide(context);
+      expect(parseGuide(JSON.parse(JSON.stringify(guide)))).toEqual(guide);
+    }
+  });
+
   it("serves only text and the CLI's three local actions, for every context", () => {
     for (const context of CONTEXTS) {
       const guide = buildGuide(context);

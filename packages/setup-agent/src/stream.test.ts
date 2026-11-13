@@ -1,3 +1,4 @@
+import { testGuide } from "./tests/guide-fixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerNeed } from "./needs";
 import { initialCheckoutState } from "./protocol";
@@ -92,6 +93,7 @@ describe("followSetup", () => {
     const lines: StreamEvent[][] = [];
     const open = vi.fn();
     const stream = await followSetup(fake.client, {
+      guide: testGuide,
       print: (events) => lines.push(events),
       agent: { cwd: "/app", kind: "claude" },
       browser: {
@@ -130,7 +132,7 @@ describe("followSetup", () => {
         event: "browser.opened",
         id: "q1",
         url: PAGE,
-        message: `Opened the setup in the user's browser for "Which package manager?". Tell the user once that it is waiting there, and give them https://setup.test/#link=abc&setup=s1 in case it did not open. Then keep working in the same turn; when you need the answer, block on it with "${WAIT} q1". Do not end your turn to wait: nothing on this stream wakes you.`,
+        message: `[stream.opened.input] Which package manager? ${PAGE}  with "${WAIT} q1"`,
       },
     ]);
 
@@ -160,14 +162,14 @@ describe("followSetup", () => {
       event: "input.needed",
       id: "q3",
       reason: "recently-opened",
-      message: `A browser tab for setup was opened 10s ago. Wait for the user there with "${WAIT} q3", or ask the user directly in the terminal: Which registry? Options: pnpm (pnpm), npm (npm).`,
+      message: `[stream.ask.recently-opened] 10  with "${WAIT} q3" Which registry? Options: pnpm (pnpm), npm (npm).`,
       question: "Which registry?",
       options: [
         { id: "pnpm", label: "pnpm" },
         { id: "npm", label: "npm" },
       ],
-      answerFormat: "one option id, or the user's own text",
-      answer: `${ANSWER} q3 <one option id, or the user's own text>`,
+      answerFormat: "[need.format.choice]",
+      answer: `${ANSWER} q3 <[need.format.choice]>`,
     });
 
     // The agent asked in its own conversation and answers for the user.
@@ -195,7 +197,7 @@ describe("followSetup", () => {
       id: "q1",
       reason: "browser-closed",
       message:
-        "The user closed the setup tab. Ask the user directly in the terminal: Which package manager? Options: pnpm (pnpm), npm (npm).",
+        "[stream.ask.browser-closed] Which package manager? Options: pnpm (pnpm), npm (npm).",
     });
     // A question right after: inside the 30s window, and the tab is known to be gone.
     t.ask("Which registry?");
@@ -211,6 +213,7 @@ describe("followSetup", () => {
     const fake = fakeClient();
     const lines: StreamEvent[][] = [];
     const stream = await followSetup(fake.client, {
+      guide: testGuide,
       print: (events) => lines.push(events),
       agent: { cwd: "/app" },
     });

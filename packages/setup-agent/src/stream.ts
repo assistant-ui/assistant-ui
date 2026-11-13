@@ -11,6 +11,8 @@ import {
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
+import { renderText } from "./guide";
+import type { Guide } from "./guide";
 
 export type StreamEvent =
   | { event: "planning.started" }
@@ -47,14 +49,14 @@ export type StreamEvent =
       answer: string;
     } & TerminalQuestion);
 
-const STAY_CONNECTED =
-  "This setup is over, not your connection. Keep the stream running, tell the user you are connected and waiting for their next setup, and run wait start.";
-
+/** The events between two states, with hints worded by the setup server's `guide`. */
 export const diffEvents = (
   before: Checkout.State,
   after: Checkout.State,
+  guide: Pick<Guide, "texts">,
 ): StreamEvent[] => {
   const events: StreamEvent[] = [];
+  const stayConnected = renderText(guide, "stream.stay-connected");
   if (before.status === "waiting" && after.status === "planning") {
     events.push({ event: "planning.started" });
   }
@@ -110,10 +112,10 @@ export const diffEvents = (
     }
   }
   if (before.status !== "done" && after.status === "done") {
-    events.push({ event: "finished", next: STAY_CONNECTED });
+    events.push({ event: "finished", next: stayConnected });
   }
   if (before.status !== "cancelled" && after.status === "cancelled") {
-    events.push({ event: "cancelled", next: STAY_CONNECTED });
+    events.push({ event: "cancelled", next: stayConnected });
   }
   if (after.id !== null && after.id !== before.id) {
     events.push({
@@ -165,20 +167,11 @@ export const shellWord = (value: string) =>
     ? value
     : `'${value.replaceAll("'", `'\\''`)}'`;
 
-const ASK_MESSAGES: Record<
-  AskReason,
-  (
-    question: string,
-    context: { agoSeconds: number; page: string; wait: string },
-  ) => string
-> = {
-  "recently-opened": (question, { agoSeconds, wait }) =>
-    `A browser tab for setup was opened ${agoSeconds}s ago. Wait for the user there${wait}, or ask the user directly in the terminal: ${question}`,
-  "browser-closed": (question) =>
-    `The user closed the setup tab. Ask the user directly in the terminal: ${question}`,
-  "no-browser": (question, { page }) =>
-    `No browser tab is open for this setup. Ask the user directly in the terminal, or give them ${page}: ${question}`,
-};
+const ASK_TEXTS = {
+  "recently-opened": "stream.ask.recently-opened",
+  "browser-closed": "stream.ask.browser-closed",
+  "no-browser": "stream.ask.no-browser",
+} as const satisfies Record<AskReason, string>;
 
 /** The command that blocks on a need, beside the one that answers it: `<cmd> <url> wait`. */
 const waitCommandFor = (answerCommand: string) =>
@@ -191,7 +184,8 @@ const gateEvent = (
   action: BrowserGateAction,
   answerCommand: string,
   page: string,
-  waitCommand?: string,
+  waitCommand: string | undefined,
+  guide: Pick<Guide, "texts">,
 ): StreamEvent => {
   const { need } = action;
   // Closing the setup is the user's call after "done"; there is nothing to block on.
@@ -204,14 +198,23 @@ const gateEvent = (
       event: "browser.opened",
       id: need.id,
       url: action.url,
-      message: `Opened the setup in the user's browser for ${need.kind === "input" ? `"${need.input.prompt.trim() || "Your agent needs an answer."}"` : need.kind === "plan" ? "the plan review" : "closing the setup"}. Tell the user once that it is waiting there, and give them ${action.url} in case it did not open.${need.kind === "finish" ? " The answer arrives on this stream." : ` Then keep working in the same turn; when you need the answer, block on it${wait || ' with "wait"'}. Do not end your turn to wait: nothing on this stream wakes you.`}`,
+      message: renderText(guide, `stream.opened.${need.kind}`, {
+        url: action.url,
+        wait: wait || ' with "wait"',
+        prompt:
+          need.kind === "input"
+            ? need.input.prompt.trim() ||
+              renderText(guide, "need.input.empty-prompt")
+            : "",
+      }),
     };
-  const question = terminalQuestion(need);
+  const question = terminalQuestion(need, guide);
   return {
     event: "input.needed",
     id: need.id,
     reason: action.reason,
-    message: ASK_MESSAGES[action.reason](formatTerminalQuestion(question), {
+    message: renderText(guide, ASK_TEXTS[action.reason], {
+      question: formatTerminalQuestion(question),
       agoSeconds: Math.round((action.openedAgoMs ?? 0) / 1000),
       page,
       wait,
@@ -222,6 +225,8 @@ const gateEvent = (
 };
 
 export type FollowSetupOptions = {
+  /** The setup server's wording for the stream's messages. */
+  guide: Pick<Guide, "texts">;
   /** Writes one line of events; the default prints a JSON array to stdout. */
   print?: (events: StreamEvent[]) => void;
   /** The agent the stream reports in its hello; detected by default. */
@@ -247,7 +252,7 @@ export type FollowSetupOptions = {
  */
 export const followSetup = async (
   client: Pick<CheckoutClient, "state" | "subscribe" | "commands">,
-  { print, agent, browser }: FollowSetupOptions = {},
+  { print, agent, browser, guide }: FollowSetupOptions,
 ) => {
   const write =
     print ??
@@ -267,7 +272,7 @@ export const followSetup = async (
     });
   let previous = client.state;
   if (previous === undefined) throw new Error("the setup has no state");
-  let pending = diffEvents({ ...previous, log: [] }, previous);
+  let pending = diffEvents({ ...previous, log: [] }, previous, guide);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const flush = () => {
     clearTimeout(timer);
@@ -284,6 +289,7 @@ export const followSetup = async (
           browser!.answerCommand,
           page(state) ?? "",
           waitCommandFor(browser!.answerCommand),
+          guide,
         ),
       );
     }
@@ -291,7 +297,7 @@ export const followSetup = async (
   const unsubscribe = client.subscribe(() => {
     const next = client.state;
     if (next === undefined) return;
-    pending.push(...diffEvents(previous!, next));
+    pending.push(...diffEvents(previous!, next, guide));
     previous = next;
     runGate(next);
     if (pending.length > 0 && timer === undefined)

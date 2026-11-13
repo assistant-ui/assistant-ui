@@ -50,7 +50,7 @@ const useCheckoutHost = (restored: unknown) => {
     if (state.status === "waiting") {
       throw reject(
         "planning-not-started",
-        'ask the user to return to their browser and click "Begin plan"; wait with "wait start"',
+        'the setup page starts planning on its own once the user opens it; wait with "wait start"',
       );
     }
   };
