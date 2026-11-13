@@ -19,6 +19,7 @@ _hook_logger = logging.getLogger("assistant_stream.resumable")
 
 MakeStream = Callable[[], AsyncIterator[bytes]]
 WaitUntil = Callable[[asyncio.Task[None]], None]
+"""Register producers and asynchronous cancellation cleanup with the host."""
 OnAcquire = Callable[[str, ResumableStreamRole], None]
 OnAppend = Callable[[str, int], None]
 OnFinalize = Callable[[str, Literal["done", "error"], str | None], None]
@@ -129,8 +130,23 @@ def _start_producer_task(
     lease_kwargs: dict[str, ResumableStreamLease] = (
         {} if lease is None else {"lease": lease}
     )
+    started = False
+
+    async def finalize_error(err: BaseException) -> None:
+        _call_hook(on_error, stream_id, err)
+        message = str(err) if str(err) else repr(err)
+        try:
+            finalized = await store.finalize(
+                stream_id, "error", message, **lease_kwargs
+            )
+            if finalized is not False:
+                _call_hook(on_finalize, stream_id, "error", message)
+        except Exception as finalize_err:
+            logger.error("resumable stream finalize failed: %s", finalize_err)
 
     async def _pump() -> None:
+        nonlocal started
+        started = True
         try:
             async for chunk in make_stream():
                 await store.append(stream_id, chunk, **lease_kwargs)
@@ -148,19 +164,8 @@ def _start_producer_task(
                 return
             _call_hook(on_finalize, stream_id, "done", None)
         except (Exception, asyncio.CancelledError) as err:
-            _call_hook(on_error, stream_id, err)
-            message = str(err) if str(err) else repr(err)
             try:
-                finalized = await store.finalize(
-                    stream_id, "error", message, **lease_kwargs
-                )
-                if finalized is False:
-                    return
-                _call_hook(on_finalize, stream_id, "error", message)
-            except Exception as finalize_err:
-                logger.error(
-                    "resumable stream finalize failed: %s", finalize_err
-                )
+                await finalize_error(err)
             finally:
                 if isinstance(err, asyncio.CancelledError):
                     raise
@@ -173,10 +178,18 @@ def _start_producer_task(
 
     def _done_callback(done_task: asyncio.Task[None]) -> None:
         try:
-            exc = done_task.exception()
-        except asyncio.CancelledError:
+            done_task.result()
+        except asyncio.CancelledError as err:
+            if done_task is task and not started:
+                # Cancellation before entry bypasses the coroutine's handler.
+                cleanup = asyncio.create_task(finalize_error(err))
+                tasks.add(cleanup)
+                cleanup.add_done_callback(tasks.discard)
+                cleanup.add_done_callback(_done_callback)
+                if wait_until is not None:
+                    wait_until(cleanup)
             return
-        if exc is not None:
+        except BaseException as exc:
             logger.error("resumable producer task failed: %s", exc)
 
     task.add_done_callback(_done_callback)

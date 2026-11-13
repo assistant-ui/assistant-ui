@@ -178,8 +178,9 @@ class DurableAGUI(Generic[AgentDepsT]):
 
         def track_producer(task: asyncio.Task[None]) -> None:
             nonlocal producer_task
-            producer_task = task
-            task.add_done_callback(lambda _: producer_started.set())
+            if producer_task is None:
+                producer_task = task
+                task.add_done_callback(lambda _: producer_started.set())
             if wait_until is not None:
                 wait_until(task)
 

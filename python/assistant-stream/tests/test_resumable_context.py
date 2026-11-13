@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import AsyncIterator
 from typing import Literal
 
@@ -394,6 +395,171 @@ async def test_cancelled_producer_finalizes_error_for_live_and_resumed_readers(
     assert len(errors) == 1
     assert isinstance(errors[0], asyncio.CancelledError)
     assert finalizes == [("a", "error", message)]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("reason", [None, "producer stopped"])
+async def test_cancelled_before_startup_finalizes_for_live_and_resumed_readers(
+    reason: str | None,
+) -> None:
+    tasks: list[asyncio.Task[None]] = []
+    source_started = False
+    errors: list[object] = []
+    finalizes: list[tuple[str, str, str | None]] = []
+
+    def cancel_before_start(task: asyncio.Task[None]) -> None:
+        tasks.append(task)
+        if len(tasks) == 1:
+            task.cancel(reason)
+
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store(),
+        wait_until=cancel_before_start,
+        on_error=lambda _id, error: errors.append(error),
+        on_finalize=lambda stream_id, status, error: finalizes.append(
+            (stream_id, status, error)
+        ),
+    )
+
+    async def source() -> AsyncIterator[bytes]:
+        nonlocal source_started
+        source_started = True
+        yield b"should not run"
+
+    stream = await ctx.run("a", source)
+    await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.gather(*tasks[1:])
+
+    # Python 3.11 added propagation of task cancellation messages to observers.
+    message = (
+        reason
+        if reason is not None and sys.version_info >= (3, 11)
+        else "CancelledError()"
+    )
+    assert tasks[0].cancelled()
+    assert source_started is False
+    assert await ctx.status("a") == "error"
+    for reader in (stream, await ctx.require_resume("a")):
+        with pytest.raises(RuntimeError) as exc:
+            await asyncio.wait_for(anext(reader), timeout=1)
+        assert str(exc.value) == message
+    assert len(errors) == 1
+    assert isinstance(errors[0], asyncio.CancelledError)
+    assert finalizes == [("a", "error", message)]
+
+
+@pytest.mark.anyio
+async def test_startup_cancellation_cleanup_is_registered_until_finalization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tasks: list[asyncio.Task[None]] = []
+    finalizing = asyncio.Event()
+    release = asyncio.Event()
+    store = create_in_memory_resumable_stream_store()
+    finalize = store.finalize
+
+    async def delayed_finalize(*args, **kwargs):
+        finalizing.set()
+        await release.wait()
+        return await finalize(*args, **kwargs)
+
+    monkeypatch.setattr(store, "finalize", delayed_finalize)
+    ctx = create_resumable_stream_context(store=store, wait_until=tasks.append)
+    stream = await ctx.run("a", lambda: _make_string_stream(["unused"]))
+    tasks[0].cancel()
+    await asyncio.gather(tasks[0], return_exceptions=True)
+    await asyncio.wait_for(finalizing.wait(), timeout=1)
+
+    try:
+        assert len(tasks) == 2
+        assert tasks[0].cancelled()
+        assert not tasks[1].done()
+        assert await ctx.status("a") == "streaming"
+    finally:
+        release.set()
+        await asyncio.gather(*tasks[1:])
+        await stream.aclose()
+
+    assert await ctx.status("a") == "error"
+
+
+@pytest.mark.anyio
+async def test_startup_cancellation_cleanup_cannot_finalize_a_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tasks: list[asyncio.Task[None]] = []
+    finalizing = asyncio.Event()
+    release_cleanup = asyncio.Event()
+    release_fresh = asyncio.Event()
+    finalizes: list[tuple[str, str, str | None]] = []
+    store = create_in_memory_resumable_stream_store()
+    finalize = store.finalize
+
+    async def delayed_error_finalize(stream_id, status, error=None, **kwargs):
+        if status == "error":
+            finalizing.set()
+            await release_cleanup.wait()
+        return await finalize(stream_id, status, error, **kwargs)
+
+    monkeypatch.setattr(store, "finalize", delayed_error_finalize)
+    ctx = create_resumable_stream_context(
+        store=store,
+        wait_until=tasks.append,
+        on_finalize=lambda stream_id, status, error: finalizes.append(
+            (stream_id, status, error)
+        ),
+    )
+    stale_reader = await ctx.run("a", lambda: _make_string_stream(["unused"]))
+    tasks[0].cancel()
+    await asyncio.gather(tasks[0], return_exceptions=True)
+    await asyncio.wait_for(finalizing.wait(), timeout=1)
+    await ctx.delete("a")
+
+    async def fresh() -> AsyncIterator[bytes]:
+        yield b"new"
+        await release_fresh.wait()
+        yield b"tail"
+
+    reader = await ctx.run("a", fresh)
+    try:
+        assert await asyncio.wait_for(anext(reader), timeout=1) == b"new"
+        release_cleanup.set()
+        await asyncio.wait_for(tasks[1], timeout=1)
+        assert await ctx.status("a") == "streaming"
+        assert finalizes == []
+        release_fresh.set()
+        assert await asyncio.wait_for(_collect(reader), timeout=1) == "tail"
+        assert finalizes == [("a", "done", None)]
+    finally:
+        release_cleanup.set()
+        release_fresh.set()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        await stale_reader.aclose()
+        await reader.aclose()
+
+
+@pytest.mark.anyio
+async def test_startup_cancellation_logs_finalization_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    tasks: list[asyncio.Task[None]] = []
+    now = [1_000.0]
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store(
+            default_ttl_ms=100, now=lambda: now[0]
+        ),
+        wait_until=tasks.append,
+    )
+    stream = await ctx.run("a", lambda: _make_string_stream(["unused"]))
+    tasks[0].cancel()
+    now[0] += 101
+    await asyncio.gather(tasks[0], return_exceptions=True)
+    await asyncio.gather(*tasks[1:])
+
+    assert tasks[0].cancelled()
+    assert await ctx.status("a") == "missing"
+    assert "resumable stream finalize failed: Stream not found: a" in caplog.text
+    await stream.aclose()
 
 
 @pytest.mark.anyio
