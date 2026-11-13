@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChevronDown } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import {
   HoverCard,
   HoverCardContent,

@@ -14,8 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Link from "next/link";
-import Image, { type StaticImageData } from "next/image";
+import { Link } from "@farm.js/core/client";
+import Image, { type StaticImageData } from "@farm.js/core/image";
 import { ThemeImage } from "@/components/pages/docs/theme-image";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import { Heading } from "@/components/pages/docs/fumadocs/heading";

@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { NextRequest } from "next/server";
 import { DEFAULT_CONFIG } from "@/components/pages/playground/types";
 import { encodeConfig } from "@/lib/playground-config-codec";
 import { GET } from "./route";
 
 function request(diff: unknown) {
   const encoded = Buffer.from(JSON.stringify(diff)).toString("base64url");
-  return new NextRequest(
+  return new Request(
     `https://www.assistant-ui.com/playground/init?c=${encoded}`,
   );
 }
@@ -52,7 +51,7 @@ describe("GET /playground/init", () => {
       components: { ...DEFAULT_CONFIG.components, loadingText: "Working" },
     };
     const response = GET(
-      new NextRequest(
+      new Request(
         `https://www.assistant-ui.com/playground/init?c=${encodeConfig(config)}`,
       ),
     );

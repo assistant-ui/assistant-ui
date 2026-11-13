@@ -1,7 +1,8 @@
 "use client";
 
+import "@/instrumentation-client";
 import { ThemeProvider, useTheme } from "next-themes";
-import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { NuqsAdapter } from "nuqs/adapters/react";
 import { useEffect, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { SearchProvider } from "@/components/shared/search-provider";

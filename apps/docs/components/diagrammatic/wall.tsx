@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { cn } from "@/lib/utils";
 import { plateSurface } from "./figure";
 import { CHART_SECTIONS, sectionId, type Chart } from "./registry";

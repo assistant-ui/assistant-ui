@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { NextRequest } from "next/server";
 import { buildAgentSkillsIndex, sha256 } from "@/lib/agent-discovery";
 import { API_CATALOG_LINK_HEADER } from "@/lib/agent-discovery-routes";
 import { GET, HEAD, generateStaticParams } from "./route";
 
-const request = {} as NextRequest;
+const request = new Request("https://www.assistant-ui.com/");
 const context = (skill: string) => ({ params: Promise.resolve({ skill }) });
 
 describe("repo skill route", () => {
@@ -49,7 +48,7 @@ describe("repo skill route", () => {
   });
 
   it("returns not found for an unknown skill", async () => {
-    await expect(GET(request, context("nope"))).rejects.toThrow();
+    expect((await GET(request, context("nope"))).status).toBe(404);
   });
 
   it("prerenders every indexed repo skill", () => {

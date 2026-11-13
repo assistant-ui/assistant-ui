@@ -1,6 +1,6 @@
 import { getLLMText, type LLMRenderContext } from "@/lib/get-llm-text";
 import { design } from "@/lib/source";
-import { notFound } from "next/navigation";
+import { notFound } from "@farm.js/core/navigation";
 
 export async function getDesignMarkdown(
   slug: string[] | undefined,

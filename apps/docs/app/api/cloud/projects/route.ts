@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { accountsOptions, getAccessToken } from "@/lib/accounts-auth";
 import { listCloudProjects, type CloudProject } from "@/lib/cloud-projects";
 import { isSetupAppRequest, setupCorsHeaders } from "@/lib/setup-origin";
@@ -18,7 +17,7 @@ export async function GET(request: Request) {
   }
 
   if (!accountsOptions) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Sign-in is not configured on this deployment." },
       { status: 503, headers },
     );
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
 
   const accessToken = await getAccessToken().catch(() => null);
   if (!accessToken) {
-    return NextResponse.json(
+    return Response.json(
       { error: "A signed-in session is required." },
       { status: 401, headers },
     );
@@ -36,9 +35,9 @@ export async function GET(request: Request) {
     const payload: CloudProjectsPayload = {
       projects: await listCloudProjects(accessToken, accountsOptions),
     };
-    return NextResponse.json(payload, { headers });
+    return Response.json(payload, { headers });
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "Accounts could not list the projects." },
       { status: 502, headers },
     );

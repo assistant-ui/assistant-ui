@@ -1,7 +1,7 @@
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { PostHogTraceExporter } from "@posthog/ai/otel";
 import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
-import type { Instrumentation } from "next";
+import type { RequestErrorReport } from "./lib/posthog-server";
 import {
   createAssistantCloudSpanProcessor,
   createAssistantCloudTraceExporter,
@@ -99,9 +99,7 @@ export function register() {
 // posthog-node's error tracking needs Node APIs, so server errors are reported
 // from the Node.js runtime only; the branch form lets the edge bundle drop the
 // import.
-export const onRequestError: Instrumentation.onRequestError = async (
-  ...args
-) => {
+export const onRequestError = async (...args: RequestErrorReport) => {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { captureRequestError } = await import("./lib/posthog-server");
     await captureRequestError(...args);

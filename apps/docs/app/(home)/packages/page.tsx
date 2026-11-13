@@ -1,7 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { Suspense } from "react";
-import { connection } from "next/server";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowUpRight } from "lucide-react";
 import {
   PACKAGES,
@@ -62,7 +61,7 @@ const directoryRows = (
     };
   });
 
-export default function PackagesPage() {
+export default async function PackagesPage() {
   const activeCount = PACKAGES.filter((pkg) => !pkg.deprecated).length;
 
   return (
@@ -101,7 +100,6 @@ export default function PackagesPage() {
 
 async function Directory() {
   // api.npmjs.org limits requests per IP, so npm is read at request time.
-  await connection();
   const npm = await fetchNpmDownloads();
 
   const ranked =

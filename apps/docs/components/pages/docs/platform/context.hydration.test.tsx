@@ -6,7 +6,7 @@ import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PlatformProvider } from "./context";
 
-vi.mock("next/navigation", async (importOriginal) => ({
+vi.mock("@farm.js/core/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => "/docs",
 }));

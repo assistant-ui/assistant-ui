@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowLeftIcon } from "lucide-react";
 import { ElementsSidebar } from "@/components/pages/elements/elements-sidebar";
 import { ScrollReset } from "@/components/pages/elements/scroll-reset";

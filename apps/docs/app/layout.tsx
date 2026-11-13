@@ -1,6 +1,6 @@
 import "@/styles/globals.css";
 import type { ReactNode } from "react";
-import { JetBrains_Mono, Public_Sans } from "next/font/google";
+import { localFont } from "@farm.js/core/font";
 import { Provider } from "./provider";
 import { SiteAssistant } from "@/components/pages/docs/assistant/site-assistant";
 import { cn } from "@/lib/utils";
@@ -13,14 +13,20 @@ import { ConsentBanner } from "@/components/consent-banner";
 import { OutsideRenderer } from "@/components/outside-renderer";
 import { SkipLink } from "@/components/shared/skip-link";
 
-const publicSans = Public_Sans({
+const publicSans = localFont({
+  src: "@fontsource-variable/public-sans/files/public-sans-latin-wght-normal.woff2",
+  family: "Public Sans",
+  weight: "100 900",
   variable: "--font-public-sans",
-  subsets: ["latin"],
+  fallback: ["system-ui", "sans-serif"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const jetbrainsMono = localFont({
+  src: "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2",
+  family: "JetBrains Mono",
+  weight: "100 800",
   variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
+  fallback: ["ui-monospace", "monospace"],
 });
 
 const getMetadataBase = () => {

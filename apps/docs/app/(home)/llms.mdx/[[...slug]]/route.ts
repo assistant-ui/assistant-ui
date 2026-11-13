@@ -1,12 +1,14 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { getDocsMarkdown } from "@/lib/docs-markdown";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-async function getMarkdown(slug: string[] | undefined) {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown(slug: string[] | undefined) {
   return getDocsMarkdown(slug, { flavor: "base", platform: "react" });
-}
+},
+  ["app/(home)/llms.mdx/[[...slug]]/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET(
   _req: Request,

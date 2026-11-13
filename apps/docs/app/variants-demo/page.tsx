@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { RecipeDemo } from "./recipe-demo";
 
 export const metadata: Metadata = {

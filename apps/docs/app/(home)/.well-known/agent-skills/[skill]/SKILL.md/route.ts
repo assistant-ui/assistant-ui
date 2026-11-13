@@ -1,6 +1,4 @@
-import { cacheLife } from "next/cache";
-import type { NextRequest } from "next/server";
-import { notFound } from "next/navigation";
+import { unstable_cache } from "@farm.js/core/cache";
 import {
   agentSkillDocument,
   createDiscoveryResponse,
@@ -9,28 +7,30 @@ import { getSkill, listSkills } from "@/lib/agent-skills";
 
 type Context = { params: Promise<{ skill: string }> };
 
-async function getDocument(name: string) {
-  "use cache";
-  cacheLife("max");
+const getDocument = unstable_cache(
+  async function getDocument(name: string) {
   const skill = getSkill(name);
   return skill ? agentSkillDocument(skill) : null;
-}
+  },
+  ["app/(home)/.well-known/agent-skills/[skill]/SKILL.md/route.ts#getDocument"],
+  { revalidate: false },
+);
 
 async function respond(context: Context, head: boolean) {
   const { skill: name } = await context.params;
   const document = await getDocument(name);
-  if (!document) notFound();
+  if (!document) return new Response("Not found", { status: 404 });
   return createDiscoveryResponse(document, {
     contentType: "text/markdown; charset=utf-8",
     head,
   });
 }
 
-export function GET(_req: NextRequest, context: Context) {
+export function GET(_req: Request, context: Context) {
   return respond(context, false);
 }
 
-export function HEAD(_req: NextRequest, context: Context) {
+export function HEAD(_req: Request, context: Context) {
   return respond(context, true);
 }
 

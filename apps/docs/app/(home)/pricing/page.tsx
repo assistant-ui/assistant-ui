@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata } from "@farm.js/core";
+import { Link } from "@farm.js/core/client";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { GitHubIcon } from "@/components/icons/github";

@@ -1,6 +1,5 @@
 import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
-import { notFound } from "next/navigation";
-import { connection } from "next/server";
+import { notFound } from "@farm.js/core/navigation";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import {
   DEFAULT_LEARN_COURSE_ID,
@@ -32,7 +31,6 @@ export default async function LearnStagePreviewPage({
 }) {
   if (!isAiPlaygroundEnabled) notFound();
   // Each preview needs its own server-side usage-budget session.
-  await connection();
 
   const { stageId } = await params;
   let previewDefinition;

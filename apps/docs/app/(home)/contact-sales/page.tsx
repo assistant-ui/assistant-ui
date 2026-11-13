@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import Image from "next/image";
+import type { Metadata } from "@farm.js/core";
+import Image from "@farm.js/core/image";
 import { ContactSalesForm } from "@/components/pages/contact-sales/contact-sales-form";
 import { CustomerLogos } from "@/components/pages/contact-sales/customer-logos";
 import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";

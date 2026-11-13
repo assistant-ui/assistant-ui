@@ -1,14 +1,16 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import {
   buildAgentSkillsIndex,
   createJsonDiscoveryResponse,
 } from "@/lib/agent-discovery";
 
-async function getIndex() {
-  "use cache";
-  cacheLife("max");
-  return buildAgentSkillsIndex();
-}
+const getIndex = unstable_cache(
+  async function getIndex() {
+    return buildAgentSkillsIndex();
+  },
+  ["app/(home)/.well-known/agent-skills/index.json/route.ts#getIndex"],
+  { revalidate: false },
+);
 
 export async function GET() {
   return createJsonDiscoveryResponse(await getIndex());

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, useEffect } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";

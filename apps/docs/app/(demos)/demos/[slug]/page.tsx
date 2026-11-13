@@ -1,6 +1,6 @@
 import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import type { Metadata } from "@farm.js/core";
+import { notFound } from "@farm.js/core/navigation";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { DEMOS, getDemo } from "@/lib/demos";
 import { createOgMetadata } from "@/lib/og";

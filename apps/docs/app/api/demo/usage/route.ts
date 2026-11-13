@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import type { ConversationUsage } from "@/lib/conversation-limit";
 import { getAnonymousSession } from "@/lib/anonymous-session";
 import { readDemoUsage, resolveDemoIdentity } from "@/lib/demo-usage";
@@ -30,5 +29,5 @@ export async function GET(request: Request) {
     ...usage,
     signedIn: identity.signedIn,
   };
-  return NextResponse.json(payload, { headers });
+  return Response.json(payload, { headers });
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { RendererHost } from "@/components/pages/renderer/renderer-host";
 
 export const metadata: Metadata = {

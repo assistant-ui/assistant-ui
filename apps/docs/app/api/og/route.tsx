@@ -1,5 +1,5 @@
-import { ImageResponse } from "next/og";
-import type { ImageResponseOptions, NextRequest } from "next/server";
+import { ImageResponse } from "@farm.js/core/og";
+import type { ImageResponseOptions } from "@farm.js/core/og";
 import { loadOgFonts, OG_FONT_SANS } from "@/lib/og-fonts";
 
 const size = {
@@ -28,8 +28,8 @@ function clampAtWord(text: string | null, max: number): string | null {
   return `${trimmed}…`;
 }
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
+export async function GET(request: Request) {
+  const searchParams = new URL(request.url).searchParams;
   const title = (searchParams.get("title") ?? "Documentation").slice(0, 100);
   const description = clampAtWord(searchParams.get("description"), 140);
   const variant = searchParams.get("variant");

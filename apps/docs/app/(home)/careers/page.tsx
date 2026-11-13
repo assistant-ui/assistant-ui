@@ -1,6 +1,6 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import type { ReactElement } from "react";
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";

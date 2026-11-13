@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { useAui, useAuiState } from "@assistant-ui/react";
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import { Button } from "@/components/ui/button";
 import { parseLearnCourseStepResult } from "@/lib/xulux/learn/tool-result";
 import { useLearnMode } from "../learn/LearnModeContext";

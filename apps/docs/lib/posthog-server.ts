@@ -1,5 +1,4 @@
 import { createHmac } from "node:crypto";
-import type { Instrumentation } from "next";
 import { PostHog, type EventMessage } from "posthog-node";
 import { getAnonymousSessionSecret } from "./anonymous-session";
 import { consentRequiredFor } from "./consent-region";
@@ -51,16 +50,30 @@ export function getDistinctId(req: Request): string {
 // Server errors carry no visitor identity, not even the address hash.
 const SERVER_ERROR_DISTINCT_ID = "docs-server";
 
-const header = (
-  headers: Parameters<Instrumentation.onRequestError>[1]["headers"],
-  name: string,
-) => {
+const header = (headers: RequestErrorReport[1]["headers"], name: string) => {
   const value = headers[name];
   return (Array.isArray(value) ? value[0] : value) ?? null;
 };
 
+/** The arguments of a server request error report: the error, the request it failed, and where it was routed. */
+export type RequestErrorReport = [
+  error: unknown,
+  request: {
+    path: string;
+    method: string;
+    headers: Record<string, string | string[] | undefined>;
+  },
+  context: {
+    routerKind: string;
+    routePath: string;
+    routeType: string;
+    renderSource?: string;
+    revalidateReason?: string;
+  },
+];
+
 export async function captureRequestError(
-  ...[error, request, context]: Parameters<Instrumentation.onRequestError>
+  ...[error, request, context]: RequestErrorReport
 ) {
   if (!posthogServer) return;
   // The privacy policy's GPC and opt-in promises cover PostHog as a whole, and

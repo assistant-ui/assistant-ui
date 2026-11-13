@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";

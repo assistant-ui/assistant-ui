@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 import {
@@ -25,9 +25,8 @@ const formatPlan = (plan: (typeof pricingPlans)[number]) => {
   ].join("\n");
 };
 
-async function getMarkdown() {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown() {
   const markdown = [
     "# assistant-ui pricing",
     "",
@@ -64,7 +63,10 @@ async function getMarkdown() {
   ].join("\n");
 
   return `${markdown}\n`;
-}
+},
+  ["app/(home)/pricing.md/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET() {
   return createMarkdownResponse(await getMarkdown());

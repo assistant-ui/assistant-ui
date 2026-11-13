@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import {
   createDemoZip,
@@ -9,7 +8,7 @@ import { zipDownloadResponse } from "@/lib/xulux/demo-downloads/zip-response";
 
 export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return Response.json({ error: "Not found." }, { status: 404 });
   }
 
   const url = new URL(req.url);
@@ -17,7 +16,7 @@ export async function GET(req: Request) {
   const manifest = getDemoDownloadManifest(slug);
 
   if (!manifest) {
-    return NextResponse.json(
+    return Response.json(
       { error: `Unsupported demo slug: ${slug}` },
       { status: 404 },
     );
@@ -30,7 +29,7 @@ export async function GET(req: Request) {
       bytes: zip,
     });
   } catch (error) {
-    return NextResponse.json(
+    return Response.json(
       {
         error: "Failed to generate demo download.",
         details: error instanceof Error ? error.message : String(error),

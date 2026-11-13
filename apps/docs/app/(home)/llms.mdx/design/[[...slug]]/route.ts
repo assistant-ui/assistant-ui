@@ -1,15 +1,17 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import {
   getDesignMarkdown,
   getDesignMarkdownStaticParams,
 } from "@/lib/design-markdown";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-async function getMarkdown(slug: string[] | undefined) {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown(slug: string[] | undefined) {
   return getDesignMarkdown(slug, "base");
-}
+},
+  ["app/(home)/llms.mdx/design/[[...slug]]/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET(
   _req: Request,

@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "@farm.js/core";
 import { blog, examples, careers } from "@/lib/source";
 import { allDocsPages } from "@/lib/docs-pages";
 import { ELEMENTS } from "@/components/pages/elements/registry";

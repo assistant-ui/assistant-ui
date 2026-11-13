@@ -10,7 +10,6 @@ import { resolveChatModel } from "@/lib/ai/provider";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { NextResponse } from "next/server";
 import { stepCountIs } from "ai";
 
 export const maxDuration = 30;
@@ -205,7 +204,7 @@ When using customCSS, APPEND to any existing customCSS (from current config) rat
 
 export async function POST(req: Request) {
   if (!isAiPlaygroundEnabled) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return Response.json({ error: "Not found." }, { status: 404 });
   }
 
   try {

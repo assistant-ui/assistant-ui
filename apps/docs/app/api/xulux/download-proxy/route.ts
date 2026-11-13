@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { checkXuluxDownloadProxyRateLimit } from "@/lib/rate-limit";
@@ -73,7 +72,7 @@ function limitArchiveSize(body: ReadableStream<Uint8Array>) {
 
 export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return Response.json({ error: "Not found." }, { status: 404 });
   }
 
   const session = requirePublicAssistantSession(req);
@@ -88,7 +87,7 @@ export async function GET(req: Request) {
   const downloadSearch = searchParams.get("downloadSearch") ?? undefined;
 
   if (!templateId) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Missing `templateId` query parameter." },
       { status: 400 },
     );
@@ -102,7 +101,7 @@ export async function GET(req: Request) {
   });
 
   if (!upstreamUrl) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Template download URL not allowed." },
       { status: 403 },
     );
@@ -117,7 +116,7 @@ export async function GET(req: Request) {
 
     if (upstream.status >= 300 && upstream.status < 400) {
       void upstream.body?.cancel().catch(() => {});
-      return NextResponse.json(
+      return Response.json(
         { error: "Redirects are not allowed." },
         { status: 400 },
       );
@@ -125,7 +124,7 @@ export async function GET(req: Request) {
 
     if (!upstream.ok) {
       const details = await readBoundedText(upstream);
-      return NextResponse.json(
+      return Response.json(
         {
           error: `Upstream responded ${upstream.status}.`,
           details: details.slice(0, 500) || undefined,
@@ -143,21 +142,18 @@ export async function GET(req: Request) {
       (!Number.isFinite(contentLength) || contentLength > MAX_ZIP_BYTES)
     ) {
       void upstream.body?.cancel().catch(() => {});
-      return NextResponse.json(
-        { error: "Archive too large." },
-        { status: 413 },
-      );
+      return Response.json({ error: "Archive too large." }, { status: 413 });
     }
 
     const body = upstream.body;
     if (!body) {
-      return NextResponse.json(
+      return Response.json(
         { error: "No body from upstream." },
         { status: 502 },
       );
     }
 
-    return new NextResponse(limitArchiveSize(body), {
+    return new Response(limitArchiveSize(body), {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
@@ -177,7 +173,7 @@ export async function GET(req: Request) {
       err instanceof Error && err.cause instanceof Error
         ? err.cause.message
         : undefined;
-    return NextResponse.json(
+    return Response.json(
       {
         error: "Proxy fetch failed.",
         details: err instanceof Error ? err.message : String(err),

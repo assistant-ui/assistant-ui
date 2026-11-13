@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "@farm.js/core";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {

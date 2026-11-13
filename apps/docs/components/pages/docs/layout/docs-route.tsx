@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect } from "@farm.js/core/navigation";
 import { ArrowUpRight } from "lucide-react";
 import {
   DocsBody,

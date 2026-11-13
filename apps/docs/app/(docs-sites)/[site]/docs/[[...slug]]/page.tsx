@@ -1,17 +1,21 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import type { Metadata } from "@farm.js/core";
+import { notFound } from "@farm.js/core/navigation";
 import { docsSiteSources, siteTree } from "@/lib/source";
 import { getDocsSite } from "@/lib/docs-sites";
+import { routeSegments } from "@/lib/route-segments";
 import {
   DocsRoutePage,
   docsRouteMetadata,
   firstPageFallback,
 } from "@/components/pages/docs/layout/docs-route";
 
-export default async function Page(
-  props: PageProps<"/[site]/docs/[[...slug]]">,
-) {
-  const { site: siteId, slug = [] } = await props.params;
+type Props = {
+  params: Promise<{ site: string; slug?: string | string[] }>;
+};
+
+export default async function Page(props: Props) {
+  const { site: siteId, slug: rawSlug } = await props.params;
+  const slug = routeSegments(rawSlug);
   const site = getDocsSite(siteId);
   if (!site) notFound();
 
@@ -34,10 +38,9 @@ export function generateStaticParams({ params }: { params: { site: string } }) {
   return [{ slug: [] }, ...docsSiteSources[site.id].generateParams()];
 }
 
-export async function generateMetadata(
-  props: PageProps<"/[site]/docs/[[...slug]]">,
-): Promise<Metadata> {
-  const { site: siteId, slug = [] } = await props.params;
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { site: siteId, slug: rawSlug } = await props.params;
+  const slug = routeSegments(rawSlug);
   const site = getDocsSite(siteId);
   if (!site) return { title: "Not Found" };
 

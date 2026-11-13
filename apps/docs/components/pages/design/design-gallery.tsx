@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowUpRightIcon } from "lucide-react";
 import {
   DESIGN_SECTIONS,

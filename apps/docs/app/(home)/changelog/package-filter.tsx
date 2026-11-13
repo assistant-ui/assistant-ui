@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "@farm.js/core/navigation";
 import {
   SelectContent,
   SelectGroup,

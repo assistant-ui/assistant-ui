@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { LearnRegistryError } from "@/lib/xulux/learn/registry";
 import {
@@ -9,7 +8,7 @@ import { zipDownloadResponse } from "@/lib/xulux/demo-downloads/zip-response";
 
 export async function GET(request: Request) {
   if (!isAiPlaygroundEnabled) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return Response.json({ error: "Not found." }, { status: 404 });
   }
 
   const url = new URL(request.url);
@@ -24,9 +23,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof LearnRegistryError) {
-      return NextResponse.json({ error: "Not found." }, { status: 404 });
+      return Response.json({ error: "Not found." }, { status: 404 });
     }
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to generate Learn stage download." },
       { status: 500 },
     );

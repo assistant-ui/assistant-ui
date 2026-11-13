@@ -12,7 +12,7 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { type ComponentProps, memo, useRef } from "react";
-import dynamic from "next/dynamic";
+import dynamic from "@/lib/dynamic";
 
 import {
   type HighlighterProps,

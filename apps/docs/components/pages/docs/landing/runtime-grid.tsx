@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { MoreHorizontal, Server } from "lucide-react";
 import type { ReactNode } from "react";
 import { A2AIcon } from "@/components/icons/a2a";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTabCue } from "@/components/shared/new-tab-cue";

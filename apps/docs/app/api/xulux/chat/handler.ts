@@ -10,7 +10,6 @@ import {
 } from "@/lib/validate-input";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
-import { NextResponse } from "next/server";
 import { stepCountIs, streamText } from "ai";
 import type { UIMessage } from "ai";
 import type { ToolSet } from "ai";
@@ -157,7 +156,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
   return async function POST(req: Request): Promise<Response> {
     const requestId = crypto.randomUUID();
     if (!isAiPlaygroundEnabled) {
-      return NextResponse.json({ error: "Not found." }, { status: 404 });
+      return Response.json({ error: "Not found." }, { status: 404 });
     }
 
     try {
@@ -172,7 +171,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const body = await req.json().catch(() => null);
       if (!isRecord(body)) {
-        return NextResponse.json(
+        return Response.json(
           { error: "Invalid JSON request body." },
           { status: 400 },
         );
@@ -236,10 +235,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         resolvedSessionId.trim().length === 0 ||
         resolvedSessionId.trim().length > MAX_SESSION_ID_CHARS
       ) {
-        return NextResponse.json(
-          { error: "sessionId required" },
-          { status: 400 },
-        );
+        return Response.json({ error: "sessionId required" }, { status: 400 });
       }
       const sessionId = resolvedSessionId.trim();
       const budgetSessionId = `${publicSession.id}:${sessionId}`;

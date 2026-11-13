@@ -1,5 +1,5 @@
 {
-  "extends": "@assistant-ui/x-buildutils/ts/next",
+  "extends": "@assistant-ui/x-buildutils/ts/base.json",
   "compilerOptions": {
     "paths": {
       "@/components/ui/*": [
@@ -72,8 +72,8 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "next.config.mts",
+    ".farm/types/**/*.ts",
+    "farm.config.ts",
     "scripts/content/**/*.mts"
   ],
   "exclude": [

@@ -57,14 +57,14 @@ async function createContentProcessor() {
     { default: remarkGfm },
     { remarkStructure },
     { VFile },
-    { default: remarkHeading },
+    { createCanonicalDocsRemarkHeading: remarkHeading },
   ] = await Promise.all([
     import("remark"),
     import("remark-mdx"),
     import("remark-gfm"),
     import("fumadocs-core/mdx-plugins/remark-structure"),
     import("vfile"),
-    import("@farming-labs/next/mdx-plugins/remark-heading"),
+    import("@farming-labs/farmjs/vite"),
   ]);
   const processor = remark()
     .use(remarkMdx)
@@ -180,9 +180,10 @@ export async function generateContentManifest(
     ? { compiled: new Set(await readLitePages(root)) }
     : undefined;
   const inputs = await Promise.all([
-    readFile(new URL(import.meta.url), "utf8"),
-    readFile(new URL("../../content.config.ts", import.meta.url), "utf8"),
-    readFile(new URL("../../../../pnpm-lock.yaml", import.meta.url), "utf8"),
+    // Farm bundles its config into a temporary file, so these resolve from the app root.
+    readFile(resolve(root, "scripts/content/manifest.mts"), "utf8"),
+    readFile(resolve(root, "content.config.ts"), "utf8"),
+    readFile(resolve(root, "../../pnpm-lock.yaml"), "utf8"),
   ]);
   const compiler = docsBuildCacheDigest(
     JSON.stringify([process.version, ...inputs]),
@@ -191,12 +192,12 @@ export async function generateContentManifest(
     JSON.stringify([compiler, collections, lite ? [...lite.compiled] : null]),
   );
   const cache = new DocsBuildCache<Awaited<ReturnType<typeof compileContent>>>(
-    resolve(root, ".next/cache/aui-content-manifest.json"),
+    resolve(root, ".farm/cache/aui-content-manifest.json"),
     { maxEntries: 1 },
   );
   const result = await cache.compile("manifest", fingerprint, async () => {
     const pages = new DocsBuildCache<CompiledPage>(
-      resolve(root, ".next/cache/aui-content-pages.json"),
+      resolve(root, ".farm/cache/aui-content-pages.json"),
     );
     const compiled = await compileContent(
       root,

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { Redis } from "@upstash/redis";
-import { after } from "next/server";
+import { after } from "@farm.js/core/after";
 import {
   createAccountsAuth,
   createMemorySessionStore,
@@ -9,7 +9,7 @@ import {
 } from "aui-auth";
 import { createAesGcmCodec } from "aui-auth/database";
 import { createRedisSessionStore } from "aui-auth/database/redis";
-import { withNextRequestScope } from "aui-auth/next";
+import { headers } from "@farm.js/core/headers";
 
 export type DocsSessionData = Record<string, never>;
 
@@ -57,11 +57,15 @@ export const accountsOptions: AccountsFetchOptions | null = issuer
   ? { issuer }
   : null;
 
-const scope = accounts ? withNextRequestScope(accounts) : null;
+// The session cookies ride the request headers, which the auth client reads from a Request.
+const currentRequest = async () =>
+  new Request("http://localhost/", { headers: new Headers(await headers()) });
 
-export const getSession = scope ? scope.getSession : async () => null;
+export const getSession = accounts
+  ? async () => accounts.sessionFromRequest(await currentRequest())
+  : async () => null;
 
 /** A fresh access token for the request's session, refreshed when it is about to expire; null when signed out. */
-export const getAccessToken = scope
-  ? scope.getAccessToken
+export const getAccessToken = accounts
+  ? async () => accounts.accessTokenFromRequest(await currentRequest())
   : async (): Promise<string | null> => null;

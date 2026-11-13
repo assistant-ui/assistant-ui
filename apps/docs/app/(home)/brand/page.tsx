@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { Download, FileArchive } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";

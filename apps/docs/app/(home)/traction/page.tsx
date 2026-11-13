@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
-import { connection } from "next/server";
+import type { Metadata } from "@farm.js/core";
 import { LiveDot } from "@/components/shared/live-dot";
 import { Suspense, cache, type ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
@@ -42,7 +41,7 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-export default function TractionPage() {
+export default async function TractionPage() {
   return (
     <PageFrame pad="sub">
       <header className="max-w-2xl">
@@ -133,7 +132,6 @@ const loadNpm = cache(async () => {
 const loadContributors = cache(() => fetchContributors());
 
 async function Stats() {
-  await connection();
   const [npm, repo, contributors, dependents, commitStats] = await Promise.all([
     loadNpm(),
     getRepo(),
@@ -223,17 +221,14 @@ async function Stats() {
 }
 
 async function StarHistory() {
-  await connection();
   return <StarHistoryChart data={await fetchStarHistory()} />;
 }
 
 async function Downloads() {
-  await connection();
   return <DownloadsChart timeline={await loadTimeline()} />;
 }
 
 async function Cadence() {
-  await connection();
   const [commits, releases] = await Promise.all([
     fetchCommitActivity(),
     fetchReleaseActivity(),
@@ -242,7 +237,6 @@ async function Cadence() {
 }
 
 async function People() {
-  await connection();
   const [contributors, botCoAuthors] = await Promise.all([
     loadContributors(),
     fetchBotCoAuthors(),

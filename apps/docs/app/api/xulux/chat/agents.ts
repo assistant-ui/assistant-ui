@@ -1,6 +1,5 @@
 import type { FrontendTools } from "@assistant-ui/ai-sdk";
 import type { ToolSet, UIMessage } from "ai";
-import { NextResponse } from "next/server";
 import { parseLearnContext } from "@/lib/xulux/learn/context";
 import { APP_BUILDER_SYSTEM_PROMPT, LEARN_SYSTEM_PROMPT } from "./prompts";
 import { createAppBuilderTools, createLearnAgentTools } from "./tools";
@@ -33,7 +32,7 @@ export type XuluxAgentDefinition = {
     routeUrl: string;
   }) => unknown;
   prepareMessages?: (options: PrepareAgentMessagesOptions) => UIMessage[];
-  prepareTools: (options: PrepareAgentToolsOptions) => ToolSet | NextResponse;
+  prepareTools: (options: PrepareAgentToolsOptions) => ToolSet | Response;
 };
 
 export const appBuilderAgent: XuluxAgentDefinition = {
@@ -55,7 +54,7 @@ export const learnAgent: XuluxAgentDefinition = {
   prepareTools: ({ body, routeUrl }) => {
     const learnContext = parseLearnContext(body.learnContext);
     if (!learnContext) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid Learn context." },
         { status: 400 },
       );

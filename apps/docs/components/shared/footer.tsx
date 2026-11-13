@@ -1,5 +1,5 @@
 import type { FC, ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { DiscordIcon } from "@/components/icons/discord";
 import { GitHubIcon } from "@/components/icons/github";
 import { LegalLinks } from "@/components/shared/legal-links";

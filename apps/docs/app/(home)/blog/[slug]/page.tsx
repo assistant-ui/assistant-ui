@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { createOgMetadata } from "@/lib/og";
-import { notFound } from "next/navigation";
-import Link from "next/link";
+import { notFound } from "@farm.js/core/navigation";
+import { Link } from "@farm.js/core/client";
 import { blog, type BlogPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { ArrowLeft } from "lucide-react";

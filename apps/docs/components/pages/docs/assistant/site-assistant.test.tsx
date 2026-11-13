@@ -37,7 +37,7 @@ const state = vi.hoisted(() => {
   };
 });
 
-vi.mock("next/navigation", async (importOriginal) => ({
+vi.mock("@farm.js/core/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => state.pathname,
 }));

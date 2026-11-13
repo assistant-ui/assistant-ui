@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantPanelProvider } from "@/components/pages/docs/assistant/context";
 import { Header } from "./header";
 
-vi.mock("next/navigation", async (importOriginal) => ({
+vi.mock("@farm.js/core/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => "/docs",

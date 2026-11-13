@@ -1,10 +1,9 @@
-import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const get = async (query: string) => {
   vi.resetModules();
   const { GET } = await import("./route");
-  return GET(new NextRequest(`https://docs.test/install.md${query}`));
+  return GET(new Request(`https://docs.test/install.md${query}`));
 };
 
 afterEach(() => {

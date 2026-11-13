@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import type { Metadata } from "@farm.js/core";
+import { notFound } from "@farm.js/core/navigation";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { XuluxApp } from "@/components/xulux/XuluxApp";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";

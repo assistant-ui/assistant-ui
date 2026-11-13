@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { Fragment, type FC, type ReactNode } from "react";
 import { highlight } from "fumadocs-core/highlight";
 
@@ -23,16 +23,18 @@ type PropDef = {
   children?: Array<{ type?: string; parameters: PropDef[] }>;
 };
 
-async function highlightType(type: string): Promise<ReactNode> {
-  "use cache";
-  cacheLife("max");
-  if (!type) return null;
-  return highlight(type, {
-    lang: "typescript",
-    themes: { light: "github-light", dark: "github-dark" },
-    defaultColor: false,
-  });
-}
+const highlightType = unstable_cache(
+  async function highlightType(type: string): Promise<ReactNode> {
+    if (!type) return null;
+    return highlight(type, {
+      lang: "typescript",
+      themes: { light: "github-light", dark: "github-dark" },
+      defaultColor: false,
+    });
+  },
+  ["components/pages/docs/primitives-type-table.tsx#highlightType"],
+  { revalidate: false },
+);
 
 function stripTrailingUndefined(typeRaw: string): string {
   return typeRaw.replace(/\s*\|\s*undefined\s*$/, "").trim();

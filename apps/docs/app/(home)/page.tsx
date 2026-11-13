@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { HomeDemo } from "@/components/pages/home/demo";
 import { Hero } from "@/components/pages/home/hero";
 import { LibraryBody } from "@/components/pages/home/library-body";
@@ -18,11 +18,13 @@ function markChangedLines(html: string, lines: readonly number[]): string {
   });
 }
 
-async function getHomeStats() {
-  "use cache";
-  cacheLife("hours");
-  return Promise.all([getRepo(), getWeeklyDownloads()]);
-}
+const getHomeStats = unstable_cache(
+  async function getHomeStats() {
+    return Promise.all([getRepo(), getWeeklyDownloads()]);
+  },
+  ["app/(home)/page.tsx#getHomeStats"],
+  { revalidate: 3600 },
+);
 
 const SETUP_SNIPPETS = [
   {

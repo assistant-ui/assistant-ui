@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound } from "@farm.js/core/navigation";
 import { ExamplePreview } from "@/components/xulux/examples/ExamplePreview";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { getXuluxExamplePreview } from "@/lib/xulux/examples-catalog";

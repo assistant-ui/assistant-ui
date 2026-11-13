@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { ShowcaseCard } from "@/components/pages/showcase/showcase-card";

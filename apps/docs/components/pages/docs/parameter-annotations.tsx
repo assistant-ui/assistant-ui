@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { Fragment, type ReactNode } from "react";
 import { StatusBadge } from "./status-badge";
 

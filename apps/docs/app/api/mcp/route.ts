@@ -1,6 +1,5 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { NextResponse, type NextRequest } from "next/server";
 import {
   McpServer,
   ResourceTemplate,
@@ -423,7 +422,7 @@ function templateVarToPath(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join("/") : (value ?? "");
 }
 
-function registerResources(server: McpServer, request: NextRequest) {
+function registerResources(server: McpServer, request: Request) {
   const requestUrl = request.url;
 
   server.registerResource(
@@ -485,7 +484,7 @@ async function throttleMessage(denial: Response, suffix: string) {
   );
 }
 
-async function requireTemplateToolBudget(request: NextRequest) {
+async function requireTemplateToolBudget(request: Request) {
   const denial = await checkMcpTemplateToolRateLimit(request);
   if (!denial) return;
 
@@ -496,7 +495,7 @@ async function requireTemplateToolBudget(request: NextRequest) {
   throw new Error(await throttleMessage(denial, suffix));
 }
 
-async function requireDocsToolBudget(request: NextRequest) {
+async function requireDocsToolBudget(request: Request) {
   const denial = await checkMcpDocsToolRateLimit(request);
   // These tools cost one in-process render and nothing external, so a
   // rate-limit store outage serves them unmetered rather than taking the
@@ -505,7 +504,7 @@ async function requireDocsToolBudget(request: NextRequest) {
   throw new Error(await throttleMessage(denial, ""));
 }
 
-function buildMcpServer(request: NextRequest) {
+function buildMcpServer(request: Request) {
   const server = new McpServer(
     { name: "assistant-ui-docs", version: "1.0.0" },
     { maxToolInputElements: 10_000 },
@@ -626,7 +625,7 @@ function buildMcpServer(request: NextRequest) {
 }
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
-  return NextResponse.json(body, {
+  return Response.json(body, {
     ...init,
     headers: {
       "Cache-Control": "no-store",
@@ -635,28 +634,30 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
-function acceptsEventStream(request: NextRequest) {
+function acceptsEventStream(request: Request) {
   return (request.headers.get("accept") ?? "")
     .toLowerCase()
     .split(",")
     .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
 }
 
-async function getManifest() {
-  "use cache";
-  cacheLife("max");
-  return {
-    name: "assistant-ui-docs",
-    protocol: "mcp",
-    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
-    tools: toolDefinitions.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-    })),
-  };
-}
+const getManifest = unstable_cache(
+  async function getManifest() {
+    return {
+      name: "assistant-ui-docs",
+      protocol: "mcp",
+      endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
+      tools: toolDefinitions.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+      })),
+    };
+  },
+  ["app/api/mcp/route.ts#getManifest"],
+  { revalidate: false },
+);
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   // `Accept: text/event-stream` opens the Streamable HTTP server-to-client
   // stream, which this stateless endpoint does not offer; a 200 reads as a
   // stream that opened and closed, and clients answer that by reconnecting.
@@ -674,7 +675,7 @@ export async function GET(request: NextRequest) {
   return jsonResponse(await getManifest());
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const server = buildMcpServer(request);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -691,7 +692,7 @@ export async function POST(request: NextRequest) {
 }
 
 export function OPTIONS() {
-  return new NextResponse(null, {
+  return new Response(null, {
     status: 204,
     headers: {
       Allow: "GET, POST, OPTIONS",

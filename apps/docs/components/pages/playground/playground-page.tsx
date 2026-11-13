@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useHeaderPortalContainer } from "@/hooks/use-header-portal-container";
 import { createPortal } from "react-dom";
-import dynamic from "next/dynamic";
+import dynamic from "@/lib/dynamic";
 import {
   CodeIcon,
   XIcon,

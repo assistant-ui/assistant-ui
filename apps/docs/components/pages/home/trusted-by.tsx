@@ -1,8 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import Image from "next/image";
-import Link from "next/link";
+import Image from "@farm.js/core/image";
+import { Link } from "@farm.js/core/client";
 import { useEffect, useRef, useState } from "react";
 
 export type Logo = {

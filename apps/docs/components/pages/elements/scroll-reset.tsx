@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 
 export function ScrollReset() {
   const pathname = usePathname();

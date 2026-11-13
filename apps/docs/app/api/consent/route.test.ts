@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { NextRequest } from "next/server";
 
 import { GET } from "./route";
 
 const request = (country?: string) =>
-  new NextRequest("https://www.assistant-ui.com/api/consent", {
+  new Request("https://www.assistant-ui.com/api/consent", {
     headers: country ? { "x-vercel-ip-country": country } : {},
   });
 
@@ -33,7 +32,7 @@ describe("consent requirement route", () => {
   it("fails closed for a country the platform could not resolve", async () => {
     for (const country of ["", "XX", "T1", "us", "USA"]) {
       const response = GET(
-        new NextRequest("https://www.assistant-ui.com/api/consent", {
+        new Request("https://www.assistant-ui.com/api/consent", {
           headers: { "x-vercel-ip-country": country },
         }),
       );

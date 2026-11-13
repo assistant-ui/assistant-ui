@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata } from "@farm.js/core";
+import { Link } from "@farm.js/core/client";
 import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
 import { PageCopy, PageFrame } from "@/components/shared/page-frame";

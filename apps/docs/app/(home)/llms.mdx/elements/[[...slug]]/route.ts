@@ -1,12 +1,11 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
-import { notFound } from "next/navigation";
+import { notFound } from "@farm.js/core/navigation";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-async function getMarkdown(slug: string[] | undefined) {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown(slug: string[] | undefined) {
   if (!slug || slug.length === 0) {
     const lines = [
       "# Elements",
@@ -28,7 +27,10 @@ async function getMarkdown(slug: string[] | undefined) {
   if (!page) return null;
 
   return getLLMText(page);
-}
+},
+  ["app/(home)/llms.mdx/elements/[[...slug]]/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET(
   _req: Request,

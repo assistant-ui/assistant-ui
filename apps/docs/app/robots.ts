@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "@farm.js/core";
 import { BASE_URL } from "@/lib/constants";
 import { EMBEDDED_PATHS } from "@/lib/embedded-paths";
 

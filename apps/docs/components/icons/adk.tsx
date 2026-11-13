@@ -1,4 +1,4 @@
-import Image, { type ImageProps } from "next/image";
+import Image, { type ImageProps } from "@farm.js/core/image";
 
 type AdkIconProps = Omit<ImageProps, "alt" | "src"> & {
   alt?: string;

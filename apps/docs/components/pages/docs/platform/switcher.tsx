@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@farm.js/core/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import {
   ChevronDown,

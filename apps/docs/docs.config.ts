@@ -6,6 +6,10 @@ export default defineDocs({
   docsPath: "/docs",
   contentDir: "content/docs",
   theme: assistantUi(),
+  mdx: {
+    remarkPlugins: ["./lib/remark-docs.mjs"],
+    codeHighlighter: "./lib/rehype-docs-code.mjs",
+  },
   review: false,
   mcp: false,
   sitemap: false,

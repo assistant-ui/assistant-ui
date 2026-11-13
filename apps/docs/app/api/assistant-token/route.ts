@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { accountCloud } from "@/lib/account-cloud";
 import { getSession } from "@/lib/accounts-auth";
 
@@ -16,7 +15,7 @@ export async function GET(request: Request) {
 
   const session = await getSession().catch(() => null);
   if (!session) {
-    return NextResponse.json(
+    return Response.json(
       { error: "A signed-in session is required." },
       { status: 401, headers },
     );
@@ -24,7 +23,7 @@ export async function GET(request: Request) {
 
   const cloud = accountCloud(session.user.id);
   if (!cloud) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Assistant Cloud account history is not configured." },
       { status: 503, headers },
     );
@@ -32,9 +31,9 @@ export async function GET(request: Request) {
 
   try {
     const { token } = await cloud.auth.tokens.create();
-    return NextResponse.json({ token }, { headers });
+    return Response.json({ token }, { headers });
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "Assistant Cloud could not mint an account token." },
       { status: 502, headers },
     );

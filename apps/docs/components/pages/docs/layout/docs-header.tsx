@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@farm.js/core/client";
+import { usePathname } from "@farm.js/core/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ArrowUpRight, Search } from "lucide-react";
 import { useSearchContext } from "@/components/shared/search-provider";

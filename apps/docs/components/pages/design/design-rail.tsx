@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { DESIGN_SECTIONS } from "@/components/pages/design/registry-meta";
 import { cn } from "@/lib/utils";
 

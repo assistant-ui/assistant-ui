@@ -1,19 +1,21 @@
-import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
+import { unstable_cache } from "@farm.js/core/cache";
+import { notFound } from "@farm.js/core/navigation";
 import { isPlatform } from "@/lib/docs-platform";
 import { getDocsMarkdown } from "@/lib/docs-markdown";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-async function getMarkdown(
+const getMarkdown = unstable_cache(
+  async function getMarkdown(
   slug: string[] | undefined,
   platform: LLMRenderContext["platform"],
   flavor: LLMRenderContext["flavor"],
 ) {
-  "use cache";
-  cacheLife("max");
   return getDocsMarkdown(slug, { platform, flavor });
-}
+},
+  ["app/(home)/platform-llms.mdx/[platform]/[flavor]/[[...slug]]/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET(
   _req: Request,

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 
 interface CurrentPageContextValue {
   pathname: string;

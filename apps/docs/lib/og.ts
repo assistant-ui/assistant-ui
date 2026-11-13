@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { cn } from "@/lib/utils";
 import { LegalLinks } from "./legal-links";
 import {

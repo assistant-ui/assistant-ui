@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import { MODELS } from "@/lib/model";
 import { useSession } from "@/lib/session";
 

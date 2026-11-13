@@ -8,7 +8,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { useHydrated } from "@/hooks/use-hydrated";
 import {

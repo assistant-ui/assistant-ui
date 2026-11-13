@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@farm.js/core/navigation";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { Check, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";

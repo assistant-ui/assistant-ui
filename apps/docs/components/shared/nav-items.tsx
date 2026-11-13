@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import {
   NavigationMenu,

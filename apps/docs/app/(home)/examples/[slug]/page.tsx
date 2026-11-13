@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { LiveDot } from "@/components/shared/live-dot";
-import Image from "next/image";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import Image from "@farm.js/core/image";
+import { Link } from "@farm.js/core/client";
+import { notFound } from "@farm.js/core/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import {
   ExamplePreview,

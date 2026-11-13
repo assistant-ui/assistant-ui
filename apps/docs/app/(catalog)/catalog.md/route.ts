@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import {
   CATALOG,
@@ -38,9 +38,8 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
     ...product.requires.map((item) => `- ${item}`),
   ].join("\n");
 
-async function getMarkdown() {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown() {
   const markdown = [
     "# assistant-ui catalog",
     "",
@@ -66,7 +65,10 @@ async function getMarkdown() {
   ].join("\n");
 
   return markdown;
-}
+},
+  ["app/(catalog)/catalog.md/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET() {
   return createMarkdownResponse(await getMarkdown());

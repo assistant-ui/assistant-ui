@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { accountCloud } from "@/lib/account-cloud";
 import { getSession } from "@/lib/accounts-auth";
 import { getAnonymousSession } from "@/lib/anonymous-session";
@@ -18,7 +17,7 @@ export async function POST(request: Request) {
 
   const session = await getSession().catch(() => null);
   if (!session) {
-    return NextResponse.json(
+    return Response.json(
       { error: "A signed-in session is required." },
       { status: 401, headers },
     );
@@ -32,7 +31,7 @@ export async function POST(request: Request) {
     typeof (body as { refresh_token?: unknown }).refresh_token !== "string" ||
     (body as { refresh_token: string }).refresh_token.length === 0
   ) {
-    return NextResponse.json(
+    return Response.json(
       { error: "A refresh_token string is required." },
       { status: 400, headers },
     );
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
 
   const cloud = accountCloud(session.user.id);
   if (!cloud) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Assistant Cloud account history is not configured." },
       { status: 503, headers },
     );
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
       refresh_token: (body as { refresh_token: string }).refresh_token,
     }));
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "Assistant Cloud could not claim the anonymous threads." },
       { status: 502, headers },
     );
@@ -66,5 +65,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ moved }, { headers });
+  return Response.json({ moved }, { headers });
 }

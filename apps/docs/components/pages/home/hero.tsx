@@ -12,8 +12,8 @@ import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
-import Link from "next/link";
+import Image from "@farm.js/core/image";
+import { Link } from "@farm.js/core/client";
 
 const HEADLINE_WORDS = ["The", "frontend", "library", "for", "AI", "agents."];
 

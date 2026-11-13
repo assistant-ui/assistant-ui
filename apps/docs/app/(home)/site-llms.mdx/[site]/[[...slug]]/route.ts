@@ -1,13 +1,12 @@
-import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
+import { unstable_cache } from "@farm.js/core/cache";
+import { notFound } from "@farm.js/core/navigation";
 import { getLLMText } from "@/lib/get-llm-text";
 import { docsSiteSources } from "@/lib/source";
 import { DOCS_SITES, docsSiteBaseUrl, getDocsSite } from "@/lib/docs-sites";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-async function getMarkdown(siteId: string, slug: string[] | undefined) {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown(siteId: string, slug: string[] | undefined) {
   const site = getDocsSite(siteId);
   if (!site) return null;
   const loader = docsSiteSources[site.id];
@@ -32,7 +31,10 @@ async function getMarkdown(siteId: string, slug: string[] | undefined) {
   const page = loader.getPage(slug);
   if (!page) return null;
   return getLLMText(page);
-}
+},
+  ["app/(home)/site-llms.mdx/[site]/[[...slug]]/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET(
   _req: Request,

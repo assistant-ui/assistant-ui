@@ -13,9 +13,9 @@
       ],
       "outputs": [
         "dist/**",
-        ".next/**",
-        "!.next/cache/**",
-        "!.next/dev/**",
+        ".farm/**",
+        "!.farm/cache/**",
+        ".vercel/output/**",
         "generated/**",
         ".output/**",
         "build/**"

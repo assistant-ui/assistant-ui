@@ -19,7 +19,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   useAuiState: () => mocks.isEmpty,
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("@farm.js/core/navigation", () => ({
   usePathname: () => "/",
 }));
 

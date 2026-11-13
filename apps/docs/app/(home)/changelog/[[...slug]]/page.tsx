@@ -1,7 +1,7 @@
-import { cacheLife } from "next/cache";
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { unstable_cache } from "@farm.js/core/cache";
+import type { Metadata } from "@farm.js/core";
+import { Link } from "@farm.js/core/client";
+import { notFound } from "@farm.js/core/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { fetchReleases, type ReleaseGroup } from "@/lib/releases";
@@ -10,6 +10,7 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { PackageFilter } from "../package-filter";
 import { ChangelogList } from "../changelog-list";
+import { routeSegments } from "@/lib/route-segments";
 
 const title = "Changelog";
 const description = "Release notes for all assistant-ui packages.";
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-type Params = { slug?: string[] };
+type Params = { slug?: string | string[] };
 
 function changelogHref(pkg: string | undefined, page: number): string {
   const segments = [pkg, page > 1 ? String(page) : undefined].filter(
@@ -32,11 +33,11 @@ function changelogHref(pkg: string | undefined, page: number): string {
     : "/changelog";
 }
 
-function parseSlug(slug: string[] | undefined): {
+function parseSlug(slug: string[]): {
   pkg: string | undefined;
   page: number;
 } {
-  const segments = slug?.map(decodeURIComponent) ?? [];
+  const segments = slug.map(decodeURIComponent);
   const last = segments.at(-1);
   const explicitPage = last !== undefined && /^(?:[2-9]|[1-9]\d+)$/.test(last);
   const pkgSegments = explicitPage ? segments.slice(0, -1) : segments;
@@ -70,18 +71,20 @@ export async function generateStaticParams(): Promise<Params[]> {
   }));
 }
 
-async function getReleases() {
-  "use cache";
-  cacheLife("hours");
-  return fetchReleases();
-}
+const getReleases = unstable_cache(
+  async function getReleases() {
+    return fetchReleases();
+  },
+  ["app/(home)/changelog/[[...slug]]/page.tsx#getReleases"],
+  { revalidate: 3600 },
+);
 
 export default async function ChangelogPage({
   params,
 }: {
   params: Promise<Params>;
 }) {
-  const { pkg, page } = parseSlug((await params).slug);
+  const { pkg, page } = parseSlug(routeSegments((await params).slug));
   const allGroups = await getReleases();
 
   const allPackages = Array.from(

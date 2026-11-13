@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import {
   type GitHubContributor,
   getCoAuthorUser,
@@ -483,13 +483,15 @@ export async function fetchContributors(): Promise<Contributor[] | null> {
   }
 }
 
-async function getCachedContributors(): Promise<Contributor[]> {
-  "use cache";
-  cacheLife("hours");
-  const raw = await getContributors();
-  if (raw === null) throw new Error("Contributors read incomplete");
-  return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
-}
+const getCachedContributors = unstable_cache(
+  async function getCachedContributors(): Promise<Contributor[]> {
+    const raw = await getContributors();
+    if (raw === null) throw new Error("Contributors read incomplete");
+    return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
+  },
+  ["lib/traction.ts#getCachedContributors"],
+  { revalidate: 3600 },
+);
 
 /* Claude has no GitHub account, so it never resolves as a "Bot"; it is matched by the co-author email every model variant shares. */
 const CLAUDE_CO_AUTHOR_EMAIL = "noreply@anthropic.com";
@@ -502,72 +504,74 @@ export async function fetchBotCoAuthors(): Promise<Contributor[]> {
   }
 }
 
-async function getCachedBotCoAuthors(): Promise<Contributor[]> {
-  "use cache";
-  cacheLife("hours");
-  const coAuthors = await getCommitCoAuthors();
-  if (coAuthors === null) throw new Error("Co-author scan incomplete");
+const getCachedBotCoAuthors = unstable_cache(
+  async function getCachedBotCoAuthors(): Promise<Contributor[]> {
+    const coAuthors = await getCommitCoAuthors();
+    if (coAuthors === null) throw new Error("Co-author scan incomplete");
 
-  let claudeCount = 0;
-  const accounts = new Map<
-    string,
-    { id: number | null; login: string | null; count: number }
-  >();
-  for (const author of coAuthors) {
-    if (author.email === CLAUDE_CO_AUTHOR_EMAIL) {
-      claudeCount += author.count;
-      continue;
+    let claudeCount = 0;
+    const accounts = new Map<
+      string,
+      { id: number | null; login: string | null; count: number }
+    >();
+    for (const author of coAuthors) {
+      if (author.email === CLAUDE_CO_AUTHOR_EMAIL) {
+        claudeCount += author.count;
+        continue;
+      }
+      if (author.id == null && author.login == null) continue;
+      const key =
+        author.id != null
+          ? `id:${author.id}`
+          : `login:${author.login!.toLowerCase()}`;
+      const entry = accounts.get(key);
+      if (entry) entry.count += author.count;
+      else
+        accounts.set(key, {
+          id: author.id,
+          login: author.login,
+          count: author.count,
+        });
     }
-    if (author.id == null && author.login == null) continue;
-    const key =
-      author.id != null
-        ? `id:${author.id}`
-        : `login:${author.login!.toLowerCase()}`;
-    const entry = accounts.get(key);
-    if (entry) entry.count += author.count;
-    else
-      accounts.set(key, {
-        id: author.id,
-        login: author.login,
-        count: author.count,
+
+    const resolved = await Promise.all(
+      Array.from(accounts.values()).map(async ({ id, login, count }) => {
+        const user = await getCoAuthorUser(id ?? login!);
+        if (!user || user.type !== "Bot") return null;
+        return {
+          login: user.login,
+          avatarUrl: user.avatarUrl,
+          htmlUrl: user.htmlUrl,
+          contributions: count,
+        } satisfies Contributor;
+      }),
+    );
+
+    // distinct app accounts can resolve to the same login (e.g. Copilot reviewer + swe-agent), so merge by login.
+    const byLogin = new Map<string, Contributor>();
+    for (const bot of resolved) {
+      if (!bot) continue;
+      const entry = byLogin.get(bot.login);
+      if (entry) entry.contributions += bot.contributions;
+      else byLogin.set(bot.login, { ...bot });
+    }
+    const result = Array.from(byLogin.values());
+
+    if (claudeCount > 0) {
+      const anthropic = await getUser("anthropics");
+      result.push({
+        login: "Claude",
+        avatarUrl: anthropic?.avatarUrl ?? "/icons/anthropic.svg",
+        htmlUrl: "https://claude.com",
+        contributions: claudeCount,
       });
-  }
+    }
 
-  const resolved = await Promise.all(
-    Array.from(accounts.values()).map(async ({ id, login, count }) => {
-      const user = await getCoAuthorUser(id ?? login!);
-      if (!user || user.type !== "Bot") return null;
-      return {
-        login: user.login,
-        avatarUrl: user.avatarUrl,
-        htmlUrl: user.htmlUrl,
-        contributions: count,
-      } satisfies Contributor;
-    }),
-  );
-
-  // distinct app accounts can resolve to the same login (e.g. Copilot reviewer + swe-agent), so merge by login.
-  const byLogin = new Map<string, Contributor>();
-  for (const bot of resolved) {
-    if (!bot) continue;
-    const entry = byLogin.get(bot.login);
-    if (entry) entry.contributions += bot.contributions;
-    else byLogin.set(bot.login, { ...bot });
-  }
-  const result = Array.from(byLogin.values());
-
-  if (claudeCount > 0) {
-    const anthropic = await getUser("anthropics");
-    result.push({
-      login: "Claude",
-      avatarUrl: anthropic?.avatarUrl ?? "/icons/anthropic.svg",
-      htmlUrl: "https://claude.com",
-      contributions: claudeCount,
-    });
-  }
-
-  return result.sort((a, b) => b.contributions - a.contributions);
-}
+    return result.sort((a, b) => b.contributions - a.contributions);
+  },
+  ["lib/traction.ts#getCachedBotCoAuthors"],
+  { revalidate: 3600 },
+);
 
 const EMPTY_DOWNLOADS: PackageDownloads = {
   weekly: 0,
@@ -879,26 +883,28 @@ export async function fetchStarHistory(): Promise<TimelinePoint[]> {
   }
 }
 
-async function getCachedStarHistory(): Promise<TimelinePoint[]> {
-  "use cache";
-  cacheLife("hours");
-  const weeks = await getStarHistory();
-  if (!weeks || weeks.length < 2) throw new Error("Star history incomplete");
+const getCachedStarHistory = unstable_cache(
+  async function getCachedStarHistory(): Promise<TimelinePoint[]> {
+    const weeks = await getStarHistory();
+    if (!weeks || weeks.length < 2) throw new Error("Star history incomplete");
 
-  const ordered = [...weeks].sort((a, b) => a.week - b.week);
-  const now = Date.now();
-  let cumulative = 0;
+    const ordered = [...weeks].sort((a, b) => a.week - b.week);
+    const now = Date.now();
+    let cumulative = 0;
 
-  return ordered.map((week) => {
-    cumulative += week.total;
-    // Each point closes its own bucket, and the bucket in progress closes now.
-    const end = (week.week + 7 * 86_400) * 1000;
-    return {
-      date: new Date(Math.min(end, now)).toISOString(),
-      value: cumulative,
-    };
-  });
-}
+    return ordered.map((week) => {
+      cumulative += week.total;
+      // Each point closes its own bucket, and the bucket in progress closes now.
+      const end = (week.week + 7 * 86_400) * 1000;
+      return {
+        date: new Date(Math.min(end, now)).toISOString(),
+        value: cumulative,
+      };
+    });
+  },
+  ["lib/traction.ts#getCachedStarHistory"],
+  { revalidate: 3600 },
+);
 
 export function daysSince(isoDate: string): number {
   const start = new Date(isoDate).getTime();

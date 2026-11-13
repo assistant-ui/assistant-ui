@@ -3,7 +3,6 @@ import {
   unstable_injectInteractableContext as injectInteractableContext,
   type FrontendTools,
 } from "@assistant-ui/ai-sdk";
-import { NextResponse } from "next/server";
 import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
 import type { XuluxAgentDefinition } from "../chat/agents";
@@ -142,7 +141,7 @@ export function getLearnPreviewStageId(routeUrl: string): string | null {
 
 function getUploadedUpdateTools(
   clientTools: FrontendTools,
-): ToolSet | NextResponse {
+): ToolSet | Response {
   if (
     !clientTools ||
     typeof clientTools !== "object" ||
@@ -157,7 +156,7 @@ function getUploadedUpdateTools(
   try {
     return frontendTools({ update_notepad: updateNotepad });
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "Invalid preview tool definition." },
       { status: 400 },
     );
@@ -170,10 +169,10 @@ export function createLearnPreviewTools({
 }: {
   clientTools: FrontendTools;
   routeUrl: string;
-}): ToolSet | NextResponse {
+}): ToolSet | Response {
   const stageId = getLearnPreviewStageId(routeUrl);
   if (!stageId) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Preview stage not found." },
       { status: 404 },
     );
@@ -182,7 +181,7 @@ export function createLearnPreviewTools({
   if (!interactableStageIds.has(stageId)) return { ...weatherTools };
 
   const updateTools = getUploadedUpdateTools(clientTools);
-  if (updateTools instanceof NextResponse) return updateTools;
+  if (updateTools instanceof Response) return updateTools;
   return { ...weatherTools, ...notepadTool, ...updateTools };
 }
 

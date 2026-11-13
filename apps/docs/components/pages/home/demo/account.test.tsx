@@ -22,7 +22,7 @@ vi.mock("@/lib/session", async (importOriginal) => ({
   useSession: () => mocks.session,
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("@farm.js/core/navigation", () => ({
   usePathname: () => mocks.pathname,
 }));
 

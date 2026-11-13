@@ -1,13 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { source } from "@/lib/source";
+import { routeSegments } from "@/lib/route-segments";
 import {
   DocsRoutePage,
   docsRouteMetadata,
   overviewFallback,
 } from "@/components/pages/docs/layout/docs-route";
 
-export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
-  const { slug = [] } = await props.params;
+type Props = { params: Promise<{ slug?: string | string[] }> };
+
+export default async function Page(props: Props) {
+  const slug = routeSegments((await props.params).slug);
   return (
     <DocsRoutePage
       slug={slug}
@@ -24,10 +27,8 @@ export function generateStaticParams() {
   return source.generateParams();
 }
 
-export async function generateMetadata(
-  props: PageProps<"/docs/[[...slug]]">,
-): Promise<Metadata> {
-  const { slug = [] } = await props.params;
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const slug = routeSegments((await props.params).slug);
   return docsRouteMetadata({
     slug,
     loader: source,

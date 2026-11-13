@@ -1,14 +1,15 @@
-import { notFound } from "next/navigation";
+import type { LayoutProps } from "@farm.js/core";
+import { notFound } from "@farm.js/core/navigation";
 import { siteTree } from "@/lib/source";
 import { DOCS_SITES, docsSiteBaseUrl, getDocsSite } from "@/lib/docs-sites";
 import { DocsRootLayout } from "@/components/pages/docs/layout/docs-root-layout";
 import { DocsSiteHeader } from "@/components/pages/docs/layout/docs-site-header";
 
-export default async function Layout({
+export default function Layout({
   children,
   params,
 }: LayoutProps<"/[site]/docs">) {
-  const site = getDocsSite((await params).site);
+  const site = getDocsSite(params.site);
   if (!site) notFound();
 
   return (

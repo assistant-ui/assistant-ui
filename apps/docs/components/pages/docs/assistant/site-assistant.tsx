@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { AssistantPanelProvider } from "@/components/pages/docs/assistant/context";
 import { AskAiBall } from "@/components/pages/docs/assistant/ball";

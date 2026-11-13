@@ -1,6 +1,6 @@
-import { ImageResponse } from "next/og";
+import { ImageResponse } from "@farm.js/core/og";
 import type { ReactElement } from "react";
-import type { ImageResponseOptions } from "next/server";
+import type { ImageResponseOptions } from "@farm.js/core/og";
 import { loadOgFonts, OG_FONT_MONO, OG_FONT_SANS } from "@/lib/og-fonts";
 import { getRepo } from "@/lib/github";
 import { FLAGSHIP_PACKAGE, getWeeklyDownloads } from "@/lib/npm";

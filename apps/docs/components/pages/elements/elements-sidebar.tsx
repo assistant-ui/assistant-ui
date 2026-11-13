@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link } from "@farm.js/core/client";
+import { usePathname, useRouter } from "@farm.js/core/navigation";
 import { FilterInput } from "@/components/pages/elements/filter-input";
 import { cn } from "@/lib/utils";
 import { ELEMENT_COUNT, ELEMENT_SECTIONS } from "./registry";

@@ -1,25 +1,27 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import type { ReactNode } from "react";
 import { highlightElementSource } from "@/lib/element-source";
 import { ExampleFrame } from "./example-frame";
 
-async function readExample(file: string): Promise<string> {
-  "use cache";
-  cacheLife("max");
-  const source = await fs.readFile(
-    path.join(
-      process.cwd(),
-      "components",
-      "diagrammatic",
-      "examples",
-      `${file}.tsx`,
-    ),
-    "utf8",
-  );
-  return source.trimEnd();
-}
+const readExample = unstable_cache(
+  async function readExample(file: string): Promise<string> {
+    const source = await fs.readFile(
+      path.join(
+        process.cwd(),
+        "components",
+        "diagrammatic",
+        "examples",
+        `${file}.tsx`,
+      ),
+      "utf8",
+    );
+    return source.trimEnd();
+  },
+  ["components/diagrammatic/example.tsx#readExample"],
+  { revalidate: false },
+);
 
 export async function Example({
   file,

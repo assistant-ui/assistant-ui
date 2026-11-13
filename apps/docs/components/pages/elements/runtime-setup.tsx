@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { CodeBlock } from "@/components/ui/code-block";
 import { highlightElementSource } from "@/lib/element-source";
 

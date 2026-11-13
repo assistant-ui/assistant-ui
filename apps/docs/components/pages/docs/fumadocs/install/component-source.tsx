@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Highlight } from "@/components/shared/highlight";
@@ -52,68 +52,76 @@ async function readFile(filePath: string): Promise<string | null> {
   }
 }
 
-async function readLocalRegistry(
-  name: string,
-  flavor: RegistryFlavor,
-): Promise<RegistryItem | null> {
-  "use cache";
-  cacheLife("max");
-  const localPath = path.join(
-    process.cwd(),
-    "../registry/dist",
-    flavor === "base" ? "base" : ".",
-    `${name}.json`,
-  );
-
-  try {
-    const content = await fs.readFile(localPath, "utf-8");
-    return JSON.parse(content) as RegistryItem;
-  } catch {
-    return null;
-  }
-}
-
-async function readLocalShadcnComponent(
-  name: string,
-  flavor: RegistryFlavor,
-): Promise<{ content: string; sourcePath: string } | null> {
-  "use cache";
-  cacheLife("max");
-  const radixSourcePath = `packages/ui/src/components/react/ui/radix/${name}.tsx`;
-  const uiPath = path.join(process.cwd(), "../..", radixSourcePath);
-
-  if (flavor === "base") {
-    const baseSourcePath = `packages/ui/src/components/react/ui/base/${name}.tsx`;
-    const vendoredContent = await readFile(
-      path.join(process.cwd(), "../..", baseSourcePath),
+const readLocalRegistry = unstable_cache(
+  async function readLocalRegistry(
+    name: string,
+    flavor: RegistryFlavor,
+  ): Promise<RegistryItem | null> {
+    const localPath = path.join(
+      process.cwd(),
+      "../registry/dist",
+      flavor === "base" ? "base" : ".",
+      `${name}.json`,
     );
-    if (vendoredContent !== null) {
-      return { content: vendoredContent, sourcePath: baseSourcePath };
+
+    try {
+      const content = await fs.readFile(localPath, "utf-8");
+      return JSON.parse(content) as RegistryItem;
+    } catch {
+      return null;
+    }
+  },
+  [
+    "components/pages/docs/fumadocs/install/component-source.tsx#readLocalRegistry",
+  ],
+  { revalidate: false },
+);
+
+const readLocalShadcnComponent = unstable_cache(
+  async function readLocalShadcnComponent(
+    name: string,
+    flavor: RegistryFlavor,
+  ): Promise<{ content: string; sourcePath: string } | null> {
+    const radixSourcePath = `packages/ui/src/components/react/ui/radix/${name}.tsx`;
+    const uiPath = path.join(process.cwd(), "../..", radixSourcePath);
+
+    if (flavor === "base") {
+      const baseSourcePath = `packages/ui/src/components/react/ui/base/${name}.tsx`;
+      const vendoredContent = await readFile(
+        path.join(process.cwd(), "../..", baseSourcePath),
+      );
+      if (vendoredContent !== null) {
+        return { content: vendoredContent, sourcePath: baseSourcePath };
+      }
+
+      const fallbackContent = await readFile(uiPath);
+      return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
+        ? {
+            content: fallbackContent.replaceAll(
+              "@/components/ui/radix/",
+              "@/components/ui/",
+            ),
+            sourcePath: radixSourcePath,
+          }
+        : null;
     }
 
-    const fallbackContent = await readFile(uiPath);
-    return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
+    const radixContent = await readFile(uiPath);
+    return radixContent !== null
       ? {
-          content: fallbackContent.replaceAll(
+          content: radixContent.replaceAll(
             "@/components/ui/radix/",
             "@/components/ui/",
           ),
           sourcePath: radixSourcePath,
         }
       : null;
-  }
-
-  const radixContent = await readFile(uiPath);
-  return radixContent !== null
-    ? {
-        content: radixContent.replaceAll(
-          "@/components/ui/radix/",
-          "@/components/ui/",
-        ),
-        sourcePath: radixSourcePath,
-      }
-    : null;
-}
+  },
+  [
+    "components/pages/docs/fumadocs/install/component-source.tsx#readLocalShadcnComponent",
+  ],
+  { revalidate: false },
+);
 
 function parseRegistryDependency(dep: string): {
   source: "assistant-ui" | "shadcn";

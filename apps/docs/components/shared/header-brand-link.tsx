@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactElement } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import Image from "@farm.js/core/image";
+import { Link } from "@farm.js/core/client";
 import { DownloadIcon, SquareDashedIcon, TypeIcon } from "lucide-react";
 import { toast } from "sonner";
 import {

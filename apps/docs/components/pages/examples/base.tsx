@@ -83,7 +83,7 @@ import {
   LexicalComposerInput,
   type DirectiveChipProps,
 } from "@assistant-ui/react-lexical";
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import { useState, type FC, type ReactNode } from "react";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { useDocsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";

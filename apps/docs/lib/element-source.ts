@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { codeToHtml } from "shiki";
@@ -18,33 +18,37 @@ const SOURCE_ROOTS = [
   ["components", "demo", "elements"],
 ] as const;
 
-export async function readElementSource(file: string): Promise<string> {
-  "use cache";
-  cacheLife("max");
-  let cause: unknown;
-  for (const root of SOURCE_ROOTS) {
-    try {
-      const source = await fs.readFile(
-        path.join(process.cwd(), ...root, file),
-        "utf8",
-      );
-      return source.trimEnd();
-    } catch (error) {
-      cause = error;
+export const readElementSource = unstable_cache(
+  async function readElementSource(file: string): Promise<string> {
+    let cause: unknown;
+    for (const root of SOURCE_ROOTS) {
+      try {
+        const source = await fs.readFile(
+          path.join(process.cwd(), ...root, file),
+          "utf8",
+        );
+        return source.trimEnd();
+      } catch (error) {
+        cause = error;
+      }
     }
-  }
-  throw new Error(`Element source not found: ${file}`, { cause });
-}
+    throw new Error(`Element source not found: ${file}`, { cause });
+  },
+  ["lib/element-source.ts#readElementSource"],
+  { revalidate: false },
+);
 
-export async function highlightElementSource(
-  code: string,
-  lang: "tsx" | "json" = "tsx",
-): Promise<string> {
-  "use cache";
-  cacheLife("max");
-  return codeToHtml(code, {
-    lang,
-    themes: { light: "github-light", dark: "github-dark" },
-    defaultColor: "light-dark()",
-  });
-}
+export const highlightElementSource = unstable_cache(
+  async function highlightElementSource(
+    code: string,
+    lang: "tsx" | "json" = "tsx",
+  ): Promise<string> {
+    return codeToHtml(code, {
+      lang,
+      themes: { light: "github-light", dark: "github-dark" },
+      defaultColor: "light-dark()",
+    });
+  },
+  ["lib/element-source.ts#highlightElementSource"],
+  { revalidate: false },
+);

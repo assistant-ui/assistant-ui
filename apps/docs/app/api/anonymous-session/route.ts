@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   ANONYMOUS_SESSION_COOKIE,
   ANONYMOUS_SESSION_TTL_SECONDS,
@@ -61,10 +60,10 @@ export async function GET(request: Request) {
   const requestOrigin = new URL(request.url).origin;
   const callerOrigin = request.headers.get("origin");
   if (callerOrigin && callerOrigin !== requestOrigin) {
-    return NextResponse.json({ token }, { headers });
+    return Response.json({ token }, { headers });
   }
 
-  const response = new NextResponse(null, { status: 204, headers });
+  const response = new Response(null, { status: 204, headers });
   response.cookies.set(ANONYMOUS_SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

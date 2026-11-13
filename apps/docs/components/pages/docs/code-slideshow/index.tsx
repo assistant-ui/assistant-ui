@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { highlight } from "codehike/code";
 import { CodeSlideshowClient, type CodeSlideshowClientStep } from "./client";
 
@@ -11,14 +11,16 @@ export type CodeSlideshowStep = {
   cut?: boolean;
 };
 
-async function highlightStep(code: string, language: string) {
-  "use cache";
-  cacheLife("max");
-  return highlight(
-    { value: code, lang: language, meta: "" },
-    "github-from-css",
-  );
-}
+const highlightStep = unstable_cache(
+  async function highlightStep(code: string, language: string) {
+    return highlight(
+      { value: code, lang: language, meta: "" },
+      "github-from-css",
+    );
+  },
+  ["components/pages/docs/code-slideshow/index.tsx#highlightStep"],
+  { revalidate: false },
+);
 
 export const CodeSlideshow = async ({
   steps,

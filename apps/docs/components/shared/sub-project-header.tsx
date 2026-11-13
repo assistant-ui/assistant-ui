@@ -1,10 +1,10 @@
 "use client";
 
 import { type ReactNode, useMemo } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link } from "@farm.js/core/client";
+import { usePathname, useRouter } from "@farm.js/core/navigation";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import {
   Activity,
   Columns3,

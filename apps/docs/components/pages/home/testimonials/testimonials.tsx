@@ -1,6 +1,6 @@
 import type { Testimonial } from "@/components/pages/home/testimonials/data";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import type { FC } from "react";
 
 export const TestimonialContainer: FC<{

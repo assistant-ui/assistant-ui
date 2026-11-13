@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { LearnRegistryError } from "@/lib/xulux/learn/registry";
 import { resolveStageFiles } from "@/lib/xulux/learn/stage-source";
 
 export async function GET(request: Request) {
   if (!isAiPlaygroundEnabled) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return Response.json({ error: "Not found." }, { status: 404 });
   }
 
   const url = new URL(request.url);
@@ -14,15 +13,15 @@ export async function GET(request: Request) {
 
   try {
     const files = await resolveStageFiles(courseId, stageId);
-    return NextResponse.json(
+    return Response.json(
       { courseId, stageId, files },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     if (error instanceof LearnRegistryError) {
-      return NextResponse.json({ error: "Not found." }, { status: 404 });
+      return Response.json({ error: "Not found." }, { status: 404 });
     }
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to resolve Learn stage source." },
       { status: 500 },
     );

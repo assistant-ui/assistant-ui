@@ -1,14 +1,16 @@
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import {
   createDiscoveryResponse,
   SITE_SKILL_DOCUMENT,
 } from "@/lib/agent-discovery";
 
-async function getDocument() {
-  "use cache";
-  cacheLife("max");
+const getDocument = unstable_cache(
+  async function getDocument() {
   return SITE_SKILL_DOCUMENT;
-}
+},
+  ["app/(home)/skill.md/route.ts#getDocument"],
+  { revalidate: false },
+);
 
 export async function GET() {
   return createDiscoveryResponse(await getDocument(), {

@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import type { Metadata } from "@farm.js/core";
+import { Link } from "@farm.js/core/client";
+import { notFound } from "@farm.js/core/navigation";
 import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";

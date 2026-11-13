@@ -20,7 +20,7 @@ import {
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
 import { parseXuluxFileReference } from "@/lib/xulux/learn/file-reference";
 import { LearnInlineFileReference } from "../learn/LearnFileView";

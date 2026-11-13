@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowUpRightIcon } from "lucide-react";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { cn } from "@/lib/utils";

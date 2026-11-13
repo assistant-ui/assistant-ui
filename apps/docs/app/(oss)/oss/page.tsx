@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { cacheLife } from "next/cache";
-import Link from "next/link";
-import Image from "next/image";
+import type { Metadata } from "@farm.js/core";
+import { unstable_cache } from "@farm.js/core/cache";
+import { Link } from "@farm.js/core/client";
+import Image from "@farm.js/core/image";
 import { ArrowUpRight } from "lucide-react";
 import {
   OSS_PROJECTS,
@@ -26,11 +26,13 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-async function getOssStats() {
-  "use cache";
-  cacheLife("hours");
-  return fetchOssStats();
-}
+const getOssStats = unstable_cache(
+  async function getOssStats() {
+    return fetchOssStats();
+  },
+  ["app/(oss)/oss/page.tsx#getOssStats"],
+  { revalidate: 3600 },
+);
 
 export default async function OssPage() {
   const stats = await getOssStats();

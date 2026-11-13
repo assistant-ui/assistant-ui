@@ -1,4 +1,3 @@
-import { connection, NextResponse, type NextRequest } from "next/server";
 import { accounts } from "@/lib/accounts-auth";
 import { analyticsIdFor } from "@/lib/analytics-id";
 import { setupCorsHeaders } from "@/lib/setup-origin";
@@ -20,9 +19,8 @@ export type SessionPayload = {
 // rather than reads: this is the one request per visit that renders the user,
 // so it is where the session is revalidated and where the cache cookie that
 // keeps every other read off the store is renewed.
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   // The build runs without the accounts configuration, so a prerendered response would report sign-in as disabled to every visitor.
-  await connection();
   const resolved = accounts
     ? await accounts.resolveSession(request).catch(() => null)
     : null;
@@ -49,5 +47,5 @@ export async function GET(request: NextRequest) {
     headers.append("set-cookie", cookie);
   }
 
-  return NextResponse.json(payload, { headers });
+  return Response.json(payload, { headers });
 }

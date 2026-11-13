@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { createOgMetadata } from "@/lib/og";
 import { DesignGallery } from "@/components/pages/design/design-gallery";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";

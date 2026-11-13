@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   accounts: null as { resolveSession: ReturnType<typeof vi.fn> } | null,
@@ -29,7 +28,7 @@ const user = {
 };
 
 const request = (headers: HeadersInit = {}) =>
-  new NextRequest("https://www.assistant-ui.com/api/auth/session", { headers });
+  new Request("https://www.assistant-ui.com/api/auth/session", { headers });
 
 const configured = (resolution: { session: unknown; cookies: string[] }) => {
   mocks.accounts = { resolveSession: vi.fn().mockResolvedValue(resolution) };

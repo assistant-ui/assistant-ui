@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import { LOGOS } from "@/components/pages/home/trusted-by";
 import { cn } from "@/lib/utils";
 

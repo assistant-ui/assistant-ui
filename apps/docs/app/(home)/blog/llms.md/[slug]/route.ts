@@ -1,18 +1,16 @@
-import { cacheLife } from "next/cache";
-import type { NextRequest } from "next/server";
+import { unstable_cache } from "@farm.js/core/cache";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 import { blog, type BlogPage } from "@/lib/source";
-import { notFound } from "next/navigation";
+import { notFound } from "@farm.js/core/navigation";
 import { remark } from "remark";
 import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
 
 const processor = remark().use(remarkMdx).use(remarkGfm);
 
-async function getMarkdown(slug: string) {
-  "use cache";
-  cacheLife("max");
+const getMarkdown = unstable_cache(
+  async function getMarkdown(slug: string) {
   const page = blog.getPage([slug]) as BlogPage | undefined;
   if (!page) return null;
 
@@ -29,10 +27,13 @@ ${AGENT_DOCS_DIRECTIVE_MARKDOWN}
 ${processed.value}`;
 
   return text;
-}
+},
+  ["app/(home)/blog/llms.md/[slug]/route.ts#getMarkdown"],
+  { revalidate: false },
+);
 
 export async function GET(
-  _req: NextRequest,
+  _req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;

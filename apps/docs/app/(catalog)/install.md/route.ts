@@ -1,13 +1,12 @@
-import type { NextRequest } from "next/server";
 import { resolveProducts } from "@/lib/catalog";
 import { buildInstallPrompt } from "@/lib/catalog/build-install-prompt";
 import { parseItemSlugs } from "@/lib/catalog/install-guide";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-export function GET(request: NextRequest) {
+export function GET(request: Request) {
   const products = resolveProducts(
-    parseItemSlugs(request.nextUrl.searchParams.get("items")),
+    parseItemSlugs(new URL(request.url).searchParams.get("items")),
   );
   if (products.length === 0) {
     const response = createMarkdownResponse(

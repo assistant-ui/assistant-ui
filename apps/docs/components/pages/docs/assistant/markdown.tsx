@@ -20,7 +20,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { CodeBlock } from "@/components/ui/code-block";
 import { compactMarkdownComponents } from "./compact-markdown-components";
 

@@ -1,5 +1,5 @@
 import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import type { ReactNode } from "react";
 import { typeSection } from "@/components/shared/type";
 

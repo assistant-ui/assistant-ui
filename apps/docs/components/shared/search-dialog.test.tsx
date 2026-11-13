@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   pathname: "/docs/installation",
 }));
-vi.mock("next/navigation", async (importOriginal) => ({
+vi.mock("@farm.js/core/navigation", async (importOriginal) => ({
   ...(await importOriginal()),
   useRouter: () => ({ push: mocks.push }),
   usePathname: () => mocks.pathname,

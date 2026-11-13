@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@farm.js/core/client";
+import { useRouter } from "@farm.js/core/navigation";
 import {
   Select,
   SelectContent,

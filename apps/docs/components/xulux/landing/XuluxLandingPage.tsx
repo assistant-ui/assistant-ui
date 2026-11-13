@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ArrowRightIcon } from "lucide-react";
 import { LEARN_SPOTLIGHT_HREF } from "@/lib/xulux/learn/types";
 import type { XuluxTemplate } from "../templates/types";

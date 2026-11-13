@@ -7,7 +7,7 @@ import {
   LogOutIcon,
   SettingsIcon,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 import { useRef, type ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {

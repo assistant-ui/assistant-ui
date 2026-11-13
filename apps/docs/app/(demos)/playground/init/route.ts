@@ -1,4 +1,3 @@
-import { type NextRequest, NextResponse } from "next/server";
 import { getPresetById } from "@/components/pages/playground/presets";
 import {
   DEFAULT_CONFIG,
@@ -8,8 +7,8 @@ import { decodeConfig } from "@/lib/playground-config-codec";
 import { registryConfigSchema } from "@/lib/playground-config-schema";
 import { generateRegistryJson } from "@/lib/playground-registry";
 
-export function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
+export function GET(request: Request) {
+  const searchParams = new URL(request.url).searchParams;
   const presetId = searchParams.get("preset");
   const configEncoded = searchParams.get("c");
 
@@ -18,7 +17,7 @@ export function GET(request: NextRequest) {
   if (presetId) {
     const preset = getPresetById(presetId);
     if (!preset) {
-      return NextResponse.json(
+      return Response.json(
         { error: `Preset "${presetId}" not found` },
         { status: 404 },
       );
@@ -31,7 +30,7 @@ export function GET(request: NextRequest) {
         throw new Error("Invalid configuration");
       }
     } catch {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid configuration encoding" },
         { status: 400 },
       );
@@ -42,7 +41,7 @@ export function GET(request: NextRequest) {
 
   const registryJson = generateRegistryJson(config);
 
-  return NextResponse.json(registryJson, {
+  return Response.json(registryJson, {
     headers: {
       "Cache-Control": "public, max-age=3600, s-maxage=3600",
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { useState, type ReactNode } from "react";
 import {
   BookOpenIcon,

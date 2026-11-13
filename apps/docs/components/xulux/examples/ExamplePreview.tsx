@@ -1,5 +1,5 @@
 import { MAIN_CONTENT_PROPS } from "@/components/shared/skip-link";
-import Image from "next/image";
+import Image from "@farm.js/core/image";
 import { Artifacts } from "@/components/pages/examples/artifacts";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
 import { Claude } from "@/components/pages/examples/claude";

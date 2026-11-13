@@ -1,20 +1,24 @@
 import type { ReactNode } from "react";
-import { cacheLife } from "next/cache";
+import { unstable_cache } from "@farm.js/core/cache";
 import { codeToHtml } from "shiki";
 import { CodeBlock } from "@/components/ui/code-block";
 import { REMOTE_PAGES, UI_CSS, type RemotePageName } from "./pages";
 
 type Lang = "html" | "css" | "ts" | "tsx" | "txt";
 
-async function highlight(code: string, lang: Lang): Promise<string> {
-  "use cache";
-  cacheLife("max");
-  return codeToHtml(code, {
-    lang,
-    themes: { light: "github-light", dark: "github-dark" },
-    defaultColor: "light-dark()",
-  });
-}
+const highlight = unstable_cache(
+  async function highlight(code: string, lang: Lang): Promise<string> {
+    return codeToHtml(code, {
+      lang,
+      themes: { light: "github-light", dark: "github-dark" },
+      defaultColor: "light-dark()",
+    });
+  },
+  [
+    "components/pages/docs/samples/remote-components/remote-source.tsx#highlight",
+  ],
+  { revalidate: false },
+);
 
 function sourceOf(name: RemotePageName | "ui.css") {
   if (name === "ui.css")

@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 import "@/test/mock-content";
 
@@ -24,7 +23,7 @@ import { GET } from "./route";
 describe("GET", () => {
   it("returns cache validators with rendered example markdown", async () => {
     const response = await GET(
-      new Request("https://example.com/page.md") as NextRequest,
+      new Request("https://example.com/page.md") as Request,
       { params: Promise.resolve({ slug: ["page"] }) },
     );
 

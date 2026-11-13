@@ -1,8 +1,8 @@
 import type { ReactElement } from "react";
-import { notFound } from "next/navigation";
-import Link from "next/link";
+import { notFound } from "@farm.js/core/navigation";
+import { Link } from "@farm.js/core/client";
 
-import type { Metadata } from "next";
+import type { Metadata } from "@farm.js/core";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";

@@ -1,7 +1,7 @@
 "use client";
 
 import { cloneElement, type ReactElement, type ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { toast } from "sonner";
 import { PromptCopyButton } from "@/components/shared/prompt-copy-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";

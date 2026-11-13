@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import type { Metadata } from "@farm.js/core";
+import { notFound } from "@farm.js/core/navigation";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoCard } from "@/components/pages/elements/demo-card";

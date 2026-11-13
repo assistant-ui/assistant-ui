@@ -1,5 +1,3 @@
-import { NextResponse, type NextRequest } from "next/server";
-
-export async function GET(request: NextRequest) {
-  return NextResponse.redirect(new URL("/", request.url));
+export async function GET(request: Request) {
+  return Response.redirect(new URL("/", request.url));
 }

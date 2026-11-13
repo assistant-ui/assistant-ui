@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import {
   DocsSidebarNavigation,

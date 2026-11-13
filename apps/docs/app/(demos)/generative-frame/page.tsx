@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import {
   ArrowRight,
   ArrowUpRight,

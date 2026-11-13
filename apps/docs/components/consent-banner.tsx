@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { Button } from "@/components/ui/button";
 import {
   CONSENT_REOPEN_EVENT,

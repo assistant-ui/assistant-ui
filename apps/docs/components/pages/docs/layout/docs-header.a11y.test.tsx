@@ -22,7 +22,7 @@ vi.mock("@/components/shared/sub-project-header", async (importOriginal) => ({
   ),
 }));
 
-vi.mock("next/navigation", async (importOriginal) => ({
+vi.mock("@farm.js/core/navigation", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   usePathname: () => "/docs",
 }));

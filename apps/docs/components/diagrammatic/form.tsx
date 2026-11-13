@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound } from "@farm.js/core/navigation";
 import { Fragment, type ReactNode } from "react";
 import { Figure } from "./figure";
 import { getChart } from "./registry";

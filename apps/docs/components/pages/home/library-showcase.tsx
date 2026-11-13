@@ -8,7 +8,7 @@ import {
   type FocusEvent,
   type SVGProps,
 } from "react";
-import Link from "next/link";
+import { Link } from "@farm.js/core/client";
 import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
 import { ChartDemo } from "@/components/demo/elements/chart";
 import { ComposerVoiceDemo } from "@/components/demo/elements/composer-voice";

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
 
 // Public, anonymous catalog endpoint for external MCP agents.
@@ -7,7 +6,7 @@ import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
 export function GET(req: Request) {
   const origin = new URL(req.url).origin;
 
-  return NextResponse.json(buildXuluxMcpCatalog(origin), {
+  return Response.json(buildXuluxMcpCatalog(origin), {
     headers: {
       "Cache-Control": "public, s-maxage=300, stale-while-revalidate=300",
     },

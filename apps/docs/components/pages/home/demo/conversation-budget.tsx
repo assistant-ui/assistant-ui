@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@farm.js/core/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { analytics } from "@/lib/analytics";
 import { trackDemoSignInClick } from "@/lib/analytics-identity";
