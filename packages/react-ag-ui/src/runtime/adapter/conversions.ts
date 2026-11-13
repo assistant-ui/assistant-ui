@@ -1185,6 +1185,7 @@ export function fromAgUiSnapshotMessages(
   messages: readonly unknown[],
   options?: FromAgUiMessagesOptions,
   subagentParentToolCallIds?: ReadonlyMap<string, string | undefined>,
+  preservedAssistantIds?: ReadonlySet<string>,
 ): CoreThreadMessageLike[] {
   const records = messages.filter(isObject);
   const callOwners = new Map<string, string | undefined>();
@@ -1203,7 +1204,8 @@ export function fromAgUiSnapshotMessages(
     if (toolCallId !== undefined && callOwners.has(toolCallId))
       spawningCalls.set(runId, toolCallId);
   }
-  if (spawningCalls.size === 0) return convertAgUiMessages(messages, options);
+  if (spawningCalls.size === 0)
+    return convertAgUiMessages(messages, options, preservedAssistantIds);
 
   const reachesRoot = (runId: string) => {
     let current: string | undefined = runId;
@@ -1249,7 +1251,11 @@ export function fromAgUiSnapshotMessages(
   }
 
   const convertGroup = (group: string | undefined): CoreThreadMessageLike[] =>
-    convertAgUiMessages(groups.get(group) ?? [], options).map((message) => {
+    convertAgUiMessages(
+      groups.get(group) ?? [],
+      options,
+      preservedAssistantIds,
+    ).map((message) => {
       if (message.role !== "assistant" || !Array.isArray(message.content))
         return message;
       const nested: ThreadMessage[] = [];
@@ -1440,6 +1446,7 @@ function liftSubagentState(
 function convertAgUiMessages(
   messages: readonly unknown[],
   options?: FromAgUiMessagesOptions,
+  preservedAssistantIds?: ReadonlySet<string>,
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
   const joinAdjacentAssistantMessages =
@@ -1811,8 +1818,16 @@ function convertAgUiMessages(
   const folded: CoreThreadMessageLike[] = [];
   for (const message of converted) {
     const previous = folded[folded.length - 1];
+    const foldedId = carriesText(message) ? message.id : previous?.id;
+    const dropsPreservedAssistantId =
+      joinAdjacentAssistantMessages &&
+      [previous?.id, message.id].some(
+        (id) =>
+          id !== undefined && id !== foldedId && preservedAssistantIds?.has(id),
+      );
     if (
       previous !== undefined &&
+      !dropsPreservedAssistantId &&
       (isSyntheticToolCallContainer(message)
         ? opensTurn(previous)
         : (isSyntheticToolCallContainer(previous) &&
