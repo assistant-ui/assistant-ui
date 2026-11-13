@@ -34,7 +34,7 @@ jobs:
               -H "Content-Type: application/json" "$@"
           }
           body=$(jq -n --arg p "$PROJECT_ID" --arg sha "$GITHUB_SHA" '{
-            name: "assistant-ui", project: $p, target: "preview",
+            name: "assistant-ui", project: $p,
             gitSource: { type: "github", org: "assistant-ui", repo: "assistant-ui",
                          ref: "perf/docs-cache-probe", sha: $sha } }')
           for i in 1 2 3 4 5 6; do
