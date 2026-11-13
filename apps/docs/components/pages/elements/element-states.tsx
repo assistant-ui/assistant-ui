@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  lazy,
-  Suspense,
+  useEffect,
   useRef,
   useSyncExternalStore,
-  type ComponentType,
   type KeyboardEvent,
 } from "react";
 import { cn } from "@/lib/utils";
@@ -70,37 +68,64 @@ type PreviewProps = {
   children: React.ReactNode;
 };
 
-const lazyFigures = new Map<string, ComponentType<PreviewProps>>();
+// Each element's states load on their own, so a page downloads only its own
+// fixtures. `undefined` is still loading, `null` means the element has none.
+const loadedStates = new Map<string, ElementStates | null>();
+const statesListeners = new Set<() => void>();
 
-// One lazy figure per slug, so a page downloads only its own element's
-// fixtures. The server renders it in full; after a client navigation the live
-// demo shows at once and the switcher joins it when the chunk arrives.
-function lazyFigure(slug: string) {
-  let Figure = lazyFigures.get(slug);
-  if (!Figure) {
-    Figure = lazy(async () => {
-      const states = pickStates(await ELEMENT_STATES[slug]?.(), slug);
-      return {
-        default: (props: PreviewProps) => (
-          <ElementStatesFigure {...props} states={states} />
-        ),
-      };
-    });
-    lazyFigures.set(slug, Figure);
-  }
-  return Figure;
+function subscribeStates(onChange: () => void) {
+  statesListeners.add(onChange);
+  return () => {
+    statesListeners.delete(onChange);
+  };
 }
 
-export function ElementStatesPreview(props: PreviewProps) {
-  const Figure = lazyFigure(props.slug);
+const requested = new Set<string>();
+
+function requestStates(slug: string) {
+  if (requested.has(slug)) return;
+  requested.add(slug);
+  const settle = (states: ElementStates | null) => {
+    loadedStates.set(slug, states);
+    for (const listener of statesListeners) listener();
+  };
+  const load = ELEMENT_STATES[slug];
+  if (!load) return settle(null);
+  load().then(
+    (source) => settle(pickStates(source, slug) ?? null),
+    () => {
+      // A failed chunk leaves the live demo without a switcher; a later
+      // visit to the page tries again.
+      requested.delete(slug);
+      settle(null);
+    },
+  );
+}
+
+const noStatesOnServer = () => undefined;
+
+/**
+ * The states for `slug`, loaded after hydration. The live demo never waits on
+ * them and stays mounted when they arrive; the switcher's row is held empty
+ * until then so nothing below it moves.
+ */
+function useElementStates(slug: string) {
+  useEffect(() => requestStates(slug), [slug]);
+  return useSyncExternalStore(
+    subscribeStates,
+    () => loadedStates.get(slug),
+    noStatesOnServer,
+  );
+}
+
+export function ElementStatesPreview({ slug, ...props }: PreviewProps) {
+  const states = useElementStates(slug);
   return (
-    <Suspense
-      fallback={
-        <ElementStatesFigure {...props} states={undefined} reserveSwitcher />
-      }
-    >
-      <Figure {...props} />
-    </Suspense>
+    <ElementStatesFigure
+      {...props}
+      states={states ?? undefined}
+      reserveSwitcher={states === undefined}
+    />
   );
 }
 

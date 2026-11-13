@@ -7,7 +7,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElementStates } from "@/components/demo/elements/states/types";
 import { ElementStatesFigure, ElementStatesPreview } from "./element-states";
@@ -169,17 +169,34 @@ describe("ElementStatesPreview", () => {
   });
 
   it("loads its own states, picking them out of a shared map", async () => {
+    let mounts = 0;
+    function LiveDemo() {
+      const [count, setCount] = useState(0);
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+      return (
+        <button type="button" onClick={() => setCount((n) => n + 1)}>
+          live demo {count}
+        </button>
+      );
+    }
     render(
       <ElementStatesPreview
         slug="generative-booking"
         caption="Live demo"
         canvasClassName=""
       >
-        <p>live demo</p>
+        <LiveDemo />
       </ElementStatesPreview>,
     );
-    expect(screen.getByText("live demo")).toBeTruthy();
+    // The live demo does not wait for the states, and keeps its state when
+    // they arrive.
+    fireEvent.click(screen.getByText("live demo 0"));
+    expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(await screen.findByRole("radio", { name: "Failed" })).toBeTruthy();
+    expect(screen.getByText("live demo 1")).toBeTruthy();
+    expect(mounts).toBe(1);
     expect(loadedSlugs).toEqual(["generative-booking"]);
   });
 });
