@@ -226,7 +226,7 @@ type ResumeSource = ResumeStream | "connect";
 // AbstractAgent extends nothing, so the prototype owning connect() is the base
 // exactly when its own prototype is Object.prototype. Checking ownership instead
 // of function identity holds when the app loads its own copy of @ag-ui/client.
-const implementsConnect = (agent: AbstractAgent): boolean => {
+export const implementsConnect = (agent: AbstractAgent): boolean => {
   if (typeof agent.connectAgent !== "function") return false;
   if (Object.prototype.hasOwnProperty.call(agent, "connect")) return true;
   for (
@@ -659,6 +659,17 @@ export class AgUiThreadController {
 
     this.publishUpdate();
     return this._loadPromise;
+  }
+
+  /**
+   * Reads the history adapter again and shows what it returns, resuming a run
+   * it reports as in flight. Does nothing while a run or a load is active.
+   */
+  __internal_reloadHistory(): Promise<void> {
+    if (this.state.isRunning || this.state.isLoading || !this.history)
+      return Promise.resolve();
+    this._loadPromise = undefined;
+    return this.__internal_load();
   }
 
   private waitForHistoryImport(): Promise<boolean> | undefined {

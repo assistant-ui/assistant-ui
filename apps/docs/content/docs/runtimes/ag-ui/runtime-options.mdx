@@ -55,6 +55,8 @@ If the getter throws, the error is reported and the run continues without host e
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
+`durableRuns` pairs the history adapter with an AG-UI server whose runs outlive the browser. Give it `getThread(threadId)`, which returns `{ messages, running }` from the server or `null`. A thread that loads with an unfinished reply rejoins the run or stores its answer. See [Durable threads with Assistant Cloud](/docs/runtimes/ag-ui/durable-threads#with-assistant-cloud).
+
 ## Activity snapshots
 
 An `a2ui-surface` activity becomes a `present` tool-call part. Its `artifact.a2ui` field contains replayable v0.9 operations, so a stored surface can be rebuilt with `applyA2uiOperations` and rendered again.

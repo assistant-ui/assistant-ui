@@ -87,6 +87,49 @@ const runtime = useAgUiRuntime({ agent, adapters: { history } });
 
 Keep one agent instance and set its `threadId` when switching threads, because the runtime rejoins through the agent it already holds. A thread list's `onSwitchToThread` returns `unstable_resume: true` for a running thread the same way the history adapter does; the example's `MyRuntimeProvider.tsx` shows both.
 
+## With Assistant Cloud
+
+Assistant Cloud can keep the thread list and the messages while the durable server keeps the runs. Make the AG-UI runtime the `runtimeHook` of `useCloudThreadListRuntime` and pass `durableRuns`:
+
+```tsx title="app/CloudRuntimeProvider.tsx"
+import { useState } from "react";
+import { useAuiState, useCloudThreadListRuntime } from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+
+function useDurableThreadRuntime() {
+  // The durable server keys threads by the cloud thread's external id.
+  const threadId = useAuiState(
+    (s) => s.threadListItem.externalId ?? s.threadListItem.id,
+  );
+  const [agent] = useState(() => new DurableHttpAgent({ baseUrl, threadId }));
+  return useAgUiRuntime({
+    agent,
+    durableRuns: { getThread: (id) => agent.getThread(id) },
+  });
+}
+
+const runtime = useCloudThreadListRuntime({
+  cloud,
+  runtimeHook: useDurableThreadRuntime,
+  create: async (threadId) => ({ externalId: threadId }),
+});
+```
+
+`create` saves the thread's first id as the cloud thread's `external_id`, so the agent sends the same thread id to the durable server before and after a reload. Threads created without it fall back to the cloud thread id.
+
+`getThread(threadId)` reads `GET /threads/{id}` and returns `{ messages, running }`, or `null` for a thread the server doesn't know. The runtime calls it only when a thread loads with no finished reply after its last user message. It matches the turn by position, because the server and the cloud give messages different ids: the cloud's last user message is the server's user message with the same index. When the two disagree on how many turns there are, or on that message's text, the thread loads from the cloud as stored.
+
+| When the thread opens | What happens |
+| --- | --- |
+| The run is still going, and the tab that wrote the reply closed | The stored partial reply is deleted, and the runtime rejoins the run through `connect()`. The answer streams once and is stored once, as the reply. |
+| The run ended while no tab was open | The stored partial reply is replaced with the server's answer, saved under the user message with the server's ids. |
+| Another tab is still writing the reply | This tab shows the reply as in progress and writes nothing. If the other tab stops beating its run lease (it was closed or reloaded), the reply goes stale after `staleAfter` and this tab rejoins the run. |
+| The reply is stored in full | Nothing changes. The durable server isn't asked. |
+
+Two tabs that rejoin the same run at once store one reply: both store it under the run's message id, and the cloud keeps one message per id. A reloaded tab sees its own lease as another tab's until the lease goes stale, so it waits up to `staleAfter` (30 seconds by default) before it rejoins. A shorter `staleAfter` on `useCloudThreadListRuntime` shortens the wait.
+
+The example runs this way when `NEXT_PUBLIC_ASSISTANT_BASE_URL` is set.
+
 ## Production
 
 | Piece | Keeps | Development | Production |

@@ -115,6 +115,8 @@ const runtime = useCloudThreadListRuntime({
 
 Add `create` and `delete` when either protocol has a corresponding backend conversation to create or remove.
 
+An AG-UI server whose runs outlive the browser, such as `DurableAGUI`, pairs with the Cloud history through the runtime's `durableRuns` option. A thread opened mid-run rejoins the run in place of the partial reply, and a run that finished with no tab open has its answer stored. See [Durable threads with Assistant Cloud](/docs/runtimes/ag-ui/durable-threads#with-assistant-cloud).
+
 ## Persist another message format
 
 `ThreadHistoryAdapter.withFormat(adapter)` is the seam for a runtime whose messages are not `aui/v0`. Pass it a `MessageFormatAdapter`, then use `createFormattedPersistence` with `CloudMessagePersistence` when you need the same behavior outside the default Cloud history adapter.

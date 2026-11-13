@@ -17,6 +17,10 @@ export type {
   FromAgUiMessagesOptions,
 } from "./runtime/adapter/conversions";
 export type {
+  AgUiDurableRuns,
+  AgUiDurableThread,
+} from "./runtime/durable-runs";
+export type {
   AgUiInterrupt,
   AgUiInterruptReason,
   AgUiResumeEntry,

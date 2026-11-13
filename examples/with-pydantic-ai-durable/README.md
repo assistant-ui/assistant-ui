@@ -41,6 +41,10 @@ The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "a
 
 On the client, `DurableHttpAgent` (`lib/durable-agent.ts`) implements AG-UI's `connect()`. When the history adapter reports a running thread, `useAgUiRuntime` rejoins the run through `agent.connectAgent()` instead of starting a new one. Stop calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting only drops the connection.
 
+## With Assistant Cloud
+
+Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` in `.env.local` to an Assistant Cloud frontend API URL. Assistant Cloud then keeps the thread list and the messages, and the server keeps the runs (`app/CloudRuntimeProvider.tsx`). Each cloud thread's external id is the durable server's thread id. `useAgUiRuntime`'s `durableRuns` option asks the server about a thread that loads with an unfinished reply: a run still going is rejoined in place of the partial reply, and a run that finished with no tab open has its answer stored. A second tab leaves the reply to the tab writing it.
+
 ## Tests
 
 ```sh
