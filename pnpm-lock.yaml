@@ -917,9 +917,6 @@ importers:
       typescript-7:
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
-      vercel:
-        specifier: ^65.2.0
-        version: 65.2.0(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(rollup@4.65.1)(supports-color@10.2.2)
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -6851,6 +6848,12 @@ importers:
       '@changesets/get-github-info':
         specifier: ^1.0.1
         version: 1.0.1
+
+  packages/x-deploy:
+    devDependencies:
+      vercel:
+        specifier: ^65.2.0
+        version: 65.2.0(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(rollup@4.65.1)(supports-color@10.2.2)
 
   packages/x-generative-compiler:
     dependencies:
