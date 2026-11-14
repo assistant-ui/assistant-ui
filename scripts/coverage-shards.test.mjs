@@ -13,7 +13,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { coverageShards } from "./coverage-shards.mjs";
+import {
+  cachedCoverageWorkspaces,
+  coverageShards,
+} from "./coverage-shards.mjs";
 
 function workspace(t, packages) {
   const root = mkdtempSync(path.join(tmpdir(), "coverage-shards-"));
@@ -100,6 +103,140 @@ test("retains unmeasured workspaces with the median recorded runtime", (t) => {
   assert.deepEqual(shards, [["known"], ["new", "small"]]);
 });
 
+test("a lone cache miss runs alone while cached workspaces replay on the other shard", (t) => {
+  const root = workspace(
+    t,
+    ["docs", "a", "b", "c"].map((name) => ({ name, tests: 1 })),
+  );
+  const runtimesMs = { docs: 150000, a: 100000, b: 90000, c: 10000 };
+  assert.deepEqual(coverageShards(root, runtimesMs), [
+    ["docs", "c"],
+    ["a", "b"],
+  ]);
+  assert.deepEqual(coverageShards(root, runtimesMs, new Set(["a", "b", "c"])), [
+    ["docs"],
+    ["a", "b", "c"],
+  ]);
+});
+
+test("cache misses the static split would pair are placed on different shards", (t) => {
+  const root = workspace(
+    t,
+    ["a", "b", "c", "d"].map((name) => ({ name, tests: 1 })),
+  );
+  const runtimesMs = { a: 100000, b: 60000, c: 50000, d: 10000 };
+  const pairedStatically = coverageShards(root, runtimesMs).find(
+    (names) => names.includes("b") && names.includes("c"),
+  );
+  assert(pairedStatically);
+  const shards = coverageShards(root, runtimesMs, new Set(["a", "d"]));
+  assert.notEqual(
+    shards.findIndex((names) => names.includes("b")),
+    shards.findIndex((names) => names.includes("c")),
+  );
+  assert.deepEqual(shards.flat().sort(), ["a", "b", "c", "d"]);
+});
+
+test("a fully cached graph still gives both shards workspaces", (t) => {
+  const root = workspace(
+    t,
+    ["a", "b", "c", "d"].map((name) => ({ name, tests: 1 })),
+  );
+  const shards = coverageShards(
+    root,
+    { a: 4000, b: 3000, c: 2000, d: 1000 },
+    new Set(["a", "b", "c", "d"]),
+  );
+  assert.deepEqual(shards, [
+    ["a", "c"],
+    ["b", "d"],
+  ]);
+});
+
+test("the CLI moves cached workspaces off the shard that runs the cache misses", (t) => {
+  const root = workspace(t, [
+    { name: "first", tests: 1 },
+    { name: "second", tests: 1 },
+  ]);
+  const repoRoot = fileURLToPath(new URL("../", import.meta.url));
+  mkdirSync(path.join(root, "scripts"));
+  for (const file of [
+    "coverage-shards.mjs",
+    "coverage-runtimes.mjs",
+    "coverage-runtimes.json",
+    "lib",
+  ]) {
+    cpSync(
+      path.join(repoRoot, "scripts", file),
+      path.join(root, "scripts", file),
+      { recursive: true },
+    );
+  }
+  writeFileSync(
+    path.join(root, "package.json"),
+    JSON.stringify({
+      name: "coverage-fixture",
+      private: true,
+      packageManager: "pnpm@12.14.0",
+      scripts: { "test:coverage": "turbo test:coverage --concurrency=2" },
+    }),
+  );
+  writeFileSync(
+    path.join(root, "turbo.json"),
+    JSON.stringify({
+      tasks: { "test:coverage": { outputs: ["coverage/**"] } },
+    }),
+  );
+  writeFileSync(path.join(root, ".gitignore"), ".turbo\nnode_modules\n");
+  const options = {
+    cwd: root,
+    encoding: "utf8",
+    stdio: "pipe",
+    env: {
+      ...process.env,
+      PATH: `${path.join(repoRoot, "node_modules/.bin")}${path.delimiter}${process.env.PATH}`,
+    },
+  };
+  const shard = (index) =>
+    execFileSync(
+      process.execPath,
+      ["scripts/coverage-shards.mjs", String(index)],
+      options,
+    ).trim();
+  execFileSync("pnpm", ["install", "--offline"], options);
+  const { PATH } = process.env;
+  t.after(() => {
+    process.env.PATH = PATH;
+  });
+  process.env.PATH = options.env.PATH;
+  assert.deepEqual(cachedCoverageWorkspaces(root), new Set());
+  assert.deepEqual([shard(0), shard(1)], ["--filter=first", "--filter=second"]);
+
+  execFileSync("pnpm", ["test:coverage", "--filter=first"], options);
+  assert.deepEqual(cachedCoverageWorkspaces(root), new Set(["first"]));
+  assert.deepEqual([shard(0), shard(1)], ["--filter=second", "--filter=first"]);
+});
+
+test("a dry run without cache status fails instead of guessing a split", (t) => {
+  const root = workspace(t, [{ name: "a", tests: 1 }]);
+  writeFileSync(
+    path.join(root, "dry-run.mjs"),
+    `console.log(JSON.stringify({ tasks: [{ task: "test:coverage", package: "a", command: "vitest" }] }));`,
+  );
+  writeFileSync(
+    path.join(root, "package.json"),
+    JSON.stringify({
+      name: "coverage-fixture",
+      private: true,
+      scripts: { "test:coverage": "node dry-run.mjs" },
+    }),
+  );
+  assert.throws(
+    () => cachedCoverageWorkspaces(root),
+    /no cache status for a\. Check that `pnpm run test:coverage --dry=json`/,
+  );
+});
+
 test("rejects unusable timing profiles instead of assigning invalid weights", (t) => {
   const root = workspace(t, [{ name: "a", tests: 1 }]);
   for (const profile of [{}, { a: 0 }, { a: -1 }, { a: "100" }, { a: NaN }]) {
@@ -120,7 +257,9 @@ test("the CLI emits the selected shard filters and rejects invalid shard indexes
     });
     assert.deepEqual(
       output.trim().split("\n"),
-      coverageShards()[index].map((name) => `--filter=${name}`),
+      coverageShards(undefined, undefined, cachedCoverageWorkspaces())[
+        index
+      ].map((name) => `--filter=${name}`),
     );
   }
   assert.throws(() =>

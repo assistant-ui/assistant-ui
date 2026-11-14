@@ -331,26 +331,61 @@ test("the required coverage check rejects failed, cancelled, or missing shards",
   }
 });
 
-test("pull requests restore the Turbo cache that only main pushes save", () => {
+test("pull requests restore both shards' Turbo caches, pinned once for both shards", () => {
   const names = coverageSteps.map((step) => step.split("\n")[0]);
   const step = (name) => coverageSteps[names.indexOf(name)];
-  const restore = step("Restore the Turbo cache from main");
   const save = step("Save the Turbo cache for pull requests");
-  assert(restore && save);
-  assert.match(restore, /if: github\.event_name == 'pull_request'\n/);
-  assert.match(restore, /uses: actions\/cache\/restore@/);
+  assert(save);
   assert.match(save, /if: github\.event_name == 'push' && !cancelled\(\)\n/);
   assert.match(save, /uses: actions\/cache\/save@/);
+  assert.match(save, /^ {10}path: \.turbo\/cache$/m);
   const key = (text) => text.match(/^ {10}key: (.+)$/m)?.[1];
-  assert.equal(key(restore), key(save));
-  const prefix = restore.match(/^ {10}restore-keys: (.+)$/m)?.[1];
-  assert(prefix && key(save).startsWith(prefix));
-  for (const text of [restore, save]) {
-    assert.match(text, /^ {10}path: \.turbo\/cache$/m);
+  const planJob = coverageWorkflow
+    .split("\n  plan:\n")[1]
+    .split("\n  shards:\n")[0];
+  for (const shard of [0, 1]) {
+    const lookup = step(`Find main's coverage Turbo cache, shard ${shard}`);
+    const restore = step(`Restore main's coverage Turbo cache, shard ${shard}`);
+    assert(lookup && restore);
+    assert(planJob.includes(`- name: ${lookup.split("\n")[0]}\n`));
+    assert.match(
+      lookup,
+      /if: github\.event_name == 'pull_request' && steps\.inputs\.outputs\.run == 'true'\n/,
+    );
+    assert.match(lookup, /^ {10}lookup-only: true$/m);
+    assert.equal(
+      key(lookup),
+      key(save).replace("${{ matrix.shard }}", String(shard)),
+    );
+    const prefix = lookup.match(/^ {10}restore-keys: (.+)$/m)?.[1];
+    assert(prefix && key(lookup).startsWith(prefix));
+    assert.match(
+      planJob,
+      new RegExp(
+        `turbo-cache-${shard}: \\$\\{\\{ steps\\.turbo-cache-${shard}\\.outputs\\.cache-matched-key \\}\\}`,
+      ),
+    );
+    assert.match(lookup, new RegExp(`id: turbo-cache-${shard}\\n`));
+    assert.match(
+      restore,
+      new RegExp(
+        `if: github\\.event_name == 'pull_request' && needs\\.plan\\.outputs\\.turbo-cache-${shard} != ''\\n`,
+      ),
+    );
+    assert.equal(
+      key(restore),
+      `\${{ needs.plan.outputs.turbo-cache-${shard} }}`,
+    );
+    assert.doesNotMatch(restore, /restore-keys:/);
+    assert.match(restore, /^ {10}fail-on-cache-miss: true$/m);
+    for (const text of [lookup, restore]) {
+      assert.match(text, /uses: actions\/cache\/restore@/);
+      assert.match(text, /^ {10}path: \.turbo\/cache$/m);
+    }
+    assert(
+      names.indexOf(restore.split("\n")[0]) < names.indexOf("Build packages"),
+    );
   }
-  assert(
-    names.indexOf(restore.split("\n")[0]) < names.indexOf("Build packages"),
-  );
   assert(
     names.indexOf(save.split("\n")[0]) >
       names.indexOf("Run assigned packages with coverage"),
