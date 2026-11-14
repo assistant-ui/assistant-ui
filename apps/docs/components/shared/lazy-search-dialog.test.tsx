@@ -4,10 +4,12 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { SearchDialog } from "./lazy-search-dialog";
 
-vi.mock("./search-dialog", () => ({
+const stubSearchDialog = vi.hoisted(() => () => ({
   SearchDialog: ({ open }: { open: boolean }) =>
     open ? <div role="dialog" /> : null,
 }));
+
+vi.mock("./search-dialog", stubSearchDialog);
 
 afterEach(cleanup);
 
@@ -29,10 +31,7 @@ it("retries the dialog chunk after a failed load", async () => {
   let fail = true;
   vi.doMock("./search-dialog", () => {
     if (fail) throw new Error("chunk failed");
-    return {
-      SearchDialog: ({ open }: { open: boolean }) =>
-        open ? <div role="dialog" /> : null,
-    };
+    return stubSearchDialog();
   });
   const lazyModule = await import("./lazy-search-dialog");
   const { findByRole, rerender } = render(
@@ -44,5 +43,5 @@ it("retries the dialog chunk after a failed load", async () => {
   rerender(<lazyModule.SearchDialog open={false} onOpenChange={() => {}} />);
   rerender(<lazyModule.SearchDialog open onOpenChange={() => {}} />);
   expect(await findByRole("dialog")).not.toBeNull();
-  vi.doUnmock("./search-dialog");
+  vi.doMock("./search-dialog", stubSearchDialog);
 });

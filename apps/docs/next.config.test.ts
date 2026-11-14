@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 import { compile, evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
@@ -89,6 +89,10 @@ describe("docs Next config composition", () => {
   });
 
   it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {
+    const loaded = process.env.TURBO_TASKS_AVAILABLE_PARALLELISM;
+    onTestFinished(() => {
+      vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", loaded);
+    });
     vi.stubEnv("TURBO_TASKS_AVAILABLE_PARALLELISM", "8");
     vi.resetModules();
     const reloaded = await (await import("./next.config.mts")).default;
