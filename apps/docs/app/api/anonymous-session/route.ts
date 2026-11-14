@@ -64,12 +64,16 @@ export async function GET(request: Request) {
   }
 
   const response = new Response(null, { status: 204, headers });
-  response.cookies.set(ANONYMOUS_SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: ANONYMOUS_SESSION_TTL_SECONDS,
-  });
+  response.headers.append(
+    "set-cookie",
+    [
+      `${ANONYMOUS_SESSION_COOKIE}=${encodeURIComponent(token)}`,
+      "Path=/",
+      `Max-Age=${ANONYMOUS_SESSION_TTL_SECONDS}`,
+      "HttpOnly",
+      "SameSite=lax",
+      ...(process.env.NODE_ENV === "production" ? ["Secure"] : []),
+    ].join("; "),
+  );
   return response;
 }
