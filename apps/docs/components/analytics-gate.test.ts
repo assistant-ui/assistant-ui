@@ -1,5 +1,5 @@
 import type { Analytics } from "@vercel/analytics/next";
-import type { SpeedInsights } from "@vercel/speed-insights/next";
+import type { SpeedInsights } from "@vercel/speed-insights/react";
 import { type ComponentProps, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,8 +18,8 @@ vi.mock("@vercel/analytics/next", async (importOriginal) => ({
   Analytics: mocks.analytics,
 }));
 
-vi.mock("@vercel/speed-insights/next", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@vercel/speed-insights/next")>()),
+vi.mock("@vercel/speed-insights/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/speed-insights/react")>()),
   SpeedInsights: mocks.speedInsights,
 }));
 
