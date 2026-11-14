@@ -93,8 +93,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     .filter((page) => page.data.externalUrl === undefined)
     .map((page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.date,
-      changeFrequency: "monthly",
+      ...(page.data.date ? { lastModified: page.data.date } : {}),
+      changeFrequency: "monthly" as const,
       priority: 0.7,
     }));
 

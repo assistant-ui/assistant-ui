@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/font/google", () => ({
-  Public_Sans: () => ({ variable: "" }),
-  JetBrains_Mono: () => ({ variable: "" }),
+vi.mock("@farm.js/core/font", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@farm.js/core/font")>()),
+  localFont: () => ({ variable: "", className: "" }),
 }));
 
 vi.mock("@/styles/globals.css", () => ({}));

@@ -17,8 +17,8 @@ const mocks = vi.hoisted(() => ({
   loadOgFonts: vi.fn(async () => []),
 }));
 
-vi.mock("next/og", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/og")>()),
+vi.mock("@farm.js/core/og", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@farm.js/core/og")>()),
   ImageResponse: mocks.ImageResponse,
 }));
 

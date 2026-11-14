@@ -63,4 +63,5 @@ export function middleware(
 
   const destination = matchRewrite(REWRITES, request);
   if (destination) context.rewrite(destination);
+  return undefined;
 }

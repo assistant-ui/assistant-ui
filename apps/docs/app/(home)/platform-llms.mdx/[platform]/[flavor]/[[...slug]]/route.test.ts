@@ -56,7 +56,7 @@ describe("GET", () => {
       GET(new Request("https://example.com/docs.md"), {
         params: Promise.resolve({ platform, flavor }),
       }),
-    ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    ).rejects.toMatchObject({ digest: "FARM_NOT_FOUND" });
     expect(getDocsMarkdown).not.toHaveBeenCalled();
   });
 });

@@ -8,18 +8,10 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const requests: (() => void)[] = [];
   const timelines: ((value: { series: never[]; data: never[] }) => void)[] = [];
 
   return {
-    requests,
     timelines,
-    connection: vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          requests.push(resolve);
-        }),
-    ),
     traction: {
       fetchTimelineSeries: vi.fn(
         () =>
@@ -48,11 +40,6 @@ const mocks = vi.hoisted(() => {
     },
   };
 });
-
-vi.mock("next/server", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/server")>()),
-  connection: mocks.connection,
-}));
 
 vi.mock("@/lib/traction", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/traction")>()),
@@ -99,16 +86,9 @@ const sectionsOf = (node: ReactNode): Section[] => {
 const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 describe("TractionPage", () => {
-  it("streams every read behind Suspense after the request, with npm's catalogue after the timeline", async () => {
-    const sections = sectionsOf(TractionPage());
+  it("streams every read behind Suspense, with npm's catalogue after the timeline", async () => {
+    const sections = sectionsOf(await TractionPage());
     expect(sections).toHaveLength(5);
-
-    const rendered = Promise.all(
-      sections.map((section) => section.type(section.props)),
-    );
-    await flush();
-
-    expect(mocks.requests).toHaveLength(5);
     for (const read of [
       ...Object.values(mocks.traction),
       ...Object.values(mocks.github),
@@ -116,7 +96,9 @@ describe("TractionPage", () => {
       expect(read).not.toHaveBeenCalled();
     }
 
-    for (const open of mocks.requests) open();
+    const rendered = Promise.all(
+      sections.map((section) => section.type(section.props)),
+    );
     await flush();
 
     expect(mocks.traction.fetchTimelineSeries).toHaveBeenCalled();
@@ -136,10 +118,8 @@ describe("TractionPage", () => {
   });
 
   it("drops unavailable GitHub and npm stats", async () => {
-    const [stats] = sectionsOf(TractionPage());
+    const [stats] = sectionsOf(await TractionPage());
     const rendered = stats!.type(stats!.props);
-    await flush();
-    for (const open of mocks.requests.splice(0)) open();
     await flush();
     for (const resolve of mocks.timelines.splice(0)) {
       resolve({ series: [], data: [] });

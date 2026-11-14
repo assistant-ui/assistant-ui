@@ -170,7 +170,7 @@ export async function generateMetadata(props: {
 
   return {
     title: page.data.title,
-    description: page.data.description,
+    ...(page.data.description ? { description: page.data.description } : {}),
     ...createOgMetadata(page.data.title, page.data.description),
   };
 }

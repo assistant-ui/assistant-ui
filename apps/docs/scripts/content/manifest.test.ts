@@ -113,14 +113,14 @@ it("reuses unchanged parsed content across builds and restores missing generated
     await readFile(join(root, ".source/content-data/docs.ts"), "utf8"),
   ).toBe(search);
 
-  await rm(join(root, ".next/cache"), { recursive: true });
+  await rm(join(root, ".farm/cache"), { recursive: true });
   await generateContentManifest(root);
   expect(remark).toHaveBeenCalledTimes(2);
   expect(await readFile(join(root, ".source/content.ts"), "utf8")).toBe(
     generated,
   );
 
-  await writeFile(join(root, ".next/cache/aui-content-manifest.json"), "{");
+  await writeFile(join(root, ".farm/cache/aui-content-manifest.json"), "{");
   await generateContentManifest(root);
   expect(remark).toHaveBeenCalledTimes(2);
   expect(await readFile(join(root, ".source/content.ts"), "utf8")).toBe(
@@ -142,7 +142,7 @@ it("rebuilds pages when their parsed cache is missing, unreadable or from a diff
     "---\ntitle: Other\n---\nRetained.",
   );
   await generateContentManifest(root);
-  const cachedPages = join(root, ".next/cache/aui-content-pages.json");
+  const cachedPages = join(root, ".farm/cache/aui-content-pages.json");
 
   for (const failure of ["missing", "unreadable", "old-compiler"]) {
     if (failure === "missing") await rm(cachedPages);

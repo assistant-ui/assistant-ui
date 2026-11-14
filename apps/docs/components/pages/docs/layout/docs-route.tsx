@@ -173,7 +173,7 @@ export function docsRouteMetadata({
 
   return {
     title,
-    description: page.data.description,
+    ...(page.data.description ? { description: page.data.description } : {}),
     ...createOgMetadata(title, page.data.description),
   };
 }

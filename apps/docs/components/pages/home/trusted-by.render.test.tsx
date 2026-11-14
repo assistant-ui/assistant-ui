@@ -105,7 +105,7 @@ describe("TrustedBy", () => {
 
     expect(images.length).toBeGreaterThan(0);
     for (const image of images) {
-      expect(image.dataset.nimg).toBe("fill");
+      expect(image.style.position).toBe("absolute");
       expect(image.hasAttribute("width")).toBe(false);
       expect(image.hasAttribute("height")).toBe(false);
       expect([...(image.parentElement?.classList ?? [])]).toEqual(

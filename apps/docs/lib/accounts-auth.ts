@@ -59,7 +59,7 @@ export const accountsOptions: AccountsFetchOptions | null = issuer
 
 // The session cookies ride the request headers, which the auth client reads from a Request.
 const currentRequest = async () =>
-  new Request("http://localhost/", { headers: new Headers(await headers()) });
+  new Request("http://localhost/", { headers: new Headers([...headers()]) });
 
 export const getSession = accounts
   ? async () => accounts.sessionFromRequest(await currentRequest())
