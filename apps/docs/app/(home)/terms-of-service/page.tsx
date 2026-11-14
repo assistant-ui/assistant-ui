@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
 import { PageCopy, PageFrame } from "@/components/shared/page-frame";
 
+export const ppr = true;
+
 const title = "Terms of Service — assistant-ui";
 const description =
   "Terms of Service for AgentbaseAI Inc. and assistant-ui services.";

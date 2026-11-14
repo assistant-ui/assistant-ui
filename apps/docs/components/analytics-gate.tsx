@@ -1,7 +1,7 @@
 "use client";
 
 import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { getStoredConsent, hasGlobalPrivacyControl } from "@/lib/consent";
 
 const analyticsAllowed = () =>

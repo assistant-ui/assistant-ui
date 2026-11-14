@@ -227,8 +227,7 @@ export function LogoMark({
         alt={logo.alt}
         fill
         sizes="144px"
-        onLoad={onSettle}
-        onError={onSettle}
+        {...(onSettle ? { onLoad: onSettle, onError: onSettle } : {})}
         className={cn(
           "object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
           logo.darkSrc
@@ -244,8 +243,7 @@ export function LogoMark({
           alt={logo.alt}
           fill
           sizes="144px"
-          onLoad={onSettle}
-          onError={onSettle}
+          {...(onSettle ? { onLoad: onSettle, onError: onSettle } : {})}
           className="hidden object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
         />
       ) : null}

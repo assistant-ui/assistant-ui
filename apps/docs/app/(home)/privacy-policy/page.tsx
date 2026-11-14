@@ -4,6 +4,8 @@ import { createOgMetadata } from "@/lib/og";
 import { PageCopy, PageFrame } from "@/components/shared/page-frame";
 import { CookieSettingsNotice } from "@/components/cookie-settings-link";
 
+export const ppr = true;
+
 const title = "Privacy Policy";
 const description =
   "Privacy Policy for AgentbaseAI Inc. and assistant-ui services.";

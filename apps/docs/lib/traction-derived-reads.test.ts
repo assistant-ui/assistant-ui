@@ -23,6 +23,17 @@ vi.mock("./github", async (importOriginal) => ({
   getUser,
 }));
 
+// Farm's unstable_cache keeps results across cases, so each read runs uncached here.
+vi.mock("@farm.js/core/cache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@farm.js/core/cache")>()),
+  unstable_cache:
+    <Args extends unknown[], Result>(
+      fn: (...args: Args) => Result | Promise<Result>,
+    ) =>
+    async (...args: Args) =>
+      fn(...args),
+}));
+
 const { fetchContributors, fetchBotCoAuthors, fetchStarHistory } =
   await import("./traction");
 

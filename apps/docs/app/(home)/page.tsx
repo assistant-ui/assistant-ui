@@ -8,6 +8,9 @@ import { highlightElementSource } from "@/lib/element-source";
 import { getWeeklyDownloads } from "@/lib/npm";
 import reactPackage from "../../../../packages/react/package.json";
 
+export const ppr = true;
+export const revalidate = 3600;
+
 function markChangedLines(html: string, lines: readonly number[]): string {
   let lineNumber = 0;
   return html.replaceAll('<span class="line">', () => {

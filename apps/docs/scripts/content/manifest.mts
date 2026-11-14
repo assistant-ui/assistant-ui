@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { watch, type FSWatcher } from "node:fs";
 import { DocsBuildCache, docsBuildCacheDigest } from "@farming-labs/docs/build";
 import { dirname, resolve, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import glob from "fast-glob";
 import matter from "gray-matter";
 import {
@@ -169,6 +170,11 @@ async function writeIfChanged(destination: string, output: string) {
 export type ContentManifestOptions = {
   /** Compile only the pages listed in LITE_PAGES_FILE; dev only. */
   onDemand?: boolean;
+  /**
+   * The docs app directory, whose compiler sources key the cache. Farm loads
+   * its config from a bundled copy, so a caller inside the config passes it.
+   */
+  appRoot?: string;
 };
 
 export async function generateContentManifest(
@@ -179,11 +185,12 @@ export async function generateContentManifest(
   const lite = options.onDemand
     ? { compiled: new Set(await readLitePages(root)) }
     : undefined;
+  const appRoot =
+    options.appRoot ?? fileURLToPath(new URL("../..", import.meta.url));
   const inputs = await Promise.all([
-    // Farm bundles its config into a temporary file, so these resolve from the app root.
-    readFile(resolve(root, "scripts/content/manifest.mts"), "utf8"),
-    readFile(resolve(root, "content.config.ts"), "utf8"),
-    readFile(resolve(root, "../../pnpm-lock.yaml"), "utf8"),
+    readFile(resolve(appRoot, "scripts/content/manifest.mts"), "utf8"),
+    readFile(resolve(appRoot, "content.config.ts"), "utf8"),
+    readFile(resolve(appRoot, "../../pnpm-lock.yaml"), "utf8"),
   ]);
   const compiler = docsBuildCacheDigest(
     JSON.stringify([process.version, ...inputs]),

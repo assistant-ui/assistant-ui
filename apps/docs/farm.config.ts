@@ -2,6 +2,7 @@ import { defineConfig } from "@farm.js/core";
 import { withDocs } from "@farming-labs/farmjs/config";
 import tailwindcss from "@tailwindcss/vite";
 import { aui } from "@assistant-ui/vite";
+import { CLIENT_CODE_SPLITTING } from "./scripts/client-chunks.mts";
 import { docsContent } from "./scripts/content/vite-plugin.mts";
 import { shipRepoSource } from "./scripts/repo-source-output.mts";
 import { tsconfigAliases } from "./scripts/tsconfig-aliases.mts";
@@ -83,7 +84,7 @@ const permanent = (source: string, destination: string) => ({
 export default withDocs(
   defineConfig({
     srcDir: ".",
-    experimental: { serverComponents: true },
+    experimental: { serverComponents: true, ppr: true },
     deploy: { target: process.env.VERCEL ? "vercel" : "node" },
     plugins: [shipRepoSource],
     headers: () => [
@@ -231,6 +232,9 @@ export default withDocs(
     vite: {
       plugins: [tailwindcss(), aui(), docsContent()],
       resolve: { tsconfigPaths: true, alias: tsconfigAliases(process.cwd()) },
+      build: {
+        rolldownOptions: { output: { codeSplitting: CLIENT_CODE_SPLITTING } },
+      },
       define: {
         ...Object.fromEntries(
           Object.entries(publicEnv).map(([name, value]) => [

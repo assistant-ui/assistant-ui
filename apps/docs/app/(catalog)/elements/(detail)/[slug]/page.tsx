@@ -45,6 +45,8 @@ import { RuntimeSetup } from "@/components/pages/elements/runtime-setup";
 import { getMDXComponents } from "@/mdx-components";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
 
+export const ppr = true;
+
 function tocTitle(node: unknown): string {
   if (node == null || typeof node === "boolean") return "";
   if (typeof node === "string" || typeof node === "number") return String(node);

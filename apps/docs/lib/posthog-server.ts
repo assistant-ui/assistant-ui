@@ -67,8 +67,8 @@ export type RequestErrorReport = [
     routerKind: string;
     routePath: string;
     routeType: string;
-    renderSource?: string;
-    revalidateReason?: string;
+    renderSource?: string | undefined;
+    revalidateReason?: string | undefined;
   },
 ];
 

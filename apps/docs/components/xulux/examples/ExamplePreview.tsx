@@ -104,7 +104,7 @@ function ScreenshotPreview({ preview }: { preview: PreviewData }) {
             fill
             sizes="100vw"
             className="object-cover"
-            priority
+            preload
           />
         </div>
       </div>

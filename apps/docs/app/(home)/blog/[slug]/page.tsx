@@ -12,6 +12,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 interface Param {
   slug: string;
 }
@@ -170,7 +172,9 @@ export async function generateMetadata(props: {
 
   return {
     title: page.data.title,
-    description: page.data.description,
+    ...(page.data.description != null
+      ? { description: page.data.description }
+      : {}),
     ...createOgMetadata(page.data.title, page.data.description),
   };
 }

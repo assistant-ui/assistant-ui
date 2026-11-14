@@ -14,6 +14,8 @@ import { design } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 function getPage(slug: string) {
   return design.getPage(["components", slug]);
 }
@@ -34,7 +36,9 @@ export async function generateMetadata({
 
   return {
     title: page.data.title,
-    description: page.data.description,
+    ...(page.data.description != null
+      ? { description: page.data.description }
+      : {}),
     ...createOgMetadata(page.data.title, page.data.description),
   };
 }

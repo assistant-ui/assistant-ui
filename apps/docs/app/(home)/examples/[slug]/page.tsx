@@ -22,6 +22,8 @@ import { getDemo } from "@/lib/demos";
 import { examples } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
+export const ppr = true;
+
 const EXAMPLE_TO_DEMO_SLUG: Record<string, string> = { "ai-sdk": "base" };
 
 export function generateStaticParams() {
@@ -40,7 +42,9 @@ export async function generateMetadata(props: {
 
   return {
     title: page.data.title,
-    description: page.data.description,
+    ...(page.data.description != null
+      ? { description: page.data.description }
+      : {}),
     ...createOgMetadata(page.data.title, page.data.description),
   };
 }

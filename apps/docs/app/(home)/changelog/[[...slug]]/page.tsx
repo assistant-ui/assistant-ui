@@ -12,6 +12,9 @@ import { PackageFilter } from "../package-filter";
 import { ChangelogList } from "../changelog-list";
 import { routeSegments } from "@/lib/route-segments";
 
+export const ppr = true;
+export const revalidate = 3600;
+
 const title = "Changelog";
 const description = "Release notes for all assistant-ui packages.";
 const PER_PAGE = 8;

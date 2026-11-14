@@ -2,28 +2,12 @@ import { Children, Suspense, isValidElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { NpmDownloads } from "@/lib/traction";
 
-const mocks = vi.hoisted(() => {
-  const requests: (() => void)[] = [];
-
-  return {
-    requests,
-    connection: vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          requests.push(resolve);
-        }),
-    ),
-    fetchNpmDownloads: vi.fn(async (): Promise<NpmDownloads> => ({
-      flagshipWeekly: 0,
-      totalWeekly: 0,
-      perPackage: {},
-    })),
-  };
-});
-
-vi.mock("next/server", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/server")>()),
-  connection: mocks.connection,
+const mocks = vi.hoisted(() => ({
+  fetchNpmDownloads: vi.fn(async (): Promise<NpmDownloads> => ({
+    flagshipWeekly: 0,
+    totalWeekly: 0,
+    perPackage: {},
+  })),
 }));
 
 vi.mock("@/lib/traction", async (importOriginal) => ({
@@ -35,41 +19,33 @@ const { default: PackagesPage } = await import("./page");
 
 type Directory = ReactElement<{ concentration: unknown }>;
 
-const flush = () => new Promise((resolve) => setTimeout(resolve));
-
 async function resolveDirectory() {
-  const boundary = Children.toArray(PackagesPage().props.children).find(
+  const boundary = Children.toArray((await PackagesPage()).props.children).find(
     (child) => isValidElement(child) && child.type === Suspense,
   ) as ReactElement<{
     children: ReactElement<object, (props: object) => Promise<Directory>>;
   }>;
   const directory = boundary.props.children;
-  const rendered = directory.type(directory.props);
-  await flush();
-  mocks.requests.at(-1)!();
-  return rendered;
+  return directory.type(directory.props);
 }
 
 describe("PackagesPage", () => {
-  it("renders the catalogue as a static shell and reads npm after the request", async () => {
-    const boundary = Children.toArray(PackagesPage().props.children).find(
+  it("renders the catalogue as a static shell and reads npm inside the boundary", async () => {
+    const boundary = Children.toArray(
+      (await PackagesPage()).props.children,
+    ).find(
       (child) => isValidElement(child) && child.type === Suspense,
     ) as ReactElement<{
       fallback: Directory;
       children: ReactElement<object, (props: object) => Promise<Directory>>;
     }>;
     expect(boundary.props.fallback.props.concentration).toBeNull();
-
-    const directory = boundary.props.children;
-    const rendered = directory.type(directory.props);
-    await flush();
-
-    expect(mocks.requests).toHaveLength(1);
     expect(mocks.fetchNpmDownloads).not.toHaveBeenCalled();
 
-    for (const open of mocks.requests) open();
-
-    expect((await rendered).props.concentration).not.toBeNull();
+    const directory = boundary.props.children;
+    expect(
+      (await directory.type(directory.props)).props.concentration,
+    ).not.toBeNull();
     expect(mocks.fetchNpmDownloads).toHaveBeenCalledOnce();
   });
 

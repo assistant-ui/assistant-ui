@@ -16,14 +16,14 @@ export function createOgMetadata(
   return {
     openGraph: {
       title,
-      description: description ?? undefined,
+      ...(description != null ? { description } : {}),
       type: "article",
       images: [{ url: imageUrl, ...OG_IMAGE_SIZE, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description: description ?? undefined,
+      ...(description != null ? { description } : {}),
       images: [imageUrl],
     },
   };

@@ -1,20 +1,38 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const requestScope = vi.hoisted(() => ({
+  cookie: "assistant-ui.www_session=marked",
   session: { user: { id: "u1" } },
   token: "token-1",
+  requests: [] as Request[],
 }));
 
-// The Next request scope reads request headers no test request carries, so a
-// stub stands in for it and answers with a marked session and token.
-vi.mock("aui-auth/next", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("aui-auth/next")>()),
-  withNextRequestScope: () => ({
-    getSession: async () => requestScope.session,
-    getAccessToken: async () => requestScope.token,
-    updateSessionData: async () => null,
-  }),
+// No test runs inside a Farm request, so the request headers come from a stub
+// that carries a marked session cookie.
+vi.mock("@farm.js/core/headers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@farm.js/core/headers")>()),
+  headers: () => new Headers({ cookie: requestScope.cookie }),
 }));
+
+vi.mock("aui-auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("aui-auth")>();
+  return {
+    ...actual,
+    createAccountsAuth: (
+      ...args: Parameters<typeof actual.createAccountsAuth>
+    ) => ({
+      ...actual.createAccountsAuth(...args),
+      sessionFromRequest: async (request: Request) => {
+        requestScope.requests.push(request);
+        return requestScope.session;
+      },
+      accessTokenFromRequest: async (request: Request) => {
+        requestScope.requests.push(request);
+        return requestScope.token;
+      },
+    }),
+  };
+});
 
 const unset = {
   NEXT_PUBLIC_AUTH_URL: "",
@@ -54,7 +72,7 @@ describe("accounts-auth", () => {
     expect(await auth.getAccessToken()).toBeNull();
   });
 
-  it("reads the session and token through the Next request scope once the deployment is configured", async () => {
+  it("reads the session and token from the current request once the deployment is configured", async () => {
     const auth = await load({
       NEXT_PUBLIC_AUTH_URL: "https://accounts.test",
       DOCS_OIDC_CLIENT_ID: "docs",
@@ -65,5 +83,8 @@ describe("accounts-auth", () => {
     expect(auth.accountsOptions).toEqual({ issuer: "https://accounts.test" });
     expect(await auth.getSession()).toBe(requestScope.session);
     expect(await auth.getAccessToken()).toBe(requestScope.token);
+    expect(
+      requestScope.requests.map((request) => request.headers.get("cookie")),
+    ).toEqual([requestScope.cookie, requestScope.cookie]);
   });
 });
