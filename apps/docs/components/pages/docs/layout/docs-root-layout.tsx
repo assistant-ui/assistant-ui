@@ -1,3 +1,5 @@
+"use client";
+
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
 import { DocsHeader } from "@/components/pages/docs/layout/docs-header";
