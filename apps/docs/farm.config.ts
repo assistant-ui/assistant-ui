@@ -233,7 +233,12 @@ export default withDocs(
       plugins: [tailwindcss(), aui(), docsContent()],
       resolve: { tsconfigPaths: true, alias: tsconfigAliases(process.cwd()) },
       build: {
-        rolldownOptions: { output: { codeSplitting: CLIENT_CODE_SPLITTING } },
+        rolldownOptions: {
+          output: {
+            codeSplitting: CLIENT_CODE_SPLITTING,
+            strictExecutionOrder: true,
+          },
+        },
       },
       define: {
         ...Object.fromEntries(
