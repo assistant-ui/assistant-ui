@@ -6,6 +6,7 @@ import { Activity, type FC, version } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import { flushTapSync } from "@assistant-ui/tap";
 import {
   type AttachmentAdapter,
   CompositeAttachmentAdapter,
@@ -2920,7 +2921,7 @@ describe("cancelled edit sessions", () => {
     });
     const composer = () => aui().thread.message({ id: "u1" }).composer();
     await act(async () => {
-      composer().beginEdit();
+      flushTapSync(() => composer().beginEdit());
     });
     await act(async () => {
       await composer().attachment({ id: "saved" }).remove();
