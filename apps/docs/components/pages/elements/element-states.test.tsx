@@ -76,6 +76,7 @@ const radio = (name: string) => screen.getByRole("radio", { name });
 const search = () => new URLSearchParams(window.location.search).get("state");
 
 beforeEach(() => {
+  loadedSlugs.length = 0;
   window.history.replaceState(null, "", "/elements/tool-call");
 });
 
