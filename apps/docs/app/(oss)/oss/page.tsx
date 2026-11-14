@@ -17,6 +17,7 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 export const ppr = true;
+export const revalidate = 3600;
 
 const title = "Open Source Projects";
 const description =
