@@ -45,6 +45,8 @@ jobs:
     timeout-minutes: 2
     outputs:
       run: ${{ steps.inputs.outputs.run }}
+      turbo-cache-0: ${{ steps.turbo-cache-0.outputs.cache-matched-key }}
+      turbo-cache-1: ${{ steps.turbo-cache-1.outputs.cache-matched-key }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -88,6 +90,27 @@ jobs:
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
+      # Each shard splits the packages by which coverage tasks miss the Turbo cache, so both must restore the same entries; looking them up once here keeps a main push that lands mid-run from giving the shards different caches.
+      - name: Find main's coverage Turbo cache, shard 0
+        id: turbo-cache-0
+        if: github.event_name == 'pull_request' && steps.inputs.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
+          lookup-only: true
+
+      - name: Find main's coverage Turbo cache, shard 1
+        id: turbo-cache-1
+        if: github.event_name == 'pull_request' && steps.inputs.outputs.run == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
+          lookup-only: true
+
   shards:
     name: Coverage shard ${{ matrix.shard }}
     needs: plan
@@ -130,14 +153,22 @@ jobs:
         if: matrix.shard == 0
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs scripts/coverage-runtimes.test.mjs
 
-      # Pull requests run without Turbo's remote cache, so they restore the local cache the latest main push saved. GitHub scopes a cache a pull request writes to its merge ref, so main never reads one.
-      - name: Restore the Turbo cache from main
-        if: github.event_name == 'pull_request'
+      # Pull requests run without Turbo's remote cache, so they restore the local caches the latest main push saved. Both shards restore both entries, because a package can land on either shard. GitHub scopes a cache a pull request writes to its merge ref, so main never reads one.
+      - name: Restore main's coverage Turbo cache, shard 0
+        if: github.event_name == 'pull_request' && needs.plan.outputs.turbo-cache-0 != ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
         with:
           path: .turbo/cache
-          key: turbo-coverage-${{ runner.os }}-${{ matrix.shard }}-${{ github.sha }}
-          restore-keys: turbo-coverage-${{ runner.os }}-${{ matrix.shard }}-
+          key: ${{ needs.plan.outputs.turbo-cache-0 }}
+          fail-on-cache-miss: true
+
+      - name: Restore main's coverage Turbo cache, shard 1
+        if: github.event_name == 'pull_request' && needs.plan.outputs.turbo-cache-1 != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: ${{ needs.plan.outputs.turbo-cache-1 }}
+          fail-on-cache-miss: true
 
       # Each vitest run already spreads its files across every core, so prebuild its prerequisites at turbo's default concurrency before coverage limits concurrency to two.
       - name: Build packages
