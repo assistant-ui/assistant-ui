@@ -83,7 +83,7 @@ const permanent = (source: string, destination: string) => ({
 export default withDocs(
   defineConfig({
     srcDir: ".",
-    experimental: { serverComponents: true },
+    experimental: { serverComponents: true, ppr: true },
     deploy: { target: process.env.VERCEL ? "vercel" : "node" },
     plugins: [shipRepoSource],
     headers: () => [

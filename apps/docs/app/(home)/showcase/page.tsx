@@ -7,6 +7,8 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { SHOWCASE_COUNT, SHOWCASE_SECTIONS } from "@/lib/showcase";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Showcase";
 const description =
   "Projects built with assistant-ui. Open any product for the live site, the source, or a write-up.";

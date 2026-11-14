@@ -23,6 +23,8 @@ import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 
+export const ppr = true;
+
 const title = "Component vocabulary";
 const description =
   "Intrinsic generative-ui components the model can emit through the present tool, rendered through the elements theme.";

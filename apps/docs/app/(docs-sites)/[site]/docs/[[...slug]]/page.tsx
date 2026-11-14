@@ -9,6 +9,8 @@ import {
   firstPageFallback,
 } from "@/components/pages/docs/layout/docs-route";
 
+export const ppr = true;
+
 type Props = {
   params: Promise<{ site: string; slug?: string | string[] }>;
 };

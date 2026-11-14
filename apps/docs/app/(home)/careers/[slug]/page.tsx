@@ -14,6 +14,8 @@ import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 
+export const ppr = true;
+
 interface Params {
   slug: string;
 }

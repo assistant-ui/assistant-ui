@@ -8,6 +8,8 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { COMMUNITY_EXAMPLES, INTERNAL_EXAMPLES } from "@/lib/examples";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Examples";
 const description =
   "Production-ready examples of AI chat in React. ChatGPT clones, copilots, generative UI, artifacts, and more, all built with assistant-ui.";

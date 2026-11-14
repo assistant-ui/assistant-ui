@@ -13,6 +13,8 @@ import { CATALOG, formatMinutes, getProduct } from "@/lib/catalog";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 export function generateStaticParams() {
   return CATALOG.map((product) => ({ slug: product.slug }));
 }

@@ -22,6 +22,8 @@ import { getDemo } from "@/lib/demos";
 import { examples } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
+export const ppr = true;
+
 const EXAMPLE_TO_DEMO_SLUG: Record<string, string> = { "ai-sdk": "base" };
 
 export function generateStaticParams() {

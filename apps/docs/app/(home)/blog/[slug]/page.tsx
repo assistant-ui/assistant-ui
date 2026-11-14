@@ -12,6 +12,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 interface Param {
   slug: string;
 }

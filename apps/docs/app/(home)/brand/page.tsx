@@ -5,6 +5,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Brand";
 const description =
   "How to use the assistant-ui name, logo, colors, and typography, with files to download.";

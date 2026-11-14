@@ -8,6 +8,8 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { TerminalDemo } from "./terminal-demo";
 
+export const ppr = true;
+
 const ANALYTICS_PAGE = "ink" as const;
 
 const PRIMITIVES = [

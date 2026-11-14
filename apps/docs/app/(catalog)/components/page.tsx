@@ -23,6 +23,8 @@ import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Components";
 const description = "Everything you can add to an assistant-ui project.";
 

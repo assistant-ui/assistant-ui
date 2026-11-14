@@ -7,6 +7,8 @@ import {
   overviewFallback,
 } from "@/components/pages/docs/layout/docs-route";
 
+export const ppr = true;
+
 type Props = { params: Promise<{ slug?: string | string[] }> };
 
 export default async function Page(props: Props) {

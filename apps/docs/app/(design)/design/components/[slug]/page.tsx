@@ -14,6 +14,8 @@ import { design } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 function getPage(slug: string) {
   return design.getPage(["components", slug]);
 }

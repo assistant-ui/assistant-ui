@@ -6,6 +6,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Components";
 const description = `${DESIGN_COMPONENTS.length} primitives drawn to the assistant-ui design registers: actions, inputs, display, overlays, and navigation. Every specimen is live; open a component for its variants, API, and source.`;
 

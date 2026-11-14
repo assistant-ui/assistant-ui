@@ -10,6 +10,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Blog";
 const description = "Announcements and writing from the assistant-ui team.";
 

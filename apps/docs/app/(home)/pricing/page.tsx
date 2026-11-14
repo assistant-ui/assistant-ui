@@ -17,6 +17,8 @@ import {
   pricingPlans,
 } from "./pricing-data";
 
+export const ppr = true;
+
 const title = "Pricing";
 const description =
   "assistant-ui is free and open source. assistant-cloud is optional hosted persistence for threads, history, and auth.";

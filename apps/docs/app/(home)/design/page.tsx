@@ -17,6 +17,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Design";
 const description =
   "How assistant-ui is drawn: the printed page it is built on, the radius, ink, type, and line registers every surface shares, and the component kit they produce.";

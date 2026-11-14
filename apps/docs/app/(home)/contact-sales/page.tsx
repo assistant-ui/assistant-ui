@@ -8,6 +8,8 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Contact sales";
 const description =
   "Talk to the assistant-ui team about shipping AI chat in production, scaling on Assistant Cloud, and enterprise terms.";

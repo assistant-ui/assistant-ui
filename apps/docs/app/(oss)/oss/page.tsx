@@ -16,6 +16,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const title = "Open Source Projects";
 const description =
   "Open source projects from the assistant-ui organization, from the core SDK to the small packages we extracted along the way.";

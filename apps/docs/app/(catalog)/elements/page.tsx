@@ -15,6 +15,8 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
+export const ppr = true;
+
 const sectionId = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
 
 const title = "Elements";
