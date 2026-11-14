@@ -501,6 +501,38 @@ describe("useDataStreamRuntime request body", () => {
   });
 });
 
+describe("useDataStreamRuntime data callbacks", () => {
+  it("passes the wire id of each data-* part to onData", async () => {
+    const events = [
+      { type: "start", messageId: "assistant" },
+      { type: "data-weather", id: "weather-1", data: { status: "loading" } },
+      { type: "data-weather", id: "weather-1", data: { status: "success" } },
+      { type: "data-weather", id: "weather-2", data: { status: "loading" } },
+      { type: "data-weather", data: { status: "loading" } },
+      { type: "finish", finishReason: "stop" },
+    ];
+    const body = `${events
+      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+      .join("")}data: [DONE]\n\n`;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+    const onData = vi.fn();
+    const adapter = createAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      onData,
+    });
+
+    await runToCompletion(adapter, createRunOptions());
+
+    expect(onData.mock.calls.map(([data]) => data.id)).toEqual([
+      "weather-1",
+      "weather-1",
+      "weather-2",
+      undefined,
+    ]);
+  });
+});
+
 describe("useDataStreamRuntime lifecycle callbacks", () => {
   it.each(["throws", "rejects"] as const)(
     "keeps successful responses successful when onFinish %s",

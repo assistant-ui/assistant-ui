@@ -527,6 +527,47 @@ describe("UIMessageStreamDecoder", () => {
     });
   });
 
+  it("should pass the wire id of a data-* chunk to onData", async () => {
+    const onData = vi.fn();
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "data-weather",
+        id: "weather-1",
+        data: { status: "loading" },
+      }),
+      JSON.stringify({
+        type: "data-weather",
+        id: "weather-1",
+        data: { status: "success" },
+      }),
+      JSON.stringify({
+        type: "data-weather",
+        id: "weather-2",
+        data: { status: "loading" },
+      }),
+      JSON.stringify({ type: "data-weather", data: { status: "loading" } }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    await collectChunks(
+      stream.pipeThrough(new UIMessageStreamDecoder({ onData })),
+    );
+
+    expect(onData.mock.calls.map(([data]) => data.id)).toEqual([
+      "weather-1",
+      "weather-1",
+      "weather-2",
+      undefined,
+    ]);
+  });
+
   it("should handle transient data-* chunks", async () => {
     const onData = vi.fn();
     const events = [

@@ -20,6 +20,7 @@ export type UIMessageStreamDecoderOptions = {
   onData?: (data: {
     type: string;
     name: string;
+    id?: string;
     data: unknown;
     transient?: boolean;
   }) => void;
@@ -78,6 +79,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 type: chunk.type,
                 name,
                 data: chunk.data,
+                ...(chunk.id !== undefined && { id: chunk.id }),
                 ...(chunk.transient !== undefined && {
                   transient: chunk.transient,
                 }),
