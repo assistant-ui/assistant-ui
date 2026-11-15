@@ -492,7 +492,7 @@ describe("transformProject — hasLocalComponents: true", () => {
     });
 
     const shadcnCalls = mocks.spawn.mock.calls.filter(
-      ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+      ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@4.23.0"),
     );
     expect(shadcnCalls).toHaveLength(0);
   });
@@ -710,7 +710,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       const addCalls = mocks.spawn.mock.calls.filter(
         ([cmd, args]) =>
           cmd === TEST_DLX_CMD &&
-          args.includes("shadcn@latest") &&
+          args.includes("shadcn@4.23.0") &&
           args.includes("add"),
       );
       expect(addCalls).toHaveLength(1);
@@ -746,7 +746,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       const addCall = mocks.spawn.mock.calls.find(
         ([cmd, args]) =>
           cmd === TEST_DLX_CMD &&
-          args.includes("shadcn@latest") &&
+          args.includes("shadcn@4.23.0") &&
           args.includes("add"),
       );
       const args = addCall![1] as string[];
@@ -774,7 +774,7 @@ describe("transformProject — hasLocalComponents: false", () => {
         hasLocalComponents: false,
       });
 
-      expect(result.registryInstallCommand).toContain("shadcn@latest add");
+      expect(result.registryInstallCommand).toContain("shadcn@4.23.0 add");
       expect(result.registryInstallCommand).toContain(
         "https://r.assistant-ui.com/utils.json",
       );
@@ -785,7 +785,7 @@ describe("transformProject — hasLocalComponents: false", () => {
         "https://r.assistant-ui.com/native/icon.json",
       );
       const shadcnCalls = mocks.spawn.mock.calls.filter(
-        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@4.23.0"),
       );
       expect(shadcnCalls).toHaveLength(0);
     });
@@ -799,7 +799,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       await run();
 
       const shadcnCalls = mocks.spawn.mock.calls.filter(
-        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@4.23.0"),
       );
       expect(shadcnCalls).toHaveLength(0);
     });
@@ -852,7 +852,7 @@ describe("installShadcnRegistry behavior", () => {
     });
 
     expect(result.registryInstallFailure?.retryCommand).toContain(
-      "shadcn@latest",
+      "shadcn@4.23.0",
     );
     expect(result.registryInstallFailure?.retryCommand).not.toMatch(/--yes$/);
   });

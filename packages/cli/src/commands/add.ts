@@ -9,6 +9,7 @@ import {
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import {
   dlxCommand,
+  SHADCN_PACKAGE,
   resolvePackageManager,
   type PackageManagerName,
   resolvePackageManagerForCwd,
@@ -36,7 +37,7 @@ export function createAddComponentsPlan(params: {
   });
 
   const [command, dlxArgs] = dlxCommand(params.packageManager);
-  const args = [...dlxArgs, "shadcn@latest", "add", ...componentsToAdd];
+  const args = [...dlxArgs, SHADCN_PACKAGE, "add", ...componentsToAdd];
 
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
   // This flag is for shadcn's own confirmation prompt.

@@ -815,9 +815,37 @@ describe("resolvePresetUrl", () => {
     expect(resolvePresetUrl(url)).toBe(url);
   });
 
-  it("passes through http URLs unchanged", () => {
-    const url = "http://localhost:3000/preset";
-    expect(resolvePresetUrl(url)).toBe(url);
+  it("passes through http localhost URLs unchanged", () => {
+    for (const url of [
+      "http://localhost:3000/preset",
+      "http://127.0.0.1:3000/preset",
+      "http://[::1]:3000/preset",
+    ]) {
+      expect(resolvePresetUrl(url)).toBe(url);
+    }
+  });
+
+  it("refuses http URLs for other hosts", () => {
+    expect(() => resolvePresetUrl("http://example.com/preset")).toThrow(
+      "--preset URLs must use https (http only on localhost).",
+    );
+  });
+
+  it("refuses other schemes and URLs with credentials", () => {
+    for (const url of ["file:///etc/preset.json", "ftp://example.com/p"]) {
+      expect(() => resolvePresetUrl(url)).toThrow(
+        "--preset URLs must use https",
+      );
+    }
+    expect(() =>
+      resolvePresetUrl("https://user:secret@example.com/preset"),
+    ).toThrow("--preset URLs must not contain credentials.");
+  });
+
+  it("is checked before the project is scaffolded", () => {
+    expect(() =>
+      resolveScaffoldSelector({ preset: "http://example.com/preset" }),
+    ).toThrow("--preset URLs must use https");
   });
 
   it("expands a bare preset name to the playground URL", () => {
