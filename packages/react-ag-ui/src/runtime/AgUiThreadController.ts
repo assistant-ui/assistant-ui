@@ -615,6 +615,7 @@ export class AgUiThreadController {
       this.snapshotHeadMovedAssistantIds.clear();
       this.assistantHistoryParents.clear();
       this.subagentParentToolCallIds.clear();
+      this.interruptNamedToolCallIds.clear();
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
       this.unappendedHistoryIds.clear();
@@ -979,11 +980,19 @@ export class AgUiThreadController {
    * does.
    */
   isToolCallNamedByInterrupt(toolCallId: string): boolean {
-    for (const interrupt of this.getPendingInterrupts()?.interrupts ?? []) {
+    this.rememberInterruptNamedToolCalls(
+      this.getPendingInterrupts()?.interrupts,
+    );
+    return this.interruptNamedToolCallIds.has(toolCallId);
+  }
+
+  private rememberInterruptNamedToolCalls(
+    interrupts: readonly AgUiInterrupt[] | undefined,
+  ): void {
+    for (const interrupt of interrupts ?? []) {
       if (typeof interrupt.toolCallId === "string")
         this.interruptNamedToolCallIds.add(interrupt.toolCallId);
     }
-    return this.interruptNamedToolCallIds.has(toolCallId);
   }
 
   getPendingToolCalls(): {
@@ -1320,6 +1329,10 @@ export class AgUiThreadController {
   ): void {
     const changedMessageIds: string[] = [];
     const pending = this.getPendingInterrupts();
+    // Record the named calls before the interrupt metadata is dropped, so a
+    // call the resumed run introduces stays withheld even if core never asked
+    // about it while the interrupt was open.
+    this.rememberInterruptNamedToolCalls(pending?.interrupts);
     const assistants = new Map(
       this.getAssistantMessagesForInterrupts(pending?.interrupts ?? []).map(
         (message) => [message.id, message],

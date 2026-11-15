@@ -218,6 +218,85 @@ describe("useAgUiRuntime frontend tool deferral", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("keeps a call withheld when an interrupt named it before the run rendered it", async () => {
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: "run-1",
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "input_required", toolCallId: "tc-2" },
+              ],
+            },
+          },
+        });
+      } else {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "tc-2",
+            toolCallName: "delete_file",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "tc-2",
+            delta: '{"path":"/tmp/a"}',
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "tc-2" },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: "run-2" },
+        });
+      }
+      subscriber.onRunFinalized?.(undefined);
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const DeleteFileTool = () => {
+      useAssistantTool({
+        toolName: "delete_file",
+        description: "delete a file",
+        parameters: z.object({ path: z.string() }),
+        execute,
+      });
+      return null;
+    };
+    const { result } = renderHook(() => useAgUiRuntime({ agent }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <DeleteFileTool />
+      </AssistantRuntimeProvider>,
+    );
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "delete it" }],
+      });
+    });
+    await flush();
+    expect(result.current.unstable_getPendingInterrupts()).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.unstable_submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved", payload: "ok" },
+      ]);
+    });
+    await flush();
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(toolCalls(result.current).map((c) => c.toolCallId)).toContain(
+      "tc-2",
+    );
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("runs a frontend execute on a new thread that reuses an id an interrupt named before", async () => {
     const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
       subscriber.onToolCallStartEvent?.({
