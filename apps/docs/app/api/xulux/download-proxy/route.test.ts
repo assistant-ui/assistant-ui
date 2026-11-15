@@ -284,4 +284,27 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
       new Uint8Array([1, 2, 3]).buffer,
     );
   });
+
+  it("keeps internal error text out of a failed fetch response", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+    mocks.fetchSandboxResource.mockRejectedValue(
+      new Error("connect ECONNREFUSED 10.0.0.12:8443", {
+        cause: new Error("internal host detail"),
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "Proxy fetch failed." });
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });

@@ -173,17 +173,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (err) {
-    const cause =
-      err instanceof Error && err.cause instanceof Error
-        ? err.cause.message
-        : undefined;
-    return NextResponse.json(
-      {
-        error: "Proxy fetch failed.",
-        details: err instanceof Error ? err.message : String(err),
-        cause,
-      },
-      { status: 502 },
-    );
+    console.error("[api/xulux/download-proxy]", err);
+    return NextResponse.json({ error: "Proxy fetch failed." }, { status: 502 });
   }
 }
