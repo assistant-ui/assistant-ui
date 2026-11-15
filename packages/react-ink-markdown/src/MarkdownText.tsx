@@ -6,7 +6,7 @@ import {
   type Theme,
 } from "markdansi";
 import { memo, useCallback, useSyncExternalStore } from "react";
-import { filterHyperlinks } from "./filterHyperlinks";
+import { filterHyperlinks, hasRefusedHyperlink } from "./filterHyperlinks";
 import { sanitizeTerminalText } from "./sanitizeTerminalText";
 
 export type MarkdownTextProps = {
@@ -33,8 +33,9 @@ export type MarkdownTextProps = {
   codeWrap?: boolean;
   /**
    * Enable OSC 8 hyperlinks (default: auto-detect). Only http and https
-   * links become hyperlinks; other links render as text followed by their
-   * destination.
+   * links become hyperlinks. If a message has a link with any other scheme,
+   * the whole message renders as with hyperlinks off: every link shows as
+   * "label (url)".
    */
   hyperlinks?: boolean;
   /** Enable ANSI colors (default: auto-detect). */
@@ -112,15 +113,23 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
       ? { ...options, width: terminalWidth }
       : options;
 
-  const rendered = filterHyperlinks(
-    render(
-      sanitizeTerminalText(text),
-      Object.values(resolvedOptions).some((v) => v !== undefined)
-        ? (resolvedOptions as RenderOptions)
-        : undefined,
-    ),
+  const source = sanitizeTerminalText(text);
+  let rendered = render(
+    source,
+    Object.values(resolvedOptions).some((v) => v !== undefined)
+      ? (resolvedOptions as RenderOptions)
+      : undefined,
   );
-  return <Text>{rendered}</Text>;
+  // markdansi has no per-link hook. If any link has a scheme we don't
+  // hyperlink, render again without hyperlinks so markdansi lays out every
+  // link as "label (url)" itself, tables and wrapping included.
+  if (hasRefusedHyperlink(rendered)) {
+    rendered = render(source, {
+      ...resolvedOptions,
+      hyperlinks: false,
+    } as RenderOptions);
+  }
+  return <Text>{filterHyperlinks(rendered)}</Text>;
 };
 
 MarkdownTextImpl.displayName = "MarkdownText";

@@ -4,8 +4,6 @@ const OSC8_START = "\u001b]8;";
 const BEL = "\u0007";
 const ST = "\u001b\\";
 const OSC8_CLOSE = `\u001b]8;;${BEL}`;
-const ESC = "\u001b";
-const SGR = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
 
 export const hyperlinkTarget = (url: string): string | undefined => {
   let parsed: URL;
@@ -50,79 +48,29 @@ const tokenize = (rendered: string): Token[] => {
   return tokens;
 };
 
-const compact = (text: string) => text.replace(SGR, "").replace(/\s+/g, "");
+export const hasRefusedHyperlink = (rendered: string): boolean =>
+  rendered.includes(OSC8_START) &&
+  tokenize(rendered).some(
+    (token) =>
+      "url" in token && token.url !== "" && !hyperlinkTarget(token.url),
+  );
 
-// Between the segments of a wrapped link there is only a line break,
-// indentation or a quote prefix.
-const isWrapGap = (text: string) =>
-  text.includes("\n") && !/[\p{L}\p{N}]/u.test(text.replace(SGR, ""));
-
-// markdansi has no per-link hook, so this rewrites the OSC 8 sequences it
-// emitted. A refused link keeps its label followed by a dim " (url)", the way
-// markdansi renders links with hyperlinks off. markdansi only emits OSC 8
-// when color is on, so the dim SGR is always allowed here.
+// Keeps hyperlinks whose target passes hyperlinkTarget, written with the
+// normalized URL, and drops every other sequence. Every kept link is closed.
 export const filterHyperlinks = (rendered: string): string => {
   if (!rendered.includes(OSC8_START)) return rendered;
   let result = "";
-  let kept = false;
-  let refused:
-    | { url: string; label: string; closedAt: number | undefined; gap: string }
-    | undefined;
-
-  const finishRefused = () => {
-    if (!refused) return;
-    const at = refused.closedAt ?? result.length;
-    if (compact(refused.label) !== compact(refused.url)) {
-      const suffix = `\u001b[2m (${refused.url})\u001b[22m`;
-      result = result.slice(0, at) + suffix + result.slice(at);
-    }
-    refused = undefined;
-  };
-
+  let open = false;
   for (const token of tokenize(rendered)) {
     if ("text" in token) {
       result += token.text;
-      if (refused?.closedAt === undefined) {
-        if (refused) refused.label += token.text;
-      } else {
-        refused.gap += token.text;
-      }
       continue;
     }
-
-    const { url } = token;
-    if (url === "") {
-      if (refused && refused.closedAt === undefined) {
-        refused.closedAt = result.length;
-        refused.gap = "";
-      } else if (kept) {
-        result += OSC8_CLOSE;
-        kept = false;
-      }
-      continue;
-    }
-
-    if (refused?.url === url) {
-      if (refused.closedAt === undefined) continue;
-      if (isWrapGap(refused.gap)) {
-        refused.closedAt = undefined;
-        continue;
-      }
-    }
-    finishRefused();
-
-    const target = hyperlinkTarget(url);
-    if (target === undefined) {
-      if (kept) result += OSC8_CLOSE;
-      kept = false;
-      refused = { url, label: "", closedAt: undefined, gap: "" };
-    } else {
-      result += `\u001b]8;;${target}${BEL}`;
-      kept = true;
-    }
+    const target = token.url === "" ? undefined : hyperlinkTarget(token.url);
+    if (open) result += OSC8_CLOSE;
+    open = target !== undefined;
+    if (target !== undefined) result += `\u001b]8;;${target}${BEL}`;
   }
-
-  finishRefused();
-  if (kept) result += OSC8_CLOSE;
+  if (open) result += OSC8_CLOSE;
   return result;
 };

@@ -21,20 +21,56 @@ describe("MarkdownText", () => {
     expect(lastFrame()).not.toContain("\u009d");
   });
 
-  it("hyperlinks https URLs and shows other destinations as text", () => {
+  it("hyperlinks https URLs when every link is allowed", () => {
     // markdansi decodes the `&#x1b;` reference to U+FFFD, not ESC, and
     // `URL.href` percent-encodes U+FFFD as %EF%BF%BD.
     const { lastFrame } = render(
       <MarkdownText
-        text={"[one](file:///etc/passwd) [two](https://example.com/&#x1b;x)"}
+        text={"[two](https://example.com/&#x1b;x)"}
+        hyperlinks
+        color
+      />,
+    );
+    expect(lastFrame()).toContain(
+      "\u001b]8;;https://example.com/%EF%BF%BDx\u0007",
+    );
+  });
+
+  it("renders without hyperlinks when a link has another scheme", () => {
+    const { lastFrame } = render(
+      <MarkdownText
+        text={"[one](file:///etc/passwd) [two](https://example.com/)"}
         hyperlinks
         color
       />,
     );
     const frame = lastFrame()!;
-    expect(frame).toContain("one\u001b[2m (file:///etc/passwd)\u001b[22m");
-    expect(frame).not.toContain("\u001b]8;;file:");
-    expect(frame).toContain("\u001b]8;;https://example.com/%EF%BF%BDx\u0007");
+    expect(frame).not.toContain("\u001b]8;");
+    expect(frame).toContain(" (file:///etc/passwd)");
+    expect(frame).toContain(" (https://example.com/)");
+  });
+
+  it("keeps table layout when a cell has a refused link", () => {
+    const table = "| file |\n| --- |\n| [foo.ts](./src/foo.ts) |";
+    const expected = render(
+      <MarkdownText text={table} hyperlinks={false} color width={40} />,
+    ).lastFrame();
+    const { lastFrame } = render(
+      <MarkdownText text={table} hyperlinks color width={40} />,
+    );
+    expect(lastFrame()).toBe(expected);
+    expect(lastFrame()).toContain("(./src/foo.ts)");
+  });
+
+  it("shows each refused link's destination in a list", () => {
+    const { lastFrame } = render(
+      <MarkdownText
+        text={"- [config](./config.json)\n- [same config](./config.json)"}
+        hyperlinks
+        color
+      />,
+    );
+    expect(lastFrame()!.split("(./config.json)")).toHaveLength(3);
   });
 
   it.each([{ width: 40 }, { wrap: false }])(
