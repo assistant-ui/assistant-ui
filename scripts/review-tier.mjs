@@ -136,6 +136,8 @@ const changedFile = (file) => ({
   patch: file.patch ?? null,
 });
 
+const packageManifest = /^packages\/[^/]+\/package\.json$/;
+
 // GitHub's compare response lists at most 300 files and 250 commits.
 const compareFileLimit = 300;
 
@@ -281,32 +283,43 @@ export async function gatherPullRequest(
         : [file.path],
     ),
   );
+  // A renamed coverage config or a renamed manifest outside `packages/*` is
+  // compared with its previous path. A renamed package manifest stays a new
+  // package.
+  const renameKind = (file) =>
+    isCoverageConfig(file)
+      ? "coverage"
+      : /(^|\/)package\.json$/.test(file) && !packageManifest.test(file)
+        ? "manifest"
+        : undefined;
   for (const file of paths) {
     const isSurface = /^api-surface\/[^/]+\.ts$/.test(file);
     const isCoverage = isCoverageConfig(file);
+    const kind = renameKind(file);
     if (
-      isCoverage &&
+      kind &&
+      !files.some((changed) => changed.path === file) &&
       files.some(
         (changed) =>
           changed.status === "renamed" &&
           changed.previousPath === file &&
-          isCoverageConfig(changed.path),
+          renameKind(changed.path) === kind,
       )
     )
       continue;
-    const renamedConfig =
-      isCoverage &&
+    const renamed =
+      kind &&
       files.find(
         (changed) =>
           changed.status === "renamed" &&
           changed.path === file &&
-          isCoverageConfig(changed.previousPath),
+          renameKind(changed.previousPath) === kind,
       );
     if (!isSurface && !isCoverage && !/(^|\/)package\.json$/.test(file))
       continue;
     const contents = `${repo}/contents/${file.split("/").map(encodeURIComponent).join("/")}`;
-    const baseContents = renamedConfig
-      ? `${repo}/contents/${renamedConfig.previousPath.split("/").map(encodeURIComponent).join("/")}`
+    const baseContents = renamed
+      ? `${repo}/contents/${renamed.previousPath.split("/").map(encodeURIComponent).join("/")}`
       : contents;
     const baseText = await client.raw(
       `${baseContents}?ref=${encodeURIComponent(mergeBase)}`,
@@ -332,7 +345,7 @@ export async function gatherPullRequest(
         continue;
       }
       manifests.push({ path: file, base, head });
-      if (!/^packages\/[^/]+\/package\.json$/.test(file)) continue;
+      if (!packageManifest.test(file)) continue;
       const diff = diffExportsMap(base?.exports, head?.exports);
       if (diff.added.length || diff.removed.length || diff.changed.length) {
         exportsDiffs.push({ path: file, diff });

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import { computeTier } from "./lib/review-tier-signals.mjs";
 import {
   dailySweepCron,
   evaluatePullRequest,
@@ -2824,6 +2825,135 @@ test("root and app manifests are read for install scripts without an exports dif
     ["package.json", "apps/docs/package.json"],
   );
   assert.deepEqual(signalsInput.exportsDiffs, []);
+  const result = computeTier(signalsInput, policy);
+  assert.equal(result.tier, 3);
+  assert.deepEqual(
+    result.reasons
+      .filter(({ code }) => code === "lifecycle-script")
+      .map(({ detail }) => detail),
+    ["package.json: scripts.postinstall"],
+  );
+});
+
+for (const [name, headScripts, flagged] of [
+  ["unchanged", { postinstall: "node x.js" }, []],
+  [
+    "with an added install script",
+    { postinstall: "node x.js", preinstall: "node y.js" },
+    ["examples/b/package.json: scripts.preinstall"],
+  ],
+]) {
+  test(`a renamed app manifest is compared with its previous path: ${name}`, async () => {
+    const base = {
+      scripts: { postinstall: "node x.js" },
+      dependencies: { a: "github:someone/a" },
+    };
+    const recording = fakeClient({
+      pr: docsPullRequest(),
+      files: [
+        file("examples/b/package.json", {
+          status: "renamed",
+          previous_filename: "examples/a/package.json",
+        }),
+      ],
+      contents: {
+        [`${repo}/contents/examples/a/package.json?ref=merge-base`]:
+          JSON.stringify(base),
+        [`${repo}/contents/examples/a/package.json?ref=head`]: null,
+        [`${repo}/contents/examples/b/package.json?ref=merge-base`]: null,
+        [`${repo}/contents/examples/b/package.json?ref=head`]: JSON.stringify({
+          ...base,
+          scripts: headScripts,
+        }),
+      },
+    });
+    const { signalsInput } = await gatherPullRequest(
+      recording.client,
+      policy,
+      12,
+      { now },
+    );
+    assert.deepEqual(
+      signalsInput.manifests.map(({ path, base }) => [path, base !== null]),
+      [["examples/b/package.json", true]],
+    );
+    const result = computeTier(signalsInput, policy);
+    assert.deepEqual(
+      result.reasons
+        .filter(
+          ({ code }) =>
+            code === "lifecycle-script" || code === "dependency-source",
+        )
+        .map(({ detail }) => detail),
+      flagged,
+    );
+  });
+}
+
+test("a manifest added where another was renamed from is still read", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [
+      file("examples/b/package.json", {
+        status: "renamed",
+        previous_filename: "examples/a/package.json",
+      }),
+      file("examples/a/package.json", { status: "added" }),
+    ],
+    contents: {
+      [`${repo}/contents/examples/a/package.json?ref=merge-base`]: "{}",
+      [`${repo}/contents/examples/a/package.json?ref=head`]:
+        '{"scripts":{"postinstall":"node x.js"}}',
+      [`${repo}/contents/examples/b/package.json?ref=head`]: "{}",
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(
+    computeTier(signalsInput, policy)
+      .reasons.filter(({ code }) => code === "lifecycle-script")
+      .map(({ detail }) => detail),
+    ["examples/a/package.json: scripts.postinstall"],
+  );
+});
+
+test("a renamed package manifest is still read as a new package", async () => {
+  const manifest = JSON.stringify({
+    name: "@assistant-ui/a",
+    exports: "./a.js",
+  });
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [
+      file("packages/b/package.json", {
+        status: "renamed",
+        previous_filename: "packages/a/package.json",
+      }),
+    ],
+    contents: {
+      [`${repo}/contents/packages/a/package.json?ref=merge-base`]: manifest,
+      [`${repo}/contents/packages/a/package.json?ref=head`]: null,
+      [`${repo}/contents/packages/b/package.json?ref=merge-base`]: null,
+      [`${repo}/contents/packages/b/package.json?ref=head`]: manifest,
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(
+    signalsInput.manifests.map(({ path, base }) => [path, base !== null]),
+    [
+      ["packages/b/package.json", false],
+      ["packages/a/package.json", true],
+    ],
+  );
 });
 
 test("the changed-file count from GitHub reaches the signals", async () => {
