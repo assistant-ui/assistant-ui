@@ -51,29 +51,21 @@ export interface RemoteComponentsOptions {
 const LOOPBACK_ORIGIN =
   /^https?:\/\/(?:(?:[^:/]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
 
-const loopbackUrl = (value: string | undefined): boolean => {
-  if (!value) return false;
-  try {
-    return LOOPBACK_ORIGIN.test(new URL(value).origin);
-  } catch {
-    return false;
-  }
-};
-
 /**
  * Whether the dev server answers a cross-origin request. The dev server
- * serves the whole project's source, so only pages on this machine may read
- * it: its own origin, a loopback `Origin`, or `Origin: null` (an opaque remote frame) whose
- * `Referer` is a loopback page, which a sandboxed frame on another site
- * can't claim. Set `server.cors` to allow anything else.
+ * serves the whole project's source, so it answers its own origin, loopback
+ * origins and `Origin: null`. A page on another site is refused.
+ *
+ * `null` is what an opaque remote frame (sandbox without allow-same-origin)
+ * sends, with no `Referer`, so the dev server can't tell a frame on a
+ * loopback page from a sandboxed frame on another site, and admits both.
+ * Set `server.cors` to change this.
  */
 export function devCorsAllows(
   origin: string | undefined,
-  referer: string | undefined,
   host?: string,
 ): boolean {
-  if (origin === undefined) return true;
-  if (origin === "null") return loopbackUrl(referer);
+  if (origin === undefined || origin === "null") return true;
   if (host !== undefined) {
     try {
       if (new URL(origin).host === host.toLowerCase()) return true;
@@ -229,7 +221,7 @@ export function remoteComponents(
       components = resolveComponents(root, options.components);
       // Built remote code is public, so preview answers any origin. The dev
       // server serves the project's source, so it answers only pages on this
-      // machine (devCorsAllows); opaque-origin remotes (sandbox without
+      // machine or opaque frames (devCorsAllows); opaque-origin remotes (sandbox without
       // allow-same-origin) fetch their scripts with `Origin: null`.
       if (env.command !== "build") {
         customCors = userConfig.server?.cors !== undefined;
@@ -288,9 +280,8 @@ export function remoteComponents(
       server.watcher.on("change", () => singleCache.clear());
       if (!customCors)
         server.middlewares.use((req, res, next) => {
-          const origin = req.headers.origin;
-          const referer = req.headers.referer;
-          if (devCorsAllows(origin, referer, req.headers.host)) return next();
+          if (devCorsAllows(req.headers.origin, req.headers.host))
+            return next();
           res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
           res.end(
             "[rc] cross-origin request refused; set server.cors to allow it",

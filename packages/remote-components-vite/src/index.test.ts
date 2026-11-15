@@ -8,26 +8,20 @@ import { devCorsAllows, remoteComponents } from "./index";
 
 describe("devCorsAllows", () => {
   it.each([
-    [undefined, undefined, undefined, true],
-    ["http://localhost:3000", undefined, undefined, true],
-    ["http://app.localhost:3000", undefined, undefined, true],
-    ["http://127.0.0.1:5173", undefined, undefined, true],
-    ["http://[::1]:5173", undefined, undefined, true],
-    ["https://evil.example", undefined, undefined, false],
-    ["http://localhost.evil.example", undefined, undefined, false],
-    ["http://192.168.1.5:5173", undefined, "192.168.1.5:5173", true],
-    ["http://192.168.1.5:5173", undefined, "localhost:5173", false],
-    ["null", "http://localhost:3000/chat", undefined, true],
-    ["null", "http://127.0.0.1:5173/Card/", undefined, true],
-    ["null", "https://evil.example/", undefined, false],
-    ["null", undefined, undefined, false],
-    ["null", "not a url", undefined, false],
-  ])(
-    "origin %s, referer %s, host %s → %s",
-    (origin, referer, host, expected) => {
-      expect(devCorsAllows(origin, referer, host)).toBe(expected);
-    },
-  );
+    [undefined, undefined, true],
+    ["null", undefined, true],
+    ["http://localhost:3000", undefined, true],
+    ["http://app.localhost:3000", undefined, true],
+    ["http://127.0.0.1:5173", undefined, true],
+    ["http://[::1]:5173", undefined, true],
+    ["https://evil.example", undefined, false],
+    ["http://localhost.evil.example", undefined, false],
+    ["http://192.168.1.5:5173", "192.168.1.5:5173", true],
+    ["http://192.168.1.5:5173", "localhost:5173", false],
+    ["not a url", "localhost:5173", false],
+  ])("origin %s, host %s → %s", (origin, host, expected) => {
+    expect(devCorsAllows(origin, host)).toBe(expected);
+  });
 });
 
 describe("dev server CORS", () => {
@@ -64,14 +58,6 @@ describe("dev server CORS", () => {
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
-  it("refuses an opaque frame on another site", async () => {
-    const response = await get({
-      origin: "null",
-      referer: "https://evil.example/",
-    });
-    expect(response.status).toBe(403);
-  });
-
   it("refuses a rebound host name even when Origin matches Host", async () => {
     const { port } = new URL(base);
     const response = await get({
@@ -83,16 +69,14 @@ describe("dev server CORS", () => {
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
-  it("answers a loopback host page and an opaque remote frame it embeds", async () => {
+  it("answers a loopback page and an opaque remote frame", async () => {
     const host = await get({ origin: "http://localhost:3000" });
     expect(host.status).toBe(200);
     expect(host.headers.get("access-control-allow-origin")).toBe(
       "http://localhost:3000",
     );
-    const frame = await get({
-      origin: "null",
-      referer: "http://localhost:3000/",
-    });
+    // What a browser sends for an opaque frame's module: Origin null, no Referer.
+    const frame = await get({ origin: "null" });
     expect(frame.status).toBe(200);
     expect(frame.headers.get("access-control-allow-origin")).toBe("null");
   });
