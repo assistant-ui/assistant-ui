@@ -213,7 +213,8 @@ const isPendingToolCall = (
   part.type === "tool-call" &&
   part.state !== "result" &&
   part.result === undefined &&
-  part.approval === undefined;
+  part.approval === undefined &&
+  part.providerExecuted !== true;
 
 /** @deprecated Experimental since 2025-04-07. Not scheduled for removal; the API may change in any release. */
 export async function unstable_runPendingTools(

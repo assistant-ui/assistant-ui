@@ -367,6 +367,12 @@ export type ToolCallMessagePart<
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
+  /**
+   * The backend runs this call and supplies its result, such as a
+   * provider-executed or MCP tool. A frontend tool of the same name never
+   * executes it, even when the run ends before the result arrives.
+   */
+  readonly providerExecuted?: boolean | undefined;
   /** Server-side approval gate. `respondToApproval` may only be called while `approved` is undefined and no `resolution` is recorded. */
   readonly approval?: {
     readonly id: string;

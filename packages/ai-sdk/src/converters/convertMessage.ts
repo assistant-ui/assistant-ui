@@ -656,6 +656,10 @@ function convertParts(
             part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
+          // The provider answers a provider-executed call, and the server's
+          // own `execute` a dynamic one (an MCP tool or a `dynamicTool`).
+          ...((part.providerExecuted === true ||
+            part.type === "dynamic-tool") && { providerExecuted: true }),
           ...(part.callProviderMetadata != null
             ? {
                 providerMetadata:

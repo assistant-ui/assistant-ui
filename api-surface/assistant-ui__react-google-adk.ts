@@ -1783,6 +1783,7 @@ type PartInit = {
   readonly type: "tool-call";
   readonly toolCallId: string;
   readonly toolName: string;
+  readonly providerExecuted?: boolean;
   readonly parentId?: string;
 } | {
   readonly type: "source";
@@ -2571,6 +2572,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     type: "human";
     payload: unknown;
   };
+  readonly providerExecuted?: boolean | undefined;
   readonly approval?: {
     readonly id: string;
     readonly prompt?: string;

@@ -969,6 +969,10 @@ export class ToolInvocationTracker {
 
       if (content.approval !== undefined) entry.skipExecute = true;
 
+      // A backend-owned call is never handed to the frontend tool, whatever
+      // the ownership predicate says (EDGE_CASES.md A.9).
+      if (content.providerExecuted === true) entry.skipExecute = true;
+
       this._resolveDeferredOwnership(entry, content);
 
       this._processArgsText(entry, content);

@@ -496,6 +496,9 @@ const useEveThreadRuntime = (
     isLoading: agent.status === "resuming",
     extras,
     unstable_enableToolInvocations: true,
+    // Eve runs every call itself and has no channel for a client result, so a
+    // frontend tool of the same name never executes one.
+    unstable_isClientToolCall: isEveClientToolCall,
     setToolStatuses,
     adapters: {
       attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
@@ -638,6 +641,8 @@ const useEveCloudRuntime = (
   });
 };
 
+const isEveClientToolCall = () => false;
+
 /**
  * Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.
  *
@@ -645,6 +650,7 @@ const useEveCloudRuntime = (
  * session, supports cancellation, and maps Eve interactions to assistant-ui
  * tool approval UI.
  */
+
 export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [hasCloud] = useState(options.cloud !== undefined);
   if ((options.cloud !== undefined) !== hasCloud) {

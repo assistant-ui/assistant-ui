@@ -290,6 +290,25 @@ describe("unstable_runPendingTools", () => {
     expect(settled).toBe(gated);
   });
 
+  it("skips provider-executed tool calls", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "frontend");
+    const message = createPendingToolMessage("server");
+    const owned = {
+      ...message,
+      parts: [{ ...message.parts[0]!, providerExecuted: true }],
+    } as AssistantMessage;
+
+    const settled = await unstable_runPendingTools(
+      owned,
+      { tool: { parameters: { type: "object", properties: {} }, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled).toBe(owned);
+  });
+
   it("skips tool calls that carry a result without a state", async () => {
     const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "fresh");
     const message: AssistantMessage = {
@@ -1865,6 +1884,36 @@ describe("toolResultStream inside a provider step", () => {
       "part-finish",
     ]);
   });
+
+  it.each([true, false])(
+    "leaves a provider-executed call to the provider (step: %s)",
+    async (withStep) => {
+      const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "done");
+      const { output, write, close } = startStream(execute);
+      const [start, ...rest] = toolCallChunks("call_1");
+
+      await write(
+        ...(withStep
+          ? [{ type: "step-start", path: [], messageId: "m1" } as const]
+          : []),
+        {
+          ...(start as Extract<AssistantStreamChunk, { type: "part-start" }>),
+          part: {
+            type: "tool-call",
+            toolCallId: "call_1",
+            toolName: "delete_file",
+            providerExecuted: true,
+          },
+        },
+        ...rest,
+        { type: "part-finish", path: [0] },
+      );
+      await close();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(output.map((chunk) => chunk.type)).not.toContain("result");
+    },
+  );
 
   it("runs a call still waiting on its step when the stream ends", async () => {
     const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "done");

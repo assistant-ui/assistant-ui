@@ -516,6 +516,16 @@ const useStreamThreadRuntime = (
     adapters,
     extras,
     unstable_enableToolInvocations: true,
+    // A call the graph paused on an interrupt waits for the interrupt to be
+    // answered; its frontend `execute` must not answer it instead. `false` on
+    // a settled snapshot holds the call, and it is asked again once the
+    // interrupt clears.
+    unstable_isClientToolCall: () => {
+      const current = streamRef.current;
+      return !current.isLoading && current.interrupts.length > 0
+        ? false
+        : undefined;
+    },
     setToolStatuses,
     onNew: async (msg) => {
       if (!(msg.startRun ?? msg.role === "user")) {

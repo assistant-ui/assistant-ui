@@ -16,6 +16,7 @@ export const createChunkNormalizer = (): {
   type PendingTool = {
     toolCallId: string;
     toolName: string;
+    providerExecuted: boolean;
     deltas: string[];
     emitted: boolean;
     hasFinalResult: boolean;
@@ -32,11 +33,22 @@ export const createChunkNormalizer = (): {
   ): PendingTool => ({
     toolCallId,
     toolName: typeof toolName === "string" ? toolName : "",
+    providerExecuted: false,
     deltas: [],
     emitted: false,
     hasFinalResult: false,
     pendingResults: [],
   });
+  // A provider-executed call is answered by the provider, and a dynamic call
+  // (an MCP tool or a `dynamicTool`) by the server's own `execute`; neither is
+  // handed to the client.
+  const markServerTool = (
+    tool: PendingTool,
+    chunk: Record<string, unknown>,
+  ) => {
+    if (chunk.providerExecuted === true || chunk.dynamic === true)
+      tool.providerExecuted = true;
+  };
   const emitPendingTool = (out: ChunkController, tool: PendingTool) => {
     if (!tool.emitted) {
       tool.emitted = true;
@@ -45,6 +57,7 @@ export const createChunkNormalizer = (): {
         id: generateId(),
         toolCallId: tool.toolCallId,
         toolName: tool.toolName,
+        ...(tool.providerExecuted && { providerExecuted: true }),
       });
       for (const argsText of tool.deltas) {
         out.enqueue({ type: "tool-call-delta", argsText });
@@ -134,10 +147,9 @@ export const createChunkNormalizer = (): {
       if (chunk.type === "tool-input-start") {
         if (typeof chunk.toolCallId !== "string") return;
         if (pendingTools.has(chunk.toolCallId)) return;
-        pendingTools.set(
-          chunk.toolCallId,
-          createPendingTool(chunk.toolCallId, chunk.toolName),
-        );
+        const tool = createPendingTool(chunk.toolCallId, chunk.toolName);
+        markServerTool(tool, chunk);
+        pendingTools.set(chunk.toolCallId, tool);
         return;
       }
       if (chunk.type === "tool-input-delta") {
@@ -159,6 +171,7 @@ export const createChunkNormalizer = (): {
           pendingTools.set(chunk.toolCallId, tool);
         }
         if (tool.emitted) return;
+        markServerTool(tool, chunk);
         if (chunk.input !== undefined) {
           const isUnparsedInputText =
             chunk.type === "tool-input-error" &&

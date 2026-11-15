@@ -62,6 +62,7 @@ export type UIMessageStreamChunk =
       id: string;
       toolCallId: string;
       toolName: string;
+      providerExecuted?: boolean;
     }
   | { type: "tool-call-delta"; argsText: string }
   | { type: "tool-call-end" }

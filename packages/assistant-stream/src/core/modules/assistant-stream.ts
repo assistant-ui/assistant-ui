@@ -28,6 +28,8 @@ import { createControllerStreamPair } from "../utils/stream/createControllerStre
 type ToolCallPartInit = {
   toolCallId?: string;
   toolName: string;
+  /** The backend runs this call and supplies its result, so a frontend tool of the same name never executes it. */
+  providerExecuted?: boolean;
   argsText?: string;
   args?: ReadonlyJSONObject;
   response?: ToolResponseLike<ReadonlyJSONValue>;
@@ -363,6 +365,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         type: "tool-call",
         toolName,
         toolCallId,
+        ...(opt.providerExecuted && { providerExecuted: true }),
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,

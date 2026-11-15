@@ -26,6 +26,8 @@ export type PartInit =
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
+      /** The backend runs this call and supplies its result, so a frontend tool of the same name never executes it. */
+      readonly providerExecuted?: boolean;
       readonly parentId?: string;
     }
   | {

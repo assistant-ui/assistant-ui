@@ -696,6 +696,7 @@ type PartInit = {
   readonly type: "tool-call";
   readonly toolCallId: string;
   readonly toolName: string;
+  readonly providerExecuted?: boolean;
   readonly parentId?: string;
 } | {
   readonly type: "source";
