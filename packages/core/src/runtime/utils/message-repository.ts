@@ -668,6 +668,10 @@ export class MessageRepository {
    * or the head cannot be placed, the repository is left as it was.
    */
   import({ headId, messages }: ExportedMessageRepository) {
+    if (messages.length === 0) {
+      this.setHead(headId ?? null, false);
+      return;
+    }
     const restore = this.snapshot();
     try {
       const ordered = withParentsFirst(messages, (id) => this.messages.has(id));
