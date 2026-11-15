@@ -95,6 +95,37 @@ describe("xulux usage budget", () => {
     expect(new Set(codes)).toEqual(new Set(["DAILY_BUDGET_EXCEEDED"]));
   });
 
+  it("does not let refused reservations take daily chat slots", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.25");
+    vi.stubEnv("XULUX_DAILY_BUDGET_USD", "0.5");
+    vi.stubEnv("XULUX_MAX_CHATS_PER_DAY", "3");
+    const budget = await loadBudget();
+    // Five new chats start at once: two fit the $0.50 budget, three are
+    // refused for spend before they are registered.
+    const results = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        budget.beginTurn(`session-a:chat-${i}`, "session-a", null),
+      ),
+    );
+    const started = results
+      .map((result, i) => ({ result, i }))
+      .filter(({ result }) => result.denied === null);
+    expect(started).toHaveLength(2);
+    for (const { result, i } of started) {
+      await budget.finishTurn(
+        `session-a:chat-${i}`,
+        "session-a",
+        { outputTokens: 1_000 },
+        result.budgetDate,
+        null,
+        result.reservedMicroUsd,
+      );
+    }
+    // Two chats are registered, so a third distinct chat still fits the cap.
+    const next = await budget.beginTurn("session-a:chat-5", "session-a", null);
+    expect(next.denied).toBeNull();
+  });
+
   it("keeps the reservation as the charge for a turn that reports no usage", async () => {
     vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
     const budget = await loadBudget();

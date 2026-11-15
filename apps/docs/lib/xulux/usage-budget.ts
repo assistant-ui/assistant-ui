@@ -273,9 +273,10 @@ function denyResponse(code: BudgetDenyCode): Response {
  * IP: anonymous sessions are cheap to mint, so the daily spend is also capped
  * across every session from one IP.
  *
- * The turn counter and a spend reservation are added before the limits are
- * checked, using the totals the store returns. Concurrent turns each see a
- * different total, so they cannot all pass on the same snapshot. The
+ * After the snapshot check, a spend reservation is added and the spend
+ * limits are checked against the totals the store returns. Concurrent turns
+ * each see a different total, so they cannot all pass on the same snapshot.
+ * The chat and turn counters change only once the reservation is accepted. The
  * reservation stays charged if the turn never reports usage (for example
  * when the model call fails); `finishTurn` replaces it with the real cost.
  */
