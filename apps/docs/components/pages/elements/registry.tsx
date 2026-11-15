@@ -1120,7 +1120,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Sources",
         description:
-          "Runtime sources with favicon links for URLs and file badges for documents.",
+          "Runtime source links for URLs, with an opt-in favicon, and file badges for documents.",
         file: "sources.aui.tsx",
         registryName: "sources",
         connection: "AUI",

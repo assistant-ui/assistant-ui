@@ -1968,7 +1968,7 @@ export const registry: RegistryItem[] = [
     type: "registry:component",
     title: "Sources",
     description:
-      "Display URL sources with favicon, title, and an external link.",
+      "Display URL sources with a domain initial or an opt-in favicon, title, and an external link.",
     files: [
       {
         type: "registry:component",
