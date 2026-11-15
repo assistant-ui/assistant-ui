@@ -8,6 +8,7 @@ import {
   isLowRiskPath,
   isTestPath,
   loadReviewPolicy,
+  matchesAny,
   overrideSignal,
   packageOwnerOf,
   parseTitleType,
@@ -201,6 +202,13 @@ test("dot-prefixed files get the package owner of their package", () => {
     packageOwnerOf(policy, "packages/docs-theme/.npmrc")?.id,
     "docs-theme",
   );
+});
+
+test("a wildcard can consume a hidden basename's leading dot", () => {
+  assert.equal(matchesAny(".npmrc", ["*.npmrc"]), true);
+  assert.equal(matchesAny("packages/tap/.npmrc", ["packages/*/*.npmrc"]), true);
+  assert.equal(matchesAny(".npmrc", ["*.npmrc"], { dot: false }), false);
+  assert.equal(matchesAny("x.npmrc", [".npmrc"]), false);
 });
 
 test("a literal dot segment still has to match", () => {

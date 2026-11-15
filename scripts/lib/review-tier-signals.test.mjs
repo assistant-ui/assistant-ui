@@ -209,6 +209,7 @@ for (const [path, status] of [
   ["packages/widget/package.json", "renamed"],
   ["packages/widget/fixture/package.json", "added"],
   ["apps/widget/package.json", "added"],
+  ["packages/.cache/package.json", "added"],
 ]) {
   test(`${status} ${path} does not introduce a package`, () => {
     const result = computeTier(

@@ -164,11 +164,12 @@ export function loadReviewPolicy(root) {
 }
 
 // path.matchesGlob never lets `*` or `**` match a segment that starts with a
-// dot, so `.github/**` would miss `.github/workflows/.x.yml`. Swapping each
-// leading dot for a character no glob or git path uses, on both sides, makes
-// wildcards match dot-prefixed segments while a literal `.npmrc` still matches.
+// dot, so `.github/**` would miss `.github/workflows/.x.yml`. Prefixing each
+// leading dot with a character no glob or git path uses, on both sides, makes
+// wildcards match dot-prefixed segments. The dot itself stays, so a literal
+// `.npmrc` still matches and `*.npmrc` matches `.npmrc`.
 const leadingDot = /(^|\/)\./g;
-const undot = (value) => value.replace(leadingDot, "$1\u0000");
+const undot = (value) => value.replace(leadingDot, "$1\u0000.");
 
 export function matchesAny(file, patterns, { dot = true } = {}) {
   const target = dot ? undot(file) : file;

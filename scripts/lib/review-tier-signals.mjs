@@ -166,7 +166,7 @@ export function computeTier(input, policy) {
         (file.status === "renamed" &&
           typeof file.previousPath === "string" &&
           file.previousPath !== file.path)) &&
-      matchesAny(file.path, ["packages/*/package.json"])
+      matchesAny(file.path, ["packages/*/package.json"], { dot: false })
     ) {
       addReason(3, "new-package", file.path);
     }
@@ -307,7 +307,7 @@ export function computeTier(input, policy) {
       }
     }
     if (
-      !matchesAny(path, ["packages/*/package.json"]) ||
+      !matchesAny(path, ["packages/*/package.json"], { dot: false }) ||
       base === null ||
       head === null
     ) {
