@@ -43,9 +43,25 @@ function loaderUse(options: WithAuiOptions) {
  */
 const HAS_DIRECTIVE = { content: /["']use generative["']/ };
 
+/**
+ * Every extension the compiler accepts, so a `"use generative"` file never
+ * skips the loader because of its extension (e.g. `.mts`).
+ */
+const DEFAULT_GLOBS = [
+  "*.ts",
+  "*.tsx",
+  "*.mts",
+  "*.cts",
+  "*.js",
+  "*.jsx",
+  "*.mjs",
+  "*.cjs",
+];
+
 export interface WithAuiOptions {
   /**
-   * Globs scanned for the `"use generative"` directive (default: all TS/TSX).
+   * Globs scanned for the `"use generative"` directive (default: every JS/TS
+   * extension, `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`).
    * Narrow it (e.g. `["*.generative.tsx"]`) to limit what passes through the loader.
    */
   rules?: string[];
@@ -84,7 +100,7 @@ export function withAui<T extends NextConfigLike>(
   // into the returned config.
   const { aui, ...baseConfig } = nextConfig;
   const resolved = { ...options, ...aui };
-  const globs = resolved.rules ?? ["*.ts", "*.tsx"];
+  const globs = resolved.rules ?? DEFAULT_GLOBS;
   const loader = loaderUse(resolved);
   // Turbopack runs every rule matching a glob in order, so the `"use generative"`
   // loader rides as its own entry after the user's: theirs keeps its loaders and
@@ -111,7 +127,7 @@ export function withAui<T extends NextConfigLike>(
       // Turbopack-only facade; under webpack, import concrete builds explicitly
       // with `?generative-env=server` / `=client`.
       config.module.rules.push({
-        test: /\.[jt]sx?$/,
+        test: /\.[cm]?[jt]sx?$/,
         exclude: /node_modules/,
         use: [loader],
       });

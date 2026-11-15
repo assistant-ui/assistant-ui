@@ -146,8 +146,65 @@ export function isGenerativeModule(code: string): boolean {
   return hasDirectiveTerminator(code, directiveEnd + 1);
 }
 
-export const isGenerativeSource = (filename: string, source: string): boolean =>
-  /\.[cm]?[jt]sx?$/.test(filename) && isGenerativeModule(source);
+/** File extensions a `"use generative"` module may use. */
+const GENERATIVE_SOURCE_EXTENSION = /\.[cm]?[jt]sx?$/;
+
+/**
+ * Whether a file is a `"use generative"` module. Throws a
+ * {@link GenerativeCompileError} for a JS/TS file that carries the directive
+ * anywhere but first, which would otherwise ship uncompiled.
+ */
+export const isGenerativeSource = (
+  filename: string,
+  source: string,
+): boolean => {
+  if (!GENERATIVE_SOURCE_EXTENSION.test(filename)) return false;
+  if (isGenerativeModule(source)) return true;
+  assertGenerativeDirectivePlacement(source, filename);
+  return false;
+};
+
+const DIRECTIVE_TEXT = /["']use generative["']/;
+
+const isDirectiveStatement = (stmt: t.Statement) =>
+  t.isExpressionStatement(stmt) &&
+  t.isStringLiteral(stmt.expression, { value: DIRECTIVE });
+
+/**
+ * Throws when a module that is not a `"use generative"` module still holds the
+ * directive as a statement: after `"use client"`, after an import, or anywhere
+ * else at the top level. Such a file is never compiled, so its `execute` would
+ * reach the client unstripped. A mention of the text inside a string, comment
+ * or expression is not a directive and passes.
+ */
+export function assertGenerativeDirectivePlacement(
+  code: string,
+  filename?: string,
+): void {
+  if (!DIRECTIVE_TEXT.test(code) || isGenerativeModule(code)) return;
+  let ast: t.File | undefined;
+  for (const plugins of [
+    parserPlugins,
+    parserPlugins.filter((plugin) => plugin !== "jsx"),
+  ]) {
+    try {
+      ast = parse(code, { sourceType: "module", plugins });
+      break;
+    } catch {
+      // try the next plugin set; a file no set parses fails in the bundler
+    }
+  }
+  if (!ast) return;
+  const misplaced =
+    ast.program.directives.some((d) => d.value.value === DIRECTIVE) ||
+    ast.program.body.some(isDirectiveStatement);
+  if (misplaced) {
+    throw new GenerativeCompileError(
+      `"${DIRECTIVE}" must be the first statement of the file (only comments may precede it); otherwise the file is not compiled and its server code reaches the client`,
+      filename,
+    );
+  }
+}
 
 function hasDirectiveTerminator(code: string, start: number): boolean {
   let i = start;
@@ -295,6 +352,7 @@ export function compileGenerative(
     collectToolkitSpreadNames(ast, filename, createToolkitNameContext());
 
   const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
+  const referencedBeforeSplit = collectReferencedModuleBindings(ast);
 
   traverse(ast, {
     CallExpression(path: NodePath<t.CallExpression>) {
@@ -344,7 +402,7 @@ export function compileGenerative(
 
   const { keptRender, keptBackendExecute } = flags;
 
-  pruneUnused(ast);
+  pruneUnused(ast, referencedBeforeSplit);
 
   // Replace the module directives with the target-appropriate one.
   ast.program.directives = ast.program.directives.filter(
@@ -1884,12 +1942,37 @@ function memberName(
   return undefined;
 }
 
+/** Module-scope bindings the source references before any region is removed. */
+function collectReferencedModuleBindings(ast: t.File): ReadonlySet<string> {
+  const names = new Set<string>();
+  traverse(ast, {
+    Program(path: NodePath<t.Program>) {
+      path.scope.crawl();
+      for (const [name, binding] of Object.entries(path.scope.bindings)) {
+        if (binding.referenced) names.add(name);
+      }
+      path.stop();
+    },
+  });
+  return names;
+}
+
 /**
  * Removes declarations and import specifiers left unreferenced after region
- * removal, to a fixpoint (a dropped helper frees what it used). Keeps exports,
- * side-effect imports, and possibly-side-effectful initializers.
+ * removal, to a fixpoint (a dropped helper frees what it used). Keeps exports
+ * and side-effect imports.
+ *
+ * A binding the source referenced, and that region removal left unreferenced,
+ * served only the removed code, so it goes whatever its initializer: a
+ * `createDb(...)` or `new PrismaClient(...)` that only a backend `execute` used
+ * must not run in the client build. A binding the source never referenced was
+ * written for its initializer's effect, so it is kept unless that initializer
+ * is side-effect-free.
  */
-function pruneUnused(ast: t.File): void {
+function pruneUnused(
+  ast: t.File,
+  referencedBeforeSplit: ReadonlySet<string>,
+): void {
   const hadSpecifiers = new WeakSet<t.ImportDeclaration>();
   for (const stmt of ast.program.body) {
     if (t.isImportDeclaration(stmt) && stmt.specifiers.length > 0) {
@@ -1907,13 +1990,15 @@ function pruneUnused(ast: t.File): void {
           const binding = path.scope.getBinding(name);
           return !!binding && !binding.referenced;
         };
+        const servedRemovedCode = (name: string): boolean =>
+          referencedBeforeSplit.has(name) && isUnused(name);
 
         path.node.body = path.node.body.filter((stmt) => {
           if (
             ((t.isFunctionDeclaration(stmt) && stmt.id) ||
               (t.isClassDeclaration(stmt) &&
                 stmt.id &&
-                isRemovableClass(stmt))) &&
+                (isRemovableClass(stmt) || servedRemovedCode(stmt.id.name)))) &&
             isUnused(stmt.id.name)
           ) {
             removedSomething = true;
@@ -1928,9 +2013,9 @@ function pruneUnused(ast: t.File): void {
               const names = Object.keys(t.getBindingIdentifiers(decl.id));
               if (
                 names.length > 0 &&
-                isPlainPattern(decl.id) &&
-                isRemovableInit(decl.init) &&
-                names.every(isUnused)
+                (isPlainPattern(decl.id) && isRemovableInit(decl.init)
+                  ? names.every(isUnused)
+                  : names.every(servedRemovedCode))
               ) {
                 removedSomething = true;
                 return false;
