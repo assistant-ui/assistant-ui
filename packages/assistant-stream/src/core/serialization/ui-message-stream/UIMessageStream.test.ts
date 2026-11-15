@@ -568,6 +568,37 @@ describe("UIMessageStreamDecoder", () => {
     ]);
   });
 
+  it("should not forward a non-string data-* wire id to onData", async () => {
+    const onData = vi.fn();
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "data-weather",
+        id: 42,
+        data: { status: "loading" },
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    await collectChunks(
+      stream.pipeThrough(new UIMessageStreamDecoder({ onData })),
+    );
+
+    // `onData` declares `id?: string`; the decoder only validates `type`, so a
+    // numbering id on the wire must not reach a consumer expecting a string.
+    expect(onData).toHaveBeenCalledExactlyOnceWith({
+      type: "data-weather",
+      name: "weather",
+      data: { status: "loading" },
+    });
+  });
+
   it("should handle transient data-* chunks", async () => {
     const onData = vi.fn();
     const events = [

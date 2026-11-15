@@ -524,11 +524,33 @@ describe("useDataStreamRuntime data callbacks", () => {
 
     await runToCompletion(adapter, createRunOptions());
 
-    expect(onData.mock.calls.map(([data]) => data.id)).toEqual([
-      "weather-1",
-      "weather-1",
-      "weather-2",
-      undefined,
+    // The same id twice is one part updated in place, a new id is a new part,
+    // and the id-less chunk has no id at all - assert the whole callback
+    // argument so a dropped name/data/type cannot pass unnoticed.
+    expect(onData.mock.calls.map(([data]) => data)).toStrictEqual([
+      {
+        type: "data-weather",
+        name: "weather",
+        id: "weather-1",
+        data: { status: "loading" },
+      },
+      {
+        type: "data-weather",
+        name: "weather",
+        id: "weather-1",
+        data: { status: "success" },
+      },
+      {
+        type: "data-weather",
+        name: "weather",
+        id: "weather-2",
+        data: { status: "loading" },
+      },
+      {
+        type: "data-weather",
+        name: "weather",
+        data: { status: "loading" },
+      },
     ]);
   });
 });

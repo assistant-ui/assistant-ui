@@ -79,7 +79,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 type: chunk.type,
                 name,
                 data: chunk.data,
-                ...(chunk.id !== undefined && { id: chunk.id }),
+                ...(typeof chunk.id === "string" && { id: chunk.id }),
                 ...(chunk.transient !== undefined && {
                   transient: chunk.transient,
                 }),
