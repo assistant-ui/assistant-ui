@@ -72,6 +72,8 @@ describe("canPreload", () => {
       "\\\\tracker.example/a.png",
       "/\t/tracker.example/a.png",
       "\n//tracker.example/a.png",
+      "h\tttps:tracker.example/a.png",
+      "\u0001https:tracker.example/a.png",
       "data:text/html,<b>x</b>",
       "javascript:alert(1)",
       "ftp://files.example/a.mp3",
@@ -94,8 +96,21 @@ describe("canPreload", () => {
     );
   });
 
+  it("allows a scheme-relative URL only when both of its origins are listed", () => {
+    expect(canPreload("//cdn.example/a.png", ["https://cdn.example"])).toBe(
+      false,
+    );
+    expect(
+      canPreload("//cdn.example/a.png", [
+        "http://cdn.example",
+        "https://cdn.example",
+      ]),
+    ).toBe(true);
+  });
+
   it('allows every http and https origin with "*"', () => {
     expect(canPreload("https://any.example/a.png", ["*"])).toBe(true);
+    expect(canPreload("//any.example/a.png", ["*"])).toBe(true);
     expect(canPreload("javascript:alert(1)", ["*"])).toBe(false);
   });
 });

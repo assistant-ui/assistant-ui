@@ -23,7 +23,8 @@ export interface AudioPlayerProps extends Omit<
   /**
    * Origins this player may fetch from before the user presses play. A
    * remote `src` from another origin loads only on play, and its artwork or
-   * poster is not shown. Relative, `data:` and `blob:` URLs always load.
+   * poster is not shown. Relative URLs, `blob:` URLs and `data:` image,
+   * audio or video URLs always load.
    */
   mediaOrigins?: readonly string[] | undefined;
 }
@@ -40,7 +41,8 @@ export interface VideoPlayerProps extends Omit<
   /**
    * Origins this player may fetch from before the user presses play. A
    * remote `src` from another origin loads only on play, and its artwork or
-   * poster is not shown. Relative, `data:` and `blob:` URLs always load.
+   * poster is not shown. Relative URLs, `blob:` URLs and `data:` image,
+   * audio or video URLs always load.
    */
   mediaOrigins?: readonly string[] | undefined;
 }
@@ -65,15 +67,18 @@ function useDeferredSource(
   const [armedSrc, setArmedSrc] = useState<string | undefined>(undefined);
   if (armedSrc !== undefined && armedSrc !== src) setArmedSrc(undefined);
   const armed = preload || armedSrc === src;
+  const wasArmed = useRef(armed);
 
-  // `arm` sets the attribute outside React, so clear it when `src` changes.
+  // `arm` sets the attribute outside React, and removing `src` leaves the
+  // element playing what it loaded, so reset it when the source is held.
   useEffect(() => {
     const media = mediaRef.current;
-    if (!preload && armedSrc !== src && media?.hasAttribute("src")) {
+    if (media && !armed && (wasArmed.current || media.hasAttribute("src"))) {
       media.removeAttribute("src");
       media.load();
     }
-  }, [mediaRef, src, preload, armedSrc]);
+    wasArmed.current = armed;
+  }, [mediaRef, src, armed]);
 
   return {
     preload,

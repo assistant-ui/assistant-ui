@@ -252,6 +252,28 @@ describe("remote media", () => {
     expect(container.querySelector("audio")!.hasAttribute("src")).toBe(false);
   });
 
+  it("unloads a preloaded source when the next source is held", () => {
+    const load = vi
+      .spyOn(HTMLMediaElement.prototype, "load")
+      .mockImplementation(() => {});
+    const mediaOrigins = ["https://media.example"];
+    const { container, rerender } = render(
+      <AudioPlayer
+        src="https://media.example/a.mp3"
+        mediaOrigins={mediaOrigins}
+      />,
+    );
+    rerender(
+      <AudioPlayer
+        src="https://other.example/b.mp3"
+        mediaOrigins={mediaOrigins}
+      />,
+    );
+
+    expect(container.querySelector("audio")!.hasAttribute("src")).toBe(false);
+    expect(load).toHaveBeenCalledOnce();
+  });
+
   it("holds a played remote source again after switching away and back", () => {
     vi.spyOn(HTMLMediaElement.prototype, "play").mockReturnValue(
       new Promise(() => {}),

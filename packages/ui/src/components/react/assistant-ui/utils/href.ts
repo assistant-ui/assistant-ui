@@ -73,26 +73,33 @@ export function canPreload(
     } catch {
       return false;
     }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return false;
-    }
-    return (origins ?? []).some((entry) => {
-      if (entry === "*") return true;
-      try {
-        return new URL(entry).origin === parsed.origin;
-      } catch {
-        return false;
-      }
-    });
+    return isListed(parsed, origins);
   }
   // Resolve the way a browser does, so `//host`, `/\host` and URLs with
-  // tabs or newlines inside count as the other host they reach.
-  const base = "https://relative.invalid";
-  try {
-    return new URL(trimmed, `${base}/`).origin === base;
-  } catch {
-    return false;
-  }
+  // tabs or newlines inside count as the other host they reach. `https:host`
+  // stays on the page under an `https:` page but reaches `host` under an
+  // `http:` one, so the URL must stay local or be listed under both.
+  return ["http:", "https:"].every((scheme) => {
+    const base = `${scheme}//relative.invalid`;
+    try {
+      const resolved = new URL(trimmed, `${base}/`);
+      return resolved.origin === base || isListed(resolved, origins);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function isListed(url: URL, origins: readonly string[] | undefined): boolean {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  return (origins ?? []).some((entry) => {
+    if (entry === "*") return true;
+    try {
+      return new URL(entry).origin === url.origin;
+    } catch {
+      return false;
+    }
+  });
 }
 
 const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^"'()\s]*))\s*\)/gi;
