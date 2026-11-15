@@ -670,18 +670,13 @@ describe("begin planning", () => {
   });
 
   it("announces the setup when it first appears on the link", () => {
-    const done: Checkout.State = {
-      ...initialCheckoutState(),
-      id: "c1",
-      status: "done",
-      log: [{ id: "l1", role: "user", phase: "installing", at: 1, text: "x" }],
-    };
     const next: Checkout.State = {
       ...initialCheckoutState(),
-      id: "c2",
+      id: "c1",
+      createdAt: 1,
       products: [{ slug: "cloud", name: "Cloud" }],
     };
-    expect(diffEvents(done, next, testGuide)).toEqual([
+    expect(diffEvents(initialCheckoutState(), next, testGuide)).toEqual([
       { event: "setup.created", products: ["cloud"] },
     ]);
     expect(diffEvents(next, next, testGuide)).toEqual([]);
