@@ -20,7 +20,7 @@ import {
 } from "@assistant-ui/remote-components-protocol";
 import { FrameController, type FrameSource } from "./controller.js";
 import { frameCsp, prepareDocument, type NetworkPolicy } from "./document.js";
-import { checkOverlaySrc, isSameOrigin, parseHttpUrl } from "./origins.js";
+import { checkOverlaySrc, parseHttpUrl } from "./origins.js";
 import {
   OverlayContext,
   escapeInFrame,
@@ -366,7 +366,9 @@ export function RemoteFrame(
       isolation === "url" &&
       !inline &&
       !opaque &&
-      isSameOrigin(absoluteSrc, window.location.href) &&
+      // The host document's own origin: a blob: or about:blank host page keeps
+      // its creator's http(s) origin. remoteOrigin is never "null" here.
+      remoteOrigin === window.location.origin &&
       config.dangerouslyAllowSameOrigin !== true
     ) {
       const err = new RemoteComponentError(
