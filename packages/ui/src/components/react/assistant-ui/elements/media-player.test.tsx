@@ -216,3 +216,57 @@ describe("VideoPlayer", () => {
     expect(video.hasAttribute("autoplay")).toBe(false);
   });
 });
+
+describe("remote media", () => {
+  it("waits for play before fetching a remote audio source", () => {
+    const { container } = render(
+      <AudioPlayer
+        src="https://media.example/a.mp3"
+        artwork="https://media.example/cover.png"
+      />,
+    );
+
+    expect(container.querySelector("audio")?.getAttribute("preload")).toBe(
+      "none",
+    );
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("preloads local and allowed sources", () => {
+    const { container } = render(
+      <>
+        <AudioPlayer src="/a.mp3" artwork="/cover.png" />
+        <VideoPlayer
+          src="https://media.example/v.mp4"
+          poster="https://media.example/poster.png"
+          mediaOrigins={["https://media.example"]}
+        />
+      </>,
+    );
+
+    expect(container.querySelector("audio")?.getAttribute("preload")).toBe(
+      "metadata",
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "/cover.png",
+    );
+    const video = container.querySelector("video")!;
+    expect(video.getAttribute("preload")).toBe("metadata");
+    expect(video.getAttribute("poster")).toBe(
+      "https://media.example/poster.png",
+    );
+  });
+
+  it("drops the poster and preload for a remote video", () => {
+    const { container } = render(
+      <VideoPlayer
+        src="https://media.example/v.mp4"
+        poster="https://media.example/poster.png"
+      />,
+    );
+    const video = container.querySelector("video")!;
+
+    expect(video.getAttribute("preload")).toBe("none");
+    expect(video.hasAttribute("poster")).toBe(false);
+  });
+});

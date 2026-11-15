@@ -10,6 +10,7 @@ import {
 import { PauseIcon, PlayIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
+import { canPreload } from "../utils/href";
 
 export interface AudioPlayerProps extends Omit<
   ComponentProps<"div">,
@@ -19,6 +20,12 @@ export interface AudioPlayerProps extends Omit<
   title?: string | undefined;
   artwork?: string | undefined;
   durationMs?: number | undefined;
+  /**
+   * Origins this player may fetch from before the user presses play. A
+   * remote `src` from another origin loads only on play, and its artwork or
+   * poster is not shown. Relative, `data:` and `blob:` URLs always load.
+   */
+  mediaOrigins?: readonly string[] | undefined;
 }
 
 export interface VideoPlayerProps extends Omit<
@@ -30,6 +37,12 @@ export interface VideoPlayerProps extends Omit<
   title?: string | undefined;
   ratio?: "16:9" | "4:3" | "1:1" | "9:16" | "auto" | undefined;
   durationMs?: number | undefined;
+  /**
+   * Origins this player may fetch from before the user presses play. A
+   * remote `src` from another origin loads only on play, and its artwork or
+   * poster is not shown. Relative, `data:` and `blob:` URLs always load.
+   */
+  mediaOrigins?: readonly string[] | undefined;
 }
 
 function formatDuration(seconds: number): string {
@@ -79,6 +92,7 @@ export function AudioPlayer({
   title,
   artwork,
   durationMs,
+  mediaOrigins,
   className,
   ...props
 }: AudioPlayerProps) {
@@ -146,7 +160,7 @@ export function AudioPlayer({
       )}
       {...props}
     >
-      {artwork ? (
+      {canPreload(artwork, mediaOrigins) ? (
         <img
           src={artwork}
           alt=""
@@ -198,7 +212,7 @@ export function AudioPlayer({
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
+        preload={canPreload(src, mediaOrigins) ? "metadata" : "none"}
         className="hidden"
         onLoadedMetadata={(event) => {
           setDurationFromMetadata(event.currentTarget.duration);
@@ -225,6 +239,7 @@ export function VideoPlayer({
   title,
   ratio = "16:9",
   durationMs,
+  mediaOrigins,
   className,
   ...props
 }: VideoPlayerProps) {
@@ -255,10 +270,10 @@ export function VideoPlayer({
         <video
           ref={videoRef}
           src={src}
-          poster={poster}
+          poster={canPreload(poster, mediaOrigins) ? poster : undefined}
           controls
           playsInline
-          preload="metadata"
+          preload={canPreload(src, mediaOrigins) ? "metadata" : "none"}
           aria-label={title ?? "Video"}
           className={cn(
             "block max-w-full",

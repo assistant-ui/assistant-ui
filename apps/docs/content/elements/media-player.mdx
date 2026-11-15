@@ -100,11 +100,11 @@ import {
 <div data-slot="audio-player">
   <button aria-label="Play audio" />
   <input type="range" aria-label="Seek" />
-  <audio preload="metadata" />
+  <audio preload="metadata | none" />
 </div>
 
 <div data-slot="video-player">
-  <video controls playsInline preload="metadata" />
+  <video controls playsInline preload="metadata | none" />
 </div>
 ```
 
@@ -122,6 +122,18 @@ Audio uses the metadata duration when the browser has it, then falls back to `du
   title={episode.title}
   artwork={episode.coverUrl}
   durationMs={episode.durationMs}
+/>
+```
+
+### Remote media
+
+A local `src` (relative, `data:` or `blob:`) loads its metadata as soon as the player renders. A `src` on another origin loads only when the user presses play, and a remote `artwork` or `poster` is not shown, because the request would tell that host the message was viewed. List the hosts you trust in `mediaOrigins` to load them up front, or pass `["*"]` for every `http:` and `https:` origin:
+
+```tsx
+<VideoPlayer
+  src={clip.url}
+  poster={clip.posterUrl}
+  mediaOrigins={["https://media.example.com"]}
 />
 ```
 
@@ -145,6 +157,7 @@ Audio uses the metadata duration when the browser has it, then falls back to `du
 | `title` | `string` | | Label for the player and play button. |
 | `artwork` | `string` | | Optional 40px cover image URL. |
 | `durationMs` | `number` | | Fallback duration until metadata loads. |
+| `mediaOrigins` | `readonly string[]` | | Origins that may load before the user presses play. See [Remote media](#remote-media). |
 
 ### VideoPlayer
 
@@ -155,6 +168,7 @@ Audio uses the metadata duration when the browser has it, then falls back to `du
 | `title` | `string` | | Caption and accessible video label. |
 | `ratio` | `"16:9" \| "4:3" \| "1:1" \| "9:16" \| "auto"` | `"16:9"` | Frame aspect ratio. |
 | `durationMs` | `number` | | Fallback duration until metadata loads. |
+| `mediaOrigins` | `readonly string[]` | | Origins that may load before the user presses play. See [Remote media](#remote-media). |
 
 </RuntimeMode>
 
@@ -168,6 +182,7 @@ Audio uses the metadata duration when the browser has it, then falls back to `du
 | `title` | `string` | | Label for the player and play button. |
 | `artwork` | `string` | | Optional 40px cover image URL. |
 | `durationMs` | `number` | | Fallback duration until metadata loads. |
+| `mediaOrigins` | `readonly string[]` | | Origins that may load before the user presses play. See [Remote media](#remote-media). |
 
 ### VideoPlayer props
 
@@ -178,6 +193,7 @@ Audio uses the metadata duration when the browser has it, then falls back to `du
 | `title` | `string` | | Caption and accessible video label. |
 | `ratio` | `"16:9" \| "4:3" \| "1:1" \| "9:16" \| "auto"` | `"16:9"` | Frame aspect ratio. |
 | `durationMs` | `number` | | Fallback duration until metadata loads. |
+| `mediaOrigins` | `readonly string[]` | | Origins that may load before the user presses play. See [Remote media](#remote-media). |
 
 All other `div` props are forwarded to each player root.
 

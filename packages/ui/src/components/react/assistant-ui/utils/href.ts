@@ -40,3 +40,72 @@ export function hostOf(url: string | undefined): string | undefined {
   const hostname = href === undefined ? "" : (parse(href)?.hostname ?? "");
   return hostname.replace(/^www\./, "") || undefined;
 }
+
+/**
+ * Resources an element fetches as soon as it renders: images, posters,
+ * media metadata, CSS backgrounds.
+ *
+ * When the URL comes from a model or a tool, fetching it on render tells that
+ * host the chat was viewed. The elements fetch local URLs right away, and a
+ * remote URL only when its origin is in the caller's `origins` list. Pass
+ * `["*"]` to allow every `http:` and `https:` origin.
+ */
+
+const LOCAL_SCHEME = /^(?:data:image\/|data:audio\/|data:video\/|blob:)/i;
+
+/**
+ * Whether `url` may be fetched without a user action: a URL relative to the
+ * page, a `data:` image, audio or video, a `blob:` URL, or an `http:` or
+ * `https:` URL whose origin is listed in `origins`.
+ */
+export function canPreload(
+  url: string | undefined,
+  origins: readonly string[] | undefined,
+): boolean {
+  if (typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (trimmed === "") return false;
+  if (LOCAL_SCHEME.test(trimmed)) return true;
+  if (/^[a-z][a-z\d+.-]*:/i.test(trimmed)) {
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return false;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    return (origins ?? []).some((entry) => {
+      if (entry === "*") return true;
+      try {
+        return new URL(entry).origin === parsed.origin;
+      } catch {
+        return false;
+      }
+    });
+  }
+  // Protocol-relative URLs (`//host/x`) reach another host.
+  if (trimmed.startsWith("//")) return false;
+  return RELATIVE.test(trimmed) || !trimmed.includes(":");
+}
+
+const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi;
+
+/**
+ * `value` when every `url(...)` in this CSS `background-image` value passes
+ * `canPreload`, otherwise `undefined`. Values with `image-set(` or an escape
+ * are refused, since they can name a URL without a plain `url(...)`.
+ */
+export function safeBackgroundImage(
+  value: string | undefined,
+  origins: readonly string[] | undefined,
+): string | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  if (/image-set\(|\\/i.test(value)) return undefined;
+  for (const match of value.matchAll(CSS_URL)) {
+    const url = match[1] ?? match[2] ?? match[3] ?? "";
+    if (!canPreload(url, origins)) return undefined;
+  }
+  return value;
+}
