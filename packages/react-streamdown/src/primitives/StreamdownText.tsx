@@ -92,7 +92,7 @@ const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
 // Streamdown clears the clobber prefix, so an `id` or `name` from model output
 // would land on the element as written and could shadow properties of
 // `document` or `window`. Every id and name gets this prefix, and in-page
-// links reach them through scrollToPrefixedTarget.
+// links reach them through followPrefixedFragment.
 const CLOBBER_PREFIX = "user-content-";
 
 const streamdownSanitizeSchema: SanitizeSchema = {
@@ -102,17 +102,18 @@ const streamdownSanitizeSchema: SanitizeSchema = {
   clobberPrefix: CLOBBER_PREFIX,
 };
 
-const escapeAttribute = (value: string) => value.replace(/["\\]/g, "\\$&");
-
 /**
  * In-page links keep the `#id` the markdown wrote, while the sanitize step
  * prefixes the ids they point at. Streamdown renders each block on its own, so
  * a link and its target are often in different trees and cannot be matched
- * while rendering. A click on `#id` scrolls to `user-content-id` in this
- * message when it exists. Otherwise the browser handles the link as usual,
- * which reaches ids a custom plugin added without the prefix.
+ * while rendering. A click on `#id` navigates to `#user-content-id` when the
+ * message has that id, so focus, history and `:target` behave as for any
+ * fragment link. The prefixed id wins over an exact match, because the exact
+ * match is usually a different model id that sanitize prefixed (footnotes are
+ * the common case). Otherwise the browser handles the link as written, which
+ * reaches ids a custom plugin added unprefixed.
  */
-function scrollToPrefixedTarget(event: ReactMouseEvent<HTMLDivElement>) {
+function followPrefixedFragment(event: ReactMouseEvent<HTMLDivElement>) {
   if (
     event.defaultPrevented ||
     event.button !== 0 ||
@@ -132,12 +133,14 @@ function scrollToPrefixedTarget(event: ReactMouseEvent<HTMLDivElement>) {
     return;
   }
   if (!id) return;
-  const target = event.currentTarget.querySelector(
-    `[id="${escapeAttribute(CLOBBER_PREFIX + id)}"]`,
+  const ids = new Set(
+    [...event.currentTarget.querySelectorAll("[id]")].map(
+      (element) => element.id,
+    ),
   );
-  if (!target) return;
+  if (!ids.has(CLOBBER_PREFIX + id)) return;
   event.preventDefault();
-  target.scrollIntoView();
+  window.location.hash = CLOBBER_PREFIX + id;
 }
 
 function buildSecuritySanitizeSchema(
@@ -359,7 +362,7 @@ export const StreamdownTextPrimitive = forwardRef<
         className={containerClass}
         onClick={(event) => {
           containerProps?.onClick?.(event);
-          scrollToPrefixedTarget(event);
+          followPrefixedFragment(event);
         }}
       >
         <CodeAdapterContext.Provider value={adapted.codeAdapter}>

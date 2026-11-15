@@ -402,17 +402,14 @@ describe("StreamdownTextPrimitive", () => {
     });
 
     describe("in-page links", () => {
-      const scrolled: Element[] = [];
-      const original = Element.prototype.scrollIntoView;
       beforeEach(() => {
-        scrolled.length = 0;
-        Element.prototype.scrollIntoView = function scrollIntoView() {
-          scrolled.push(this);
-        };
+        window.location.hash = "";
       });
-      afterEach(() => {
-        Element.prototype.scrollIntoView = original;
-      });
+      // The element the URL fragment now names.
+      const targeted = () =>
+        document.getElementById(
+          decodeURIComponent(window.location.hash.slice(1)),
+        );
 
       const clickLink = (container: HTMLElement, text: string) => {
         const anchor = [...container.querySelectorAll("a")].find(
@@ -427,7 +424,7 @@ describe("StreamdownTextPrimitive", () => {
         return event;
       };
 
-      it("scrolls to the prefixed target across streamed blocks", () => {
+      it("navigates to the prefixed target across streamed blocks", () => {
         const { container } = render(
           <TextMessagePartProvider
             text={
@@ -443,12 +440,12 @@ describe("StreamdownTextPrimitive", () => {
         );
 
         expect(clickLink(container, "to A").defaultPrevented).toBe(true);
-        expect(scrolled.at(-1)?.textContent).toBe("A");
+        expect(targeted()?.textContent).toBe("A");
         expect(clickLink(container, "to B").defaultPrevented).toBe(true);
-        expect(scrolled.at(-1)?.textContent).toBe("B");
+        expect(targeted()?.textContent).toBe("B");
       });
 
-      it("scrolls footnote links to their footnote, not a model id", () => {
+      it("navigates footnote links to their footnote, not a model id", () => {
         const { container } = render(
           <TextMessagePartProvider
             text={'Claim[^1]\n\n<span id="fn-1">decoy</span>\n\n[^1]: Source'}
@@ -466,12 +463,12 @@ describe("StreamdownTextPrimitive", () => {
         ref?.dispatchEvent(
           new MouseEvent("click", { bubbles: true, cancelable: true }),
         );
-        expect(scrolled.at(-1)?.textContent).toContain("Source");
+        expect(targeted()?.textContent).toContain("Source");
         const backref = container.querySelector("a[data-footnote-backref]");
         backref?.dispatchEvent(
           new MouseEvent("click", { bubbles: true, cancelable: true }),
         );
-        expect(scrolled.at(-1)).toBe(ref);
+        expect(targeted()).toBe(ref);
       });
 
       it("leaves links to ids from user plugins to the browser", () => {
@@ -517,7 +514,24 @@ describe("StreamdownTextPrimitive", () => {
           "#setup",
         );
         expect(clickLink(container, "Setup").defaultPrevented).toBe(false);
-        expect(scrolled).toHaveLength(0);
+        expect(window.location.hash).toBe("");
+      });
+
+      it("handles fragments that are not valid in a selector", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={"[nl](#a%0Ab) [bad](#%E0%A4%A)"}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        expect(clickLink(container, "nl").defaultPrevented).toBe(false);
+        expect(clickLink(container, "bad").defaultPrevented).toBe(false);
       });
 
       it("leaves modified clicks and missing targets alone", () => {
@@ -545,7 +559,7 @@ describe("StreamdownTextPrimitive", () => {
         anchor.dispatchEvent(modified);
         expect(modified.defaultPrevented).toBe(false);
         expect(clickLink(container, "none").defaultPrevented).toBe(false);
-        expect(scrolled).toHaveLength(0);
+        expect(window.location.hash).toBe("");
       });
     });
   });
