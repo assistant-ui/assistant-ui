@@ -103,8 +103,8 @@ function getToolResponse(
   const tool = tools?.[toolCall.toolName];
   // A disabled tool is hidden from the model. A call that names a disabled
   // frontend tool, or any disabled tool with `execute` or `streamCall`, gets
-  // an error result instead of running. Backend, human, MCP and typeless
-  // no-handler tools are left to whoever answers them.
+  // an error result instead of running. Other disabled tools without either
+  // callback remain pending.
   if (
     tool?.disabled &&
     (tool.type === "frontend" || tool.execute || tool.streamCall)
