@@ -433,8 +433,8 @@ describe("toAdaptiveCard", () => {
         $type: "Diagram",
         code: "- **bold** `code` ~~gone~~\n1. [x]: <https://e.com>\n# a\\b",
       });
-      const lines = (card.body[0] as { items: { text: string }[] }).items.map(
-        (item) => item.text,
+      const lines = (card.body[0] as TeamsContainer).items.map(
+        (item) => (item as TeamsTextBlock).text,
       );
       expect(lines).toEqual([
         "\\- \\*\\*bold\\*\\* \\`code\\` \\~\\~gone\\~\\~",
