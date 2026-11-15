@@ -394,7 +394,7 @@ describe("toAdaptiveCard", () => {
       });
     });
 
-    it("shows Diagram source line by line with every markdown marker escaped", () => {
+    it("shows Diagram source line by line, as written, with only links broken", () => {
       const space = String.fromCharCode(0xa0);
       const zeroWidthSpace = String.fromCharCode(0x200b);
       const { card } = toAdaptiveCard({
@@ -407,9 +407,9 @@ describe("toAdaptiveCard", () => {
           type: "Container",
           items: [
             "flowchart LR",
-            `${space}${space}user\\_id --> order\\_id`,
+            `${space}${space}user_id --> order_id`,
             space,
-            `${space}${space}A\\[home\\](https://example.com)`,
+            `${space}${space}A[home]${zeroWidthSpace}(https://example.com)`,
           ].map((text, index) => ({
             type: "TextBlock",
             text,
@@ -428,18 +428,19 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
-    it("escapes Diagram emphasis, code, list and link markers", () => {
+    it("breaks the bold, italic and list markers Teams renders in Diagram source", () => {
+      const zeroWidthSpace = String.fromCharCode(0x200b);
       const { card } = toAdaptiveCard({
         $type: "Diagram",
-        code: "- **bold** `code` ~~gone~~\n1. [x]: <https://e.com>\n# a\\b",
+        code: "- **bold** _it_ a_b\n1. [x](https://e.com)\n# a\\b `c` ~~d~~",
       });
       const lines = (card.body[0] as TeamsContainer).items.map(
         (item) => (item as TeamsTextBlock).text,
       );
       expect(lines).toEqual([
-        "\\- \\*\\*bold\\*\\* \\`code\\` \\~\\~gone\\~\\~",
-        "1\\. \\[x\\]: <https://e.com>",
-        "\\# a\\\\b",
+        `${zeroWidthSpace}- *${zeroWidthSpace}*bold*${zeroWidthSpace}* ${zeroWidthSpace}_it_ a_b`,
+        `${zeroWidthSpace}1. [x]${zeroWidthSpace}(https://e.com)`,
+        "# a\\b `c` ~~d~~",
       ]);
     });
 
@@ -474,7 +475,7 @@ describe("toAdaptiveCard", () => {
             },
             {
               type: "TextBlock",
-              text: "A\\[You & me\\] --> B\\[Done\\]",
+              text: "A[You & me] --> B[Done]",
               wrap: true,
               fontType: "Monospace",
               spacing: "none",

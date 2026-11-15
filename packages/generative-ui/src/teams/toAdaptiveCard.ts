@@ -208,12 +208,18 @@ function textBlock(text: string, extra?: TextBlockExtra): TeamsTextBlock {
   return markdownBlock(unlinked(text), extra);
 }
 
-/** Source code shown verbatim: every markdown marker Teams reads is backslash-escaped, so nothing in it becomes formatting, a list or a link. */
-const literalMarkdown = (text: string): string =>
-  text
-    .replace(/[\\`*_~[\]]/g, "\\$&")
-    .replace(/^(\s*)([-+#])(?=\s|$)/, "$1\\$2")
-    .replace(/^(\s*\d+)\.(?=\s|$)/, "$1\\.");
+/**
+ * Source code shown as written. Teams documents no backslash escapes, so the
+ * markers it renders are broken with a zero-width space instead: links (via
+ * `unlinked`), `**` bold, a word-initial `_` italic, and a leading list marker.
+ */
+const literalMarkdown = (text: string): string => {
+  const zeroWidthSpace = String.fromCharCode(0x200b);
+  return unlinked(text)
+    .replace(/\*(?=\*)/g, `*${zeroWidthSpace}`)
+    .replace(/(^|[^\p{L}\p{N}_])_/gu, `$1${zeroWidthSpace}_`)
+    .replace(/^([-+*]|\d+\.)(?=\s|$)/, `${zeroWidthSpace}$1`);
+};
 
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
