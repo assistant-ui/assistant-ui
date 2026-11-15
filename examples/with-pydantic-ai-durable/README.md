@@ -38,6 +38,7 @@ The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "a
 - `GET /threads/{id}` returns the transcript and `running`. While a run is active the transcript holds only its input, so the run's output arrives once, from the stream.
 - `GET /threads/{id}/stream` replays the active run from its first frame, then follows it live.
 - `POST /threads/{id}/cancel` stops the run. The partial answer is kept.
+- Threads belong to an owner. The client sends a random id it keeps per browser as `X-Demo-User` (`lib/demo-user.ts`), and the server passes it to `DurableAGUI`'s `owner`, so one browser can't list or reopen another's threads. A request without it gets 401. A real app returns its signed-in user's id from `owner` instead.
 
 On the client, `DurableHttpAgent` (`lib/durable-agent.ts`) implements AG-UI's `connect()`. When the history adapter reports a running thread, `useAgUiRuntime` rejoins the run through `agent.connectAgent()` instead of starting a new one. Stop calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting only drops the connection.
 

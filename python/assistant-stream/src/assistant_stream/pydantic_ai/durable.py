@@ -14,6 +14,7 @@ middleware or wrap responses, call the building blocks `start_run`,
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import inspect
 import logging
 import math
@@ -215,7 +216,7 @@ class DurableAGUI(Generic[AgentDepsT]):
         if previous is not None and previous.owner != owner:
             return _not_found()
 
-        stream_id = _stream_id(thread_id, run_id)
+        stream_id = _stream_id(thread_id, run_id, owner)
         status = await self._safe_status(stream_id)
         if status is None:
             return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
@@ -594,9 +595,15 @@ async def _stop(task: asyncio.Task[None]) -> None:
     await asyncio.wait({task})
 
 
-def _stream_id(thread_id: str, run_id: str) -> str:
+def _stream_id(thread_id: str, run_id: str, owner: str | None = None) -> str:
     # The length prefix keeps the id unambiguous when either part contains ".".
-    return f"{len(thread_id)}-{thread_id}.{run_id}"
+    stream_id = f"{len(thread_id)}-{thread_id}.{run_id}"
+    if owner is None:
+        return stream_id
+    # Two owners starting the same new thread and run at once each get their
+    # own stream, so neither can read the other's run; the store then keeps
+    # one of them and the other is refused.
+    return f"{hashlib.sha256(owner.encode()).hexdigest()[:16]}:{stream_id}"
 
 
 def _not_found() -> Response:

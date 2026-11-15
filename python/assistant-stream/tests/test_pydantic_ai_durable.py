@@ -248,6 +248,93 @@ async def _start_run(durable: DurableAGUI, run_input: dict):
     )
 
 
+async def _start_run_as(durable: DurableAGUI, run_input: dict, user: str):
+    async def receive():
+        return {"type": "http.request", "body": json.dumps(run_input).encode()}
+
+    return await durable.start_run(
+        Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/agent",
+                "headers": [(b"x-user", user.encode())],
+            },
+            receive,
+        )
+    )
+
+
+def test_concurrent_starts_by_two_owners_do_not_share_a_stream() -> None:
+    async def scenario() -> None:
+        bob_waiting = asyncio.Event()
+        release_bob = asyncio.Event()
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Alice's answer"
+            started.set()
+            await release_model.wait()
+
+        async def options(request: Request, run_input):
+            if request.headers.get("x-user") == "bob":
+                bob_waiting.set()
+                await release_bob.wait()
+            return {}
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            streams=streams,
+            owner=_user_header,
+            run_options=options,
+        )
+        # Both pass the owner check while the thread does not exist yet.
+        bob = asyncio.create_task(
+            _start_run_as(durable, _run_input("thread", [_user("Bob")], "run"), "bob")
+        )
+        await bob_waiting.wait()
+        alice = await _start_run_as(
+            durable, _run_input("thread", [_user("Alice")], "run"), "alice"
+        )
+        await started.wait()
+        release_bob.set()
+        intruder = await bob
+
+        try:
+            assert alice.status_code == 200
+            assert intruder.status_code == 404
+            assert not hasattr(intruder, "body_iterator")
+        finally:
+            release_model.set()
+
+        async def alice_done() -> dict:
+            while True:
+                thread = await durable.get_thread("thread", owner="alice")
+                if thread is not None and not thread["running"]:
+                    return thread
+                await asyncio.sleep(0.01)
+
+        thread = await asyncio.wait_for(alice_done(), timeout=5)
+        assert _assistant_texts(thread) == ["Alice's answer"]
+        assert await durable.get_thread("thread", owner="bob") is None
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+def test_owner_scoped_stream_ids_are_valid_and_distinct() -> None:
+    from assistant_stream.pydantic_ai.durable import _stream_id
+
+    assert _stream_id("t", "r") == "1-t.r"
+    alice = _stream_id("t", "r", "alice")
+    bob = _stream_id("t", "r", "bob")
+    assert alice != bob
+    assert alice.endswith(":1-t.r") and bob.endswith(":1-t.r")
+
+
 def test_start_run_is_visible_and_cancellable_before_producer_runs() -> None:
     async def scenario() -> None:
         model = Model()

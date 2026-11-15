@@ -10,6 +10,9 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ThreadMessage } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { DurableHttpAgent, durableThreadHistory } from "./durable-agent";
+import { DEMO_USER_HEADER } from "./demo-user";
+
+const USER = { [DEMO_USER_HEADER]: "e2e-user" };
 
 // Same text as DEMO_ANSWER in server/main.py.
 const ANSWER =
@@ -71,6 +74,7 @@ const openThread = (baseUrl: string, threadId: string, tab: Browser) => {
   const agent = new DurableHttpAgent({
     baseUrl,
     threadId,
+    headers: USER,
     fetch: (url, init) => tab.fetch(url, init),
   });
   const history = durableThreadHistory(agent);
@@ -110,7 +114,7 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
     );
     await waitFor(
       async () => {
-        const response = await fetch(`${baseUrl}/threads`);
+        const response = await fetch(`${baseUrl}/threads`, { headers: USER });
         expect(response.ok).toBe(true);
       },
       { timeout: 60_000, interval: 250 },
@@ -178,12 +182,25 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
     ]);
     second.unmount();
 
-    const stored = await (await fetch(`${baseUrl}/threads/${threadId}`)).json();
+    const stored = await (
+      await fetch(`${baseUrl}/threads/${threadId}`, { headers: USER })
+    ).json();
     expect(stored.running).toBe(false);
     expect(stored.messages.map((m: { role: string }) => m.role)).toEqual([
       "user",
       "assistant",
     ]);
+
+    // Another browser's id sees nothing of this thread, and no id is refused.
+    const other = { [DEMO_USER_HEADER]: "someone-else" };
+    expect(
+      (await fetch(`${baseUrl}/threads/${threadId}`, { headers: other }))
+        .status,
+    ).toBe(404);
+    expect(
+      await (await fetch(`${baseUrl}/threads`, { headers: other })).json(),
+    ).toEqual([]);
+    expect((await fetch(`${baseUrl}/threads/${threadId}`)).status).toBe(401);
 
     const thirdTab = browser();
     const third = openThread(baseUrl, threadId, thirdTab);
@@ -218,7 +235,7 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
 
     await waitFor(async () => {
       const stored = await (
-        await fetch(`${baseUrl}/threads/${threadId}`)
+        await fetch(`${baseUrl}/threads/${threadId}`, { headers: USER })
       ).json();
       expect(stored.running).toBe(false);
       const partial = stored.messages.at(-1).content as string;
@@ -250,7 +267,7 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
     first.unmount();
 
     const { runId } = await (
-      await fetch(`${baseUrl}/threads/${threadId}`)
+      await fetch(`${baseUrl}/threads/${threadId}`, { headers: USER })
     ).json();
     expect(runId).toEqual(expect.any(String));
 
@@ -265,7 +282,7 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
 
     await waitFor(async () => {
       const stored = await (
-        await fetch(`${baseUrl}/threads/${threadId}`)
+        await fetch(`${baseUrl}/threads/${threadId}`, { headers: USER })
       ).json();
       expect(stored.running).toBe(false);
     });

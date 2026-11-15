@@ -29,6 +29,7 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 
 DEMO_ANSWER = (
     "This answer streams slowly on purpose. Close the tab or reload the page "
@@ -56,6 +57,14 @@ def build_agent() -> Agent[None, str]:
     return Agent(FunctionModel(stream_function=demo_stream))
 
 
+def demo_owner(request: Request) -> str | None:
+    """The thread owner: a random id each browser keeps and sends as
+    X-Demo-User (`lib/demo-user.ts`), so one browser cannot list or reopen
+    another's threads. A request without it is refused with 401. A real app
+    returns its signed-in user's id here instead."""
+    return request.headers.get("x-demo-user") or None
+
+
 def build_streams(redis):
     if redis is not None:
         from assistant_stream.resumable import create_redis_resumable_stream_store
@@ -78,7 +87,10 @@ async def lifespan(app: Starlette):
 
         redis = Redis.from_url(redis_url)
     app.state.durable = DurableAGUI(
-        build_agent(), threads=threads, streams=build_streams(redis)
+        build_agent(),
+        threads=threads,
+        streams=build_streams(redis),
+        owner=demo_owner,
     )
     app.router.routes.extend(app.state.durable.routes())
     try:
