@@ -394,7 +394,7 @@ describe("toAdaptiveCard", () => {
       });
     });
 
-    it("shows Diagram source line by line, as written, with only links broken", () => {
+    it("shows Diagram source line by line with every markdown marker escaped", () => {
       const space = String.fromCharCode(0xa0);
       const zeroWidthSpace = String.fromCharCode(0x200b);
       const { card } = toAdaptiveCard({
@@ -407,9 +407,9 @@ describe("toAdaptiveCard", () => {
           type: "Container",
           items: [
             "flowchart LR",
-            `${space}${space}user_id --> order_id`,
+            `${space}${space}user\\_id --> order\\_id`,
             space,
-            `${space}${space}A[home]${zeroWidthSpace}(https://example.com)`,
+            `${space}${space}A\\[home\\](https://example.com)`,
           ].map((text, index) => ({
             type: "TextBlock",
             text,
@@ -425,6 +425,21 @@ describe("toAdaptiveCard", () => {
           size: "small",
           isSubtle: true,
         },
+      ]);
+    });
+
+    it("escapes Diagram emphasis, code, list and link markers", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "- **bold** `code` ~~gone~~\n1. [x]: <https://e.com>\n# a\\b",
+      });
+      const lines = (card.body[0] as { items: { text: string }[] }).items.map(
+        (item) => item.text,
+      );
+      expect(lines).toEqual([
+        "\\- \\*\\*bold\\*\\* \\`code\\` \\~\\~gone\\~\\~",
+        "1\\. \\[x\\]: <https://e.com>",
+        "\\# a\\\\b",
       ]);
     });
 
@@ -459,7 +474,7 @@ describe("toAdaptiveCard", () => {
             },
             {
               type: "TextBlock",
-              text: "A[You & me] --> B[Done]",
+              text: "A\\[You & me\\] --> B\\[Done\\]",
               wrap: true,
               fontType: "Monospace",
               spacing: "none",

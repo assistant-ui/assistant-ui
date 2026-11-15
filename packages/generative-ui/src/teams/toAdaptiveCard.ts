@@ -208,6 +208,13 @@ function textBlock(text: string, extra?: TextBlockExtra): TeamsTextBlock {
   return markdownBlock(unlinked(text), extra);
 }
 
+/** Source code shown verbatim: every markdown marker Teams reads is backslash-escaped, so nothing in it becomes formatting, a list or a link. */
+const literalMarkdown = (text: string): string =>
+  text
+    .replace(/[\\`*_~[\]]/g, "\\$&")
+    .replace(/^(\s*)([-+#])(?=\s|$)/, "$1\\$2")
+    .replace(/^(\s*\d+)\.(?=\s|$)/, "$1\\.");
+
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
 
@@ -1100,9 +1107,10 @@ export function convertElement(
           type: "Container",
           // Teams breaks a TextBlock's line only inside a list and trims leading spaces, so each source line gets a block of its own and keeps its indent as non-breaking spaces.
           items: lines.slice(0, DIAGRAM_LINE_CAP).map((line, index) =>
-            textBlock(
-              line.replace(/^ +/, (indent) => space.repeat(indent.length)) ||
-                space,
+            markdownBlock(
+              literalMarkdown(line).replace(/^ +/, (indent) =>
+                space.repeat(indent.length),
+              ) || space,
               {
                 fontType: "Monospace",
                 ...(index > 0 ? { spacing: "none" as const } : {}),
