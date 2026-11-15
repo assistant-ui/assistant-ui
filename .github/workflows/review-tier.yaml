@@ -54,6 +54,12 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event.workflow_run.pull_requests[0].number && format('relay-{0}', github.event.workflow_run.pull_requests[0].number)) || github.event.merge_group.head_sha || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+    # The policy app key lives in this environment, whose branch policy admits
+    # main and its merge queue refs only, so a workflow on another branch
+    # cannot read it. pull_request_target runs on the base branch, so a pull
+    # request based on another branch is evaluated once it is retargeted to
+    # main, which the edited trigger picks up.
+    environment: review-policy
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

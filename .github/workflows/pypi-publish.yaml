@@ -243,13 +243,16 @@ jobs:
         with:
           # No cache - hardened against cache poisoning for sensitive publish operations
           enable-cache: false
+          version: "0.13.6"
 
+      # The build backend comes from the hashed constraints file, so a new
+      # hatchling release cannot change what this job runs.
       - name: Build sdist + wheel
         working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
         run: |
           set -euo pipefail
           rm -rf dist
-          uv build
+          uv build --no-cache --build-constraints "$GITHUB_WORKSPACE/.github/pypi-build-constraints.txt" --require-hashes
           ls -la dist
 
       - name: Upload distributions
