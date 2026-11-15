@@ -30,6 +30,12 @@ export function readPackedManifest(archive) {
         .replace(/\0.*$/s, "");
     const prefix = field(345, 155);
     const name = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
+    // npm pack writes POSIX ustar headers. GNU and v7 headers give bytes
+    // 345-499 another meaning, so the path read here could differ from the
+    // one an extractor uses.
+    if (header.subarray(257, 265).toString("latin1") !== "ustar\u000000") {
+      throw new Error("it has a non-POSIX tar header");
+    }
     const type = String.fromCharCode(header[156]);
     if (!PLAIN_ENTRY_TYPES.has(type)) {
       throw new Error(

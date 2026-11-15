@@ -34,8 +34,8 @@ function tar(entries) {
     header.write("00000000000\0", 136);
     header.write("        ", 148);
     header.write(options.type ?? "0", 156);
-    header.write("ustar\0", 257);
-    header.write("00", 263);
+    if (options.prefix) header.write(options.prefix, 345);
+    header.write(options.magic ?? "ustar\u000000", 257, "latin1");
     let sum = 0;
     for (const byte of header) sum += byte;
     header.write(`${sum.toString(8).padStart(6, "0")}\0 `, 148);
@@ -134,6 +134,21 @@ test("rejects extension headers that could rename an entry", () => {
     () => readPackedManifest(archive),
     /unsupported tar entry type "x"/,
   );
+});
+
+test("rejects headers that are not POSIX ustar", () => {
+  const archive = tar([
+    [
+      "package/package.json",
+      JSON.stringify({ name: "demo", version: "1.0.0" }),
+    ],
+    [
+      "package/package.json",
+      JSON.stringify({ name: "demo", version: "6.6.6" }),
+      { magic: "ustar  \u0000", prefix: "junk" },
+    ],
+  ]);
+  assert.throws(() => readPackedManifest(archive), /non-POSIX tar header/);
 });
 
 test("matches the manifest under any spelling of its path", () => {
