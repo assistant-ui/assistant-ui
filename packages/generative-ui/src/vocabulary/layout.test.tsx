@@ -203,6 +203,9 @@ describe("layoutVocabulary Box", () => {
     "expression(alert(1))",
     "10foo",
     "calc(foo)",
+    "calc(1)",
+    "min(foo)",
+    "12foo",
     "calc(100% - var(--x))",
     "",
   ])("drops a width or height that is not a plain length: %s", (value) => {

@@ -78,6 +78,9 @@ describe("mediaVocabulary", () => {
     expect(render(node, [" DATA: "])).toContain(
       'src="data:image/png;base64,YQ=="',
     );
+    expect(render(node, [42 as unknown as string, "data:"])).toContain(
+      'src="data:image/png;base64,YQ=="',
+    );
     expect(render(node, [])).toBe("alt");
     expect(render(node)).toContain('src="data:image/png;base64,YQ=="');
   });

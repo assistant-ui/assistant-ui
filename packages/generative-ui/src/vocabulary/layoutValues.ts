@@ -16,8 +16,11 @@ const MATH_TOKEN = new RegExp(
 );
 
 /** True for a `calc`/`min`/`max`/`clamp` built only from lengths, numbers and operators. */
+const HAS_LENGTH = new RegExp(`\\d(?:${UNITS})(?![a-z])`, "i");
 const isMath = (value: string) =>
-  MATH.test(value) && /^[\s()+\-*/,]*$/.test(value.replace(MATH_TOKEN, ""));
+  MATH.test(value) &&
+  HAS_LENGTH.test(value) &&
+  /^[\s()+\-*/,]*$/.test(value.replace(MATH_TOKEN, ""));
 
 /**
  * A CSS length, or undefined. Only a number with a unit, a sizing keyword,
