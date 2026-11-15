@@ -127,7 +127,7 @@ Audio uses the metadata duration when the browser has it, then falls back to `du
 
 ### Remote media
 
-A local `src` (relative, `blob:`, or a `data:audio/`, `data:video/` or `data:image/` URL) loads its metadata as soon as the player renders. A `src` on another origin is not set on the element until the user presses play: the audio element renders with `preload="none"` and no `src`, and the video shows a play button in place of the native controls. A remote `artwork` or `poster` is not shown, because the request would tell that host the message was viewed. List the hosts you trust in `mediaOrigins` to load them up front, or pass `["*"]` for every `http:` and `https:` origin:
+A local `src` (a same-page path, `blob:`, or a `data:audio/`, `data:video/` or `data:image/` URL) loads its metadata as soon as the player renders. A `src` on another origin is not set on the element until the user presses play: the audio element renders with `preload="none"` and no `src`, and the video shows a play button in place of the native controls. A remote `artwork` or `poster` is not shown, because the request would tell that host the message was viewed. List the hosts you trust in `mediaOrigins` to load them up front, or pass `["*"]` for every `http:` and `https:` origin:
 
 ```tsx
 <VideoPlayer

@@ -23,7 +23,7 @@ export interface AudioPlayerProps extends Omit<
   /**
    * Origins this player may fetch from before the user presses play. A
    * remote `src` from another origin loads only on play, and its artwork or
-   * poster is not shown. Relative URLs, `blob:` URLs and `data:` image,
+   * poster is not shown. Same-page paths, `blob:` URLs and `data:` image,
    * audio or video URLs always load.
    */
   mediaOrigins?: readonly string[] | undefined;
@@ -41,7 +41,7 @@ export interface VideoPlayerProps extends Omit<
   /**
    * Origins this player may fetch from before the user presses play. A
    * remote `src` from another origin loads only on play, and its artwork or
-   * poster is not shown. Relative URLs, `blob:` URLs and `data:` image,
+   * poster is not shown. Same-page paths, `blob:` URLs and `data:` image,
    * audio or video URLs always load.
    */
   mediaOrigins?: readonly string[] | undefined;

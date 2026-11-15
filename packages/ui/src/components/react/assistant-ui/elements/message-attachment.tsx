@@ -27,7 +27,7 @@ export function MessageAttachments({
 > & {
   attachments: readonly MessageAttachmentItem[];
   onOpen?: (id: string) => void;
-  /** Origins a `swatch` may load `url(...)` images from. Relative, `data:image/` and `blob:` URLs always load. */
+  /** Origins a `swatch` may load remote `url(...)` images from. Same-page paths, `data:image/` and `blob:` URLs always load. */
   imageOrigins?: readonly string[] | undefined;
 }) {
   return (
