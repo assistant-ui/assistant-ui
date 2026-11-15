@@ -320,14 +320,16 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
   );
 
   it.each(["assistant", "user"] as const)(
-    "keeps an image part whose filename is null on %s messages",
+    "keeps an image part whose filename is null on %s messages, without the null",
     (role) => {
       const image = {
         type: "image",
         image: "https://a.test/a.png",
         filename: null,
       };
-      expect(convert(role, [image])).toHaveLength(1);
+      expect(convert(role, [image])).toEqual([
+        { type: "image", image: "https://a.test/a.png" },
+      ]);
     },
   );
 

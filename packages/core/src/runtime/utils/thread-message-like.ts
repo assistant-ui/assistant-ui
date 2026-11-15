@@ -128,7 +128,21 @@ const isString = (value: unknown): value is string => typeof value === "string";
  * malformed part is dropped the same way whichever path delivered it.
  */
 const keepWellFormed = <T>(part: T): T | null =>
-  isStoredMessagePart(part) ? part : null;
+  isStoredMessagePart(part) ? withoutNullOptionals(part) : null;
+
+/**
+ * The guards accept `null` for optional fields (nullable JSON columns), but
+ * the part types say `string | undefined`, so a `null` is removed here.
+ */
+const withoutNullOptionals = <T>(part: T): T => {
+  const record = part as Record<string, unknown>;
+  if (!["filename", "title", "sourceType"].some((key) => record[key] === null))
+    return part;
+  const copy = { ...record };
+  for (const key of ["filename", "title", "sourceType"])
+    if (copy[key] === null) delete copy[key];
+  return copy as T;
+};
 
 /**
  * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.
@@ -155,11 +169,11 @@ export const fromThreadMessageLike = (
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
     if (rest.filename != null && typeof rest.filename !== "string") return null;
-    if (parseDataUrl(image)?.mimeType.startsWith("image/")) {
-      return { ...rest, image };
-    }
-    if (/^(https:\/\/|blob:)/i.test(image)) {
-      return { ...rest, image };
+    if (
+      parseDataUrl(image)?.mimeType.startsWith("image/") ||
+      /^(https:\/\/|blob:)/i.test(image)
+    ) {
+      return withoutNullOptionals({ ...rest, image });
     }
     console.warn(`Invalid image data format detected`);
     return null;
