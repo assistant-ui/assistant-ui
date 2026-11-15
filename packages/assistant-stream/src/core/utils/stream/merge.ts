@@ -34,6 +34,8 @@ type MergeStreamItem = {
   delivered: number;
   /** The part barrier count when this item last had nothing undelivered. */
   idleAt: number;
+  /** Whether this item is in `busy`, which may still hold it after it caught up. */
+  inBusy: boolean;
   gate?: Promise<void> | undefined;
   holds: MergeStreamHold[];
   pathMapper?:
@@ -66,10 +68,11 @@ export const createMergeStream = () => {
   const list = new Set<MergeStreamItem>();
   // Items with no read in flight. A pull starts reads only for these, so its
   // cost does not grow with the number of open parts.
-  const unread = new Set<MergeStreamItem>();
-  // Counted items that may have written chunks not yet delivered. Only these
-  // need a hold at a part barrier; an idle item instead takes the latest part
-  // barrier as its gate when it writes again.
+  let unread: MergeStreamItem[] = [];
+  // Every counted item with chunks not yet delivered, plus items that caught up
+  // since the last part barrier, which prunes them. Only items with undelivered
+  // chunks need a hold at a part barrier; an idle item instead takes the latest
+  // part barrier as its gate when it writes again.
   const busy = new Set<MergeStreamItem>();
   let countedItems = 0;
   let partBarriers = 0;
@@ -103,10 +106,11 @@ export const createMergeStream = () => {
     if (!cleanupPromise) {
       const items = [...list];
       list.clear();
-      unread.clear();
+      unread = [];
       busy.clear();
       countedItems = 0;
       for (const item of items) {
+        if (item.written) item.written.onWrite = undefined;
         item.orderedFinish?.delivered.resolve();
         releaseHolds(item);
       }
@@ -139,14 +143,17 @@ export const createMergeStream = () => {
 
   const markIdleIfCaughtUp = (item: MergeStreamItem) => {
     if (item.written && item.delivered >= item.written.count) {
-      busy.delete(item);
       item.idleAt = partBarriers;
     }
   };
 
   const noteWrite = (item: MergeStreamItem) => {
-    if (busy.has(item) || !list.has(item)) return;
-    busy.add(item);
+    // Only the write that ends an idle stretch has work to do.
+    if (item.delivered < item.written!.count - 1) return;
+    if (!item.inBusy) {
+      item.inBusy = true;
+      busy.add(item);
+    }
     // A chunk written after a part barrier must not pass that part-start.
     if (latestPartBarrier && partBarriers > item.idleAt) {
       item.gate = item.gate
@@ -157,7 +164,6 @@ export const createMergeStream = () => {
 
   const removeItem = (item: MergeStreamItem) => {
     list.delete(item);
-    unread.delete(item);
     busy.delete(item);
     if (item.written) {
       item.written.onWrite = undefined;
@@ -167,7 +173,6 @@ export const createMergeStream = () => {
 
   const handlePull = (item: MergeStreamItem) => {
     if (!item.promise) {
-      unread.delete(item);
       // TODO for most streams, we can directly pipeTo to avoid the microTask queue
       // add an option to eagerly pipe the stream to the merge stream
       // ideally, using assistant-stream w sync run method + piping to a sync WritableStream runs in the same microtask
@@ -216,7 +221,7 @@ export const createMergeStream = () => {
           }
 
           item.promise = undefined;
-          if (!done) unread.add(item);
+          if (!done) unread.push(item);
           currentPull?.resolve();
           currentPull = undefined;
         })
@@ -233,7 +238,9 @@ export const createMergeStream = () => {
     },
     pull() {
       currentPull = promiseWithResolvers();
-      const items = [...unread].sort((a, b) => a.seq - b.seq);
+      const items = unread;
+      unread = [];
+      if (items.length > 1) items.sort((a, b) => a.seq - b.seq);
       for (const item of items) handlePull(item);
 
       return currentPull.promise;
@@ -281,10 +288,17 @@ export const createMergeStream = () => {
       const partBarrier = waitForPartWrites && countedItems > 0;
       const flushed =
         previous || partBarrier ? promiseWithResolvers<void>() : undefined;
-      const reached =
-        flushed && partBarrier
-          ? Array.from(busy, (item) => holdChild(item, flushed.promise))
-          : [];
+      const reached: Promise<void>[] = [];
+      if (flushed && partBarrier) {
+        for (const item of busy) {
+          if (item.delivered < item.written!.count) {
+            reached.push(holdChild(item, flushed.promise));
+          } else {
+            busy.delete(item);
+            item.inBusy = false;
+          }
+        }
+      }
       if (flushed) rawBarrier = flushed.promise;
       if (partBarrier) {
         partBarriers++;
@@ -356,6 +370,7 @@ export const createMergeStream = () => {
       written: options?.written,
       delivered: 0,
       idleAt: partBarriers,
+      inBusy: false,
       gate: rawBarrier,
       holds: [],
       pathMapper:
@@ -368,7 +383,10 @@ export const createMergeStream = () => {
     if (written) {
       countedItems++;
       written.onWrite = () => noteWrite(item);
-      if (written.count > 0) busy.add(item);
+      if (written.count > 0) {
+        item.inBusy = true;
+        busy.add(item);
+      }
     }
     handlePull(item);
   };
