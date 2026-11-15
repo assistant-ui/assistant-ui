@@ -142,17 +142,29 @@ const makeIsStoredMessagePart = (
 
 export const isStoredMessagePart = makeIsStoredMessagePart({}, () => true);
 
+/** Optional fields the guards accept as `null`, per known part type. */
+const nullableOptionalFields: Record<string, readonly string[]> = {
+  file: ["filename", "sourceType"],
+  image: ["filename"],
+  source: ["title", "filename"],
+};
+
 /**
  * The guards accept `null` for optional fields (nullable JSON columns), but
- * the part types say `string | undefined`, so a `null` is removed here.
+ * the part types say `string | undefined`, so a `null` is removed here. Only
+ * known file, image and source parts are touched; other parts, including
+ * unknown extension types, pass through unchanged.
  */
 export const withoutNullOptionals = <T>(part: T): T => {
   const record = part as Record<string, unknown>;
-  if (!["filename", "title", "sourceType"].some((key) => record[key] === null))
-    return part;
+  const keys =
+    typeof record.type === "string" &&
+    Object.hasOwn(nullableOptionalFields, record.type)
+      ? nullableOptionalFields[record.type]!
+      : [];
+  if (!keys.some((key) => record[key] === null)) return part;
   const copy = { ...record };
-  for (const key of ["filename", "title", "sourceType"])
-    if (copy[key] === null) delete copy[key];
+  for (const key of keys) if (copy[key] === null) delete copy[key];
   return copy as T;
 };
 

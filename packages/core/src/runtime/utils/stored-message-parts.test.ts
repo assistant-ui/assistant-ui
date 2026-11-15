@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   isStoredAuiV0RolePart,
   isStoredMessagePart,
+  parseStoredAttachment,
+  withoutNullOptionals,
 } from "./stored-message-parts";
 
 const file = { type: "file", data: "abc", mimeType: "text/plain" };
@@ -62,4 +64,43 @@ describe("stored part guards", () => {
     expect(isStoredAuiV0RolePart("assistant", part)).toBe(false);
     expect(isStoredAuiV0RolePart("user", part)).toBe(false);
   });
+});
+
+describe("withoutNullOptionals", () => {
+  it("removes null optional fields from file, image and source parts", () => {
+    expect(
+      withoutNullOptionals({ ...file, filename: null, sourceType: null }),
+    ).toEqual(file);
+    expect(withoutNullOptionals({ ...image, filename: null })).toEqual(image);
+    expect(withoutNullOptionals({ ...urlSource, title: null })).toEqual(
+      urlSource,
+    );
+  });
+
+  it("leaves other part types untouched", () => {
+    const extension = { type: "x-ext", title: null, filename: null };
+    expect(withoutNullOptionals(extension)).toBe(extension);
+  });
+});
+
+describe("parseStoredAttachment", () => {
+  it.each([
+    ["local storage", isStoredMessagePart],
+    ["cloud", (value: unknown) => isStoredAuiV0RolePart("user", value)],
+  ] as const)(
+    "removes null optional fields from %s attachment parts",
+    (_label, isPart) => {
+      const attachment = parseStoredAttachment(
+        {
+          id: "att",
+          type: "file",
+          name: "a.txt",
+          status: { type: "complete" },
+          content: [{ ...file, filename: null, sourceType: null }],
+        },
+        isPart as typeof isStoredMessagePart,
+      );
+      expect(attachment?.content).toEqual([file]);
+    },
+  );
 });
