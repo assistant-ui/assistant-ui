@@ -37,6 +37,13 @@ describe("sanitizeTerminalText", () => {
     ["a newline after a malformed CSI", "a\x1b[\nb", "a\nb"],
     ["CJK text after a malformed CSI", "a\x1b[12你好", "a你好"],
     ["CJK text after a malformed C1 CSI", "a\u009b你好", "a你好"],
+    [
+      "the lines after an unterminated OSC",
+      "a\x1b]8;;https://wrong.example\nb\nc",
+      "a\nb\nc",
+    ],
+    ["the lines after an unterminated DCS", "a\x1bPignored\nb", "a\nb"],
+    ["the lines after an unterminated C1 OSC", "a\u009dhidden\nb", "a\nb"],
   ])("keeps %s", (_name, input, expected) => {
     expect(sanitizeTerminalText(input)).toBe(expected);
   });

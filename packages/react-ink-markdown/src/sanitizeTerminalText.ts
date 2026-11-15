@@ -67,7 +67,11 @@ export const sanitizeTerminalText = (value: string): string => {
         code === 0x9f
       ) {
         while (i < value.length) {
-          const next = value.charCodeAt(i++);
+          const next = value.charCodeAt(i);
+          // An unterminated string ends at its line, so it can't hide the
+          // text after it.
+          if (next === 0x0a) break;
+          i++;
           if (
             next === 0x9c ||
             (next === 0x07 && (code === 0x5d || code === 0x9d))

@@ -48,6 +48,7 @@ import {
   supersededInMessage,
   type InteractionLog,
   type SpecArgs,
+  fillComposer,
   writeClipboard,
 } from "./thread";
 
@@ -227,7 +228,7 @@ export function createSpecToolkit(
             if (typeof text !== "string" || !text.trim()) {
               throw new Error("sendMessage needs a non-empty string `text`");
             }
-            aui.thread.append(text);
+            fillComposer(aui, text);
           },
           updateModelContext: (params) =>
             shared.share(toSharedContext(params["text"], params["data"])),

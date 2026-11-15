@@ -4,7 +4,7 @@ import type { ModelContextSource } from "../../assistant-ui/modelContext";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import type { Catalog } from "../catalog";
 import { SpecRenderer } from "../react/SpecRenderer";
-import { writeClipboard } from "./thread";
+import { fillComposer, writeClipboard } from "./thread";
 import { specToolkitFor, type SpecToolkitOptions } from "./toolkit";
 
 function useMessages() {
@@ -36,7 +36,7 @@ function Frame({
 
 function useSendMessage() {
   const aui = useAui();
-  return useCallback((text: string) => aui.thread.append(text), [aui]);
+  return useCallback((text: string) => fillComposer(aui, text), [aui]);
 }
 
 function useModelContext(source: ModelContextSource) {
