@@ -169,6 +169,9 @@ overrides:
   guarded-fetch>undici: ^7.30.1
   miniflare>undici: ^7.30.1
 
+patchedDependencies:
+  '@farm.js/core@0.1.71': 947f92ea7966d268df6ced8da9cf5be945c368a0d517c100441a71bc5b85ab1a
+
 importers:
 
   .:
@@ -465,13 +468,13 @@ importers:
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@farm.js/core':
         specifier: 0.1.71
-        version: 0.1.71(ade43b491d5cb4d02d3fc7b587bbaf0d)
+        version: 0.1.71(patch_hash=947f92ea7966d268df6ced8da9cf5be945c368a0d517c100441a71bc5b85ab1a)(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@farming-labs/docs':
         specifier: 0.2.146
         version: 0.2.146(react@19.3.1)(supports-color@10.2.2)
       '@farming-labs/farmjs':
         specifier: 0.2.146
-        version: 0.2.146(71b23d46e3df7c75b8ec08c23d0c147b)
+        version: 0.2.146(a0318766bd994ccc7bf3cac7ce601e76)
       '@farming-labs/next':
         specifier: 0.2.146
         version: 0.2.146(ec016f6d75a55ed1bbdd91e866c58f03)
@@ -25985,7 +25988,7 @@ snapshots:
 
   '@farm.js/cli@0.1.71(ade43b491d5cb4d02d3fc7b587bbaf0d)':
     dependencies:
-      '@farm.js/core': 0.1.71(ade43b491d5cb4d02d3fc7b587bbaf0d)
+      '@farm.js/core': 0.1.71(patch_hash=947f92ea7966d268df6ced8da9cf5be945c368a0d517c100441a71bc5b85ab1a)(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@farm.js/tunnel': 0.1.2
       commander: 11.1.0
       croner: 9.1.0
@@ -26053,7 +26056,7 @@ snapshots:
       - uploadthing
       - yaml
 
-  '@farm.js/core@0.1.71(ade43b491d5cb4d02d3fc7b587bbaf0d)':
+  '@farm.js/core@0.1.71(patch_hash=947f92ea7966d268df6ced8da9cf5be945c368a0d517c100441a71bc5b85ab1a)(ade43b491d5cb4d02d3fc7b587bbaf0d)':
     dependencies:
       '@farm.js/islx': 0.0.23(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-start@1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(rollup@4.65.1)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       '@farming-labs/orm': 0.0.66
@@ -26259,9 +26262,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@farming-labs/farmjs@0.2.146(71b23d46e3df7c75b8ec08c23d0c147b)':
+  '@farming-labs/farmjs@0.2.146(a0318766bd994ccc7bf3cac7ce601e76)':
     dependencies:
-      '@farm.js/core': 0.1.71(ade43b491d5cb4d02d3fc7b587bbaf0d)
+      '@farm.js/core': 0.1.71(patch_hash=947f92ea7966d268df6ced8da9cf5be945c368a0d517c100441a71bc5b85ab1a)(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@farming-labs/docs': 0.2.146(react@19.3.1)(supports-color@10.2.2)
       '@farming-labs/theme': 0.2.146(@farming-labs/docs@0.2.146(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
       '@mdx-js/mdx': 3.1.1(supports-color@10.2.2)

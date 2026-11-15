@@ -1,0 +1,18 @@
+diff --git a/dist/chunk-X7LGLF33.mjs b/dist/chunk-X7LGLF33.mjs
+index 0083a32621e996877ae93d02c33b0a16ae087504..5a9eea7c9fd1fed870b3b5f7c0d9f750658579c9 100644
+--- a/dist/chunk-X7LGLF33.mjs
++++ b/dist/chunk-X7LGLF33.mjs
+@@ -2437,6 +2437,13 @@ function enforceFarmIsolatedHydrationRouteBudget(layouts, routes, layoutAppliesT
+       (ancestor) => ancestor !== layout && ancestor.depth < layout.depth && ancestor.metadata.shouldHydrate && layoutAppliesToRoute(ancestor.pattern, layout.pattern)
+     );
+     if (hasRouteWideAncestor && layout.metadata.hasIsolatedClientBoundaries) {
++      if (options.serverOwners && !layout.metadata.asyncOwnerIslands) {
++        layout.metadata.shouldHydrate = layout.metadata.legacyShouldHydrate;
++        layout.metadata.islandStrategy = layout.metadata.legacyIslandStrategy;
++        layout.metadata.hasIsolatedClientBoundaries = false;
++        layout.metadata.serverTreeLayout = true;
++        continue;
++      }
+       restoreRouteWideHydration(layout.metadata);
+     }
+   }
