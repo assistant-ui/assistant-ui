@@ -1,5 +1,5 @@
 import { createAssistantClient } from "@assistant-ui/store/client";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { defineConnector } from "../connector";
 import { McpManagerResource } from "./McpManagerResource";
 import { McpMemoryStorage } from "./storage/McpMemoryStorage";
@@ -69,6 +69,7 @@ describe("McpManagerResource tool name collisions", () => {
       "https://other.example.com/mcp": ["collide.b"],
     };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warn.mockRestore());
     const handle = createAssistantClient({
       mcp: McpManagerResource({
         autoConnect: false,
@@ -95,9 +96,16 @@ describe("McpManagerResource tool name collisions", () => {
       await vi.waitFor(() =>
         expect(aui.modelContext.getState().toolNames).toEqual(["docs__search"]),
       );
-      expect(warn).toHaveBeenCalledWith(
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
         expect.stringContaining('"__mcp_0000000000000000_collide"'),
       );
+      // Reconnecting recomputes the toolkit; the warning doesn't repeat.
+      await aui.mcp.connector({ index: 0 }).disconnect?.();
+      await aui.mcp.connector({ index: 0 }).connect();
+      await vi.waitFor(() =>
+        expect(aui.modelContext.getState().toolNames).toEqual(["docs__search"]),
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
       expect(
         aui.modelContext.getModelContext().tools?.[
           "__mcp_0000000000000000_collide"
@@ -105,7 +113,6 @@ describe("McpManagerResource tool name collisions", () => {
       ).toBeUndefined();
     } finally {
       handle.destroy();
-      warn.mockRestore();
     }
   });
 
@@ -114,6 +121,7 @@ describe("McpManagerResource tool name collisions", () => {
       "https://docs.example.com/mcp": ["collide.a", "collide.a"],
     };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warn.mockRestore());
     const handle = createAssistantClient({
       mcp: McpManagerResource({
         autoConnect: false,
@@ -133,7 +141,6 @@ describe("McpManagerResource tool name collisions", () => {
       expect(warn).not.toHaveBeenCalled();
     } finally {
       handle.destroy();
-      warn.mockRestore();
     }
   });
 });
