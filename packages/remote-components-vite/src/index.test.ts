@@ -117,10 +117,13 @@ describe("singleFileCors", () => {
     },
   );
 
-  it("varies on Origin for a refused origin too, so a cache can't reuse it", () => {
+  it("varies on Origin for a refused or missing origin too, so a cache can't reuse it", () => {
     expect(
       singleFileCors({ origin: "https://evil.example" }, { customCors: false }),
     ).toEqual({ vary: "Origin" });
+    expect(singleFileCors({}, { customCors: false })).toEqual({
+      vary: "Origin",
+    });
     expect(
       singleFileCors(
         { origin: "http://localhost:3000" },

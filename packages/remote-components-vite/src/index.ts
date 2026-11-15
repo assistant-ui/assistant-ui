@@ -149,8 +149,9 @@ export function singleFileCors(
   options: { customCors: boolean; opaqueFrames?: boolean | undefined },
 ): Record<string, string> {
   const { origin, host } = headers;
-  if (options.customCors || origin === undefined) return {};
-  // The answer depends on Origin either way, so a cache must key on it.
+  if (options.customCors) return {};
+  // The answer depends on Origin, present or not, so a cache must key on it.
+  if (origin === undefined) return { vary: "Origin" };
   return devCorsAllows(origin, host, options.opaqueFrames)
     ? { "access-control-allow-origin": origin, vary: "Origin" }
     : { vary: "Origin" };
