@@ -15,6 +15,7 @@ import {
 import {
   type ComponentRef,
   type FC,
+  type MouseEvent as ReactMouseEvent,
   forwardRef,
   memo,
   useDeferredValue,
@@ -90,8 +91,8 @@ const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
 
 // Streamdown clears the clobber prefix, so an `id` or `name` from model output
 // would land on the element as written and could shadow properties of
-// `document`. Every id and name gets this prefix, and so does every in-page
-// `#fragment` link, so links to them keep working.
+// `document` or `window`. Every id and name gets this prefix, and in-page
+// links reach them through scrollToPrefixedTarget.
 const CLOBBER_PREFIX = "user-content-";
 
 const streamdownSanitizeSchema: SanitizeSchema = {
@@ -101,53 +102,43 @@ const streamdownSanitizeSchema: SanitizeSchema = {
   clobberPrefix: CLOBBER_PREFIX,
 };
 
-type HastNode = {
-  type: string;
-  properties?: Record<string, unknown>;
-  children?: HastNode[];
-};
+const escapeAttribute = (value: string) => value.replace(/["\\]/g, "\\$&");
 
-const visitElements = (
-  tree: HastNode,
-  visit: (properties: Record<string, unknown>) => void,
-) => {
-  const walk = (node: HastNode) => {
-    if (node.type === "element" && node.properties) visit(node.properties);
-    node.children?.forEach(walk);
-  };
-  walk(tree);
-};
-
-const isFragment = (href: unknown): href is string =>
-  typeof href === "string" && href.length > 1 && href.startsWith("#");
-
-// The ids each tree held right after sanitize, all of them prefixed.
-const sanitizedIds = new WeakMap<HastNode, Set<unknown>>();
-
-const recordSanitizedIds = () => (tree: HastNode) => {
-  const ids = new Set<unknown>();
-  visitElements(tree, (properties) => ids.add(properties["id"]));
-  sanitizedIds.set(tree, ids);
-};
-
-// Runs after every other plugin. An in-page link gets the prefix its target
-// got from the sanitize step, unless a later plugin (rehype-slug, say) added an
-// element with exactly that id, which the link then keeps pointing at. Ids
-// remark generates for footnotes are already prefixed and get a second prefix
-// from sanitize, so their links get the same second prefix here.
-const prefixFragmentLinks = () => (tree: HastNode) => {
-  const before = sanitizedIds.get(tree) ?? new Set();
-  const addedLater = new Set<unknown>();
-  visitElements(tree, (properties) => {
-    if (!before.has(properties["id"])) addedLater.add(properties["id"]);
-  });
-  visitElements(tree, (properties) => {
-    const href = properties["href"];
-    if (isFragment(href) && !addedLater.has(href.slice(1))) {
-      properties["href"] = `#${CLOBBER_PREFIX}${href.slice(1)}`;
-    }
-  });
-};
+/**
+ * In-page links keep the `#id` the markdown wrote, while the sanitize step
+ * prefixes the ids they point at. Streamdown renders each block on its own, so
+ * a link and its target are often in different trees and cannot be matched
+ * while rendering. A click on `#id` scrolls to `user-content-id` in this
+ * message when it exists. Otherwise the browser handles the link as usual,
+ * which reaches ids a custom plugin added without the prefix.
+ */
+function scrollToPrefixedTarget(event: ReactMouseEvent<HTMLDivElement>) {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  ) {
+    return;
+  }
+  const anchor = (event.target as Element | null)?.closest?.("a[href^='#']");
+  if (!anchor || !event.currentTarget.contains(anchor)) return;
+  let id: string;
+  try {
+    id = decodeURIComponent(anchor.getAttribute("href")?.slice(1) ?? "");
+  } catch {
+    return;
+  }
+  if (!id) return;
+  const target = event.currentTarget.querySelector(
+    `[id="${escapeAttribute(CLOBBER_PREFIX + id)}"]`,
+  );
+  if (!target) return;
+  event.preventDefault();
+  target.scrollIntoView();
+}
 
 function buildSecuritySanitizeSchema(
   allowedTags: AllowedTags | undefined,
@@ -176,7 +167,6 @@ function buildSecurityRehypePlugins(
   return [
     rehypeRaw,
     [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
-    recordSanitizedIds,
     [
       harden,
       {
@@ -330,11 +320,7 @@ export const StreamdownTextPrimitive = forwardRef<
       [securityKey],
     );
     const rehypePlugins = useMemo(
-      () => [
-        ...securityPlugins,
-        ...(userRehypePlugins ?? []),
-        prefixFragmentLinks,
-      ],
+      () => [...securityPlugins, ...(userRehypePlugins ?? [])],
       [securityPlugins, userRehypePlugins],
     );
 
@@ -371,6 +357,10 @@ export const StreamdownTextPrimitive = forwardRef<
         data-status={status.type}
         {...containerProps}
         className={containerClass}
+        onClick={(event) => {
+          containerProps?.onClick?.(event);
+          scrollToPrefixedTarget(event);
+        }}
       >
         <CodeAdapterContext.Provider value={adapted.codeAdapter}>
           <Body
