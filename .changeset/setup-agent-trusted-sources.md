@@ -1,5 +1,5 @@
 ---
-"setup-agent": minor
+"setup-agent": patch
 "assistant-ui": patch
 ---
 
