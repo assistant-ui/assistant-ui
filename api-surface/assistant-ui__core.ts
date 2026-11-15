@@ -1115,6 +1115,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   unmuteVoice(): void;
   protected ensureInitialized(): boolean;
   export(): ExportedMessageRepository;
+  protected _afterImportReplace(): void;
   protected _beforeImportNotify(): void;
   import(data: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
@@ -2161,6 +2162,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   loadEarlier(): Promise<void>;
   get isRunning(): boolean | undefined;
   protected _getBaseMessages(): readonly ThreadMessage[];
+  protected _afterImportReplace(): void;
   protected _beforeImportNotify(): void;
   get state(): string | number | boolean | ReadonlyJSONArray | ReadonlyJSONObject | null;
   get adapters(): {
@@ -2765,6 +2767,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
   import(data: ExportedMessageRepository): void;
+  protected _afterImportReplace(): void;
   importExternalState(): void;
   unstable_notifySessionReset(): void;
   startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
@@ -3251,6 +3254,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
+  replace(data: ExportedMessageRepository): void;
   import(_param10: ExportedMessageRepository): void;
 }
 

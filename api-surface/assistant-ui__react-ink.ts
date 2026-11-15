@@ -2879,6 +2879,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
+  replace(data: ExportedMessageRepository): void;
   import(_param40: ExportedMessageRepository): void;
 }
 
