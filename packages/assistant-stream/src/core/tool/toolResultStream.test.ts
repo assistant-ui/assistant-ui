@@ -1981,6 +1981,37 @@ describe("disabled tools", () => {
     });
   });
 
+  it("returns an error result for a disabled frontend tool with no handler", async () => {
+    const result = await unstable_runPendingTools(
+      createPendingToolMessage("call-1"),
+      {
+        tool: {
+          type: "frontend",
+          parameters: { type: "object" },
+          disabled: true,
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+    expect(result.parts[0]).toMatchObject({
+      state: "result",
+      result: 'Tool "tool" is disabled.',
+      isError: true,
+    });
+  });
+
+  it("leaves a disabled backend tool to the backend", async () => {
+    const message = createPendingToolMessage("call-1");
+    const result = await unstable_runPendingTools(
+      message,
+      { tool: { type: "backend", disabled: true } as unknown as Tool },
+      new AbortController().signal,
+      async () => {},
+    );
+    expect(result).toBe(message);
+  });
+
   it("runs the tool again once it is enabled", async () => {
     const execute = vi.fn(() => "ran");
     const result = await unstable_runPendingTools(

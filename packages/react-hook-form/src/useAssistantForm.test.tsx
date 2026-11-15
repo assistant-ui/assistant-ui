@@ -397,6 +397,32 @@ describe("useAssistantForm", () => {
       expect(provider.getModelContext().system).toBe("Form State:\n{}");
     });
 
+    it("refuses a nameless controlled password field listed in sensitiveFields", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ password: string }>>;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { password: "secret" },
+          assistant: { sensitiveFields: ["password"] },
+        });
+        return (
+          <Controller
+            control={form.control}
+            name="password"
+            render={({ field: { name: _name, ...field } }) => (
+              <input type="password" {...field} />
+            )}
+          />
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("password", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("password")).toBe("secret");
+      expect(provider.getModelContext().system).toBe("Form State:\n{}");
+    });
+
     it("refuses sensitive fields", async () => {
       let form!: ReturnType<
         typeof useAssistantForm<{ password: string; email: string }>
