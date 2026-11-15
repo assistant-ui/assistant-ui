@@ -664,21 +664,6 @@ export class MessageRepository {
   }
 
   /**
-   * Clears the repository and imports `data`. If the data cannot be placed,
-   * the repository is left as it was.
-   */
-  replace(data: ExportedMessageRepository) {
-    const restore = this.snapshot();
-    this.clear();
-    try {
-      this.import(data);
-    } catch (error) {
-      restore();
-      throw error;
-    }
-  }
-
-  /**
    * Adds the exported messages and selects the exported head. If any message
    * or the head cannot be placed, the repository is left as it was.
    */
@@ -702,3 +687,25 @@ export class MessageRepository {
     }
   }
 }
+
+/**
+ * Throws if `data` cannot be placed on an empty repository, without touching
+ * any existing one.
+ */
+export const assertImportable = (data: ExportedMessageRepository) => {
+  new MessageRepository().import(data);
+};
+
+/**
+ * Replaces everything in `repository` with `data`. The data is placed on a
+ * scratch repository first, so data that cannot be placed throws before the
+ * existing messages are cleared.
+ */
+export const replaceMessageRepository = (
+  repository: MessageRepository,
+  data: ExportedMessageRepository,
+) => {
+  assertImportable(data);
+  repository.clear();
+  repository.import(data);
+};

@@ -48,6 +48,7 @@ import type {
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
+  assertImportable,
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
@@ -208,14 +209,6 @@ export class ExternalStoreThreadRuntimeCore
 
   protected override _getBaseMessages(): readonly ThreadMessage[] {
     return this._messages;
-  }
-
-  protected override _afterImportReplace(): void {
-    this._pendingDeleteWindows.clear();
-    this._cancelRunResyncLeases.invalidate();
-    this._cancelledToolTurn = null;
-    this._cancelledRunIds.clear();
-    this._submittedFeedback.clear();
   }
 
   protected override _beforeImportNotify(): void {
@@ -1778,7 +1771,13 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onImport)
       throw new Error("Runtime does not support importing messages.");
 
+    assertImportable(data);
     const pendingResume = this._pendingResume;
+    this._pendingDeleteWindows.clear();
+    this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
+    this._submittedFeedback.clear();
     super.import(data);
     this._clearPendingResume(pendingResume);
     const messages = this.repository.getMessages();

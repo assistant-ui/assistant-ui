@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "../../types/message";
 import {
   MessageRepository,
+  replaceMessageRepository,
   type ExportedMessageRepository,
 } from "./message-repository";
 
@@ -50,6 +51,19 @@ const bad: ExportedMessageRepository[] = [
     headId: "a",
     messages: [{ message: message("a"), parentId: "b" }],
   },
+  // "b" is updated in place before the head turns out to be missing
+  {
+    headId: "missing",
+    messages: [
+      {
+        message: {
+          ...message("b"),
+          content: [{ type: "text", text: "changed" }],
+        } as ThreadMessage,
+        parentId: "a",
+      },
+    ],
+  },
 ];
 
 describe("MessageRepository.import", () => {
@@ -88,14 +102,14 @@ describe("MessageRepository.import", () => {
   });
 });
 
-describe("MessageRepository.replace", () => {
+describe("replaceMessageRepository", () => {
   it.each(bad.map((data, index) => [index, data] as const))(
     "keeps the existing messages when replacement %i cannot be placed",
     (_index, data) => {
       const repository = seeded();
       const before = state(repository);
 
-      expect(() => repository.replace(data)).toThrow();
+      expect(() => replaceMessageRepository(repository, data)).toThrow();
 
       expect(state(repository)).toEqual(before);
     },
@@ -103,7 +117,7 @@ describe("MessageRepository.replace", () => {
 
   it("replaces the messages with a valid import", () => {
     const repository = seeded();
-    repository.replace({
+    replaceMessageRepository(repository, {
       headId: "y",
       messages: [
         { message: message("x"), parentId: null },
