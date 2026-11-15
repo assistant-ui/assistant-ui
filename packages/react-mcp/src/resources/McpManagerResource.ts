@@ -168,10 +168,31 @@ const useMcpManagerResource = (
 
   const toolkit = useMemo<Record<string, Tool<any, any>>>(() => {
     const out: Record<string, Tool<any, any>> = {};
+    // Two different (server, tool) pairs that map to one name would let either
+    // server's tool run under the other's name, so a shared name registers
+    // neither.
+    const owners = new Map<string, string>();
+    const collided = new Set<string>();
     for (const server of state.servers) {
       if (server.connectionState !== "connected") continue;
       for (const tool of server.tools) {
         const fullName = getMcpToolName(server.id, tool.name);
+        const identity = JSON.stringify([server.id, tool.name]);
+        const owner = owners.get(fullName);
+        if (owner === undefined) owners.set(fullName, identity);
+        else if (owner !== identity) collided.add(fullName);
+      }
+    }
+    for (const name of collided) {
+      console.warn(
+        `[assistant-ui] Different MCP tools map to the tool name "${name}"; none of them is registered.`,
+      );
+    }
+    for (const server of state.servers) {
+      if (server.connectionState !== "connected") continue;
+      for (const tool of server.tools) {
+        const fullName = getMcpToolName(server.id, tool.name);
+        if (collided.has(fullName)) continue;
         out[fullName] = {
           type: "frontend",
           ...(tool.description !== undefined
