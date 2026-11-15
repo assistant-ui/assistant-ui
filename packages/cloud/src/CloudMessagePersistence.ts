@@ -15,7 +15,7 @@ const CLOUD_MESSAGE_PAGE_SIZE = 200;
  * server that sends `has_more` is followed by it, since a page can end before
  * its `limit` when its messages are large; an older one ends at a short page.
  */
-export const nextMessagePageCursor = (
+const nextMessagePageCursor = (
   page: {
     messages: readonly { id: string }[];
     has_more?: boolean;
