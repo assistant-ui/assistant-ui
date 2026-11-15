@@ -70,12 +70,11 @@ export class TimeBudgetedBash extends Bash {
   private spentMs = 0;
   private running = 0;
   private busySince = 0;
+  private readonly budgetMs: number;
 
-  constructor(
-    options: BashOptions,
-    private readonly budgetMs: number,
-  ) {
+  constructor(options: BashOptions, budgetMs: number) {
     super(options);
+    this.budgetMs = budgetMs;
   }
 
   override async exec(commandLine: string, options: ExecOptions = {}) {
