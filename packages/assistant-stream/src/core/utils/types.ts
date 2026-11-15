@@ -103,7 +103,7 @@ type ToolCallPartBase = {
   argsText: string;
   args: ReadonlyJSONObject;
   approval?: ToolCallApproval;
-  /** The backend runs this call and supplies its result, so a frontend tool of the same name never executes it. */
+  /** The backend owns this call, such as a provider-executed or dynamic (MCP) tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
   providerExecuted?: boolean;
   timing?: ToolCallTiming;
   artifact?: ReadonlyJSONValue;

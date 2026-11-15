@@ -26,7 +26,7 @@ export type PartInit =
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
-      /** The backend runs this call and supplies its result, so a frontend tool of the same name never executes it. */
+      /** The backend owns this call, such as a provider-executed or dynamic (MCP) tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
       readonly providerExecuted?: boolean;
       readonly parentId?: string;
     }
