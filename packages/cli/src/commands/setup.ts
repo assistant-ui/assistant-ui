@@ -132,6 +132,8 @@ const runSetupStep = async (args: string[], options: SetupOptions) => {
   await runSetupCommand(args, {
     command: SETUP_COMMAND,
     browser: { setupAppUrl: endpoints.setupAppUrl, canOpen: options.open },
+    // Only the setup server this CLI is configured for, not any https host.
+    servers: [endpoints.setupServer],
   });
 };
 

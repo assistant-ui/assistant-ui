@@ -25,7 +25,10 @@ import {
   diffEvents,
   detectAgentKind,
   isDirectInvocation,
+  OFFICIAL_SETUP_APPS,
+  OFFICIAL_SETUP_SERVERS,
   parseSetupUrl,
+  parseTrustedSetupUrl,
   upsertEnvLine,
   waitForStart,
   writeEnvSecret,
@@ -43,7 +46,7 @@ vi.mock("./client", async (importOriginal) => ({
 describe("waiting on the user", () => {
   // Under the two minutes Claude Code's shell gives a command by default.
   const DEFAULT_WAIT_SECONDS = 100;
-  const URL = "https://checkout.test/session";
+  const URL = "https://checkout.assistant-ui.com/session";
 
   const connect = () => {
     const listeners = new Set<() => void>();
@@ -484,6 +487,71 @@ describe("parseSetupUrl", () => {
   });
 });
 
+describe("parseTrustedSetupUrl", () => {
+  it.each([
+    "https://checkout.assistant-ui.com/abc",
+    "https://Checkout.Assistant-UI.com/abc/",
+    "http://localhost:8791/abc",
+    "https://app.localhost/abc",
+    "http://[::1]:8791/abc",
+  ])("accepts %s", (value) => {
+    expect(() =>
+      parseTrustedSetupUrl(value, OFFICIAL_SETUP_SERVERS),
+    ).not.toThrow();
+  });
+
+  it.each([
+    "https://checkout.assistant-ui.com.evil.test/abc",
+    "https://checkout-assistant-ui.com/abc",
+    "https://setup.assistant-ui.com/abc",
+    "https://checkout.assistant-ui.com:8443/abc",
+    "https://evil.test/abc",
+  ])("refuses %s", (value) => {
+    expect(() => parseTrustedSetupUrl(value, OFFICIAL_SETUP_SERVERS)).toThrow(
+      "is not a setup server this CLI knows",
+    );
+  });
+
+  it("accepts the origins an embedding CLI passes instead", () => {
+    expect(
+      parseTrustedSetupUrl("https://setup.example.test/abc", [
+        "https://setup.example.test",
+      ]),
+    ).toBe("https://setup.example.test/abc");
+    expect(() =>
+      parseTrustedSetupUrl("https://checkout.assistant-ui.com/abc", [
+        "https://setup.example.test",
+      ]),
+    ).toThrow();
+  });
+
+  it("refuses an unknown setup server or setup page before connecting", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("exit");
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      exit.mockRestore();
+      stderr.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    await expect(
+      main(["https://checkout.assistant-ui.co/abc", "status"]),
+    ).rejects.toThrow("exit");
+    expect(connectCheckoutMock).not.toHaveBeenCalled();
+    expect(String(stderr.mock.lastCall?.[0])).toContain(
+      "https://checkout.assistant-ui.co is not a setup server this CLI knows",
+    );
+    expect(() =>
+      parseTrustedSetupUrl(
+        "https://setup.assistant-ui.co",
+        OFFICIAL_SETUP_APPS,
+        "setup page",
+      ),
+    ).toThrow("is not a setup page this CLI knows");
+  });
+});
+
 describe("detectAgentKind", () => {
   it("names the agent from the variables it exports", () => {
     expect(detectAgentKind({ CLAUDECODE: "1" })).toBe("claude");
@@ -850,7 +918,7 @@ describe("model key handoff", () => {
   const setup = async (stateHomePath?: (root: string) => Promise<string>) => {
     const context = await fixture(stateHomePath);
     await main([
-      "https://checkout.test/session",
+      "https://checkout.assistant-ui.com/session",
       "ask",
       "--preset",
       "llm-provider",
@@ -919,7 +987,10 @@ describe("model key handoff", () => {
         await symlink(join(root, "real"), join(root, "link"));
         return join(root, "link", "state");
       });
-      const fetch = await redeem(state, "https://checkout.test/session");
+      const fetch = await redeem(
+        state,
+        "https://checkout.assistant-ui.com/session",
+      );
       expect(fetch.mock.calls[0]?.[1]).toEqual({
         headers: { "Setup-Agent-Redeem-Key": redeemKey },
       });
@@ -936,7 +1007,7 @@ describe("model key handoff", () => {
       await symlink(target, join(stateHome, "setup-agent"));
       const fallback = await fallbackDirectory();
       await main([
-        "https://checkout.test/session",
+        "https://checkout.assistant-ui.com/session",
         "ask",
         "--preset",
         "llm-provider",
@@ -945,7 +1016,10 @@ describe("model key handoff", () => {
       expect(await readdir(target)).toEqual([]);
       expect(await readdir(fallback)).toEqual([`${hash}.key`]);
       const key = await readFile(join(fallback, `${hash}.key`), "utf8");
-      const fetch = await redeem(state, "https://checkout.test/session");
+      const fetch = await redeem(
+        state,
+        "https://checkout.assistant-ui.com/session",
+      );
       expect(fetch.mock.calls[0]?.[1]).toEqual({
         headers: { "Setup-Agent-Redeem-Key": key },
       });
@@ -969,7 +1043,7 @@ describe("model key handoff", () => {
 
     await expect(
       main([
-        "https://checkout.test/session",
+        "https://checkout.assistant-ui.com/session",
         "ask",
         "--preset",
         "llm-provider",
@@ -1002,7 +1076,7 @@ describe("model key handoff", () => {
     });
     await expect(
       main([
-        "https://checkout.test/session",
+        "https://checkout.assistant-ui.com/session",
         "ask",
         "--preset",
         "llm-provider",
@@ -1014,7 +1088,10 @@ describe("model key handoff", () => {
 
   it("pairs ask and env across a trailing slash in the endpoint", async () => {
     const { state, redeemKey, keyFile } = await setup();
-    const fetch = await redeem(state, "https://checkout.test/session/");
+    const fetch = await redeem(
+      state,
+      "https://checkout.assistant-ui.com/session/",
+    );
     expect(fetch.mock.calls[0]?.[1]).toEqual({
       headers: { "Setup-Agent-Redeem-Key": redeemKey },
     });
@@ -1037,7 +1114,7 @@ describe("model key handoff", () => {
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     onTestFinished(() => stderr.mockRestore());
     await main([
-      "https://checkout.test/session",
+      "https://checkout.assistant-ui.com/session",
       "env",
       "q1",
       "OPENAI_API_KEY",
@@ -1068,7 +1145,7 @@ describe("model key handoff", () => {
       rm(join(file, ".."), { recursive: true, force: true }),
     );
     await main([
-      "https://checkout.test/session",
+      "https://checkout.assistant-ui.com/session",
       "env",
       "q1",
       "OPENAI_API_KEY",
@@ -1110,7 +1187,7 @@ describe("model key handoff", () => {
     );
     await expect(
       main([
-        "https://checkout.test/session",
+        "https://checkout.assistant-ui.com/session",
         "env",
         "q1",
         "OPENAI_API_KEY",
@@ -1157,7 +1234,7 @@ describe("model key handoff", () => {
       await writeFile(file, "A=1\n");
       await expect(
         main([
-          "https://checkout.test/session",
+          "https://checkout.assistant-ui.com/session",
           "env",
           "q1",
           "OPENAI_API_KEY",
@@ -1227,7 +1304,12 @@ describe("model key handoff", () => {
         stderr.mockRestore();
       });
       await expect(
-        main(["https://checkout.test/session", "env", "q1", "OPENAI_API_KEY"]),
+        main([
+          "https://checkout.assistant-ui.com/session",
+          "env",
+          "q1",
+          "OPENAI_API_KEY",
+        ]),
       ).rejects.toThrow("exit");
       expect(fetch).not.toHaveBeenCalled();
       expect(await readFile(target, "utf8")).toBe("other-value");
@@ -1266,7 +1348,7 @@ describe("answer", () => {
       connectCheckoutMock.mockReset();
     });
     await main([
-      "https://checkout.test/session",
+      "https://checkout.assistant-ui.com/session",
       "answer",
       "q1",
       "apps/web",

@@ -1,6 +1,7 @@
 import spawn from "cross-spawn";
 import { accessSync, constants } from "node:fs";
-import { delimiter, join } from "node:path";
+import { homedir } from "node:os";
+import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
 /**
  * A coding agent a person can hand a setup to. `launch` is set when the
@@ -191,30 +192,58 @@ export const isDirectInvocation = (
   stdin.isTTY === true &&
   stdout.isTTY === true;
 
-/** The first of `commands` found on PATH, or `undefined`. */
+/**
+ * True for a PATH entry a project could have planted: a relative entry, one
+ * inside the working directory, or any `node_modules` directory (npx and
+ * package scripts put `node_modules/.bin` first).
+ */
+const isWithin = (parent: string, child: string) => {
+  const path = relative(parent, child);
+  return (
+    path === "" ||
+    (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+  );
+};
+
+const isProjectDirectory = (directory: string, cwd: string, home: string) => {
+  if (!isAbsolute(directory)) return true;
+  if (directory.split(/[\\/]/).includes("node_modules")) return true;
+  // Run from the home directory or above it, everything would be "inside".
+  return !isWithin(cwd, home) && isWithin(cwd, directory);
+};
+
+/**
+ * The absolute path of the first of `commands` found on PATH, or `undefined`.
+ * Directories a project could control are skipped, so a project can't plant
+ * its own `claude` ahead of the user's.
+ */
 export const findCommand = (
   commands: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
+  cwd: string = process.cwd(),
+  home: string = homedir(),
 ): string | undefined => {
-  // Empty entries (the working directory) are skipped on purpose: a project
-  // must not be able to plant its own `claude` next to the user.
-  const directories = (env.PATH ?? "").split(delimiter).filter(Boolean);
+  const directories = (env.PATH ?? "")
+    .split(delimiter)
+    .filter(
+      (directory) => directory && !isProjectDirectory(directory, cwd, home),
+    );
   const extensions =
     process.platform === "win32"
       ? (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";")
       : [""];
-  return commands.find((command) =>
-    directories.some((directory) =>
-      extensions.some((extension) => {
+  for (const command of commands) {
+    for (const directory of directories) {
+      for (const extension of extensions) {
+        const path = join(directory, command + extension);
         try {
-          accessSync(join(directory, command + extension), constants.X_OK);
-          return true;
-        } catch {
-          return false;
-        }
-      }),
-    ),
-  );
+          accessSync(path, constants.X_OK);
+          return path;
+        } catch {}
+      }
+    }
+  }
+  return undefined;
 };
 
 /**

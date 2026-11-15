@@ -1,6 +1,6 @@
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
 import {
   CODING_AGENTS,
@@ -94,9 +94,15 @@ describe("findCommand and runCodingAgent", () => {
       onTestFinished(() => {
         process.env.PATH = path;
       });
-      expect(findCommand(["missing-agent", "fake-agent"])).toBe("fake-agent");
-      expect(findCommand(["other-agent", "fake-agent"])).toBe("other-agent");
-      expect(findCommand(["fake-agent", "other-agent"])).toBe("fake-agent");
+      expect(findCommand(["missing-agent", "fake-agent"])).toBe(
+        join(directory, "fake-agent"),
+      );
+      expect(findCommand(["other-agent", "fake-agent"])).toBe(
+        join(directory, "other-agent"),
+      );
+      expect(findCommand(["fake-agent", "other-agent"])).toBe(
+        join(directory, "fake-agent"),
+      );
       expect(findCommand(["fake-agent"], { PATH: "" })).toBeUndefined();
       expect(findCommand(["missing-agent"])).toBeUndefined();
       const code = await runCodingAgent(
@@ -112,6 +118,50 @@ describe("findCommand and runCodingAgent", () => {
         "hello",
       );
       expect(code).toBe(7);
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "skips PATH entries a project could plant a command in",
+    async () => {
+      const user = await binDirectory();
+      const project = await mkdtemp(join(tmpdir(), "setup-agent-project-"));
+      onTestFinished(() => rm(project, { recursive: true, force: true }));
+      const planted = join(project, "node_modules", ".bin");
+      const local = join(project, "bin");
+      await mkdir(planted, { recursive: true });
+      await mkdir(local, { recursive: true });
+      for (const directory of [planted, local]) {
+        await writeFile(join(directory, "fake-agent"), "#!/bin/sh\nexit 0\n");
+        await chmod(join(directory, "fake-agent"), 0o755);
+      }
+      const home = join(tmpdir(), "setup-agent-no-such-home");
+      const find = (...entries: string[]) =>
+        findCommand(
+          ["fake-agent"],
+          { PATH: entries.join(delimiter) },
+          project,
+          home,
+        );
+      expect(find(planted, user)).toBe(join(user, "fake-agent"));
+      expect(find(local, user)).toBe(join(user, "fake-agent"));
+      expect(find("node_modules/.bin", "bin", user)).toBe(
+        join(user, "fake-agent"),
+      );
+      expect(find(planted, local)).toBeUndefined();
+      // A global node_modules/.bin is skipped too; installed CLIs live in bin.
+      expect(
+        findCommand(
+          ["fake-agent"],
+          { PATH: join(tmpdir(), "x", "node_modules", ".bin") },
+          project,
+          home,
+        ),
+      ).toBeUndefined();
+      // Run from the home directory, its bin directories still count.
+      expect(
+        findCommand(["fake-agent"], { PATH: local }, project, project),
+      ).toBe(join(local, "fake-agent"));
     },
   );
 

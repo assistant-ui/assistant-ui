@@ -134,6 +134,42 @@ export const parseSetupUrl = (value: string): string => {
   return href;
 };
 
+/** The setup server `npx setup-agent <url>` talks to, besides this machine. */
+export const OFFICIAL_SETUP_SERVERS = [
+  "https://checkout.assistant-ui.com",
+] as const;
+
+/** The setup page `--setup-app-url` may open, besides this machine. */
+export const OFFICIAL_SETUP_APPS = ["https://setup.assistant-ui.com"] as const;
+
+/**
+ * `parseSetupUrl`, then refused unless it is on this machine or one of
+ * `origins`. The setup server writes the agent's briefing and the guides it
+ * reads, so a look-alike host must not be able to serve them.
+ */
+export const parseTrustedSetupUrl = (
+  value: string,
+  origins: readonly string[],
+  what = "setup server",
+): string => {
+  const href = parseSetupUrl(value);
+  const url = new URL(href);
+  if (isLoopbackHostname(url.hostname)) return href;
+  const allowed = origins.some((origin) => {
+    try {
+      return new URL(origin).origin === url.origin;
+    } catch {
+      return false;
+    }
+  });
+  if (!allowed) {
+    throw new Error(
+      `${url.origin} is not a ${what} this CLI knows; it accepts ${origins.join(", ")} or localhost`,
+    );
+  }
+  return href;
+};
+
 /** The values the CLI fills into guide texts itself; never the server's to choose. */
 const localValues = (setupUrl: string, command = DEFAULT_COMMAND) => ({
   cmd: command,
@@ -733,6 +769,11 @@ export type RunSetupCommandOptions = {
   command?: string;
   /** Lets "stream" open the setup page when the setup waits on the user, as `--setup-app-url` does. */
   browser?: { setupAppUrl: string; canOpen?: boolean };
+  /**
+   * Setup server origins the `<url>` may name, in place of
+   * `OFFICIAL_SETUP_SERVERS`. A URL on this machine is always accepted.
+   */
+  servers?: readonly string[];
 };
 
 const runStream = async (
@@ -742,8 +783,13 @@ const runStream = async (
   options: RunSetupCommandOptions,
   guide: Guide,
 ) => {
+  // The embedding CLI's own setup page is its to choose; the flag is not.
+  const setupAppFlag = flagText(flags, "setup-app-url");
   const setupAppUrl =
-    options.browser?.setupAppUrl ?? flagText(flags, "setup-app-url");
+    options.browser?.setupAppUrl ??
+    (setupAppFlag === undefined
+      ? undefined
+      : parseTrustedSetupUrl(setupAppFlag, OFFICIAL_SETUP_APPS, "setup page"));
   const linkId = new URL(url).pathname.split("/").filter(Boolean).at(-1);
   const stream = await followSetup(client, {
     guide,
@@ -787,7 +833,10 @@ export const runSetupCommand = async (
   }
   let url: string;
   try {
-    url = parseSetupUrl(first);
+    url = parseTrustedSetupUrl(
+      first,
+      options.servers ?? OFFICIAL_SETUP_SERVERS,
+    );
   } catch (error) {
     return fail(error instanceof Error ? error.message : String(error));
   }
