@@ -32,8 +32,9 @@ export type MarkdownTextProps = {
   /** Wrap long lines in code blocks (default: true). */
   codeWrap?: boolean;
   /**
-   * Enable OSC 8 hyperlinks (default: auto-detect). Only http, https and
-   * mailto links become hyperlinks; other links render as plain text.
+   * Enable OSC 8 hyperlinks (default: auto-detect). Only http and https
+   * links become hyperlinks; other links render as text followed by their
+   * destination.
    */
   hyperlinks?: boolean;
   /** Enable ANSI colors (default: auto-detect). */

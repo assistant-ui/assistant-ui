@@ -21,7 +21,9 @@ describe("MarkdownText", () => {
     expect(lastFrame()).not.toContain("\u009d");
   });
 
-  it("only emits hyperlinks for http, https and mailto URLs", () => {
+  it("hyperlinks https URLs and shows other destinations as text", () => {
+    // markdansi decodes the `&#x1b;` reference to U+FFFD, not ESC, and
+    // `URL.href` percent-encodes U+FFFD as %EF%BF%BD.
     const { lastFrame } = render(
       <MarkdownText
         text={"[one](file:///etc/passwd) [two](https://example.com/&#x1b;x)"}
@@ -30,8 +32,8 @@ describe("MarkdownText", () => {
       />,
     );
     const frame = lastFrame()!;
-    expect(frame).toContain("one");
-    expect(frame).not.toContain("file:");
+    expect(frame).toContain("one\u001b[2m (file:///etc/passwd)\u001b[22m");
+    expect(frame).not.toContain("\u001b]8;;file:");
     expect(frame).toContain("\u001b]8;;https://example.com/%EF%BF%BDx\u0007");
   });
 
