@@ -154,8 +154,7 @@ export const fromThreadMessageLike = (
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
-    if (rest.filename !== undefined && typeof rest.filename !== "string")
-      return null;
+    if (rest.filename != null && typeof rest.filename !== "string") return null;
     if (parseDataUrl(image)?.mimeType.startsWith("image/")) {
       return { ...rest, image };
     }

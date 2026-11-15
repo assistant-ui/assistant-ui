@@ -319,6 +319,18 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     },
   );
 
+  it.each(["assistant", "user"] as const)(
+    "keeps an image part whose filename is null on %s messages",
+    (role) => {
+      const image = {
+        type: "image",
+        image: "https://a.test/a.png",
+        filename: null,
+      };
+      expect(convert(role, [image])).toHaveLength(1);
+    },
+  );
+
   it("drops a malformed file part inside a user attachment", () => {
     const good = { type: "file", data: "abc", mimeType: "text/plain" };
     const message = fromThreadMessageLike(
