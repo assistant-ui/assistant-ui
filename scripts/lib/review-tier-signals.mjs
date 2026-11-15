@@ -40,14 +40,29 @@ const lifecycleScripts = [
   "preinstall",
   "install",
   "postinstall",
+  "preprepare",
   "prepare",
+  "postprepare",
   "prepublish",
   "prepublishOnly",
   "prepack",
   "postpack",
+  "publish",
+  "postpublish",
 ];
-// Specs that resolve somewhere other than the registry entry the name implies.
-const nonRegistrySpec = /^\s*(npm:|git[+:]|github:|gitlab:|bitbucket:|https?:)/;
+const localSpec = /^(workspace|catalog|file|link):/;
+const npmAlias = /^npm:((?:@[^/@\s]+\/)?[^/@\s]+)(?:@|$)/;
+
+// An `npm:` alias resolves from the package it names, so only a new target is a
+// new source. No registry range or tag contains `:` or `/`, so any other spec
+// with one (git, ssh, URL, hosted shorthand, path) counts as a whole.
+function dependencySource(spec) {
+  const trimmed = spec.trim();
+  if (localSpec.test(trimmed)) return undefined;
+  const alias = npmAlias.exec(trimmed);
+  if (alias) return `npm:${alias[1]}`;
+  return /[:/]/.test(trimmed) ? trimmed : undefined;
+}
 const dependencyFields = [
   "dependencies",
   "devDependencies",
@@ -271,9 +286,15 @@ export function computeTier(input, policy) {
           addReason(3, "lifecycle-script", `${path}: scripts.${name}`, path);
         }
       }
-      const baseSpecs = new Map(dependencySpecs(base));
+      const baseSources = new Map(
+        [...dependencySpecs(base)].map(([key, spec]) => [
+          key,
+          dependencySource(spec),
+        ]),
+      );
       for (const [key, spec] of dependencySpecs(head)) {
-        if (nonRegistrySpec.test(spec) && baseSpecs.get(key) !== spec) {
+        const source = dependencySource(spec);
+        if (source !== undefined && baseSources.get(key) !== source) {
           addReason(3, "dependency-source", `${path}: ${key}`, path);
         }
       }

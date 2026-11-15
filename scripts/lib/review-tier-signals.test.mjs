@@ -1446,6 +1446,10 @@ for (const name of [
   "install",
   "prepare",
   "prepack",
+  "preprepare",
+  "postprepare",
+  "publish",
+  "postpublish",
 ]) {
   for (const path of [
     "packages/react/package.json",
@@ -1522,6 +1526,25 @@ for (const [field, base, head, key] of [
     "devDependencies.a",
   ],
   ["overrides", {}, { b: { c: "npm:d@1.0.0" } }, "overrides.b.c"],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "ssh://git@github.com/someone/a.git" },
+    "devDependencies.a",
+  ],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "git@github.com:someone/a.git" },
+    "devDependencies.a",
+  ],
+  ["dependencies", { a: "^1.0.0" }, { a: "someone/a#main" }, "dependencies.a"],
+  [
+    "devDependencies",
+    { a: "npm:b@^1.0.0" },
+    { a: "npm:c@^1.0.0" },
+    "devDependencies.a",
+  ],
 ]) {
   test(`${field} entry ${key} set to ${JSON.stringify(head)} gives T3`, () => {
     for (const path of ["packages/react/package.json", "package.json"]) {
@@ -1557,6 +1580,28 @@ test("pnpm overrides with an npm alias give T3", () => {
         reason.detail === "package.json: pnpm.overrides.x",
     ),
   );
+});
+
+test("a range bump on an existing npm alias is not flagged", () => {
+  const result = computeTier(
+    manifestInput(
+      {
+        devDependencies: {
+          "ai-v6": "npm:ai@^6.0.315",
+          "@types/react-v18": "npm:@types/react@^18.3.31",
+        },
+      },
+      {
+        devDependencies: {
+          "ai-v6": "npm:ai@^6.0.320",
+          "@types/react-v18": "npm:@types/react@^18.3.32",
+        },
+      },
+      "packages/cloud/package.json",
+    ),
+    policy,
+  );
+  assert.ok(!result.reasons.some(({ code }) => code === "dependency-source"));
 });
 
 test("an alias kept from the base and workspace or catalog specs are not flagged", () => {
