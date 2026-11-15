@@ -1411,22 +1411,17 @@ test("a dot-prefixed file in a contract package is a contract-area change", () =
   assert.deepEqual(result.areas, ["reactivity"]);
 });
 
-for (const [files, changedFiles] of [
-  [[file("README.md")], 3001],
-  [[file("README.md")], null],
-  [[file("README.md")], "1"],
+for (const [files, changedFiles, detail] of [
+  [[file("README.md")], 3001, "1 of 3001"],
+  [[file("README.md")], null, "1 of an unknown number of"],
+  [[file("README.md")], "1", "1 of an unknown number of"],
+  [[file("README.md")], -1, "1 of an unknown number of"],
 ]) {
   test(`a changed-file list GitHub cut short fails: ${changedFiles}`, () => {
     const result = computeTier(input({ files, changedFiles }), policy);
     assert.deepEqual(
       result.failures.filter(({ code }) => code === "files-incomplete"),
-      [
-        {
-          code: "files-incomplete",
-          detail: `1 of ${Number.isInteger(changedFiles) ? changedFiles : "an unknown number of"}`,
-          override: null,
-        },
-      ],
+      [{ code: "files-incomplete", detail, override: null }],
     );
   });
 }
@@ -1450,6 +1445,7 @@ for (const name of [
   "postprepare",
   "publish",
   "postpublish",
+  "pnpm:devPreinstall",
 ]) {
   for (const path of [
     "packages/react/package.json",
@@ -1578,6 +1574,25 @@ test("pnpm overrides with an npm alias give T3", () => {
       (reason) =>
         reason.code === "dependency-source" &&
         reason.detail === "package.json: pnpm.overrides.x",
+    ),
+  );
+});
+
+test("an override moved between a dotted name and a nested parent gives T3", () => {
+  const result = computeTier(
+    manifestInput(
+      { overrides: { "a.b": "npm:fork@1.0.0" } },
+      { overrides: { a: { b: "npm:fork@1.0.0" } } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "dependency-source" &&
+        reason.detail === "package.json: overrides.a.b",
     ),
   );
 });

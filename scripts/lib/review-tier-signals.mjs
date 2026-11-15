@@ -37,6 +37,7 @@ function majorsOf(range) {
 
 // Scripts a package manager runs on its own during install, pack or publish.
 const lifecycleScripts = [
+  "pnpm:devPreinstall",
   "preinstall",
   "install",
   "postinstall",
@@ -72,12 +73,12 @@ const dependencyFields = [
   "resolutions",
 ];
 
-function* stringLeaves(value, prefix) {
+function* stringLeaves(value, keys) {
   if (typeof value === "string") {
-    yield [prefix, value];
+    yield [keys, value];
   } else if (value !== null && typeof value === "object") {
     for (const [key, item] of Object.entries(value)) {
-      yield* stringLeaves(item, `${prefix}.${key}`);
+      yield* stringLeaves(item, [...keys, key]);
     }
   }
 }
@@ -85,9 +86,9 @@ function* stringLeaves(value, prefix) {
 function* dependencySpecs(manifest) {
   if (manifest === null || typeof manifest !== "object") return;
   for (const field of dependencyFields) {
-    yield* stringLeaves(manifest[field], field);
+    yield* stringLeaves(manifest[field], [field]);
   }
-  yield* stringLeaves(manifest.pnpm?.overrides, "pnpm.overrides");
+  yield* stringLeaves(manifest.pnpm?.overrides, ["pnpm", "overrides"]);
 }
 
 export function computeTier(input, policy) {
@@ -209,16 +210,15 @@ export function computeTier(input, policy) {
   // The pull request files API stops at a fixed number of files. A list
   // shorter than the pull request's own count could leave out any path, so
   // the result cannot be trusted and the check fails.
+  const countValid =
+    Number.isInteger(input.changedFiles) && input.changedFiles >= 0;
   if (
     input.changedFiles !== undefined &&
-    !(
-      Number.isInteger(input.changedFiles) &&
-      input.files.length >= input.changedFiles
-    )
+    !(countValid && input.files.length >= input.changedFiles)
   ) {
     failures.push({
       code: "files-incomplete",
-      detail: `${input.files.length} of ${Number.isInteger(input.changedFiles) ? input.changedFiles : "an unknown number of"}`,
+      detail: `${input.files.length} of ${countValid ? input.changedFiles : "an unknown number of"}`,
       override: null,
     });
   }
@@ -287,15 +287,18 @@ export function computeTier(input, policy) {
         }
       }
       const baseSources = new Map(
-        [...dependencySpecs(base)].map(([key, spec]) => [
-          key,
+        [...dependencySpecs(base)].map(([keys, spec]) => [
+          JSON.stringify(keys),
           dependencySource(spec),
         ]),
       );
-      for (const [key, spec] of dependencySpecs(head)) {
+      for (const [keys, spec] of dependencySpecs(head)) {
         const source = dependencySource(spec);
-        if (source !== undefined && baseSources.get(key) !== source) {
-          addReason(3, "dependency-source", `${path}: ${key}`, path);
+        if (
+          source !== undefined &&
+          baseSources.get(JSON.stringify(keys)) !== source
+        ) {
+          addReason(3, "dependency-source", `${path}: ${keys.join(".")}`, path);
         }
       }
     }
