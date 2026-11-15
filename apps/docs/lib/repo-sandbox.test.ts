@@ -119,6 +119,46 @@ describe("createRepoSandbox", () => {
     }
   });
 
+  it("stops a command at its deadline", async () => {
+    const getToolkit = createRepoSandbox({
+      toolPrompt: "",
+      commandTimeoutMs: 200,
+    });
+
+    const startedAt = Date.now();
+    const output = await run(getToolkit, "sleep 30; echo finished");
+
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+    expect(output).not.toContain("finished");
+    expect(await run(getToolkit, "echo next")).toBe("next");
+  });
+
+  it("stops every command once the sandbox spends its time budget", async () => {
+    const getToolkit = createRepoSandbox({
+      toolPrompt: "",
+      commandTimeoutMs: 10_000,
+      timeBudgetMs: 300,
+    });
+
+    const startedAt = Date.now();
+    expect(await run(getToolkit, "sleep 30; echo finished")).not.toContain(
+      "finished",
+    );
+    expect(await run(getToolkit, "sleep 30; echo finished")).not.toContain(
+      "finished",
+    );
+    expect(await run(getToolkit, "echo after")).not.toContain("after");
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+  });
+
+  it("keeps quick commands unaffected by the deadline", async () => {
+    const getToolkit = createRepoSandbox({ toolPrompt: "" });
+
+    for (let index = 0; index < 5; index += 1) {
+      expect(await run(getToolkit, "sleep 0.01; echo ok")).toBe("ok");
+    }
+  });
+
   it("never writes through to the source tree on disk", async () => {
     const getToolkit = createRepoSandbox({ toolPrompt: "" });
 
