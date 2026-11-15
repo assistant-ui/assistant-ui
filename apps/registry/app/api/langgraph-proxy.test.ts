@@ -58,14 +58,31 @@ describe("langchain template proxy", () => {
 
   it.each([
     ["missing", null],
+    ["none", "none"],
+  ])("forwards requests with %s fetch metadata", async (_label, site) => {
+    const res = await route.GET(request("threads/t-1/state", { site }));
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it.each([
     ["cross-site", "cross-site"],
     ["same-site", "same-site"],
-    ["none", "none"],
   ])("refuses requests with %s fetch metadata", async (_label, site) => {
     const res = await route.GET(request("threads/t-1/state", { site }));
     expect(res.status).toBe(403);
     const opts = await route.OPTIONS(request("threads", { site }));
     expect(opts.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a foreign Origin when fetch metadata is missing", async () => {
+    const req = new Request("https://app.example/api/threads", {
+      method: "POST",
+      headers: { origin: "https://other.example" },
+      body: "{}",
+    });
+    expect((await route.POST(req)).status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -76,7 +93,7 @@ describe("langchain template proxy", () => {
     ["POST", "threads/search"],
     ["POST", "store/items/search"],
     ["POST", "assistants/search"],
-    ["POST", "threads/t-1/../../assistants"],
+    ["POST", "threads/t-1/runs/%2Fadmin/cancel"],
   ])("does not forward %s %s", async (method, path) => {
     const handler = method === "GET" ? route.GET : route.POST;
     const res = await handler(request(path, { method }));

@@ -2,9 +2,10 @@ export const runtime = "edge";
 
 // This route forwards the browser's LangGraph calls with the server's
 // LANGCHAIN_API_KEY, so every thread on the deployment is reachable through
-// it. It only allows the calls the chat UI makes and only from this app's own
-// pages. It is not authentication. Before you deploy, require your app session
-// here and scope threads to the signed-in user:
+// it. It only forwards the calls the chat UI makes, and it refuses browser
+// requests from other sites. Neither check keeps out a client that is not a
+// browser: such a client can send any headers. Before you deploy, require
+// your app session here and scope threads to the signed-in user:
 // - On `POST threads`, set `metadata.owner` to the user id on the server,
 //   replacing whatever the client sent.
 // - For every `threads/<id>/...` path, read the thread with the API key and
@@ -23,15 +24,25 @@ function isAllowedPath(path: string, method: string) {
   );
 }
 
-// Browsers send Sec-Fetch-Site on every fetch. Requests without it (curl,
-// server-to-server clients, very old browsers) are refused.
 function isAllowedRequestContext(req: Request) {
-  return req.headers.get("sec-fetch-site") === "same-origin";
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === new URL(req.url).origin;
+  } catch {
+    return false;
+  }
 }
 
 function crossOriginResponse() {
   return Response.json(
-    { error: "Only same-origin browser requests are allowed." },
+    { error: "Cross-origin requests are not allowed." },
     { status: 403 },
   );
 }

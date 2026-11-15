@@ -46,9 +46,11 @@ langgraph.json      LangGraph CLI config (graph id, node version, env file)
 The bundled proxy in `app/api/[..._path]/route.ts` adds `LANGCHAIN_API_KEY` to the requests it forwards, so the key never reaches the browser. It limits what it forwards:
 
 - Only the calls the chat UI makes: `POST threads`, `GET threads/<id>/state`, and `POST` to a thread's `runs/stream`, `runs/<run>/cancel`, `history`, `commands` and `stream/events`. Other paths and methods get 404.
-- Only requests with `Sec-Fetch-Site: same-origin`, which browsers send on fetches from this app's pages. Requests without that header, such as curl or other servers, get 403.
+- Browser requests from other sites get 403, judged by `Sec-Fetch-Site` or, when a browser omits it, `Origin`. Reverse proxies must keep the public scheme and host in the request URL for the `Origin` comparison.
 
-These checks are not user authentication. With the server key, the proxy can reach every thread on the deployment. Before deploying with a cloud API key:
+Paths and methods are checked after the request context, so a refused browser request gets 403 whatever its path.
+
+None of this keeps out clients that are not browsers. curl or another server can send any headers, so with the server key they can reach every thread on the deployment. Only your own session and ownership checks stop them. Before deploying with a cloud API key:
 
 1. Require your application session in the route and apply a durable rate limit.
 2. Scope threads to the signed-in user. On `POST threads`, set `metadata.owner` to the user id on the server, replacing any value the client sent. For every `threads/<id>/...` path, read the thread with the server key and forward the request only when `metadata.owner` matches the user.
