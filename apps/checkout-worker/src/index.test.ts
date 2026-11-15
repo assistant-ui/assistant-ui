@@ -737,6 +737,57 @@ describe("limits", () => {
     expect(fixture.alarm.at).toBe(closedAt + ROOM_IDLE_MS);
   });
 
+  it("keeps a setup for a full day after a request the throttle did not record", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+
+    const lastRequestAt = start + 59 * 60 * 1000;
+    vi.setSystemTime(lastRequestAt);
+    await fixture.instance.fetch(request("stream"));
+    await fixture.ready();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(start);
+
+    vi.setSystemTime(lastRequestAt + 24 * 60 * 60 * 1000 - 1);
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+
+    vi.setSystemTime(start + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+  });
+
+  it("starts the idle clock when the last socket errors", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+    const ws = {};
+    fixture.sockets.push(ws);
+
+    const erroredAt = start + 30 * 60 * 1000;
+    vi.setSystemTime(erroredAt);
+    fixture.sockets.length = 0;
+    fixture.instance.webSocketError(ws as WebSocket);
+    await fixture.ready();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(erroredAt);
+
+    vi.setSystemTime(start + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.alarm.at).toBe(erroredAt + ROOM_IDLE_MS);
+  });
+
   it("starts the idle clock of a setup stored before activity was recorded", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     onTestFinished(() => {

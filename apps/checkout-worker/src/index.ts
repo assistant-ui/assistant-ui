@@ -44,14 +44,15 @@ const SECRET_TTL_MS = 60 * 60 * 1000;
 const MAX_SECRET_BYTES = 16 * 1024;
 /** The link alphabet and length the setup page accepts (apps/setup). */
 const LINK_PATH = /^\/[A-Za-z0-9]{8,64}(?:\/|$)/;
-/**
- * A setup with no request and no open socket for this long is deleted. A
- * request is recorded at most every `ACTIVITY_WRITE_MS`, so deletion can come
- * up to that much sooner after one.
- */
-export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000;
 /** How stale the stored last-activity time may get before it is rewritten. */
 const ACTIVITY_WRITE_MS = 60 * 60 * 1000;
+/**
+ * A setup is deleted this long after its stored last-activity time, with no
+ * open socket. The stored time can lag the last request by up to
+ * `ACTIVITY_WRITE_MS`, so the deadline adds that much: a setup always gets at
+ * least 24 hours with no request and no open socket.
+ */
+export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000 + ACTIVITY_WRITE_MS;
 const ACTIVITY_KEY = "room:lastActiveAt";
 /** The largest statewire command a client may send, over HTTP or a socket. */
 export const MAX_MESSAGE_BYTES = 256 * 1024;
