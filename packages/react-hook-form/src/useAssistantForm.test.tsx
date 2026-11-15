@@ -258,6 +258,90 @@ describe("useAssistantForm", () => {
     expect(onValid).toHaveBeenCalledOnce();
   });
 
+  describe("set_form_field", () => {
+    const setField = (name: string, value: string) => {
+      const formTool = provider.getModelContext().tools?.["set_form_field"];
+      if (!formTool?.execute) throw new Error("set_form_field is missing");
+      return formTool.execute({ name, value }, {} as never);
+    };
+
+    it("sets a rendered field, including array paths in bracket form", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ name: string; items: { label: string }[] }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { name: "", items: [{ label: "" }] },
+        });
+        return (
+          <>
+            <input {...form.register("name")} />
+            <input {...form.register("items.0.label")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("name", "Grace")).resolves.toEqual({
+        success: true,
+      });
+      await expect(setField("items[0].label", "First")).resolves.toEqual({
+        success: true,
+      });
+      expect(form.getValues()).toEqual({
+        name: "Grace",
+        items: [{ label: "First" }],
+      });
+    });
+
+    it("refuses fields the form does not render", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ name: string; role: string }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({ defaultValues: { name: "", role: "user" } });
+        return <input {...form.register("name")} />;
+      };
+      render(<Form />);
+
+      for (const name of ["role", "isAdmin", "__proto__.polluted"]) {
+        await expect(setField(name, "x")).resolves.toEqual({
+          success: false,
+          message: `The form has no field named "${name}" that can be set.`,
+        });
+      }
+      expect(form.getValues()).toEqual({ name: "", role: "user" });
+      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    });
+
+    it("refuses sensitive fields", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ password: string; email: string }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { password: "", email: "" },
+          assistant: { sensitiveFields: ["email"] },
+        });
+        return (
+          <>
+            <input type="password" {...form.register("password")} />
+            <input {...form.register("email")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("password", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      await expect(setField("email", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues()).toEqual({ password: "", email: "" });
+    });
+  });
+
   it("omits sensitive fields from the model context", () => {
     const Form = () => {
       const form = useAssistantForm({

@@ -81,6 +81,14 @@ const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
     isError: true,
   });
 
+const disabledToolResponse = (
+  toolName: string,
+): ToolResponse<ReadonlyJSONValue> =>
+  new ToolResponse({
+    result: `Tool "${toolName}" is disabled.`,
+    isError: true,
+  });
+
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
@@ -94,6 +102,11 @@ function getToolResponse(
 ) {
   const tool = tools?.[toolCall.toolName];
   if (!tool?.execute) return undefined;
+  // A disabled tool is hidden from the model; a call that names it anyway
+  // gets an error result instead of running.
+  if (tool.disabled) {
+    return Promise.resolve(disabledToolResponse(toolCall.toolName));
+  }
 
   const getResult = async (
     toolExecute: ToolExecuteFunction<Record<string, unknown>, unknown>,
@@ -204,7 +217,9 @@ function getToolStreamResponse(
       human(context.toolCallId, payload, context.executionId),
     [TOOL_EXECUTION_ID]: context.executionId,
   } as ToolExecutionContext;
-  return tools?.[context.toolName]?.streamCall?.(reader, executionContext);
+  const tool = tools?.[context.toolName];
+  if (tool?.disabled) return undefined;
+  return tool?.streamCall?.(reader, executionContext);
 }
 
 const isPendingToolCall = (

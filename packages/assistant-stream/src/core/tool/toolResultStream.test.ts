@@ -1885,3 +1885,95 @@ describe("toolResultStream inside a provider step", () => {
     ]);
   });
 });
+
+describe("disabled tools", () => {
+  it("returns an error result instead of running a disabled tool", async () => {
+    const execute = vi.fn(() => "ran");
+    const message = createPendingToolMessage("call-1");
+
+    const result = await unstable_runPendingTools(
+      message,
+      { tool: { parameters: { type: "object" }, disabled: true, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.parts[0]).toMatchObject({
+      state: "result",
+      result: 'Tool "tool" is disabled.',
+      isError: true,
+    });
+  });
+
+  it("does not run or stream a disabled tool in the result stream", async () => {
+    const execute = vi.fn(() => "ran");
+    const streamCall = vi.fn();
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of [
+          {
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "delete_account",
+            },
+          },
+          { type: "text-delta", path: [0], textDelta: "{}" },
+          { type: "tool-call-args-text-finish", path: [0] },
+          { type: "part-finish", path: [0] },
+        ] as AssistantStreamChunk[])
+          controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+
+    const outputChunks: AssistantStreamChunk[] = [];
+    await inputStream
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            delete_account: {
+              parameters: { type: "object" },
+              disabled: true,
+              execute,
+              streamCall,
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(
+        new WritableStream<AssistantStreamChunk>({
+          write(chunk) {
+            outputChunks.push(chunk);
+          },
+        }),
+      );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(streamCall).not.toHaveBeenCalled();
+    expect(outputChunks).toContainEqual(
+      expect.objectContaining({
+        type: "result",
+        result: 'Tool "delete_account" is disabled.',
+        isError: true,
+      }),
+    );
+  });
+
+  it("runs the tool again once it is enabled", async () => {
+    const execute = vi.fn(() => "ran");
+    const result = await unstable_runPendingTools(
+      createPendingToolMessage("call-1"),
+      { tool: { parameters: { type: "object" }, disabled: false, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(result.parts[0]).toMatchObject({ state: "result", result: "ran" });
+  });
+});
