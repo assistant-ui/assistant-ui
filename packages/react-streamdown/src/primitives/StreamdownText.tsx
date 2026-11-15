@@ -114,49 +114,78 @@ type HastNode = {
   children?: HastNode[];
 };
 
-const visitElements = (
-  tree: HastNode,
-  visit: (properties: Record<string, unknown>) => void,
-) => {
-  const walk = (node: HastNode) => {
-    if (node.type === "element" && node.properties) visit(node.properties);
-    node.children?.forEach(walk);
-  };
-  walk(tree);
+type HastElement = HastNode & {
+  tagName?: string;
+  properties: Record<string, unknown>;
 };
+
+const isElement = (node: HastNode): node is HastElement =>
+  node.type === "element" && node.properties !== undefined;
 
 const withoutPrefix = (value: unknown) =>
   typeof value === "string" && value.startsWith(CLOBBER_PREFIX)
     ? value.slice(CLOBBER_PREFIX.length)
     : value;
 
-// remark-rehype prefixes the footnote ids it generates, and their links,
-// before the sanitize step prefixes them again. This runs before rehype-raw,
-// so it sees only remark's elements, never raw HTML from the model, and leaves
-// them for the sanitize step to prefix once.
-const unprefixGeneratedIds = () => (tree: HastNode) =>
-  visitElements(tree, (properties) => {
-    for (const key of CLOBBERED_PROPERTIES) {
-      const value = properties[key];
-      if (value === undefined) continue;
-      properties[key] = Array.isArray(value)
-        ? value.map(withoutPrefix)
-        : withoutPrefix(value);
-    }
-    const href = properties["href"];
-    if (typeof href === "string" && href.startsWith(`#${CLOBBER_PREFIX}`)) {
-      properties["href"] = `#${href.slice(CLOBBER_PREFIX.length + 1)}`;
-    }
-  });
+const withPrefix = (value: unknown) =>
+  typeof value === "string" && value !== "" && !value.startsWith(CLOBBER_PREFIX)
+    ? CLOBBER_PREFIX + value
+    : value;
 
-// Points in-page links at the prefixed ids the sanitize step produced.
-const prefixFragmentLinks = () => (tree: HastNode) =>
-  visitElements(tree, (properties) => {
-    const href = properties["href"];
-    if (typeof href === "string" && href.length > 1 && href.startsWith("#")) {
-      properties["href"] = `#${CLOBBER_PREFIX}${href.slice(1)}`;
+const mapClobbered = (
+  properties: Record<string, unknown>,
+  map: (value: unknown) => unknown,
+) => {
+  for (const key of CLOBBERED_PROPERTIES) {
+    const value = properties[key];
+    if (value === undefined) continue;
+    properties[key] = Array.isArray(value) ? value.map(map) : map(value);
+  }
+};
+
+// remark-rehype prefixes the footnote ids it generates, and the links to them,
+// before the sanitize step prefixes every id again. This runs before
+// rehype-raw, so it sees only remark's footnote elements, never raw HTML from
+// the model, and leaves them for the sanitize step to prefix once.
+const unprefixFootnotes = () => (tree: HastNode) => {
+  const walk = (node: HastNode, inFootnotes: boolean) => {
+    let inside = inFootnotes;
+    if (isElement(node)) {
+      const { properties } = node;
+      const isReference =
+        properties["dataFootnoteRef"] !== undefined ||
+        properties["dataFootnoteBackref"] !== undefined;
+      if (isReference || (inFootnotes && node.tagName === "li")) {
+        mapClobbered(properties, withoutPrefix);
+      }
+      const href = properties["href"];
+      if (isReference && typeof href === "string" && href.startsWith("#")) {
+        properties["href"] = `#${withoutPrefix(href.slice(1))}`;
+      }
+      if (properties["dataFootnotes"] !== undefined) inside = true;
     }
-  });
+    node.children?.forEach((child) => walk(child, inside));
+  };
+  walk(tree, false);
+};
+
+// Runs after every other plugin, including the caller's. Ids a later plugin
+// adds (rehype-slug, say) get the prefix too, and every in-page link gets it
+// exactly once, so links still reach their targets and no id or name from
+// any source lands unprefixed.
+const normalizeClobberPrefix = () => (tree: HastNode) => {
+  const walk = (node: HastNode) => {
+    if (isElement(node)) {
+      mapClobbered(node.properties, withPrefix);
+      const href = node.properties["href"];
+      if (typeof href === "string" && href.length > 1 && href.startsWith("#")) {
+        node.properties["href"] = `#${CLOBBER_PREFIX}${href.slice(1)}`;
+      }
+    }
+    node.children?.forEach(walk);
+  };
+  walk(tree);
+};
 
 function buildSecuritySanitizeSchema(
   allowedTags: AllowedTags | undefined,
@@ -183,10 +212,9 @@ function buildSecurityRehypePlugins(
   allowedTags: AllowedTags | undefined,
 ): NonNullable<StreamdownProps["rehypePlugins"]> {
   return [
-    unprefixGeneratedIds,
+    unprefixFootnotes,
     rehypeRaw,
     [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
-    prefixFragmentLinks,
     [
       harden,
       {
@@ -340,7 +368,11 @@ export const StreamdownTextPrimitive = forwardRef<
       [securityKey],
     );
     const rehypePlugins = useMemo(
-      () => [...securityPlugins, ...(userRehypePlugins ?? [])],
+      () => [
+        ...securityPlugins,
+        ...(userRehypePlugins ?? []),
+        normalizeClobberPrefix,
+      ],
       [securityPlugins, userRehypePlugins],
     );
 

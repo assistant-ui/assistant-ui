@@ -426,6 +426,75 @@ describe("StreamdownTextPrimitive", () => {
       ]);
     });
 
+    it("points a link at the model id it names, prefixed or not", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={
+            '<span id="foo">A</span> <span id="user-content-foo">B</span>\n\n[to A](#foo) [to B](#user-content-foo)'
+          }
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            allowedTags={{ span: ["id"] }}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const target = (text: string) => {
+        const href = [...container.querySelectorAll("a")]
+          .find((anchor) => anchor.textContent === text)
+          ?.getAttribute("href");
+        return container.querySelector(`[id="${href?.slice(1)}"]`)?.textContent;
+      };
+      expect(target("to A")).toBe("A");
+      expect(target("to B")).toBe("B");
+    });
+
+    it("prefixes ids added by user plugins and keeps links to them", () => {
+      type Node = {
+        type: string;
+        tagName?: string;
+        properties?: Record<string, unknown>;
+        children?: Node[];
+        value?: string;
+      };
+      const slug = () => (tree: Node) => {
+        const walk = (node: Node) => {
+          if (node.tagName === "h2") {
+            const text = (node.children ?? [])
+              .map((child) => child.value ?? "")
+              .join("");
+            node.properties = { ...node.properties, id: text.toLowerCase() };
+          }
+          node.children?.forEach(walk);
+        };
+        walk(tree);
+      };
+      Object.defineProperty(slug, "name", { value: "slugHeadings" });
+
+      const { container } = render(
+        <TextMessagePartProvider
+          text={"[Setup](#setup)\n\n## Setup"}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            linkSafety={{ enabled: false }}
+            rehypePlugins={
+              [slug] as unknown as NonNullable<StreamdownProps["rehypePlugins"]>
+            }
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector('a[href="#user-content-setup"]')).not.toBe(
+        null,
+      );
+      expect(container.querySelector("h2")?.id).toBe("user-content-setup");
+    });
+
     it("keeps footnote links pointing at their footnote", () => {
       const { container } = render(
         <TextMessagePartProvider
