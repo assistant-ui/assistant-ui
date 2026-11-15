@@ -56,9 +56,7 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
-    onError: (error) => {
-      console.error("[api/chat]", error);
-      return "The model request failed.";
-    },
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
   });
 }

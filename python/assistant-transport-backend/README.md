@@ -57,6 +57,8 @@ python main.py
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+`HOST` applies to the first two commands. The uvicorn command ignores it and uses its own `--host`, so change that flag for remote access.
+
 The server will be available at:
 - **API**: http://localhost:8000
 - **Health Check**: http://localhost:8000/health
