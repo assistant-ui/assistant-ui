@@ -322,10 +322,35 @@ export function remoteComponents(
         res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
         res.end(`[rc] ${why}`);
       };
+      // Vite also admits the hosts its own config names.
+      const allowedHosts = (): readonly string[] | true => {
+        const listed = config.server.allowedHosts;
+        if (listed === true) return true;
+        const extra: string[] = [];
+        const add = (value: unknown) => {
+          if (typeof value === "string" && value) extra.push(value);
+        };
+        add(config.server.host);
+        add(config.preview.host);
+        const hmr = config.server.hmr;
+        if (typeof hmr === "object") add(hmr.host);
+        if (config.server.origin) {
+          try {
+            add(new URL(config.server.origin).hostname);
+          } catch {}
+        }
+        return [...(listed ?? []), ...extra];
+      };
       server.middlewares.use((req, res, next) => {
+        // Only the plugin's own pages: Vite checks the rest itself.
+        const page = /^\/([^/]+)(?:\/(?:index\.html|single\.html)?)?$/.exec(
+          new URL(req.url ?? "/", "http://x").pathname,
+        );
         if (
+          page !== null &&
+          components.has(page[1]!) &&
           !config.server.https &&
-          !devHostAllowed(req.headers.host, config.server.allowedHosts)
+          !devHostAllowed(req.headers.host, allowedHosts())
         )
           return refuse(res, "host not allowed; add it to server.allowedHosts");
         if (

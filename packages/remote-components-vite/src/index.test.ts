@@ -163,6 +163,47 @@ describe("dev server CORS", () => {
     expect((await rawGet(`${base}/Card/`, {})).status).toBe(200);
   });
 
+  it.each([
+    ["server.host", { host: "devbox.test" }],
+    ["server.origin", { origin: "http://devbox.test:5173" }],
+  ])(
+    "admits the host Vite's own %s names on the plugin's pages",
+    async (_name, extra) => {
+      const named = await createServer({
+        root,
+        configFile: false,
+        logLevel: "silent",
+        plugins: [remoteComponents({ components: { Card: "Card.tsx" } })],
+        server: { port: 0, ws: false, ...extra },
+      });
+      // Listen on loopback whatever server.host names.
+      await new Promise<void>((resolve) =>
+        named.httpServer!.listen(0, "127.0.0.1", resolve),
+      );
+      try {
+        const { port } = named.httpServer!.address() as AddressInfo;
+        const url = `http://127.0.0.1:${port}/Card/`;
+        expect(
+          (await rawGet(url, { host: `devbox.test:${port}` })).status,
+        ).toBe(200);
+        expect((await rawGet(url, { host: `other.test:${port}` })).status).toBe(
+          403,
+        );
+      } finally {
+        await named.close();
+      }
+    },
+  );
+
+  it("leaves other paths to Vite's own host check", async () => {
+    const { port } = new URL(base);
+    // Vite 8 refuses it itself; the plugin's check covers only its pages.
+    const response = await rawGet(`${base}/secret.ts`, {
+      host: `evil.example:${port}`,
+    });
+    expect(response.status).toBe(403);
+  });
+
   it("applies a project's own server.cors to the plugin's pages", async () => {
     const custom = await createServer({
       root,
