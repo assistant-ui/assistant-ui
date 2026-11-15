@@ -8,6 +8,11 @@ export const sanitizeTerminalText = (value: string): string => {
   if (start === value.length) return value;
 
   let result = value.slice(0, start);
+  // Once a scan reaches the end without a terminator, no later string can
+  // find one either, so each later unterminated string skips the scan.
+  let noStringTerminatorFrom = Infinity;
+  let noBellFrom = Infinity;
+  let noNewlineFrom = Infinity;
 
   for (let i = start; i < value.length;) {
     let code = value.charCodeAt(i);
@@ -66,21 +71,31 @@ export const sanitizeTerminalText = (value: string): string => {
         code === 0x9e ||
         code === 0x9f
       ) {
+        const start = i;
+        const bell = code === 0x5d || code === 0x9d;
+        let terminated = false;
+        if (start >= noStringTerminatorFrom && (!bell || start >= noBellFrom))
+          i = value.length;
         while (i < value.length) {
-          const next = value.charCodeAt(i);
-          // An unterminated string ends at its line, so it can't hide the
-          // text after it.
-          if (next === 0x0a) break;
-          i++;
-          if (
-            next === 0x9c ||
-            (next === 0x07 && (code === 0x5d || code === 0x9d))
-          )
-            break;
-          if (next === 0x1b && value.charCodeAt(i) === 0x5c) {
-            i++;
+          const next = value.charCodeAt(i++);
+          if (next === 0x9c || (next === 0x07 && bell)) {
+            terminated = true;
             break;
           }
+          if (next === 0x1b && value.charCodeAt(i) === 0x5c) {
+            i++;
+            terminated = true;
+            break;
+          }
+        }
+        // An unterminated string ends at its line, so it can't hide the
+        // text after it.
+        if (!terminated) {
+          noStringTerminatorFrom = Math.min(noStringTerminatorFrom, start);
+          if (bell) noBellFrom = Math.min(noBellFrom, start);
+          const line = start >= noNewlineFrom ? -1 : value.indexOf("\n", start);
+          if (line !== -1) i = line;
+          else noNewlineFrom = Math.min(noNewlineFrom, start);
         }
       }
       continue;

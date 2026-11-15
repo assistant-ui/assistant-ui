@@ -28,6 +28,8 @@ describe("sanitizeTerminalText", () => {
       "a\tb\nc",
     ],
     ["unfinished OSC", "a\x1b]8;;https://wrong.example", "a"],
+    ["a terminated DCS across lines", "a\x1bPignored\npayload\x1b\\b", "ab"],
+    ["a terminated OSC across lines", "a\x1b]0;x\ny\x07b", "ab"],
     ["unfinished CSI", "a\x1b[12;", "a"],
   ])("removes %s", (_name, input, expected) => {
     expect(sanitizeTerminalText(input)).toBe(expected);
@@ -46,5 +48,12 @@ describe("sanitizeTerminalText", () => {
     ["the lines after an unterminated C1 OSC", "a\u009dhidden\nb", "a\nb"],
   ])("keeps %s", (_name, input, expected) => {
     expect(sanitizeTerminalText(input)).toBe(expected);
+  });
+
+  it("stays linear on many unterminated strings", () => {
+    const line = "\x1b]x".repeat(50_000);
+    const started = performance.now();
+    expect(sanitizeTerminalText(`${line}\n${line}\nend`)).toBe("\n\nend");
+    expect(performance.now() - started).toBeLessThan(1_000);
   });
 });
