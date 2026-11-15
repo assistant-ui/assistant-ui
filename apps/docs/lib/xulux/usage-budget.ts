@@ -65,7 +65,8 @@ type UsageBudgetStore = {
     distinctId: string,
     date: string,
   ) => Promise<number>;
-  incrementTurn: (sessionId: string) => Promise<number>;
+  /** Adds `delta` (default 1) to the session's turn count; returns the count. */
+  incrementTurn: (sessionId: string, delta?: number) => Promise<number>;
   /** Adds to the session and daily totals and returns the new totals. */
   addSpend: (
     sessionId: string,
@@ -126,8 +127,8 @@ function createMemoryStore(): UsageBudgetStore {
       dailySessions.set(dayKey, set);
       return set.size;
     },
-    async incrementTurn(sessionId) {
-      const next = (turns.get(sessionId) ?? 0) + 1;
+    async incrementTurn(sessionId, delta = 1) {
+      const next = (turns.get(sessionId) ?? 0) + delta;
       turns.set(sessionId, next);
       return next;
     },
@@ -191,8 +192,8 @@ function createRedisStore(redis: Redis): UsageBudgetStore {
       await redis.expire(dailySessionsKey(distinctId, date), DAY_TTL_SEC);
       return redis.scard(dailySessionsKey(distinctId, date));
     },
-    async incrementTurn(sessionId) {
-      const turns = await redis.incr(sessionTurnsKey(sessionId));
+    async incrementTurn(sessionId, delta = 1) {
+      const turns = await redis.incrby(sessionTurnsKey(sessionId), delta);
       await redis.expire(sessionTurnsKey(sessionId), SESSION_TTL_SEC);
       return turns;
     },
@@ -303,20 +304,8 @@ export async function beginTurn(
   const deny = evaluateBudget(snap, limits);
   if (deny) return deniedWith(deny);
 
-  if (snap.isNewSession) {
-    const chatCount = await store.registerChat(
-      sessionId,
-      distinctId,
-      budgetDate,
-    );
-    if (chatCount > limits.maxChatsPerDay) {
-      return deniedWith("DAILY_CHAT_LIMIT");
-    }
-  }
-
-  const turns = await store.incrementTurn(sessionId);
-  if (turns > limits.maxTurnsPerChat) return deniedWith("CHAT_TURN_LIMIT");
-
+  // Reserve spend first so a refused reservation leaves the turn and chat
+  // counters untouched. Each later refusal hands the reservation back.
   const reserve = limits.turnReserveMicroUsd;
   const totals = await store.addSpend(
     sessionId,
@@ -327,21 +316,43 @@ export async function beginTurn(
   const networkTotal = networkId
     ? await store.addNetworkSpend(networkId, budgetDate, reserve)
     : null;
-  // Compare the totals from before this reservation, as evaluateBudget does.
-  const overCode: BudgetDenyCode | null =
-    totals.dailySpentMicroUsd - reserve >= limits.dailyBudgetMicroUsd ||
-    (networkTotal !== null &&
-      networkTotal - reserve >= limits.networkDailyBudgetMicroUsd)
-      ? "DAILY_BUDGET_EXCEEDED"
-      : totals.sessionSpentMicroUsd - reserve >= limits.chatBudgetMicroUsd
-        ? "CHAT_BUDGET_EXCEEDED"
-        : null;
-  if (overCode) {
+  const release = async (code: BudgetDenyCode) => {
     await store.addSpend(sessionId, distinctId, budgetDate, -reserve);
     if (networkId) {
       await store.addNetworkSpend(networkId, budgetDate, -reserve);
     }
-    return deniedWith(overCode);
+    return deniedWith(code);
+  };
+  // Compare the totals from before this reservation, as evaluateBudget does:
+  // a turn may start while spend is under the cap. Concurrent turns each see
+  // a different total, so together they pass the cap by at most one
+  // reservation.
+  if (
+    totals.dailySpentMicroUsd - reserve >= limits.dailyBudgetMicroUsd ||
+    (networkTotal !== null &&
+      networkTotal - reserve >= limits.networkDailyBudgetMicroUsd)
+  ) {
+    return release("DAILY_BUDGET_EXCEEDED");
+  }
+  if (totals.sessionSpentMicroUsd - reserve >= limits.chatBudgetMicroUsd) {
+    return release("CHAT_BUDGET_EXCEEDED");
+  }
+
+  if (snap.isNewSession) {
+    const chatCount = await store.registerChat(
+      sessionId,
+      distinctId,
+      budgetDate,
+    );
+    if (chatCount > limits.maxChatsPerDay) {
+      return release("DAILY_CHAT_LIMIT");
+    }
+  }
+
+  const turns = await store.incrementTurn(sessionId);
+  if (turns > limits.maxTurnsPerChat) {
+    await store.incrementTurn(sessionId, -1);
+    return release("CHAT_TURN_LIMIT");
   }
 
   return { denied: null, budgetDate, reservedMicroUsd: reserve };
@@ -357,6 +368,10 @@ export async function finishTurn(
 ): Promise<void> {
   const store = await getStore();
   if (!store) return;
+
+  // A turn with no reported tokens (an abort before any step finished)
+  // keeps its reservation as the charge.
+  if (!(usage.inputTokens ?? 0) && !(usage.outputTokens ?? 0)) return;
 
   // Settle the reservation: charge the real cost in its place.
   const microUsd = estimateMicroUsd(usage) - reservedMicroUsd;

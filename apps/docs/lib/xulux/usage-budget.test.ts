@@ -138,6 +138,57 @@ describe("xulux usage budget", () => {
     }
   });
 
+  it("leaves the turn count alone when a reservation is refused", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.25");
+    vi.stubEnv("XULUX_MAX_TURNS_PER_CHAT", "6");
+    const budget = await loadBudget();
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        budget.beginTurn("session-a:chat", "session-a", null),
+      ),
+    );
+    const started = results.filter((r) => r.denied === null);
+    expect(started).toHaveLength(4);
+    // Settling the four turns at a low cost frees the budget; the two turns
+    // left under the six-turn limit can still start.
+    for (const turn of started) {
+      await budget.finishTurn(
+        "session-a:chat",
+        "session-a",
+        { outputTokens: 1_000 },
+        turn.budgetDate,
+        null,
+        turn.reservedMicroUsd,
+      );
+    }
+    for (let i = 0; i < 2; i++) {
+      expect(
+        (await budget.beginTurn("session-a:chat", "session-a", null)).denied,
+      ).toBeNull();
+    }
+    const refused = await budget.beginTurn("session-a:chat", "session-a", null);
+    expect((await refused.denied!.json()).code).toBe("CHAT_TURN_LIMIT");
+  });
+
+  it("keeps the reservation when a turn reports zero tokens", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
+    const budget = await loadBudget();
+    for (let i = 0; i < 2; i++) {
+      const turn = await budget.beginTurn("session-a:chat", "session-a", null);
+      expect(turn.denied).toBeNull();
+      await budget.finishTurn(
+        "session-a:chat",
+        "session-a",
+        { inputTokens: 0, outputTokens: 0 },
+        turn.budgetDate,
+        null,
+        turn.reservedMicroUsd,
+      );
+    }
+    const refused = await budget.beginTurn("session-a:chat", "session-a", null);
+    expect((await refused.denied!.json()).code).toBe("DAILY_BUDGET_EXCEEDED");
+  });
+
   it("does not hold a reservation for a refused turn", async () => {
     vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
     vi.stubEnv("XULUX_MAX_TURNS_PER_CHAT", "1");
