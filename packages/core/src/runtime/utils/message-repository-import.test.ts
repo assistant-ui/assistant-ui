@@ -51,7 +51,7 @@ const bad: ExportedMessageRepository[] = [
     headId: "a",
     messages: [{ message: message("a"), parentId: "b" }],
   },
-  // "b" is updated in place before the head turns out to be missing
+  // "b" is updated and moved under "c" before the head turns out to be missing
   {
     headId: "missing",
     messages: [
@@ -60,7 +60,7 @@ const bad: ExportedMessageRepository[] = [
           ...message("b"),
           content: [{ type: "text", text: "changed" }],
         } as ThreadMessage,
-        parentId: "a",
+        parentId: "c",
       },
     ],
   },
