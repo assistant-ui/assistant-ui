@@ -47,6 +47,8 @@ export default {
 
 The dev server sends `frame-ancestors` but no `connect-src`, because HMR needs a websocket.
 
+The dev server serves your project's source, so it answers cross-origin requests only from pages on this machine: a `localhost` or loopback origin, or an opaque remote frame whose page is one. A request from any other site gets a 403. Set Vite's `server.cors` to allow other origins, such as a host on another machine; the plugin then leaves CORS to it. `vite preview` and built output answer any origin.
+
 ## Build
 
 ```txt title="output"

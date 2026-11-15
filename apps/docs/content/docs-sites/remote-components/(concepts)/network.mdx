@@ -31,6 +31,8 @@ Pick a policy below and click Get weather. The data comes from [Open-Meteo](http
 | `"none"` | `'none'` | No network at all. |
 | `["https://api.example.com"]` | those origins | Exactly these. `https://*.example.com` matches subdomains. |
 
+With `"none"` or a list, images and media (`img-src`, `media-src`) load only from the remote's own origin, `data:` and `blob:` URLs, and the listed origins, since an image URL carries data out as well as a `fetch` does. Links and navigation are outside what a Content Security Policy can block.
+
 Set it per element with `network`, or for every remote on `<RemoteHostProvider network>`. It is a Content Security Policy. For documents your page shows itself (the `html` prop, Safe Content Frame) the host writes it into the document. For URL remotes it goes on the iframe's `csp` attribute, which the serving layer accepts.
 
 <Callout type="warn">

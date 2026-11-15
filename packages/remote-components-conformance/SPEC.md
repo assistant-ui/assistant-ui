@@ -763,6 +763,9 @@ host callbacks, which the host implements and authorizes.
   - `"none"`: `connect-src 'none'`.
   - a list of origins (`https://api.example.com`, `https://*.example.com`):
     exactly those.
+  - With `"none"` or a list, `img-src` and `media-src` are `'self' data:
+    blob:` plus the listed http(s) origins, so an image URL can't carry
+    data out either. Navigation and links are beyond CSP.
 - A page narrows its own policy with a CSP of its own:
   `<meta http-equiv="Content-Security-Policy" content="connect-src
   https://api.example.com">`. The browser enforces every policy, so a page

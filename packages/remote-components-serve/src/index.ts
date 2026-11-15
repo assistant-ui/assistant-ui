@@ -58,6 +58,25 @@ export function connectSrc(policy: NetworkPolicy = "public"): string {
   return list.length === 0 ? "'none'" : list.join(" ");
 }
 
+/**
+ * The CSP directives for a policy. `"public"` limits only `connect-src`.
+ * `"none"` and a list also hold images and media to the page's own origin,
+ * inline `data:`/`blob:` URLs and the listed origins, since an `<img>` or
+ * `<video>` URL carries data out as well as a `fetch()` does.
+ */
+export function networkCsp(policy: NetworkPolicy = "public"): string {
+  const connect = connectSrc(policy);
+  const directives = [`connect-src ${connect}`];
+  if (policy !== "public") {
+    const sources = ["'self'", "data:", "blob:"];
+    if (connect !== "'none'")
+      sources.push(...connect.split(" ").filter((s) => /^https?:/i.test(s)));
+    const value = sources.join(" ");
+    directives.push(`img-src ${value}`, `media-src ${value}`);
+  }
+  return directives.join("; ");
+}
+
 /** The `frame-ancestors` directive for a list of host origins (`[]`: no page may embed it). */
 export function frameAncestorsDirective(origins: readonly string[]): string {
   return `frame-ancestors ${origins.join(" ") || "'none'"}`;
@@ -153,7 +172,7 @@ export function normalizeHtml(
   options: NormalizeOptions = {},
 ): Normalized {
   let html = hasDoctype(input) ? input : `<!doctype html>\n${input}`;
-  const csp = `connect-src ${connectSrc(options.network)}`;
+  const csp = networkCsp(options.network);
   let head = "";
   if (options.cspMeta)
     head += `<meta http-equiv="Content-Security-Policy" content="${attr(csp)}">`;

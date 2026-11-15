@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import {
-  connectSrc,
+  networkCsp,
   frameAncestorsDirective,
   remoteComponentsMiddleware,
   RUNTIME_DIR,
@@ -45,6 +45,41 @@ export interface RemoteComponentsOptions {
   singleFile?: { plugins?: import("vite").PluginOption[] };
   /** Add the runtime tag to the app's own `index.html` too. Default true. */
   injectIndex?: boolean;
+}
+
+/** Vite's own default: loopback origins only. */
+const LOOPBACK_ORIGIN =
+  /^https?:\/\/(?:(?:[^:/]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
+
+const loopbackUrl = (value: string | undefined): boolean => {
+  if (!value) return false;
+  try {
+    return LOOPBACK_ORIGIN.test(new URL(value).origin);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Whether the dev server answers a cross-origin request. The dev server
+ * serves the whole project's source, so only pages on this machine may read
+ * it: its own origin, a loopback `Origin`, or `Origin: null` (an opaque remote frame) whose
+ * `Referer` is a loopback page, which a sandboxed frame on another site
+ * can't claim. Set `server.cors` to allow anything else.
+ */
+export function devCorsAllows(
+  origin: string | undefined,
+  referer: string | undefined,
+  host?: string,
+): boolean {
+  if (origin === undefined) return true;
+  if (origin === "null") return loopbackUrl(referer);
+  if (host !== undefined) {
+    try {
+      if (new URL(origin).host === host.toLowerCase()) return true;
+    } catch {}
+  }
+  return LOOPBACK_ORIGIN.test(origin);
 }
 
 const ENTRY_PREFIX = "virtual:rc-entry:";
@@ -154,10 +189,12 @@ export function remoteComponents(
   options: RemoteComponentsOptions = {},
 ): Plugin {
   let config: ResolvedConfig;
+  // The project set its own `server.cors`; the plugin then leaves CORS to it.
+  let customCors = false;
   let components = new Map<string, string>();
   const singleCache = new Map<string, Promise<string>>();
   const csp = [
-    `connect-src ${connectSrc(options.network)}`,
+    networkCsp(options.network),
     ...(options.frameAncestors
       ? [frameAncestorsDirective(options.frameAncestors)]
       : []),
@@ -190,11 +227,18 @@ export function remoteComponents(
     config(userConfig, env) {
       const root = path.resolve(userConfig.root ?? process.cwd());
       components = resolveComponents(root, options.components);
-      // Remote code is public. Opaque-origin remotes (sandbox without
+      // Built remote code is public, so preview answers any origin. The dev
+      // server serves the project's source, so it answers only pages on this
+      // machine (devCorsAllows); opaque-origin remotes (sandbox without
       // allow-same-origin) fetch their scripts with `Origin: null`.
       if (env.command !== "build") {
+        customCors = userConfig.server?.cors !== undefined;
         return {
-          server: { cors: userConfig.server?.cors ?? { origin: "*" } },
+          server: {
+            cors: userConfig.server?.cors ?? {
+              origin: [LOOPBACK_ORIGIN, "null"],
+            },
+          },
           preview: { cors: userConfig.preview?.cors ?? { origin: "*" } },
         };
       }
@@ -242,6 +286,16 @@ export function remoteComponents(
       server.watcher.on("add", refresh);
       server.watcher.on("unlink", refresh);
       server.watcher.on("change", () => singleCache.clear());
+      if (!customCors)
+        server.middlewares.use((req, res, next) => {
+          const origin = req.headers.origin;
+          const referer = req.headers.referer;
+          if (devCorsAllows(origin, referer, req.headers.host)) return next();
+          res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+          res.end(
+            "[rc] cross-origin request refused; set server.cors to allow it",
+          );
+        });
       const runtime = remoteComponentsMiddleware({ runtimeBase: base() });
       server.middlewares.use((req, res, next) => void runtime(req, res, next));
       server.middlewares.use((req, res, next) => {
@@ -250,9 +304,14 @@ export function remoteComponents(
         if (sm !== null && options.singleFile && components.has(sm[1]!)) {
           single(sm[1]!, components.get(sm[1]!)!)
             .then((html) => {
+              const origin = req.headers.origin;
               res.writeHead(200, {
                 "content-type": "text/html; charset=utf-8",
-                "access-control-allow-origin": "*",
+                ...(customCors
+                  ? { "access-control-allow-origin": "*" }
+                  : origin !== undefined
+                    ? { "access-control-allow-origin": origin, vary: "Origin" }
+                    : {}),
               });
               res.end(html);
             })
