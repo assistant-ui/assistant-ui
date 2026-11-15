@@ -19,6 +19,24 @@ vi.mock("../lib/setup-session", async (importOriginal) => ({
   ),
 }));
 
+// The client the mocked session hands back; a test can close its setup.
+const fakeClient = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  const client = {
+    state: undefined as { status: string } | undefined,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose: () => {},
+    emit: (state: { status: string }) => {
+      client.state = state;
+      for (const listener of [...listeners]) listener();
+    },
+  };
+  return client;
+});
+
 // Stands in for the session and stream: reports the session, prints the briefing, streams nothing.
 vi.mock("setup-agent/sdk", () => ({
   runAgentSetup: vi.fn(async (options) => {
@@ -34,11 +52,7 @@ vi.mock("setup-agent/sdk", () => ({
     return {
       session,
       stream: { stop: vi.fn(async () => {}) },
-      client: {
-        state: undefined,
-        subscribe: () => () => {},
-        dispose: vi.fn(),
-      },
+      client: fakeClient,
     };
   }),
 }));
@@ -189,6 +203,47 @@ describe("setup", () => {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
+
+  it.each(["done", "cancelled"])(
+    "stops the stream and exits once the setup is %s",
+    async (status) => {
+      const exit = vi
+        .spyOn(process, "exit")
+        .mockImplementation((() => {}) as typeof process.exit);
+      const write = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation(() => true);
+      const env = { ...process.env };
+      const signals = ["SIGHUP", "SIGINT", "SIGTERM"] as const;
+      const signalListeners = signals.map((signal) =>
+        process.listeners(signal),
+      );
+      const exitListeners = process.listeners("exit");
+      process.env = { PATH: env.PATH, CLAUDECODE: "1" };
+      fakeClient.state = undefined;
+      try {
+        await setup.parseAsync(["--no-open"], { from: "user" });
+        expect(exit).not.toHaveBeenCalled();
+        fakeClient.emit({ status: "installing" });
+        expect(exit).not.toHaveBeenCalled();
+        fakeClient.emit({ status });
+        await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+      } finally {
+        for (const listener of process.listeners("exit"))
+          if (!exitListeners.includes(listener))
+            process.off("exit", listener as () => void);
+        signals.forEach((signal, i) => {
+          for (const listener of process.listeners(signal))
+            if (!signalListeners[i]!.includes(listener))
+              process.off(signal, listener as () => void);
+        });
+        process.env = env;
+        write.mockRestore();
+        exit.mockRestore();
+        fakeClient.state = undefined;
+      }
+    },
+  );
 
   it("ends the session when a signal arrives while setup is still starting", async () => {
     const env = { ...process.env };
