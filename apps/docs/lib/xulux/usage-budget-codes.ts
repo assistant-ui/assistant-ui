@@ -9,6 +9,8 @@ export type BudgetDenyCode =
 export type BudgetLimits = {
   chatBudgetMicroUsd: number;
   dailyBudgetMicroUsd: number;
+  /** Daily spend across every anonymous session from one client IP. */
+  networkDailyBudgetMicroUsd: number;
   maxTurnsPerChat: number;
   maxChatsPerDay: number;
 };
@@ -19,6 +21,8 @@ export type BudgetSnapshot = {
   dailySpentMicroUsd: number;
   dailyChatCount: number;
   isNewSession: boolean;
+  /** Today's spend from the client's IP; absent when the IP is unknown. */
+  networkDailySpentMicroUsd?: number;
 };
 
 export type TokenUsage = {
@@ -40,6 +44,7 @@ export function usdToMicroUsd(usd: number): number {
 export const DEFAULT_BUDGET_LIMITS: BudgetLimits = {
   chatBudgetMicroUsd: usdToMicroUsd(1),
   dailyBudgetMicroUsd: usdToMicroUsd(2),
+  networkDailyBudgetMicroUsd: usdToMicroUsd(20),
   maxTurnsPerChat: 8,
   maxChatsPerDay: 10,
 };
@@ -71,6 +76,10 @@ export function getBudgetLimits(): BudgetLimits {
       "XULUX_DAILY_BUDGET_USD",
       DEFAULT_BUDGET_LIMITS.dailyBudgetMicroUsd / 1_000_000,
     ),
+    networkDailyBudgetMicroUsd: parseUsdEnv(
+      "XULUX_DAILY_BUDGET_PER_IP_USD",
+      DEFAULT_BUDGET_LIMITS.networkDailyBudgetMicroUsd / 1_000_000,
+    ),
     maxTurnsPerChat: parseIntEnv(
       "XULUX_MAX_TURNS_PER_CHAT",
       DEFAULT_BUDGET_LIMITS.maxTurnsPerChat,
@@ -95,7 +104,10 @@ export function evaluateBudget(
   snap: BudgetSnapshot,
   limits: BudgetLimits,
 ): BudgetDenyCode | null {
-  if (snap.dailySpentMicroUsd >= limits.dailyBudgetMicroUsd) {
+  if (
+    snap.dailySpentMicroUsd >= limits.dailyBudgetMicroUsd ||
+    (snap.networkDailySpentMicroUsd ?? 0) >= limits.networkDailyBudgetMicroUsd
+  ) {
     return "DAILY_BUDGET_EXCEEDED";
   }
   if (snap.sessionTurns >= limits.maxTurnsPerChat) {

@@ -41,6 +41,10 @@ function dailySessionsKey(distinctId: string, date: string): string {
   return `xulux:day:${distinctId}:${date}:sessions`;
 }
 
+function networkSpentKey(networkId: string, date: string): string {
+  return `xulux:net:${networkId}:${date}:spent`;
+}
+
 function sessionRegisteredKey(sessionId: string, date: string): string {
   return `xulux:sess:${sessionId}:reg:${date}`;
 }
@@ -68,6 +72,12 @@ type UsageBudgetStore = {
     date: string,
     microUsd: number,
   ) => Promise<void>;
+  loadNetworkSpent: (networkId: string, date: string) => Promise<number>;
+  addNetworkSpend: (
+    networkId: string,
+    date: string,
+    microUsd: number,
+  ) => Promise<void>;
 };
 
 function pruneStaleMemoryDailyKeys(
@@ -89,6 +99,7 @@ function createMemoryStore(): UsageBudgetStore {
   const dailySpent = new Map<string, number>();
   const dailySessions = new Map<string, Set<string>>();
   const registered = new Set<string>();
+  const networkSpent = new Map<string, number>();
 
   return {
     async loadSnapshot(sessionId, distinctId, date) {
@@ -127,6 +138,16 @@ function createMemoryStore(): UsageBudgetStore {
       );
       const dayKey = `${distinctId}:${date}`;
       dailySpent.set(dayKey, (dailySpent.get(dayKey) ?? 0) + microUsd);
+    },
+    async loadNetworkSpent(networkId, date) {
+      for (const key of networkSpent.keys()) {
+        if (!key.endsWith(`:${date}`)) networkSpent.delete(key);
+      }
+      return networkSpent.get(`${networkId}:${date}`) ?? 0;
+    },
+    async addNetworkSpend(networkId, date, microUsd) {
+      const key = `${networkId}:${date}`;
+      networkSpent.set(key, (networkSpent.get(key) ?? 0) + microUsd);
     },
   };
 }
@@ -185,6 +206,13 @@ function createRedisStore(redis: Redis): UsageBudgetStore {
         redis.expire(dailySpentKey(distinctId, date), DAY_TTL_SEC),
       ]);
     },
+    async loadNetworkSpent(networkId, date) {
+      return (await redis.get<number>(networkSpentKey(networkId, date))) ?? 0;
+    },
+    async addNetworkSpend(networkId, date, microUsd) {
+      await redis.incrby(networkSpentKey(networkId, date), microUsd);
+      await redis.expire(networkSpentKey(networkId, date), DAY_TTL_SEC);
+    },
   };
 }
 
@@ -232,9 +260,15 @@ function denyResponse(code: BudgetDenyCode): Response {
   );
 }
 
+/**
+ * Starts a turn unless a limit is reached. `networkId` is the trusted client
+ * IP: anonymous sessions are cheap to mint, so the daily spend is also capped
+ * across every session from one IP.
+ */
 export async function beginTurn(
   sessionId: string,
   distinctId: string,
+  networkId?: string | null,
 ): Promise<BeginTurnResult> {
   const budgetDate = utcDateKey();
   const store = await getStore();
@@ -242,6 +276,12 @@ export async function beginTurn(
 
   const limits = getBudgetLimits();
   const snap = await store.loadSnapshot(sessionId, distinctId, budgetDate);
+  if (networkId) {
+    snap.networkDailySpentMicroUsd = await store.loadNetworkSpent(
+      networkId,
+      budgetDate,
+    );
+  }
   const deny = evaluateBudget(snap, limits);
   if (deny) return { denied: denyResponse(deny), budgetDate };
 
@@ -265,10 +305,14 @@ export async function finishTurn(
   distinctId: string,
   usage: TokenUsage,
   budgetDate = utcDateKey(),
+  networkId?: string | null,
 ): Promise<void> {
   const store = await getStore();
   if (!store) return;
 
   const microUsd = estimateMicroUsd(usage);
   await store.addSpend(sessionId, distinctId, budgetDate, microUsd);
+  if (networkId) {
+    await store.addNetworkSpend(networkId, budgetDate, microUsd);
+  }
 }

@@ -2,7 +2,7 @@ import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { type FrontendTools } from "@assistant-ui/ai-sdk";
 import { prepareDocChatMessages } from "@/lib/ai/chat-route";
-import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import { checkPublicAssistantRateLimit, getClientIp } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import {
   validateDocChatInput,
@@ -270,7 +270,12 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       if (inputError) return inputError;
 
       const distinctId = getDistinctId(req);
-      const budget = await beginTurn(budgetSessionId, publicSession.id);
+      const clientIp = getClientIp(req);
+      const budget = await beginTurn(
+        budgetSessionId,
+        publicSession.id,
+        clientIp,
+      );
       if (budget.denied) {
         const payload = await budget.denied
           .clone()
@@ -372,6 +377,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             publicSession.id,
             usage,
             budgetDate,
+            clientIp,
           );
           await prism?.end();
         },
@@ -392,6 +398,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             publicSession.id,
             usage,
             budgetDate,
+            clientIp,
           );
           await prism?.end();
         },

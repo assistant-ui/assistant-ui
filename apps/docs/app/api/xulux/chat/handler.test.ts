@@ -88,10 +88,11 @@ const agent: XuluxAgentDefinition = {
 const request = (
   config?: Record<string, unknown>,
   overrides?: Record<string, unknown>,
+  headers?: Record<string, string>,
 ) =>
   new Request("https://www.assistant-ui.com/api/xulux/chat", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify({
       sessionId: "xulux-chat-session",
       ...(config ? { config } : {}),
@@ -178,12 +179,17 @@ describe("createXuluxChatHandler access boundary", () => {
       toUIMessageStreamResponse: () => new Response("ok"),
     });
 
-    const response = await createXuluxChatHandler(agent)(request());
+    const response = await createXuluxChatHandler(agent)(
+      request(undefined, undefined, {
+        "x-vercel-forwarded-for": "203.0.113.7",
+      }),
+    );
 
     expect(response.status).toBe(200);
     expect(mocks.beginTurn).toHaveBeenCalledWith(
       `${publicSession.id}:xulux-chat-session`,
       publicSession.id,
+      "203.0.113.7",
     );
     expect(mocks.beginTurn).not.toHaveBeenCalledWith(
       "xulux-chat-session",
@@ -201,6 +207,7 @@ describe("createXuluxChatHandler access boundary", () => {
       publicSession.id,
       usage,
       "2026-08-27",
+      "203.0.113.7",
     );
   });
 
@@ -236,6 +243,7 @@ describe("createXuluxChatHandler access boundary", () => {
       publicSession.id,
       { inputTokens: 30, outputTokens: 12 },
       "2026-08-27",
+      null,
     );
   });
 
