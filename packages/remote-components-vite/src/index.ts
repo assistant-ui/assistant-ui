@@ -307,8 +307,10 @@ export function remoteComponents(
               const origin = req.headers.origin;
               res.writeHead(200, {
                 "content-type": "text/html; charset=utf-8",
+                // With the project's own server.cors, this response sends
+                // no CORS header of its own.
                 ...(customCors
-                  ? { "access-control-allow-origin": "*" }
+                  ? {}
                   : origin !== undefined
                     ? { "access-control-allow-origin": origin, vary: "Origin" }
                     : {}),

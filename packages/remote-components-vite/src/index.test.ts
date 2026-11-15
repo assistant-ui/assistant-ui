@@ -72,6 +72,17 @@ describe("dev server CORS", () => {
     expect(response.status).toBe(403);
   });
 
+  it("refuses a rebound host name even when Origin matches Host", async () => {
+    const { port } = new URL(base);
+    const response = await get({
+      origin: `http://evil.example:${port}`,
+      host: `evil.example:${port}`,
+    });
+    // Vite's own allowedHosts check refuses the unknown Host.
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("answers a loopback host page and an opaque remote frame it embeds", async () => {
     const host = await get({ origin: "http://localhost:3000" });
     expect(host.status).toBe(200);
