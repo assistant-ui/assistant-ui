@@ -42,8 +42,73 @@ describe("GET /playground/init", () => {
         },
       },
     ],
+    ["an unknown top-level key", { files: [{ content: "bad()" }] }],
+    ["an unknown component key", { components: { extra: "bad()" } }],
+    ["an unknown style key", { styles: { colors: { other: "red" } } }],
+    [
+      "a prototype key",
+      JSON.parse('{"styles":{"__proto__":{"maxWidth":"1px"}}}'),
+    ],
+    ["a long loading text", { components: { loadingText: "a".repeat(81) } }],
+    ["a parenthesis in the font family", { styles: { fontFamily: "a(b)" } }],
+    ["a backtick in the max width", { styles: { maxWidth: "`${bad()}`" } }],
+    [
+      "a line separator in the loading text",
+      { components: { loadingText: "a\u2028b" } },
+    ],
+    [
+      "a quote in a color",
+      { styles: { colors: { accent: { dark: '#fff"' } } } },
+    ],
+    ["an out-of-range enum", { styles: { fontSize: "18px" } }],
   ])("rejects %s before generating registry source", (_, diff) => {
     expect(GET(request(diff)).status).toBe(400);
+  });
+
+  it("rejects an oversized encoded configuration", () => {
+    const response = GET(
+      new NextRequest(
+        `https://www.assistant-ui.com/playground/init?c=${"a".repeat(32_001)}`,
+      ),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects an encoding that is not JSON", () => {
+    const response = GET(
+      new NextRequest(
+        `https://www.assistant-ui.com/playground/init?c=${Buffer.from("{bad").toString("base64url")}`,
+      ),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("accepts the values the builder offers", async () => {
+    const response = GET(
+      request({
+        components: { loadingText: "Hang on, it's coming..." },
+        styles: {
+          fontFamily: '"Inter Variable", Georgia, serif',
+          maxWidth: "calc(100% - 2rem)",
+          colors: {
+            accent: { light: "oklch(0.7 0.15 250 / 80%)", dark: "#0ea5e9" },
+            background: { light: "rgb(255, 255, 255)", dark: "black" },
+          },
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const content: string = (await response.json()).files[0].content;
+    expect(content).toContain(
+      'fontFamily: "\\"Inter Variable\\", Georgia, serif",',
+    );
+    expect(content).toContain(
+      '["--thread-max-width" as string]: "calc(100% - 2rem)",',
+    );
+    expect(content).toContain(
+      '<span className="text-sm">{"Hang on, it\'s coming..."}</span>',
+    );
   });
 
   it("generates a registry from a valid encoded configuration", async () => {

@@ -2,6 +2,10 @@ import {
   type BuilderConfig,
   DEFAULT_CONFIG,
 } from "@/components/pages/playground/types";
+import { updateConfigSchema } from "./playground-config-schema";
+
+/** Longest encoded config accepted from a URL. */
+export const MAX_ENCODED_CONFIG_LENGTH = 32_000;
 
 function computeDiff(
   config: BuilderConfig,
@@ -48,6 +52,8 @@ export function applyDiff(
 
     const result = { ...(target as Record<string, unknown>) };
     for (const key of Object.keys(source as Record<string, unknown>)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype")
+        continue;
       const sourceObj = source as Record<string, unknown>;
       result[key] = deepMerge(result[key], sourceObj[key]);
     }
@@ -90,8 +96,15 @@ export function encodeConfig(config: BuilderConfig): string {
   return base64UrlEncode(json);
 }
 
+/**
+ * Decodes a config from a URL. Throws unless the diff matches the config
+ * schema exactly; unknown keys and out-of-range values are rejected.
+ */
 export function decodeConfig(encoded: string): BuilderConfig {
+  if (encoded.length > MAX_ENCODED_CONFIG_LENGTH) {
+    throw new Error("Configuration is too long");
+  }
   const json = base64UrlDecode(encoded);
-  const diff = JSON.parse(json) as Record<string, unknown>;
+  const diff = updateConfigSchema.parse(JSON.parse(json));
   return applyDiff(diff, DEFAULT_CONFIG);
 }

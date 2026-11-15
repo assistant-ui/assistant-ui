@@ -1,20 +1,43 @@
 import { z } from "zod";
 
+// Colors, lengths and font lists end up in generated TSX and CSS, so each
+// string is limited to the characters those values need.
+const colorString = z
+  .string()
+  .max(64)
+  .regex(/^[#\w(),.% /+-]*$/, "Invalid color");
+
+const lengthString = z
+  .string()
+  .max(40)
+  .regex(/^[\w.%()+*/ ,-]*$/, "Invalid length");
+
+const fontFamilyString = z
+  .string()
+  .max(200)
+  .regex(/^[\w ,'".-]*$/, "Invalid font family");
+
+const labelString = z
+  .string()
+  .max(80)
+  // oxlint-disable-next-line no-control-regex -- rejects control characters
+  .regex(/^[^\u0000-\u001f\u007f\u2028\u2029<>{}]*$/, "Invalid text");
+
 const themeColorSchema = z
-  .object({
-    light: z.string().optional(),
-    dark: z.string().optional(),
+  .strictObject({
+    light: colorString.optional(),
+    dark: colorString.optional(),
   })
   .optional();
 
-export const updateConfigSchema = z.object({
+export const updateConfigSchema = z.strictObject({
   components: z
-    .object({
+    .strictObject({
       attachments: z.boolean().optional(),
       branchPicker: z.boolean().optional(),
       editMessage: z.boolean().optional(),
       actionBar: z
-        .object({
+        .strictObject({
           copy: z.boolean().optional(),
           reload: z.boolean().optional(),
           speak: z.boolean().optional(),
@@ -41,14 +64,14 @@ export const updateConfigSchema = z.object({
       avatar: z.boolean().optional(),
       typingIndicator: z.enum(["none", "dot"]).optional(),
       loadingIndicator: z.enum(["none", "spinner", "text"]).optional(),
-      loadingText: z.string().optional(),
+      loadingText: labelString.optional(),
     })
     .optional(),
   styles: z
-    .object({
+    .strictObject({
       theme: z.enum(["light", "dark", "system"]).optional(),
       colors: z
-        .object({
+        .strictObject({
           accent: themeColorSchema,
           background: themeColorSchema,
           foreground: themeColorSchema,
@@ -65,47 +88,15 @@ export const updateConfigSchema = z.object({
         })
         .optional(),
       borderRadius: z.enum(["none", "sm", "md", "lg", "full"]).optional(),
-      maxWidth: z.string().optional(),
-      fontFamily: z.string().optional(),
+      maxWidth: lengthString.optional(),
+      fontFamily: fontFamilyString.optional(),
       fontSize: z.enum(["13px", "14px", "15px", "16px"]).optional(),
       messageSpacing: z.enum(["compact", "comfortable", "spacious"]).optional(),
       userMessagePosition: z.enum(["right", "left"]).optional(),
       animations: z.boolean().optional(),
     })
     .optional(),
-  customCSS: z.string().optional(),
+  customCSS: z.string().max(20_000).optional(),
 });
-
-export const registryConfigSchema = updateConfigSchema.superRefine(
-  (config, ctx) => {
-    if (config.components?.loadingText?.match(/[<{}]/)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["components", "loadingText"],
-        message: "Invalid loading text",
-      });
-    }
-    for (const [name, color] of Object.entries(config.styles?.colors ?? {})) {
-      for (const mode of ["light", "dark"] as const) {
-        if (color?.[mode]?.match(/[;{}<>\\\r\n]|\/\*/)) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["styles", "colors", name, mode],
-            message: `Invalid ${name} color`,
-          });
-        }
-      }
-    }
-    for (const key of ["fontFamily", "maxWidth"] as const) {
-      if (config.styles?.[key]?.match(/["\\\r\n]/)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["styles", key],
-          message: `Invalid ${key}`,
-        });
-      }
-    }
-  },
-);
 
 export type PartialBuilderConfig = z.infer<typeof updateConfigSchema>;

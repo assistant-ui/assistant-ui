@@ -1,11 +1,18 @@
 import { expect, it } from "vitest";
 import {
   type BorderRadius,
+  type BuilderConfig,
   DEFAULT_CONFIG,
   type FontSize,
 } from "../components/pages/playground/types";
 import { generateRegistryJson } from "./playground-registry";
-import { decodeConfig } from "./playground-config-codec";
+import { decodeConfig, encodeConfig } from "./playground-config-codec";
+import { PRESETS } from "../components/pages/playground/presets";
+
+const withStyles = (styles: Record<string, unknown>) => ({
+  ...DEFAULT_CONFIG,
+  styles: { ...DEFAULT_CONFIG.styles, ...styles },
+});
 
 it.each<{ fontSize: FontSize; className: string }>([
   { fontSize: "13px", className: "text-[13px]" },
@@ -29,10 +36,9 @@ it("preserves the default font size in the installed thread", () => {
 });
 
 it("uses the fallback for an unknown font size in decoded configuration", () => {
-  const encoded = Buffer.from(
-    JSON.stringify({ styles: { fontSize: "18px" } }),
-  ).toString("base64url");
-  const registry = generateRegistryJson(decodeConfig(encoded));
+  const registry = generateRegistryJson(
+    withStyles({ fontSize: "18px" }) as BuilderConfig,
+  );
 
   expect(registry.files[0]?.content).toContain('text-foreground text-base"');
 });
@@ -59,11 +65,7 @@ it.each<[BorderRadius, string]>([
 );
 
 it("preserves the fallback radius for unknown decoded values", () => {
-  const config = decodeConfig(
-    Buffer.from(JSON.stringify({ styles: { borderRadius: "xl" } })).toString(
-      "base64url",
-    ),
-  );
+  const config = withStyles({ borderRadius: "xl" }) as BuilderConfig;
   const registry = generateRegistryJson(config);
 
   expect(registry.files[0]?.content).toContain(
@@ -350,11 +352,7 @@ it.each([
 });
 
 it("falls back to comfortable spacing for an unknown decoded value", () => {
-  const config = decodeConfig(
-    Buffer.from(
-      JSON.stringify({ styles: { messageSpacing: "legacy" } }),
-    ).toString("base64url"),
-  );
+  const config = withStyles({ messageSpacing: "legacy" }) as BuilderConfig;
   const content = generateRegistryJson(config).files[0]?.content ?? "";
 
   expect(content).toContain(
@@ -522,5 +520,42 @@ it.each(["dot", "none"] as const)(
     expect(content.includes('case "indicator":')).toBe(
       typingIndicator === "dot",
     );
+  },
+);
+
+it("rejects decoded values outside the schema", () => {
+  const encode = (diff: unknown) =>
+    Buffer.from(JSON.stringify(diff)).toString("base64url");
+  expect(() =>
+    decodeConfig(encode({ styles: { fontSize: "18px" } })),
+  ).toThrow();
+  expect(() => decodeConfig(encode({ extra: true }))).toThrow();
+});
+
+it("round-trips an encoded configuration", () => {
+  const config = withStyles({ maxWidth: "56rem" }) as BuilderConfig;
+  expect(decodeConfig(encodeConfig(config))).toEqual(config);
+});
+
+it("writes configured strings as string literals", () => {
+  const hostile = '"}} />; bad(); <div x={"';
+  const content =
+    generateRegistryJson({
+      ...withStyles({ fontFamily: hostile, maxWidth: hostile }),
+      components: { ...DEFAULT_CONFIG.components, loadingText: hostile },
+    } as BuilderConfig).files[0]?.content ?? "";
+
+  expect(content).not.toContain(hostile);
+  expect(content).toContain(`fontFamily: ${JSON.stringify(hostile)},`);
+  expect(content).toContain(
+    `["--thread-max-width" as string]: ${JSON.stringify(hostile)},`,
+  );
+  expect(content).toContain(`{${JSON.stringify(hostile)}}</span>`);
+});
+
+it.each(PRESETS.map((preset) => [preset.id, preset.config] as const))(
+  "accepts the %s preset as a shared configuration",
+  (_, config) => {
+    expect(decodeConfig(encodeConfig(config))).toEqual(config);
   },
 );
