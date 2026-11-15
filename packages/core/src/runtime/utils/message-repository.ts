@@ -634,13 +634,66 @@ export class MessageRepository {
     return null;
   }
 
-  import({ headId, messages }: ExportedMessageRepository) {
-    const ordered = withParentsFirst(messages, (id) => this.messages.has(id));
-    for (const { message, parentId } of ordered) {
-      this.addOrUpdateMessage(parentId, message);
-    }
+  /**
+   * Records the tree so a failed operation can put it back. Nodes are
+   * mutated in place, so their fields are copied, not just the map.
+   */
+  private snapshot(): () => void {
+    const messages = new Map(this.messages);
+    const head = this.head;
+    const root = this.root;
+    const rootChildren = root.children.slice();
+    const rootNext = root.next;
+    const nodes = Array.from(messages.values(), (node) => ({
+      node,
+      prev: node.prev,
+      next: node.next,
+      current: node.current,
+      level: node.level,
+      children: node.children.slice(),
+    }));
+    return () => {
+      for (const { node, ...fields } of nodes) Object.assign(node, fields);
+      root.children = rootChildren;
+      root.next = rootNext;
+      this.root = root;
+      this.messages = messages;
+      this.head = head;
+      this._messages.dirty();
+    };
+  }
 
-    const importedHeadId = headId ?? ordered.at(-1)?.message.id ?? null;
-    this.setHead(importedHeadId, false);
+  /**
+   * Adds the exported messages and selects the exported head. If any message
+   * or the head cannot be placed, the repository is left as it was.
+   */
+  import({ headId, messages }: ExportedMessageRepository) {
+    const restore = this.snapshot();
+    try {
+      const ordered = withParentsFirst(messages, (id) => this.messages.has(id));
+      for (const { message, parentId } of ordered) {
+        this.addOrUpdateMessage(parentId, message);
+      }
+
+      const importedHeadId = headId ?? ordered.at(-1)?.message.id ?? null;
+      this.setHead(importedHeadId, false);
+    } catch (error) {
+      restore();
+      throw error;
+    }
   }
 }
+
+/**
+ * Replaces everything in `repository` with `data`. The data is placed on a
+ * scratch repository first, so data that cannot be placed throws before the
+ * existing messages are cleared.
+ */
+export const replaceMessageRepository = (
+  repository: MessageRepository,
+  data: ExportedMessageRepository,
+) => {
+  new MessageRepository().import(data);
+  repository.clear();
+  repository.import(data);
+};

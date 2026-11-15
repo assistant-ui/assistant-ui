@@ -10,6 +10,7 @@ import { getAutoStatus } from "../../runtime/utils/auto-status";
 import {
   type ExportedMessageRepository,
   type ExportedMessageRepositoryItem,
+  replaceMessageRepository,
   withoutOrphanedMessages,
 } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
@@ -742,8 +743,10 @@ export class LocalThreadRuntimeCore
       ) {
         this._unwrittenSeedMessages.clear();
         this._loadImports++;
-        this.repository.clear();
-        this.repository.import(withLocalPauseReasons(repository));
+        replaceMessageRepository(
+          this.repository,
+          withLocalPauseReasons(repository),
+        );
       }
       if (repository.messages.length > 0) {
         this.ensureInitialized();
