@@ -22,8 +22,8 @@ import { useSession } from "@/lib/session";
 type Adapters = UseChatRuntimeOptions["adapters"];
 
 // Engagement events (copies, suggestion clicks, branch switches) are analytics,
-// so they start off and follow the consent banner; see useDocsCloud. Run
-// reports and stored threads are how the assistant works and stay on.
+// so they start off and follow the consent banner; see useEngagementConsent.
+// Run reports and stored threads are how the assistant works and stay on.
 const cloudTelemetry = {
   events: false,
   ...(process.env.NEXT_PUBLIC_VERCEL_ENV
@@ -150,15 +150,42 @@ export function useDocsCloud() {
     [baseUrl, userKey],
   );
 
-  useEffect(
-    () =>
-      followAnalyticsConsent((allowed) => {
-        cloud.telemetry.events = allowed;
-      }),
-    [cloud],
-  );
+  useEngagementConsent(cloud);
 
   return { cloud, claims };
+}
+
+/** Turns a cloud's engagement events on and off with analytics consent. */
+export function useEngagementConsent(cloud: AssistantCloud | undefined) {
+  useEffect(() => {
+    if (!cloud) return;
+    return followAnalyticsConsent((allowed) => {
+      cloud.telemetry.events = allowed;
+    });
+  }, [cloud]);
+}
+
+/**
+ * Stands in for the runtime's built-in anonymous cloud, which sends engagement
+ * events with no consent check. Returns undefined when `enabled` is false or
+ * the site has no Assistant Cloud URL, the same cases where the runtime would
+ * not use its own.
+ */
+export function useAnonymousDocsCloud(enabled = true) {
+  const baseUrl = process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL;
+  const cloud = useMemo(
+    () =>
+      enabled && baseUrl
+        ? new AssistantCloud({
+            baseUrl,
+            anonymous: true,
+            telemetry: { events: false },
+          })
+        : undefined,
+    [enabled, baseUrl],
+  );
+  useEngagementConsent(cloud);
+  return cloud;
 }
 
 const subscribeToNothing = () => () => {};
@@ -208,6 +235,8 @@ export function useDocsChatRuntime({
   searchDocs?: boolean;
   countConversations?: boolean;
 } = {}) {
+  const anonymousCloud = useAnonymousDocsCloud(!cloud);
+  const runtimeCloud = cloud ?? anonymousCloud;
   return useChatRuntime({
     transport: new AssistantChatTransport({
       ...(api ? { api } : {}),
@@ -225,6 +254,6 @@ export function useDocsChatRuntime({
       ? { sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls }
       : {}),
     ...(adapters ? { adapters } : {}),
-    ...(cloud ? { cloud } : {}),
+    ...(runtimeCloud ? { cloud: runtimeCloud } : {}),
   });
 }

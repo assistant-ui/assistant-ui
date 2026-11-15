@@ -27,6 +27,7 @@ import {
 } from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
 import { createPlaygroundChatToolkit } from "@/lib/playground-chat-toolkit";
+import { useAnonymousDocsCloud } from "@/runtimes/chat-runtime";
 import type { PartialBuilderConfig } from "@/lib/playground-config-schema";
 import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
@@ -154,7 +155,9 @@ function PlaygroundChatProviderInner({
   children,
 }: PlaygroundChatProviderInnerProps) {
   const aui = useAui();
+  const cloud = useAnonymousDocsCloud();
   const runtime = useChatRuntime({
+    ...(cloud ? { cloud } : {}),
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });

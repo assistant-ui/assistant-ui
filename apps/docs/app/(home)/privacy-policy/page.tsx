@@ -73,6 +73,7 @@ const sections = [
       'Vercel hosts the website and receives your requests to it, as well as the analytics described in the section titled "Do We Use Cookies And Other Tracking Technologies?" When we turn on Vercel\'s tracing to debug the site, Vercel also receives the AI assistant logs.',
       "Upstash receives your IP address, an anonymous session identifier, your account identifier when you are signed in, and AI assistant conversation identifiers, which we use to limit how often the AI assistant and other features can be used.",
       "Cloudflare receives the details you submit in the contact sales form and delivers them to our team by email. The form then opens Cal.com with your name, email, and notes filled in so you can book a call.",
+      "Stripe processes your payment details when you buy a paid plan from us.",
       "Blaxel runs the live previews in the Xulux playground, so your browser loads those previews from Blaxel.",
       "Open-Meteo receives a place name or coordinates when you ask for the weather in one of our demos, and Google Fonts serves the fonts for one of our interactive demos. Both see your IP address and browser details.",
       "We may also share or transfer information in connection with a merger, sale of company assets, financing, acquisition, or similar business transfer. We may share information with affiliates and require those affiliates to honor this Privacy Notice.",
