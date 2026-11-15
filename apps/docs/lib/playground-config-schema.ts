@@ -108,12 +108,13 @@ export const updateConfigSchema = z.strictObject({
   customCSS: z
     .string()
     .max(CUSTOM_CSS_MAX_LENGTH)
-    // Tabs and line breaks only, and no lone surrogates, so each character
-    // encodes to at most 3 bytes and the config stays under the link limit.
+    // Of the control characters only tab and line breaks, and no lone
+    // surrogates, so each UTF-16 code unit `max` counts encodes to at most
+    // 3 bytes and the config stays under the link limit.
     .refine(
       (value) =>
         // oxlint-disable-next-line no-control-regex -- rejects control characters
-        !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value) &&
+        !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(value) &&
         !/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(
           value,
         ),

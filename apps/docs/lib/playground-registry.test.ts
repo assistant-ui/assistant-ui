@@ -544,8 +544,10 @@ it("explains why a config cannot be shared", () => {
   expect(configIssue(config)).toMatch(/^components\.loadingText: /);
 });
 
-it("encodes the longest config the schema accepts within the decoder limit", () => {
-  const wide = (length: number) => "界".repeat(length);
+it.each([
+  ["3-byte characters", (length: number) => "界".repeat(length)],
+  ["emoji", (length: number) => "🎨".repeat(length / 2)],
+])("encodes the longest config of %s within the decoder limit", (_, wide) => {
   const color = { light: "#".padEnd(64, "a"), dark: "#".padEnd(64, "b") };
   const config: BuilderConfig = {
     ...DEFAULT_CONFIG,
@@ -613,6 +615,7 @@ it.each(PRESETS.map((preset) => [preset.id, preset.config] as const))(
 it.each([
   ["a NUL character", "\u0000"],
   ["a lone surrogate", "\ud800"],
+  ["a C1 control character", "\u0085"],
 ])("rejects custom CSS with %s", (_, char) => {
   expect(configIssue({ ...DEFAULT_CONFIG, customCSS: `a${char}b` })).toMatch(
     /^customCSS: /,

@@ -5,9 +5,11 @@ import {
 import { updateConfigSchema } from "./playground-config-schema";
 
 /**
- * Longest encoded config accepted from a URL. The schema limits every string
- * to characters that encode to at most 3 bytes (no control characters or lone
- * surrogates in the long fields), so every config it accepts encodes shorter
+ * Longest encoded config accepted from a URL. String lengths in the schema
+ * count UTF-16 code units, and the schema only accepts values where each unit
+ * encodes to at most 3 bytes: an astral character such as an emoji is 2 units
+ * and 4 bytes, and the long fields reject the control characters and lone
+ * surrogates that JSON would escape to 6. So every config it accepts encodes shorter
  * than this and `encodeConfig` never writes a value `decodeConfig` refuses
  * for its length. `configIssue` checks both on the encoder side.
  */
