@@ -522,7 +522,9 @@ const useStreamThreadRuntime = (
     // interrupt clears.
     unstable_isClientToolCall: () => {
       const current = streamRef.current;
-      return !current.isLoading && current.interrupts.length > 0
+      return !current.isLoading &&
+        !threadController.getState().forkPending &&
+        current.interrupts.length > 0
         ? false
         : undefined;
     },

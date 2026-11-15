@@ -24,10 +24,12 @@ vi.mock("@langchain/react", async (importOriginal) => ({
 
 import { useStreamRuntime } from "./useStreamRuntime";
 
-it("holds a call paused on an interrupt and runs it once the resumed run settles", async () => {
+const renderWithDeleteTool = (initial: {
+  messages: LangChainBaseMessage[];
+  isLoading: boolean;
+}) => {
   const stream = {
-    messages: [] as LangChainBaseMessage[],
-    isLoading: true,
+    ...initial,
     isThreadLoading: false,
     values: {},
     interrupts: [] as unknown[],
@@ -39,7 +41,7 @@ it("holds a call paused on an interrupt and runs it once the resumed run settles
     submit: vi.fn(async () => {}),
     respond: vi.fn(),
     respondAll: vi.fn(),
-    stop: vi.fn(),
+    stop: vi.fn(async () => {}),
     client: {},
     [streamController]: {
       messageMetadataStore: { getSnapshot: vi.fn() },
@@ -76,20 +78,25 @@ it("holds a call paused on an interrupt and runs it once the resumed run settles
       rerender();
       rerenderAui();
     });
+  return { stream, execute, runtime, update };
+};
 
-  update({
-    messages: [
-      {
-        id: "ai-1",
-        _getType: () => "ai",
-        content: "",
-        tool_calls: [
-          { id: "call_1", name: "delete_file", args: { path: "/tmp/a" } },
-        ],
-      },
-    ],
+const deleteCall: LangChainBaseMessage = {
+  id: "ai-1",
+  _getType: () => "ai",
+  content: "",
+  tool_calls: [{ id: "call_1", name: "delete_file", args: { path: "/tmp/a" } }],
+};
+
+const pause = { id: "interrupt-1", value: { action: "delete_file" } };
+
+it("holds a call paused on an interrupt and runs it once the resumed run settles", async () => {
+  const { stream, execute, update } = renderWithDeleteTool({
+    messages: [],
+    isLoading: true,
   });
-  const pause = { id: "interrupt-1", value: { action: "delete_file" } };
+
+  update({ messages: [deleteCall] });
   update({ isLoading: false, interrupts: [pause], interrupt: pause });
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -102,6 +109,50 @@ it("holds a call paused on an interrupt and runs it once the resumed run settles
   // answering the call itself.
   update({ isLoading: true, interrupts: [], interrupt: undefined });
   expect(execute).not.toHaveBeenCalled();
+  update({ isLoading: false });
+  await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+});
+
+it("holds a call first seen during a pending fork until the interrupt clears", async () => {
+  const human: LangChainBaseMessage = {
+    id: "u1",
+    _getType: () => "human",
+    content: "delete it",
+  };
+  const reply: LangChainBaseMessage = {
+    id: "a1",
+    _getType: () => "ai",
+    content: "on it",
+  };
+  const { stream, execute, runtime, update } = renderWithDeleteTool({
+    messages: [human, reply],
+    isLoading: false,
+  });
+  let releaseStop!: () => void;
+  stream.stop.mockImplementation(
+    () => new Promise<void>((resolve) => (releaseStop = resolve)),
+  );
+
+  await act(async () => {
+    runtime.current.thread.getMessageById("a1").reload();
+    await Promise.resolve();
+  });
+  expect(runtime.current.thread.getState().isRunning).toBe(true);
+
+  // The stopped run's last snapshot lands while the fork is still pending.
+  update({
+    messages: [human, deleteCall],
+    interrupts: [pause],
+    interrupt: pause,
+  });
+  await act(async () => {
+    releaseStop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(runtime.current.thread.getState().isRunning).toBe(false);
+  expect(execute).not.toHaveBeenCalled();
+
+  update({ isLoading: true, interrupts: [], interrupt: undefined });
   update({ isLoading: false });
   await waitFor(() => expect(execute).toHaveBeenCalledOnce());
 });
