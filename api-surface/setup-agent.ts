@@ -521,7 +521,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { CODING_AGENTS, CodingAgent, HELP, OFFICIAL_SETUP_APPS, OFFICIAL_SETUP_SERVERS, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, parseTrustedSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { CODING_AGENTS, CodingAgent, HELP, OFFICIAL_SETUP_APPS, OFFICIAL_SETUP_SERVERS, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, parseTrustedSetupUrl, runCodingAgent, runSetupCommand, stopWhenClosed, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -617,6 +617,8 @@ declare const stepProgress: (state: Checkout.State) => {
   total: number;
   done: number;
 };
+
+declare const stopWhenClosed: (client: Pick<CheckoutClient, "state" | "subscribe">, stop: () => void, delayMs?: number) => () => void;
 
 declare const upsertEnvLine: (content: string, key: string, value: string) => string;
 
